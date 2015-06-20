@@ -2,18 +2,18 @@ require 'yaml'
 require 'io/console'
 require 'rest_client'
 require 'term/ansicolor'
-
+require 'optparse'
 
 
 class Morpheus::Cli::Remote
 	include Term::ANSIColor
 	def initialize() 
-		@appliances = load_appliance_file
+		@appliances = ::Morpheus::Cli::Remote.load_appliance_file
 	end
 
 	def handle(args) 
 		if args.empty?
-			puts "Usage: morpheus remote [list,add,remove,use] [name] [host]"
+			puts "\nUsage: morpheus remote [list,add,remove,use] [name] [host]\n\n"
 		end
 
 		case args[0]
@@ -25,17 +25,19 @@ class Morpheus::Cli::Remote
 				remove(args[1..-1])
 			when 'use'
 				use(args[1..-1])
+			else
+				puts "\nUsage: morpheus remote [list,add,remove,use] [name] [host]\n\n"
 		end
 	end
 
 	def list(args)
-		print "\n" ,blue, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
+		print "\n" ,cyan, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
 		# print red, bold, "red bold", reset, "\n"
 		if @appliances == nil || @appliances.empty?
 		else
 		end
 		@appliances.each do |app_name, v| 
-			print blue
+			print cyan
 			if v[:active] == true
 				print bold, "=> #{app_name}\t#{v[:host]}",reset,"\n"
 			else
@@ -46,11 +48,39 @@ class Morpheus::Cli::Remote
 	end
 
 	def add(args)
+		if args.count < 2
+			puts "\nUsage: morpheus remote add [name] [host] [--default]\n\n"
+			return
+		end
+		params = {}
+		optparse = OptionParser.new do|opts|
+			params[:default] = false
+			opts.on( '-d', '--default', "Default has been set" ) do
+				params[:default] = true
+			end
+		end
+		optparse.parse(args)
+
+		name = args[0].to_sym
+		if @appliances[name] != nil
+			print red, "Remote appliance already configured for #{args[0]}", reset, "\n"
+		else
+			@appliances[name] = {
+				host: args[1],
+				active: false
+			}
+			if params[:default] == true
+				set_active_appliance name
+			end
+		end
+		::Morpheus::Cli::Remote.save_appliances(@appliances)
+		list([])
 	end
 
 	def remove(args)
 		if args.empty?
-			puts "Usage: morpheus remote remove [name]"
+			puts "\nUsage: morpheus remote remove [name]\n\n"
+			return
 		end
 		name = args[0].to_sym
 		if @appliances[name] == nil
@@ -61,30 +91,37 @@ class Morpheus::Cli::Remote
 				active = true
 			end
 			@appliances.delete(name)
-			if active && @!appliances.empty?
+			if active && !@appliances.empty?
 				@appliances[@appliances.keys.first][:active] = true
 			end
 		end
-		save_appliances(@appliances)
+		::Morpheus::Cli::Remote.save_appliances(@appliances)
+		list([])
 	end
 
 	def use(args)
 		if args.empty?
 			puts "Usage: morpheus remote use [name]"
+			return
 		end
 		name = args[0].to_sym
 		if @appliances[name] == nil
 			print red, "Remote appliance not configured for #{args[0]}", reset, "\n"
 		else
-			@appliances.each do |k,v|
-				if k == name
-					v[:active] = true
-				else
-					v[:active] = false
-				end
+			set_active_appliance name
+		end
+		::Morpheus::Cli::Remote.save_appliances(@appliances)
+		list([])
+	end
+
+	def set_active_appliance(name)
+		@appliances.each do |k,v|
+			if k == name
+				v[:active] = true
+			else
+				v[:active] = false
 			end
 		end
-		save_appliances(@appliances)
 	end
 
 	# Provides the current active appliance url information
@@ -95,8 +132,6 @@ class Morpheus::Cli::Remote
 		return @@appliance
 	end
 
-
-private
 	
 
 	def self.load_appliance_file
