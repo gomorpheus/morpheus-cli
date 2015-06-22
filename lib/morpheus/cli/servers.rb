@@ -13,6 +13,7 @@ class Morpheus::Cli::Servers
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@zones_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).zones
+		@zone_types = @zones_interface.zone_types['zoneTypes']
 	end
 
 	def handle(args) 
@@ -41,33 +42,53 @@ class Morpheus::Cli::Servers
 			puts "\nUsage: morpheus servers add [name] --group GROUP --type TYPE\n\n"
 			return
 		end
-		params = {server_type: 'standard'}
+		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				params[:group] = group
+				options[:group] = group
 			end
-			opts.on( '-t', '--type TYPE', "Server Type" ) do |server_type|
-				params[:server_type] = server_type
+			opts.on( '-z', '--zone ZONE', "Zone Name" ) do |group|
+				options[:zone] = group
 			end
-			opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
-				params[:description] = desc
+			opts.on( '-d', '--description DESCRIPTION', "Server Description" ) do |desc|
+				options[:description] = desc
 			end
 		end
+		zone=nil
 		optparse.parse(args)
-		server = {name: args[0], description: params[:description]}
 		if !params[:group].nil?
 			group = find_group_by_name(params[:group])
 			if !group.nil?
-				server['groupId'] = group['id']
+				options['groupId'] = group['id']
+			end
+			if !params[:zone].nil?
+				zone = find_zone_by_name(options['groupId'], params[:zone])
+				if !zone.nil?
+					options['zoneId'] = zone['id']
+				end
 			end
 		end
 
-		if !params[:server_type].nil?
-			server['serverType'] = {code:server_type_code_for_name(params[:server_type])}
+		if options['zoneId'].nil?
+			puts red,bold,"\nEither the zone was not specified or was not found. Please make sure a zone is specified with --zone\n\n"
+			return
 		end
-		
+
+		zone_type = zone_type_for_id(zone['zoneTypeId'])
 		begin
-			@servers_interface.create(server)
+			case zone_type['code']
+				when 'standard'
+					add_standard(args[0],options[:description],zone, args)
+					list([])
+				when 'openstack'
+					add_openstack(args[0],options[:description],zone, args)
+					list([])
+				when 'amazon'
+					add_amazon(args[0],options[:description],zone, args)
+					list([])
+				else
+					puts "Unsupported Zone Type: This version of the morpheus cli does not support the requested zone type"
+			end		
 		rescue => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -162,7 +183,75 @@ class Morpheus::Cli::Servers
 		end
 	end
 
-	private
+private
+
+
+	def add_openstack(name, description,zone, args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.on( '-s', '--size SIZE', "Disk Size" ) do |size|
+				options[:diskSize] = size.to_l
+			end
+			opts.on('-i', '--image IMAGE', "Image Name") do |image|
+				options[:imageName] = image
+			end
+
+			opts.on('-f', '--flavor FLAVOR', "Flavor Name") do |flavor|
+				options[:flavorName] = flavor
+			end
+		end
+		optparse.parse(args)
+
+		server_payload = {server: {name: name, description: description}, zoneId: zone['id']}
+		response = @servers_interface.create(server_payload)
+	end
+
+	def add_standard(name,description,zone, args)
+		options = {}
+		networkOptions = {name: 'eth0'}
+		optparse = OptionParser.new do|opts|
+			opts.on( '-u', '--ssh-user USER', "SSH Username" ) do |sshUser|
+				options['sshUser'] = sshUser
+			end
+			opts.on('-p', '--password PASSWORD', "SSH Password (optional)") do |password|
+				options['sshPassowrd'] = password
+			end
+
+			opts.on('-h', '--host HOST', "HOST IP") do |host|
+				options['sshHost'] = host
+			end
+
+			options['dataDevice'] = '/dev/sdb'
+			opts.on('-m', '--data-device DATADEVICE', "Data device for LVM") do |device|
+				options['dataDevice'] = device
+			end
+
+			
+			opts.on('-n', '--interface NETWORK', "Default Network Interface") do |net|
+				networkOptions[:name] = net
+			end
+		end
+		optparse.parse(args)
+
+		server_payload = {server: {name: name, description: description}.merge(options), network: networkOptions, zoneId: zone['id']}
+		response = @servers_interface.create(server_payload)
+
+	end
+
+	def add_amazon(name,description,zone, args)
+		puts "NOT YET IMPLEMENTED"
+	end
+
+	def zone_type_for_id(id)
+		if !@zone_types.empty?
+			zone_type = @zone_types.find { |z| z['id'].to_i == id.to_i}
+			if !zone_type.nil?
+				return zone_type['name']
+			end
+		end
+		return nil
+	end
+
 
 	def find_group_by_name(name)
 		group_results = @groups_interface.get(name)
