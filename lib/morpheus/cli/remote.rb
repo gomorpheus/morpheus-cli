@@ -129,7 +129,7 @@ class Morpheus::Cli::Remote
 		if !defined?(@@appliance)
 			@@appliance = load_appliance_file.select { |k,v| v[:active] == true}
 		end
-		return @@appliance
+		return @@appliance.keys[0], @@appliance[@@appliance.keys[0]][:host]
 	end
 
 	

@@ -4,8 +4,9 @@ require 'rest_client'
 module Morpheus
 	module Cli
 		class Credentials
-			def initialize(appliance_url)
+			def initialize(appliance_name, appliance_url)
 				@appliance_url = appliance_url
+				@appliance_name = appliance_name
 			end
 			
 			def request_credentials()
@@ -14,16 +15,17 @@ module Morpheus
 				if !creds
 					puts "No Credentials on File for this Appliance: "
 					puts "Enter Username: "
-					username = gets().chomp
+					username = $stdin.gets.chomp!
 					puts "Enter Password: "
-					password = STDIN.noecho(&:gets).chomp
+					password = STDIN.noecho(&:gets).chomp!
 
 					oauth_url = File.join(@appliance_url, "/oauth/token")
+					puts "Looking at oauth url #{oauth_url} #{username} #{password}"
 					begin
-						response = RestClient.get oauth_url, {:params => {:grant_type => "password", :client_id => "morpheus-cli", :scope => "write", :username => username, :password => password}}
+						authorize_response = RestClient.post oauth_url, {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}
 
-						json_response = JSON.parse(response)
-						access_token = json_response.access_token
+						json_response = JSON.parse(authorize_response.to_s)
+						access_token = json_response['access_token']
 						if access_token
 							save_credentials(access_token)
 							return access_token
@@ -32,7 +34,7 @@ module Morpheus
 							return nil
 						end
 					rescue => e
-						puts "Error Communicating with the Appliance. Please try again later."
+						puts "Error Communicating with the Appliance. Please try again later. #{e}"
 						return nil
 					end
 				else
@@ -45,7 +47,7 @@ module Morpheus
 				if credential_map.nil?
 					return nil
 				else
-					return credential_map[@appliance_url]
+					return credential_map[@appliance_name]
 				end
 			end
 
@@ -72,7 +74,7 @@ module Morpheus
 				if credential_map.nil?
 					credential_map = {}
 				end
-				credential_map[@appliance_url] = token
+				credential_map[@appliance_name] = token
 				File.open(credentials_file_path, 'w') {|f| f.write credential_map.to_yaml } #Store
 			end
 		end
