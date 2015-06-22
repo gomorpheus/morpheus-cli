@@ -6,6 +6,7 @@ module Morpheus
   	require 'morpheus/api/groups_interface'
   	require 'morpheus/api/zones_interface'
   	require 'morpheus/api/servers_interface'
+  	require 'morpheus/api/instances_interface'
   	require 'morpheus/cli/credentials'
   	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'

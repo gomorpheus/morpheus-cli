@@ -22,4 +22,8 @@ class Morpheus::APIClient
 	def servers
 		Morpheus::ServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
+
+	def instances
+		Morpheus::InstancesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
 end

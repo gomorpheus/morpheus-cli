@@ -20,7 +20,6 @@ module Morpheus
 					password = STDIN.noecho(&:gets).chomp!
 
 					oauth_url = File.join(@appliance_url, "/oauth/token")
-					puts "Looking at oauth url #{oauth_url} #{username} #{password}"
 					begin
 						authorize_response = RestClient.post oauth_url, {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}
 
