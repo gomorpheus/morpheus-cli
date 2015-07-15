@@ -11,6 +11,8 @@ class Morpheus::Cli::Groups
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@active_groups = ::Morpheus::Cli::Groups.load_group_file
+
 	end
 
 	def handle(args) 
@@ -105,5 +107,56 @@ class Morpheus::Cli::Groups
 			puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			return nil
 		end
+	end
+
+	def use(args) 
+		if args.length < 1
+			puts "Usage: morpheus groups use [name]"
+		end
+		begin
+			json_response = @groups_interface.get(args[0])
+			groups = json_response['groups']
+			if groups.length > 0
+
+			else
+				puts "Group not found"
+			end
+		rescue => e
+			puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			return nil
+		end
+	end
+
+	# Provides the current active group information
+	def self.active_group
+		appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
+		if !defined?(@@groups)
+			@@groups = load_group_file
+		end
+		return @@groups[appliance_name.to_sym]
+	end
+
+	
+
+	def self.load_group_file
+		remote_file = groups_file_path
+		if File.exist? remote_file
+			return YAML.load_file(remote_file)
+		else
+			{}
+		end
+	end
+
+	def self.groups_file_path
+		home_dir = Dir.home
+		morpheus_dir = File.join(home_dir,".morpheus")
+		if !Dir.exist?(morpheus_dir)
+			Dir.mkdir(morpheus_dir)
+		end
+		return File.join(morpheus_dir,"groups")
+	end
+
+	def self.save_groups(group_map)
+		File.open(groups_file_path, 'w') {|f| f.write group_map.to_yaml } #Store
 	end
 end
