@@ -14,6 +14,7 @@ class Morpheus::Cli::Servers
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@zones_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).zones
 		@zone_types = @zones_interface.zone_types['zoneTypes']
+		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
 	def handle(args) 
@@ -39,7 +40,7 @@ class Morpheus::Cli::Servers
 
 	def add(args)
 		if args.count < 1
-			puts "\nUsage: morpheus servers add [name] --group GROUP --type TYPE\n\n"
+			puts "\nUsage: morpheus servers add [name] --group GROUP --zone ZONE\n\n"
 			return
 		end
 		options = {}
@@ -56,16 +57,19 @@ class Morpheus::Cli::Servers
 		end
 		zone=nil
 		optparse.parse(args)
-		if !params[:group].nil?
-			group = find_group_by_name(params[:group])
+		if !options[:group].nil?
+			group = find_group_by_name(options[:group])
 			if !group.nil?
 				options['groupId'] = group['id']
 			end
-			if !params[:zone].nil?
-				zone = find_zone_by_name(options['groupId'], params[:zone])
-				if !zone.nil?
-					options['zoneId'] = zone['id']
-				end
+		else
+			options['groupId'] = @active_groups[@appliance_name.to_sym]
+		end
+
+		if !options[:zone].nil?
+			zone = find_zone_by_name(options['groupId'], options[:zone])
+			if !zone.nil?
+				options['zoneId'] = zone['id']
 			end
 		end
 

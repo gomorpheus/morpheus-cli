@@ -29,6 +29,8 @@ class Morpheus::Cli::Groups
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'use'
+				use(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			else
@@ -98,7 +100,11 @@ class Morpheus::Cli::Groups
 				puts yellow,"No groups currently configured.",reset
 			else
 				groups.each do |group|
-					print cyan, "=  #{group['name']} - #{group['location']}\n"
+					if @active_groups[@appliance_name.to_sym] == group['id']
+						print cyan, bold, "=> #{group['name']} - #{group['location']}",reset,"\n"
+					else
+						print cyan, "=  #{group['name']} - #{group['location']}\n",reset
+					end
 				end
 			end
 			print reset,"\n\n"
@@ -117,7 +123,9 @@ class Morpheus::Cli::Groups
 			json_response = @groups_interface.get(args[0])
 			groups = json_response['groups']
 			if groups.length > 0
-
+				@active_groups[@appliance_name.to_sym] = groups[0]['id']
+				::Morpheus::Cli::Groups.save_groups(@active_groups)
+				list([])
 			else
 				puts "Group not found"
 			end
