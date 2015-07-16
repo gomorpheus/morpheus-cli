@@ -17,6 +17,8 @@ case ARGV[0]
 		Morpheus::Cli::Servers.new().handle(ARGV[1..-1])
 	when 'instances'
 		Morpheus::Cli::Instances.new().handle(ARGV[1..-1])
+	when 'instance-types'
+		Morpheus::Cli::InstanceTypes.new().handle(ARGV[1..-1])
 	else
 		puts "\nUsage: morpheus [command] [options]\n"
 end
