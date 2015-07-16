@@ -23,4 +23,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_dependency 'term-ansicolor', '~> 1.3.0'
   spec.add_dependency "rest-client", "~> 1.7"
+  spec.add_dependency "filesize"
 end

@@ -3,7 +3,7 @@ require 'io/console'
 require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
-
+require 'filesize'
 
 class Morpheus::Cli::Instances
 	include Term::ANSIColor
@@ -38,12 +38,74 @@ class Morpheus::Cli::Instances
 				start(args[1..-1])
 			when 'restart'
 				restart(args[1..-1])
+			when 'stats'
+				stats(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			else
 				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone] [name]\n\n"
 		end
 	end
 
 	def add(args)
+	end
+
+	def stats(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances stats [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			instance = instance_results['instances'][0]
+			instance_id = instance['id']
+			stats = instance_results['stats'][instance_id.to_s]
+			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", reset, "\n\n"
+			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
+			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+			puts 
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def details(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances stats [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			instance = instance_results['instances'][0]
+			instance_id = instance['id']
+			stats = instance_results['stats'][instance_id.to_s]
+			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", reset, "\n\n"
+			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
+			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+			puts instance
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
 	end
 
 	def stop(args)
