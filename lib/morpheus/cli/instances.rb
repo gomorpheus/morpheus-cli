@@ -4,6 +4,7 @@ require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
+require 'table_print'
 
 class Morpheus::Cli::Instances
 	include Term::ANSIColor
@@ -22,7 +23,7 @@ class Morpheus::Cli::Instances
 			return 1
 		end
 		if args.empty?
-			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone] [name]\n\n"
+			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
 		end
 
 		case args[0]
@@ -42,8 +43,14 @@ class Morpheus::Cli::Instances
 				stats(args[1..-1])
 			when 'details'
 				details(args[1..-1])
+			when 'envs'
+				envs(args[1..-1])
+			when 'setenv'
+				setenv(args[1..-1])	
+			when 'delenv'
+				delenv(args[1..-1])	
 			else
-				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone] [name]\n\n"
+				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
 		end
 	end
 
@@ -97,6 +104,105 @@ class Morpheus::Cli::Instances
 			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
 			puts instance
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def envs(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances envs [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			instance = instance_results['instances'][0]
+			instance_id = instance['id']
+			env_results = @instances_interface.get_envs(instance_id)
+			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
+			envs = env_results['envs'] || {}
+			if env_results['readOnlyEnvs']
+				envs += env_results['readOnlyEnvs'].map { |k,v| {:name => k, :value => v, :export => true}}
+			end
+			tp envs, :name, :value, :export
+			print "\n" ,cyan, bold, "Importad Envs\n","==================", "\n\n", reset, cyan
+			 imported_envs = env_results['importedEnvs'].map { |k,v| {:name => k, :value => v}}
+			 tp imported_envs
+			print reset, "\n"
+			
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def setenv(args)
+		if args.count < 3
+			puts "\nUsage: morpheus instances setenv INSTANCE NAME VALUE [-e]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			instance = instance_results['instances'][0]
+			instance_id = instance['id']
+			evar = {name: args[1], value: args[2], export: false}
+			params = {}
+			optparse = OptionParser.new do|opts|
+				opts.on( '-e', "Exportable" ) do |exportable|
+					evar[:export] = exportable
+				end
+			end
+			optparse.parse(args)
+
+			@instances_interface.create_env(instance_id, [evar])
+			envs([args[0]])
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def delenv(args)
+		if args.count < 2
+			puts "\nUsage: morpheus instances setenv INSTANCE NAME\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			instance = instance_results['instances'][0]
+			instance_id = instance['id']
+			name = args[1]
+
+			@instances_interface.del_env(instance_id, name)
+			envs([args[0]])
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)

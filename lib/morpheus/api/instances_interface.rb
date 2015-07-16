@@ -26,6 +26,33 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def get_envs(id, options=nil)
+		url = "#{@base_url}/api/instances/#{id}/envs"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		response = RestClient::Request.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def create_env(id, options)
+		url = "#{@base_url}/api/instances/#{id}/envs"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = {envs: options}
+		response = RestClient::Request.execute(method: :post, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def del_env(id, name)
+		url = "#{@base_url}/api/instances/#{id}/envs/#{name}"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		response = RestClient::Request.execute(method: :delete, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
 
 	def create(options)
 		url = "#{@base_url}/api/instances"
