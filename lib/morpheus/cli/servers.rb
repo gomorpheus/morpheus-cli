@@ -39,24 +39,13 @@ class Morpheus::Cli::Servers
 	end
 
 	def add(args)
-		if args.count < 1
-			puts "\nUsage: morpheus servers add [name] --group GROUP --zone ZONE\n\n"
+		if args.count < 3
+			puts "\nUsage: morpheus servers add GROUP ZONE [name]\n\n"
 			return
 		end
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
-			end
-			opts.on( '-z', '--zone ZONE', "Zone Name" ) do |group|
-				options[:zone] = group
-			end
-			opts.on( '-d', '--description DESCRIPTION', "Server Description" ) do |desc|
-				options[:description] = desc
-			end
-		end
+		options = {zone: args[1], group: args[0]}
+		
 		zone=nil
-		optparse.parse(args)
 		if !options[:group].nil?
 			group = find_group_by_name(options[:group])
 			if !group.nil?
@@ -66,10 +55,12 @@ class Morpheus::Cli::Servers
 			options['groupId'] = @active_groups[@appliance_name.to_sym]
 		end
 
-		if !options[:zone].nil?
-			zone = find_zone_by_name(options['groupId'], options[:zone])
-			if !zone.nil?
-				options['zoneId'] = zone['id']
+		if !options['groupId'].nil?
+			if !options[:zone].nil?
+				zone = find_zone_by_name(options['groupId'], options[:zone])
+				if !zone.nil?
+					options['zoneId'] = zone['id']
+				end
 			end
 		end
 
@@ -82,13 +73,13 @@ class Morpheus::Cli::Servers
 		begin
 			case zone_type['code']
 				when 'standard'
-					add_standard(args[0],options[:description],zone, args)
+					add_standard(args[2],options[:description],zone, args[3..-1])
 					list([])
 				when 'openstack'
-					add_openstack(args[0],options[:description],zone, args)
+					add_openstack(args[2],options[:description],zone, args[3..-1])
 					list([])
 				when 'amazon'
-					add_amazon(args[0],options[:description],zone, args)
+					add_amazon(args[2],options[:description],zone, args[3..-1])
 					list([])
 				else
 					puts "Unsupported Zone Type: This version of the morpheus cli does not support the requested zone type"
@@ -102,7 +93,6 @@ class Morpheus::Cli::Servers
 			end
 			return nil
 		end
-		list([])
 	end
 
 	def remove(args)
@@ -215,10 +205,10 @@ private
 		networkOptions = {name: 'eth0'}
 		optparse = OptionParser.new do|opts|
 			opts.on( '-u', '--ssh-user USER', "SSH Username" ) do |sshUser|
-				options['sshUser'] = sshUser
+				options['sshUsername'] = sshUser
 			end
 			opts.on('-p', '--password PASSWORD', "SSH Password (optional)") do |password|
-				options['sshPassowrd'] = password
+				options['sshPassword'] = password
 			end
 
 			opts.on('-h', '--host HOST', "HOST IP") do |host|
@@ -237,7 +227,7 @@ private
 		end
 		optparse.parse(args)
 
-		server_payload = {server: {name: name, description: description}.merge(options), network: networkOptions, zoneId: zone['id']}
+		server_payload = {server: {name: name, description: description, zone: {id: zone['id']}}.merge(options), network: networkOptions}
 		response = @servers_interface.create(server_payload)
 
 	end
@@ -247,10 +237,11 @@ private
 	end
 
 	def zone_type_for_id(id)
+		# puts "Zone Types #{@zone_types}"
 		if !@zone_types.empty?
 			zone_type = @zone_types.find { |z| z['id'].to_i == id.to_i}
 			if !zone_type.nil?
-				return zone_type['name']
+				return zone_type
 			end
 		end
 		return nil
@@ -264,6 +255,15 @@ private
 			return nil
 		end
 		return group_results['groups'][0]
+	end
+
+	def find_zone_by_name(groupId, name)
+		zone_results = @zones_interface.get({groupId: groupId, name: name})
+		if zone_results['zones'].empty?
+			puts "Zone not found by name #{name}"
+			return nil
+		end
+		return zone_results['zones'][0]
 	end
 
 	def find_group_by_id(id)
