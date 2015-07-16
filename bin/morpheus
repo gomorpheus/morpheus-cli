@@ -8,7 +8,7 @@ case ARGV[0]
 		remote_handler.handle(ARGV[1..-1])
 	when 'login'
 		appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
-		Morpheus::Cli::Credentials.new(appliance_name,appliance_url).request_credentials()
+		Morpheus::Cli::Credentials.new(appliance_name,appliance_url).login()
 	when 'groups'
 		Morpheus::Cli::Groups.new().handle(ARGV[1..-1])
 	when 'zones'

@@ -41,6 +41,21 @@ module Morpheus
 				end
 			end
 
+			def login()
+				clear_saved_credentials
+				request_credentials
+			end
+
+
+			def clear_saved_credentials()
+				credential_map = load_credential_file
+				if credential_map.nil?
+					credential_map = {}
+				end
+				credential_map.delete(@appliance_name)
+				File.open(credentials_file_path, 'w') {|f| f.write credential_map.to_yaml } #Store
+			end
+
 			def load_saved_credentials()
 				credential_map = load_credential_file
 				if credential_map.nil?
