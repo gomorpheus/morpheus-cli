@@ -13,6 +13,7 @@ module Morpheus
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/zones'
   	require 'morpheus/cli/servers'
+    require 'morpheus/cli/instances'
     # Your code goes here...
   end
 end

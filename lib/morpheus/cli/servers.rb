@@ -39,11 +39,11 @@ class Morpheus::Cli::Servers
 	end
 
 	def add(args)
-		if args.count < 3
-			puts "\nUsage: morpheus servers add GROUP ZONE [name]\n\n"
+		if args.count < 2
+			puts "\nUsage: morpheus servers add ZONE [name]\n\n"
 			return
 		end
-		options = {zone: args[1], group: args[0]}
+		options = {zone: args[0]}
 		
 		zone=nil
 		if !options[:group].nil?
@@ -65,7 +65,7 @@ class Morpheus::Cli::Servers
 		end
 
 		if options['zoneId'].nil?
-			puts red,bold,"\nEither the zone was not specified or was not found. Please make sure a zone is specified with --zone\n\n"
+			puts red,bold,"\nEither the zone was not specified or was not found. Please make sure a zone is specified with --zone\n\n", reset
 			return
 		end
 
@@ -73,18 +73,18 @@ class Morpheus::Cli::Servers
 		begin
 			case zone_type['code']
 				when 'standard'
-					add_standard(args[2],options[:description],zone, args[3..-1])
+					add_standard(args[1],options[:description],zone, args[2..-1])
 					list([])
 				when 'openstack'
-					add_openstack(args[2],options[:description],zone, args[3..-1])
+					add_openstack(args[1],options[:description],zone, args[2..-1])
 					list([])
 				when 'amazon'
-					add_amazon(args[2],options[:description],zone, args[3..-1])
+					add_amazon(args[1],options[:description],zone, args[2..-1])
 					list([])
 				else
 					puts "Unsupported Zone Type: This version of the morpheus cli does not support the requested zone type"
 			end		
-		rescue => e
+		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
 				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
@@ -96,35 +96,12 @@ class Morpheus::Cli::Servers
 	end
 
 	def remove(args)
-		if args.count < 2
-			puts "\nUsage: morpheus servers remove [name] --group GROUP\n\n"
+		if args.count < 1
+			puts "\nUsage: morpheus servers remove [name]\n\n"
 			return
 		end
-
-		params = {}
-		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				params[:group] = group
-			end
-		end
-		optparse.parse(args)
-
-		if !params[:group].nil?
-			group = find_group_by_name(params[:group])
-			if !group.nil?
-				params[:groupId] = group['id']
-			else
-				puts "\nGroup #{params[:group]} not found!"
-				return
-			end
-		else params[:group].nil?
-			puts "\nUsage: morpheus servers remove [name] --group GROUP"
-			return
-		end
-
-
 		begin
-			server_results = @servers_interface.get({name: args[0], groupId: params[:groupId]})
+			server_results = @servers_interface.get({name: args[0]})
 			if server_results['servers'].empty?
 				puts "Server not found by name #{args[0]}"
 				return
@@ -183,6 +160,7 @@ private
 	def add_openstack(name, description,zone, args)
 		options = {}
 		optparse = OptionParser.new do|opts|
+
 			opts.on( '-s', '--size SIZE', "Disk Size" ) do |size|
 				options[:diskSize] = size.to_l
 			end
@@ -204,6 +182,7 @@ private
 		options = {}
 		networkOptions = {name: 'eth0'}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus server add ZONE NAME [options]"
 			opts.on( '-u', '--ssh-user USER', "SSH Username" ) do |sshUser|
 				options['sshUsername'] = sshUser
 			end
@@ -223,6 +202,11 @@ private
 			
 			opts.on('-n', '--interface NETWORK', "Default Network Interface") do |net|
 				networkOptions[:name] = net
+			end
+
+			opts.on_tail(:NONE, "--help", "Show this message") do
+			    puts opts
+			    exit
 			end
 		end
 		optparse.parse(args)
