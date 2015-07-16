@@ -12,6 +12,7 @@ class Morpheus::Cli::Instances
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
+		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
@@ -55,6 +56,98 @@ class Morpheus::Cli::Instances
 	end
 
 	def add(args)
+		if args.count < 2
+			puts "\nUsage: morpheus instances add NAME TYPE\n\n"
+			return
+		end
+
+		instance_name = args[0]
+		instance_type_code = args[1]
+		instance_type = find_instance_type_by_code(instance_type_code)
+		if instance_type.nil?
+			print reset,"\n\n"
+			return
+		end
+
+		groupId = @active_groups[@appliance_name.to_sym]
+
+		options = {
+			:servicePlan => nil,
+			:instance => {
+				:name => instance_name,
+				:site => {
+					:id => groupId
+				},
+				:instanceType => {
+					:code => instance_type_code
+				}
+			}
+		}
+
+		instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
+		puts "Configurations: "
+		instance_type['instanceTypeLayouts'].each_with_index do |layout, index|
+			puts "  #{index+1}) #{layout['name']} (#{layout['code']})"
+		end
+		print "Selection: "
+		layout_selection = nil
+		layout = nil
+		while true do
+			layout_selection = $stdin.gets.chomp!
+			if layout_selection.to_i.to_s == layout_selection
+				layout_selection = layout_selection.to_i
+				break
+			end
+		end
+		layout = instance_type['instanceTypeLayouts'][layout_selection-1]['id']
+		options[:instance][:layout] = {id: layout}
+		print "\n"
+		if options[:servicePlan].nil?
+			plans = @instance_types_interface.service_plans(layout)
+			puts "Select a Plan: "
+			plans['servicePlans'].each_with_index do |plan, index|
+				puts "  #{index+1}) #{plan['name']}"
+			end
+			print "Selection: "
+			plan_selection = nil
+			while true do
+				plan_selection = $stdin.gets.chomp!
+				if plan_selection.to_i.to_s == plan_selection
+					plan_selection = plan_selection.to_i
+					break
+				end
+			end
+			options[:servicePlan] = plans['servicePlans'][plan_selection-1]['id']
+			print "\n"
+		end
+
+		if !instance_type['config'].nil?
+			instance_type_config = JSON.parse(instance_type['config'])
+			if instance_type_config['options'].nil? == false
+				instance_type_config['options'].each do |opt|
+					print "#{opt['label']}: "
+					if(opt['name'].downcase.include?("password"))
+						options[opt['name']] = STDIN.noecho(&:gets).chomp!
+						print "\n"
+					else
+						options[opt['name']] = $stdin.gets.chomp!
+					end
+					
+				end
+			end
+		end
+		begin
+			@instances_interface.create(options)
+		rescue => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+		list([])
 	end
 
 	def stats(args)
@@ -353,5 +446,14 @@ private
 			return nil
 		end
 		return group_results['groups'][0]
+	end
+
+	def find_instance_type_by_code(code)
+		instance_type_results = @instance_types_interface.get({code: code})
+		if instance_type_results['instanceTypes'].empty?
+			puts "Instance Type not found by code #{code}"
+			return nil
+		end
+		return instance_type_results['instanceTypes'][0]
 	end
 end

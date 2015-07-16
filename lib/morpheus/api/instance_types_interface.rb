@@ -26,5 +26,17 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def service_plans(layout_id, name=nil)
+		url = "#{@base_url}/api/instance-types/service-plans/#{layout_id}"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+		if !name.nil?
+			headers[:params][:name] = name
+		end
+		response = RestClient::Request.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
 
 end

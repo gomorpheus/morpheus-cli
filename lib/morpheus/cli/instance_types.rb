@@ -84,7 +84,7 @@ class Morpheus::Cli::InstanceTypes
 			else
 				instance_types.each do |instance_type|
 					versions = instance_type['versions'].join(', ')
-					print cyan, "=  #{instance_type['name']} (#{instance_type['category']}) - #{versions}\n"
+					print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
 					instance_type['instanceTypeLayouts'].each do |layout|
 						print green, "     - #{layout['name']}\n",reset
 					end
