@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["davydotcom@gmail.com"]
   spec.summary       = "Provides CLI Interface to the Morpheus Public/Private Cloud Appliance"
   spec.description   = "Morpheus allows one to manage docker containers and deploy applications on the CLI"
-  spec.homepage      = ""
+  spec.homepage      = "http://www.gomorpheus.com"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
