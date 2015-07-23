@@ -46,6 +46,9 @@ module Morpheus
 				request_credentials
 			end
 
+			def logout()
+				clear_saved_credentials
+			end
 
 			def clear_saved_credentials()
 				credential_map = load_credential_file
