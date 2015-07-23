@@ -19,6 +19,14 @@ case ARGV[0]
 		Morpheus::Cli::Instances.new().handle(ARGV[1..-1])
 	when 'instance-types'
 		Morpheus::Cli::InstanceTypes.new().handle(ARGV[1..-1])
+	when 'logout'
+		appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
+		creds = Morpheus::Cli::Credentials.new(appliance_name,appliance_url).load_saved_credentials()
+		if !creds
+			puts "\nYou are not logged in.\n"
+		else
+			Morpheus::Cli::Credentials.new(appliance_name,appliance_url).logout()
+		end
 	else
 		puts "\nUsage: morpheus [command] [options]\n"
 end
