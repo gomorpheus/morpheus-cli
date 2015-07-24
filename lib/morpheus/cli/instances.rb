@@ -25,6 +25,7 @@ class Morpheus::Cli::Instances
 		end
 		if args.empty?
 			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
+			return 
 		end
 
 		case args[0]
