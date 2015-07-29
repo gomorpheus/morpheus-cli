@@ -6,7 +6,7 @@ require 'optparse'
 require 'filesize'
 require 'table_print'
 
-class Morpheus::Cli::Instances
+class Morpheus::Cli::Deploys
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -37,8 +37,8 @@ class Morpheus::Cli::Instances
 		end
 
 		deploy_args = merged_deploy_args(environment)
-
-		if deploy_args[:name].blank?
+		puts "Deploy Args #{deploy_args}"
+		if deploy_args['name'].nil?
 			puts "Instance not specified. Please specify the instance name and try again."
 			return
 		end
@@ -51,8 +51,8 @@ class Morpheus::Cli::Instances
 		instance = instance_results['instances'][0]
 		instance_id = instance['id']
 
-		if !deploy_args[:script].nil?
-			if !system(deploy_args[:script])
+		if !deploy_args['script'].nil?
+			if !system(deploy_args['script'])
 				puts "Error executing pre script..."
 				return
 			end
@@ -64,18 +64,18 @@ class Morpheus::Cli::Instances
 
 		# Upload Files
 		current_working_dir = Dir.pwd
-		deploy_args[:files].each do |fmap|
-			Dir.chdir(fmap[:path] || current_working_dir)
-			files = Dir.glob(fmap[:pattern] || '**/*')
+		deploy_args['files'].each do |fmap|
+			Dir.chdir(fmap['path'] || current_working_dir)
+			files = Dir.glob(fmap['pattern'] || '**/*')
 			files.each do |file|
 				destination = file.split("/")[0..-2].join("/")
-				@deploy_interface.uploadFile(deployment_id,file,destination)
+				@deploy_interface.upload_file(deployment_id,file,destination)
 			end
 		end
 		Dir.chdir(current_working_dir)
 
-		if !deploy_args[:post_script].nil?
-			if !system(deploy_args[:post_script])
+		if !deploy_args['post_script'].nil?
+			if !system(deploy_args['post_script'])
 				puts "Error executing post script..."
 				return
 			end
@@ -83,10 +83,10 @@ class Morpheus::Cli::Instances
 
 		deploy_payload = {}
 
-		if deploy_args[:options]
+		if deploy_args['options']
 			deploy_payload = {
 				appDeploy: {
-					configMap: deploy_args[:options]
+					config: deploy_args['options']
 				}
 			}
 		end
@@ -115,8 +115,8 @@ class Morpheus::Cli::Instances
 	# +NOTE: + It is also possible to nest these properties in an "environments" map to override based on a passed environment deploy name
 	#
 	def load_deploy_file
-		if !File.exist? "morpheus.yaml"
-			puts "No morheus.yaml file detected in the current directory. Nothing to do."
+		if !File.exist? "morpheus.yml"
+			puts "No morheus.yml file detected in the current directory. Nothing to do."
 			return nil
 		end
 
@@ -127,9 +127,9 @@ class Morpheus::Cli::Instances
 	def merged_deploy_args(environment)
 		environment = environment || production
 
-		deploy_args = @deploy_file.reject { |key,value| key == :environment}
-		if !@deploy_file[:environment].nil? && !@deploy_file[:environment][environment.to_sym].nil?
-			deploy_args = deploy_args.merge(@deploy_file[:environment][environment.to_sym])
+		deploy_args = @deploy_file.reject { |key,value| key == 'environment'}
+		if !@deploy_file['environment'].nil? && !@deploy_file['environment'][environment].nil?
+			deploy_args = deploy_args.merge(@deploy_file['environment'][environment])
 		end
 		return deploy_args
 	end

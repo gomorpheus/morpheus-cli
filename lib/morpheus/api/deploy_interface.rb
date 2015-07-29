@@ -25,11 +25,11 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 	end
 
 
-	def create(instanceId, options)
+	def create(instanceId, options=nil)
 		url = "#{@base_url}/api/instances/#{instanceId}/deploy"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
-		payload = options
+		payload = options || {}
 		response = RestClient::Request.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
@@ -47,7 +47,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 
 	def upload_file(id,path,destination=nil)
 		url = "#{@base_url}/api/deploy/#{id}/files"
-		if !destination.blank?
+		if destination.empty?
 			url += "/#{destination}"
 		end
 
@@ -77,9 +77,13 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 	def deploy(id, options)
 		url = "#{@base_url}/api/deploy/#{id}/deploy"
 		payload = options
+		if !options[:appDeploy].nil?
+			if !options[:appDeploy][:config].nil?
+				options[:appDeploy][:config] = options[:appDeploy][:config].to_json
+			end
+		end
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: paylod.to_json)
+		response = RestClient::Request.execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 end
