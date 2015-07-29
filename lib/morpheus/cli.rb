@@ -8,6 +8,8 @@ module Morpheus
   	require 'morpheus/api/servers_interface'
   	require 'morpheus/api/instances_interface'
     require 'morpheus/api/instance_types_interface'
+    require 'morpheus/api/apps_interface'
+    require 'morpheus/api/deploy_interface'
   	require 'morpheus/cli/credentials'
   	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'
@@ -15,6 +17,8 @@ module Morpheus
   	require 'morpheus/cli/zones'
   	require 'morpheus/cli/servers'
     require 'morpheus/cli/instances'
+    require 'morpheus/cli/apps'
+    require 'morpheus/cli/deploys'
     require 'morpheus/cli/instance_types'
     # Your code goes here...
   end

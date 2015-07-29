@@ -30,4 +30,12 @@ class Morpheus::APIClient
 	def instance_types
 		Morpheus::InstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
+
+	def apps
+		Morpheus::AppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
+	def deploy
+		Morpheus::DeployInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
 end

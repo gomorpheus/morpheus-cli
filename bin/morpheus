@@ -19,6 +19,10 @@ case ARGV[0]
 		Morpheus::Cli::Instances.new().handle(ARGV[1..-1])
 	when 'instance-types'
 		Morpheus::Cli::InstanceTypes.new().handle(ARGV[1..-1])
+	when 'apps'
+		Morpheus::Cli::Apps.new().handle(ARGV[1..-1])
+	when 'deploy'
+		Morpheus::Cli::Deploys.new().handle(ARGV[1..-1])
 	else
 		puts "\nUsage: morpheus [command] [options]\n"
 end
