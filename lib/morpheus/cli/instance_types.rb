@@ -23,6 +23,7 @@ class Morpheus::Cli::InstanceTypes
 		end
 		if args.empty?
 			puts "\nUsage: morpheus instance-types [list,details] [name]\n\n"
+			return
 		end
 
 		case args[0]

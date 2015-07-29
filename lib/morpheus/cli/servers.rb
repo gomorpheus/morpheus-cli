@@ -24,6 +24,7 @@ class Morpheus::Cli::Servers
 		end
 		if args.empty?
 			puts "\nUsage: morpheus servers [list,add,remove] [name]\n\n"
+			return
 		end
 
 		case args[0]

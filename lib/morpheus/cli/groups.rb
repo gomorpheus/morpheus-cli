@@ -22,6 +22,7 @@ class Morpheus::Cli::Groups
 		end
 		if args.empty?
 			puts "\nUsage: morpheus groups [list,add,remove] [name]\n\n"
+			return
 		end
 
 		case args[0]

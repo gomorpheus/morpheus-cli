@@ -22,6 +22,7 @@ class Morpheus::Cli::Zones
 		end
 		if args.empty?
 			puts "\nUsage: morpheus zones [list,add,remove] [name]\n\n"
+			return
 		end
 
 		case args[0]
