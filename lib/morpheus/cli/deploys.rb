@@ -37,7 +37,6 @@ class Morpheus::Cli::Deploys
 		end
 
 		deploy_args = merged_deploy_args(environment)
-		puts "Deploy Args #{deploy_args}"
 		if deploy_args['name'].nil?
 			puts "Instance not specified. Please specify the instance name and try again."
 			return
@@ -50,8 +49,11 @@ class Morpheus::Cli::Deploys
 		end
 		instance = instance_results['instances'][0]
 		instance_id = instance['id']
+		print "\n" ,cyan, bold, "Morpheus Deployment\n","==================", reset, "\n\n"
 
 		if !deploy_args['script'].nil?
+			print cyan, bold, "  - Executing Pre Deploy Script...", reset, "\n"
+
 			if !system(deploy_args['script'])
 				puts "Error executing pre script..."
 				return
@@ -63,18 +65,22 @@ class Morpheus::Cli::Deploys
 		deployment_id = app_deploy['id']
 
 		# Upload Files
+		print "\n",cyan, bold, "Uploading Files...", reset, "\n"
 		current_working_dir = Dir.pwd
 		deploy_args['files'].each do |fmap|
 			Dir.chdir(fmap['path'] || current_working_dir)
 			files = Dir.glob(fmap['pattern'] || '**/*')
 			files.each do |file|
+				print cyan,bold, "  - Uploading #{file} ...", reset, "\n"
 				destination = file.split("/")[0..-2].join("/")
 				@deploy_interface.upload_file(deployment_id,file,destination)
 			end
 		end
+		print cyan, bold, "Upload Complete!", reset, "\n"
 		Dir.chdir(current_working_dir)
 
 		if !deploy_args['post_script'].nil?
+			print cyan, bold, "Executing Post Script...", reset, "\n"
 			if !system(deploy_args['post_script'])
 				puts "Error executing post script..."
 				return
@@ -90,8 +96,9 @@ class Morpheus::Cli::Deploys
 				}
 			}
 		end
-
+		print cyan, bold, "Deploying to Servers...", reset, "\n"
 		@deploy_interface.deploy(deployment_id,deploy_payload)
+		print cyan, bold, "Deploy Successful!", reset, "\n"
 	end
 
 	def list(args)
