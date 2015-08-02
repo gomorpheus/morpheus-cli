@@ -71,9 +71,11 @@ class Morpheus::Cli::Deploys
 			Dir.chdir(fmap['path'] || current_working_dir)
 			files = Dir.glob(fmap['pattern'] || '**/*')
 			files.each do |file|
-				print cyan,bold, "  - Uploading #{file} ...", reset, "\n"
-				destination = file.split("/")[0..-2].join("/")
-				@deploy_interface.upload_file(deployment_id,file,destination)
+				if File.file?(file)
+					print cyan,bold, "  - Uploading #{file} ...", reset, "\n"
+					destination = file.split("/")[0..-2].join("/")
+					@deploy_interface.upload_file(deployment_id,file,destination)
+				end
 			end
 		end
 		print cyan, bold, "Upload Complete!", reset, "\n"

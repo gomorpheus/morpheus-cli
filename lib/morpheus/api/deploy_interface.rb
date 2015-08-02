@@ -47,7 +47,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 
 	def upload_file(id,path,destination=nil)
 		url = "#{@base_url}/api/deploy/#{id}/files"
-		if destination.empty?
+		if !destination.empty?
 			url += "/#{destination}"
 		end
 
