@@ -229,7 +229,7 @@ class Morpheus::Cli::Instances
 				envs += env_results['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") ? "********" : v, :export => true}}
 			end
 			tp envs, :name, :value, :export
-			print "\n" ,cyan, bold, "Importad Envs\n","==================", "\n\n", reset, cyan
+			print "\n" ,cyan, bold, "Imported Envs\n","==================", "\n\n", reset, cyan
 			 imported_envs = env_results['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") ? "********" : v}}
 			 tp imported_envs
 			print reset, "\n"
