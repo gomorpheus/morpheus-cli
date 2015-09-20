@@ -90,7 +90,14 @@ class Morpheus::Cli::Deploys
 		end
 
 		deploy_payload = {}
-
+		if deploy_args['env']
+			evars = []
+			deploy_args['env'].each_pair do |key, value| 
+				evars << {name: key, value: value, export: false}
+			end
+			puts "Assigning ENVS"
+			@instances_interface.create_env(instance_id,evars)
+		end
 		if deploy_args['options']
 			deploy_payload = {
 				appDeploy: {
@@ -98,6 +105,7 @@ class Morpheus::Cli::Deploys
 				}
 			}
 		end
+
 		print cyan, bold, "Deploying to Servers...", reset, "\n"
 		@deploy_interface.deploy(deployment_id,deploy_payload)
 		print cyan, bold, "Deploy Successful!", reset, "\n"
