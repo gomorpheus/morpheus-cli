@@ -59,6 +59,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			method: :post,
 			url: url,
             headers: headers,
+            timeout: -1,
             payload: {
             	multipart: true,
             	file: File.new(path, 'rb')	
@@ -83,7 +84,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			end
 		end
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+		response = RestClient::Request.execute(method: :post, url: url, headers: headers, timeout: -1, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 end
