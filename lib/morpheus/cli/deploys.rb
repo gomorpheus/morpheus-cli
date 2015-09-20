@@ -42,7 +42,7 @@ class Morpheus::Cli::Deploys
 			return
 		end
 
-		instance_results = @instances_interface.get(name: deploy_args[:name])
+		instance_results = @instances_interface.get(name: deploy_args['name'])
 		if instance_results['instances'].empty?
 			puts "Instance not found by name #{args[0]}"
 			return

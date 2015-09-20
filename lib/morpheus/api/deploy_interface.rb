@@ -51,7 +51,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			url += "/#{destination}"
 		end
 
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		headers = { :authorization => "Bearer #{@access_token}"}
 		
 		payload = nil
 		# TODO: Setup payload to be contents of file appropriately
