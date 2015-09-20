@@ -95,7 +95,6 @@ class Morpheus::Cli::Deploys
 			deploy_args['env'].each_pair do |key, value| 
 				evars << {name: key, value: value, export: false}
 			end
-			puts "Assigning ENVS"
 			@instances_interface.create_env(instance_id,evars)
 		end
 		if deploy_args['options']
