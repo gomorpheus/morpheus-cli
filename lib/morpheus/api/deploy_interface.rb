@@ -1,5 +1,7 @@
 require 'json'
 require 'rest-client'
+require 'net/http/post/multipart'
+require 'mime/types'
 
 class Morpheus::DeployInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -46,25 +48,21 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 	end
 
 	def upload_file(id,path,destination=nil)
-		url = "#{@base_url}/api/deploy/#{id}/files"
+		url_string = "#{@base_url}/api/deploy/#{id}/files"
 		if !destination.empty?
-			url += "/#{destination}"
+			url_string += "/#{destination}"
 		end
 
-		headers = { :authorization => "Bearer #{@access_token}"}
+		url = URI.parse(url_string)
+		req = Net::HTTP::Post::Multipart.new url.path,
+		  "file" => UploadIO.new(File.new(path,'rb'), "image/jpeg", File.basename(path))
+
+		  req['Authorization'] = "Bearer #{@access_token}"
+		res = Net::HTTP.start(url.host, url.port) do |http|
+		  http.request(req)
+		end
 		
-		payload = nil
-		# TODO: Setup payload to be contents of file appropriately
-		response = RestClient::Request.execute(
-			method: :post,
-			url: url,
-            headers: headers,
-            timeout: nil,
-            payload: {
-            	multipart: true,
-            	file: File.new(path, 'rb')	
-        	})
-		JSON.parse(response.to_s)
+		res
 	end
 
 	def destroy(id)
