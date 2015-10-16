@@ -1,6 +1,6 @@
 # Morpheus::Cli
 
-TODO: Write a gem description
+Provides a command line interface for interacting with the Morpheus Cloud Platform. Easily provision servers, containers, and manage deployments.
 
 ## Installation
 
@@ -18,7 +18,7 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Please check out the [Wiki](https://github.com/gomorpheus/morpheus-cli/wiki) for usage instructions.
 
 ## Contributing
 
