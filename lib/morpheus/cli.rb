@@ -10,6 +10,8 @@ module Morpheus
     require 'morpheus/api/instance_types_interface'
     require 'morpheus/api/apps_interface'
     require 'morpheus/api/deploy_interface'
+    require 'morpheus/api/security_groups_interface'
+    require 'morpheus/api/security_group_rules_interface'
   	require 'morpheus/cli/credentials'
   	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'
@@ -20,6 +22,8 @@ module Morpheus
     require 'morpheus/cli/apps'
     require 'morpheus/cli/deploys'
     require 'morpheus/cli/instance_types'
+    require 'morpheus/cli/security_groups'
+    require 'morpheus/cli/security_group_rules'
     # Your code goes here...
   end
 end

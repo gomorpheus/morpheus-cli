@@ -38,4 +38,12 @@ class Morpheus::APIClient
 	def deploy
 		Morpheus::DeployInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
+
+	def security_groups
+		Morpheus::SecurityGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
+	def security_group_rules
+		Morpheus::SecurityGroupRulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
 end
