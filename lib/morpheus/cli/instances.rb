@@ -24,7 +24,7 @@ class Morpheus::Cli::Instances
 			return 1
 		end
 		if args.empty?
-			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
+			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 			return 
 		end
 
@@ -51,6 +51,14 @@ class Morpheus::Cli::Instances
 				setenv(args[1..-1])	
 			when 'delenv'
 				delenv(args[1..-1])	
+			when 'firewall_disable'
+				firewall_disable(args[1..-1])	
+			when 'firewall_enable'
+				firewall_enable(args[1..-1])	
+			when 'security_groups'	
+				security_groups(args[1..-1])	
+			when 'apply_security_groups'	
+				apply_security_groups(args[1..-1])	
 			else
 				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
 		end
@@ -428,6 +436,145 @@ class Morpheus::Cli::Instances
 			end
 			@instances_interface.destroy(instance_results['instances'][0]['id'])
 			list([])
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def firewall_disable(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances firewall_disable [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			@instances_interface.firewall_disable(instance_results['instances'][0]['id'])
+			security_groups([args[0]])
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def firewall_enable(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances firewall_enable [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+			@instances_interface.firewall_enable(instance_results['instances'][0]['id'])
+			security_groups([args[0]])
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def security_groups(args)
+		if args.count < 1
+			puts "\nUsage: morpheus instances security_groups [name]\n\n"
+			return
+		end
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+
+			instance_id = instance_results['instances'][0]['id']
+			json_response = @instances_interface.security_groups(instance_id)
+
+			securityGroups = json_response['securityGroups']
+			print "\n" ,cyan, bold, "Morpheus Security Groups for Instance:#{instance_id}\n","==================", reset, "\n\n"
+			print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
+			if securityGroups.empty?
+				puts yellow,"No security groups currently applied.",reset
+			else
+				securityGroups.each do |securityGroup|
+					print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
+				end
+			end
+			print reset,"\n\n"
+
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			return nil
+		end
+	end
+
+	def apply_security_groups(args)
+		usage = <<-EOF
+Usage: morpheus instances apply_security_groups [name] [options]
+EOF
+		if args.count < 1
+			puts usage
+			return
+		end
+
+		options = {}
+		clear_or_secgroups_specified = false
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			opts.on( '-c', '--clear', "Clear all security groups" ) do
+				options[:securityGroupIds] = []
+				clear_or_secgroups_specified = true
+			end
+			opts.on( '-s', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
+				options[:securityGroupIds] = secgroups.split(",")
+				clear_or_secgroups_specified = true
+			end
+			opts.on( '-h', '--help', "Prints this help" ) do
+				puts opts
+				exit
+			end
+		end
+		optparse.parse(args)
+
+		if !clear_or_secgroups_specified 
+			puts usage
+			exit
+		end
+
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				return
+			end
+
+			@instances_interface.apply_security_groups(instance_results['instances'][0]['id'], options)
+			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)

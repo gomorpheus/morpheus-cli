@@ -95,4 +95,39 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
+
+	def firewall_disable(id)
+		url = "#{@base_url}/api/instances/#{id}/security-groups/disable"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = RestClient::Request.execute(method: :put, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def firewall_enable(id)
+		url = "#{@base_url}/api/instances/#{id}/security-groups/enable"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = RestClient::Request.execute(method: :put, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def security_groups(id)
+		url = "#{@base_url}/api/instances/#{id}/security-groups"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = RestClient::Request.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def apply_security_groups(id, options)
+		url = "#{@base_url}/api/instances/#{id}/security-groups"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		puts "payload #{payload}"
+		response = RestClient::Request.execute(method: :post, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+	
 end
