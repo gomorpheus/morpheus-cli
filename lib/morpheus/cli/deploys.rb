@@ -5,9 +5,14 @@ require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
+require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Deploys
+  include Morpheus::Cli::CliCommand
 	include Term::ANSIColor
+
+  cli_command_name :deploy
+  
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()

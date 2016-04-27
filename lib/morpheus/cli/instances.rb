@@ -5,8 +5,10 @@ require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
+require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Instances
+  include Morpheus::Cli::CliCommand
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance

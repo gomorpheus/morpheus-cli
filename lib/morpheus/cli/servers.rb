@@ -3,10 +3,13 @@ require 'io/console'
 require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
+require 'morpheus/cli/cli_command'
 
 
 class Morpheus::Cli::Servers
 	include Term::ANSIColor
+  include Morpheus::Cli::CliCommand
+  
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()

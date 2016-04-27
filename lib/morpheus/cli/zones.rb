@@ -3,9 +3,10 @@ require 'io/console'
 require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
-
+require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Zones
+  include Morpheus::Cli::CliCommand
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
