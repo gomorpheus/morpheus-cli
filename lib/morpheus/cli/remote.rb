@@ -14,6 +14,7 @@ class Morpheus::Cli::Remote
 	def handle(args) 
 		if args.empty?
 			puts "\nUsage: morpheus remote [list,add,remove,use] [name] [host]\n\n"
+      return
 		end
 
 		case args[0]

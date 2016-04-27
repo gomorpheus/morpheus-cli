@@ -133,7 +133,7 @@ class Morpheus::Cli::Deploys
 	#
 	def load_deploy_file
 		if !File.exist? "morpheus.yml"
-			puts "No morheus.yml file detected in the current directory. Nothing to do."
+			puts "No morpheus.yml file detected in the current directory. Nothing to do."
 			return nil
 		end
 
