@@ -1,17 +1,25 @@
 #!/usr/bin/env ruby
 require 'morpheus/cli'
+require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
 
 remote_handler = Morpheus::Cli::Remote.new()
 
+# parse args to handle global issues
+if ARGV.find {|arg| arg == '--insecure'}
+  Morpheus::RestClient.enable_ssl_verification = false
+end
+
+filtered_args = ARGV.find_all {|arg| arg != '--insecure'}
+
 if Morpheus::Cli::CliRegistry.has_command?(ARGV[0])
-  Morpheus::Cli::CliRegistry.exec(ARGV[0], ARGV[1..-1])
+  Morpheus::Cli::CliRegistry.exec(ARGV[0], filtered_args[1..-1])
   exit 0
 end
 
 case ARGV[0]
 	when 'remote'
-		remote_handler.handle(ARGV[1..-1])
+		remote_handler.handle(filtered_args[1..-1])
 	when 'login'
 		appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
 		Morpheus::Cli::Credentials.new(appliance_name,appliance_url).login()

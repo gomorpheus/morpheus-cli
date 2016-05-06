@@ -1,4 +1,5 @@
 require "morpheus/cli/version"
+require "morpheus/rest_client"
 
 module Morpheus
   module Cli

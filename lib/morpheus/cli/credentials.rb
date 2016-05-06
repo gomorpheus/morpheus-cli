@@ -1,6 +1,7 @@
 require 'yaml'
 require 'io/console'
-require 'rest_client'
+require 'optparse'
+
 module Morpheus
 	module Cli
 		class Credentials
@@ -21,7 +22,7 @@ module Morpheus
 
 					oauth_url = File.join(@appliance_url, "/oauth/token")
 					begin
-						authorize_response = RestClient.post oauth_url, {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}
+						authorize_response = Morpheus::RestClient.post oauth_url, {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}
 
 						json_response = JSON.parse(authorize_response.to_s)
 						access_token = json_response['access_token']

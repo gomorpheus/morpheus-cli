@@ -20,7 +20,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -31,7 +31,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -39,7 +39,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 	def destroy(id)
 		url = "#{@base_url}/api/servers/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :delete, url: url,
+		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end

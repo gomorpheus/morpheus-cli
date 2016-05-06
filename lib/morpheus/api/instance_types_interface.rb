@@ -1,5 +1,5 @@
 require 'json'
-require 'rest-client'
+require 'morpheus/rest_client'
 
 class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -21,7 +21,7 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -33,7 +33,7 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 		if !name.nil?
 			headers[:params][:name] = name
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end

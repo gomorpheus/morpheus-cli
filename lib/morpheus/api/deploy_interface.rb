@@ -1,7 +1,7 @@
 require 'json'
-require 'rest-client'
 require 'net/http/post/multipart'
 require 'mime/types'
+require 'morpheus/rest_client'
 
 class Morpheus::DeployInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -21,7 +21,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -32,7 +32,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options || {}
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -42,7 +42,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -68,7 +68,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 	def destroy(id)
 		url = "#{@base_url}/api/deploy/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :delete, url: url,
+		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -82,7 +82,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			end
 		end
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :post, url: url, headers: headers, timeout: nil, payload: payload.to_json)
+		response = Morpheus::RestClient.execute(method: :post, url: url, headers: headers, timeout: nil, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 end

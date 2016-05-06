@@ -26,9 +26,6 @@ class Morpheus::Cli::Apps
 			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
 			return 1
 		end
-		if args.empty?
-			puts "\nUsage: morpheus apps [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
-		end
 
 		case args[0]
 			when 'list'

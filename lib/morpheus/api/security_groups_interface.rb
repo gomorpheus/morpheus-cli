@@ -15,7 +15,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -26,7 +26,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -36,7 +36,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -44,7 +44,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
 	def update(id)
 		url = "#{@base_url}/api/security-groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :put, url: url,
+		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -52,7 +52,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
 	def delete(id)
 		url = "#{@base_url}/api/security-groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :delete, url: url,
+		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end

@@ -13,7 +13,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zone-types"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -30,7 +30,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -41,7 +41,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = {zone: options}
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -49,7 +49,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 	def destroy(id)
 		url = "#{@base_url}/api/zones/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :delete, url: url,
+		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -57,7 +57,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 	def firewall_disable(id)
 		url = "#{@base_url}/api/zones/#{id}/security-groups/disable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :put, url: url,
+		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -65,7 +65,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 	def firewall_enable(id)
 		url = "#{@base_url}/api/zones/#{id}/security-groups/enable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :put, url: url,
+		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -73,7 +73,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 	def security_groups(id)
 		url = "#{@base_url}/api/zones/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -82,7 +82,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zones/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end

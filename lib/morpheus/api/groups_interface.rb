@@ -1,5 +1,5 @@
 require 'json'
-require 'rest-client'
+require 'morpheus/rest_client'
 
 class Morpheus::GroupsInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -21,7 +21,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = RestClient::Request.execute(method: :get, url: url,
+		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
@@ -32,7 +32,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = {group: options}
-		response = RestClient::Request.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -40,7 +40,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 	def destroy(id)
 		url = "#{@base_url}/api/groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = RestClient::Request.execute(method: :delete, url: url,
+		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
