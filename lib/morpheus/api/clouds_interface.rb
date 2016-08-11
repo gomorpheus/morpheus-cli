@@ -1,7 +1,7 @@
 require 'json'
 require 'rest-client'
 
-class Morpheus::ZonesInterface < Morpheus::APIClient
+class Morpheus::CloudsInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
 		@access_token = access_token
 		@refresh_token = refresh_token
@@ -9,7 +9,7 @@ class Morpheus::ZonesInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
-	def zone_types()
+	def cloud_types()
 		url = "#{@base_url}/api/zone-types"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 

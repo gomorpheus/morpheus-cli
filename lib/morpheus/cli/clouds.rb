@@ -5,15 +5,15 @@ require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::Zones
+class Morpheus::Cli::Clouds
   include Morpheus::Cli::CliCommand
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		@zones_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).zones
+		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-		@zone_types = @zones_interface.zone_types['zoneTypes']
+		@zone_types = @clouds_interface.zone_types['zoneTypes']
 	end
 
 	def handle(args) 
@@ -22,7 +22,7 @@ class Morpheus::Cli::Zones
 			return 1
 		end
 		if args.empty?
-			puts "\nUsage: morpheus zones [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
+			puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 			return
 		end
 
@@ -42,13 +42,13 @@ class Morpheus::Cli::Zones
 			when 'apply_security_groups'	
 				apply_security_groups(args[1..-1])		
 			else
-				puts "\nUsage: morpheus zones [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
+				puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 		end
 	end
 
 	def add(args)
 		if args.count < 1
-			puts "\nUsage: morpheus zones add [name] --group GROUP --type TYPE\n\n"
+			puts "\nUsage: morpheus clouds add [name] --group GROUP --type TYPE\n\n"
 			return
 		end
 		params = {zone_type: 'standard'}
@@ -77,7 +77,7 @@ class Morpheus::Cli::Zones
 		end
 		
 		begin
-			@zones_interface.create(zone)
+			@clouds_interface.create(zone)
 		rescue => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -92,7 +92,7 @@ class Morpheus::Cli::Zones
 
 	def remove(args)
 		if args.count < 2
-			puts "\nUsage: morpheus zones remove [name] --group GROUP\n\n"
+			puts "\nUsage: morpheus clouds remove [name] --group GROUP\n\n"
 			return
 		end
 
@@ -113,18 +113,18 @@ class Morpheus::Cli::Zones
 				return
 			end
 		else params[:group].nil?
-			puts "\nUsage: morpheus zones remove [name] --group GROUP"
+			puts "\nUsage: morpheus clouds remove [name] --group GROUP"
 			return
 		end
 
 
 		begin
-			zone_results = @zones_interface.get({name: args[0], groupId: params[:groupId]})
-			if zone_results['zones'].empty?
+			zone_results = @clouds_interface.get({name: args[0], groupId: params[:groupId]})
+			if zone_results['clouds'].empty?
 				puts "Zone not found by name #{args[0]}"
 				return
 			end
-			@zones_interface.destroy(zone_results['zones'][0]['id'])
+			@clouds_interface.destroy(zone_results['clouds'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
 			if e.response.code == 400
@@ -154,13 +154,13 @@ class Morpheus::Cli::Zones
 				end
 			end
 
-			json_response = @zones_interface.get(params)
-			zones = json_response['zones']
+			json_response = @clouds_interface.get(params)
+			clouds = json_response['clouds']
 			print "\n" ,cyan, bold, "Morpheus Zones\n","==================", reset, "\n\n"
-			if zones.empty?
-				puts yellow,"No zones currently configured.",reset
+			if clouds.empty?
+				puts yellow,"No clouds currently configured.",reset
 			else
-				zones.each do |zone|
+				clouds.each do |zone|
 					print cyan, "=  #{zone['name']} (#{zone_type_for_id(zone['zoneTypeId'])}) - #{zone['description']}\n"
 				end
 			end
@@ -174,16 +174,16 @@ class Morpheus::Cli::Zones
 
 	def firewall_disable(args)
 		if args.count < 1
-			puts "\nUsage: morpheus zones firewall_disable [name]\n\n"
+			puts "\nUsage: morpheus clouds firewall_disable [name]\n\n"
 			return
 		end
 		begin
-			zone_results = @zones_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
+			zone_results = @clouds_interface.get({name: args[0]})
+			if zone_results['clouds'].empty?
 				puts "Zone not found by name #{args[0]}"
 				return
 			end
-			@zones_interface.firewall_disable(zone_results['zones'][0]['id'])
+			@clouds_interface.firewall_disable(zone_results['clouds'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			if e.response.code == 400
@@ -198,16 +198,16 @@ class Morpheus::Cli::Zones
 
 	def firewall_enable(args)
 		if args.count < 1
-			puts "\nUsage: morpheus zones firewall_enable [name]\n\n"
+			puts "\nUsage: morpheus clouds firewall_enable [name]\n\n"
 			return
 		end
 		begin
-			zone_results = @zones_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
+			zone_results = @clouds_interface.get({name: args[0]})
+			if zone_results['clouds'].empty?
 				puts "Zone not found by name #{args[0]}"
 				return
 			end
-			@zones_interface.firewall_enable(zone_results['zones'][0]['id'])
+			@clouds_interface.firewall_enable(zone_results['clouds'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			if e.response.code == 400
@@ -222,18 +222,18 @@ class Morpheus::Cli::Zones
 
 	def security_groups(args)
 		if args.count < 1
-			puts "\nUsage: morpheus zones security_groups [name]\n\n"
+			puts "\nUsage: morpheus clouds security_groups [name]\n\n"
 			return
 		end
 		begin
-			zone_results = @zones_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
+			zone_results = @clouds_interface.get({name: args[0]})
+			if zone_results['clouds'].empty?
 				puts "Zone not found by name #{args[0]}"
 				return
 			end
 
-			zone_id = zone_results['zones'][0]['id']
-			json_response = @zones_interface.security_groups(zone_id)
+			zone_id = zone_results['clouds'][0]['id']
+			json_response = @clouds_interface.security_groups(zone_id)
 
 			securityGroups = json_response['securityGroups']
 			print "\n" ,cyan, bold, "Morpheus Security Groups for Zone:#{zone_id}\n","==================", reset, "\n\n"
@@ -260,7 +260,7 @@ class Morpheus::Cli::Zones
 
 	def apply_security_groups(args)
 		usage = <<-EOF
-Usage: morpheus zones apply_security_groups [name] [options]
+Usage: morpheus clouds apply_security_groups [name] [options]
 EOF
 		if args.count < 1
 			puts usage
@@ -292,13 +292,13 @@ EOF
 		end
 
 		begin
-			zone_results = @zones_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
+			zone_results = @clouds_interface.get({name: args[0]})
+			if zone_results['clouds'].empty?
 				puts "Zone not found by name #{args[0]}"
 				return
 			end
 
-			@zones_interface.apply_security_groups(zone_results['zones'][0]['id'], options)
+			@clouds_interface.apply_security_groups(zone_results['clouds'][0]['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			if e.response.code == 400

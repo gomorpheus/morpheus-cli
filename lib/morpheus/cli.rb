@@ -5,7 +5,7 @@ module Morpheus
   module Cli
   	require 'morpheus/api/api_client'
   	require 'morpheus/api/groups_interface'
-  	require 'morpheus/api/zones_interface'
+  	require 'morpheus/api/clouds_interface'
   	require 'morpheus/api/servers_interface'
   	require 'morpheus/api/instances_interface'
     require 'morpheus/api/instance_types_interface'
@@ -17,7 +17,7 @@ module Morpheus
   	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
-  	require 'morpheus/cli/zones'
+  	require 'morpheus/cli/clouds'
   	require 'morpheus/cli/servers'
     require 'morpheus/cli/instances'
     require 'morpheus/cli/apps'

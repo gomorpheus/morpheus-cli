@@ -15,8 +15,8 @@ class Morpheus::APIClient
 		Morpheus::GroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
-	def zones
-		Morpheus::ZonesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	def clouds
+		Morpheus::CloudsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
 	def servers
