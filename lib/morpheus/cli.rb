@@ -18,7 +18,7 @@ module Morpheus
   	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/clouds'
-  	require 'morpheus/cli/servers'
+  	require 'morpheus/cli/hosts'
     require 'morpheus/cli/instances'
     require 'morpheus/cli/apps'
     require 'morpheus/cli/deploys'

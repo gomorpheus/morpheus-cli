@@ -59,13 +59,14 @@ class Morpheus::Cli::Hosts
 		options = {zone: args[0]}
 
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus server add ZONE NAME [options]"
+			opts.banner = "Usage: morpheus server add CLOUD NAME -t HOST_TYPE [options]"
 			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
+		connect(options)
 
 		params = {}
 		
@@ -113,6 +114,16 @@ class Morpheus::Cli::Hosts
 			puts "\nUsage: morpheus hosts remove [name]\n\n"
 			return
 		end
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
+				options[:group] = group
+			end
+			
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			server_results = @servers_interface.get({name: args[0]})
 			if server_results['servers'].empty?
@@ -143,6 +154,7 @@ class Morpheus::Cli::Hosts
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			
 			if !options[:group].nil?
@@ -166,12 +178,12 @@ class Morpheus::Cli::Hosts
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				print "\n" ,red, bold, "Morpheus Servers\n","==================", reset, "\n\n"
+				print "\n" ,red, bold, "Morpheus Hosts\n","==================", reset, "\n\n"
 				if servers.empty?
-					puts yellow,"No servers currently configured.",reset
+					puts yellow,"No hosts currently configured.",reset
 				else
 					servers.each do |server|
-						print red, "=  #{server['name']} - #{server['computeServerType']['name']} (#{server['status']})\n"
+						print red, "=  #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']})\n"
 					end
 				end
 				print reset,"\n\n"
@@ -183,69 +195,6 @@ class Morpheus::Cli::Hosts
 	end
 
 private
-
-
-	def add_openstack(name, description,zone, args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-
-			opts.on( '-s', '--size SIZE', "Disk Size" ) do |size|
-				options[:diskSize] = size.to_l
-			end
-			opts.on('-i', '--image IMAGE', "Image Name") do |image|
-				options[:imageName] = image
-			end
-
-			opts.on('-f', '--flavor FLAVOR', "Flavor Name") do |flavor|
-				options[:flavorName] = flavor
-			end
-		end
-		optparse.parse(args)
-
-		server_payload = {server: {name: name, description: description}, zoneId: zone['id']}
-		response = @servers_interface.create(server_payload)
-	end
-
-	def add_standard(name,description,zone, args)
-		options = {}
-		networkOptions = {name: 'eth0'}
-		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus server add ZONE NAME [options]"
-			opts.on( '-u', '--ssh-user USER', "SSH Username" ) do |sshUser|
-				options['sshUsername'] = sshUser
-			end
-			opts.on('-p', '--password PASSWORD', "SSH Password (optional)") do |password|
-				options['sshPassword'] = password
-			end
-
-			opts.on('-h', '--host HOST', "HOST IP") do |host|
-				options['sshHost'] = host
-			end
-
-			options['dataDevice'] = '/dev/sdb'
-			opts.on('-m', '--data-device DATADEVICE', "Data device for LVM") do |device|
-				options['dataDevice'] = device
-			end
-
-			
-			opts.on('-n', '--interface NETWORK', "Default Network Interface") do |net|
-				networkOptions[:name] = net
-			end
-
-			opts.on_tail(:NONE, "--help", "Show this message") do
-			    puts opts
-			    exit
-			end
-		end
-		optparse.parse(args)
-
-		server_payload = {server: {name: name, zone: {id: zone['id']}}, network: networkOptions}
-		response = @servers_interface.create(server_payload)
-	end
-
-	def add_amazon(name,description,zone, args)
-		puts "NOT YET IMPLEMENTED"
-	end
 
 	def zone_type_for_id(id)
 		# puts "Zone Types #{@zone_types}"
