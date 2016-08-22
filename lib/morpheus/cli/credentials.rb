@@ -10,24 +10,37 @@ module Morpheus
 				@appliance_name = appliance_name
 			end
 			
-			def request_credentials()
+			def request_credentials(opts = {})
+				username = nil
+				password = nil
+				creds = nil
+				skip_save = false
 				# We should return an access Key for Morpheus CLI Here
-				creds = load_saved_credentials
+				if !opts[:remote_username].nil?
+					username = opts[:remote_username]
+					password = opts[:remote_password]
+					skip_save = opts[:remote_url] ? true : false
+				else
+					creds = load_saved_credentials
+				end
 				if !creds
-					puts "No Credentials on File for this Appliance: "
-					puts "Enter Username: "
-					username = $stdin.gets.chomp!
-					puts "Enter Password: "
-					password = STDIN.noecho(&:gets).chomp!
-
+					puts "Fetching Creds"
+					if username.nil? || username.empty?
+						puts "Enter Username: "
+						username = $stdin.gets.chomp!
+					end
+					if password.nil? || password.empty?
+						puts "Enter Password: "
+						password = STDIN.noecho(&:gets).chomp!
+					end
 					oauth_url = File.join(@appliance_url, "/oauth/token")
 					begin
-						authorize_response = Morpheus::RestClient.post oauth_url, {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}
-
+						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username, password: password}},verify_ssl: false)
 						json_response = JSON.parse(authorize_response.to_s)
 						access_token = json_response['access_token']
 						if access_token
-							save_credentials(access_token)
+
+							save_credentials(access_token) unless skip_save
 							return access_token
 						else
 							puts "Credentials not verified."

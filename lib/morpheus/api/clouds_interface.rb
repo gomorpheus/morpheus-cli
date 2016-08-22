@@ -14,7 +14,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -31,7 +31,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -42,7 +42,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		
 		payload = {zone: options}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -50,7 +50,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zones/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -58,7 +58,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zones/#{id}/security-groups/disable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -66,7 +66,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zones/#{id}/security-groups/enable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -74,7 +74,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/zones/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -83,7 +83,7 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 end

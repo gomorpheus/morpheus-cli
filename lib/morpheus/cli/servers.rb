@@ -4,7 +4,7 @@ require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
-
+require 'json'
 
 class Morpheus::Cli::Servers
 	include Term::ANSIColor
@@ -12,19 +12,28 @@ class Morpheus::Cli::Servers
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
-		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-		@zones_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).zones
-		@zone_types = @zones_interface.zone_types['zoneTypes']
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
-	def handle(args) 
+	def connect(opts)
+		if opts[:remote]
+			@appliance_url = opts[:remote]
+			@appliance_name = opts[:remote]
+			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
+		else
+			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
+		end
+		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
+		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
+		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
 			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
 			return 1
 		end
+	end
+
+	def handle(args) 
 		if args.empty?
 			puts "\nUsage: morpheus servers [list,add,remove] [name]\n\n"
 			return
@@ -125,33 +134,48 @@ class Morpheus::Cli::Servers
 
 	def list(args)
 		options = {}
+		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
+			
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		begin
-			params = {}
+			
 			if !options[:group].nil?
 				group = find_group_by_name(options[:group])
 				if !group.nil?
 					params['site'] = group['id']
 				end
 			end
-
+			if !options[:max].nil?
+				params['max'] = options[:max]
+			end
+			if !options[:offset].nil?
+				params['offset'] = options[:offset]
+			end
+			if !options[:phrase].nil?
+				params['phrase'] = options[:phrase]
+			end
 			json_response = @servers_interface.get(params)
 			servers = json_response['servers']
-			print "\n" ,red, bold, "Morpheus Servers\n","==================", reset, "\n\n"
-			if servers.empty?
-				puts yellow,"No servers currently configured.",reset
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
 			else
-				servers.each do |server|
-					print red, "=  #{server['name']} - #{server['description']} (#{server['status']})\n"
+				print "\n" ,red, bold, "Morpheus Servers\n","==================", reset, "\n\n"
+				if servers.empty?
+					puts yellow,"No servers currently configured.",reset
+				else
+					servers.each do |server|
+						print red, "=  #{server['name']} - #{server['computeServerType']['name']} (#{server['status']})\n"
+					end
 				end
+				print reset,"\n\n"
 			end
-			print reset,"\n\n"
-			
 		rescue => e
 			puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			return nil
@@ -246,7 +270,7 @@ private
 	end
 
 	def find_zone_by_name(groupId, name)
-		zone_results = @zones_interface.get({groupId: groupId, name: name})
+		zone_results = @clouds_interface.get({groupId: groupId, name: name})
 		if zone_results['zones'].empty?
 			puts "Zone not found by name #{name}"
 			return nil
