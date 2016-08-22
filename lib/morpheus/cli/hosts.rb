@@ -6,7 +6,7 @@ require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'json'
 
-class Morpheus::Cli::Servers
+class Morpheus::Cli::Hosts
 	include Term::ANSIColor
   include Morpheus::Cli::CliCommand
   
@@ -35,7 +35,7 @@ class Morpheus::Cli::Servers
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus servers [list,add,remove] [name]\n\n"
+			puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
 			return
 		end
 
@@ -47,16 +47,27 @@ class Morpheus::Cli::Servers
 			when 'remove'
 				remove(args[1..-1])
 			else
-				puts "\nUsage: morpheus servers [list,add,remove] [name]\n\n"
+				puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
 		end
 	end
 
 	def add(args)
 		if args.count < 2
-			puts "\nUsage: morpheus servers add ZONE [name]\n\n"
+			puts "\nUsage: morpheus hosts add CLOUD [name]\n\n"
 			return
 		end
 		options = {zone: args[0]}
+
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus server add ZONE NAME [options]"
+			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
+				options[:server_type] = server_type
+			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+
+		params = {}
 		
 		zone=nil
 		if !options[:group].nil?
@@ -84,19 +95,8 @@ class Morpheus::Cli::Servers
 
 		zone_type = zone_type_for_id(zone['zoneTypeId'])
 		begin
-			case zone_type['code']
-				when 'standard'
-					add_standard(args[1],options[:description],zone, args[2..-1])
-					list([])
-				when 'openstack'
-					add_openstack(args[1],options[:description],zone, args[2..-1])
-					list([])
-				when 'amazon'
-					add_amazon(args[1],options[:description],zone, args[2..-1])
-					list([])
-				else
-					puts "Unsupported Zone Type: This version of the morpheus cli does not support the requested zone type"
-			end		
+			server_payload = {server: {name: name, description: description, zone: {id: zone['id']}}.merge(options)}
+			response = @servers_interface.create(server_payload)
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -110,7 +110,7 @@ class Morpheus::Cli::Servers
 
 	def remove(args)
 		if args.count < 1
-			puts "\nUsage: morpheus servers remove [name]\n\n"
+			puts "\nUsage: morpheus hosts remove [name]\n\n"
 			return
 		end
 		begin
@@ -239,9 +239,8 @@ private
 		end
 		optparse.parse(args)
 
-		server_payload = {server: {name: name, description: description, zone: {id: zone['id']}}.merge(options), network: networkOptions}
+		server_payload = {server: {name: name, zone: {id: zone['id']}}, network: networkOptions}
 		response = @servers_interface.create(server_payload)
-
 	end
 
 	def add_amazon(name,description,zone, args)
@@ -250,8 +249,8 @@ private
 
 	def zone_type_for_id(id)
 		# puts "Zone Types #{@zone_types}"
-		if !@zone_types.empty?
-			zone_type = @zone_types.find { |z| z['id'].to_i == id.to_i}
+		if !@cloud_types.empty?
+			zone_type = @cloud_types.find { |z| z['id'].to_i == id.to_i}
 			if !zone_type.nil?
 				return zone_type
 			end
