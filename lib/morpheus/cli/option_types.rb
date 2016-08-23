@@ -1,6 +1,9 @@
+require 'term/ansicolor'
+
 module Morpheus
   module Cli
     module OptionTypes
+        include Term::ANSIColor
         def self.prompt(option_types, options={})
           results = {}
           options = options || {}
@@ -23,7 +26,7 @@ module Morpheus
               value_found = true
             end
 
-            if !value_found do
+            if !value_found
               if option_type['type'] == 'number'
                 value = number_prompt(option_type)
               elsif option_type['type'] == 'password'
@@ -152,7 +155,7 @@ module Morpheus
         end
 
         def self.help_prompt(option_type)
-            print "#{option_type['fieldLabel']} [-O #{option_type['fieldName']}=] - #{option_type['description']}\n"
+            print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
         end
     end
   end
