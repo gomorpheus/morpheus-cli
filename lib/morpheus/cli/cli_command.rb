@@ -47,6 +47,10 @@ module Morpheus
               options[:remote_password] = remote
             end
 
+            opts.on( '-T', '--token ACCESS_TOKEN', "Access Token" ) do |remote|
+              options[:remote_token] = remote
+            end
+
             opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
               options[:remote] = remote
             end
@@ -56,64 +60,7 @@ module Morpheus
             end
       end
 
-      def self.option_types_prompt(option_types, options={})
-          results = {}
-          options = options || {}
-          # puts "Options Prompt #{options}"
-          option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |option_type|
-            context_map = results
-            value = nil
-            value_found=false
-            if option_type['fieldContext']
-              results[option_type['fieldContext']] ||= {}
-              context_map = results[option_type['fieldContext']]
-              if options[option_type['fieldContext']] and options[option_type['fieldContext']].key?(option_type['fieldLabel'])
-                value = options[option_type['fieldContext']][option_type['fieldLabel']]
-                value_found = true
-              end
-            end
 
-            if value_found == false && options.key?(option_type['fieldName'])
-              value = options[option_type['fieldName']]
-              value_found = true
-            end
-
-            if !value_found
-              if option_type['type'] == 'number'
-                print "#{option_type['fieldLabel']}#{!option_type['required'] ? ' (optional)' : ''}: "
-                input = $stdin.gets.chomp!
-                if input
-                  value = input.to_i
-                else
-                  value = option_type['defaultValue']
-                end
-
-              elsif option_type['type'] == 'password'
-                print "#{option_type['fieldLabel']}#{!option_type['required'] ? ' (optional)' : ''}: "
-                value = STDIN.noecho(&:gets).chomp!
-                print "\n"
-              elsif option_type['type'] == 'checkbox'
-                print "#{option_type['fieldLabel']} (yes/no) [#{option_type['defaultValue'] == 'on' ? 'yes' : 'no'}]: "
-                input = $stdin.gets.chomp!
-                if input.downcase == 'yes'
-                  value = 'on'
-                elsif input.downcase == 'no'
-                  value = 'off'
-                else
-                  value = option_type['defaultValue']
-                end
-              elsif option_type['type'] == 'hidden'
-                value = option_type['defaultValue']
-              else
-                print "#{option_type['fieldLabel']}#{!option_type['required'] ? ' (optional)' : ''}: "
-                value = $stdin.gets.chomp! || option_type['defaultValue']
-              end
-            end
-            context_map[option_type['fieldName']] = value
-          end
-
-          return results
-        end
 
       module ClassMethods
         def cli_command_name(cmd_name)

@@ -4,6 +4,7 @@ require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/option_types'
 require 'json'
 
 class Morpheus::Cli::Hosts
@@ -46,8 +47,60 @@ class Morpheus::Cli::Hosts
 				add(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
+			when 'server-types'
+				server_types(args[1..-1])
 			else
 				puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
+		end
+	end
+
+	def server_types(args) 
+		if args.count < 1
+			puts "\nUsage: morpheus hosts server-types CLOUD\n\n"
+			return
+		end
+		options = {zone: args[0]}
+
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus server add CLOUD NAME -t HOST_TYPE [options]"
+			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
+				options[:server_type] = server_type
+			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+
+		optparse.parse(args)
+		connect(options)
+		params = {}
+		
+		zone=nil
+
+
+		if !options[:zone].nil?
+			zone = find_zone_by_name(nil, options[:zone])
+		end
+
+		if zone.nil?
+			puts "Cloud not found"
+			return
+		else
+			zone_type = cloud_type_for_id(zone['zoneTypeId'])
+		end
+		server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true}
+		if options[:json]
+			print JSON.pretty_generate(server_types)
+			print "\n"
+		else
+			
+			print "\n" ,red, bold, "Morpheus Server Types\n","==================", reset, "\n\n"
+			if server_types.nil? || server_types.empty?
+				puts yellow,"No server types found for the selected cloud.",reset
+			else
+				server_types.each do |server_type|
+					print red, "=  #{server_type['code']} - #{server_type['name']}\n"
+				end
+			end
+			print reset,"\n\n"
 		end
 	end
 
@@ -57,6 +110,7 @@ class Morpheus::Cli::Hosts
 			return
 		end
 		options = {zone: args[0]}
+		name = args[1]
 
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus server add CLOUD NAME -t HOST_TYPE [options]"
@@ -71,32 +125,20 @@ class Morpheus::Cli::Hosts
 		params = {}
 		
 		zone=nil
-		if !options[:group].nil?
-			group = find_group_by_name(options[:group])
-			if !group.nil?
-				options['groupId'] = group['id']
-			end
-		else
-			options['groupId'] = @active_groups[@appliance_name.to_sym]
+		if !options[:zone].nil?
+			zone = find_zone_by_name(nil, options[:zone])
 		end
 
-		if !options['groupId'].nil?
-			if !options[:zone].nil?
-				zone = find_zone_by_name(options['groupId'], options[:zone])
-				if !zone.nil?
-					options['zoneId'] = zone['id']
-				end
-			end
-		end
-
-		if options['zoneId'].nil?
-			puts red,bold,"\nEither the zone was not specified or was not found. Please make sure a zone is specified with --zone\n\n", reset
+		if zone.nil?
+			puts  red,bold,"\nEither the cloud was not specified or was not found. Please make sure a cloud is specied at the beginning of the argument\n\n",reset
 			return
+		else
+			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
-
-		zone_type = zone_type_for_id(zone['zoneTypeId'])
+		server_type = zone_type['serverTypes'].find{|b| b['creatable'] == true && (b['code'] == options[:server_type] || b['name'] == options[:server_type])}
+		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options])
 		begin
-			server_payload = {server: {name: name, description: description, zone: {id: zone['id']}}.merge(options)}
+			server_payload = {server: {name: name, zone: {id: zone['id']}}.merge(params['server']), config: params['config'], network: params['network']}
 			response = @servers_interface.create(server_payload)
 		rescue RestClient::Exception => e
 			if e.response.code == 400
@@ -195,19 +237,6 @@ class Morpheus::Cli::Hosts
 	end
 
 private
-
-	def zone_type_for_id(id)
-		# puts "Zone Types #{@zone_types}"
-		if !@cloud_types.empty?
-			zone_type = @cloud_types.find { |z| z['id'].to_i == id.to_i}
-			if !zone_type.nil?
-				return zone_type
-			end
-		end
-		return nil
-	end
-
-
 	def find_group_by_name(name)
 		group_results = @groups_interface.get(name)
 		if group_results['groups'].empty?
@@ -224,6 +253,26 @@ private
 			return nil
 		end
 		return zone_results['zones'][0]
+	end
+
+	def find_server_type(zone, name)
+		server_type = zone['serverTypes'].select do  |sv_type|
+			(sv_type['name'].downcase == name.downcase || sv_type['code'].downcase == name.downcase) && sv_type['creatable'] == true
+		end
+		if server_type.nil?
+			puts "Server Type Not Selectable"
+		end
+		return server_type
+	end
+
+	def cloud_type_for_id(id)
+		if !@cloud_types.empty?
+			zone_type = @cloud_types.find { |z| z['id'].to_i == id.to_i}
+			if !zone_type.nil?
+				return zone_type
+			end
+		end
+		return nil
 	end
 
 	def find_group_by_id(id)

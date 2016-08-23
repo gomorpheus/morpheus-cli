@@ -4,6 +4,7 @@ require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/option_types'
 require 'json'
 
 class Morpheus::Cli::Clouds
@@ -94,7 +95,7 @@ class Morpheus::Cli::Clouds
 		end
 		
 		begin
-			zone.merge!(Morpheus::Cli::CliCommand.option_types_prompt(cloud_type['optionTypes'],options[:options]))
+			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options]))
 			@clouds_interface.create(zone)
 		rescue => e
 			if e.response and e.response.code == 400
