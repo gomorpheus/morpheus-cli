@@ -4,6 +4,7 @@ require "morpheus/rest_client"
 module Morpheus
   module Cli
   	require 'morpheus/api/api_client'
+    require 'morpheus/api/options_interface'
   	require 'morpheus/api/groups_interface'
   	require 'morpheus/api/clouds_interface'
   	require 'morpheus/api/servers_interface'

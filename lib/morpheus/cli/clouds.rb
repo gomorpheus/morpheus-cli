@@ -24,6 +24,7 @@ class Morpheus::Cli::Clouds
 		else
 			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
 		end
+		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
@@ -95,7 +96,7 @@ class Morpheus::Cli::Clouds
 		end
 		
 		begin
-			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options]))
+			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options],@api_client))
 			@clouds_interface.create(zone)
 		rescue => e
 			if e.response and e.response.code == 400

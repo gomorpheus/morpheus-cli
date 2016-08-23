@@ -24,7 +24,6 @@ module Morpheus
 					creds = load_saved_credentials
 				end
 				if !creds
-					puts "Fetching Creds"
 					if username.nil? || username.empty?
 						puts "Enter Username: "
 						username = $stdin.gets.chomp!

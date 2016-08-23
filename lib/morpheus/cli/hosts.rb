@@ -9,7 +9,7 @@ require 'json'
 
 class Morpheus::Cli::Hosts
 	include Term::ANSIColor
-  include Morpheus::Cli::CliCommand
+    include Morpheus::Cli::CliCommand
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -24,6 +24,7 @@ class Morpheus::Cli::Hosts
 		else
 			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
 		end
+		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
@@ -109,7 +110,7 @@ class Morpheus::Cli::Hosts
 			puts "\nUsage: morpheus hosts add CLOUD [name]\n\n"
 			return
 		end
-		options = {zone: args[0]}
+		options = {zone: args[0], params:{}}
 		name = args[1]
 
 		optparse = OptionParser.new do|opts|
@@ -127,6 +128,7 @@ class Morpheus::Cli::Hosts
 		zone=nil
 		if !options[:zone].nil?
 			zone = find_zone_by_name(nil, options[:zone])
+			options[:params][:zoneId] = zone['id']
 		end
 
 		if zone.nil?
@@ -136,9 +138,9 @@ class Morpheus::Cli::Hosts
 			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
 		server_type = zone_type['serverTypes'].find{|b| b['creatable'] == true && (b['code'] == options[:server_type] || b['name'] == options[:server_type])}
-		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options])
+		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options],@api_client, options[:params])
 		begin
-			server_payload = {server: {name: name, zone: {id: zone['id']}}.merge(params['server']), config: params['config'], network: params['network']}
+			server_payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
 			response = @servers_interface.create(server_payload)
 		rescue RestClient::Exception => e
 			if e.response.code == 400
