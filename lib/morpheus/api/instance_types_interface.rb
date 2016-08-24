@@ -22,7 +22,7 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 
@@ -34,7 +34,7 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 			headers[:params][:name] = name
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers, verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 

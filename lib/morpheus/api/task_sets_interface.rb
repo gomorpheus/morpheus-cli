@@ -21,7 +21,7 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 
@@ -32,7 +32,7 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -40,7 +40,7 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/task-sets/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 end

@@ -17,6 +17,9 @@ module Morpheus
               custom_options[custom_option_args[0]] = custom_option_args[1]
               options[:options] = custom_options
             end
+            opts.on('-C','--nocolor', "ANSI") do
+              Term::ANSIColor::coloring = false
+            end
             opts.on( '-h', '--help', "Prints this help" ) do
               puts opts
               exit

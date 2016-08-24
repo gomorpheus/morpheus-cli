@@ -35,6 +35,14 @@ class Morpheus::APIClient
 		Morpheus::InstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def tasks
+		Morpheus::TasksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
+	def task_sets
+		Morpheus::TaskSetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 	def apps
 		Morpheus::AppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end

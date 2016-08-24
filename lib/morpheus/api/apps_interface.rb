@@ -22,7 +22,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -30,7 +30,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/envs"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -40,7 +40,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		
 		payload = {envs: options}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -49,7 +49,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -60,7 +60,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                                                     timeout: 10, headers: headers, payload: payload.to_json)
+                                                     timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -68,7 +68,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -76,7 +76,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/stop"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -84,7 +84,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/start"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -92,7 +92,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/restart"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                                                     timeout: 10, headers: headers)
+                                                     timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -100,7 +100,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/security-groups/disable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -108,7 +108,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/security-groups/enable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -116,7 +116,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/apps/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -125,7 +125,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 end

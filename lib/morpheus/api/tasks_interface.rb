@@ -9,6 +9,15 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
+	def task_types()
+		url = "#{@base_url}/api/task-types"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers,verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
 	def get(options=nil)
 		url = "#{@base_url}/api/tasks"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
@@ -21,7 +30,7 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 
@@ -32,7 +41,7 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -40,7 +49,7 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/tasks/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 end

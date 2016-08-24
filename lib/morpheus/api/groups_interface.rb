@@ -22,7 +22,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 
@@ -33,7 +33,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		
 		payload = {group: options}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -41,7 +41,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 end

@@ -15,6 +15,7 @@ module Morpheus
 
         def exec(command_name, args)
           # begin
+            Term::ANSIColor::coloring = STDOUT.isatty
             instance.get(command_name).new.handle(args)
           # rescue SystemExit, Interrupt
           #   puts "Interrupted..."

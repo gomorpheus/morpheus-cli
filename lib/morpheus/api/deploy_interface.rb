@@ -22,7 +22,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -33,7 +33,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		
 		payload = options || {}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -43,7 +43,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -69,7 +69,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/deploy/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 

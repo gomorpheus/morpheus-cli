@@ -1,5 +1,6 @@
 require "morpheus/cli/version"
 require "morpheus/rest_client"
+require 'term/ansicolor'
 
 module Morpheus
   module Cli
@@ -8,6 +9,8 @@ module Morpheus
   	require 'morpheus/api/groups_interface'
   	require 'morpheus/api/clouds_interface'
   	require 'morpheus/api/servers_interface'
+    require 'morpheus/api/tasks_interface'
+    require 'morpheus/api/task_sets_interface'
   	require 'morpheus/api/instances_interface'
     require 'morpheus/api/instance_types_interface'
     require 'morpheus/api/apps_interface'
@@ -20,6 +23,8 @@ module Morpheus
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/clouds'
   	require 'morpheus/cli/hosts'
+    require 'morpheus/cli/tasks'
+    require 'morpheus/cli/workflows'
     require 'morpheus/cli/instances'
     require 'morpheus/cli/apps'
     require 'morpheus/cli/deploys'
