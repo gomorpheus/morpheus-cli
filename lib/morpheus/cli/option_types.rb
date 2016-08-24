@@ -61,7 +61,7 @@ module Morpheus
                 value = option_type['defaultValue']
                 input = value
               else
-                generic_prompt(option_type)
+                value = generic_prompt(option_type)
               end
               
             end
