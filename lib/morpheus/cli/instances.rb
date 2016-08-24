@@ -12,19 +12,30 @@ class Morpheus::Cli::Instances
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
+		
+	end
+
+	def connect(opts)
+		if opts[:remote]
+			@appliance_url = opts[:remote]
+			@appliance_name = opts[:remote]
+			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
+		else
+			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
+		end
+		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
+		if @access_token.empty?
+			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			exit 1
+		end
 	end
 
 
 	def handle(args) 
-		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
-			return 1
-		end
 		if args.empty?
 			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 			return 
@@ -59,13 +70,13 @@ class Morpheus::Cli::Instances
 				setenv(args[1..-1])	
 			when 'delenv'
 				delenv(args[1..-1])	
-			when 'firewall_disable'
+			when 'firewall-disable'
 				firewall_disable(args[1..-1])	
-			when 'firewall_enable'
+			when 'firewall-enable'
 				firewall_enable(args[1..-1])	
-			when 'security_groups'	
+			when 'security-groups'	
 				security_groups(args[1..-1])	
-			when 'apply_security_groups'	
+			when 'apply-security-groups'	
 				apply_security_groups(args[1..-1])	
 			when 'backup'
 				backup(args[1..-1])	
@@ -201,7 +212,7 @@ class Morpheus::Cli::Instances
 
 	def details(args)
 		if args.count < 1
-			puts "\nUsage: morpheus instances stats [name]\n\n"
+			puts "\nUsage: morpheus instances details [name]\n\n"
 			return
 		end
 		begin
@@ -229,15 +240,22 @@ class Morpheus::Cli::Instances
 	end
 
 	def envs(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances envs [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances envs [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			instance = instance_results['instances'][0]
 			instance_id = instance['id']
@@ -260,32 +278,36 @@ class Morpheus::Cli::Instances
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
 	def setenv(args)
-		if args.count < 3
-			puts "\nUsage: morpheus instances setenv INSTANCE NAME VALUE [-e]\n\n"
-			return
+		options = {}
+
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME VALUE [-e]"
+			opts.on( '-e', "Exportable" ) do |exportable|
+					options[:export] = exportable
+				end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 3
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			instance = instance_results['instances'][0]
 			instance_id = instance['id']
-			evar = {name: args[1], value: args[2], export: false}
+			evar = {name: args[1], value: args[2], export: options[:export]}
 			params = {}
-			optparse = OptionParser.new do|opts|
-				opts.on( '-e', "Exportable" ) do |exportable|
-					evar[:export] = exportable
-				end
-			end
-			optparse.parse(args)
-
 			@instances_interface.create_env(instance_id, [evar])
 			envs([args[0]])
 		rescue RestClient::Exception => e
@@ -295,15 +317,22 @@ class Morpheus::Cli::Instances
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
 	def delenv(args)
-		if args.count < 2
-			puts "\nUsage: morpheus instances setenv INSTANCE NAME\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 2
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -338,6 +367,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -372,6 +402,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -406,6 +437,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -440,6 +472,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -474,6 +507,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -508,6 +542,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -542,6 +577,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -571,8 +607,10 @@ class Morpheus::Cli::Instances
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
+		connect(options)
 		begin
 			params = {}
 			if !options[:group].nil?
@@ -603,15 +641,22 @@ class Morpheus::Cli::Instances
 	end
 
 	def remove(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances remove [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances remove [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			@instances_interface.destroy(instance_results['instances'][0]['id'])
 			list([])
@@ -627,10 +672,17 @@ class Morpheus::Cli::Instances
 	end
 
 	def firewall_disable(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances firewall_disable [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances firewall-disable [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -651,10 +703,17 @@ class Morpheus::Cli::Instances
 	end
 
 	def firewall_enable(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances firewall_enable [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances firewall-enable [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -675,10 +734,17 @@ class Morpheus::Cli::Instances
 	end
 
 	def security_groups(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances security_groups [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances security-groups [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -713,32 +779,27 @@ class Morpheus::Cli::Instances
 	end
 
 	def apply_security_groups(args)
-		usage = <<-EOF
-Usage: morpheus instances apply_security_groups [name] [options]
-EOF
-		if args.count < 1
-			puts usage
-			return
-		end
-
 		options = {}
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances apply-security-groups [name] [options]"
 			opts.banner = usage
 			opts.on( '-c', '--clear', "Clear all security groups" ) do
 				options[:securityGroupIds] = []
 				clear_or_secgroups_specified = true
 			end
-			opts.on( '-s', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
+			opts.on( '-S', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
 				options[:securityGroupIds] = secgroups.split(",")
 				clear_or_secgroups_specified = true
 			end
-			opts.on( '-h', '--help', "Prints this help" ) do
-				puts opts
-				exit
-			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
 		end
 		optparse.parse(args)
+		connect(options)
 
 		if !clear_or_secgroups_specified 
 			puts usage
