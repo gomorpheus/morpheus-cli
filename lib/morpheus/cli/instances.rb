@@ -67,6 +67,8 @@ class Morpheus::Cli::Instances
 				security_groups(args[1..-1])	
 			when 'apply_security_groups'	
 				apply_security_groups(args[1..-1])	
+			when 'backup'
+				backup(args[1..-1])	
 			else
 				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
 				exit 127
@@ -513,6 +515,40 @@ class Morpheus::Cli::Instances
 				exit 1
 			end
 			json_response = @instances_interface.restart(instance_results['instances'][0]['id'],false)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+	def backup(args) 
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances backup [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				exit 1
+			end
+			json_response = @instances_interface.backup(instance_results['instances'][0]['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"

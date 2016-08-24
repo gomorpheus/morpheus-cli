@@ -21,7 +21,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -29,7 +29,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/envs"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -39,7 +39,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		
 		payload = {envs: options}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers,verify_ssl: false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -48,7 +48,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -59,7 +59,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers,verify_ssl: false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -67,7 +67,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -75,7 +75,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/stop"
 		headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -83,7 +83,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/start"
 		headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -91,7 +91,15 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/restart"
 		headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
+	def backup(id,server=true)
+		url = "#{@base_url}/api/instances/#{id}/backup"
+		headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -99,7 +107,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/security-groups/disable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -107,7 +115,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/security-groups/enable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -115,7 +123,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
+                            timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)
 	end
 
@@ -125,7 +133,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		payload = options
 		puts "payload #{payload}"
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
+                            timeout: 30, headers: headers,verify_ssl: false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 	
