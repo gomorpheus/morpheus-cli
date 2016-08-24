@@ -1,7 +1,7 @@
 require 'json'
 require 'rest-client'
 
-class Morpheus::ServersInterface < Morpheus::APIClient
+class Morpheus::TaskSetsInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
 		@access_token = access_token
 		@refresh_token = refresh_token
@@ -10,37 +10,37 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 	end
 
 	def get(options=nil)
-		url = "#{@base_url}/api/servers"
+		url = "#{@base_url}/api/task-sets"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		elsif options.is_a?(Numeric)
-			url = "#{@base_url}/api/servers/#{options}"
+			url = "#{@base_url}/api/tasks/#{options}"
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers, verify_ssl:false headers)
 		JSON.parse(response.to_s)
 	end
 
 
 	def create(options)
-		url = "#{@base_url}/api/servers"
+		url = "#{@base_url}/api/task-sets"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, verify_ssl:false headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
 	def destroy(id)
-		url = "#{@base_url}/api/servers/#{id}"
+		url = "#{@base_url}/api/task-sets/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers, verify_ssl:false headers)
 		JSON.parse(response.to_s)
 	end
 end
