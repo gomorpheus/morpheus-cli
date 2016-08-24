@@ -58,13 +58,14 @@ class Morpheus::Cli::Clouds
 				apply_security_groups(args[1..-1])		
 			else
 				puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
+				exit 127 #Command now foud exit code
 		end
 	end
 
 	def add(args)
 		if args.count < 1
 			puts "\nUsage: morpheus clouds add [name] --group GROUP --type TYPE\n\n"
-			return
+			exit 1
 		end
 		options = {}
 		params = {zone_type: 'standard'}
@@ -109,7 +110,7 @@ class Morpheus::Cli::Clouds
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 		list([])
 	end
@@ -135,7 +136,7 @@ class Morpheus::Cli::Clouds
 				params[:groupId] = group['id']
 			else
 				puts "\nGroup #{params[:group]} not found!"
-				return
+				exit 1
 			end
 		end
 
@@ -144,7 +145,7 @@ class Morpheus::Cli::Clouds
 			zone_results = @clouds_interface.get({name: args[0]})
 			if zone_results['zones'].empty?
 				puts "Zone not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			@clouds_interface.destroy(zone_results['zones'][0]['id'])
 			list([])
@@ -155,7 +156,7 @@ class Morpheus::Cli::Clouds
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
@@ -196,7 +197,7 @@ class Morpheus::Cli::Clouds
 			end
 		rescue => e
 			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+			exit 1
 		end
 	end
 
@@ -209,7 +210,7 @@ class Morpheus::Cli::Clouds
 			zone_results = @clouds_interface.get({name: args[0]})
 			if zone_results['zones'].empty?
 				puts "Zone not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			@clouds_interface.firewall_disable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
@@ -220,7 +221,7 @@ class Morpheus::Cli::Clouds
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
@@ -233,7 +234,7 @@ class Morpheus::Cli::Clouds
 			zone_results = @clouds_interface.get({name: args[0]})
 			if zone_results['zones'].empty?
 				puts "Zone not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			@clouds_interface.firewall_enable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
@@ -244,7 +245,7 @@ class Morpheus::Cli::Clouds
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
@@ -257,7 +258,7 @@ class Morpheus::Cli::Clouds
 			zone_results = @clouds_interface.get({name: args[0]})
 			if zone_results['zones'].empty?
 				puts "Zone not found by name #{args[0]}"
-				return
+				exit 1
 			end
 
 			zone_id = zone_results['zones'][0]['id']
@@ -282,7 +283,7 @@ class Morpheus::Cli::Clouds
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
@@ -292,7 +293,7 @@ Usage: morpheus clouds apply_security_groups [name] [options]
 EOF
 		if args.count < 1
 			puts usage
-			return
+			exit 1
 		end
 
 		options = {}
@@ -323,7 +324,7 @@ EOF
 			zone_results = @clouds_interface.get({name: args[0]})
 			if zone_results['zones'].empty?
 				puts "Zone not found by name #{args[0]}"
-				return
+				exit 1
 			end
 
 			@clouds_interface.apply_security_groups(zone_results['zones'][0]['id'], options)
@@ -335,11 +336,11 @@ EOF
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
-	private
+private
 
 	def cloud_type_for_id(id)
 		if !@cloud_types.empty?

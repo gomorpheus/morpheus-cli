@@ -4,6 +4,26 @@ module Morpheus
   module Cli
     module OptionTypes
         include Term::ANSIColor
+
+
+        def self.confirm(message,options={})
+          if options[:yes] == true
+            return true
+          end
+          value_found = false
+          while value_found == false do
+            print "#{message} (yes/no): "
+            input = $stdin.gets.chomp!
+            if input.downcase == 'yes'
+              return true
+            elsif input.downcase == 'no'
+              return false
+            else
+              puts "Invalid Option... Please try again."
+            end
+          end
+        end
+
         def self.prompt(option_types, options={}, api_client=nil,api_params={})
           results = {}
           options = options || {}

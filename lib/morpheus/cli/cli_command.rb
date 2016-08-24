@@ -23,6 +23,9 @@ module Morpheus
             opts.on('','--json',"JSON") do |json|
               options[:json] = true
             end
+            opts.on( '-y', '--yes', "Auto Confirm" ) do
+              options[:yes] = true
+            end
             opts.on( '-m', '--max MAX', "Max Results" ) do |max|
               options[:max] = max.to_i
             end

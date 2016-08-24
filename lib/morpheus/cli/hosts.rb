@@ -31,14 +31,14 @@ class Morpheus::Cli::Hosts
 		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
 			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
-			return 1
+			exit 1
 		end
 	end
 
 	def handle(args) 
 		if args.empty?
 			puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
-			return
+			exit 1
 		end
 
 		case args[0]
@@ -52,13 +52,14 @@ class Morpheus::Cli::Hosts
 				server_types(args[1..-1])
 			else
 				puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
+				exit 127 #Command now foud exit code
 		end
 	end
 
 	def server_types(args) 
 		if args.count < 1
 			puts "\nUsage: morpheus hosts server-types CLOUD\n\n"
-			return
+			exit 1
 		end
 		options = {zone: args[0]}
 
@@ -83,7 +84,7 @@ class Morpheus::Cli::Hosts
 
 		if zone.nil?
 			puts "Cloud not found"
-			return
+			exit 1
 		else
 			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
@@ -149,33 +150,73 @@ class Morpheus::Cli::Hosts
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
 	def remove(args)
 		if args.count < 1
-			puts "\nUsage: morpheus hosts remove [name]\n\n"
+			puts "\nUsage: morpheus hosts remove [name] [-c CLOUD] [-f] [-S]\n\n"
 			return
 		end
 		options = {}
+		query_params = {name: args[0], removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
+			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |cloud|
+				options[:zone] = cloud
+			end
+			opts.on( '-f', '--force', "Force Remove" ) do
+				query_params[:force] = 'on'
+			end
+			opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure" ) do
+				query_params[:removeResources] = 'off'
 			end
 			
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		connect(options)
+		zone=nil
+		if !options[:zone].nil?
+			zone = find_zone_by_name(nil, options[:zone])
+		end
+
 		begin
-			server_results = @servers_interface.get({name: args[0]})
-			if server_results['servers'].empty?
-				puts "Server not found by name #{args[0]}"
-				return
+			
+			if zone 
+				query_params[:zoneId] = zone['id']
 			end
-			@servers_interface.destroy(server_results['servers'][0]['id'])
-			list([])
+			server = nil
+			server_results = @servers_interface.get(query_params)
+			if server_results['servers'].nil? || server_results['servers'].empty?
+				server_results = @servers_interface.get(args[0].to_i)
+				server = server_results['server']
+			else
+				if !server_results['servers'].empty? && server_results['servers'].count > 1
+					puts "Multiple Servers exist with the same name. Try scoping by cloud or using id to confirm"
+					exit 1
+				end
+				server = server_results['servers'][0] unless server_results['servers'].empty?
+			end
+
+			if server.nil?
+				puts "Server not found by name #{args[0]}"
+				exit 1
+			else
+				
+			end
+			
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this server?", options)
+				exit 1
+			end
+
+			json_response = @servers_interface.destroy(server['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Removing Server..."
+			end
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -183,7 +224,7 @@ class Morpheus::Cli::Hosts
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
@@ -226,10 +267,23 @@ class Morpheus::Cli::Hosts
 				if servers.empty?
 					puts yellow,"No hosts currently configured.",reset
 				else
-					servers.each do |server|
-						print red, "=  #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']})\n"
+					
+
+					server_table =servers.collect do |server|
+						power_state = nil
+						if server['powerState'] == 'on'
+							power_state = "#{green}ON#{red}"
+						elsif server['powerState'] == 'off'
+							power_state = "#{red}OFF#{red}"
+						else
+							power_state = "#{white}#{server['powerState'].upcase}#{red}"
+						end
+						{id: server['id'], name: server['name'], type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', status: server['status'], power: power_state}
+						# print red, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
 					end
 				end
+				print red
+				tp server_table, :id, :name, :status, :power
 				print reset,"\n\n"
 			end
 		rescue => e

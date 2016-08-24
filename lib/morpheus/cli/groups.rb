@@ -3,6 +3,7 @@ require 'io/console'
 require 'rest_client'
 require 'term/ansicolor'
 require 'optparse'
+require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Groups

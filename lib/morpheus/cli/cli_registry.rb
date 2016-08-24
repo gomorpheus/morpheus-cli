@@ -14,11 +14,11 @@ module Morpheus
         end
 
         def exec(command_name, args)
-          begin
+          # begin
             instance.get(command_name).new.handle(args)
-          rescue SystemExit, Interrupt
-            puts "Interrupted..."
-          end
+          # rescue SystemExit, Interrupt
+          #   puts "Interrupted..."
+          # end
         end
 
         def add(klass, command_name=nil)

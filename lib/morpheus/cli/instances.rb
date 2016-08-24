@@ -63,6 +63,7 @@ class Morpheus::Cli::Instances
 				apply_security_groups(args[1..-1])	
 			else
 				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
+				exit 127
 		end
 	end
 
