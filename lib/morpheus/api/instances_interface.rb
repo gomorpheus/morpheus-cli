@@ -71,25 +71,25 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
-	def stop(id)
+	def stop(id,server=true)
 		url = "#{@base_url}/api/instances/#{id}/stop"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
-	def start(id)
+	def start(id,server=true)
 		url = "#{@base_url}/api/instances/#{id}/start"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
-	def restart(id)
+	def restart(id,server=true)
 		url = "#{@base_url}/api/instances/#{id}/restart"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)

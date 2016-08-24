@@ -278,12 +278,12 @@ class Morpheus::Cli::Hosts
 						else
 							power_state = "#{white}#{server['powerState'].upcase}#{red}"
 						end
-						{id: server['id'], name: server['name'], type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', status: server['status'], power: power_state}
+						{id: server['id'], name: server['name'], platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A', type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', status: server['status'], power: power_state}
 						# print red, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
 					end
 				end
 				print red
-				tp server_table, :id, :name, :status, :power
+				tp server_table, :id, :name, :type, :platform, :status, :power
 				print reset,"\n\n"
 			end
 		rescue => e

@@ -17,10 +17,11 @@ module Morpheus
               custom_options[custom_option_args[0]] = custom_option_args[1]
               options[:options] = custom_options
             end
-            opts.on('-h','--help', "Help") do |json|
-              options[:help] = true
+            opts.on( '-h', '--help', "Prints this help" ) do
+              puts opts
+              exit
             end
-            opts.on('','--json',"JSON") do |json|
+            opts.on('-j','--json', "JSON Output") do |json|
               options[:json] = true
             end
             opts.on( '-y', '--yes', "Auto Confirm" ) do

@@ -43,6 +43,12 @@ class Morpheus::Cli::Instances
 				start(args[1..-1])
 			when 'restart'
 				restart(args[1..-1])
+			when 'stop-service'
+				stop_service(args[1..-1])
+			when 'start-service'
+				start_service(args[1..-1])
+			when 'restart-service'
+				restart_service(args[1..-1])
 			when 'stats'
 				stats(args[1..-1])
 			when 'details'
@@ -62,7 +68,7 @@ class Morpheus::Cli::Instances
 			when 'apply_security_groups'	
 				apply_security_groups(args[1..-1])	
 			else
-				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
+				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
 				exit 127
 		end
 	end
@@ -320,18 +326,28 @@ class Morpheus::Cli::Instances
 	end
 
 	def stop(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances stop [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances stop [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
-			@instances_interface.stop(instance_results['instances'][0]['id'])
-			list([])
+			json_response = @instances_interface.stop(instance_results['instances'][0]['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -339,23 +355,33 @@ class Morpheus::Cli::Instances
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
 	def start(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances start [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances start [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
-			@instances_interface.start(instance_results['instances'][0]['id'])
-			list([])
+			json_response = @instances_interface.start(instance_results['instances'][0]['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -363,23 +389,33 @@ class Morpheus::Cli::Instances
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
 		end
 	end
 
 	def restart(args)
-		if args.count < 1
-			puts "\nUsage: morpheus instances restart [name]\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances restart [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
-			@instances_interface.restart(instance_results['instances'][0]['id'])
-			list([])
+			json_response = @instances_interface.restart(instance_results['instances'][0]['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -387,7 +423,109 @@ class Morpheus::Cli::Instances
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
-			return nil
+			exit 1
+		end
+	end
+
+		def stop_service(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances stop-service [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				exit 1
+			end
+			json_response = @instances_interface.stop(instance_results['instances'][0]['id'],false)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+	def start_service(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances start-service [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				exit 1
+			end
+			json_response = @instances_interface.start(instance_results['instances'][0]['id'],false)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+	def restart_service(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances restart-service [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		begin
+			instance_results = @instances_interface.get({name: args[0]})
+			if instance_results['instances'].empty?
+				puts "Instance not found by name #{args[0]}"
+				exit 1
+			end
+			json_response = @instances_interface.restart(instance_results['instances'][0]['id'],false)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
 		end
 	end
 
@@ -414,9 +552,11 @@ class Morpheus::Cli::Instances
 			if instances.empty?
 				puts yellow,"No instances currently configured.",reset
 			else
-				instances.each do |instance|
-					print cyan, "=  #{instance['name']} (#{instance['instanceType']['name']}) - #{instance['status']['name']}\n"
+				print cyan
+				instance_table = instances.collect do |instance|
+					{id: instance['id'], name: instance['name'], environment: instance['environment'], status: instance['status'], type: instance['instanceType']['name']}
 				end
+				tp instance_table, :id, :name, :type, :status
 			end
 			print reset,"\n\n"
 			

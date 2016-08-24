@@ -58,7 +58,7 @@ EOT
 		security_group_id = nil 
 		optparse = OptionParser.new do|opts|
 			opts.banner = "\nUsage: morpheus security-group-rules add_custom_rule SOURCE_CIDR PORT_RANGE PROTOCOL [options]"
-			opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
+			opts.on( '-s', '--secgroup SECGROUP', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
 				security_group_id = id
 			end
 			opts.on( '-h', '--help', "Prints this help" ) do
@@ -158,15 +158,10 @@ EOT
 		options = {}
 		security_group_id = nil 
 		optparse = OptionParser.new do|opts|
-			opts.banner = "\nUsage: morpheus security-group-rules list [options]"
-			opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
-				security_group_id = id
-			end
-			opts.on( '-h', '--help', "Prints this help" ) do
-				puts opts
-				exit
-			end
+			opts.banner = "\nUsage: morpheus security-group-rules list [ID]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		security_group_id = args[0].to_i
 		optparse.parse(args)
 
 		if security_group_id.nil?
