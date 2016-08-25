@@ -1,5 +1,6 @@
 require "morpheus/cli/version"
 require "morpheus/rest_client"
+require 'morpheus/formatters'
 require 'term/ansicolor'
 
 module Morpheus
@@ -17,7 +18,11 @@ module Morpheus
     require 'morpheus/api/deploy_interface'
     require 'morpheus/api/security_groups_interface'
     require 'morpheus/api/security_group_rules_interface'
-  	require 'morpheus/cli/credentials'
+    require 'morpheus/api/accounts_interface'
+    require 'morpheus/api/users_interface'
+    require 'morpheus/api/roles_interface'
+  	
+    require 'morpheus/cli/credentials'
   	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
@@ -31,6 +36,9 @@ module Morpheus
     require 'morpheus/cli/instance_types'
     require 'morpheus/cli/security_groups'
     require 'morpheus/cli/security_group_rules'
+    require 'morpheus/cli/accounts'
+    require 'morpheus/cli/users'
+    require 'morpheus/cli/roles'
     # Your code goes here...
   end
 end

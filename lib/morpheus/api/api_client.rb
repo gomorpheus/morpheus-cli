@@ -58,4 +58,17 @@ class Morpheus::APIClient
 	def security_group_rules
 		Morpheus::SecurityGroupRulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
+
+	def accounts
+		Morpheus::AccountsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
+	def users
+		Morpheus::UsersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
+	def roles
+		Morpheus::RolesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 end

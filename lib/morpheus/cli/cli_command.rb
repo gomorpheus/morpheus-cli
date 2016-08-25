@@ -58,12 +58,16 @@ module Morpheus
               options[:remote_token] = remote
             end
 
-            opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
-              options[:remote] = remote
-            end
-
             opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
               options[:phrase] = phrase
+            end
+
+            opts.on( '', '--sort OPTION', "Sort Order" ) do |v|
+              options[:sort] = v
+            end
+
+            opts.on( '', '--desc', "Reverse Sort Order" ) do |v|
+              options[:direction] = "desc"
             end
       end
 
