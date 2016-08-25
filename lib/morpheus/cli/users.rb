@@ -40,8 +40,8 @@ class Morpheus::Cli::Users
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
-			# when 'update'
-			# 	add(args[1..-1])
+			when 'update'
+				update(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			else
@@ -168,7 +168,7 @@ class Morpheus::Cli::Users
 
 	def update(args)
 		usage = "Usage: morpheus users update [username] [options]"
-		if args.count > 1
+		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
@@ -197,8 +197,18 @@ class Morpheus::Cli::Users
 			end
 			account_id = account ? account['id'] : nil
 
-			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options)
-			params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			user = find_user_by_username(account_id, username)
+			exit 1 if user.nil?
+
+			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			params = options[:options] || {}
+
+			if params.empty?
+				puts "\n#{usage}\n\n"
+				option_lines = update_user_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				exit 1
+			end
 
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation']
@@ -209,8 +219,8 @@ class Morpheus::Cli::Users
 				user_payload['role'] = {id: role['id']}
 			end
 			request_payload = {user: user_payload}
-			response = @users_interface.update(account_id, request_payload)
-			print "\n", cyan, "User #{user_payload['username']} updated", reset, "\n\n"
+			response = @users_interface.update(account_id, user['id'], request_payload)
+			print "\n", cyan, "User #{user_payload['username'] || user['username']} updated", reset, "\n\n"
 		rescue RestClient::Exception => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -266,16 +276,16 @@ class Morpheus::Cli::Users
 		end
 	end
 
-	private
+private
 
 	def find_account_by_id(id)
-		raise "find_account_by_name passed a bad username: #{username.inspect}" if id.is_a?(Numeric)
+		raise "find_account_by_id passed a bad id: #{id.inspect}" if id.to_s == ''
 		results = @accounts_interface.get(id.to_i)
 		if results['account'].empty?
-			print red,bold, "\AAccount ID '#{id}' not found.\n\n",reset
+			print red,bold, "\nAccount not found by id '#{id}'\n\n",reset
 			return nil
 		end
-		return results['account'][0]
+		return results['account']
 	end
 
 	def find_user_by_username(account_id, username)
@@ -290,7 +300,7 @@ class Morpheus::Cli::Users
 
 	def find_account_by_name(name)
 		raise "find_account_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @accounts_interface.get(name)
+		results = @accounts_interface.get(name.to_s)
 		if results['accounts'].empty?
 			print red,bold, "\nAccount not found by name '#{name}'\n\n",reset
 			return nil
@@ -300,7 +310,7 @@ class Morpheus::Cli::Users
 
 	def find_role_by_name(account_id, name)
 		raise "find_role_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @roles_interface.get(account_id, name)
+		results = @roles_interface.get(account_id, name.to_s)
 		if results['roles'].empty?
 			print red,bold, "\nRole not found by name '#{name}'\n\n",reset
 			return nil
@@ -321,6 +331,10 @@ class Morpheus::Cli::Users
 			{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
 			{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
 		]
+	end
+
+	def update_user_option_types
+		add_user_option_types.reject {|it| ['passwordConfirmation'].include?(it['fieldName']) }
 	end
 
 end
