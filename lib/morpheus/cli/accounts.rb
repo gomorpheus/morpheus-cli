@@ -29,8 +29,9 @@ class Morpheus::Cli::Accounts
 	end
 
 	def handle(args)
+		usage = "Usage: morpheus accounts [list,add,update,remove] [name]"
 		if args.empty?
-			puts "\nUsage: morpheus accounts [list,add,remove] [name]\n\n"
+			puts "\n#{usage}\n\n"
 			exit 1
 		end
 
@@ -39,10 +40,12 @@ class Morpheus::Cli::Accounts
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'update'
+				update(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			else
-				puts "\nUsage: morpheus accounts [list,add,remove] [name]\n\n"
+				puts "\n#{usage}\n\n"
 				exit 127
 		end
 	end
@@ -111,7 +114,6 @@ class Morpheus::Cli::Accounts
 		# 	exit 1
 		# end
 		options = {}
-		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus users add [options]"
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
@@ -151,6 +153,63 @@ class Morpheus::Cli::Accounts
 		end
 	end
 
+	def update(args)
+		usage = "Usage: morpheus hosts update [username] [options]"
+		if args.count < 1
+			puts "\n#{usage}\n\n"
+			exit 1
+		end
+		name = args[0]
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+
+		connect(options)
+		
+		begin
+
+			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
+			exit 1 if account.nil?
+
+			#params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			params = options[:options] || {}
+
+			if params.empty?
+				puts "\nUsage: morpheus hosts update [username] [-O firstName=\"William\", etc]\n\n"
+				option_lines = update_account_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				exit 1
+			end
+
+			#puts "parsed params is : #{params.inspect}"
+			account_keys = ['name', 'description', 'currency']
+			account_payload = params.select {|k,v| account_keys.include?(k) }
+			account_payload['currency'] = account_payload['currency'].upcase unless account_payload['currency'].to_s.empty?
+			account_payload['instanceLimits'] = {}
+			account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+			account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+			account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			if params['role'].to_s != ''
+				role = find_role_by_name(nil, params['role'])
+				exit 1 if role.nil?
+				account_payload['role'] = {id: role['id']}
+			end
+			request_payload = {account: account_payload}
+			response = @accounts_interface.update(account['id'], request_payload)
+			print "\n", cyan, "Account #{account_payload['name'] || account['name']} updated", reset, "\n\n"
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
 
 	def remove(args)
 		usage = "Usage: morpheus accounts remove [name]"
@@ -160,7 +219,6 @@ class Morpheus::Cli::Accounts
 		end
 		name = args[0]
 		options = {}
-		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
@@ -169,7 +227,7 @@ class Morpheus::Cli::Accounts
 		connect(options)
 		begin
 			# allow finding by ID since name is not unique!
-			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_byy_name(name) )
+			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
 			exit 1 if account.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
 			@accounts_interface.destroy(account['id'])
@@ -228,6 +286,10 @@ private
 			{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 6},
 			{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 7},
 		]
+	end
+
+	def update_account_option_types
+		add_account_option_types
 	end
 
 end

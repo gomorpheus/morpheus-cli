@@ -36,8 +36,8 @@ class Morpheus::AccountsInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
-	def update(options)
-		url = "#{@base_url}/api/accounts"
+	def update(id, options)
+		url = "#{@base_url}/api/accounts/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
