@@ -147,7 +147,6 @@ class Morpheus::Cli::Users
 				puts "Last Name: #{user['firstName']}"
 				puts "Username: #{user['username']}"
 				puts "Role: #{user['role'] ? user['role']['authority'] : nil}"
-				puts "Role: #{user['role'] ? user['role']['authority'] : nil}"
 				puts "Date Created: #{format_local_dt(user['dateCreated'])}"
 				puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
 				print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
