@@ -40,6 +40,8 @@ class Morpheus::Cli::Accounts
 		case args[0]
 			when 'list'
 				list(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'add'
 				add(args[1..-1])
 			when 'update'
@@ -85,6 +87,69 @@ class Morpheus::Cli::Accounts
 		end
 	end
 
+	def details(args)
+		usage = "Usage: morpheus accounts details [name] [options]"
+		if args.count < 1
+			puts "\n#{usage}\n\n"
+			exit 1
+		end
+		name = args[0]
+		options = {}
+		params = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
+				options[:account_name] = account_name
+			end
+
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+	
+			# todo: accounts_response = @accounts_interface.list({name: name})
+			#       there may be response data outside of account that needs to be displayed
+
+			# allow finding by ID since name is not unique!
+			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
+			exit 1 if account.nil?
+
+			if options[:json]
+				print JSON.pretty_generate(account)
+				print "\n"
+			else
+				print "\n" ,cyan, bold, "Account Details\n","==================", reset, "\n\n"
+				print cyan
+				puts "ID: #{account['id']}"
+				puts "Name: #{account['name']}"
+				puts "Description: #{account['description']}"
+				puts "Currency: #{account['currency']}"
+				# puts "# Users: #{account['usersCount']}"
+				# puts "# Instances: #{account['instancesCount']}"
+				puts "Date Created: #{format_local_dt(account['dateCreated'])}"
+				puts "Last Updated: #{format_local_dt(account['lastUpdated'])}"
+				status_state = nil
+				if account['active']
+					status_state = "#{green}ACTIVE#{cyan}"
+				else
+					status_state = "#{red}INACTIVE#{cyan}"
+				end
+				puts "Status: #{status_state}"
+				print "\n" ,cyan, bold, "Account Instance Limits\n","==================", reset, "\n\n"
+				print cyan
+				puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
+				puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"
+				puts "CPU Count: #{account['instanceLimits'] ? account['instanceLimits']['maxCpu'] : 0}"
+				print cyan
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
 	def add(args)
 		# if args.count > 0
 		# 	puts "\nUsage: morpheus hosts add [options]\n\n"
@@ -92,7 +157,7 @@ class Morpheus::Cli::Accounts
 		# end
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus users add [options]"
+			opts.banner = "Usage: morpheus accounts add [options]"
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
@@ -173,7 +238,7 @@ class Morpheus::Cli::Accounts
 			response = @accounts_interface.update(account['id'], request_payload)
 			print "\n", cyan, "Account #{account_payload['name'] || account['name']} updated", reset, "\n\n"
 		rescue RestClient::Exception => e
-			handle_rest_error(e)
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end

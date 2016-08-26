@@ -40,6 +40,8 @@ class Morpheus::Cli::Users
 		case args[0]
 			when 'list'
 				list(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'add'
 				add(args[1..-1])
 			when 'update'
@@ -101,6 +103,67 @@ class Morpheus::Cli::Users
 		end
 	end
 
+	def details(args)
+		usage = "Usage: morpheus users details [username] [options]"
+		if args.count < 1
+			puts "\n#{usage}\n\n"
+			exit 1
+		end
+		username = args[0]
+		options = {}
+		params = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
+				options[:account_name] = account_name
+			end
+
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			account_id = nil 
+			if !options[:account_name].nil?
+				account = @accounts_interface.find_account_by_name(options[:account_name])
+				exit 1 if account.nil?
+				account_id = account['id']
+			end
+	
+			# todo: users_response = @users_interface.list(account_id, {name: name})
+			#       there may be response data outside of user that needs to be displayed
+			user = find_user_by_username(account_id, username)
+			exit 1 if user.nil?
+
+			if options[:json]
+				print JSON.pretty_generate(user)
+				print "\n"
+			else
+				print "\n" ,cyan, bold, "User Details\n","==================", reset, "\n\n"
+				print cyan
+				puts "ID: #{user['id']}"
+				puts "Account: #{user['account'] ? user['account']['name'] : nil}"
+				puts "First Name: #{user['firstName']}"
+				puts "Last Name: #{user['firstName']}"
+				puts "Username: #{user['username']}"
+				puts "Role: #{user['role'] ? user['role']['authority'] : nil}"
+				puts "Role: #{user['role'] ? user['role']['authority'] : nil}"
+				puts "Date Created: #{format_local_dt(user['dateCreated'])}"
+				puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
+				print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
+				print cyan
+				puts "Max Storage (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxStorage'] : 0}"
+				puts "Max Memory (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxMemory'] : 0}"
+				puts "CPU Count: #{user['instanceLimits'] ? user['instanceLimits']['maxCpu'] : 0}"
+				print cyan
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
 	def add(args)
 		usage = "Usage: morpheus users add [options]"
 		# if args.count > 0
@@ -135,17 +198,13 @@ class Morpheus::Cli::Users
 			params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
 
 			#puts "parsed params is : #{params.inspect}"
-			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation']
+			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
 			user_payload = params.select {|k,v| user_keys.include?(k) }
 			if params['role'].to_s != ''
 				role = find_role_by_name(account_id, params['role'])
 				exit 1 if role.nil?
 				user_payload['role'] = {id: role['id']}
 			end
-			user_payload['instanceLimits'] = {}
-			user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-			user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-			user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
 			request_payload = {user: user_payload}
 			response = @users_interface.create(account_id, request_payload)
 			if account
@@ -204,7 +263,7 @@ class Morpheus::Cli::Users
 			end
 
 			#puts "parsed params is : #{params.inspect}"
-			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation']
+			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits']
 			user_payload = params.select {|k,v| user_keys.include?(k) }
 			if params['role'].to_s != ''
 				role = find_role_by_name(account_id, params['role'])
