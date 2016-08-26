@@ -9,27 +9,27 @@ class Morpheus::AccountsInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
-	def get(options=nil)
-		url = "#{@base_url}/api/accounts"
+	def get(id)
+		raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
+		url = "#{@base_url}/api/accounts/#{id}"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-		if options.is_a?(Hash)
-			headers[:params].merge!(options)
-		elsif options.is_a?(Numeric)
-			url = "#{@base_url}/api/accounts/#{options}"
-		elsif options.is_a?(String)
-			headers[:params]['name'] = options
-		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
+	def list(options={})
+		url = "#{@base_url}/api/accounts"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
 
 	def create(options)
 		url = "#{@base_url}/api/accounts"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
@@ -39,7 +39,6 @@ class Morpheus::AccountsInterface < Morpheus::APIClient
 	def update(id, options)
 		url = "#{@base_url}/api/accounts/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)

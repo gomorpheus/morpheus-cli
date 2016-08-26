@@ -10,37 +10,36 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
-	def get(account_id, options=nil)
-		url = build_url(account_id)
+	def get(account_id, id)
+		raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
+		url = build_url(account_id, id)
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-		if options.is_a?(Hash)
-			headers[:params].merge!(options)
-		elsif options.is_a?(Numeric)
-			url = build_url(account_id, options)
-		elsif options.is_a?(String)
-			headers[:params]['authority'] = options
-		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
+	def list(account_id, options={})
+		url = build_url(account_id)
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
 
 	def create(account_id, options)
 		url = build_url(account_id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
-	def create(account_id, options)
-		url = build_url(account_id)
+	def update(account_id, id, options)
+		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
@@ -57,15 +56,16 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 
 	private
 
-	def build_url(account_id=nil, user_id=nil)
+	def build_url(account_id=nil, role_id=nil)
 		url = "#{@base_url}/api"
 		if account_id
-			url += "/accounts/#{account_id}/roles"
+			#url += "/accounts/#{account_id}/roles"
+			url += "/roles"
 		else
 			url += "/roles"
 		end
-		if user_id
-			url += "/#{user_id}"
+		if role_id
+			url += "/#{role_id}"
 		end
 		url
 	end

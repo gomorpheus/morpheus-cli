@@ -26,4 +26,19 @@ class Morpheus::Cli::ErrorHandler
 			end
 		end
 	end
+
+	def print_rest_exception(e, options={})
+		if e.response.code == 400
+			json_response = JSON.parse(e.response.to_s)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				::Morpheus::Cli::ErrorHandler.new.print_errors(json_response)
+			end
+		else
+			puts "Error Communicating with the Appliance. Please try again later. #{e}"
+		end
+	end
+
 end
