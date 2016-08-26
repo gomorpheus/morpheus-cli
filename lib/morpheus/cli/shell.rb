@@ -16,24 +16,33 @@ class Morpheus::Cli::Shell
 	end
 
 	def handle(args) 
-		
+		history = []
 		exit = false
 		while !exit do
 			print red,"morpheus > ",reset	
 			input = $stdin.gets.chomp!
 			if !input.empty?
+
 				if input == 'exit'
 					break
+				elsif input == '!'
+					input = history[-1]
 				end
-				argv = Shellwords.shellsplit(input)
 
-				if Morpheus::Cli::CliRegistry.has_command?(argv[0])
 					begin
-						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
+						history << input
+						argv = Shellwords.shellsplit(input)
+						if Morpheus::Cli::CliRegistry.has_command?(argv[0])
+							Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
+						else
+							puts "Unrecognized Command."
+						end
+					rescue ArgumentError
+						puts "Argument Syntax Error..."
 					rescue SystemExit, Interrupt
-						# nothing to do
+							# nothing to do
 					end
-				end
+				
 			end
 		end
 	end

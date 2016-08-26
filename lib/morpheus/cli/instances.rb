@@ -198,10 +198,17 @@ class Morpheus::Cli::Instances
 	end
 
 	def stats(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances stats [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
 		if args.count < 1
-			puts "\nUsage: morpheus instances stats [name]\n\n"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
@@ -227,10 +234,17 @@ class Morpheus::Cli::Instances
 	end
 
 	def details(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances details [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
 		if args.count < 1
-			puts "\nUsage: morpheus instances details [name]\n\n"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
+		optparse.parse(args)
+		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
 			if instance_results['instances'].empty?
