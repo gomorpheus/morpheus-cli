@@ -178,7 +178,7 @@ class Morpheus::Cli::Accounts
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\nUsage: morpheus hosts update [username] [-O firstName=\"William\", etc]\n\n"
+				puts "\n#{usage}\n\n"
 				option_lines = update_account_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -258,7 +258,7 @@ private
 
 	def find_account_by_name(name)
 		raise "find_account_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @accounts_interface.get(name)
+		results = @accounts_interface.get(name.to_s)
 		if results['accounts'].empty?
 			print red,bold, "\nAccount not found by name '#{name}'\n\n",reset
 			return nil
@@ -268,7 +268,7 @@ private
 
 	def find_role_by_name(account_id, name)
 		raise "find_role_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @roles_interface.get(account_id, name)
+		results = @roles_interface.get(account_id, name.to_s)
 		if results['roles'].empty?
 			print red,bold, "\nRole not found by name '#{name}'\n\n",reset
 			return nil
