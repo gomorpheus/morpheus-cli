@@ -173,11 +173,13 @@ class Morpheus::Cli::Instances
 			payload.merge!(type_payload['config'])
 		end
 
-		if layout['provisionType'] && !layout['provisionType']['optionTypes'].nil? && layout['provisionType']['optionTypes'].empty?
+		provision_payload = {}
+		if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
+			puts "Checking for option Types"
 			provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 
-		if !provision_payload['config'].nil?
+		if !provision_payload.nil? && !provision_payload['config'].nil?
 			payload.merge!(provision_payload['config'])
 		end
 

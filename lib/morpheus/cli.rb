@@ -29,6 +29,7 @@ module Morpheus
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/clouds'
   	require 'morpheus/cli/hosts'
+    require 'morpheus/cli/shell'
     require 'morpheus/cli/tasks'
     require 'morpheus/cli/workflows'
     require 'morpheus/cli/instances'

@@ -137,7 +137,7 @@ module Morpheus
               print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} ['?' for options]: "
               input = $stdin.gets.chomp!
               if option_type['optionSource']
-                source_option = source_options.find{|b| b['name'] == input || b['value'].to_s == input}
+                source_option = source_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
                 if source_option
                   value = source_option['value']
                 elsif !input.nil?  && !input.empty?
