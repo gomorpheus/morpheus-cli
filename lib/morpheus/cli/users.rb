@@ -29,7 +29,7 @@ class Morpheus::Cli::Users
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus users [list,add,remove] [username]"
+		usage = "Usage: morpheus users [list,add,remove, update] [username]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			return

@@ -33,7 +33,7 @@ class Morpheus::Cli::Tasks
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus tasks [list,add,remove, details, task-types]\n\n"
+			puts "\nUsage: morpheus tasks [list,add, update,remove, details, task-types]\n\n"
 			return 
 		end
 
@@ -42,6 +42,8 @@ class Morpheus::Cli::Tasks
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'update'
+				update(args[1..-1])	
 			when 'details'
 				details(args[1..-1])
 			when 'remove'
@@ -49,7 +51,7 @@ class Morpheus::Cli::Tasks
 			when 'task-types'
 				task_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus tasks [list,add,remove, details, task-types]\n\n"
+				puts "\nUsage: morpheus tasks [list,add, update,remove, details, task-types]\n\n"
 				exit 127
 		end
 	end
@@ -125,8 +127,8 @@ class Morpheus::Cli::Tasks
 					print JSON.pretty_generate({task:task})
 			else
 				print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
-				task_type['optionTypes'].each do |optionType|
-					puts "  #{optionType['fieldLabel']} : #{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}"
+				task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
+					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
 				end
 				print reset,"\n\n"
 			end
@@ -134,6 +136,77 @@ class Morpheus::Cli::Tasks
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
 				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+	def update(args)
+		task_name = args[0]
+		options = {}
+		account_name = nil
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus tasks update [task] [options]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+
+		connect(options)
+		
+		begin
+
+
+			task = find_task_by_name_or_code_or_id(task_name)
+			exit 1 if task.nil?
+			task_type = find_task_type_by_name(task['taskType']['name'])
+
+			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			params = options[:options] || {}
+
+			if params.empty?
+				puts "\n#{optparse.banner}\n\n"
+				option_lines = update_task_option_types(task_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				exit 1
+			end
+
+			#puts "parsed params is : #{params.inspect}"
+			task_keys = ['name']
+			changes_payload = (params.select {|k,v| task_keys.include?(k) })
+			task_payload = task
+			if changes_payload
+				task_payload.merge!(changes_payload)
+			end
+			puts params
+			if params['taskOptions']
+				task_payload['taskOptions'].merge!(params['taskOptions'])
+			end
+
+			request_payload = {task: task_payload}
+			response = @tasks_interface.update(task['id'], request_payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				if !response['success']
+					exit 1
+				end
+			else
+				if response['success']
+					print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
+				else
+					print "\n", red, "Task #{response['task']['name']} update failed: \n #{response['errors']}", reset, "\n\n"
+					exit 1
+				end
+			end
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
@@ -211,7 +284,7 @@ class Morpheus::Cli::Tasks
 			exit 1
 		end
 		input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
-		payload = {task: {name: task_name, taskOptions: input_options, taskType: {code: task_type['code'], id: task_type['id']}}}
+		payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
 		json_response = @tasks_interface.create(payload)
 		if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -292,5 +365,11 @@ private
 			return nil
 		end
 		return result
+	end
+
+	def update_task_option_types(task_type)
+		[
+			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 0}
+		] + task_type['optionTypes']
 	end
 end

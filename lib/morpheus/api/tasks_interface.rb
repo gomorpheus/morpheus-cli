@@ -41,6 +41,16 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def update(id, options)
+		url = "#{@base_url}/api/tasks/#{id}"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
 
 	def create(options)
 		url = "#{@base_url}/api/tasks"

@@ -75,6 +75,7 @@ module Morpheus
           return results
         end
 
+
         def self.radio_prompt(option_type)
             value_found = false
             value = nil

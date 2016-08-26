@@ -14,7 +14,21 @@ module Morpheus
             opts.on( '-O', '--option OPTION', "Option" ) do |option|
               custom_option_args = option.split('=')
               custom_options = options[:options] || {}
-              custom_options[custom_option_args[0]] = custom_option_args[1]
+              option_name_args = custom_option_args[0].split('.')
+              if option_name_args.count > 1
+                nested_options = custom_options
+                option_name_args.each_with_index do |name_element,index|
+                  if index < option_name_args.count - 1
+                    nested_options[name_element] = nested_options[name_element] || {}
+                    nested_options = nested_options[name_element]
+                  else
+                    nested_options[name_element] = custom_option_args[1]
+                  end
+                end
+              else
+                custom_options[custom_option_args[0]] = custom_option_args[1]
+              end
+              
               options[:options] = custom_options
             end
             opts.on('-C','--nocolor', "ANSI") do
