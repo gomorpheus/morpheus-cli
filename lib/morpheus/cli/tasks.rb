@@ -196,12 +196,7 @@ class Morpheus::Cli::Tasks
 					exit 1
 				end
 			else
-				if response['success']
-					print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
-				else
-					print "\n", red, "Task #{response['task']['name']} update failed: \n #{response['errors']}", reset, "\n\n"
-					exit 1
-				end
+				print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
 			if e.response.code == 400

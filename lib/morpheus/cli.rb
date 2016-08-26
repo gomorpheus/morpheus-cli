@@ -14,6 +14,7 @@ module Morpheus
     require 'morpheus/api/task_sets_interface'
   	require 'morpheus/api/instances_interface'
     require 'morpheus/api/instance_types_interface'
+    require 'morpheus/api/provision_types_interface'
     require 'morpheus/api/apps_interface'
     require 'morpheus/api/deploy_interface'
     require 'morpheus/api/security_groups_interface'

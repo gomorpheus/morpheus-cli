@@ -27,6 +27,8 @@ class Morpheus::Cli::Instances
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
+		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 		if @access_token.empty?
 			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
@@ -87,23 +89,59 @@ class Morpheus::Cli::Instances
 	end
 
 	def add(args)
-		if args.count < 2
-			puts "\nUsage: morpheus instances add NAME TYPE\n\n"
-			return
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances add TYPE NAME"
+			opts.on( '-g', '--group GROUP', "Group" ) do |val|
+				options[:group] = val
+			end
+			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
+				options[:cloud] = val
+			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			
 		end
 
-		instance_name = args[0]
-		instance_type_code = args[1]
+		if args.count < 2
+			puts "\n#{optparse}\n\n"
+			return
+		end
+		optparse.parse(args)
+		connect(options)
+		instance_name = args[1]
+		instance_type_code = args[0]
 		instance_type = find_instance_type_by_code(instance_type_code)
 		if instance_type.nil?
-			print reset,"\n\n"
-			return
+			exit 1
+		end
+		groupId = nil
+		if !options[:group].nil?
+			group = find_group_by_name(options[:group])
+			if !group.nil?
+				groupId = group
+			end
+		else
+			groupId = @active_groups[@appliance_name.to_sym]	
 		end
 
-		groupId = @active_groups[@appliance_name.to_sym]
+		if groupId.nil?
+			puts "Group not found or specified! \n #{optparse}"
+			exit 1
+		end
 
-		options = {
+		if options[:cloud].nil?
+			puts "Cloud not specified! \n #{optparse}"
+			exit 1
+		end
+		cloud = find_cloud_by_name(groupId,options[:cloud])
+		if cloud.nil?
+			puts "Cloud not found! \n #{optparse}"
+			exit 1
+		end
+
+		payload = {
 			:servicePlan => nil,
+			zoneId: cloud,
 			:instance => {
 				:name => instance_name,
 				:site => {
@@ -115,60 +153,36 @@ class Morpheus::Cli::Instances
 			}
 		}
 
+		version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id']})
+		layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+		layout_id = layout_prompt['layout']
+		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
+		payload[:servicePlan] = plan_prompt['servicePlan']
+		layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'].to_i == layout_id.to_i}
 		instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
-		puts "Configurations: "
-		instance_type['instanceTypeLayouts'].each_with_index do |layout, index|
-			puts "  #{index+1}) #{layout['name']} (#{layout['code']})"
+		
+		payload[:instance][:layout] = {id: layout['id']}
+
+		type_payload = {}
+		if !layout['optionTypes'].nil? && layout['optionTypes'].empty?
+			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+		elsif !instance_type['optionTypes'].nil? && instance_type['optionTypes'].empty?
+			type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
-		print "Selection: "
-		layout_selection = nil
-		layout = nil
-		while true do
-			layout_selection = $stdin.gets.chomp!
-			if layout_selection.to_i.to_s == layout_selection
-				layout_selection = layout_selection.to_i
-				break
-			end
-		end
-		layout = instance_type['instanceTypeLayouts'][layout_selection-1]['id']
-		options[:instance][:layout] = {id: layout}
-		print "\n"
-		if options[:servicePlan].nil?
-			plans = @instance_types_interface.service_plans(layout)
-			puts "Select a Plan: "
-			plans['servicePlans'].each_with_index do |plan, index|
-				puts "  #{index+1}) #{plan['name']}"
-			end
-			print "Selection: "
-			plan_selection = nil
-			while true do
-				plan_selection = $stdin.gets.chomp!
-				if plan_selection.to_i.to_s == plan_selection
-					plan_selection = plan_selection.to_i
-					break
-				end
-			end
-			options[:servicePlan] = plans['servicePlans'][plan_selection-1]['id']
-			print "\n"
+		if !type_payload['config'].nil?
+			payload.merge!(type_payload['config'])
 		end
 
-		if !instance_type['config'].nil?
-			instance_type_config = JSON.parse(instance_type['config'])
-			if instance_type_config['options'].nil? == false
-				instance_type_config['options'].each do |opt|
-					print "#{opt['label']}: "
-					if(opt['name'].downcase.include?("password"))
-						options[opt['name']] = STDIN.noecho(&:gets).chomp!
-						print "\n"
-					else
-						options[opt['name']] = $stdin.gets.chomp!
-					end
-					
-				end
-			end
+		if layout['provisionType'] && !layout['provisionType']['optionTypes'].nil? && layout['provisionType']['optionTypes'].empty?
+			provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
+
+		if !provision_payload['config'].nil?
+			payload.merge!(provision_payload['config'])
+		end
+
 		begin
-			@instances_interface.create(options)
+			@instances_interface.create(payload)
 		rescue => e
 			if e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -616,7 +630,7 @@ class Morpheus::Cli::Instances
 			if !options[:group].nil?
 				group = find_group_by_name(options[:group])
 				if !group.nil?
-					params['site'] = group['id']
+					params['site'] = group
 				end
 			end
 
@@ -828,12 +842,25 @@ class Morpheus::Cli::Instances
 
 private 
 	def find_group_by_name(name)
-		group_results = @groups_interface.get(name)
-		if group_results['groups'].empty?
-			puts "Group not found by name #{name}"
+
+		option_results = @options_interface.options_for_source('groups',{})
+		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+		if match.nil?
 			return nil
+		else
+			return match['value']
 		end
-		return group_results['groups'][0]
+	end
+
+	def find_cloud_by_name(groupId,name)
+
+		option_results = @options_interface.options_for_source('clouds',{groupId: groupId})
+		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+		if match.nil?
+			return nil
+		else
+			return match['value']
+		end
 	end
 
 	def find_instance_type_by_code(code)
