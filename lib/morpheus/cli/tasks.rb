@@ -124,7 +124,7 @@ class Morpheus::Cli::Tasks
 			exit 1 if task.nil?
 			task_type = find_task_type_by_name(task['taskType']['name'])
 			if options[:json]
-					print JSON.pretty_generate({task:task})
+					puts JSON.pretty_generate({task:task})
 			else
 				print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
 				task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
