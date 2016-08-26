@@ -55,6 +55,10 @@ module Morpheus
                 value = checkbox_prompt(option_type)
               elsif option_type['type'] == 'radio'
                 value = radio_prompt(option_type)
+              elsif option_type['type'] == 'textarea'
+                value = multiline_prompt(option_type)
+              elsif option_type['type'] == 'code-editor'
+                value = multiline_prompt(option_type)  
               elsif option_type['type'] == 'select'
                 value = select_prompt(option_type,api_client, api_params)
               elsif option_type['type'] == 'hidden'
@@ -132,7 +136,7 @@ module Morpheus
               print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} ['?' for options]: "
               input = $stdin.gets.chomp!
               if option_type['optionSource']
-                source_option = source_options.find{|b| b['name'] == input || b['value'] == input}
+                source_option = source_options.find{|b| b['name'] == input || b['value'].to_s == input}
                 if source_option
                   value = source_option['value']
                 elsif !input.nil?  && !input.empty?
@@ -185,6 +189,29 @@ module Morpheus
                     help_prompt(option_type)
                 elsif !value.nil? || option_type['required'] != true
                   value_found = true
+                end
+            end
+            return value
+        end
+
+        def self.multiline_prompt(option_type)
+            value_found = false
+            value = nil
+            while !value_found do
+                if value.nil?
+                  print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} [Type 'EOF' to stop input]: \n"
+                end
+                input = $stdin.gets.chomp!
+                # value = input.empty? ? option_type['defaultValue'] : input
+                if input == '?' && value.nil?
+                    help_prompt(option_type)
+                elsif (!value.nil? || option_type['required'] != true) && input.chomp == 'EOF'
+                  value_found = true
+                else
+                  if value.nil?
+                    value = ''
+                  end
+                  value << input + "\n"
                 end
             end
             return value

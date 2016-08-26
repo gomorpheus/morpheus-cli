@@ -33,7 +33,7 @@ class Morpheus::Cli::Tasks
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus tasks [list,add,remove]\n\n"
+			puts "\nUsage: morpheus tasks [list,add,remove, details, task-types]\n\n"
 			return 
 		end
 
@@ -42,10 +42,14 @@ class Morpheus::Cli::Tasks
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
+			when 'task-types'
+				task_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus tasks [list,add,remove]\n\n"
+				puts "\nUsage: morpheus tasks [list,add,remove, details, task-types]\n\n"
 				exit 127
 		end
 	end
@@ -84,21 +88,209 @@ class Morpheus::Cli::Tasks
 					end
 					tp tasks_table_data, :id, :name, :type
 				end
+				print reset,"\n\n"
+			end
+			
+			
+		rescue => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+	def details(args)
+				task_name = args[0]
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus tasks details [task]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			task = find_task_by_name_or_code_or_id(task_name)
+
+			exit 1 if task.nil?
+			task_type = find_task_type_by_name(task['taskType']['name'])
+			if options[:json]
+					print JSON.pretty_generate({task:task})
+			else
+				print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
+				task_type['optionTypes'].each do |optionType|
+					puts "  #{optionType['fieldLabel']} : #{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}"
+				end
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
+
+
+	def task_types(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus tasks task-types"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			json_response = @tasks_interface.task_types()
+			if options[:json]
+					print JSON.pretty_generate(json_response)
+			else
+				task_types = json_response['taskTypes']
+				print "\n" ,cyan, bold, "Morpheus Task Types\n","==================", reset, "\n\n"
+				if task_types.nil? || task_types.empty?
+					puts yellow,"No task types currently exist on this appliance. This could be a seed issue.",reset
+				else
+					print cyan
+					tasks_table_data = task_types.collect do |task_type|
+						{name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
+					end
+					tp tasks_table_data, :id, :name, :code, :description
+				end
 
 				print reset,"\n\n"
 			end
 			
 			
 		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
 		end
 	end
 
 	def add(args)
+		task_name = args[0]
+		task_type_name = nil
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus tasks add [task] -t TASK_TYPE"
+			opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
+				task_type_name = val
+			end
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+
+		if task_type_name.nil?
+			puts "Task Type must be specified...\n#{optparse.banner}"
+			exit 1
+		end
+
+		task_type = find_task_type_by_name(task_type_name)
+		if task_type.nil?
+			puts "Task Type not found!"
+			exit 1
+		end
+		input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
+		payload = {task: {name: task_name, taskOptions: input_options, taskType: {code: task_type['code'], id: task_type['id']}}}
+		json_response = @tasks_interface.create(payload)
+		if options[:json]
+				print JSON.pretty_generate(json_response)
+		else
+			if json_response['success']
+				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
+			else
+				print "\n", red, "Error Creating Task #{json_response['errors']}", reset, "\n\n"
+			end
+		end
 	end
 
 	def remove(args)
+		task_name = args[0]
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus tasks remove [task]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			task = find_task_by_name_or_code_or_id(task_name)
+			exit 1 if task.nil?
+			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the task #{task['name']}?")
+			json_response = @tasks_interface.destroy(task['id'])
+			if options[:json]
+					print JSON.pretty_generate(json_response)
+			else
+				print "\n", cyan, "Task #{task['name']} removed", reset, "\n\n"
+			end
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
+		end
+	end
 
+
+private
+	def find_task_by_name_or_code_or_id(val)
+		raise "find_task_by_name_or_code_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
+		results = @tasks_interface.get(val)
+		result = nil
+		if !results['tasks'].nil? && !results['tasks'].empty?
+			result = results['tasks'][0]
+		elsif val.to_i.to_s == val
+			results = @tasks_interface.get(val.to_i)
+			result = results['task']
+		end
+		if result.nil?
+			print red,bold, "\nTask not found by '#{val}'\n\n",reset
+			return nil
+		end
+		return result
+	end
+
+	def find_task_type_by_name(val)
+		raise "find_task_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
+		results = @tasks_interface.task_types(val)
+		result = nil
+		if !results['taskTypes'].nil? && !results['taskTypes'].empty?
+			result = results['taskTypes'][0]
+		elsif val.to_i.to_s == val
+			results = @tasks_interface.task_types(val.to_i)
+			result = results['taskType']
+		end
+		if result.nil?
+			print red,bold, "\nTask Type not found by '#{val}'\n\n",reset
+			return nil
+		end
+		return result
 	end
 end

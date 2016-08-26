@@ -9,12 +9,19 @@ class Morpheus::TasksInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
-	def task_types()
+	def task_types(options={})
 		url = "#{@base_url}/api/task-types"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
+		if options.is_a?(Hash)
+			headers[:params].merge!(options)
+		elsif options.is_a?(Numeric)
+			url = "#{@base_url}/api/task-types/#{options}"
+		elsif options.is_a?(String)
+			headers[:params]['name'] = options
+		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers,verify_ssl: false)
+                            timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
 
