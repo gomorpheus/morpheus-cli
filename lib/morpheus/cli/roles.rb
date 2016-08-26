@@ -5,11 +5,13 @@ require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/option_types'
+require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::Roles
 	include Term::ANSIColor
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -51,7 +53,6 @@ class Morpheus::Cli::Roles
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			# todo: change this to Account Name and implement find_account_by_name
 			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
 				options[:account_name] = account_name
 			end
@@ -61,18 +62,18 @@ class Morpheus::Cli::Roles
 		optparse.parse(args)
 		connect(options)
 		begin
-			account_id = nil # current user account by default
+			account_id = nil 
 			if !options[:account_name].nil?
-				found_account = find_account_by_name(options[:account_name])
-				exit 1 if found_account.nil?
-				account_id = found_account['id']
+				account = @accounts_interface.find_account_by_name(options[:account_name])
+				exit 1 if account.nil?
+				account_id = account['id']
 			end
 			
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
 			
-			json_response = @roles_interface.get(account_id, params)
+			json_response = @roles_interface.list(account_id, params)
 			roles = json_response['roles']
 			
 			if options[:json]
@@ -83,35 +84,12 @@ class Morpheus::Cli::Roles
 				if roles.empty?
 					puts yellow,"No roles found.",reset
 				else
-					# tp roles, [
-					# 	'id',
-					# 	'name',
-					# 	'description',
-					# 	'scope',
-					# 	{'dateCreated' => {:display_name => "Date Created", :display_method => lambda{|it| format_local_dt(it['dateCreated']) } } }
-					# ]
-					roles_table = roles.collect do |role|
-						{
-							id: role['id'], 
-							name: role['authority'], 
-							description: role['description'], 
-							scope: role['scope'], 
-							dateCreated: format_local_dt(role['dateCreated']) 
-						}
-					end
-					print cyan
-					tp roles_table, [
-						:id, 
-						:name, 
-						:description, 
-						:scope, 
-						{:dateCreated => {:display_name => "Date Created"} }
-					]
+					print_roles_table(roles)
 				end
 				print reset,"\n\n"
 			end
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end
@@ -126,24 +104,7 @@ class Morpheus::Cli::Roles
 		exit 1
 	end
 
-	private
-
-	def find_account_by_name(name)
-		results = @accounts_interface.get(name)
-		if results['accounts'].empty?
-			puts "Account not found by name #{name}"
-			return nil
-		end
-		return results['accounts'][0]
-	end
-
-	def find_role_by_name(name)
-		results = @roles_interface.get(name)
-		if results['roles'].empty?
-			puts "Role not found by name #{name}"
-			return nil
-		end
-		return results['roles'][0]
-	end
+private
+	
 
 end

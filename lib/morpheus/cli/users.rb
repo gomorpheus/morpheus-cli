@@ -5,11 +5,13 @@ require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/option_types'
+require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::Users
 	include Term::ANSIColor
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -78,7 +80,7 @@ class Morpheus::Cli::Users
 				params[k] = options[k] unless options[k].nil?
 			end
 			
-			json_response = @users_interface.get(account_id, params)
+			json_response = @users_interface.list(account_id, params)
 			users = json_response['users']
 
 			if options[:json]
@@ -89,16 +91,12 @@ class Morpheus::Cli::Users
 				if users.empty?
 					puts yellow,"No users found.",reset
 				else
-					users_table = users.collect do |user|
-						{id: user['id'], username: user['username'], first: user['firstName'], last: user['lastName'], email: user['email'], role: user['role'] ? user['role']['authority'] : nil, account: user['account'] ? user['account']['name'] : nil}
-					end
-					print cyan
-					tp users_table, :id, :account, :first, :last, :username, :email, :role
+					print_users_table(users)
 				end
 				print reset,"\n\n"
 			end
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end
@@ -156,12 +154,7 @@ class Morpheus::Cli::Users
 				print "\n", cyan, "User #{user_payload['username']} added", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end
@@ -222,12 +215,7 @@ class Morpheus::Cli::Users
 			response = @users_interface.update(account_id, user['id'], request_payload)
 			print "\n", cyan, "User #{user_payload['username'] || user['username']} updated", reset, "\n\n"
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end
@@ -266,57 +254,12 @@ class Morpheus::Cli::Users
 			# list([])
 			print "\n", cyan, "User #{username} removed", reset, "\n\n"
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
 		end
 	end
 
 private
-
-	def find_account_by_id(id)
-		raise "find_account_by_id passed a bad id: #{id.inspect}" if id.to_s == ''
-		results = @accounts_interface.get(id.to_i)
-		if results['account'].empty?
-			print red,bold, "\nAccount not found by id '#{id}'\n\n",reset
-			return nil
-		end
-		return results['account']
-	end
-
-	def find_user_by_username(account_id, username)
-		raise "find_account_by_name passed a bad username: #{username.inspect}" if username.to_s == ''
-		results = @users_interface.get(account_id, username.to_s)
-		if results['users'].empty?
-			print red,bold, "\nUser not found by '#{username}'\n\n",reset
-			return nil
-		end
-		return results['users'][0]
-	end
-
-	def find_account_by_name(name)
-		raise "find_account_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @accounts_interface.get(name.to_s)
-		if results['accounts'].empty?
-			print red,bold, "\nAccount not found by name '#{name}'\n\n",reset
-			return nil
-		end
-		return results['accounts'][0]
-	end
-
-	def find_role_by_name(account_id, name)
-		raise "find_role_by_name passed a bad name: #{name.inspect}" if name.to_s == ''
-		results = @roles_interface.get(account_id, name.to_s)
-		if results['roles'].empty?
-			print red,bold, "\nRole not found by name '#{name}'\n\n",reset
-			return nil
-		end
-		return results['roles'][0]
-	end
 
 	def add_user_option_types
 		[
