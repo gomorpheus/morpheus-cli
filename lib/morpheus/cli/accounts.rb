@@ -98,9 +98,6 @@ class Morpheus::Cli::Accounts
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
-				options[:account_name] = account_name
-			end
 
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
@@ -277,7 +274,7 @@ private
 	def add_account_option_types
 		[
 			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-			{'fieldName' => 'firstName', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
+			{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
 			{'fieldName' => 'role', 'fieldLabel' => 'Base Role', 'type' => 'text', 'displayOrder' => 3},
 			{'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'displayOrder' => 4},
 			{'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 5},
