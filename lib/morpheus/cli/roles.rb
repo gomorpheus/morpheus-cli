@@ -67,7 +67,7 @@ class Morpheus::Cli::Roles
 		begin
 			account_id = nil 
 			if !account_name.nil?
-				account = @accounts_interface.find_account_by_name(account_name)
+				account = find_account_by_name(account_name)
 				exit 1 if account.nil?
 				account_id = account['id']
 			end
@@ -120,7 +120,7 @@ class Morpheus::Cli::Roles
 		begin
 			account_id = nil 
 			if !account_name.nil?
-				account = @accounts_interface.find_account_by_name(account_name)
+				account = find_account_by_name(account_name)
 				exit 1 if account.nil?
 				account_id = account['id']
 			end

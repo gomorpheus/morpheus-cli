@@ -109,13 +109,14 @@ class Morpheus::Cli::Users
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
+		account_name = nil
 		username = args[0]
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
-				options[:account_name] = account_name
+			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
+				account_name = val
 			end
 
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
@@ -123,9 +124,8 @@ class Morpheus::Cli::Users
 		optparse.parse(args)
 		connect(options)
 		begin
-			account_id = nil 
-			if !options[:account_name].nil?
-				account = @accounts_interface.find_account_by_name(options[:account_name])
+			if !account_name.nil?
+				account = find_account_by_name(account_name)
 				exit 1 if account.nil?
 				account_id = account['id']
 			end
@@ -223,10 +223,10 @@ class Morpheus::Cli::Users
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
+		account_name = nil
 		username = args[0]
 		options = {}
 		#options['username'] = args[0] if args[0]
-		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
 			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
@@ -284,9 +284,9 @@ class Morpheus::Cli::Users
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
+		account_name = nil
 		username = args[0]
 		options = {}
-		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
 			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
