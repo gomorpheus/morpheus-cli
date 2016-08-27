@@ -304,7 +304,7 @@ class Morpheus::Cli::Users
 				account = find_account_by_name(account_name)
 				exit 1 if account.nil?
 			end
-
+			account_id = account ? account['id'] : nil
 			user = find_user_by_username(account_id, username)
 			exit 1 if user.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
