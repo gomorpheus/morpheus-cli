@@ -52,11 +52,12 @@ class Morpheus::Cli::Roles
 	end
 
 	def list(args)
+		account_name = nil
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
-				options[:account_name] = account_name
+			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
+				account_name = val
 			end
 			
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
@@ -65,8 +66,8 @@ class Morpheus::Cli::Roles
 		connect(options)
 		begin
 			account_id = nil 
-			if !options[:account_name].nil?
-				account = @accounts_interface.find_account_by_name(options[:account_name])
+			if !account_name.nil?
+				account = @accounts_interface.find_account_by_name(account_name)
 				exit 1 if account.nil?
 				account_id = account['id']
 			end
@@ -102,13 +103,14 @@ class Morpheus::Cli::Roles
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
+		account_name = nil
 		name = args[0]
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |account_name|
-				options[:account_name] = account_name
+			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
+				account_name = val
 			end
 
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
@@ -117,8 +119,8 @@ class Morpheus::Cli::Roles
 		connect(options)
 		begin
 			account_id = nil 
-			if !options[:account_name].nil?
-				account = @accounts_interface.find_account_by_name(options[:account_name])
+			if !account_name.nil?
+				account = @accounts_interface.find_account_by_name(account_name)
 				exit 1 if account.nil?
 				account_id = account['id']
 			end
