@@ -22,6 +22,7 @@ module Morpheus
     require 'morpheus/api/accounts_interface'
     require 'morpheus/api/users_interface'
     require 'morpheus/api/roles_interface'
+    require 'morpheus/api/key_pairs_interface'
   	
     require 'morpheus/cli/credentials'
   	require 'morpheus/cli/error_handler'
@@ -41,6 +42,7 @@ module Morpheus
     require 'morpheus/cli/accounts'
     require 'morpheus/cli/users'
     require 'morpheus/cli/roles'
+    require 'morpheus/cli/key_pairs'
     # Your code goes here...
   end
 end

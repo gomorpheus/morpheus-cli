@@ -75,4 +75,8 @@ class Morpheus::APIClient
 		Morpheus::RolesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def key_pairs
+		Morpheus::KeyPairsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 end
