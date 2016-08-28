@@ -56,10 +56,7 @@ class Morpheus::Cli::Roles
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
-			
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
@@ -103,27 +100,21 @@ class Morpheus::Cli::Roles
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		account_name = nil
+		account = nil
 		name = args[0]
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
-
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
-			account_id = nil 
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-				account_id = account['id']
-			end
+			
+			account = find_account_from_options(options)
+			account_id = account ? account['id'] : nil
 	
 			# todo: roles_response = @roles_interface.list(account_id, {name: name}) instead
 			#       there may be response data outside of role that needs to be displayed

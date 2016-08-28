@@ -53,31 +53,23 @@ class Morpheus::Cli::KeyPairs
   end
 
   def list(args)
-    account_name = nil
     options = {}
     params = {}
+    account = nil
     optparse = OptionParser.new do|opts|
+      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
       Morpheus::Cli::CliCommand.genericOptions(opts,options)
-
-      opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-        account_name = val
-      end
-
     end
     optparse.parse(args)
     connect(options)
     begin
+
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
-      # current user account by default
-      account = nil
-      if !account_name.nil?
-        account = find_account_by_name(account_name)
-        exit 1 if account.nil?
-      end
-      account_id = account ? account['id'] : nil
 
       json_response = @key_pairs_interface.list(account_id, params)
       key_pairs = json_response['keyPairs']
@@ -105,28 +97,20 @@ class Morpheus::Cli::KeyPairs
       puts "\n#{usage}\n\n"
       exit 1
     end
-    account_name = nil
+    account = nil
     name = args[0]
     options = {}
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-        account_name = val
-      end
-
+      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
       Morpheus::Cli::CliCommand.genericOptions(opts,options)
     end
     optparse.parse(args)
     connect(options)
     begin
     
-      # current user account by default
-      account = nil
-      if !account_name.nil?
-        account = find_account_by_name(account_name)
-        exit 1 if account.nil?
-      end
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
       # todo: key_pairs_response = @key_pairs_interface.list(account_id, {name: name})
@@ -309,7 +293,7 @@ class Morpheus::Cli::KeyPairs
     optparse = OptionParser.new do|opts|
       opts.banner = usage
 
-      opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
         account_name = val
       end
 
@@ -342,12 +326,15 @@ private
   
   def find_key_pair_by_id(account_id, id)
     raise "#{self.class} has not defined @key_pairs_interface" if @key_pairs_interface.nil?
-    key_pair = @key_pairs_interface.get(account_id, id)['keyPair']
-    if key_pair.nil?
-      print_red_alert "key_pair not found by id #{id}"
-      return nil
-    else
-      return key_pair
+    begin
+      json_response = @key_pairs_interface.get(account_id, id.to_i)
+      return json_response['keyPair']
+    rescue RestClient::Exception => e
+      if e.response.code == 404
+        print_red_alert "Key Pair not found by id #{id}"
+      else
+        raise e
+      end
     end
   end
 
@@ -355,7 +342,7 @@ private
     raise "#{self.class} has not defined @key_pairs_interface" if @key_pairs_interface.nil?
     key_pairs = @key_pairs_interface.list(account_id, {name: name.to_s})['keyPairs']
     if key_pairs.empty?
-      print_red_alert "key_pair not found by name #{name}"
+      print_red_alert "Key Pair not found by name #{name}"
       return nil
     elsif key_pairs.size > 1
       print_red_alert "#{key_pairs.size} key_pairs by name #{name}"

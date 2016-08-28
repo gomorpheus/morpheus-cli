@@ -31,7 +31,7 @@ class Morpheus::Cli::Users
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus users [list,add,remove, update] [username]"
+		usage = "Usage: morpheus users [list,details,add,update,remove] [username]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			return
@@ -58,24 +58,17 @@ class Morpheus::Cli::Users
 		usage = "Usage: morpheus users list [options]"
 		options = {}
 		params = {}
-		account_name = nil
+		account = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
-			
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
-			# current user account by default
-			account = nil
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-			end
+
+			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
@@ -109,26 +102,21 @@ class Morpheus::Cli::Users
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		account_name = nil
+		account = nil
 		username = args[0]
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
-
+      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-				account_id = account['id']
-			end
+			
+			account = find_account_from_options(options)
+			account_id = account ? account['id'] : nil
 	
 			# todo: users_response = @users_interface.list(account_id, {name: name})
 			#       there may be response data outside of user that needs to be displayed
@@ -171,12 +159,10 @@ class Morpheus::Cli::Users
 		# end
 		options = {}
 		#options['username'] = args[0] if args[0]
-		account_name = nil
+		account = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
@@ -185,12 +171,7 @@ class Morpheus::Cli::Users
 		
 		begin
 
-			# current user account by default
-			account = nil
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-			end
+			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
 			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options)
@@ -206,11 +187,19 @@ class Morpheus::Cli::Users
 			end
 			request_payload = {user: user_payload}
 			response = @users_interface.create(account_id, request_payload)
+
 			if account
-				print "\n", cyan, "User #{user_payload['username']} added to account #{account['name']}", reset, "\n\n"
+				print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
 			else
-				print "\n", cyan, "User #{user_payload['username']} added", reset, "\n\n"
+				print_green_success "Added user #{user_payload['username']}"
 			end
+
+			details_options = [user_payload["username"]]
+			if account
+				details_options.push "--account-id", account['id'].to_s
+			end
+			details(details_options)
+
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
@@ -223,15 +212,13 @@ class Morpheus::Cli::Users
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		account_name = nil
+		account = nil
 		username = args[0]
 		options = {}
 		#options['username'] = args[0] if args[0]
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
@@ -240,12 +227,7 @@ class Morpheus::Cli::Users
 		
 		begin
 
-			# current user account by default
-			account = nil
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-			end
+			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
 			user = find_user_by_username(account_id, username)
@@ -255,7 +237,7 @@ class Morpheus::Cli::Users
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{usage}\n\n"
+				puts "\n#{usage}\n"
 				option_lines = update_user_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -271,7 +253,15 @@ class Morpheus::Cli::Users
 			end
 			request_payload = {user: user_payload}
 			response = @users_interface.update(account_id, user['id'], request_payload)
-			print "\n", cyan, "User #{user_payload['username'] || user['username']} updated", reset, "\n\n"
+			
+			print_green_success "Updated user #{user_payload['username']}"
+
+			details_options = [user_payload["username"] || user['username']]
+			if account
+				details_options.push "--account-id", account['id'].to_s
+			end
+			details(details_options)
+
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
@@ -281,30 +271,24 @@ class Morpheus::Cli::Users
 	def remove(args)
 		usage = "Usage: morpheus users remove [username]"
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts "\n#{usage}\n"
 			exit 1
 		end
-		account_name = nil
+		account = nil
 		username = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-				account_name = val
-			end
+			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
 
-			# current user account by default
-			account = nil
-			if !account_name.nil?
-				account = find_account_by_name(account_name)
-				exit 1 if account.nil?
-			end
+			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
+
 			user = find_user_by_username(account_id, username)
 			exit 1 if user.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")

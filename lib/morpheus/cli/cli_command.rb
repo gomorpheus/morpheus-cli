@@ -10,6 +10,15 @@ module Morpheus
         klass.extend ClassMethods
       end
 
+      def self.accountScopeOptions(opts,options)
+        opts.on('-a','--account ACCOUNT', "Account Name") do |val|
+          options[:account_name] = val
+        end
+        opts.on('-A','--account-id ID', "Account ID") do |val|
+          options[:account_id] = val
+        end
+      end
+
       def self.genericOptions(opts,options)
             opts.on( '-O', '--option OPTION', "Option" ) do |option|
               custom_option_args = option.split('=')
@@ -76,7 +85,7 @@ module Morpheus
               options[:phrase] = phrase
             end
 
-            opts.on( '', '--sort OPTION', "Sort Order" ) do |v|
+            opts.on( '', '--sort ORDER', "Sort Order" ) do |v|
               options[:sort] = v
             end
 
@@ -84,8 +93,7 @@ module Morpheus
               options[:direction] = "desc"
             end
       end
-
-
+      
 
       module ClassMethods
         def cli_command_name(cmd_name)

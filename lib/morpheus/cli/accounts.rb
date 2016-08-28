@@ -31,7 +31,7 @@ class Morpheus::Cli::Accounts
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus accounts [list,add,update,remove] [name]"
+		usage = "Usage: morpheus accounts [list,details,add,update,remove] [name]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			exit 1
@@ -108,8 +108,13 @@ class Morpheus::Cli::Accounts
 			# todo: accounts_response = @accounts_interface.list({name: name})
 			#       there may be response data outside of account that needs to be displayed
 
-			# allow finding by ID since name is not unique!
-			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
+			account = nil
+			if name.to_s =~ /\Aid:/
+				id = name.sub('id:', '')
+				account = find_account_by_id(id)
+			else
+				account = find_account_by_name(name)
+			end
 			exit 1 if account.nil?
 
 			if options[:json]
@@ -148,13 +153,14 @@ class Morpheus::Cli::Accounts
 	end
 
 	def add(args)
+		usage = "Usage: morpheus accounts add [options]"
 		# if args.count > 0
-		# 	puts "\nUsage: morpheus hosts add [options]\n\n"
+		# 	puts "\nUsage: morpheus accounts add [options]\n\n"
 		# 	exit 1
 		# end
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus accounts add [options]"
+			opts.banner = usage
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		optparse.parse(args)
@@ -180,7 +186,11 @@ class Morpheus::Cli::Accounts
 			end
 			request_payload = {account: account_payload}
 			response = @accounts_interface.create(request_payload)
-			print "\n", cyan, "Account #{account_payload['name']} added", reset, "\n\n"
+			
+			print_green_success "Account #{account_payload['name']} added"
+			
+			details([account_payload["name"]])
+
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
@@ -188,12 +198,12 @@ class Morpheus::Cli::Accounts
 	end
 
 	def update(args)
-		usage = "Usage: morpheus hosts update [username] [options]"
+		usage = "Usage: morpheus accounts update [name] [options]"
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		name = args[0]
+		name = args[0].strip
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
@@ -205,7 +215,13 @@ class Morpheus::Cli::Accounts
 		
 		begin
 
-			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
+			account = nil
+			if name.to_s =~ /\Aid:/
+				id = name.sub('id:', '')
+				account = find_account_by_id(id)
+			else
+				find_account_by_name(name)
+			end
 			exit 1 if account.nil?
 
 			#params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
