@@ -53,6 +53,9 @@ class Morpheus::Cli::Shell
 						puts "#{cmd}"
 					end
 					next
+				elsif input == 'clear'
+					print "\e[H\e[2J"
+					next
 				elsif input == '!'
 					input = history[-1]
 				end
