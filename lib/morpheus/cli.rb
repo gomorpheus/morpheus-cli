@@ -11,6 +11,7 @@ module Morpheus
   	require 'morpheus/api/clouds_interface'
   	require 'morpheus/api/servers_interface'
     require 'morpheus/api/tasks_interface'
+    require 'morpheus/api/license_interface'
     require 'morpheus/api/task_sets_interface'
   	require 'morpheus/api/instances_interface'
     require 'morpheus/api/instance_types_interface'

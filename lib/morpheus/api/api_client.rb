@@ -79,4 +79,8 @@ class Morpheus::APIClient
 		Morpheus::KeyPairsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def license
+		Morpheus::LicenseInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 end
