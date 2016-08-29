@@ -51,6 +51,45 @@ class Morpheus::Cli::Workflows
 	end
 
 	def list(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus workflows list [-s] [-o] [-m]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			params = {}
+			if options[:offset]
+				params[:offset] = options[:offset]
+			end
+			if options[:max]
+				params[:max] = options[:max]
+			end
+			if options[:phrase]
+				params[:phrase] = options[:phrase]
+			end
+			json_response = @task_sets_interface.get(params)
+			if options[:json]
+					print JSON.pretty_generate(json_response)
+			else
+				task_sets = json_response['taskSets']
+				print "\n" ,cyan, bold, "Morpheus Workflows\n","==================", reset, "\n\n"
+				if task_sets.empty?
+					puts yellow,"No workflows currently configured.",reset
+				else
+					print cyan
+					tasks_table_data = task_sets.collect do |task_set|
+						{name: task_set['name'], id: task_set['id']}
+					end
+					tp tasks_table_data, :id, :name
+				end
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
 	end
 
 	def add(args)
