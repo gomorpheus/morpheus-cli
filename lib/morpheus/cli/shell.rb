@@ -90,4 +90,19 @@ class Morpheus::Cli::Shell
 			end
 		end
 	end
+
+
+	def get_prompt
+		input = ''
+		while char=STDIN.getch do
+			if char == '\n'
+				print "\r\n"
+				puts "executing..."
+				break
+			end
+			print char
+			input << char
+		end
+		return input
+	end
 end
