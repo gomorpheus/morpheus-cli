@@ -26,6 +26,7 @@ class Morpheus::Cli::Instances
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
 		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
+		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
 		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
@@ -68,6 +69,8 @@ class Morpheus::Cli::Instances
 				run_workflow(args[1..-1])
 			when 'stats'
 				stats(args[1..-1])
+			when 'logs'
+				logs(args[1..-1])
 			when 'details'
 				details(args[1..-1])
 			when 'envs'
@@ -221,6 +224,49 @@ class Morpheus::Cli::Instances
 			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
 			puts 
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
+	def logs(args) 
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances logs [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			return
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name(args[0])
+			logs = @logs_interface.container_logs(instance['containers'], { max: options[:max] || 100})
+			puts instance['containers']
+			if options[:json]
+				puts logs
+			else
+				logs['data'].reverse.each do |log_entry|
+					log_level = ''
+					case log_entry['level']
+						when 'INFO'
+							log_level = "#{blue}#{bold}INFO#{reset}"
+						when 'DEBUG'
+							log_level = "#{white}#{bold}DEBUG#{reset}"
+						when 'WARN'
+							log_level = "#{yellow}#{bold}WARN#{reset}"
+						when 'ERROR'
+							log_level = "#{red}#{bold}ERROR#{reset}"
+						when 'FATAL'
+							log_level = "#{red}#{bold}FATAL#{reset}"
+					end
+					puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+				end
+				print reset,"\n"
+			end
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1

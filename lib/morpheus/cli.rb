@@ -22,6 +22,7 @@ module Morpheus
     require 'morpheus/api/security_group_rules_interface'
     require 'morpheus/api/accounts_interface'
     require 'morpheus/api/users_interface'
+    require 'morpheus/api/logs_interface'
     require 'morpheus/api/roles_interface'
     require 'morpheus/api/key_pairs_interface'
   	
@@ -37,6 +38,7 @@ module Morpheus
     require 'morpheus/cli/instances'
     require 'morpheus/cli/apps'
     require 'morpheus/cli/deploys'
+    require 'morpheus/cli/license'
     require 'morpheus/cli/instance_types'
     require 'morpheus/cli/security_groups'
     require 'morpheus/cli/security_group_rules'

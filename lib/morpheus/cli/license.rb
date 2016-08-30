@@ -50,15 +50,10 @@ class Morpheus::Cli::License
 
 
 	def details(args)
-				task_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus license details"
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			exit 1
 		end
 		optparse.parse(args)
 		connect(options)
@@ -75,7 +70,7 @@ class Morpheus::Cli::License
 					print "\n", cyan, "License\n=======\n"
 					max_memory = Filesize.from("#{license['license']['maxMemory']} B").pretty
 					max_storage = Filesize.from("#{license['license']['maxStorage']} B").pretty
-					used_memory = Filesize.from("#{license['licenseUsedMemory']} B").pretty
+					used_memory = Filesize.from("#{license['usedMemory']} B").pretty
 					puts "Account: #{license['license']['accountName']}"
 					puts "Start Date: #{license['license']['startDate']}"
 					puts "End Date: #{license['license']['endDate']}"

@@ -71,6 +71,10 @@ class Morpheus::APIClient
 		Morpheus::UsersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def logs
+		Morpheus::LogsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 	def roles
 		Morpheus::RolesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
