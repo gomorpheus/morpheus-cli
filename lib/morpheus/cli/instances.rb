@@ -597,20 +597,49 @@ class Morpheus::Cli::Instances
 					params['site'] = group
 				end
 			end
+			if !options[:max].nil?
+				params['max'] = options[:max]
+			end
+			if !options[:offset].nil?
+				params['offset'] = options[:offset]
+			end
+			if !options[:phrase].nil?
+				params['phrase'] = options[:phrase]
+			end
 
 			json_response = @instances_interface.get(params)
-			instances = json_response['instances']
-			print "\n" ,cyan, bold, "Morpheus Instances\n","==================", reset, "\n\n"
-			if instances.empty?
-				puts yellow,"No instances currently configured.",reset
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
 			else
-				print cyan
-				instance_table = instances.collect do |instance|
-					{id: instance['id'], name: instance['name'], environment: instance['environment'], status: instance['status'], type: instance['instanceType']['name']}
+				instances = json_response['instances']
+
+				print "\n" ,cyan, bold, "Morpheus Instances\n","==================", reset, "\n\n"
+				if instances.empty?
+					puts yellow,"No instances currently configured.",reset
+				else
+					print cyan
+					instance_table = instances.collect do |instance|
+						status_string = instance['status']
+						if status_string == 'running'
+							status_string = "#{green}#{status_string.upcase}#{cyan}"
+						elsif status_string == 'stopped' or status_string == 'failed'
+							status_string = "#{red}#{status_string.upcase}#{cyan}"
+						elsif status_string == 'unknown'
+							status_string = "#{white}#{status_string.upcase}#{cyan}"
+						else
+							status_string = "#{yellow}#{status_string.upcase}#{cyan}"
+						end
+						connection_string = ''
+						if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+							connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+						end
+						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['environment'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name']}
+					end
+					tp instance_table, :id, :name, :type, :environment, :nodes, :connection, :status
 				end
-				tp instance_table, :id, :name, :type, :status
+				print reset,"\n\n"
 			end
-			print reset,"\n\n"
 			
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)

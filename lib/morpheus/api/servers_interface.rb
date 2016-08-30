@@ -36,6 +36,62 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def stop(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/stop"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def start(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/start"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def install_agent(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/install-agent"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def reprovision(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/reprovision"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def reinitialize(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/reinitialize"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def assign_account(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/assign-account"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def workflow(id,task_set_id,payload)
+		url = "#{@base_url}/api/servers/#{id}/workflow"
+		headers = { :params => {:taskSetId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers,verify_ssl: false,payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
 	def destroy(id)
 		url = "#{@base_url}/api/servers/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
