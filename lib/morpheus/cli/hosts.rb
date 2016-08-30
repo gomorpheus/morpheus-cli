@@ -28,6 +28,7 @@ class Morpheus::Cli::Hosts
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
+		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
 		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
 			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
@@ -37,7 +38,7 @@ class Morpheus::Cli::Hosts
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
+			puts "\nUsage: morpheus hosts [list,add,remove,logs] [name]\n\n"
 			exit 1
 		end
 
@@ -48,11 +49,55 @@ class Morpheus::Cli::Hosts
 				add(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
+			when 'logs'
+				logs(args[1..-1])	
 			when 'server-types'
 				server_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus hosts [list,add,remove] [name]\n\n"
+				puts "\nUsage: morpheus hosts [list,add,remove,logs] [name]\n\n"
 				exit 127 #Command now foud exit code
+		end
+	end
+
+	def logs(args) 
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts logs [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			return
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			host = find_host_by_name(args[0])
+			logs = @logs_interface.server_logs([host['id']], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
+			if options[:json]
+				puts logs
+			else
+				logs['data'].reverse.each do |log_entry|
+					log_level = ''
+					case log_entry['level']
+						when 'INFO'
+							log_level = "#{blue}#{bold}INFO#{reset}"
+						when 'DEBUG'
+							log_level = "#{white}#{bold}DEBUG#{reset}"
+						when 'WARN'
+							log_level = "#{yellow}#{bold}WARN#{reset}"
+						when 'ERROR'
+							log_level = "#{red}#{bold}ERROR#{reset}"
+						when 'FATAL'
+							log_level = "#{red}#{bold}FATAL#{reset}"
+					end
+					puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+				end
+				print reset,"\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
 		end
 	end
 
@@ -293,6 +338,15 @@ class Morpheus::Cli::Hosts
 	end
 
 private
+
+	def find_host_by_name(name)
+		host_results = @servers_interface.get({name: name})
+		if host_results['servers'].empty?
+			puts "Host not found by name #{name}"
+			exit 1
+		end
+		return host_results['servers'][0]
+	end
 	def find_group_by_name(name)
 		group_results = @groups_interface.get(name)
 		if group_results['groups'].empty?

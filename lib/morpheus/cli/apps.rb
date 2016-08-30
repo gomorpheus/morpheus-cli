@@ -158,6 +158,54 @@ class Morpheus::Cli::Apps
 		list([])
 	end
 
+	def logs(args) 
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus apps logs [name] [options]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			return
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			app = find_app_by_name(args[0])
+			containers = []
+			app['appTiers'].each do |app_tier|
+				app_tier['appInstances'].each do |app_instance|
+					containers += app_instance['instance']['containers']
+				end
+			end
+			logs = @logs_interface.container_logs(containers, { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
+			if options[:json]
+				puts logs
+			else
+				logs['data'].reverse.each do |log_entry|
+					log_level = ''
+					case log_entry['level']
+						when 'INFO'
+							log_level = "#{blue}#{bold}INFO#{reset}"
+						when 'DEBUG'
+							log_level = "#{white}#{bold}DEBUG#{reset}"
+						when 'WARN'
+							log_level = "#{yellow}#{bold}WARN#{reset}"
+						when 'ERROR'
+							log_level = "#{red}#{bold}ERROR#{reset}"
+						when 'FATAL'
+							log_level = "#{red}#{bold}FATAL#{reset}"
+					end
+					puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+				end
+				print reset,"\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
 	def stats(args)
 		if args.count < 1
 			puts "\nUsage: morpheus apps stats [name]\n\n"
@@ -400,7 +448,7 @@ class Morpheus::Cli::Apps
 
 			json_response = @apps_interface.get(params)
 			apps = json_response['apps']
-			print "\n" ,cyan, bold, "Morpheus Instances\n","==================", reset, "\n\n"
+			print "\n" ,cyan, bold, "Morpheus Apps\n","==================", reset, "\n\n"
 			if apps.empty?
 				puts yellow,"No apps currently configured.",reset
 			else
@@ -580,6 +628,15 @@ EOF
 	end
 
 private 
+
+	def find_app_by_name(name)
+		app_results = @apps_interface.get({name: name})
+		if app_results['apps'].empty?
+			puts "Instance not found by name #{name}"
+			exit 1
+		end
+		return app_results['apps'][0]
+	end
 	def find_group_by_name(name)
 		group_results = @groups_interface.get(name)
 		if group_results['groups'].empty?

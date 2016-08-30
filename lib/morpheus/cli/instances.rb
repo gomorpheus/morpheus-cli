@@ -235,6 +235,9 @@ class Morpheus::Cli::Instances
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances logs [name]"
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
+				options[:node_id] = node_id.to_i
+			end
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -244,7 +247,11 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			logs = @logs_interface.container_logs(instance['containers'], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
+			container_ids = instance['containers']
+			if options[:node_id] && container_ids.include?(options[:node_id])
+				container_ids = [options[:node_id]]
+			end
+			logs = @logs_interface.container_logs(container_ids, { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
 			if options[:json]
 				puts logs
 			else
