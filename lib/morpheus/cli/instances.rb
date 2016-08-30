@@ -245,7 +245,6 @@ class Morpheus::Cli::Instances
 		begin
 			instance = find_instance_by_name(args[0])
 			logs = @logs_interface.container_logs(instance['containers'], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
-			puts instance['containers']
 			if options[:json]
 				puts logs
 			else
