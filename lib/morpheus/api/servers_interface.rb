@@ -60,6 +60,14 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def upgrade(serverId,payload = {})
+		url = "#{@base_url}/api/servers/#{serverId}/upgrade"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
 	def reprovision(serverId,payload = {})
 		url = "#{@base_url}/api/servers/#{serverId}/reprovision"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

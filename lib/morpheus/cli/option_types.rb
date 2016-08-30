@@ -133,6 +133,10 @@ module Morpheus
           if option_type['optionSource']
             source_options = load_source_options(option_type['optionSource'],api_client,api_params)
           end
+          if !source_options['data'].nil? && !source_options['data'].count == 1 && option_type['skipSingleOption'] == true
+            value_found = true
+            value = source_option['value']
+          end
           while !value_found do
               print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} ['?' for options]: "
               input = $stdin.gets.chomp!

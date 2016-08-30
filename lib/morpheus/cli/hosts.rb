@@ -27,6 +27,8 @@ class Morpheus::Cli::Hosts
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
+		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
 		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
 		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
@@ -38,7 +40,7 @@ class Morpheus::Cli::Hosts
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus hosts [list,add,remove,logs] [name]\n\n"
+			puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent] [name]\n\n"
 			exit 1
 		end
 
@@ -49,12 +51,20 @@ class Morpheus::Cli::Hosts
 				add(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
+			when 'start'
+				start(args[1..-1])
+			when 'stop'
+				start(args[1..-1])
+			when 'run-workflow'
+				run_workflow(args[1..-1])	
+			when 'upgrade-agent'
+				upgrade(args[1..-1])
 			when 'logs'
 				logs(args[1..-1])	
 			when 'server-types'
 				server_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus hosts [list,add,remove,logs] [name]\n\n"
+				puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent] [name]\n\n"
 				exit 127 #Command now foud exit code
 		end
 	end
@@ -337,15 +347,166 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
+
+	def start(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts start [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			host = find_host_by_name(args[0])
+			json_response = @servers_interface.start(host['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Host #{host[name]} started."
+			end
+			return
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
+	def stop(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts stop [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			host = find_host_by_name(args[0])
+			json_response = @servers_interface.stop(host['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Host #{host[name]} stopped."
+			end
+			return
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
+	def upgrade(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts upgrade [name]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			host = find_host_by_name(args[0])
+			json_response = @servers_interface.upgrade(host['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Host #{host[name]} upgrading..."
+			end
+			return
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
+	def run_workflow(args)
+		options = {}
+		
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts run-workflow [HOST] [name] [options]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		if args.count < 2
+			puts "\n#{optparse}\n\n"
+			exit 1
+		end
+		
+		optparse.parse(args)
+		connect(options)
+		host = find_host_by_name(args[0])
+		workflow = find_workflow_by_name(args[1])
+		task_types = @tasks_interface.task_types()
+		editable_options = []
+		workflow['taskSetTasks'].sort{|a,b| a['taskOrder'] <=> b['taskOrder']}.each do |task_set_task|
+			task_type_id = task_set_task['task']['taskType']['id']
+			task_type = task_types['taskTypes'].find{ |current_task_type| current_task_type['id'] == task_type_id}
+			task_opts = task_type['optionTypes'].select { |otype| otype['editable']}
+			if !task_opts.nil? && !task_opts.empty?
+				editable_options += task_opts.collect do |task_opt|
+					new_task_opt = task_opt.clone
+					new_task_opt['fieldContext'] = "#{task_set_task['id']}.#{new_task_opt['fieldContext']}"
+				end
+			end
+		end
+		params = options[:options] || {}
+
+		if params.empty? && !editable_options.empty?
+			puts "\n#{optparse.banner}\n\n"
+			option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+			puts "\nAvailable Options:\n#{option_lines}\n\n"
+			exit 1
+		end
+
+		workflow_payload = {taskSet: {"#{workflow['id']}": params }}
+		begin
+			
+			json_response = @servers_interface.workflow(host['id'],workflow['id'], workflow_payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Running workflow..."
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
 private
 
 	def find_host_by_name(name)
-		host_results = @servers_interface.get({name: name})
-		if host_results['servers'].empty?
-			puts "Host not found by name #{name}"
+		server = nil
+		server_results = @servers_interface.get({name: name})
+		if server_results['servers'].nil? || server_results['servers'].empty?
+			server_results = @servers_interface.get(name.to_i)
+			server = server_results['server']
+		else
+			if !server_results['servers'].empty? && server_results['servers'].count > 1
+				puts "Multiple Servers exist with the same name. Try using id to confirm"
+				exit 1
+			end
+			server = server_results['servers'][0] unless server_results['servers'].empty?
+		end
+
+		if server.nil?
+			puts "Server not found by name #{args[0]}"
 			exit 1
 		end
-		return host_results['servers'][0]
+		return server
 	end
 	def find_group_by_name(name)
 		group_results = @groups_interface.get(name)
@@ -383,6 +544,16 @@ private
 			end
 		end
 		return nil
+	end
+
+	def find_workflow_by_name(name)
+		task_set_results = @task_sets_interface.get(name)
+		if !task_set_results['taskSets'].nil? && !task_set_results['taskSets'].empty?
+			return task_set_results['taskSets'][0]
+		else
+			puts "Workflow not found by name #{name}"
+			exit 1
+		end
 	end
 
 	def find_group_by_id(id)
