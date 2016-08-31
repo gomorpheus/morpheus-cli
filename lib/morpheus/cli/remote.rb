@@ -113,6 +113,7 @@ class Morpheus::Cli::Remote
 		end
 		::Morpheus::Cli::Remote.save_appliances(@appliances)
 		list([])
+		@@appliance = nil
 	end
 
 	def set_active_appliance(name)
@@ -127,7 +128,7 @@ class Morpheus::Cli::Remote
 
 	# Provides the current active appliance url information
 	def self.active_appliance
-		if !defined?(@@appliance)
+		if !defined?(@@appliance) || @@appliance.nil?
 			@@appliance = load_appliance_file.select { |k,v| v[:active] == true}
 		end
 		return @@appliance.keys[0], @@appliance[@@appliance.keys[0]][:host]

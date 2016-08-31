@@ -40,7 +40,7 @@ class Morpheus::Cli::Hosts
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent] [name]\n\n"
+			puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent, server-types] [name]\n\n"
 			exit 1
 		end
 
@@ -64,7 +64,7 @@ class Morpheus::Cli::Hosts
 			when 'server-types'
 				server_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent] [name]\n\n"
+				puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent, server-types] [name]\n\n"
 				exit 127 #Command now foud exit code
 		end
 	end

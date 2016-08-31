@@ -38,6 +38,7 @@ class Morpheus::Cli::Shell
 		optparse.parse(args)
 
 		history = []
+		remote_handler = Morpheus::Cli::Remote.new()
 		exit = false
 		while !exit do
 			print cyan,"morpheus > ",reset
@@ -73,7 +74,9 @@ class Morpheus::Cli::Shell
 							argv.push "--nocolor"
 						end
 						#puts "cmd: #{argv.join(' ')}"
-						if Morpheus::Cli::CliRegistry.has_command?(argv[0])
+						if argv[0] == 'remote'
+							remote_handler.handle(argv[1..-1])
+						elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
 							Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
 						else
 							puts "Unrecognized Command."
