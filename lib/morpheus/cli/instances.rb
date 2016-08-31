@@ -839,7 +839,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 
-		workflow_payload = {taskSet: {"#{workflow['id']}": params }}
+		workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
 		begin
 			
 			json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
