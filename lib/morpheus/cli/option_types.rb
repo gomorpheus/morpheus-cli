@@ -133,7 +133,7 @@ module Morpheus
           if option_type['optionSource']
             source_options = load_source_options(option_type['optionSource'],api_client,api_params)
           end
-          if !source_options['data'].nil? && !source_options['data'].count == 1 && option_type['skipSingleOption'] == true
+          if !source_options.nil? && !source_options.count == 1 && option_type['skipSingleOption'] == true
             value_found = true
             value = source_option['value']
           end

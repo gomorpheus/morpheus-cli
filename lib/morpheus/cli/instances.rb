@@ -165,15 +165,16 @@ class Morpheus::Cli::Instances
 		layout_id = layout_prompt['layout']
 		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
 		payload[:servicePlan] = plan_prompt['servicePlan']
+
 		layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'].to_i == layout_id.to_i}
 		instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
 		
 		payload[:instance][:layout] = {id: layout['id']}
 
 		type_payload = {}
-		if !layout['optionTypes'].nil? && layout['optionTypes'].empty?
+		if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
 			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-		elsif !instance_type['optionTypes'].nil? && instance_type['optionTypes'].empty?
+		elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
 			type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 		if !type_payload['config'].nil?
@@ -339,11 +340,11 @@ class Morpheus::Cli::Instances
 			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
 			envs = env_results['envs'] || {}
 			if env_results['readOnlyEnvs']
-				envs += env_results['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") ? "********" : v, :export => true}}
+				envs += env_results['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
 			end
 			tp envs, :name, :value, :export
 			print "\n" ,cyan, bold, "Imported Envs\n","==================", "\n\n", reset, cyan
-			 imported_envs = env_results['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") ? "********" : v}}
+			 imported_envs = env_results['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
 			 tp imported_envs
 			print reset, "\n"
 			
@@ -359,8 +360,11 @@ class Morpheus::Cli::Instances
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME VALUE [-e]"
 			opts.on( '-e', "Exportable" ) do |exportable|
-					options[:export] = exportable
-				end
+				options[:export] = exportable
+			end
+			opts.on( '-M', "Masked" ) do |masked|
+				options[:masked] = masked
+			end
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
 		if args.count < 3
@@ -371,7 +375,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			evar = {name: args[1], value: args[2], export: options[:export]}
+			evar = {name: args[1], value: args[2], export: options[:export], masked: options[:masked]}
 			params = {}
 			@instances_interface.create_env(instance['id'], [evar])
 			envs([args[0]])
