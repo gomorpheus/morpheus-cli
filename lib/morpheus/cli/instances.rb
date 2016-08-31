@@ -189,6 +189,9 @@ class Morpheus::Cli::Instances
 		if !provision_payload.nil? && !provision_payload['config'].nil?
 			payload.merge!(provision_payload['config'])
 		end
+		if !provision_payload.nil? && !provision_payload['server'].nil?
+			payload[:server] = provision_payload['server']
+		end
 
 		begin
 			@instances_interface.create(payload)
@@ -224,7 +227,6 @@ class Morpheus::Cli::Instances
 				print JSON.pretty_generate(stats)
 				print "\n"
 			else
-
 				print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
 				stats_map = {}
 				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"

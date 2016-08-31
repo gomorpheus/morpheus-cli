@@ -39,6 +39,10 @@ class Morpheus::APIClient
 		Morpheus::ProvisionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def load_balancers
+		Morpheus::LoadBalancersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 	def tasks
 		Morpheus::TasksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
