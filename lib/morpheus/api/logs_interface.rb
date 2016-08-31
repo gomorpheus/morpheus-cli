@@ -11,7 +11,7 @@ class Morpheus::LogsInterface < Morpheus::APIClient
 
 	def container_logs(containers=[], options={})
 		url = "#{@base_url}/api/logs"
-		headers = { params: {'containers': containers}.merge(options), authorization: "Bearer #{@access_token}" }
+		headers = { params: {'containers' => containers}.merge(options), authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 30, headers: headers, verify_ssl: false)
 		JSON.parse(response.to_s)
