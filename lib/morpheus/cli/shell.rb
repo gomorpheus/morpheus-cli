@@ -14,7 +14,7 @@ class Morpheus::Cli::Shell
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
-		comp = proc do |s|
+		@auto_complete = proc do |s|
 			command_list = Morpheus::Cli::CliRegistry.all.keys
 			result = command_list.grep(/^#{Regexp.escape(s)}/)
 			if result.nil? || result.empty?
@@ -24,8 +24,7 @@ class Morpheus::Cli::Shell
 			end
 		end
 
-		Readline.completion_append_character = " "
-		Readline.completion_proc = comp
+		
 	end
 
 	def handle(args)
@@ -54,6 +53,9 @@ class Morpheus::Cli::Shell
 		remote_handler = Morpheus::Cli::Remote.new()
 		exit = false
 		while !exit do
+			Readline.completion_append_character = " "
+			Readline.completion_proc = @auto_complete
+			Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
 			input = Readline.readline("#{cyan}morpheus> #{reset}", true).to_s
 			# print cyan,"morpheus > ",reset
 			# input = $stdin.gets.chomp!
@@ -99,6 +101,7 @@ class Morpheus::Cli::Shell
 						puts "Argument Syntax Error..."
 					rescue SystemExit, Interrupt
 							# nothing to do
+							puts "Interrupted..."
 					rescue => e
 						print red, "\n", e.message, "\n", reset
 						print e.backtrace.join("\n"), "\n"
