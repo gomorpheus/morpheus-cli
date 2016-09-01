@@ -6,6 +6,7 @@ require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require "shellwords"
+require 'readline'
 
 
 class Morpheus::Cli::Shell
@@ -13,6 +14,18 @@ class Morpheus::Cli::Shell
 	include Term::ANSIColor
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
+		comp = proc do |s|
+			command_list = Morpheus::Cli::CliRegistry.all.keys
+			result = command_list.grep(/^#{Regexp.escape(s)}/)
+			if result.nil? || result.empty?
+				Readline::FILENAME_COMPLETION_PROC.call(s)
+			else
+				result
+			end
+		end
+
+		Readline.completion_append_character = " "
+		Readline.completion_proc = comp
 	end
 
 	def handle(args)
@@ -41,8 +54,9 @@ class Morpheus::Cli::Shell
 		remote_handler = Morpheus::Cli::Remote.new()
 		exit = false
 		while !exit do
-			print cyan,"morpheus > ",reset
-			input = $stdin.gets.chomp!
+			input = Readline.readline("#{cyan}morpheus> #{reset}", true).to_s
+			# print cyan,"morpheus > ",reset
+			# input = $stdin.gets.chomp!
 			if !input.empty?
 
 				if input == 'exit'

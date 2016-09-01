@@ -148,17 +148,18 @@ class Morpheus::Cli::KeyPairs
     #   exit 1
     # end
     account_name = nil
+    keypair_name = args[0]
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = "Usage: morpheus key-pairs add [options]"
+      opts.banner = "Usage: morpheus key-pairs add [name] [options]"
       
       opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
         account_name = val
       end
 
       opts.on( '', '--public-key-file FILENAME', "Public Key File" ) do |filename|
-        if File.exists?(filename)
-          options['publicKey'] = File.read(filename)
+        if File.exists?(File.expand_path(filename))
+          options['publicKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
           options[:options]['publicKey'] = options['publicKey']
         else
@@ -174,8 +175,8 @@ class Morpheus::Cli::KeyPairs
       end
 
       opts.on( '', '--private-key-file FILENAME', "Private Key File" ) do |filename|
-        if File.exists?(filename)
-          options['privateKey'] = File.read(filename)
+        if File.exists?(File.expand_path(filename))
+          options['privateKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
           options[:options]['privateKey'] = options['privateKey']
         else
@@ -191,6 +192,10 @@ class Morpheus::Cli::KeyPairs
       end
 
       Morpheus::Cli::CliCommand.genericOptions(opts,options)
+    end
+    if args.count < 1
+      puts "\n#{optparse}\n\n"
+      exit 1
     end
     optparse.parse(args)
 
@@ -215,12 +220,13 @@ class Morpheus::Cli::KeyPairs
         print_red_alert "privateKey is required"
         exit 1
       end
+      params['name'] = args[0]
 
-      key_pair_payload = params.select {|k,v| ['name', 'publicKey', 'privateKey'].include?(k) }
+      key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey'].include?(k) }
 
       request_payload = {keyPair: key_pair_payload}
       response = @key_pairs_interface.create(account_id, request_payload)
-      print "\n", cyan, "Account #{key_pair_payload['name']} added", reset, "\n\n"
+      print "\n", cyan, "Keypair #{key_pair_payload['name']} added", reset, "\n\n"
     rescue RestClient::Exception => e
       ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
       exit 1
@@ -378,7 +384,6 @@ private
 
   def add_key_pair_option_types
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'publicKey', 'fieldLabel' => 'Public Key', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
       {'fieldName' => 'privateKey', 'fieldLabel' => 'Private Key', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
     ]
