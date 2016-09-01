@@ -51,6 +51,10 @@ class Morpheus::APIClient
 		Morpheus::TaskSetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def virtual_images
+		Morpheus::VirtualImagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 	def apps
 		Morpheus::AppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end

@@ -649,9 +649,9 @@ class Morpheus::Cli::Instances
 						if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
 							connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
 						end
-						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name']}
+						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil}
 					end
-					tp instance_table, :id, :name, :type, :environment, :nodes, :connection, :status
+					tp instance_table, :id, :name,:group, :type, :environment, :nodes, :connection, :status
 				end
 				print reset,"\n\n"
 			end

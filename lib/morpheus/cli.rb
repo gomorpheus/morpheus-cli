@@ -12,6 +12,7 @@ module Morpheus
   	require 'morpheus/api/servers_interface'
     require 'morpheus/api/tasks_interface'
     require 'morpheus/api/license_interface'
+    require 'morpheus/api/virtual_images_interface'
     require 'morpheus/api/task_sets_interface'
     require 'morpheus/api/load_balancers_interface'
   	require 'morpheus/api/instances_interface'
@@ -48,6 +49,7 @@ module Morpheus
     require 'morpheus/cli/users'
     require 'morpheus/cli/roles'
     require 'morpheus/cli/key_pairs'
+    require 'morpheus/cli/virtual_images'
     # Your code goes here...
   end
 end

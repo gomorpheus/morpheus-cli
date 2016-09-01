@@ -101,7 +101,7 @@ class Morpheus::Cli::Shell
 						puts "Argument Syntax Error..."
 					rescue SystemExit, Interrupt
 							# nothing to do
-							puts "Interrupted..."
+						print "\n"
 					rescue => e
 						print red, "\n", e.message, "\n", reset
 						print e.backtrace.join("\n"), "\n"
