@@ -272,23 +272,28 @@ class Morpheus::Cli::Tasks
 			puts "Task Type must be specified...\n#{optparse.banner}"
 			exit 1
 		end
-
-		task_type = find_task_type_by_name(task_type_name)
-		if task_type.nil?
-			puts "Task Type not found!"
-			exit 1
-		end
-		input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
-		payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
-		json_response = @tasks_interface.create(payload)
-		if options[:json]
-				print JSON.pretty_generate(json_response)
-		else
-			if json_response['success']
-				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
-			else
-				print "\n", red, "Error Creating Task #{json_response['errors']}", reset, "\n\n"
+		begin
+			task_type = find_task_type_by_name(task_type_name)
+			if task_type.nil?
+				puts "Task Type not found!"
+				exit 1
 			end
+			input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
+			payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
+			json_response = @tasks_interface.create(payload)
+			if options[:json]
+					print JSON.pretty_generate(json_response)
+			else
+				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"			
+			end
+		rescue RestClient::Exception => e
+			if e.response.code == 400
+				error = JSON.parse(e.response.to_s)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
+			else
+				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+			end
+			exit 1
 		end
 	end
 

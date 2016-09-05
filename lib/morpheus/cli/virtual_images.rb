@@ -125,7 +125,7 @@ class Morpheus::Cli::VirtualImages
 	end
 
 	def details(args)
-				lb_name = args[0]
+				image_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus virtual-images details [name]"
@@ -138,7 +138,7 @@ class Morpheus::Cli::VirtualImages
 		optparse.parse(args)
 		connect(options)
 		begin
-			lb = find_lb_by_name(lb_name)
+			lb = find_lb_by_name(image_name)
 
 			exit 1 if lb.nil?
 			lb_type = find_lb_type_by_name(lb['type']['name'])
@@ -163,7 +163,7 @@ class Morpheus::Cli::VirtualImages
 	end
 
 	def update(args)
-		lb_name = args[0]
+		image_name = args[0]
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
@@ -181,7 +181,7 @@ class Morpheus::Cli::VirtualImages
 		begin
 
 
-			task = find_task_by_name_or_code_or_id(lb_name)
+			task = find_task_by_name_or_code_or_id(image_name)
 			exit 1 if task.nil?
 			lb_type = find_lb_type_by_name(task['type']['name'])
 
@@ -242,10 +242,10 @@ class Morpheus::Cli::VirtualImages
 			if options[:json]
 					print JSON.pretty_generate(json_response)
 			else
-				lb_types = json_response['loadBalancerTypes']
-				print "\n" ,cyan, bold, "Morpheus Load Balancer Types\n","============================", reset, "\n\n"
+				lb_types = json_response['virtualImageTypes']
+				print "\n" ,cyan, bold, "Morpheus Virtual Image Types\n","============================", reset, "\n\n"
 				if lb_types.nil? || lb_types.empty?
-					puts yellow,"No lb types currently exist on this appliance. This could be a seed issue.",reset
+					puts yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset
 				else
 					print cyan
 					lb_table_data = lb_types.collect do |lb_type|
@@ -270,7 +270,7 @@ class Morpheus::Cli::VirtualImages
 	end
 
 	def add(args)
-		lb_name = args[0]
+		image_name = args[0]
 		lb_type_name = nil
 		options = {}
 		optparse = OptionParser.new do|opts|
@@ -298,13 +298,13 @@ class Morpheus::Cli::VirtualImages
 			exit 1
 		end
 		input_options = Morpheus::Cli::OptionTypes.prompt(lb_type['optionTypes'],options[:options],@api_client, options[:params])
-		payload = {task: {name: lb_name, taskOptions: input_options['taskOptions'], type: {code: lb_type['code'], id: lb_type['id']}}}
+		payload = {task: {name: image_name, taskOptions: input_options['taskOptions'], type: {code: lb_type['code'], id: lb_type['id']}}}
 		begin
 			json_response = @virtual_images_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 			else
-				print "\n", cyan, "LB #{json_response['loadBalancer']['name']} created successfully", reset, "\n\n"
+				print "\n", cyan, "LB #{json_response['virtualImage']['name']} created successfully", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
@@ -313,7 +313,7 @@ class Morpheus::Cli::VirtualImages
 	end
 
 	def remove(args)
-		lb_name = args[0]
+		image_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus virtual-images remove [name]"
@@ -326,14 +326,14 @@ class Morpheus::Cli::VirtualImages
 		optparse.parse(args)
 		connect(options)
 		begin
-			lb = find_lb_by_name_or_code_or_id(lb_name)
-			exit 1 if lb.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the load balancer #{lb['name']}?")
-			json_response = @virtual_images_interface.destroy(lb['id'])
+			image = find_image_by_name(image_name)
+			exit 1 if image.nil?
+			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
+			json_response = @virtual_images_interface.destroy(image['id'])
 			if options[:json]
 					print JSON.pretty_generate(json_response)
 			else
-				print "\n", cyan, "Load Balancer #{lb['name']} removed", reset, "\n\n"
+				print "\n", cyan, "Virtual Image #{image['name']} removed", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
 			if e.response.code == 400
@@ -348,35 +348,35 @@ class Morpheus::Cli::VirtualImages
 
 
 private
-	def find_lb_by_name(val)
-		raise "find_lb_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
+	def find_image_by_name(val)
+		raise "find_image_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
 		results = @virtual_images_interface.get(val)
 		result = nil
-		if !results['loadBalancers'].nil? && !results['loadBalancers'].empty?
-			result = results['loadBalancers'][0]
+		if !results['virtualImages'].nil? && !results['virtualImages'].empty?
+			result = results['virtualImages'][0]
 		elsif val.to_i.to_s == val
 			results = @virtual_images_interface.get(val.to_i)
-			result = results['loadBalancer']
+			result = results['virtualImage']
 		end
 		if result.nil?
-			print red,bold, "\nLB not found by '#{val}'\n\n",reset
+			print red,bold, "\nVirtual Image not found by '#{val}'\n\n",reset
 			return nil
 		end
 		return result
 	end
 
-	def find_lb_type_by_name(val)
-		raise "find_lb_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
-		results = @virtual_images_interface.load_balancer_types(val)
+	def find_image_type_by_name(val)
+		raise "find_,age_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
+		results = @virtual_images_interface.virtual_image_types(val)
 		result = nil
-		if !results['loadBalancerTypes'].nil? && !results['loadBalancerTypes'].empty?
-			result = results['loadBalancerTypes'][0]
+		if !results['virtualImageTypes'].nil? && !results['virtualImageTypes'].empty?
+			result = results['virtualImageTypes'][0]
 		elsif val.to_i.to_s == val
-			results = @virtual_images_interface.load_balancer_types(val.to_i)
-			result = results['loadBalancerType']
+			results = @virtual_images_interface.virtual_image_types(val.to_i)
+			result = results['virtualImageType']
 		end
 		if result.nil?
-			print red,bold, "\nLB Type not found by '#{val}'\n\n",reset
+			print red,bold, "\nImage Type not found by '#{val}'\n\n",reset
 			return nil
 		end
 		return result
