@@ -31,7 +31,7 @@ class Morpheus::DeploymentsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/deployments"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
-		payload = {group: options}
+		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
 		JSON.parse(response.to_s)

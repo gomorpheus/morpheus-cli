@@ -68,7 +68,7 @@ class Morpheus::Cli::Deployments
 			end
 			json_response = @deployments_interface.get(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+					puts JSON.pretty_generate(json_response)
 			else
 				deployments = json_response['deployments']
 				print "\n" ,cyan, bold, "Morpheus Deployments\n","====================", reset, "\n\n"
@@ -197,12 +197,11 @@ class Morpheus::Cli::Deployments
 
 	def add(args)
 		deployment_name = args[0]
-		deployment_type_name = nil
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus deployments add [name]"
-			opts.on( '-t', '--type TASK_TYPE', "Deployment Type" ) do |val|
-				deployment_type_name = val
+			opts.on( '-d', '--description DESCRIPTION', "Description" ) do |val|
+				options[:description] = val
 			end
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
@@ -213,18 +212,8 @@ class Morpheus::Cli::Deployments
 		optparse.parse(args)
 		connect(options)
 
-		if deployment_type_name.nil?
-			puts "Deployment Type must be specified...\n#{optparse.banner}"
-			exit 1
-		end
 		begin
-			deployment_type = find_deployment_type_by_name(deployment_type_name)
-			if deployment_type.nil?
-				puts "Deployment Type not found!"
-				exit 1
-			end
-			input_options = Morpheus::Cli::OptionTypes.prompt(deployment_type['optionTypes'],options[:options],@api_client, options[:params])
-			payload = {deployment: {name: deployment_name, deploymentOptions: input_options['deploymentOptions'], deploymentType: {code: deployment_type['code'], id: deployment_type['id']}}}
+			payload = {deployment: {name: deployment_name, description: options[:description]}}
 			json_response = @deployments_interface.create(payload)
 			if options[:json]
 					print JSON.pretty_generate(json_response)
