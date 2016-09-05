@@ -32,7 +32,7 @@ class Morpheus::Cli::Deployments
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus deployments [list,add, update,remove, details]\n\n"
+			puts "\nUsage: morpheus deployments [list,add, update,remove]\n\n"
 			return 
 		end
 
@@ -43,12 +43,10 @@ class Morpheus::Cli::Deployments
 				add(args[1..-1])
 			when 'update'
 				update(args[1..-1])	
-			when 'details'
-				details(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			else
-				puts "\nUsage: morpheus deployments [list,add, update,remove, details, deployment-types]\n\n"
+				puts "\nUsage: morpheus deployments [list,add, update,remove]\n\n"
 				exit 127
 		end
 	end
@@ -91,44 +89,6 @@ class Morpheus::Cli::Deployments
 		end
 	end
 
-	def details(args)
-				deployment_name = args[0]
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments details [deployment]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			exit 1
-		end
-		optparse.parse(args)
-		connect(options)
-		begin
-			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
-
-			exit 1 if deployment.nil?
-			deployment_type = find_deployment_type_by_name(deployment['deploymentType']['name'])
-			if options[:json]
-					puts JSON.pretty_generate({deployment:deployment})
-			else
-				print "\n", cyan, "Deployment #{deployment['name']} - #{deployment['deploymentType']['name']}\n\n"
-				deployment_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{deployment['deploymentOptions'][optionType['fieldName']] ? '************' : ''}" : "#{deployment['deploymentOptions'][optionType['fieldName']] || optionType['defaultValue']}")
-				end
-				print reset,"\n\n"
-			end
-		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			exit 1
-		end
-	end
-
 	def update(args)
 		deployment_name = args[0]
 		options = {}
@@ -150,29 +110,25 @@ class Morpheus::Cli::Deployments
 
 			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
 			exit 1 if deployment.nil?
-			deployment_type = find_deployment_type_by_name(deployment['deploymentType']['name'])
 
 			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
 			params = options[:options] || {}
 
 			if params.empty?
 				puts "\n#{optparse.banner}\n\n"
-				option_lines = update_deployment_option_types(deployment_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+				option_lines = update_deployment_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
 			end
 
 			#puts "parsed params is : #{params.inspect}"
-			deployment_keys = ['name']
+			deployment_keys = ['name','description']
 			changes_payload = (params.select {|k,v| deployment_keys.include?(k) })
 			deployment_payload = deployment
 			if changes_payload
 				deployment_payload.merge!(changes_payload)
 			end
-			puts params
-			if params['deploymentOptions']
-				deployment_payload['deploymentOptions'].merge!(params['deploymentOptions'])
-			end
+
 
 			request_payload = {deployment: deployment_payload}
 			response = @deployments_interface.update(deployment['id'], request_payload)
@@ -301,9 +257,10 @@ private
 		return result
 	end
 
-	def update_deployment_option_types(deployment_type)
+	def update_deployment_option_types()
 		[
-			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 0}
-		] + deployment_type['optionTypes']
+			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 0},
+			{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'displayOrder' => 1}
+		]
 	end
 end

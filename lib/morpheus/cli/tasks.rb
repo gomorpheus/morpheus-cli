@@ -183,7 +183,6 @@ class Morpheus::Cli::Tasks
 			if changes_payload
 				task_payload.merge!(changes_payload)
 			end
-			puts params
 			if params['taskOptions']
 				task_payload['taskOptions'].merge!(params['taskOptions'])
 			end
