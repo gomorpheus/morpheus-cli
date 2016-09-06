@@ -676,12 +676,20 @@ class Morpheus::Cli::Instances
 
 	def remove(args)
 		options = {}
+		query_params = {keepBackups: 'off', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances remove [name]"
+			opts.banner = "Usage: morpheus instances remove [name] [-fB]"
+			opts.on( '-f', '--force', "Force Remove" ) do
+				query_params[:force] = 'on'
+			end
+			opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
+				query_params[:keepBackups] = 'on'
+			end
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts "\n#{optparse}\n\n"
 			exit 1
 		end
 		optparse.parse(args)
@@ -691,7 +699,7 @@ class Morpheus::Cli::Instances
 			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this instance?", options)
 				exit 1
 			end
-			@instances_interface.destroy(instance['id'])
+			@instances_interface.destroy(instance['id'],query_params)
 			list([])
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
