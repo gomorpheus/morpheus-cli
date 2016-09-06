@@ -421,6 +421,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
+				exit 1
+			end
 			json_response = @instances_interface.stop(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -473,6 +476,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
+				exit 1
+			end
 			json_response = @instances_interface.restart(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -499,6 +505,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
+				exit 1
+			end
 			json_response = @instances_interface.stop(instance['id'],false)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -555,6 +564,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
+				exit 1
+			end
 			json_response = @instances_interface.restart(instance['id'],false)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -676,6 +688,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
+			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this instance?", options)
+				exit 1
+			end
 			@instances_interface.destroy(instance['id'])
 			list([])
 		rescue RestClient::Exception => e

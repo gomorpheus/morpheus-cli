@@ -162,21 +162,23 @@ class Morpheus::Cli::Hosts
 	end
 
 	def add(args)
-		if args.count < 2
-			puts "\nUsage: morpheus hosts add CLOUD [name]\n\n"
-			return
-		end
+		
 		options = {zone: args[0], params:{}}
 		name = args[1]
 
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus server add CLOUD NAME -t HOST_TYPE [options]"
+			opts.banner = "Usage: morpheus hosts add CLOUD NAME -t HOST_TYPE [options]"
 			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
 			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 		end
+		if args.count < 2
+			puts "\n#{optparse}\n\n"
+			exit 1
+		end
 		optparse.parse(args)
+
 		connect(options)
 
 		params = {}
@@ -196,6 +198,7 @@ class Morpheus::Cli::Hosts
 		server_type = zone_type['serverTypes'].find{|b| b['creatable'] == true && (b['code'] == options[:server_type] || b['name'] == options[:server_type])}
 		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options],@api_client, options[:params])
 		begin
+			params['server'] = params['server'] || {}
 			server_payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
 			response = @servers_interface.create(server_payload)
 		rescue RestClient::Exception => e

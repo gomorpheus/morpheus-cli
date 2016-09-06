@@ -140,7 +140,7 @@ module Morpheus
           while !value_found do
               Readline.completion_append_character = ""
               Readline.basic_word_break_characters = ''
-              Readline.completion_proc = proc {|s| source_options.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
+              Readline.completion_proc = proc {|s| source_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
               input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} ['?' for options]: ", false).to_s
               input = input.chomp.strip
               if option_type['optionSource']

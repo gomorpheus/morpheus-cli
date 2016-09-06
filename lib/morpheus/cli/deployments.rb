@@ -32,7 +32,7 @@ class Morpheus::Cli::Deployments
 
 	def handle(args) 
 		if args.empty?
-			puts "\nUsage: morpheus deployments [list,add, update,remove]\n\n"
+			puts "\nUsage: morpheus deployments [list,add, update,remove, versions]\n\n"
 			return 
 		end
 
@@ -45,8 +45,10 @@ class Morpheus::Cli::Deployments
 				update(args[1..-1])	
 			when 'remove'
 				remove(args[1..-1])
+			when 'versions'
+				list_versions(args[1..-1])
 			else
-				puts "\nUsage: morpheus deployments [list,add, update,remove]\n\n"
+				puts "\nUsage: morpheus deployments [list,add, update,remove, versions]\n\n"
 				exit 127
 		end
 	end
@@ -89,6 +91,50 @@ class Morpheus::Cli::Deployments
 		end
 	end
 
+	def list_versions(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus deployments versions [deployment] [-s] [-o] [-m]"
+			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+		end
+		optparse.parse(args)
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		deployment_name  = args[0]
+		connect(options)
+		begin
+			params = {}
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
+			end
+			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
+			exit 1 if deployment.nil?
+
+			json_response = @deployments_interface.list_versions(deployment['id'],params)
+			if options[:json]
+					puts JSON.pretty_generate(json_response)
+			else
+				versions = json_response['versions']
+				print "\n" ,cyan, bold, "Morpheus Deployment Versions\n","=============================", reset, "\n\n"
+				if versions.empty?
+					puts yellow,"No deployment versions currently exist.",reset
+				else
+					print cyan
+					versions_table_data = versions.collect do |version|
+						{version: version['userVersion'], type: version['deployType'], updated: format_local_dt(version['lastUpdated'])}
+					end
+					tp versions_table_data, :version, :type, :updated
+				end
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			exit 1
+		end
+	end
+
 	def update(args)
 		deployment_name = args[0]
 		options = {}
@@ -106,8 +152,6 @@ class Morpheus::Cli::Deployments
 		connect(options)
 		
 		begin
-
-
 			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
 			exit 1 if deployment.nil?
 

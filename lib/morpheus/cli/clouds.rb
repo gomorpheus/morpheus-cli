@@ -189,11 +189,23 @@ class Morpheus::Cli::Clouds
 				if clouds.empty?
 					puts yellow,"No clouds currently configured.",reset
 				else
-					clouds.each do |zone|
-						print cyan, "=  #{zone['name']} (#{cloud_type_for_id(zone['zoneTypeId'])}) - #{zone['description']}\n"
+					clouds_table =clouds.collect do |cloud|
+						status = nil
+						if cloud['status'].nil? || cloud['status'] == 'ok'
+							status = "#{green}OK#{cyan}"
+						else
+							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? " - #{cloud['statusMessage']}" : ''}#{cyan}"
+						end
+						{id: cloud['id'], name: cloud['name'], type: cloud_type_for_id(cloud['zoneTypeId']), location: cloud['location'], status: status}
+						# print red, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
 					end
+					print cyan
+					tp clouds_table, :id, :name, :type, :location, :status
+					print reset,"\n\n"
 				end
-				print reset,"\n\n"
+				
+					
+	
 			end
 		rescue => e
 			puts "Error Communicating with the Appliance. Please try again later. #{e}"

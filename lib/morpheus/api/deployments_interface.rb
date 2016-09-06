@@ -26,6 +26,31 @@ class Morpheus::DeploymentsInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def list_versions(deployment_id,options=nil)
+		url = "#{@base_url}/api/deployments/#{deployment_id}/versions"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+		if options.is_a?(Hash)
+			headers[:params].merge!(options)
+		elsif options.is_a?(Numeric)
+			url = "#{@base_url}/api/deployments/#{deployment_id}/versions/#{options}"
+		elsif options.is_a?(String)
+			headers[:params]['name'] = options
+		end
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false)
+		JSON.parse(response.to_s)
+	end
+
+	def get_version(deployment_id,version_id)
+		url = "#{@base_url}/api/deployments/#{deployment_id}/versions/#{version_id}"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false)
+		JSON.parse(response.to_s)
+	end
+
 
 	def create(options)
 		url = "#{@base_url}/api/deployments"
