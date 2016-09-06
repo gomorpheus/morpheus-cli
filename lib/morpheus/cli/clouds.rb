@@ -194,7 +194,7 @@ class Morpheus::Cli::Clouds
 						if cloud['status'].nil? || cloud['status'] == 'ok'
 							status = "#{green}OK#{cyan}"
 						else
-							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? " - #{cloud['statusMessage']}" : ''}#{cyan}"
+							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
 						end
 						{id: cloud['id'], name: cloud['name'], type: cloud_type_for_id(cloud['zoneTypeId']), location: cloud['location'], status: status}
 						# print red, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
