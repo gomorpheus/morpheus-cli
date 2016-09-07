@@ -307,7 +307,7 @@ class Morpheus::Cli::LoadBalancers
 		optparse.parse(args)
 		connect(options)
 		begin
-			lb = find_lb_by_name_or_code_or_id(lb_name)
+			lb = find_lb_by_name(lb_name)
 			exit 1 if lb.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the load balancer #{lb['name']}?")
 			json_response = @load_balancers_interface.destroy(lb['id'])

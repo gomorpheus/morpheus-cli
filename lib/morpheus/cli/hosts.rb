@@ -218,7 +218,7 @@ class Morpheus::Cli::Hosts
 			return
 		end
 		options = {}
-		query_params = {name: args[0], removeResources: 'on', force: 'off'}
+		query_params = {removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
 			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |cloud|
 				options[:zone] = cloud
@@ -245,7 +245,7 @@ class Morpheus::Cli::Hosts
 				query_params[:zoneId] = zone['id']
 			end
 			server = nil
-			server_results = @servers_interface.get(query_params)
+			server_results = @servers_interface.get({name: args[0]})
 			if server_results['servers'].nil? || server_results['servers'].empty?
 				server_results = @servers_interface.get(args[0].to_i)
 				server = server_results['server']
@@ -268,7 +268,7 @@ class Morpheus::Cli::Hosts
 				exit 1
 			end
 
-			json_response = @servers_interface.destroy(server['id'])
+			json_response = @servers_interface.destroy(server['id'], query_params)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"

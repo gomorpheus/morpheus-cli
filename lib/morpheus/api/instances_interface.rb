@@ -63,9 +63,9 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
-	def destroy(id)
+	def destroy(id, params = {})
 		url = "#{@base_url}/api/instances/#{id}"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 30, headers: headers,verify_ssl: false)
 		JSON.parse(response.to_s)

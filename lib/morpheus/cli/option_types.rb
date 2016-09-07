@@ -35,8 +35,8 @@ module Morpheus
             if option_type['fieldContext']
               results[option_type['fieldContext']] ||= {}
               context_map = results[option_type['fieldContext']]
-              if options[option_type['fieldContext']] and options[option_type['fieldContext']].key?(option_type['fieldLabel'])
-                value = options[option_type['fieldContext']][option_type['fieldLabel']]
+              if options[option_type['fieldContext']] and options[option_type['fieldContext']].key?(option_type['fieldName'])
+                value = options[option_type['fieldContext']][option_type['fieldName']]
                 value_found = true
               end
             end
