@@ -191,8 +191,10 @@ class Morpheus::Cli::Clouds
 				else
 					clouds_table =clouds.collect do |cloud|
 						status = nil
-						if cloud['status'].nil? || cloud['status'] == 'ok'
+						if cloud['status'] == 'ok'
 							status = "#{green}OK#{cyan}"
+						elsif cloud['status'].nil?
+							status = "#{white}UNKNOWN#{cyan}"
 						else
 							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? " - #{cloud['statusMessage']}" : ''}#{cyan}"
 						end
