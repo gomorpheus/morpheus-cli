@@ -118,7 +118,7 @@ class Morpheus::Cli::Accounts
 			exit 1 if account.nil?
 
 			if options[:json]
-				print JSON.pretty_generate(account)
+				print JSON.pretty_generate({account: account})
 				print "\n"
 			else
 				print "\n" ,cyan, bold, "Account Details\n","==================", reset, "\n\n"

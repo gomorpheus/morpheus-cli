@@ -121,7 +121,7 @@ class Morpheus::Cli::KeyPairs
       exit 1 if key_pair.nil?
 
       if options[:json]
-        print JSON.pretty_generate(key_pair)
+        print JSON.pretty_generate({keyPair: key_pair})
         print "\n"
       else
         print "\n" ,cyan, bold, "Key Pair Details\n","==================", reset, "\n\n"

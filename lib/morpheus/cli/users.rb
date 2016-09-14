@@ -124,7 +124,7 @@ class Morpheus::Cli::Users
 			exit 1 if user.nil?
 
 			if options[:json]
-				print JSON.pretty_generate(user)
+				print JSON.pretty_generate({user:user})
 				print "\n"
 			else
 				print "\n" ,cyan, bold, "User Details\n","==================", reset, "\n\n"
