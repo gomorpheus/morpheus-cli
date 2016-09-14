@@ -41,7 +41,7 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :post, url: url,
+		response = Morpheus::RestClient.execute(method: :put, url: url,
                             timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
@@ -51,6 +51,42 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
                             timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def update_permission(account_id, id, options)
+		url = build_url(account_id, id) + "/update-permission"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def update_instance_type(account_id, id, options)
+		url = build_url(account_id, id) + "/update-instance-type"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def update_group(account_id, id, options)
+		url = build_url(account_id, id) + "/update-group"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def update_cloud(account_id, id, options)
+		url = build_url(account_id, id) + "/update-cloud"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
