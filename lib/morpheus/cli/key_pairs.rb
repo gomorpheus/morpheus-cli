@@ -53,12 +53,12 @@ class Morpheus::Cli::KeyPairs
   end
 
   def list(args)
+    usage = "Usage: morpheus key-pairs list [options]"
     options = {}
     params = {}
-    account = nil
     optparse = OptionParser.new do|opts|
-      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-      Morpheus::Cli::CliCommand.genericOptions(opts,options)
+      opts.banner = usage
+      build_common_options(opts, options, [:account, :list, :json])
     end
     optparse.parse(args)
     connect(options)
@@ -93,20 +93,20 @@ class Morpheus::Cli::KeyPairs
 
   def details(args)
     usage = "Usage: morpheus key-pairs details [name] [options]"
-    if args.count < 1
-      puts "\n#{usage}\n\n"
-      exit 1
-    end
-    account = nil
-    name = args[0]
     options = {}
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-      Morpheus::Cli::CliCommand.genericOptions(opts,options)
+      build_common_options(opts, options, [:account, :json])
     end
     optparse.parse(args)
+
+    if args.count < 1
+      puts "\n#{usage}\n\n"
+      exit 1
+    end
+    name = args[0]
+
     connect(options)
     begin
     
@@ -143,21 +143,11 @@ class Morpheus::Cli::KeyPairs
   end
 
   def add(args)
-    # if args.count > 0
-    #   puts "\nUsage: morpheus hosts add [options]\n\n"
-    #   exit 1
-    # end
-    account_name = nil
-    keypair_name = args[0]
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = "Usage: morpheus key-pairs add [name] [options]"
-      
-      opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-        account_name = val
-      end
 
-      opts.on( '', '--public-key-file FILENAME', "Public Key File" ) do |filename|
+      opts.on(nil, '--public-key-file FILENAME', "Public Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
           options['publicKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
@@ -168,13 +158,13 @@ class Morpheus::Cli::KeyPairs
         end
       end
 
-      opts.on( '', '--public-key TEXT', "Public Key Text" ) do |val|
+      opts.on(nil, '--public-key TEXT', "Public Key Text" ) do |val|
         options['publicKey'] = val
         options[:options] ||= {}
         options[:options]['publicKey'] = options['publicKey']
       end
 
-      opts.on( '', '--private-key-file FILENAME', "Private Key File" ) do |filename|
+      opts.on(nil, '--private-key-file FILENAME', "Private Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
           options['privateKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
@@ -185,14 +175,15 @@ class Morpheus::Cli::KeyPairs
         end
       end
 
-      opts.on( '', '--private-key TEXT', "Private Key Text" ) do |val|
+      opts.on(nil, '--private-key TEXT', "Private Key Text" ) do |val|
         options['privateKey'] = val
         options[:options] ||= {}
         options[:options]['privateKey'] = options['privateKey']
       end
 
-      Morpheus::Cli::CliCommand.genericOptions(opts,options)
+      build_common_options(opts, options, [:account, :options, :json])
     end
+    
     if args.count < 1
       puts "\n#{optparse}\n\n"
       exit 1
@@ -203,15 +194,10 @@ class Morpheus::Cli::KeyPairs
     
     begin
 
-      # current user account by default
-      account = nil
-      if !account_name.nil?
-        account = find_account_by_name(account_name)
-        exit 1 if account.nil?
-      end
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
-      params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+      params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
 
       if !params['publicKey']
         print_red_alert "publicKey is required"
@@ -225,8 +211,13 @@ class Morpheus::Cli::KeyPairs
       key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey'].include?(k) }
 
       request_payload = {keyPair: key_pair_payload}
-      response = @key_pairs_interface.create(account_id, request_payload)
-      print "\n", cyan, "Keypair #{key_pair_payload['name']} added", reset, "\n\n"
+      json_response = @key_pairs_interface.create(account_id, request_payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Key Pair #{key_pair_payload['name']} added"
+      end
     rescue RestClient::Exception => e
       ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
       exit 1
@@ -234,40 +225,31 @@ class Morpheus::Cli::KeyPairs
   end
 
   def update(args)
-    usage = "Usage: morpheus hosts update [name] [options]"
+    usage = "Usage: morpheus key-pairs update [name] [options]"
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = usage
+      build_common_options(opts, options, [:account, :options, :json])
+    end
+    optparse.parse(args)
+
     if args.count < 1
       puts "\n#{usage}\n\n"
       exit 1
     end
-    account_name = nil
     name = args[0]
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = usage
-
-      opts.on( '-a', '--account ACCOUNT', "Account Name" ) do |val|
-        account_name = val
-      end
-
-      Morpheus::Cli::CliCommand.genericOptions(opts,options)
-    end
-    optparse.parse(args)
 
     connect(options)
     
     begin
 
-      account_id = nil 
-      if !account_name.nil?
-        account = find_account_by_name(account_name)
-        exit 1 if account.nil?
-        account_id = account['id']
-      end
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
 
       key_pair = ((name.to_s =~ /\A\d{1,}\Z/) ? find_key_pair_by_id(account_id, name) : find_key_pair_by_name(account_id, name) )
       exit 1 if key_pair.nil?
 
-      #params = Morpheus::Cli::OptionTypes.prompt(update_key_pair_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+      #params = Morpheus::Cli::OptionTypes.prompt(update_key_pair_option_types, options[:options], @api_client, options[:params])
       params = options[:options] || {}
 
       if params.empty?
@@ -279,8 +261,13 @@ class Morpheus::Cli::KeyPairs
 
       key_pair_payload = params.select {|k,v| ['name'].include?(k) }
       request_payload = {keyPair: key_pair_payload}
-      response = @key_pairs_interface.update(account_id, key_pair['id'], request_payload)
-      print "\n", cyan, "Key Pair #{key_pair_payload['name'] || key_pair['name']} updated", reset, "\n\n"
+      json_response = @key_pairs_interface.update(account_id, key_pair['id'], request_payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Key Pair #{key_pair_payload['name'] || key_pair['name']} updated"
+      end
     rescue RestClient::Exception => e
       ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
       exit 1
@@ -289,39 +276,38 @@ class Morpheus::Cli::KeyPairs
 
   def remove(args)
     usage = "Usage: morpheus key-pairs remove [name]"
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = usage
+      build_common_options(opts, options, [:account, :auto_confirm, :json])
+    end
+    optparse.parse(args)
+
     if args.count < 1
       puts "\n#{usage}\n\n"
       exit 1
     end
-    account_name = nil
     name = args[0]
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = usage
 
-      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
-        account_name = val
-      end
-
-      Morpheus::Cli::CliCommand.genericOptions(opts,options)
-    end
-    optparse.parse(args)
     connect(options)
     begin
       # current user account by default
-      account = nil
-      if !account_name.nil?
-        account = find_account_by_name(account_name)
-        exit 1 if account.nil?
-      end
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
       # allow finding by ID since name is not unique!
       key_pair = ((name.to_s =~ /\A\d{1,}\Z/) ? find_key_pair_by_id(account_id, name) : find_key_pair_by_name(account_id, name) )
       exit 1 if key_pair.nil?
-      exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the key pair #{key_pair['name']}?")
-      @key_pairs_interface.destroy(account_id, key_pair['id'])
-      # list([])
-      print "\n", cyan, "Key Pair #{key_pair['name']} removed", reset, "\n\n"
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the key pair #{key_pair['name']}?")
+        exit
+      end
+      json_response = @key_pairs_interface.destroy(account_id, key_pair['id'])
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Key Pair #{key_pair['name']} removed"
+        # list([])
+      end
     rescue RestClient::Exception => e
       ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
       exit 1

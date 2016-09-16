@@ -29,7 +29,7 @@ class Morpheus::Cli::AppTemplates
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus app-templates [list,details,add,update,remove] [name]"
+		usage = "Usage: morpheus app-templates [list,details,remove] [name]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			exit 1
@@ -54,13 +54,13 @@ class Morpheus::Cli::AppTemplates
 
 	def list(args)
 		options = {}
-		params = {}
 		optparse = OptionParser.new do|opts|
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json])
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
+      params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
@@ -93,11 +93,9 @@ class Morpheus::Cli::AppTemplates
 		end
 		name = args[0]
 		options = {}
-		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+      build_common_options(opts, options, [:json])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -142,23 +140,27 @@ class Morpheus::Cli::AppTemplates
 
 	def remove(args)
 		usage = "Usage: morpheus app-templates remove [name]"
-		if args.count < 1
-			puts "\n#{usage}\n\n"
-			exit 1
-		end
-		name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json])
 		end
 		optparse.parse(args)
+
+    if args.count < 1
+      puts "\n#{usage}\n\n"
+      exit 1
+    end
+    name = args[0]
+
 		connect(options)
 		begin
 			# allow finding by ID since name is not unique!
 			app_template = ((name.to_s =~ /\A\d{1,}\Z/) ? find_app_template_by_id(name) : find_app_template_by_name(name) )
 			exit 1 if app_template.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
+        exit
+      end
 			json_response = @app_templates_interface.destroy(app_template['id'])
 			
 			if options[:json]

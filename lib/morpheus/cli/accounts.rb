@@ -55,14 +55,16 @@ class Morpheus::Cli::Accounts
 	end
 
 	def list(args)
+		usage = "Usage: morpheus accounts list"
 		options = {}
-		params = {}
 		optparse = OptionParser.new do|opts|
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			opts.banner = usage
+			build_common_options(opts, options, [:list, :json])
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
+			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
@@ -89,19 +91,19 @@ class Morpheus::Cli::Accounts
 
 	def details(args)
 		usage = "Usage: morpheus accounts details [name] [options]"
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse(args)
+
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
 		name = args[0]
-		options = {}
-		params = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
 
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		optparse.parse(args)
 		connect(options)
 		begin
 	
@@ -154,14 +156,10 @@ class Morpheus::Cli::Accounts
 
 	def add(args)
 		usage = "Usage: morpheus accounts add [options]"
-		# if args.count > 0
-		# 	puts "\nUsage: morpheus accounts add [options]\n\n"
-		# 	exit 1
-		# end
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json])
 		end
 		optparse.parse(args)
 
@@ -169,7 +167,7 @@ class Morpheus::Cli::Accounts
 		
 		begin
 
-			params = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			params = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params])
 
 			#puts "parsed params is : #{params.inspect}"
 			account_keys = ['name', 'description', 'currency']
@@ -205,17 +203,18 @@ class Morpheus::Cli::Accounts
 
 	def update(args)
 		usage = "Usage: morpheus accounts update [name] [options]"
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			build_common_options(opts, options, [:options, :json])
+		end
+		optparse.parse(args)
+
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
 		name = args[0].strip
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		optparse.parse(args)
 
 		connect(options)
 		
@@ -230,7 +229,7 @@ class Morpheus::Cli::Accounts
 			end
 			exit 1 if account.nil?
 
-			#params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			#params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
 
 			if params.empty?
@@ -275,23 +274,27 @@ class Morpheus::Cli::Accounts
 
 	def remove(args)
 		usage = "Usage: morpheus accounts remove [name]"
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			build_common_options(opts, options, [:auto_confirm, :json])
+		end
+		optparse.parse(args)
+
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
 		name = args[0]
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		optparse.parse(args)
+
 		connect(options)
 		begin
 			# allow finding by ID since name is not unique!
 			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
 			exit 1 if account.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
+				exit
+			end
 			json_response = @accounts_interface.destroy(account['id'])
 			
 			if options[:json]

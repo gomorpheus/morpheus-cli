@@ -57,12 +57,9 @@ class Morpheus::Cli::Users
 	def list(args)
 		usage = "Usage: morpheus users list [options]"
 		options = {}
-		params = {}
-		account = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:account, :list, :json])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -71,6 +68,7 @@ class Morpheus::Cli::Users
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
+			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
@@ -98,20 +96,19 @@ class Morpheus::Cli::Users
 
 	def details(args)
 		usage = "Usage: morpheus users details [username] [options]"
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+      build_common_options(opts, options, [:account, :json])
+		end
+		optparse.parse(args)
+
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		account = nil
 		username = args[0]
-		options = {}
-		params = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-      Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		optparse.parse(args)
+
 		connect(options)
 		begin
 			
@@ -153,17 +150,10 @@ class Morpheus::Cli::Users
 
 	def add(args)
 		usage = "Usage: morpheus users add [options]"
-		# if args.count > 0
-		# 	puts "\#{usage}\n\n"
-		# 	exit 1
-		# end
 		options = {}
-		#options['username'] = args[0] if args[0]
-		account = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:account, :options, :json])
 		end
 		optparse.parse(args)
 
@@ -174,8 +164,7 @@ class Morpheus::Cli::Users
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options)
-			params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params])
 
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
@@ -192,19 +181,24 @@ class Morpheus::Cli::Users
 				user_payload['role'] = {id: role['id']}
 			end
 			request_payload = {user: user_payload}
-			response = @users_interface.create(account_id, request_payload)
+			json_response = @users_interface.create(account_id, request_payload)
 
-			if account
-				print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
 			else
-				print_green_success "Added user #{user_payload['username']}"
-			end
+				if account
+					print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
+				else
+					print_green_success "Added user #{user_payload['username']}"
+				end
 
-			details_options = [user_payload["username"]]
-			if account
-				details_options.push "--account-id", account['id'].to_s
+				details_options = [user_payload["username"]]
+				if account
+					details_options.push "--account-id", account['id'].to_s
+				end
+				details(details_options)
 			end
-			details(details_options)
 
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
@@ -214,20 +208,18 @@ class Morpheus::Cli::Users
 
 	def update(args)
 		usage = "Usage: morpheus users update [username] [options]"
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = usage
+			build_common_options(opts, options, [:account, :options, :json])
+		end
+		optparse.parse(args)
+
 		if args.count < 1
 			puts "\n#{usage}\n\n"
 			exit 1
 		end
-		account = nil
 		username = args[0]
-		options = {}
-		#options['username'] = args[0] if args[0]
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
-		end
-		optparse.parse(args)
 
 		connect(options)
 		
@@ -239,11 +231,11 @@ class Morpheus::Cli::Users
 			user = find_user_by_username(account_id, username)
 			exit 1 if user.nil?
 
-			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			#params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{usage}\n"
+				puts "\n#{usage}\n\n"
 				option_lines = update_user_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -264,15 +256,19 @@ class Morpheus::Cli::Users
 				user_payload['role'] = {id: role['id']}
 			end
 			request_payload = {user: user_payload}
-			response = @users_interface.update(account_id, user['id'], request_payload)
+			json_response = @users_interface.update(account_id, user['id'], request_payload)
 			
-			print_green_success "Updated user #{user_payload['username']}"
-
-			details_options = [user_payload["username"] || user['username']]
-			if account
-				details_options.push "--account-id", account['id'].to_s
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Updated user #{user_payload['username']}"
+				details_options = [user_payload["username"] || user['username']]
+				if account
+					details_options.push "--account-id", account['id'].to_s
+				end
+				details(details_options)
 			end
-			details(details_options)
 
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
@@ -282,19 +278,19 @@ class Morpheus::Cli::Users
 
 	def remove(args)
 		usage = "Usage: morpheus users remove [username]"
-		if args.count < 1
-			puts "\n#{usage}\n"
-			exit 1
-		end
-		account = nil
-		username = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			Morpheus::Cli::CliCommand.accountScopeOptions(opts,options)
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:account, :auto_confirm, :json])
 		end
 		optparse.parse(args)
+
+		if args.count < 1
+			puts "\n#{usage}\n\n"
+			exit 1
+		end
+		username = args[0]
+
 		connect(options)
 		begin
 
@@ -303,10 +299,19 @@ class Morpheus::Cli::Users
 
 			user = find_user_by_username(account_id, username)
 			exit 1 if user.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
-			@users_interface.destroy(account_id, user['id'])
-			# list([])
-			print "\n", cyan, "User #{username} removed", reset, "\n\n"
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
+				exit
+			end
+			json_response = @users_interface.destroy(account_id, user['id'])
+
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "User #{username} removed"
+				# list([])
+			end
+			
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
