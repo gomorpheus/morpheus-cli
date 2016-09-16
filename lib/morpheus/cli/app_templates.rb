@@ -159,9 +159,15 @@ class Morpheus::Cli::AppTemplates
 			app_template = ((name.to_s =~ /\A\d{1,}\Z/) ? find_app_template_by_id(name) : find_app_template_by_name(name) )
 			exit 1 if app_template.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
-			@app_templates_interface.destroy(app_template['id'])
-			# list([])
-			print "\n", cyan, "App Template #{app_template['name']} removed", reset, "\n\n"
+			json_response = @app_templates_interface.destroy(app_template['id'])
+			
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "App Template #{app_template['name']} removed"
+			end
+
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
