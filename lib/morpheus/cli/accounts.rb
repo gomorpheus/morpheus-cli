@@ -175,21 +175,27 @@ class Morpheus::Cli::Accounts
 			account_keys = ['name', 'description', 'currency']
 			account_payload = params.select {|k,v| account_keys.include?(k) }
 			account_payload['currency'] = account_payload['currency'].to_s.empty? ? "USD" : account_payload['currency'].upcase
-			account_payload['instanceLimits'] = {}
-			account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-			account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-			account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			if !account_payload['instanceLimits']
+				account_payload['instanceLimits'] = {}
+				account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			if params['role'].to_s != ''
 				role = find_role_by_name(nil, params['role'])
 				exit 1 if role.nil?
 				account_payload['role'] = {id: role['id']}
 			end
 			request_payload = {account: account_payload}
-			response = @accounts_interface.create(request_payload)
+			json_response = @accounts_interface.create(request_payload)
 			
-			print_green_success "Account #{account_payload['name']} added"
-			
-			details([account_payload["name"]])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Account #{account_payload['name']} added"
+				details([account_payload["name"]])
+			end
 
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
@@ -217,10 +223,10 @@ class Morpheus::Cli::Accounts
 
 			account = nil
 			if name.to_s =~ /\Aid:/
-				id = name.sub('id:', '')
+				id = name.sub('id:', '').strip
 				account = find_account_by_id(id)
 			else
-				find_account_by_name(name)
+				account = find_account_by_name(name)
 			end
 			exit 1 if account.nil?
 
@@ -235,21 +241,32 @@ class Morpheus::Cli::Accounts
 			end
 
 			#puts "parsed params is : #{params.inspect}"
-			account_keys = ['name', 'description', 'currency']
+			account_keys = ['name', 'description', 'currency', 'instanceLimits']
 			account_payload = params.select {|k,v| account_keys.include?(k) }
 			account_payload['currency'] = account_payload['currency'].upcase unless account_payload['currency'].to_s.empty?
-			account_payload['instanceLimits'] = {}
-			account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-			account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-			account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			if !account_payload['instanceLimits']
+				account_payload['instanceLimits'] = {}
+				account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			if params['role'].to_s != ''
 				role = find_role_by_name(nil, params['role'])
 				exit 1 if role.nil?
 				account_payload['role'] = {id: role['id']}
 			end
 			request_payload = {account: account_payload}
-			response = @accounts_interface.update(account['id'], request_payload)
-			print "\n", cyan, "Account #{account_payload['name'] || account['name']} updated", reset, "\n\n"
+			json_response = @accounts_interface.update(account['id'], request_payload)
+
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				account_name = account_payload['name'] || account['name']
+				print_green_success "Account #{account_name} updated"
+				details([account_name])
+			end
+			
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1
@@ -275,9 +292,15 @@ class Morpheus::Cli::Accounts
 			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
 			exit 1 if account.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
-			@accounts_interface.destroy(account['id'])
-			# list([])
-			print "\n", cyan, "Account #{account['name']} removed", reset, "\n\n"
+			json_response = @accounts_interface.destroy(account['id'])
+			
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Account #{account['name']} removed"
+			end
+
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1

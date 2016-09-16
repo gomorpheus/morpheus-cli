@@ -289,6 +289,12 @@ class Morpheus::Cli::Roles
 			#puts "parsed params is : #{params.inspect}"
 			role_keys = ['authority', 'description', 'instanceLimits']
 			role_payload = params.select {|k,v| role_keys.include?(k) }
+			if !role_payload['instanceLimits']
+				role_payload['instanceLimits'] = {}
+				role_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				role_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				role_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			if params['baseRole'].to_s != ''
 				base_role = find_role_by_name(account_id, params['baseRole'])
 				exit 1 if base_role.nil?
@@ -354,6 +360,12 @@ class Morpheus::Cli::Roles
 			#puts "parsed params is : #{params.inspect}"
 			role_keys = ['authority', 'description', 'instanceLimits']
 			role_payload = params.select {|k,v| role_keys.include?(k) }
+			if !role_payload['instanceLimits']
+				role_payload['instanceLimits'] = {}
+				role_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				role_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				role_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			request_payload = {role: role_payload}
 			response = @roles_interface.update(account_id, role['id'], request_payload)
 			
@@ -395,9 +407,15 @@ class Morpheus::Cli::Roles
 			role = find_role_by_name(account_id, name)
 			exit 1 if role.nil?
 			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the role #{role['authority']}?")
-			@roles_interface.destroy(account_id, role['id'])
-			# list([])
-			print "\n", cyan, "Role #{name} removed", reset, "\n\n"
+			json_response = @roles_interface.destroy(account_id, role['id'])
+			
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Role #{role['authority']} removed"
+			end
+			
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
 			exit 1

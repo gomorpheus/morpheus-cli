@@ -180,6 +180,12 @@ class Morpheus::Cli::Users
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
 			user_payload = params.select {|k,v| user_keys.include?(k) }
+			if !user_payload['instanceLimits']
+				user_payload['instanceLimits'] = {}
+				user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			if params['role'].to_s != ''
 				role = find_role_by_name(account_id, params['role'])
 				exit 1 if role.nil?
@@ -246,6 +252,12 @@ class Morpheus::Cli::Users
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits']
 			user_payload = params.select {|k,v| user_keys.include?(k) }
+			if !user_payload['instanceLimits']
+				user_payload['instanceLimits'] = {}
+				user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+				user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+				user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
 			if params['role'].to_s != ''
 				role = find_role_by_name(account_id, params['role'])
 				exit 1 if role.nil?
