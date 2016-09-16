@@ -17,6 +17,7 @@ end
 
 def format_dt(dt, options={})
   dt = parse_time(dt)
+  return "" if dt.nil?
   if options[:local]
     dt = dt.getlocal
   end
