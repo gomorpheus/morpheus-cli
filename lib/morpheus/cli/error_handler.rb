@@ -39,6 +39,7 @@ class Morpheus::Cli::ErrorHandler
 		else
 			puts "Error Communicating with the Appliance. Please try again later. #{e}"
 		end
+		print reset
 	end
 
 end
