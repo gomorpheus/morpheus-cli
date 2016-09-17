@@ -159,7 +159,7 @@ EOT
 		security_group_id = nil 
 		optparse = OptionParser.new do|opts|
 			opts.banner = "\nUsage: morpheus security-group-rules list [ID]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json])
 		end
 		security_group_id = args[0].to_i
 		optparse.parse(args)

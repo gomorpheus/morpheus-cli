@@ -73,11 +73,11 @@ class Morpheus::Cli::Hosts
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts logs [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
-			return
+			exit 1
 		end
 		optparse.parse(args)
 		connect(options)
@@ -112,21 +112,19 @@ class Morpheus::Cli::Hosts
 	end
 
 	def server_types(args) 
-		if args.count < 1
-			puts "\nUsage: morpheus hosts server-types CLOUD\n\n"
-			exit 1
-		end
 		options = {zone: args[0]}
-
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus server add CLOUD NAME -t HOST_TYPE [options]"
+			opts.banner = "Usage: morpheus hosts server-types CLOUD"
 			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
-
 		optparse.parse(args)
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
 		connect(options)
 		params = {}
 		
@@ -171,7 +169,7 @@ class Morpheus::Cli::Hosts
 			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"
@@ -213,13 +211,10 @@ class Morpheus::Cli::Hosts
 	end
 
 	def remove(args)
-		if args.count < 1
-			puts "\nUsage: morpheus hosts remove [name] [-c CLOUD] [-f] [-S]\n\n"
-			return
-		end
 		options = {}
 		query_params = {removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts remove [name] [-c CLOUD] [-f] [-S]"
 			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |cloud|
 				options[:zone] = cloud
 			end
@@ -230,9 +225,13 @@ class Morpheus::Cli::Hosts
 				query_params[:removeResources] = 'off'
 			end
 			
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		optparse.parse(args)
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			return
+		end
 		connect(options)
 		zone=nil
 		if !options[:zone].nil?
@@ -264,7 +263,7 @@ class Morpheus::Cli::Hosts
 				
 			end
 			
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this server?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this server?", options)
 				exit 1
 			end
 
@@ -290,11 +289,12 @@ class Morpheus::Cli::Hosts
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts list"
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
 			
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -355,7 +355,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts start [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -383,7 +383,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts stop [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -411,7 +411,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts upgrade [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -440,7 +440,7 @@ class Morpheus::Cli::Hosts
 		
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts run-workflow [HOST] [name] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"

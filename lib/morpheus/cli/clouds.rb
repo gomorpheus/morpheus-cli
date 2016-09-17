@@ -63,13 +63,10 @@ class Morpheus::Cli::Clouds
 	end
 
 	def add(args)
-		if args.count < 1
-			puts "\nUsage: morpheus clouds add [name] --group GROUP --type TYPE\n\n"
-			exit 1
-		end
 		options = {}
 		params = {zone_type: 'standard'}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus clouds add [name] --group GROUP --type TYPE"
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				params[:group] = group
 			end
@@ -79,9 +76,15 @@ class Morpheus::Cli::Clouds
 			opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
 				params[:description] = desc
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		optparse.parse!(args)
+
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+
 		connect(options)
 		zone = {name: args[0], description: params[:description]}
 		if !params[:group].nil?
@@ -98,7 +101,13 @@ class Morpheus::Cli::Clouds
 		
 		begin
 			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options],@api_client))
-			@clouds_interface.create(zone)
+			json_response = @clouds_interface.create(zone)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				list([])
+			end
 		rescue => e
 			if e.response and e.response.code == 400
 				error = JSON.parse(e.response.to_s)
@@ -112,30 +121,31 @@ class Morpheus::Cli::Clouds
 			end
 			exit 1
 		end
-		list([])
 	end
 
 	def remove(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus clouds remove [name] --group GROUP"
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
+				options[:group] = group
+			end
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+		end
+		optparse.parse(args)
+
 		if args.count < 2
-			puts "\nUsage: morpheus clouds remove [name] --group GROUP\n\n"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
 
-		params = {}
-		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				params[:group] = group
-			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,params)
-		end
-		optparse.parse(args)
-		connect(params)
-		if !params[:group].nil?
-			group = find_group_by_name(params[:group])
+		connect(options)
+		if !options[:group].nil?
+			group = find_group_by_name(options[:group])
 			if !group.nil?
-				params[:groupId] = group['id']
+				options[:groupId] = group['id']
 			else
-				puts "\nGroup #{params[:group]} not found!"
+				puts "\nGroup #{options[:group]} not found!"
 				exit 1
 			end
 		end
@@ -147,12 +157,21 @@ class Morpheus::Cli::Clouds
 				puts "Zone not found by name #{args[0]}"
 				exit 1
 			end
-			@clouds_interface.destroy(zone_results['zones'][0]['id'])
-			list([])
+			cloud = zone_results['zones'][0]
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the cloud #{cloud['name']}?")
+				exit
+			end
+			json_response = @clouds_interface.destroy(cloud['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				list([])
+			end
 		rescue RestClient::Exception => e
 			if e.response.code == 400 or e.response.code == 500
 				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,params)
+				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
 			else
 				puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			end
@@ -163,10 +182,11 @@ class Morpheus::Cli::Clouds
 	def list(args)
 		options={}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus clouds list"
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)

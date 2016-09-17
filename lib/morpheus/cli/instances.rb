@@ -105,7 +105,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
 				options[:cloud] = val
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 			
 		end
 
@@ -207,7 +207,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances stats [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -246,10 +246,10 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances logs [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
 			opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
 				options[:node_id] = node_id.to_i
 			end
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -295,7 +295,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances details [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -326,7 +326,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances envs [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -365,7 +365,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-M', "Masked" ) do |masked|
 				options[:masked] = masked
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 3
 			puts "\n#{optparse.banner}\n\n"
@@ -389,7 +389,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse.banner}\n\n"
@@ -411,7 +411,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances stop [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -421,7 +421,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
 			end
 			json_response = @instances_interface.stop(instance['id'])
@@ -440,7 +440,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances start [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -466,7 +466,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances restart [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -476,7 +476,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
 			end
 			json_response = @instances_interface.restart(instance['id'])
@@ -495,7 +495,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances stop-service [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -505,7 +505,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
 			end
 			json_response = @instances_interface.stop(instance['id'],false)
@@ -526,7 +526,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances start-service [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -554,7 +554,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances restart-service [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -564,7 +564,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
 			end
 			json_response = @instances_interface.restart(instance['id'],false)
@@ -585,9 +585,12 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances backup [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
-		puts "\n#{optparse.banner}\n\n" and exit 1 if args.count < 1
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1 
+		end
 		optparse.parse(args)
 		connect(options)
 		begin
@@ -612,7 +615,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -624,14 +627,8 @@ class Morpheus::Cli::Instances
 					params['site'] = group
 				end
 			end
-			if !options[:max].nil?
-				params['max'] = options[:max]
-			end
-			if !options[:offset].nil?
-				params['offset'] = options[:offset]
-			end
-			if !options[:phrase].nil?
-				params['phrase'] = options[:phrase]
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
 			end
 
 			json_response = @instances_interface.get(params)
@@ -685,7 +682,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
 				query_params[:keepBackups] = 'on'
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 
 		end
 		if args.count < 1
@@ -696,7 +693,7 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name(args[0])
-			if !::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this instance?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this instance?", options)
 				exit 1
 			end
 			@instances_interface.destroy(instance['id'],query_params)
@@ -711,7 +708,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances firewall-disable [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -733,7 +730,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances firewall-enable [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -759,7 +756,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances security-groups [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -803,7 +800,7 @@ class Morpheus::Cli::Instances
 				options[:securityGroupIds] = secgroups.split(",")
 				clear_or_secgroups_specified = true
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -833,7 +830,7 @@ class Morpheus::Cli::Instances
 		
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances run-workflow [INSTANCE] [name] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"

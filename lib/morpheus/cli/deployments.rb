@@ -57,7 +57,7 @@ class Morpheus::Cli::Deployments
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus deployments list [-s] [-o] [-m]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -95,7 +95,7 @@ class Morpheus::Cli::Deployments
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus deployments versions [deployment] [-s] [-o] [-m]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		if args.count < 1
@@ -141,7 +141,7 @@ class Morpheus::Cli::Deployments
 		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus deployments update [deployment] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -203,7 +203,7 @@ class Morpheus::Cli::Deployments
 			opts.on( '-d', '--description DESCRIPTION', "Description" ) do |val|
 				options[:description] = val
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -236,7 +236,7 @@ class Morpheus::Cli::Deployments
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus deployments remove [deployment]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -247,7 +247,9 @@ class Morpheus::Cli::Deployments
 		begin
 			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
 			exit 1 if deployment.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment #{deployment['name']}?")
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment #{deployment['name']}?")
+				exit
+			end
 			json_response = @deployments_interface.destroy(deployment['id'])
 			if options[:json]
 					print JSON.pretty_generate(json_response)

@@ -73,20 +73,14 @@ class Morpheus::Cli::VirtualImages
 			opts.on( '', '--system', "System Images" ) do |val|
 				options[:filterType] = 'System'
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
 			params = {}
-			if options[:offset]
-				params[:offset] = options[:offset]
-			end
-			if options[:max]
-				params[:max] = options[:max]
-			end
-			if options[:phrase]
-				params[:phrase] = options[:phrase]
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
 			end
 			if options[:imageType]
 				params[:imageType] = options[:imageType]
@@ -129,7 +123,7 @@ class Morpheus::Cli::VirtualImages
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus virtual-images details [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -168,7 +162,7 @@ class Morpheus::Cli::VirtualImages
 		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks update [task] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -233,7 +227,7 @@ class Morpheus::Cli::VirtualImages
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus virtual-images lb-types"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -278,7 +272,7 @@ class Morpheus::Cli::VirtualImages
 			opts.on( '-t', '--type LB_TYPE', "Lb Type" ) do |val|
 				lb_type_name = val
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -317,7 +311,7 @@ class Morpheus::Cli::VirtualImages
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus virtual-images remove [name]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -328,7 +322,9 @@ class Morpheus::Cli::VirtualImages
 		begin
 			image = find_image_by_name(image_name)
 			exit 1 if image.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
+				exit
+			end
 			json_response = @virtual_images_interface.destroy(image['id'])
 			if options[:json]
 					print JSON.pretty_generate(json_response)

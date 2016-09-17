@@ -162,7 +162,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus apps logs [name] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"

@@ -53,7 +53,7 @@ class Morpheus::Cli::License
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus license details"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -91,7 +91,7 @@ class Morpheus::Cli::License
 		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus license apply [key]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"

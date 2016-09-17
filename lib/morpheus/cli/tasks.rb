@@ -60,20 +60,14 @@ class Morpheus::Cli::Tasks
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks list [-s] [-o] [-m]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
 			params = {}
-			if options[:offset]
-				params[:offset] = options[:offset]
-			end
-			if options[:max]
-				params[:max] = options[:max]
-			end
-			if options[:phrase]
-				params[:phrase] = options[:phrase]
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
 			end
 			json_response = @tasks_interface.get(params)
 			if options[:json]
@@ -110,7 +104,7 @@ class Morpheus::Cli::Tasks
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks details [task]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -149,7 +143,7 @@ class Morpheus::Cli::Tasks
 		account_name = nil
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks update [task] [options]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -213,7 +207,7 @@ class Morpheus::Cli::Tasks
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks task-types"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:json, :remote])
 		end
 		optparse.parse(args)
 		connect(options)
@@ -258,7 +252,7 @@ class Morpheus::Cli::Tasks
 			opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
 				task_type_name = val
 			end
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -301,7 +295,7 @@ class Morpheus::Cli::Tasks
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus tasks remove [task]"
-			Morpheus::Cli::CliCommand.genericOptions(opts,options)
+			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -312,7 +306,9 @@ class Morpheus::Cli::Tasks
 		begin
 			task = find_task_by_name_or_code_or_id(task_name)
 			exit 1 if task.nil?
-			exit unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the task #{task['name']}?")
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the task #{task['name']}?")
+				exit
+			end
 			json_response = @tasks_interface.destroy(task['id'])
 			if options[:json]
 					print JSON.pretty_generate(json_response)
