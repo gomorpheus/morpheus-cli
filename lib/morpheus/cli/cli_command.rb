@@ -59,11 +59,11 @@ module Morpheus
               options[:phrase] = phrase
             end
 
-            opts.on(nil, '--sort ORDER', "Sort Order" ) do |v|
+            opts.on( '-S', '--sort ORDER', "Sort Order" ) do |v|
               options[:sort] = v
             end
 
-            opts.on(nil, '--desc', "Reverse Sort Order" ) do |v|
+            opts.on( '-D', '--desc', "Reverse Sort Order" ) do |v|
               options[:direction] = "desc"
             end
 
