@@ -55,12 +55,6 @@ class Morpheus::Cli::InstanceTypes
 			json_response = @instance_types_interface.get({name: name})
 
 			if options[:json]
-				print JSON.pretty_generate(json_response)
-				print "\n"
-				return
-			end
-
-			if options[:json]
 				print JSON.pretty_generate(json_response), "\n" and return
 			end
 
@@ -75,8 +69,8 @@ class Morpheus::Cli::InstanceTypes
 				instance_type['instanceTypeLayouts'].each do |layout|
 					print green, "     - #{layout['name']}\n",reset
 				end
+				print reset,"\n\n"
 			end
-			print reset,"\n\n"
 
 		rescue RestClient::Exception => e
 			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
