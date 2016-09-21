@@ -40,46 +40,68 @@ class Morpheus::Cli::InstanceTypes
 
 
 	def details(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instance-type details [name]"
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse(args)
 		if args.count < 1
-			puts "\nUsage: morpheus instances stats [name]\n\n"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
+		name = args[0]
 		begin
-			instance_results = @instances_interface.get({name: args[0]})
-			if instance_results['instances'].empty?
-				puts "Instance not found by name #{args[0]}"
+			json_response = @instance_types_interface.get({name: name})
+
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
 				return
 			end
-			instance = instance_results['instances'][0]
-			instance_id = instance['id']
-			stats = instance_results['stats'][instance_id.to_s]
-			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", reset, "\n\n"
-			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
-			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
-			puts instance
-		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
+
+			if options[:json]
+				print JSON.pretty_generate(json_response), "\n" and return
 			end
-			return nil
+
+			instance_type = json_response['instanceTypes'][0]
+
+			if instance_type.nil?
+				puts yellow,"No instance type found by name #{name}.",reset
+			else
+				print "\n" ,cyan, bold, "Instance Type Details\n","==================", reset, "\n\n"
+				versions = instance_type['versions'].join(', ')
+				print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
+				instance_type['instanceTypeLayouts'].each do |layout|
+					print green, "     - #{layout['name']}\n",reset
+				end
+			end
+			print reset,"\n\n"
+
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
-			end
+			build_common_options(opts, options, [:list, :json])
 		end
 		optparse.parse(args)
 		begin
 			params = {}
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
+			end
 
 			json_response = @instance_types_interface.get(params)
+
+			if options[:json]
+				print JSON.pretty_generate(json_response), "\n" and return
+			end
+
 			instance_types = json_response['instanceTypes']
 			print "\n" ,cyan, bold, "Morpheus Instance Types\n","==================", reset, "\n\n"
 			if instance_types.empty?
@@ -95,9 +117,9 @@ class Morpheus::Cli::InstanceTypes
 			end
 			print reset,"\n\n"
 			
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+			exit 1
 		end
 	end
 end
