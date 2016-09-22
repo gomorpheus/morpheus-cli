@@ -52,4 +52,23 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end
+
+	def list_tiers(options={})
+		url = "#{@base_url}/api/app-templates/tiers"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
+	def list_types(options={})
+		url = "#{@base_url}/api/app-templates/types"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+	
 end
