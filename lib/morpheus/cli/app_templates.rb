@@ -28,6 +28,7 @@ class Morpheus::Cli::AppTemplates
 		@app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 	end
 
 	def handle(args)
@@ -136,20 +137,25 @@ class Morpheus::Cli::AppTemplates
         #puts "Instance Types: #{instance_type_names.join(', ')}"
         config = app_template['config']['tierView']
         tiers = config['nodes'].select {|node| node['data']['type'] == "tier" }
-        tiers.each do |tier|
-          instances = config['nodes'].select {|node| node['data']['type'] == "instance" && node['data']['parent'] == tier['data']['id'] }.sort {|x,y| x['data']['index'].to_i <=> y['data']['index'].to_i }
-          print "\n"
-          print cyan, "=  #{tier['data']['name']}\n"
-          instances.each do |instance|
-            instance_id = instance['data']['id'].sub('newinstance-', '')
-            print green, "     - #{instance['data']['typeName']} (#{instance_id})\n",reset
-          end
+        if tiers.empty?
+          puts yellow,"0 Tiers",reset
+        else
+          tiers.each do |tier|
+            instances = config['nodes'].select {|node| node['data']['type'] == "instance" && node['data']['parent'] == tier['data']['id'] }.sort {|x,y| x['data']['index'].to_i <=> y['data']['index'].to_i }
+            print "\n"
+            print cyan, "=  #{tier['data']['name']}\n"
+            instances.each do |instance|
+              instance_id = instance['data']['id'].sub('newinstance-', '')
+              print green, "     - #{instance['data']['typeName']} (#{instance_id})\n",reset
+            end
 
+          end
         end
         print cyan
 
         if options[:config]
-          puts "\nConfig: #{config}"
+          puts "\nConfig:"
+          puts JSON.pretty_generate(config)
         end
 
 				print reset,"\n\n"
@@ -187,7 +193,9 @@ class Morpheus::Cli::AppTemplates
         exit 1 if group.nil?
         #app_template_payload['siteId'] = {id: group['id']}
       end
-      config = {}
+      config = {
+        nodes: []
+      }
       request_payload = {appTemplate: app_template_payload}
       request_payload['siteId'] = group['id'] if group
       request_payload['config'] = config
@@ -320,80 +328,206 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
+      # opts.on( '-g', '--group GROUP', "Group" ) do |val|
+      #   options[:group] = val
+      # end
+      # opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
+      #   options[:cloud] = val
+      # end
       build_common_options(opts, options, [:json])
     end
     optparse.parse(args)
 
     if args.count < 3
-      puts "\n#{usage}\n\n"
+      puts "\n#{optparse}\n\n"
       exit 1
     end
-    name = args[0]
-    tier_name = args[1]
-    instance_type_name = args[2]
 
     connect(options)
-    
-    begin
 
-      app_template = find_app_template_by_name(name)
-      exit 1 if app_template.nil?
+    name = args[0]
+    tier_name = args[1]
+    instance_type_code = args[2]
 
-      instance_type = find_instance_type_by_name(instance_type_name)
-      exit 1 if instance_type.nil?
+    app_template = find_app_template_by_name(name)
+    exit 1 if app_template.nil?
 
-      config = app_template['config']['tierView']      
+    instance_type = find_instance_type_by_code(instance_type_code)
+    if instance_type.nil?
+      exit 1
+    end
 
-      config['nodes'] ||= []
+    groupId = app_template['config']['siteId']
+    # groupId = nil
+    # if !options[:group].nil?
+    #   group = find_group_by_name(options[:group])
+    #   if !group.nil?
+    #     groupId = group
+    #   end
+    # else
+    #   groupId = @active_groups[@appliance_name.to_sym]  
+    # end
 
-      tier = config['nodes'].find {|node| 
-        node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == "newtier-#{tier_name}"
-      }
-      if !tier
-        tier = {
-          "classes"=>"tier newtier-#{tier_name}", 
-          "data"=>{"id"=>"newtier-#{tier_name}", "name"=> tier_name, "type"=>"tier"}, 
-          "grabbable"=>true, "group"=>"nodes","locked"=>false, 
-          #"position"=>{"x"=>-2.5, "y"=>-45}, 
-          "removed"=>false, "selectable"=>true, "selected"=>false
+    if groupId.nil?
+      #puts "Group not found or specified! \n #{optparse}"
+      print_red_alert("Group not found or specified for this template!")
+      puts "#{optparse}"
+      exit 1
+    end
+
+    cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: groupId})
+    cloud = cloud_prompt['cloud']
+
+    # if options[:cloud].nil?
+    #   #puts "Cloud not specified! \n #{optparse}"
+    #   print_red_alert("Cloud not specified!")
+    #   puts "#{optparse}"
+    #   exit 1
+    # end
+    # cloud = find_cloud_by_name(groupId,options[:cloud])
+    # if cloud.nil?
+    #   #puts "Cloud not found! \n #{optparse}"
+    #   #print_red_alert("Cloud not found!")
+    #   puts "#{optparse}"
+    #   exit 1
+    # end
+
+
+    instance_option_types = [{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text'}]
+    instance_option_values = Morpheus::Cli::OptionTypes.prompt(instance_option_types, options[:options], @api_client, options[:params])
+    instance_name = instance_option_values['name'] || ''
+
+    # copied from instances command, this payload isn't used
+    payload = {
+      :servicePlan => nil,
+      zoneId: cloud,
+      :instance => {
+        :name => instance_name,
+        :site => {
+          :id => groupId
+        },
+        :instanceType => {
+          :code => instance_type_code
         }
-        config['nodes'] << tier
-      end
-      
-      instance_id = generate_id()
+      }
+    }
 
-      instance_type_node = {
-        "classes"=>"instance newinstance-#{instance_id} #{instance_type['code']}", 
-        "data"=>{
-          "id"=>"newinstance-#{instance_id}", 
-          "index"=>nil, 
-          "instance.name"=>"", 
-          "instanceType"=>instance_type['code'], 
-          "isPlaced"=>true, "name"=>instance_type['name'], 
-          "parent"=>tier['data']['id'], 
-          "type"=>"instance", 
-          "typeName"=>instance_type['name']
-        }, 
-        "grabbable"=>true, "group"=>"nodes", "locked"=>false, 
-        #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824}, 
+    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id']})
+    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    layout_id = layout_prompt['layout']
+    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
+    payload[:servicePlan] = plan_prompt['servicePlan']
+
+    layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'].to_i == layout_id.to_i}
+    instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
+    
+    payload[:instance][:layout] = {id: layout['id']}
+
+    type_payload = {}
+    if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
+      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
+      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    end
+    if !type_payload['config'].nil?
+      payload.merge!(type_payload['config'])
+    end
+
+    provision_payload = {}
+    if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
+      puts "Checking for option Types"
+      provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    end
+
+    if !provision_payload.nil? && !provision_payload['config'].nil?
+      payload.merge!(provision_payload['config'])
+    end
+    # if !provision_payload.nil? && !provision_payload['server'].nil?
+    #   payload[:server] = provision_payload['server']
+    # end
+
+
+    config = app_template['config']['tierView']
+
+    config['nodes'] ||= []
+
+    tier = config['nodes'].find {|node| 
+      node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == "newtier-#{tier_name}"
+    }
+    if !tier
+      tier = {
+        "classes"=>"tier newtier-#{tier_name}", 
+        "data"=>{"id"=>"newtier-#{tier_name}", "name"=> tier_name, "type"=>"tier"}, 
+        "grabbable"=>true, "group"=>"nodes","locked"=>false, 
+        #"position"=>{"x"=>-2.5, "y"=>-45}, 
         "removed"=>false, "selectable"=>true, "selected"=>false
       }
+      config['nodes'] << tier
+    end
+    
+    instance_id = generate_id()
 
-      config['nodes'].push(instance_type_node)
+    instance_type_node = {
+      "classes"=>"instance newinstance-#{instance_id} #{instance_type['code']}", 
+      "data"=>{
+        "controlName": "instance.layout.id",
+        "id"=>"newinstance-#{instance_id}", 
+        "nodeId"=>["newinstance-#{instance_id}"], # not sure what this is for..
+        "index"=>nil, 
+        "instance.layout.id"=>layout_id.to_s,
+        "instance.name"=>instance_name, 
+        "instanceType"=>instance_type['code'], 
+        "isPlaced"=>true, 
+        "name"=> instance_name, 
+        "parent"=>tier['data']['id'], 
+        "type"=>"instance", 
+        "typeName"=>instance_type['name'],
+        "servicePlan"=>plan_prompt['servicePlan'].to_s,
+        # "servicePlanOptions.maxCpu": "",
+        # "servicePlanOptions.maxCpuId": nil,
+        # "servicePlanOptions.maxMemory": "",
+        # "servicePlanOptions.maxMemoryId": nil,
+        
+        # "volumes.datastoreId": nil,
+        # "volumes.name": "root",
+        # "volumes.rootVolume": "true",
+        # "volumes.size": "5",
+        # "volumes.sizeId": "5",
+        # "volumes.storageType": nil,
 
-      # re-index nodes for this tier
-      tier_instances = config['nodes'].select {|node| node['data']['parent'] == tier['data']['id'] }
-      tier_instances.each_with_index do |node, idx| 
-        node['data']['index'] = idx
-      end
+        "version"=>version_prompt['version'],
+        "siteId"=>groupId.to_s,
+        "zoneId"=>cloud.to_s,
+      }, 
+      "grabbable"=>true, "group"=>"nodes", "locked"=>false, 
+      #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824}, 
+      "removed"=>false, "selectable"=>true, "selected"=>false
+    }
 
-      request_payload = {appTemplate: {} }
-      request_payload['siteId'] = app_template['config']['siteId']
-      # request_payload['config'] = config['tierView']
-      request_payload['config'] = config
+    if !type_payload['config'].nil?
+      instance_type_node['data'].merge!(type_payload['config'])
+    end
+
+    if !provision_payload.nil? && !provision_payload['config'].nil?
+      instance_type_node['data'].merge!(provision_payload['config'])
+    end
+
+    config['nodes'].push(instance_type_node)
+
+    # re-index nodes for this tier
+    tier_instances = config['nodes'].select {|node| node['data']['parent'] == tier['data']['id'] }
+    tier_instances.each_with_index do |node, idx| 
+      node['data']['index'] = idx
+    end
+
+    request_payload = {appTemplate: {} }
+    request_payload['siteId'] = app_template['config']['siteId']
+    # request_payload['config'] = config['tierView']
+    request_payload['config'] = config
+
+    begin
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
-      
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -407,6 +541,7 @@ class Morpheus::Cli::AppTemplates
       ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
       exit 1
     end
+    
   end
 
   def remove_instance(args)
@@ -441,7 +576,7 @@ class Morpheus::Cli::AppTemplates
       }
       
       if instance_node.nil?
-        print_red_error "Instance not found by id #{instance_id}"
+        print_red_alert "Instance not found by id #{instance_id}"
         exit 1
       end
 
@@ -454,7 +589,7 @@ class Morpheus::Cli::AppTemplates
       }
 
       if tier.nil?
-        print_red_error "Parent Tier not found for instance id #{instance_id}!"
+        print_red_alert "Parent Tier not found for instance id #{instance_id}!"
         exit 1
       end
 
@@ -713,6 +848,26 @@ private
       return nil
     end
     return group_results['groups'][0]
+  end
+
+  def find_cloud_by_name(groupId,name)
+    option_results = @options_interface.options_for_source('clouds',{groupId: groupId})
+    match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+    if match.nil?
+      print_red_alert "Cloud not found by name #{name}"
+      return nil
+    else
+      return match['value']
+    end
+  end
+
+  def find_instance_type_by_code(code)
+    results = @instance_types_interface.get({code: code})
+    if results['instanceTypes'].empty?
+      print_red_alert "Instance Type not found by code #{code}"
+      return nil
+    end
+    return results['instanceTypes'][0]
   end
 
   def find_instance_type_by_name(name)
