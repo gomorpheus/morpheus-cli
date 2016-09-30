@@ -1,14 +1,12 @@
-# require 'yaml'
+require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -20,7 +18,7 @@ class Morpheus::Cli::Groups
 
 	def handle(args) 
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end
 		if args.empty?
@@ -43,61 +41,72 @@ class Morpheus::Cli::Groups
 	end
 
 	def add(args)
-		if args.count < 1
-			puts "\nUsage: morpheus groups add [name] [--location]\n\n"
-			return
-		end
+		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus groups add [name] [--location]"
 			opts.on( '-l', '--location LOCATION', "Location" ) do |desc|
 				params[:location] = desc
 			end
+			build_common_options(opts, options, [])
 		end
 		optparse.parse(args)
-
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
 		group = {name: args[0], location: params[:location]}
 		begin
 			@groups_interface.create(group)
-		rescue => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			list([])
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
-		list([])
 	end
 
 	def remove(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus groups remove [name]"
+			build_common_options(opts, options, [:auto_confirm])
+		end
+		optparse.parse(args)
 		if args.count < 1
-			puts "\nUsage: morpheus groups remove [name]\n\n"
-			return
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
 		end
 
 		begin
 			group_results = @groups_interface.get(args[0])
 			if group_results['groups'].empty?
-				puts "Group not found by name #{args[0]}"
-				return
+				print_red_alert "Group not found by name #{args[0]}"
+				exit 1
+			end
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group_results['groups'][0]['name']}?")
+				exit
 			end
 			@groups_interface.destroy(group_results['groups'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
 	def list(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus groups list"
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse(args)
 		begin
 			json_response = @groups_interface.get()
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
 			groups = json_response['groups']
 			print "\n" ,cyan, bold, "Morpheus Groups\n","==================", reset, "\n\n"
 			if groups.empty?
@@ -113,15 +122,22 @@ class Morpheus::Cli::Groups
 			end
 			print reset,"\n\n"
 			
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
-	def use(args) 
+	def use(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus groups use [name]"
+			build_common_options(opts, options, [])
+		end
+		optparse.parse(args)
 		if args.length < 1
-			puts "Usage: morpheus groups use [name]"
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
 		end
 		begin
 			json_response = @groups_interface.get(args[0])
@@ -131,11 +147,11 @@ class Morpheus::Cli::Groups
 				::Morpheus::Cli::Groups.save_groups(@active_groups)
 				list([])
 			else
-				puts "Group not found"
+				print_red_alert "Group not found by name #{args[0]}"
 			end
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 

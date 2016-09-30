@@ -1,7 +1,6 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
@@ -9,7 +8,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Apps
   include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
@@ -23,7 +22,7 @@ class Morpheus::Cli::Apps
 
 	def handle(args) 
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end
 
@@ -146,14 +145,9 @@ class Morpheus::Cli::Apps
 		end
 		begin
 			@apps_interface.create(options)
-		rescue => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 		list([])
 	end
@@ -201,7 +195,7 @@ class Morpheus::Cli::Apps
 				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -225,13 +219,8 @@ class Morpheus::Cli::Apps
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
 			puts 
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -254,13 +243,8 @@ class Morpheus::Cli::Apps
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
 			puts app
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -290,13 +274,8 @@ class Morpheus::Cli::Apps
 			print reset, "\n"
 			
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -325,13 +304,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.create_env(app_id, [evar])
 			envs([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -353,13 +327,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.del_env(app_id, name)
 			envs([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -377,13 +346,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.stop(app_results['apps'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -401,13 +365,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.start(app_results['apps'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -425,13 +384,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.restart(app_results['apps'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -478,13 +432,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.destroy(app_results['apps'][0]['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -502,13 +451,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.firewall_disable(app_results['apps'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -526,13 +470,8 @@ class Morpheus::Cli::Apps
 			@apps_interface.firewall_enable(app_results['apps'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -564,13 +503,8 @@ class Morpheus::Cli::Apps
 			print reset,"\n\n"
 
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -617,13 +551,8 @@ EOF
 			@apps_interface.apply_security_groups(app_results['apps'][0]['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 

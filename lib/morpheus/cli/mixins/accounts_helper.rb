@@ -1,7 +1,14 @@
+require 'table_print'
+require 'morpheus/cli/mixins/print_helper'
+
 # Mixin for Morpheus::Cli command classes 
 # Provides common methods for fetching and printing accounts, roles, and users.
 # The including class must establish @accounts_interface, @roles_interface, @users_interface
 module Morpheus::Cli::AccountsHelper
+
+  def self.included(klass)
+    klass.include Morpheus::Cli::PrintHelper
+  end
 
   def find_account_by_id(id)
     raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
@@ -180,14 +187,6 @@ module Morpheus::Cli::AccountsHelper
     print table_color
     tp rows, :id, :account, :first, :last, :username, :email, :role
     print reset
-  end
-
-  def print_red_alert(msg)
-    print red, bold, "\n#{msg}\n\n", reset
-  end
-
-  def print_green_success(msg)
-    print green, bold, "\n#{msg}\n\n", reset
   end
 
 end

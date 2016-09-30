@@ -1,17 +1,12 @@
-# require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/option_types'
-require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::AppTemplates
-	include Term::ANSIColor
   include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::AccountsHelper
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -20,7 +15,7 @@ class Morpheus::Cli::AppTemplates
 	def connect(opts)
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			exit 1
 		end
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
@@ -93,7 +88,7 @@ class Morpheus::Cli::AppTemplates
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -161,7 +156,7 @@ class Morpheus::Cli::AppTemplates
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -211,7 +206,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+      print_rest_exception(e, options)
       exit 1
     end
 	end
@@ -280,7 +275,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+      print_rest_exception(e, options)
       exit 1
     end
 	end
@@ -318,7 +313,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+      print_rest_exception(e, options)
       exit 1
     end
   end
@@ -538,7 +533,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+      print_rest_exception(e, options)
       exit 1
     end
     
@@ -622,7 +617,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+      print_rest_exception(e, options)
       exit 1
     end
   end
@@ -715,7 +710,7 @@ class Morpheus::Cli::AppTemplates
       end
 
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+      print_rest_exception(e, options)
       exit 1
     end
   end
@@ -753,7 +748,7 @@ class Morpheus::Cli::AppTemplates
         print reset,"\n\n"
       end
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+      print_rest_exception(e, options)
       exit 1
     end
     
@@ -793,7 +788,7 @@ class Morpheus::Cli::AppTemplates
         print reset,"\n\n"
       end
     rescue RestClient::Exception => e
-      ::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+      print_rest_exception(e, options)
       exit 1
     end
     

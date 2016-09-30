@@ -1,7 +1,6 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/option_types'
@@ -9,7 +8,7 @@ require 'json'
 
 class Morpheus::Cli::Clouds
 	include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 
@@ -29,7 +28,7 @@ class Morpheus::Cli::Clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end
 	end
@@ -108,17 +107,8 @@ class Morpheus::Cli::Clouds
 			else
 				list([])
 			end
-		rescue => e
-			if e.response and e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				if options[:json]
-					print JSON.pretty_generate(error)
-				else
-					::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-				end
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -169,12 +159,7 @@ class Morpheus::Cli::Clouds
 				list([])
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400 or e.response.code == 500
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -219,7 +204,7 @@ class Morpheus::Cli::Clouds
 							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
 						end
 						{id: cloud['id'], name: cloud['name'], type: cloud_type_for_id(cloud['zoneTypeId']), location: cloud['location'], status: status}
-						# print red, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
+						# print cyan, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
 					end
 					print cyan
 					tp clouds_table, :id, :name, :type, :location, :status
@@ -249,12 +234,7 @@ class Morpheus::Cli::Clouds
 			@clouds_interface.firewall_disable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -273,12 +253,7 @@ class Morpheus::Cli::Clouds
 			@clouds_interface.firewall_enable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -311,12 +286,7 @@ class Morpheus::Cli::Clouds
 			print reset,"\n\n"
 
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -364,12 +334,7 @@ EOF
 			@clouds_interface.apply_security_groups(zone_results['zones'][0]['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end

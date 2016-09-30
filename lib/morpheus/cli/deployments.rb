@@ -1,14 +1,12 @@
-# require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Deployments
 	include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -24,7 +22,7 @@ class Morpheus::Cli::Deployments
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
 		@deployments_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deployments
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			exit 1
 		end
 	end
@@ -86,7 +84,7 @@ class Morpheus::Cli::Deployments
 			
 			
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -130,7 +128,7 @@ class Morpheus::Cli::Deployments
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -185,12 +183,7 @@ class Morpheus::Cli::Deployments
 				print "\n", cyan, "Deployment #{response['deployment']['name']} updated", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -221,12 +214,7 @@ class Morpheus::Cli::Deployments
 				print "\n", cyan, "Deployment #{json_response['deployment']['name']} created successfully", reset, "\n\n"			
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -257,12 +245,7 @@ class Morpheus::Cli::Deployments
 				print "\n", cyan, "Deployment #{deployment['name']} removed", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -280,7 +263,7 @@ private
 			result = results['deployment']
 		end
 		if result.nil?
-			print red,bold, "\nDeployment not found by '#{val}'\n\n",reset
+			print_red_alert "Deployment not found by '#{val}'"
 			return nil
 		end
 		return result
@@ -297,7 +280,7 @@ private
 			result = results['deploymentType']
 		end
 		if result.nil?
-			print red,bold, "\nDeployment Type not found by '#{val}'\n\n",reset
+			print_red_alert "Deployment Type not found by '#{val}'"
 			return nil
 		end
 		return result

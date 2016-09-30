@@ -1,14 +1,13 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::LoadBalancers
 	include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -25,7 +24,7 @@ class Morpheus::Cli::LoadBalancers
 		@load_balancers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).load_balancers
 		
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			exit 1
 		end
 	end
@@ -89,12 +88,7 @@ class Morpheus::Cli::LoadBalancers
 			
 			
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -127,12 +121,7 @@ class Morpheus::Cli::LoadBalancers
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -193,12 +182,7 @@ class Morpheus::Cli::LoadBalancers
 				print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -233,13 +217,8 @@ class Morpheus::Cli::LoadBalancers
 			end
 			
 			
-		rescue => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -282,7 +261,7 @@ class Morpheus::Cli::LoadBalancers
 				print "\n", cyan, "LB #{json_response['loadBalancer']['name']} created successfully", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -313,12 +292,7 @@ class Morpheus::Cli::LoadBalancers
 				print "\n", cyan, "Load Balancer #{lb['name']} removed", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error,options)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -336,7 +310,7 @@ private
 			result = results['loadBalancer']
 		end
 		if result.nil?
-			print red,bold, "\nLB not found by '#{val}'\n\n",reset
+			print_red_alert "LB not found by '#{val}'"
 			return nil
 		end
 		return result
@@ -353,7 +327,7 @@ private
 			result = results['loadBalancerType']
 		end
 		if result.nil?
-			print red,bold, "\nLB Type not found by '#{val}'\n\n",reset
+			print_red_alert "LB Type not found by '#{val}'"
 			return nil
 		end
 		return result

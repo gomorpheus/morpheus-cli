@@ -1,7 +1,5 @@
-# require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
@@ -9,7 +7,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		
@@ -34,7 +32,7 @@ class Morpheus::Cli::Instances
 		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			exit 1
 		end
 	end
@@ -197,7 +195,7 @@ class Morpheus::Cli::Instances
 		begin
 			@instances_interface.create(payload)
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 		list([])
@@ -237,7 +235,7 @@ class Morpheus::Cli::Instances
 				print reset, "\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -286,7 +284,7 @@ class Morpheus::Cli::Instances
 				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -317,7 +315,7 @@ class Morpheus::Cli::Instances
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
 			puts instance
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -349,7 +347,7 @@ class Morpheus::Cli::Instances
 			print reset, "\n"
 			
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -380,7 +378,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.create_env(instance['id'], [evar])
 			envs([args[0]])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -402,7 +400,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.del_env(instance['id'], args[1])
 			envs([args[0]])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -431,7 +429,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -457,7 +455,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -486,7 +484,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -517,7 +515,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -545,7 +543,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -576,7 +574,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -604,7 +602,7 @@ class Morpheus::Cli::Instances
 			end
 			return
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -666,7 +664,7 @@ class Morpheus::Cli::Instances
 			end
 			
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -699,7 +697,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.destroy(instance['id'],query_params)
 			list([])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -721,7 +719,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.firewall_disable(instance['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -747,7 +745,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.firewall_enable(instance_results['instances'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -782,7 +780,7 @@ class Morpheus::Cli::Instances
 			print reset,"\n\n"
 
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -819,7 +817,7 @@ class Morpheus::Cli::Instances
 			@instances_interface.apply_security_groups(instance['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end
@@ -874,7 +872,7 @@ class Morpheus::Cli::Instances
 				puts "Running workflow..."
 			end
 		rescue RestClient::Exception => e
-			::Morpheus::Cli::ErrorHandler.new.print_rest_exception(e)
+			print_rest_exception(e, options)
 			exit 1
 		end
 	end

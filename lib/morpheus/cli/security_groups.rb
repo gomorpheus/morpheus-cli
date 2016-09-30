@@ -1,7 +1,6 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
@@ -9,7 +8,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::SecurityGroups
   include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
@@ -20,7 +19,7 @@ class Morpheus::Cli::SecurityGroups
 
 	def handle(args) 
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end
 		if args.empty?
@@ -45,6 +44,12 @@ class Morpheus::Cli::SecurityGroups
 	end
 
 	def list(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "\nUsage: morpheus security-groups list"
+			build_common_options(opts, options, [])
+		end
+		optparse.parse(args)
 		begin
 			json_response = @security_groups_interface.list()
 			security_groups = json_response['securityGroups']
@@ -53,21 +58,32 @@ class Morpheus::Cli::SecurityGroups
 				puts yellow,"No Security Groups currently configured.",reset
 			else
 				security_groups.each do |security_group|
-					print cyan, "=  #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
+					
+					if @active_security_group[@appliance_name.to_sym] = security_group['id']
+						print cyan, "=> #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
+					else
+						print cyan, "=  #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
+					end
 				end
 			end
 			print reset,"\n\n"
 			
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
 	def get(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus security-groups get ID"
+			build_common_options(opts, options, [])
+		end
+		optparse.parse(args)
 		if args.count < 1
-			puts "\nUsage: morpheus security-groups get ID\n\n"
-			return
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
 		end
 
 		begin
@@ -81,49 +97,45 @@ class Morpheus::Cli::SecurityGroups
 			end
 			print reset,"\n\n"
 			
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
 	def add(args)
-		if args.count < 1
-			puts "\nUsage: morpheus security-groups add NAME [options]\n\n"
-			return
-		end
-
-		options = {:securityGroup => {:name => args[0]} }
+		options = {}
+		params = {:securityGroup => {:name => args[0]} }
 		optparse = OptionParser.new do|opts|
 			opts.banner = "\nUsage: morpheus security-groups add NAME [options]"
 			opts.on( '-d', '--description Description', "Description of the security group" ) do |description|
-				options[:securityGroup][:description] = description
+				params[:securityGroup][:description] = description
 			end
-
-			opts.on( '-h', '--help', "Prints this help" ) do
-				puts opts
-				exit
-			end
+			build_common_options(opts, options, [])
 		end
 		optparse.parse(args)
-
-		begin
-			@security_groups_interface.create(options)
-		rescue => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
 		end
-		list([])
+		begin
+			@security_groups_interface.create(params)
+			list([])
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 	def remove(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "\nUsage: morpheus security-groups remove ID"
+			build_common_options(opts, options, [])
+		end
+		optparse.parse(args)
 		if args.count < 1
-			puts "\nUsage: morpheus security-groups remove ID\n\n"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
 		begin
@@ -136,19 +148,20 @@ class Morpheus::Cli::SecurityGroups
 			@security_groups_interface.delete(security_group['id'])
 			list([])
 		rescue RestClient::Exception => e
-			if e.response.code == 400
-				error = JSON.parse(e.response.to_s)
-				::Morpheus::Cli::ErrorHandler.new.print_errors(error)
-			else
-				puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			end
-			return nil
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
-	def use(args) 
+	def use(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus security-groups use ID"
+			build_common_options(opts, options, [])
+		end
+		optparse.parse(args)
 		if args.length < 1
-			puts "Usage: morpheus security-groups use ID"
+			puts "\n#{optparse.banner}\n\n"
 			return
 		end
 		begin
@@ -161,9 +174,9 @@ class Morpheus::Cli::SecurityGroups
 			else
 				puts "Security Group not found"
 			end
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
-			return nil
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 

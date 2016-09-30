@@ -33,7 +33,6 @@ module Morpheus
     require 'morpheus/api/key_pairs_interface'
   	
     require 'morpheus/cli/credentials'
-  	require 'morpheus/cli/error_handler'
   	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/clouds'

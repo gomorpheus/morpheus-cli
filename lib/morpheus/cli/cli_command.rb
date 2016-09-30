@@ -1,4 +1,5 @@
 require 'morpheus/cli/cli_registry'
+require 'morpheus/cli/mixins/print_helper'
 
 module Morpheus
   module Cli
@@ -7,6 +8,7 @@ module Morpheus
 
       def self.included(klass)
         Morpheus::Cli::CliRegistry.add(klass)
+        klass.include Morpheus::Cli::PrintHelper
         klass.extend ClassMethods
       end
 

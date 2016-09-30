@@ -1,7 +1,6 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'filesize'
 require 'table_print'
@@ -9,7 +8,6 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
 
   cli_command_name :deploy
   
@@ -24,7 +22,7 @@ class Morpheus::Cli::Deploys
 
 	def handle(args) 
 		if @access_token.empty?
-			print red,bold, "\nInvalid Credentials. Unable to acquire access token. Please verify your credentials and try again.\n\n",reset
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end	
 
