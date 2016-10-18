@@ -38,5 +38,14 @@ class Morpheus::InstanceTypesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def service_plan_options(service_plan_id, params)
+		url = "#{@base_url}/api/instance-types/service-plans/#{service_plan_id}/options"
+		headers = { params: params, authorization: "Bearer #{@access_token}" }
+
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers, verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
 
 end

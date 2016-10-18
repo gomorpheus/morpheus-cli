@@ -4,9 +4,11 @@ require 'optparse'
 require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/provisioning_helper'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -169,6 +171,32 @@ class Morpheus::Cli::Instances
 		
 		payload[:instance][:layout] = {id: layout['id']}
 
+		
+		begin
+			service_plan_options_json = @instance_types_interface.service_plan_options(plan_prompt['servicePlan'], {cloudId: cloud, zoneId: cloud, layoutId: layout_id})
+			
+			# puts ""
+			# print JSON.pretty_generate(service_plan_options_json)
+			
+			plan_options = service_plan_options_json['plan']
+			volumes = prompt_instance_volumes(plan_options, options, @api_client, {})
+
+			# puts "VOLUMES:"
+			# print JSON.pretty_generate(volumes)
+
+			if !volumes.empty?
+				payload[:volumes] = volumes
+			end
+
+			# puts "\nexiting early...\n"
+			# exit 1
+
+		rescue RestClient::Exception => e
+			print_red_alert "Unable to load options for selected plan."
+			print_rest_exception(e, options)
+			exit 1
+		end
+
 		type_payload = {}
 		if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
 			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
@@ -191,6 +219,9 @@ class Morpheus::Cli::Instances
 		if !provision_payload.nil? && !provision_payload['server'].nil?
 			payload[:server] = provision_payload['server']
 		end
+
+		# avoid 500 error
+		payload[:servicePlanOptions] = {}
 
 		begin
 			@instances_interface.create(payload)
