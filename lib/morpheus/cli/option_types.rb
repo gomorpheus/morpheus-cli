@@ -283,7 +283,7 @@ module Morpheus
         end
 
         def self.help_prompt(option_type)
-            print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+            print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
         end
 
 
