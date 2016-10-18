@@ -60,7 +60,11 @@ module Morpheus
               elsif option_type['type'] == 'code-editor'
                 value = multiline_prompt(option_type)  
               elsif option_type['type'] == 'select'
-                value = select_prompt(option_type,api_client, api_params)
+                if option_type['selectOptions']
+                  value = local_select_prompt(option_type)
+                else
+                  value = select_prompt(option_type,api_client, api_params)
+                end
               elsif option_type['type'] == 'hidden'
                 value = option_type['defaultValue']
                 input = value
@@ -115,7 +119,7 @@ module Morpheus
             value_found = false
             value = nil
             while !value_found do
-                print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}: "
+                print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
                 input = $stdin.gets.chomp!
                 value = input.empty? ? option_type['defaultValue'] : input.to_i
                 if input == '?'
@@ -133,17 +137,54 @@ module Morpheus
           if option_type['optionSource']
             source_options = load_source_options(option_type['optionSource'],api_client,api_params)
           end
-          if !source_options.nil? && !source_options.count == 1 && option_type['skipSingleOption'] == true
+          if !source_options.nil? && source_options.count == 1 && option_type['skipSingleOption'] == true
             value_found = true
-            value = source_option['value']
+            value = source_options[0]['value']
           end
           while !value_found do
               Readline.completion_append_character = ""
               Readline.basic_word_break_characters = ''
               Readline.completion_proc = proc {|s| source_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
-              input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} ['?' for options]: ", false).to_s
+              input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
               input = input.chomp.strip
               if option_type['optionSource']
+                source_option = source_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
+                if source_option
+                  value = source_option['value']
+                elsif !input.nil?  && !input.empty?
+                  input = '?'
+                end
+              else
+                value = input.empty? ? option_type['defaultValue'] : input
+              end
+              
+              if input == '?'
+                  help_prompt(option_type)
+                  display_select_options(source_options)
+              elsif !value.nil? || option_type['required'] != true
+                value_found = true
+              end
+          end
+          return value
+        end
+
+        def self.local_select_prompt(option_type)
+          value_found = false
+          value = nil
+          
+          source_options = option_type['selectOptions']
+          if !source_options.nil? && source_options.count == 1 && option_type['skipSingleOption'] == true
+            value_found = true
+            value = source_options[0]['value']
+          end
+          while !value_found do
+              Readline.completion_append_character = ""
+              Readline.basic_word_break_characters = ''
+              Readline.completion_proc = proc {|s| source_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
+              input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
+              input = input.chomp.strip
+              
+              if source_options
                 source_option = source_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
                 if source_option
                   value = source_option['value']
@@ -190,7 +231,7 @@ module Morpheus
             value_found = false
             value = nil
             while !value_found do
-                print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}: "
+                print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
                 input = $stdin.gets.chomp!
                 value = input.empty? ? option_type['defaultValue'] : input
                 if input == '?'
