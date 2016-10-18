@@ -53,9 +53,15 @@ module Morpheus::Cli::ProvisioningHelper
 
     field_context = "rootVolume"
 
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
-    storage_type_id = v_prompt[field_context]['storageType']
-    storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
+    if root_storage_types.empty?
+      # this means there's no configuration, just send a single root volume to the server
+      storage_type_id = nil
+      storage_type = nil
+    else
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+      storage_type_id = v_prompt[field_context]['storageType']
+      storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
+    end
 
     # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
     root_custom_size_options = []
@@ -76,11 +82,11 @@ module Morpheus::Cli::ProvisioningHelper
       'datastoreId' => nil
     }
 
-    if plan_info['rootDiskCustomizable'] && storage_type['customLabel']
+    if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customLabel']
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Root Volume Label', 'required' => true, 'description' => 'Enter a volume label.', 'defaultValue' => volume_label}], options[:options])
       volume['name'] = v_prompt[field_context]['name']
     end
-    if plan_info['rootDiskCustomizable'] && storage_type['customSize']
+    if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customSize']
       if root_custom_size_options.empty?
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => plan_size}], options[:options])
         volume['size'] = v_prompt[field_context]['size']
