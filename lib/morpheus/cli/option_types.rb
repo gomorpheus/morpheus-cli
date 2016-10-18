@@ -37,12 +37,18 @@ module Morpheus
               context_map = results[option_type['fieldContext']]
               if options[option_type['fieldContext']] and options[option_type['fieldContext']].key?(option_type['fieldName'])
                 value = options[option_type['fieldContext']][option_type['fieldName']]
+                if option_type['type'] == 'number'
+                  value = value.to_i
+                end
                 value_found = true
               end
             end
 
             if value_found == false && options.key?(option_type['fieldName'])
               value = options[option_type['fieldName']]
+              if option_type['type'] == 'number'
+                value = value.to_i
+              end
               value_found = true
             end
 
