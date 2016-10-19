@@ -46,7 +46,12 @@ module Morpheus
               
               options[:options] = custom_options
             end
-
+            opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|
+              options[:no_prompt] = true
+              # ew, stored in here for now because options[:options] is what is passed into OptionTypes.prompt() everywhere!
+              options[:options] ||= {}
+              options[:options][:no_prompt] = true
+            end
           when :list
             
             opts.on( '-m', '--max MAX', "Max Results" ) do |max|

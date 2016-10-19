@@ -12,6 +12,8 @@ module Morpheus::Cli::ProvisioningHelper
   # returns array of volumes based on service plan options (plan_info)
   def prompt_instance_volumes(plan_info, options={}, api_client=nil, api_params={})
     #puts "Configure Volumes:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+
     volumes = []
 
     plan_size = nil
@@ -108,9 +110,11 @@ module Morpheus::Cli::ProvisioningHelper
 
     volumes << volume
 
-    if plan_info['addVolumes'] && !options[:skip_option_prompts]
+    if plan_info['addVolumes']
       volume_index = 1
-      add_another_volume = (options[:options] && options[:options]["dataVolume#{volume_index}"]) || Morpheus::Cli::OptionTypes.confirm("Add data volume?")
+      
+      has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
+      add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?"))
       
       while add_another_volume do
         
@@ -173,7 +177,8 @@ module Morpheus::Cli::ProvisioningHelper
           add_another_volume = false
         else
           volume_index += 1
-          add_another_volume = (options[:options] && options[:options]["dataVolume#{volume_index}"]) || Morpheus::Cli::OptionTypes.confirm("Add another data volume?")
+          has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
+          add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another data volume?"))
         end
 
       end

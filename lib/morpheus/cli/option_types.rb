@@ -24,7 +24,7 @@ module Morpheus
           end
         end
 
-        def self.prompt(option_types, options={}, api_client=nil,api_params={})
+        def self.prompt(option_types, options={}, api_client=nil,api_params={}, no_prompt=false)
           results = {}
           options = options || {}
           # puts "Options Prompt #{options}"
@@ -52,6 +52,36 @@ module Morpheus
               value_found = true
             end
 
+            # no_prompt means skip prompting and instead
+            # use default value or error if a required option is not present
+            no_prompt = no_prompt || options[:no_prompt]
+            if no_prompt
+              if !value_found
+                if option_type['defaultValue']
+                  value = option_type['defaultValue']
+                  value_found = true
+                end
+                if !value_found
+                  # select type is special because it supports skipSingleOption 
+                  # and prints the available options on error
+                  if option_type['type'] == 'select'
+                    value = select_prompt(option_type, api_client, api_params, true)
+                    value_found = !!value
+                  end
+                  if !value_found
+                    if option_type['required']
+                      print Term::ANSIColor.red, "\nMissing Required Option\n\n"
+                      print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+                      print "\n"
+                      exit 1
+                    else
+                      next
+                    end
+                  end
+                end
+              end
+            end
+
             if !value_found
               if option_type['type'] == 'number'
                 value = number_prompt(option_type)
@@ -66,11 +96,7 @@ module Morpheus
               elsif option_type['type'] == 'code-editor'
                 value = multiline_prompt(option_type)  
               elsif option_type['type'] == 'select'
-                if option_type['selectOptions']
-                  value = local_select_prompt(option_type)
-                else
-                  value = select_prompt(option_type,api_client, api_params)
-                end
+                value = select_prompt(option_type,api_client, api_params)
               elsif option_type['type'] == 'hidden'
                 value = option_type['defaultValue']
                 input = value
@@ -137,73 +163,53 @@ module Morpheus
             return value
         end
 
-        def self.select_prompt(option_type,api_client, api_params={})
+        def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false)
           value_found = false
           value = nil
-          if option_type['optionSource']
-            source_options = load_source_options(option_type['optionSource'],api_client,api_params)
+          if option_type['selectOptions']
+            select_options = option_type['selectOptions']
+          elsif option_type['optionSource']
+            select_options = load_source_options(option_type['optionSource'],api_client,api_params)
+          else
+            raise "select_prompt() requires selectOptions or optionSource!"
           end
-          if !source_options.nil? && source_options.count == 1 && option_type['skipSingleOption'] == true
+          if !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
             value_found = true
-            value = source_options[0]['value']
+            value = select_options[0]['value']
+          end
+          if no_prompt
+            if !value_found
+              if option_type['required']
+                print Term::ANSIColor.red, "\nMissing Required Option\n\n"
+                print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+                display_select_options(select_options)
+                print "\n"
+                exit 1
+              else
+                return nil
+              end
+            end
           end
           while !value_found do
               Readline.completion_append_character = ""
               Readline.basic_word_break_characters = ''
-              Readline.completion_proc = proc {|s| source_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
+              Readline.completion_proc = proc {|s| select_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
               input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
               input = input.chomp.strip
-              if option_type['optionSource']
-                source_option = source_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
-                if source_option
-                  value = source_option['value']
+              if input.empty?
+                value = option_type['defaultValue']
+              else
+                select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
+                if select_option
+                  value = select_option['value']
                 elsif !input.nil?  && !input.empty?
                   input = '?'
                 end
-              else
-                value = input.empty? ? option_type['defaultValue'] : input
               end
               
               if input == '?'
                   help_prompt(option_type)
-                  display_select_options(source_options)
-              elsif !value.nil? || option_type['required'] != true
-                value_found = true
-              end
-          end
-          return value
-        end
-
-        def self.local_select_prompt(option_type)
-          value_found = false
-          value = nil
-          
-          source_options = option_type['selectOptions']
-          if !source_options.nil? && source_options.count == 1 && option_type['skipSingleOption'] == true
-            value_found = true
-            value = source_options[0]['value']
-          end
-          while !value_found do
-              Readline.completion_append_character = ""
-              Readline.basic_word_break_characters = ''
-              Readline.completion_proc = proc {|s| source_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
-              input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
-              input = input.chomp.strip
-              
-              if source_options
-                source_option = source_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
-                if source_option
-                  value = source_option['value']
-                elsif !input.nil?  && !input.empty?
-                  input = '?'
-                end
-              else
-                value = input.empty? ? option_type['defaultValue'] : input
-              end
-              
-              if input == '?'
-                  help_prompt(option_type)
-                  display_select_options(source_options)
+                  display_select_options(select_options)
               elsif !value.nil? || option_type['required'] != true
                 value_found = true
               end

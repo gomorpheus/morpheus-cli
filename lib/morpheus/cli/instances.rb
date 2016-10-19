@@ -209,7 +209,7 @@ class Morpheus::Cli::Instances
 
 		provision_payload = {}
 		if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
-			puts "Checking for option Types"
+			#puts "Checking for option Types"
 			provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 
