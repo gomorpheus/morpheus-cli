@@ -465,7 +465,7 @@ class Morpheus::Cli::AppTemplates
     instance_type_node = {
       "classes"=>"instance newinstance-#{instance_id} #{instance_type['code']}", 
       "data"=>{
-        "controlName": "instance.layout.id",
+        "controlName" => "instance.layout.id",
         "id"=>"newinstance-#{instance_id}", 
         "nodeId"=>["newinstance-#{instance_id}"], # not sure what this is for..
         "index"=>nil, 
@@ -492,7 +492,7 @@ class Morpheus::Cli::AppTemplates
 
         "version"=>version_prompt['version'],
         "siteId"=>groupId.to_s,
-        "zoneId"=>cloud.to_s,
+        "zoneId"=>cloud.to_s
       }, 
       "grabbable"=>true, "group"=>"nodes", "locked"=>false, 
       #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824}, 
