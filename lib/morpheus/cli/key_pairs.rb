@@ -144,7 +144,7 @@ class Morpheus::Cli::KeyPairs
     optparse = OptionParser.new do|opts|
       opts.banner = "Usage: morpheus key-pairs add [name] [options]"
 
-      opts.on(nil, '--public-key-file FILENAME', "Public Key File" ) do |filename|
+      opts.on('', '--public-key-file FILENAME', "Public Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
           options['publicKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
@@ -155,13 +155,13 @@ class Morpheus::Cli::KeyPairs
         end
       end
 
-      opts.on(nil, '--public-key TEXT', "Public Key Text" ) do |val|
+      opts.on('', '--public-key TEXT', "Public Key Text" ) do |val|
         options['publicKey'] = val
         options[:options] ||= {}
         options[:options]['publicKey'] = options['publicKey']
       end
 
-      opts.on(nil, '--private-key-file FILENAME', "Private Key File" ) do |filename|
+      opts.on('', '--private-key-file FILENAME', "Private Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
           options['privateKey'] = File.read(File.expand_path(filename))
           options[:options] ||= {}
@@ -172,7 +172,7 @@ class Morpheus::Cli::KeyPairs
         end
       end
 
-      opts.on(nil, '--private-key TEXT', "Private Key Text" ) do |val|
+      opts.on('', '--private-key TEXT', "Private Key Text" ) do |val|
         options['privateKey'] = val
         options[:options] ||= {}
         options[:options]['privateKey'] = options['privateKey']
