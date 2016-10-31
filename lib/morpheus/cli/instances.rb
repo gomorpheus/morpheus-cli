@@ -41,8 +41,9 @@ class Morpheus::Cli::Instances
 
 
 	def handle(args) 
+		usage = "Usage: morpheus instances [list,add,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
 		if args.empty?
-			puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,backup,run-workflow,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
+			puts "\n#{usage}\n\n"
 			return 
 		end
 
@@ -65,6 +66,8 @@ class Morpheus::Cli::Instances
 				start_service(args[1..-1])
 			when 'restart-service'
 				restart_service(args[1..-1])
+			when 'resize'
+				resize(args[1..-1])
 			when 'run-workflow'
 				run_workflow(args[1..-1])
 			when 'stats'
@@ -90,7 +93,7 @@ class Morpheus::Cli::Instances
 			when 'backup'
 				backup(args[1..-1])	
 			else
-				puts "\nUsage: morpheus instances [list,add,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]\n\n"
+				puts "\n#{usage}\n\n"
 				exit 127
 		end
 	end
@@ -224,12 +227,18 @@ class Morpheus::Cli::Instances
 		payload[:servicePlanOptions] = {}
 
 		begin
-			@instances_interface.create(payload)
+			json_response = @instances_interface.create(payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Provisioning instance #{instance_name}"
+				list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
-		list([])
 	end
 
 	def stats(args)
@@ -610,6 +619,94 @@ class Morpheus::Cli::Instances
 		end
 	end
 
+	def resize(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus instances resize [name]"
+			build_common_options(opts, options, [:options, :json, :remote])
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name(args[0])
+
+			group_id = instance['group']['id']
+			cloud_id = instance['cloud']['id']
+			layout_id = instance['layout']['id']
+
+			plan_id = instance['plan']['id']
+			payload = {}
+
+			# avoid 500 error
+			payload[:servicePlanOptions] = {}
+
+			puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
+
+
+			#plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
+			available_plans_result = @options_interface.options_for_source('instanceServicePlans',{groupId: group_id, zoneId: cloud_id, instanceTypeId: instance['instanceType']['id'], layoutId: layout_id, version: instance['instanceVersion']})
+			available_plans = available_plans_result['data']
+			available_plans.each do |plan|
+				if plan['value'] && plan['value'].to_i == plan_id.to_i
+					plan['name'] = "#{plan['name']} (current)"
+				end
+			end
+
+			plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'New Plan', 'selectOptions' => available_plans, 'required' => true, 'description' => 'Choose the new plan for this instance'}],options[:options] )
+			new_plan_id = plan_prompt['servicePlan']
+			payload[:servicePlanId] = new_plan_id
+
+			volumes_response = @instances_interface.volumes(instance['id'])
+			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+
+			begin
+				service_plan_options_json = @instance_types_interface.service_plan_options(new_plan_id, {cloudId: cloud_id, zoneId: cloud_id, layoutId: layout_id})
+				
+				# puts ""
+				# print JSON.pretty_generate(service_plan_options_json)
+				
+				plan_options = service_plan_options_json['plan']
+				volumes = prompt_resize_instance_volumes(current_volumes, plan_options, options, @api_client, {})
+
+				# puts "VOLUMES:"
+				# print JSON.pretty_generate(volumes)
+
+				if !volumes.empty?
+					payload[:volumes] = volumes
+				end
+
+				# puts "\nexiting early...\n"
+				# exit 1
+
+			rescue RestClient::Exception => e
+				print_red_alert "Unable to load options for selected plan."
+				print_rest_exception(e, options)
+				exit 1
+			end
+
+			# only amazon supports this option
+			# for now, always do this
+			payload[:deleteOriginalVolumes] = true
+
+			json_response = @instances_interface.resize(instance['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Resizing instance #{instance['name']}"
+				list([])
+			end
+			
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
 	def backup(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
@@ -687,9 +784,9 @@ class Morpheus::Cli::Instances
 						if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
 							connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
 						end
-						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil}
+						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
 					end
-					tp instance_table, :id, :name,:group, :type, :environment, :nodes, :connection, :status
+					tp instance_table, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
 				end
 				print reset,"\n\n"
 			end
@@ -913,7 +1010,7 @@ private
 	def find_instance_by_name(name)
 		instance_results = @instances_interface.get({name: name})
 		if instance_results['instances'].empty?
-			puts "Instance not found by name #{name}"
+			print_red_alert "Instance not found by name #{name}"
 			exit 1
 		end
 		return instance_results['instances'][0]
@@ -923,7 +1020,7 @@ private
 		if !task_set_results['taskSets'].nil? && !task_set_results['taskSets'].empty?
 			return task_set_results['taskSets'][0]
 		else
-			puts "Workflow not found by name #{name}"
+			print_red_alert "Workflow not found by name #{name}"
 			exit 1
 		end
 	end

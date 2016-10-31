@@ -95,6 +95,22 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def volumes(id)
+		url = "#{@base_url}/api/instances/#{id}/volumes"
+		headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers,verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
+	def resize(id,payload)
+		url = "#{@base_url}/api/instances/#{id}/resize"
+		headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers,verify_ssl: false,payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
 	def workflow(id,task_set_id,payload)
 		url = "#{@base_url}/api/instances/#{id}/workflow"
 		headers = { :params => {:taskSetId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
