@@ -37,9 +37,10 @@ class Morpheus::Cli::Hosts
 	end
 
 	def handle(args) 
+		usage = "Usage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent,server-types] [name]"
 		if args.empty?
-			puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent, server-types] [name]\n\n"
-			exit 1
+			puts "\n#{usage}\n\n"
+			exit 127
 		end
 
 		case args[0]
@@ -62,7 +63,7 @@ class Morpheus::Cli::Hosts
 			when 'server-types'
 				server_types(args[1..-1])
 			else
-				puts "\nUsage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent, server-types] [name]\n\n"
+				puts "\n#{usage}\n\n"
 				exit 127 #Command now foud exit code
 		end
 	end
@@ -113,9 +114,6 @@ class Morpheus::Cli::Hosts
 		options = {zone: args[0]}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts server-types CLOUD"
-			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
-				options[:server_type] = server_type
-			end
 			build_common_options(opts, options, [:json, :remote])
 		end
 		optparse.parse(args)
@@ -134,22 +132,22 @@ class Morpheus::Cli::Hosts
 		end
 
 		if zone.nil?
-			puts "Cloud not found"
+			print_red_alert "Cloud not found"
 			exit 1
 		else
 			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
-		server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true}
+		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true}
 		if options[:json]
-			print JSON.pretty_generate(server_types)
+			print JSON.pretty_generate(cloud_server_types)
 			print "\n"
 		else
 			
 			print "\n" ,cyan, bold, "Morpheus Server Types\n","==================", reset, "\n\n"
-			if server_types.nil? || server_types.empty?
+			if cloud_server_types.nil? || cloud_server_types.empty?
 				puts yellow,"No server types found for the selected cloud.",reset
 			else
-				server_types.each do |server_type|
+				cloud_server_types.each do |server_type|
 					print cyan, "=  #{server_type['code']} - #{server_type['name']}\n"
 				end
 			end
@@ -163,8 +161,8 @@ class Morpheus::Cli::Hosts
 		name = args[1]
 
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts add CLOUD NAME -t HOST_TYPE [options]"
-			opts.on( '-t', '--type TYPE', "Host Type" ) do |server_type|
+			opts.banner = "Usage: morpheus hosts add CLOUD NAME [options]"
+			opts.on( '-t', '--type TYPE', "Server Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
 			build_common_options(opts, options, [:options, :json, :remote])
@@ -187,11 +185,27 @@ class Morpheus::Cli::Hosts
 
 		if zone.nil?
 			print_red_alert "Either the cloud was not specified or was not found. Please make sure a cloud is specified at the beginning of the argument."
-			return
+			exit 1
 		else
 			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
-		server_type = zone_type['serverTypes'].find{|b| b['creatable'] == true && (b['code'] == options[:server_type] || b['name'] == options[:server_type])}
+
+		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true }
+		if options[:server_type]
+			server_type_code = options[:server_type]
+		else
+			server_type_options = cloud_server_types.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Server Type", 'selectOptions' => server_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a server type.'}], options[:options])
+    	server_type_code = v_prompt['type']
+		end
+		
+    server_type = cloud_server_types.find {|it| it['code'] == server_type_code }
+
+		if server_type.nil?
+			print_red_alert "Server Type #{server_type_code} not found cloud #{zone['name']}"
+			exit 1
+		end
+
 		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options],@api_client, options[:params])
 		begin
 			params['server'] = params['server'] || {}
