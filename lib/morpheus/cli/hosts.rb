@@ -84,7 +84,8 @@ class Morpheus::Cli::Hosts
 			host = find_host_by_name(args[0])
 			logs = @logs_interface.server_logs([host['id']], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
 			if options[:json]
-				puts logs
+#				puts logs
+				print JSON.pretty_generate(logs)
 			else
 				logs['data'].reverse.each do |log_entry|
 					log_level = ''
@@ -210,7 +211,14 @@ class Morpheus::Cli::Hosts
 		begin
 			params['server'] = params['server'] || {}
 			server_payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
-			response = @servers_interface.create(server_payload)
+			json_response = @servers_interface.create(server_payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Provisioning Server..."
+				list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -279,7 +287,8 @@ class Morpheus::Cli::Hosts
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				puts "Removing Server..."
+				print_green_success "Removing Server..."
+				list([])
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
