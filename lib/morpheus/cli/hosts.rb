@@ -84,7 +84,6 @@ class Morpheus::Cli::Hosts
 			host = find_host_by_name(args[0])
 			logs = @logs_interface.server_logs([host['id']], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
 			if options[:json]
-#				puts logs
 				print JSON.pretty_generate(logs)
 			else
 				logs['data'].reverse.each do |log_entry|
@@ -245,7 +244,7 @@ class Morpheus::Cli::Hosts
 		optparse.parse(args)
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
-			return
+			exit 1
 		end
 		connect(options)
 		zone=nil
