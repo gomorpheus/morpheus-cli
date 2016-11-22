@@ -103,4 +103,8 @@ class Morpheus::APIClient
 		Morpheus::LicenseInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def custom_instance_types
+		Morpheus::CustomInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 end

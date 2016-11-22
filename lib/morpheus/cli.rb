@@ -31,6 +31,9 @@ module Morpheus
     require 'morpheus/api/logs_interface'
     require 'morpheus/api/roles_interface'
     require 'morpheus/api/key_pairs_interface'
+    require 'morpheus/api/custom_instance_types_interface'
+    # require 'morpheus/api/custom_instance_type_versions_interface'
+    # require 'morpheus/api/custom_instance_type_upgrades_interface'
   	
     require 'morpheus/cli/credentials'
   	require 'morpheus/cli/remote'
@@ -55,6 +58,7 @@ module Morpheus
     require 'morpheus/cli/roles'
     require 'morpheus/cli/key_pairs'
     require 'morpheus/cli/virtual_images'
+    require 'morpheus/cli/library'
     # Your code goes here...
   end
 end
