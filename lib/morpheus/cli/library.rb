@@ -134,7 +134,7 @@ class Morpheus::Cli::Library
 		connect(options)
 		begin
 			params = Morpheus::Cli::OptionTypes.prompt(add_instance_type_option_types, options[:options], @api_client, options[:params])
-			instance_type_keys = ['name', 'description', 'category', 'environmentPrefix']
+			instance_type_keys = ['name', 'description', 'category', 'visibility', 'environmentPrefix']
 			instance_type_payload = params.select {|k,v| instance_type_keys.include?(k) }
 			logo_file = nil
 			if params['logo']
@@ -207,7 +207,7 @@ class Morpheus::Cli::Library
 			# params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
 			
-			instance_type_keys = ['name', 'description', 'category', 'environmentPrefix']
+			instance_type_keys = ['name', 'description', 'category', 'visibility', 'environmentPrefix']
 			instance_type_payload = params.select {|k,v| instance_type_keys.include?(k) }
 			logo_file = nil
 			if params['logo']
@@ -456,9 +456,10 @@ private
 			{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
 			{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'select', 'selectOptions' => instance_type_categories, 'required' => true, 'displayOrder' => 3},
 			{'fieldName' => 'logo', 'fieldLabel' => 'Icon File', 'type' => 'text', 'displayOrder' => 4},
-			{'fieldName' => 'environmentPrefix', 'fieldLabel' => 'Environment Prefix', 'type' => 'text', 'displayOrder' => 5},
-			{'fieldName' => 'hasAutoScale', 'fieldLabel' => 'Enable Scaling (Horizontal)', 'type' => 'checkbox', 'displayOrder' => 6},
-			{'fieldName' => 'hasDeployment', 'fieldLabel' => 'Supports Deployments', 'type' => 'checkbox', 'displayOrder' => 7}
+			{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 5},
+			{'fieldName' => 'environmentPrefix', 'fieldLabel' => 'Environment Prefix', 'type' => 'text', 'displayOrder' => 6, 'description' => 'Used for exportable environment variables when tying instance types together in app contexts. If not specified a name will be generated.'},
+			{'fieldName' => 'hasAutoScale', 'fieldLabel' => 'Enable Scaling (Horizontal)', 'type' => 'checkbox', 'displayOrder' => 7},
+			{'fieldName' => 'hasDeployment', 'fieldLabel' => 'Supports Deployments', 'type' => 'checkbox', 'displayOrder' => 8, 'description' => 'Requires a data volume be configured on each version. Files will be copied into this location.'}
 		]
 	end
 
