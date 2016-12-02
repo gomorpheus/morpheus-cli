@@ -331,6 +331,9 @@ class Morpheus::Cli::Library
 			
 			payload = {'containerType' => {}, 'instanceTypeLayout' => {}, 'instanceType' => {}}
 
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'instanceTypeLayout', 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'A name for this layout.'}], options[:options])
+			payload['instanceTypeLayout']['name'] = v_prompt['instanceTypeLayout']['name']
+
 			# shortName is only available for the first new version
 			if !instance_type['versions'] || instance_type['versions'].size == 0
 				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'containerType', 'fieldName' => 'shortName', 'type' => 'text', 'fieldLabel' => 'Short Name', 'required' => true, 'description' => 'The short name is a lowercase name with no spaces used for display in your container list.'}], options[:options])
