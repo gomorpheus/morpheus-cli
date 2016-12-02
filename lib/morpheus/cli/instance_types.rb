@@ -52,7 +52,8 @@ class Morpheus::Cli::InstanceTypes
 			json_response = @instance_types_interface.get({name: name})
 
 			if options[:json]
-				print JSON.pretty_generate(json_response), "\n" and return
+				print JSON.pretty_generate(json_response), "\n"
+				return
 			end
 
 			instance_type = json_response['instanceTypes'][0]
@@ -90,7 +91,8 @@ class Morpheus::Cli::InstanceTypes
 			json_response = @instance_types_interface.get(params)
 
 			if options[:json]
-				print JSON.pretty_generate(json_response), "\n" and return
+				print JSON.pretty_generate(json_response), "\n"
+				return
 			end
 
 			instance_types = json_response['instanceTypes']
