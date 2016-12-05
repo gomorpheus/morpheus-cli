@@ -44,23 +44,27 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_rest_exception(e, options={})
-    if e.response.code == 400
-      response = JSON.parse(e.response.to_s)
-      print_errors(response, options)
-    else
-      print_red_alert "Error Communicating with the Appliance. Please try again later. #{e}"
-      if options[:json]
-        begin
-          response = JSON.parse(e.response.to_s)
-          print red, "\n"
-          print JSON.pretty_generate(response)
-          print reset, "\n\n"
-        rescue TypeError, JSON::ParserError => ex
-          #print_red_alert "Failed to parse JSON response: #{ex}"
-        ensure
-          print reset
+    if e.response
+      if e.response.code == 400
+        response = JSON.parse(e.response.to_s)
+        print_errors(response, options)
+      else
+        print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
+        if options[:json]
+          begin
+            response = JSON.parse(e.response.to_s)
+            print red, "\n"
+            print JSON.pretty_generate(response)
+            print reset, "\n\n"
+          rescue TypeError, JSON::ParserError => ex
+            #print_red_alert "Failed to parse JSON response: #{ex}"
+          ensure
+            print reset
+          end
         end
       end
+    else
+      print_red_alert "Error Communicating with the Appliance. #{e}"
     end
   end
 
