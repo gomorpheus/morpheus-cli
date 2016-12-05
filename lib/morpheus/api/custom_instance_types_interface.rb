@@ -85,4 +85,49 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     JSON.parse(response.to_s)
   end
 
+  def update_version(instance_type_id, id, options)
+    url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions/#{id}"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
+    payload = options
+    response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json, verify_ssl:false)
+    JSON.parse(response.to_s)
+  end
+
+  def destroy_version(instance_type_id, id)
+    url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions/#{id}"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
+    payload = options
+    response = Morpheus::RestClient.execute(method: :delete, url: url,
+                            timeout: 10, headers: headers, verify_ssl:false)
+    JSON.parse(response.to_s)
+  end
+
+  def create_upgrade(instance_type_id, options)
+    url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
+    payload = options
+    response = Morpheus::RestClient.execute(method: :post, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json, verify_ssl:false)
+    JSON.parse(response.to_s)
+  end
+
+  def update_upgrade(instance_type_id, id, options)
+    url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades/#{id}"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
+    payload = options
+    response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 10, headers: headers, payload: payload.to_json, verify_ssl:false)
+    JSON.parse(response.to_s)
+  end
+
+  def destroy_upgrade(instance_type_id, id)
+    url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades/#{id}"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
+    payload = options
+    response = Morpheus::RestClient.execute(method: :delete, url: url,
+                            timeout: 10, headers: headers, verify_ssl:false)
+    JSON.parse(response.to_s)
+  end
+
 end
