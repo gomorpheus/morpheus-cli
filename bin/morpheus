@@ -3,6 +3,13 @@ require 'morpheus/cli'
 require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
 
+# short circuit version switch
+if ARGV[0] == '-v' && ARGV.size == 1
+  version = Morpheus::Cli::VERSION
+  puts version
+  exit 0
+end
+
 remote_handler = Morpheus::Cli::Remote.new()
 
 # parse args to handle global issues
@@ -41,4 +48,5 @@ case ARGV[0]
       puts "\t#{cmd.to_s}"
     }
     puts ""
+    exit 127
 end

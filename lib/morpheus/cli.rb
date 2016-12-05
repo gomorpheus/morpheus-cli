@@ -35,6 +35,7 @@ module Morpheus
     # require 'morpheus/api/custom_instance_type_versions_interface'
     # require 'morpheus/api/custom_instance_type_upgrades_interface'
   	
+    require 'morpheus/cli/version_command'
     require 'morpheus/cli/credentials'
   	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
