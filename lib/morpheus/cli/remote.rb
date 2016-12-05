@@ -141,12 +141,13 @@ class Morpheus::Cli::Remote
 		if File.exist? remote_file
 			return YAML.load_file(remote_file)
 		else
-			return {
-				morpheus: {
-					host: 'https://api.gomorpheus.com',
-					active: true
-				}
-			}
+			return {}
+			# return {
+			# 	morpheus: {
+			# 		host: 'https://api.gomorpheus.com',
+			# 		active: true
+			# 	}
+			# }
 		end
 	end
 
