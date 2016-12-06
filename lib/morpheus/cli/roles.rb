@@ -23,6 +23,7 @@ class Morpheus::Cli::Roles
 			exit 1
 		end
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+		@whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
 		@roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
@@ -84,6 +85,8 @@ class Morpheus::Cli::Roles
 		connect(options)
 		begin
 			
+			load_whoami()
+
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 			
@@ -103,7 +106,7 @@ class Morpheus::Cli::Roles
 				if roles.empty?
 					puts yellow,"No roles found.",reset
 				else
-					print_roles_table(roles)
+					print_roles_table(roles, {is_master_account: @is_master_account})
 				end
 				print reset,"\n\n"
 			end
@@ -168,6 +171,8 @@ class Morpheus::Cli::Roles
 				puts "Name: #{role['authority']}"
 				puts "Description: #{role['description']}"
 				puts "Scope: #{role['scope']}"
+				puts "Type: #{format_role_type(role)}"
+				puts "Multitenant: #{role['multitenant'] ? 'Yes' : 'No'}"
 				puts "Owner: #{role['owner'] ? role['owner']['name'] : nil}"
 				puts "Date Created: #{format_local_dt(role['dateCreated'])}"
 				puts "Last Updated: #{format_local_dt(role['lastUpdated'])}"
@@ -268,25 +273,55 @@ class Morpheus::Cli::Roles
 		connect(options)
 		begin
 
+			load_whoami()
+			
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			params = Morpheus::Cli::OptionTypes.prompt(add_role_option_types, options[:options], @api_client, options[:params])
+			# argh, some options depend on others here...eg. multitenant is only available when roleType == 'user'
+			#prompt_option_types = update_role_option_types()
 
-			#puts "parsed params is : #{params.inspect}"
-			role_keys = ['authority', 'description', 'instanceLimits']
-			role_payload = params.select {|k,v| role_keys.include?(k) }
-			if !role_payload['instanceLimits']
-				role_payload['instanceLimits'] = {}
-				role_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-				role_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-				role_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			role_payload = {}
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1}], options[:options])
+			role_payload['authority'] = v_prompt['authority']
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2}], options[:options])
+			role_payload['description'] = v_prompt['description']
+
+			if @is_master_account
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleType', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => role_type_options, 'defaultValue' => 'user', 'displayOrder' => 3}], options[:options])
+				role_payload['roleType'] = v_prompt['roleType']
+			else
+				role_payload['roleType'] = 'user'
 			end
-			if params['baseRole'].to_s != ''
-				base_role = find_role_by_name(account_id, params['baseRole'])
+
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4}], options[:options])
+			if v_prompt['baseRole'].to_s != ''
+				base_role = find_role_by_name(account_id, v_prompt['baseRole'])
 				exit 1 if base_role.nil?
 				role_payload['baseRoleId'] = base_role['id']
 			end
+
+			if @is_master_account
+				if role_payload['roleType'] == 'user'
+					v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5}], options[:options])
+					role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
+				end
+			end
+
+			role_payload['instanceLimits'] = {}
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8}], options[:options])
+			if v_prompt['instanceLimits.maxStorage'].to_s.strip != ''
+				role_payload['instanceLimits']['maxStorage'] = v_prompt['instanceLimits.maxStorage'].to_i
+			end
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9}], options[:options])
+			if v_prompt['instanceLimits.maxMemory'].to_s.strip != ''
+				role_payload['instanceLimits']['maxMemory'] = v_prompt['instanceLimits.maxMemory'].to_i
+			end
+			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10}], options[:options])
+			if v_prompt['instanceLimits.maxCpu'].to_s.strip != ''
+				role_payload['instanceLimits']['maxCpu'] = v_prompt['instanceLimits.maxCpu'].to_i
+			end
+
 			request_payload = {role: role_payload}
 			response = @roles_interface.create(account_id, request_payload)
 
@@ -327,18 +362,27 @@ class Morpheus::Cli::Roles
 		
 		begin
 
+			load_whoami()
+
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
 			role = find_role_by_name(account_id, name)
 			exit 1 if role.nil?
 
-			#params = Morpheus::Cli::OptionTypes.prompt(update_role_option_types, options[:options], @api_client, options[:params])
+			prompt_option_types = update_role_option_types()
+			if !@is_master_account
+				prompt_option_types = prompt_option_types.reject {|it| ['roleType', 'multitenant'].include?(it['fieldName']) }
+			end
+			if role['roleType'] != 'user'
+				prompt_option_types = prompt_option_types.reject {|it| ['multitenant'].include?(it['fieldName']) }
+			end
+			#params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
 
 			if params.empty?
 				puts "\n#{usage}\n\n"
-				option_lines = update_role_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+				option_lines = prompt_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
 			end
@@ -351,6 +395,10 @@ class Morpheus::Cli::Roles
 				role_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
 				role_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
 				role_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+			end
+
+			if params['multitenant'].to_s != ''
+				role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
 			end
 			request_payload = {role: role_payload}
 			response = @roles_interface.update(account_id, role['id'], request_payload)
@@ -798,15 +846,18 @@ private
 		[
 			{'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
 			{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-			{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 3},
+			{'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user', 'displayOrder' => 3},
+			{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4},
+			{'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5},
 			{'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
 			{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
 			{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
 		]
 	end
 
+	"A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use"
 	def update_role_option_types
-		add_role_option_types.reject {|it| ['baseRole'].include?(it['fieldName']) }
+		add_role_option_types.reject {|it| ['roleType', 'baseRole'].include?(it['fieldName']) }
 	end
 
 
@@ -850,6 +901,20 @@ private
 			return nil
 		end
 		return results['instanceTypes'][0]
+	end
+
+	def load_whoami
+		whoami_response = @whoami_interface.get()
+		@current_user = whoami_response["user"] 
+		if @current_user.empty?
+			print_red_alert "Unauthenticated. Please login."
+			exit 1
+		end
+		@is_master_account = whoami_response["isMasterAccount"]
+	end
+
+	def role_type_options
+		[{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}]
 	end
 
 end

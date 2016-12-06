@@ -148,6 +148,21 @@ module Morpheus::Cli::AccountsHelper
     print reset
   end
 
+  def format_role_type(role)
+    if role['roleType'] == "account"
+      "Account"
+    elsif role['roleType'] == "user"
+      "User"
+    else
+      if role['scope'] == 'Account'
+        "Legacy"
+      else
+        "" # "System"
+      end
+    end
+
+  end
+
   def print_roles_table(roles, opts={})
     table_color = opts[:color] || cyan
     # tp roles, [
@@ -162,7 +177,9 @@ module Morpheus::Cli::AccountsHelper
         id: role['id'], 
         name: role['authority'], 
         description: role['description'], 
-        scope: role['scope'], 
+        scope: role['scope'],
+        multitenant: role['multitenant'] ? 'Yes' : 'No',
+        type: format_role_type(role),
         owner: role['owner'] ? role['owner']['name'] : nil, 
         dateCreated: format_local_dt(role['dateCreated']) 
       }
@@ -173,9 +190,11 @@ module Morpheus::Cli::AccountsHelper
       :name, 
       :description, 
       :scope, 
+      opts[:is_master_account] ? :type : nil,
+      opts[:is_master_account] ? :multitenant : nil,
       :owner, 
       {:dateCreated => {:display_name => "Date Created"} }
-    ]
+    ].compact
     print reset
   end
 
