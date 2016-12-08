@@ -129,6 +129,7 @@ class Morpheus::Cli::Users
 				puts "First Name: #{user['firstName']}"
 				puts "Last Name: #{user['lastName']}"
 				puts "Username: #{user['username']}"
+				puts "Email: #{user['email']}"
 				puts "Role: #{format_user_role_names(user)}"
 				puts "Date Created: #{format_local_dt(user['dateCreated'])}"
 				puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
