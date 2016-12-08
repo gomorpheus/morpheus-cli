@@ -287,7 +287,7 @@ module Morpheus
                 print "\n"
                 if input == '?'
                     help_prompt(option_type)
-                elsif !value.nil? || option_type['required'] != true
+                elsif !value.empty? || option_type['required'] != true
                   value_found = true
                 end
             end
@@ -311,6 +311,20 @@ module Morpheus
           end
           puts "\n\n"
         end
+
+        def self.format_option_types_help(option_types)
+          if option_types.empty?
+            "Available Options:\nNone\n\n"
+          else
+            option_lines = option_types.collect {|it| "    -O #{it['fieldName']}=\"value\"" }.join("\n")
+            "Available Options:\n#{option_lines}\n\n"
+          end
+        end
+        
+        def self.display_option_types_help(option_types)
+          puts self.format_option_types_help(option_types)
+        end
+
     end
   end
 end

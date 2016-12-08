@@ -1,6 +1,7 @@
 require 'yaml'
 require 'io/console'
-require 'optparse'
+#require 'optparse'
+require 'json'
 
 module Morpheus
 	module Cli
@@ -37,8 +38,7 @@ module Morpheus
 						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password},verify_ssl: false)
 						json_response = JSON.parse(authorize_response.to_s)
 						access_token = json_response['access_token']
-						if access_token
-
+						if !access_token.empty?
 							save_credentials(access_token) unless skip_save
 							return access_token
 						else

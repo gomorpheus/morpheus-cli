@@ -201,11 +201,21 @@ module Morpheus::Cli::AccountsHelper
   def print_users_table(users, opts={})
     table_color = opts[:color] || cyan
     rows = users.collect do |user|
-      {id: user['id'], username: user['username'], first: user['firstName'], last: user['lastName'], email: user['email'], role: user['role'] ? user['role']['authority'] : nil, account: user['account'] ? user['account']['name'] : nil}
+      {id: user['id'], username: user['username'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), account: user['account'] ? user['account']['name'] : nil}
     end
     print table_color
     tp rows, :id, :account, :first, :last, :username, :email, :role
     print reset
+  end
+
+  def format_user_role_names(user)
+    role_names = ""
+    if user && user['roles']
+      roles = user['roles']
+      roles = roles.sort {|a,b| a['authority'].to_s.downcase <=> b['authority'].to_s.downcase }
+      role_names = roles.collect {|r| r['authority'] }.join(', ')
+    end
+    role_names
   end
 
 end

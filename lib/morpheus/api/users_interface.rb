@@ -28,6 +28,15 @@ class Morpheus::UsersInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def available_roles(account_id, id=nil, options={})
+		url = build_url(account_id, id) + "/available-roles"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
 	def create(account_id, options)
 		url = build_url(account_id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

@@ -127,9 +127,9 @@ class Morpheus::Cli::Users
 				puts "ID: #{user['id']}"
 				puts "Account: #{user['account'] ? user['account']['name'] : nil}"
 				puts "First Name: #{user['firstName']}"
-				puts "Last Name: #{user['firstName']}"
+				puts "Last Name: #{user['lastName']}"
 				puts "Username: #{user['username']}"
-				puts "Role: #{user['role'] ? user['role']['authority'] : nil}"
+				puts "Role: #{format_user_role_names(user)}"
 				puts "Date Created: #{format_local_dt(user['dateCreated'])}"
 				puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
 				print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
@@ -152,6 +152,11 @@ class Morpheus::Cli::Users
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
 			build_common_options(opts, options, [:account, :options, :json])
+			opts.on('-h', '--help', "Prints this help" ) do
+        puts opts
+				puts Morpheus::Cli::OptionTypes.display_option_types_help(add_user_option_types)
+        exit
+      end
 		end
 		optparse.parse(args)
 
@@ -162,7 +167,10 @@ class Morpheus::Cli::Users
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params])
+			# remove role option_type, it is just for help display, the role prompt is separate down below
+			prompt_option_types = add_user_option_types().reject {|it| ['role'].include?(it['fieldName']) }
+			
+			params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
@@ -173,11 +181,12 @@ class Morpheus::Cli::Users
 				user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
 				user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
 			end
-			if params['role'].to_s != ''
-				role = find_role_by_name(account_id, params['role'])
-				exit 1 if role.nil?
-				user_payload['role'] = {id: role['id']}
+
+			roles = prompt_user_roles(account_id, nil, options)
+			if !roles.empty?
+				user_payload['roles'] = roles.collect {|r| {id: r['id']} }
 			end
+
 			request_payload = {user: user_payload}
 			json_response = @users_interface.create(account_id, request_payload)
 
@@ -210,11 +219,17 @@ class Morpheus::Cli::Users
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
 			build_common_options(opts, options, [:account, :options, :json])
+			opts.on('-h', '--help', "Prints this help" ) do
+        puts opts
+				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
+        exit
+      end
 		end
 		optparse.parse(args)
 
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts "#{usage}\n\n"
+			puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
 			exit 1
 		end
 		username = args[0]
@@ -231,16 +246,19 @@ class Morpheus::Cli::Users
 
 			#params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
-
+			roles = prompt_user_roles(account_id, nil, options.merge(no_prompt: true))
+			if !roles.empty?
+				params['roles'] = roles.collect {|r| {id: r['id']} }
+			end
+			
 			if params.empty?
 				puts "\n#{usage}\n\n"
-				option_lines = update_user_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
 				exit 1
 			end
 
 			#puts "parsed params is : #{params.inspect}"
-			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits']
+			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits', 'roles']
 			user_payload = params.select {|k,v| user_keys.include?(k) }
 			if !user_payload['instanceLimits']
 				user_payload['instanceLimits'] = {}
@@ -248,11 +266,7 @@ class Morpheus::Cli::Users
 				user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
 				user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
 			end
-			if params['role'].to_s != ''
-				role = find_role_by_name(account_id, params['role'])
-				exit 1 if role.nil?
-				user_payload['role'] = {id: role['id']}
-			end
+
 			request_payload = {user: user_payload}
 			json_response = @users_interface.update(account_id, user['id'], request_payload)
 			
@@ -320,21 +334,101 @@ private
 
 	def add_user_option_types
 		[
-			{'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-			{'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
-			{'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
+			{'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
+			{'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+			{'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
 			{'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'displayOrder' => 4},
-			{'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 5},
 			{'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
 			{'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 7},
 			{'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
 			{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
 			{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
+			{'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
 		]
 	end
 
 	def update_user_option_types
-		add_user_option_types.reject {|it| ['passwordConfirmation'].include?(it['fieldName']) }
+		[
+			{'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
+			{'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+			{'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
+			{'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
+			{'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => false, 'displayOrder' => 6},
+			{'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => false, 'displayOrder' => 7},
+			{'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
+			{'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
+			{'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
+			{'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
+		]
+	end
+
+	# prompt user to select roles for a new or existing user
+	# options['role'] can be passed as comma separated role names
+	# if so, it will be used instead of prompting
+	# returns array of role objects
+	def prompt_user_roles(account_id, user_id, options={})
+
+		passed_role_string = nil
+		if options['role'] || (options[:options] && (options[:options]['role'] || options[:options]['roles']))
+			passed_role_string = options['role'] || (options[:options] && (options[:options]['role'] || options[:options]['roles']))
+		end
+		passed_role_names = []
+		if !passed_role_string.empty?
+			passed_role_names = passed_role_string.split(',').uniq.compact.collect {|r| r.strip}
+		end
+
+		available_roles = @users_interface.available_roles(account_id, user_id)['roles']
+
+		if available_roles.empty?
+			print_red_alert "No available roles found."
+			exit 1
+		end
+		role_options = available_roles.collect {|role|
+			{'name' => role['authority'], 'value' => role['id']}
+		}
+
+		# found_roles = []
+		roles = []
+
+		if !passed_role_names.empty?
+			invalid_role_names = []
+			passed_role_names.each do |role_name| 
+				found_role = available_roles.find {|ar| ar['authority'] == role_name}
+				if found_role
+					# found_roles << found_role
+					roles << found_role
+				else
+					invalid_role_names << role_name
+				end
+			end
+			if !invalid_role_names.empty?
+				print_red_alert "Invalid Roles: #{invalid_role_names.join(', ')}"
+				exit 1
+			end
+		end
+
+		if roles.empty?
+			no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+			if !no_prompt
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => true}], options[:options])
+				role_id = v_prompt['roleId']
+				roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
+				add_another_role = true
+				while add_another_role do
+					v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
+					if v_prompt['roleId'].to_s.empty?
+						add_another_role = false
+					else
+						role_id = v_prompt['roleId']
+						roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
+					end
+				end
+			end
+		end
+
+		roles = roles.compact
+		return roles
+
 	end
 
 end
