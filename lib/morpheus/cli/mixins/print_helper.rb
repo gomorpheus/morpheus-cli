@@ -68,4 +68,7 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  def required_blue_prompt
+    "#{cyan}|#{reset}"
+  end
 end

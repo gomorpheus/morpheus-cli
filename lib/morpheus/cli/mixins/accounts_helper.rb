@@ -218,4 +218,13 @@ module Morpheus::Cli::AccountsHelper
     role_names
   end
 
+  def get_access_string(val)
+    val ||= 'none'
+    if val == 'none'
+      "#{white}#{val.to_s.capitalize}#{cyan}"
+    else
+      "#{green}#{val.to_s.capitalize}#{cyan}"
+    end
+  end
+  
 end

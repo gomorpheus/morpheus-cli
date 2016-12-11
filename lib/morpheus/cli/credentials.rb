@@ -1,11 +1,15 @@
 require 'yaml'
 require 'io/console'
+require 'rest_client'
 #require 'optparse'
+require 'morpheus/cli/mixins/print_helper'
 require 'json'
 
 module Morpheus
 	module Cli
 		class Credentials
+			include Morpheus::Cli::PrintHelper
+
 			def initialize(appliance_name, appliance_url)
 				@appliance_url = appliance_url
 				@appliance_name = appliance_name
@@ -25,38 +29,58 @@ module Morpheus
 					creds = load_saved_credentials
 				end
 				if !creds
+					print "\nEnter Morpheus Credentials for #{@appliance_name} - #{@appliance_url}\n\n",reset
 					if username.nil? || username.empty?
-						puts "Enter Username: "
+						# print "Username: "
+						print "Username: #{required_blue_prompt} "
 						username = $stdin.gets.chomp!
 					end
 					if password.nil? || password.empty?
-						puts "Enter Password: "
+						# print "Password: "
+						print "Password: #{required_blue_prompt} "
 						password = STDIN.noecho(&:gets).chomp!
+						print "\n"
 					end
+
 					oauth_url = File.join(@appliance_url, "/oauth/token")
 					begin
 						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password},verify_ssl: false)
+
 						json_response = JSON.parse(authorize_response.to_s)
 						access_token = json_response['access_token']
 						if !access_token.empty?
 							save_credentials(access_token) unless skip_save
 							return access_token
 						else
-							puts "Credentials not verified."
+							print_red_alert "Credentials not verified."
 							return nil
 						end
+					rescue ::RestClient::Exception => e
+						if (e.response.code == 400)
+							if opts[:json]
+								print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
+								json_response = JSON.parse(e.response.to_s)
+								print JSON.pretty_generate(json_response)
+          			print reset, "\n\n"
+          		else
+          			print_red_alert "Credentials not verified."
+							end
+						else
+							print_rest_exception(e, opts)
+						end
+						exit 1
 					rescue => e
-						puts "Error Communicating with the Appliance. Please try again later. #{e}"
-						return nil
+						print_red_alert "Error Communicating with the Appliance. Please try again later. #{e}"
+						exit 1
 					end
 				else
 					return creds
 				end
 			end
 
-			def login()
+			def login(opts = {})
 				clear_saved_credentials
-				request_credentials
+				request_credentials(opts)
 			end
 
 			def logout()

@@ -23,6 +23,7 @@ class Morpheus::Cli::Users
 			exit 1
 		end
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+		@whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
 		@roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
@@ -46,10 +47,43 @@ class Morpheus::Cli::Users
 				update(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
+			when 'feature-permissions'
+				feature_permissions(args[1..-1])
 			else
 				puts "\n#{usage}\n\n"
 				exit 127
 		end
+	end
+
+	def feature_permissions(args)
+		options = {}
+		if args.count < 1
+			puts "#{usage}\n\n"
+			puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
+			exit 1
+		end
+		username = args[0]
+
+		connect(options)
+		
+		begin
+
+			account = find_account_from_options(options)
+			account_id = account ? account['id'] : nil
+
+			user = find_user_by_username(account_id, username)
+			exit 1 if user.nil?
+			
+			json_response = @users_interface.feature_permissions(nil, user['id'])
+			puts "FEATURE PERMISSIONS:"
+			print JSON.pretty_generate(json_response)
+
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+
+
 	end
 
 	def list(args)
