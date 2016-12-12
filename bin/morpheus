@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require 'optparse'
 require 'morpheus/cli'
 require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
@@ -28,6 +29,12 @@ args = args.find_all {|arg| arg != '--insecure'}
 if Morpheus::Cli::CliRegistry.has_command?(args[0])
   begin
     Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+    exit 0
+  rescue OptionParser::InvalidOption => e
+    # raise e
+    print Term::ANSIColor.red, "\n", "#{e.message}", "", Term::ANSIColor.reset
+    print "\n", "Try -h to for help with this command.", "\n\n"
+    exit 1
   rescue => e
     if Morpheus::Logging.print_stacktrace?
       print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
