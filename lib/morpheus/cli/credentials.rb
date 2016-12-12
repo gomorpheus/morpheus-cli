@@ -2,6 +2,7 @@ require 'yaml'
 require 'io/console'
 require 'rest_client'
 #require 'optparse'
+require 'morpheus/logging'
 require 'morpheus/cli/mixins/print_helper'
 require 'json'
 
@@ -44,7 +45,7 @@ module Morpheus
 
 					oauth_url = File.join(@appliance_url, "/oauth/token")
 					begin
-						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password},verify_ssl: false)
+						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password},verify_ssl: false, timeout: 10)
 
 						json_response = JSON.parse(authorize_response.to_s)
 						access_token = json_response['access_token']
@@ -56,21 +57,19 @@ module Morpheus
 							return nil
 						end
 					rescue ::RestClient::Exception => e
-						if (e.response.code == 400)
+						if (e.response && e.response.code == 400)
+							print_red_alert "Credentials not verified."
 							if opts[:json]
-								print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
 								json_response = JSON.parse(e.response.to_s)
 								print JSON.pretty_generate(json_response)
           			print reset, "\n\n"
-          		else
-          			print_red_alert "Credentials not verified."
 							end
 						else
 							print_rest_exception(e, opts)
 						end
 						exit 1
 					rescue => e
-						print_red_alert "Error Communicating with the Appliance. Please try again later. #{e}"
+						print_red_alert "Error Communicating with the Appliance. #{e}"
 						exit 1
 					end
 				else
