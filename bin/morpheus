@@ -35,6 +35,7 @@ if Morpheus::Cli::CliRegistry.has_command?(args[0])
     else
       print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
     end
+    exit 1
   end
   exit 0
 else
