@@ -10,16 +10,32 @@ if ARGV[0] == '-v' && ARGV.size == 1
   exit 0
 end
 
-# parse args to handle global issues
+# handle global options
+args = ARGV
+# set global log level to debug (print stack trace for bubbled exceptions)
+if args.find {|arg| arg == '--debug'}
+  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+end
+args = args.find_all {|arg| arg != '--debug'}
+
 # JD: figure out what to do with --insecure option
-if ARGV.find {|arg| arg == '--insecure'}
+if args.find {|arg| arg == '--insecure'}
   Morpheus::RestClient.enable_ssl_verification = false
 end
-filtered_args = ARGV.find_all {|arg| arg != '--insecure'}
+args = args.find_all {|arg| arg != '--insecure'}
 
 # all commands should be registered commands
-if Morpheus::Cli::CliRegistry.has_command?(ARGV[0])
-  Morpheus::Cli::CliRegistry.exec(ARGV[0], filtered_args[1..-1])
+if Morpheus::Cli::CliRegistry.has_command?(args[0])
+  begin
+    Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+  rescue => e
+    if Morpheus::Logging.print_stacktrace?
+      print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
+      print e.backtrace.join("\n"), "\n\n"
+    else
+      print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
+    end
+  end
   exit 0
 else
   puts "\nUsage: morpheus [command] [options]\n"

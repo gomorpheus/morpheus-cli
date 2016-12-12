@@ -1,7 +1,6 @@
 # require 'yaml'
 require 'io/console'
 require 'rest_client'
-require 'term/ansicolor'
 require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
@@ -13,7 +12,7 @@ require 'fileutils'
 
 class Morpheus::Cli::Shell
 	include Morpheus::Cli::CliCommand
-	include Term::ANSIColor
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 		@auto_complete = proc do |s|
@@ -146,10 +145,13 @@ class Morpheus::Cli::Shell
 						# nothing to do
 						print "\n"
 					rescue => e
-						
 						@history_logger.error "#{e.message}" if @history_logger
-						print red, "\n", e.message, "\n", reset
-						print e.backtrace.join("\n"), "\n"
+						if Morpheus::Logging.print_stacktrace?
+							print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
+							print e.backtrace.join("\n"), "\n\n"
+						else
+							print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
+						end
 					end
 				
 			end
