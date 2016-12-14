@@ -55,37 +55,6 @@ class Morpheus::Cli::Users
 		end
 	end
 
-	def feature_permissions(args)
-		options = {}
-		if args.count < 1
-			puts "#{usage}\n\n"
-			puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
-			exit 1
-		end
-		username = args[0]
-
-		connect(options)
-		
-		begin
-
-			account = find_account_from_options(options)
-			account_id = account ? account['id'] : nil
-
-			user = find_user_by_username(account_id, username)
-			exit 1 if user.nil?
-			
-			json_response = @users_interface.feature_permissions(nil, user['id'])
-			puts "FEATURE PERMISSIONS:"
-			print JSON.pretty_generate(json_response)
-
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-
-
-	end
-
 	def list(args)
 		usage = "Usage: morpheus users list [options]"
 		options = {}
@@ -118,7 +87,7 @@ class Morpheus::Cli::Users
 				else
 					print_users_table(users)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -132,6 +101,24 @@ class Morpheus::Cli::Users
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
       build_common_options(opts, options, [:account, :json])
+      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+				options[:include_feature_access] = true
+			end
+			# opts.on(nil,'--group-access', "Display Group Access") do
+			# 	options[:include_group_access] = true
+			# end
+			# opts.on(nil,'--cloud-access', "Display Cloud Access") do
+			# 	options[:include_cloud_access] = true
+			# end
+			# opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
+			# 	options[:include_instance_type_access] = true
+			# end
+			opts.on(nil,'--all-access', "Display All Access Lists") do
+				options[:include_feature_access] = true
+				options[:include_group_access] = true
+				options[:include_cloud_access] = true
+				options[:include_instance_type_access] = true
+			end
 		end
 		optparse.parse(args)
 
@@ -152,9 +139,21 @@ class Morpheus::Cli::Users
 			user = find_user_by_username(account_id, username)
 			exit 1 if user.nil?
 
+			# meh, this should just always be returned with GET /api/users/:id
+			user_feature_permissions_json = nil
+			user_feature_permissions = nil
+			if options[:include_feature_access]
+				user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+				user_feature_permissions = user_feature_permissions_json['featurePermissions']
+			end
+
 			if options[:json]
 				print JSON.pretty_generate({user:user})
 				print "\n"
+				if (user_feature_permissions_json)
+					print JSON.pretty_generate(user_feature_permissions_json)
+					print "\n"
+				end
 			else
 				print "\n" ,cyan, bold, "User Details\n","==================", reset, "\n\n"
 				print cyan
@@ -172,8 +171,22 @@ class Morpheus::Cli::Users
 				puts "Max Storage (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxStorage'] : 0}"
 				puts "Max Memory (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxMemory'] : 0}"
 				puts "CPU Count: #{user['instanceLimits'] ? user['instanceLimits']['maxCpu'] : 0}"
+
+				if options[:include_feature_access] && user_feature_permissions
+					if user_feature_permissions
+						print "\n" ,cyan, bold, "Feature Permissions\n","==================", reset, "\n\n"
+						print cyan
+						rows = user_feature_permissions.collect do |code, access|
+							{code: code, access: get_access_string(access) }
+						end
+						tp rows, [:code, :access]
+					else
+						puts yellow,"No permissions found.",reset
+					end
+				end
+
 				print cyan
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -281,7 +294,7 @@ class Morpheus::Cli::Users
 
 			#params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
-			roles = prompt_user_roles(account_id, nil, options.merge(no_prompt: true))
+			roles = prompt_user_roles(account_id, user['id'], options.merge(no_prompt: true))
 			if !roles.empty?
 				params['roles'] = roles.collect {|r| {id: r['id']} }
 			end

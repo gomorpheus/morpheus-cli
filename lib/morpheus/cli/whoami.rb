@@ -45,15 +45,15 @@ class Morpheus::Cli::Whoami
 			opts.on(nil,'--feature-access', "Display Feature Access") do |val|
 				options[:include_feature_access] = true
 			end
-			opts.on(nil,'--group-access', "Display Group Access") do
-				options[:include_group_access] = true
-			end
-			opts.on(nil,'--cloud-access', "Display Cloud Access") do
-				options[:include_cloud_access] = true
-			end
-			opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
-				options[:include_instance_type_access] = true
-			end
+			# opts.on(nil,'--group-access', "Display Group Access") do
+			# 	options[:include_group_access] = true
+			# end
+			# opts.on(nil,'--cloud-access', "Display Cloud Access") do
+			# 	options[:include_cloud_access] = true
+			# end
+			# opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
+			# 	options[:include_instance_type_access] = true
+			# end
 			opts.on(nil,'--all-access', "Display All Access Lists") do
 				options[:include_feature_access] = true
 				options[:include_group_access] = true

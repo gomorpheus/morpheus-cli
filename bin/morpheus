@@ -14,10 +14,10 @@ end
 # handle global options
 args = ARGV
 # set global log level to debug (print stack trace for bubbled exceptions)
-if args.find {|arg| arg == '--debug'}
+if args.find {|arg| arg == '-V' || arg == '--debug'}
   Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
 end
-args = args.find_all {|arg| arg != '--debug'}
+args = args.find_all {|arg| arg != '-V' && arg != '--debug'}
 
 # JD: figure out what to do with --insecure option
 if args.find {|arg| arg == '--insecure'}
@@ -33,14 +33,17 @@ if Morpheus::Cli::CliRegistry.has_command?(args[0])
   rescue OptionParser::InvalidOption => e
     # raise e
     print Term::ANSIColor.red, "\n", "#{e.message}", "", Term::ANSIColor.reset
-    print "\n", "Try -h to for help with this command.", "\n\n"
-    exit 1
-  rescue => e
+    print "\n", "Try -h for help with this command.", "\n\n"
     if Morpheus::Logging.print_stacktrace?
       print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
       print e.backtrace.join("\n"), "\n\n"
-    else
-      print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
+    end
+    exit 1
+  rescue => e
+    print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
+    if Morpheus::Logging.print_stacktrace?
+      print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
+      print e.backtrace.join("\n"), "\n\n"
     end
     exit 1
   end

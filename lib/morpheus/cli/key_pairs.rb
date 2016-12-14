@@ -319,7 +319,7 @@ private
       json_response = @key_pairs_interface.get(account_id, id.to_i)
       return json_response['keyPair']
     rescue RestClient::Exception => e
-      if e.response.code == 404
+      if e.response && e.response.code == 404
         print_red_alert "Key Pair not found by id #{id}"
       else
         raise e

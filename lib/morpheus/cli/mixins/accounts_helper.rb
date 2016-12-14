@@ -16,7 +16,7 @@ module Morpheus::Cli::AccountsHelper
       json_response = @accounts_interface.get(id.to_i)
       return json_response['account']
     rescue RestClient::Exception => e
-      if e.response.code == 404
+      if e.response && e.response.code == 404
         print_red_alert "Account not found by id #{id}"
       else
         raise e
@@ -61,7 +61,7 @@ module Morpheus::Cli::AccountsHelper
       json_response = @roles_interface.get(account_id, id.to_i)
       return json_response['role']
     rescue RestClient::Exception => e
-      if e.response.code == 404
+      if e.response && e.response.code == 404
         print_red_alert "Role not found by id #{id}"
       else
         raise e
@@ -93,7 +93,7 @@ module Morpheus::Cli::AccountsHelper
       json_response = @users_interface.get(account_id, id.to_i)
       return json_response['user']
     rescue RestClient::Exception => e
-      if e.response.code == 404
+      if e.response && e.response.code == 404
         print_red_alert "User not found by id #{id}"
       else
         raise e

@@ -28,6 +28,14 @@ class Morpheus::UsersInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+	def feature_permissions(account_id, id)
+		url = build_url(account_id, id) + "/feature-permissions"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 10, headers: headers)
+		JSON.parse(response.to_s)
+	end
+
 	def available_roles(account_id, id=nil, options={})
 		url = build_url(account_id, id) + "/available-roles"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
@@ -59,14 +67,6 @@ class Morpheus::UsersInterface < Morpheus::APIClient
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
-	end
-
-	def feature_permissions(account_id, id)
-		url = build_url(account_id, id) + "/feature-permissions"
-		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
                             timeout: 10, headers: headers)
 		JSON.parse(response.to_s)
 	end

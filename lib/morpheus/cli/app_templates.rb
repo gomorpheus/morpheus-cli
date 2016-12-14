@@ -813,7 +813,7 @@ private
       json_response = @app_templates_interface.get(id.to_i)
       return json_response['appTemplate']
     rescue RestClient::Exception => e
-      if e.response.code == 404
+      if e.response && e.response.code == 404
         print_red_alert "App Template not found by id #{id}"
       else
         raise e

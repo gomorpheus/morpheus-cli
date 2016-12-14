@@ -54,7 +54,6 @@ class Morpheus::Cli::Shell
 		@history_logger.info "shell started" if @history_logger
 		load_history_from_log_file()
 
-		remote_handler = Morpheus::Cli::Remote.new()
 		exit = false
 		while !exit do
 			Readline.completion_append_character = " "
@@ -121,13 +120,18 @@ class Morpheus::Cli::Shell
 						if @command_options[:nocolor]
 							argv.push "--nocolor"
 						end
+
+						# set global log level to debug (print stack trace for bubbled exceptions)
+						if argv.find {|arg| arg == '-V' || arg == '--debug'}
+							@return_to_log_level = Morpheus::Logging.log_level
+						  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+						end
+						argv = argv.find_all {|arg| arg != '-V' && arg != '--debug'}
+
 						#puts "cmd: #{argv.join(' ')}"
 
 						if argv[0] == 'shell'
-							puts "Unrecognized Command."
-						elsif argv[0] == 'remote'
-							log_history_command(input)
-							remote_handler.handle(argv[1..-1])
+							puts "You are already in a shell."
 						elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
 							log_history_command(input)
 							Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
@@ -144,16 +148,23 @@ class Morpheus::Cli::Shell
 					rescue SystemExit
 						# nothing to do
 						print "\n"
+					rescue OptionParser::InvalidOption => e
+						print Term::ANSIColor.red, "\n", "#{e.message}", "", Term::ANSIColor.reset
+						print "\n", "Try -h for help with this command.", "\n\n"
 					rescue => e
 						@history_logger.error "#{e.message}" if @history_logger
+						print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
 						if Morpheus::Logging.print_stacktrace?
 							print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
 							print e.backtrace.join("\n"), "\n\n"
-						else
-							print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
 						end
 					end
-				
+						
+					if @return_to_log_level
+						Morpheus::Logging.set_log_level(@return_to_log_level)
+						@return_to_log_level = nil
+					end
+
 			end
 		end
 	end

@@ -114,6 +114,20 @@ module Morpheus
         opts.on('-C','--nocolor', "ANSI") do
           Term::ANSIColor::coloring = false
         end
+
+        opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+          options[:debug] = true
+          # this is handled upstream for now...
+          # Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          # perhaps...
+          # create a new logger instance just for this command instance
+          # this way we don't elevate the global level for subsequent commands in a shell
+          # @logger = Morpheus::Logging::Logger.new(STDOUT)
+          # if !@logger.debug?
+          #   @logger.log_level = Morpheus::Logging::Logger::DEBUG
+          # end
+        end
+        
         opts.on('-h', '--help', "Prints this help" ) do
           puts opts
           exit

@@ -2,7 +2,6 @@ require 'yaml'
 require 'io/console'
 require 'rest_client'
 #require 'optparse'
-require 'morpheus/logging'
 require 'morpheus/cli/mixins/print_helper'
 require 'json'
 
