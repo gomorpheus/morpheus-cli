@@ -111,4 +111,8 @@ class Morpheus::APIClient
 		Morpheus::CustomInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
 
+	def dashboard
+		Morpheus::DashboardInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+	end
+
 end

@@ -61,7 +61,7 @@ module Morpheus
       end
 
       def all
-        @commands
+        @commands.reject {|cmd, klass| klass.hidden_command }
       end
 
       def get(cmd_name)

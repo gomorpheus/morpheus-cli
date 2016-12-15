@@ -34,15 +34,16 @@ module Morpheus
     require 'morpheus/api/roles_interface'
     require 'morpheus/api/key_pairs_interface'
     require 'morpheus/api/custom_instance_types_interface'
+    require 'morpheus/api/dashboard_interface'
   	
     require 'morpheus/cli/cli_command'
     require 'morpheus/cli/remote'
     require 'morpheus/cli/login'
     require 'morpheus/cli/logout'
     require 'morpheus/cli/whoami'
-    require 'morpheus/cli/version_command'
+    require 'morpheus/cli/dashboard_command'
+    require 'morpheus/cli/recent_activity_command'
     require 'morpheus/cli/credentials'
-  	require 'morpheus/cli/remote'
   	require 'morpheus/cli/groups'
   	require 'morpheus/cli/clouds'
   	require 'morpheus/cli/hosts'
@@ -65,6 +66,7 @@ module Morpheus
     require 'morpheus/cli/key_pairs'
     require 'morpheus/cli/virtual_images'
     require 'morpheus/cli/library'
+    require 'morpheus/cli/version_command'
     # Your code goes here...
   end
 end

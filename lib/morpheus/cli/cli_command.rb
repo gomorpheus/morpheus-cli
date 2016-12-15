@@ -141,7 +141,14 @@ module Morpheus
           Morpheus::Cli::CliRegistry.add(self, cmd_name)
         end
 
+        def cli_command_hidden(val=true)
+          @hidden_command = val
+        end
         
+        def hidden_command
+          !!@hidden_command
+        end
+
       end
     end
   end
