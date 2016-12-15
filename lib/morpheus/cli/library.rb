@@ -514,13 +514,13 @@ private
       port = {}
       #port['name'] ||= "Port #{port_index}"
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "Port #{port_index} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue': port['name']}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "Port #{port_index} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
       port['name'] = v_prompt[field_context]['name']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "Port #{port_index} Number", 'required' => true, 'description' => 'Choose port number.', 'defaultValue': (port['port'] ? port['port'].to_i : nil)}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "Port #{port_index} Number", 'required' => true, 'description' => 'Choose port number.', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
       port['port'] = v_prompt[field_context]['port']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "Port #{port_index} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue': port['loadBalanceProtocol']}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "Port #{port_index} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
       port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
 
       ports << port
