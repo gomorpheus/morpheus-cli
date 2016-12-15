@@ -9,9 +9,23 @@ class Morpheus::Cli::VersionCommand
 	def initialize
 	end
 
+  def usage
+    "morpheus version"
+  end
+
 	def handle(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = usage
+      opts.on('-v','--short', "Print only the client version number") do |val|
+        options[:short] = true
+      end
+      build_common_options(opts, options)
+    end
+    optparse.parse(args)
+
 		client_version = Morpheus::Cli::VERSION
-		 if args && args[0] == '-v'
+		 if options[:short]
     	puts client_version
     else
     	print cyan

@@ -41,7 +41,6 @@ class Morpheus::Cli::Whoami
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			build_common_options(opts, options, [:json]) # todo: support :remote too
 			opts.on(nil,'--feature-access', "Display Feature Access") do |val|
 				options[:include_feature_access] = true
 			end
@@ -60,6 +59,7 @@ class Morpheus::Cli::Whoami
 				options[:include_cloud_access] = true
 				options[:include_instance_type_access] = true
 			end
+			build_common_options(opts, options, [:json]) # todo: support :remote too
 		end
 		optparse.parse(args)
 
