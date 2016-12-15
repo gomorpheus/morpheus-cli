@@ -5,7 +5,7 @@ require 'morpheus/cli/option_types'
 module Morpheus::Cli::ProvisioningHelper
 
   def self.included(klass)
-    klass.include Morpheus::Cli::PrintHelper
+    klass.send :include, Morpheus::Cli::PrintHelper
   end
 
   # This recreates the behavior of multi_disk.js

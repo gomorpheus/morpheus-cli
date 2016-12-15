@@ -7,7 +7,7 @@ require 'morpheus/cli/mixins/print_helper'
 module Morpheus::Cli::WhoamiHelper
 
   def self.included(klass)
-    klass.include Morpheus::Cli::PrintHelper
+    klass.send :include, Morpheus::Cli::PrintHelper
   end
 
   def load_whoami()

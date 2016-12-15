@@ -4,7 +4,7 @@ require 'json'
 module Morpheus::Cli::PrintHelper
 
   def self.included(klass)
-    klass.include Term::ANSIColor
+    klass.send :include, Term::ANSIColor
   end
 
   def print_red_alert(msg)

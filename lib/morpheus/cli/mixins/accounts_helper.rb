@@ -7,7 +7,7 @@ require 'morpheus/cli/mixins/print_helper'
 module Morpheus::Cli::AccountsHelper
 
   def self.included(klass)
-    klass.include Morpheus::Cli::PrintHelper
+    klass.send :include, Morpheus::Cli::PrintHelper
   end
 
   def find_account_by_id(id)

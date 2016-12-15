@@ -8,7 +8,7 @@ module Morpheus
 
       def self.included(klass)
         Morpheus::Cli::CliRegistry.add(klass)
-        klass.include Morpheus::Cli::PrintHelper
+        klass.send :include, Morpheus::Cli::PrintHelper
         klass.extend ClassMethods
       end
 
