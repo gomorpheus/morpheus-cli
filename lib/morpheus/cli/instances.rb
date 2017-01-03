@@ -108,7 +108,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
 				options[:cloud] = val
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 			
 		end
 
@@ -227,6 +227,20 @@ class Morpheus::Cli::Instances
 		payload[:servicePlanOptions] = {}
 
 		begin
+			if options[:dry_run]
+				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+				print cyan
+				print "Request: ", "\n"
+				print reset
+				print "POST #{@appliance_url}/api/instances", "\n\n"
+				print cyan
+				print "JSON: ", "\n"
+				print reset
+				print JSON.pretty_generate(payload)
+				print "\n"
+				print reset
+				return
+			end
 			json_response = @instances_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)

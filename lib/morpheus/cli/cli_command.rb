@@ -104,6 +104,11 @@ module Morpheus
             opts.on('-j','--json', "JSON Output") do |json|
               options[:json] = true
             end
+
+          when :dry_run
+            opts.on('-d','--dry-run', "Dry Run, print json without making the actual request.") do |json|
+              options[:dry_run] = true
+            end
           
           else
             raise "Unknown common_option key: #{option_key}"
