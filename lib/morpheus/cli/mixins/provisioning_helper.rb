@@ -552,14 +552,14 @@ module Morpheus::Cli::ProvisioningHelper
       # choose network
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
       network_interface['network'] = {}
-      network_interface['network']['id'] = v_prompt[field_context]['networkId']
+      network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_i
 
       selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
 
       # choose network interface type
       if enable_network_type_selection && !network_interface_type_options.empty?
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => network_interface['networkInterfaceTypeId']}], options[:options])
-        network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId']
+        network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId'].to_i
       end
 
       # choose IP unless network has a pool configured
