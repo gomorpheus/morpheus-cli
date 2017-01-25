@@ -174,7 +174,32 @@ class Morpheus::Cli::Instances
 		
 		payload[:instance][:layout] = {id: layout['id']}
 
-		
+		begin
+			
+			network_interfaces = prompt_instance_networks(cloud, layout["provisionType"], options, @api_client)
+
+			# puts "NETWORK INTERFACES:"
+			# print JSON.pretty_generate(network_interfaces)
+
+			if !network_interfaces.empty?
+				payload[:networkInterfaces] = network_interfaces
+			end
+
+			# puts "\nexiting early...\n"
+			# exit 1
+
+		rescue RestClient::Exception => e
+			if e.response.code == 404
+				# older version of appliance
+				print_yellow_warning "Unable to load network options. Proceeding..."
+				# proceed...
+			else
+				print_red_alert "Unable to load network options."
+				print_rest_exception(e, options)
+				exit 1
+			end
+		end
+
 		begin
 			service_plan_options_json = @instance_types_interface.service_plan_options(plan_prompt['servicePlan'], {cloudId: cloud, zoneId: cloud, layoutId: layout_id})
 			
@@ -200,6 +225,8 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 
+		
+		
 		type_payload = {}
 		if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
 			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
@@ -212,8 +239,12 @@ class Morpheus::Cli::Instances
 
 		provision_payload = {}
 		if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
-			#puts "Checking for option Types"
-			provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+			instance_type_option_types = layout['provisionType']['optionTypes']
+			# remove networkId option if networks were configured above
+			if !payload[:networkInterfaces].empty?
+				instance_type_option_types = instance_type_option_types.reject {|opt| opt['fieldName'] == 'networkId' }
+			end
+			provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 
 		if !provision_payload.nil? && !provision_payload['config'].nil?

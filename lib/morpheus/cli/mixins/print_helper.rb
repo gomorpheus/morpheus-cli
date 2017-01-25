@@ -11,6 +11,10 @@ module Morpheus::Cli::PrintHelper
     print red, bold, "\n#{msg}\n\n", reset
   end
 
+  def print_yellow_warning(msg)
+    print yellow, bold, "\n#{msg}\n\n", reset
+  end
+
   def print_green_success(msg)
     print green, bold, "\n#{msg}\n\n", reset
   end

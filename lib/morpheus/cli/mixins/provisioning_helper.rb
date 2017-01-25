@@ -484,4 +484,104 @@ module Morpheus::Cli::ProvisioningHelper
     return volumes
   end
 
+
+  # This recreates the behavior of multi_networks.js
+  # returns array of networkInterfaces based on provision type and cloud settings
+  def prompt_instance_networks(zone_id, provision_type, options={}, api_client=nil)
+    #puts "Configure Networks:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+
+    # skip unless provision type supports networks
+    if !provision_type || !provision_type["hasNetworks"]
+      return nil
+    end
+    
+    network_interfaces = []
+
+    max_network_interfaces = provision_type["maxNetworks"] ? provision_type["maxNetworks"].to_i : nil
+
+    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type['id']})
+    zone_network_data = zone_network_options_json['data'] || {}
+    networks = zone_network_data['networks']
+    network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| y['sortOrder'] <=> x['sortOrder'] }
+    enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
+
+    # puts "zoneNetworkOptions JSON"
+    # puts JSON.pretty_generate(zone_network_options_json)    
+
+    if networks.empty?
+      return network_interfaces
+    end
+
+    network_options = []
+    networks.each do |opt|
+      if !opt.nil?
+        network_options << {'name' => opt['name'], 'value' => opt['id']}
+      end
+    end
+
+    #network_interface_types = provision_type['networkTypes'].sort { |x,y| y['sortOrder'] <=> x['sortOrder'] }
+    network_interface_type_options = []
+    network_interface_types.each do |opt|
+      if !opt.nil?
+        network_interface_type_options << {'name' => opt['name'], 'value' => opt['id']}
+      end
+    end
+
+
+    interface_index = 1
+    
+    # has_another_interface = options[:options] && options[:options]["networkInterface"]
+    # add_another_interface = has_another_interface || (!no_prompt)
+    add_another_interface = true
+    
+    while add_another_interface do
+      
+      # if !no_prompt
+      #   if interface_index == 1
+      #     puts "Configure Network Interface"
+      #   else
+      #     puts "Configure Network Interface #{interface_index}"
+      #   end
+      # end
+
+      field_context = interface_index == 1 ? "networkInterface" : "networkInterface#{interface_index}"
+      
+      network_interface = {}
+
+      # choose network
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
+      network_interface['network'] = {}
+      network_interface['network']['id'] = v_prompt[field_context]['networkId']
+
+      selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
+
+      # choose network interface type
+      if enable_network_type_selection && !network_interface_type_options.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => network_interface['networkInterfaceTypeId']}], options[:options])
+        network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId']
+      end
+
+      # choose IP unless network has a pool configured
+      if selected_network['pool']
+        puts "IP Address: Using pool '#{selected_network['pool']['name']}'"
+      elsif selected_network['dhcpServer']
+        puts "IP Address: Using DHCP"
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
+        network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
+      end
+      
+      network_interfaces << network_interface
+      
+      interface_index += 1
+      has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
+      add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?"))
+
+    end
+
+    return network_interfaces
+
+  end
+
 end
