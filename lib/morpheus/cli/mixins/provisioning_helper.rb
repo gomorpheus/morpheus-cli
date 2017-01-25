@@ -564,9 +564,9 @@ module Morpheus::Cli::ProvisioningHelper
 
       # choose IP unless network has a pool configured
       if selected_network['pool']
-        puts "IP Address: Using pool '#{selected_network['pool']['name']}'"
+        puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
       elsif selected_network['dhcpServer']
-        puts "IP Address: Using DHCP"
+        puts "IP Address: Using DHCP" if !no_prompt
       else
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
         network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
