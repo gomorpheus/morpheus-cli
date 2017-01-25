@@ -242,7 +242,9 @@ class Morpheus::Cli::Instances
 			instance_type_option_types = layout['provisionType']['optionTypes']
 			# remove networkId option if networks were configured above
 			if !payload[:networkInterfaces].empty?
-				instance_type_option_types = instance_type_option_types.reject {|opt| opt['fieldName'] == 'networkId' }
+				instance_type_option_types = instance_type_option_types.reject {|opt| 
+					['networkId', 'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers'].include?(opt['fieldName'])
+				}
 			end
 			provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
