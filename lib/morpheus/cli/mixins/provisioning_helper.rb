@@ -24,14 +24,18 @@ module Morpheus::Cli::ProvisioningHelper
     root_storage_types = []
     if plan_info['rootStorageTypes']
       plan_info['rootStorageTypes'].each do |opt|
-        root_storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        if !opt.nil?
+          root_storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        end
       end
     end
 
     storage_types = []
     if plan_info['storageTypes']
       plan_info['storageTypes'].each do |opt|
-        storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        if !opt.nil?
+          storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        end
       end
     end
 
@@ -39,14 +43,18 @@ module Morpheus::Cli::ProvisioningHelper
     if plan_info['supportsAutoDatastore']
       if plan_info['autoOptions']
         plan_info['autoOptions'].each do |opt|
-          datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+          if !opt.nil?
+            datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+          end
         end
       end
     end
     if plan_info['datastores']
       plan_info['datastores'].each do |k, v|
         v.each do |opt|
-          datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
+          if !opt.nil?
+            datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
+          end
         end
       end
     end
@@ -69,7 +77,9 @@ module Morpheus::Cli::ProvisioningHelper
     root_custom_size_options = []
     if plan_info['rootCustomSizeOptions'] && plan_info['rootCustomSizeOptions'][storage_type_id.to_s]
       plan_info['rootCustomSizeOptions'][storage_type_id.to_s].each do |opt|
-        root_custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+        if !opt.nil?
+          root_custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+        end
       end
     end
 
@@ -131,7 +141,9 @@ module Morpheus::Cli::ProvisioningHelper
         custom_size_options = []
         if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
           plan_info['customSizeOptions'][storage_type_id.to_s].each do |opt|
-            custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+            if !opt.nil?
+              custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+            end
           end
         end
 
@@ -207,14 +219,18 @@ module Morpheus::Cli::ProvisioningHelper
     root_storage_types = []
     if plan_info['rootStorageTypes']
       plan_info['rootStorageTypes'].each do |opt|
-        root_storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        if !opt.nil?
+          root_storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        end
       end
     end
 
     storage_types = []
     if plan_info['storageTypes']
       plan_info['storageTypes'].each do |opt|
-        storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        if !opt.nil?
+          storage_types << {'name' => opt['name'], 'value' => opt['id']}
+        end
       end
     end
 
@@ -222,14 +238,18 @@ module Morpheus::Cli::ProvisioningHelper
     if plan_info['supportsAutoDatastore']
       if plan_info['autoOptions']
         plan_info['autoOptions'].each do |opt|
-          datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+          if !opt.nil?
+            datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+          end
         end
       end
     end
     if plan_info['datastores']
       plan_info['datastores'].each do |k, v|
         v.each do |opt|
-          datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
+          if !opt.nil?
+            datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
+          end
         end
       end
     end
@@ -253,7 +273,9 @@ module Morpheus::Cli::ProvisioningHelper
     root_custom_size_options = []
     if plan_info['rootCustomSizeOptions'] && plan_info['rootCustomSizeOptions'][storage_type_id.to_s]
       plan_info['rootCustomSizeOptions'][storage_type_id.to_s].each do |opt|
-        root_custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+        if !opt.nil?
+          root_custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+        end
       end
     end
 
@@ -334,7 +356,9 @@ module Morpheus::Cli::ProvisioningHelper
           custom_size_options = []
           if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
             plan_info['customSizeOptions'][storage_type_id.to_s].each do |opt|
-              custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+              if !opt.nil?
+                custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+              end
             end
           end
 
@@ -401,7 +425,9 @@ module Morpheus::Cli::ProvisioningHelper
         custom_size_options = []
         if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
           plan_info['customSizeOptions'][storage_type_id.to_s].each do |opt|
-            custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+            if !opt.nil?
+              custom_size_options << {'name' => opt['value'], 'value' => opt['key']}
+            end
           end
         end
 
