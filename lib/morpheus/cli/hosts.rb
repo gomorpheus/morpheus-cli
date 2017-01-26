@@ -165,7 +165,7 @@ class Morpheus::Cli::Hosts
 			opts.on( '-t', '--type TYPE', "Server Type" ) do |server_type|
 				options[:server_type] = server_type
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"
@@ -209,8 +209,22 @@ class Morpheus::Cli::Hosts
 		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options],@api_client, options[:params])
 		begin
 			params['server'] = params['server'] || {}
-			server_payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
-			json_response = @servers_interface.create(server_payload)
+			payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
+			if options[:dry_run]
+				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+				print cyan
+				print "Request: ", "\n"
+				print reset
+				print "POST #{@appliance_url}/api/servers", "\n\n"
+				print cyan
+				print "JSON: ", "\n"
+				print reset
+				print JSON.pretty_generate(payload)
+				print "\n"
+				print reset
+				return
+			end
+			json_response = @servers_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
