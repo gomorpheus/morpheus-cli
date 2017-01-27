@@ -3,11 +3,13 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/option_types'
 require 'json'
 
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -180,7 +182,7 @@ class Morpheus::Cli::Hosts
 		zone=nil
 		if !options[:zone].nil?
 			zone = find_zone_by_name(nil, options[:zone])
-			options[:params][:zoneId] = zone['id']
+			options[:params][:zoneId] = zone['id'] if zone
 		end
 
 		if zone.nil?
@@ -206,10 +208,37 @@ class Morpheus::Cli::Hosts
 			exit 1
 		end
 
-		params = Morpheus::Cli::OptionTypes.prompt(server_type['optionTypes'],options[:options],@api_client, options[:params])
+		payload = {}
+		
+		# prompt for network interfaces (if supported)
+		if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
+			begin
+				network_interfaces = prompt_network_interfaces(zone['id'], server_type["provisionType"]["id"], options, @api_client)
+				if !network_interfaces.empty?
+					payload[:networkInterfaces] = network_interfaces
+				end
+			rescue RestClient::Exception => e
+				print_yellow_warning "Unable to load network options. Proceeding..."
+				print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+			end
+		end
+
+		server_type_option_types = server_type['optionTypes']
+		# remove networkId option if networks were configured above
+		if !payload[:networkInterfaces].empty?
+			server_type_option_types = reject_networking_option_types(server_type_option_types)
+		end
+
+		puts "\\nnoptions[:params] is: #{options[:params]}\n\n"
+
+		params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, options[:params])
 		begin
 			params['server'] = params['server'] || {}
-			payload = {server: {name: name, zone: {id: zone['id']}, computeServerType: [id: server_type['id']]}.merge(params['server']), config: params['config'], network: params['network']}
+			payload = payload.merge({
+				server: {name: name, zone: {id: zone['id']}, computeServerType: {id: server_type['id']}}.merge(params['server'])
+			})
+			payload[:network] = params['network'] if params['network']
+			payload[:config] = params['config'] if params['config']
 			if options[:dry_run]
 				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
 				print cyan

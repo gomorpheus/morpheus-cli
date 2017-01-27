@@ -486,29 +486,30 @@ module Morpheus::Cli::ProvisioningHelper
 
 
   # This recreates the behavior of multi_networks.js
+  # This is used by both `instances add` and `hosts add`
   # returns array of networkInterfaces based on provision type and cloud settings
-  def prompt_instance_networks(zone_id, provision_type, options={}, api_client=nil)
+  def prompt_network_interfaces(zone_id, provision_type_id, options={}, api_client=nil)
     #puts "Configure Networks:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-
-    # skip unless provision type supports networks
-    if !provision_type || !provision_type["hasNetworks"]
-      return nil
-    end
     
     network_interfaces = []
 
-    max_network_interfaces = provision_type["maxNetworks"] ? provision_type["maxNetworks"].to_i : nil
-
-    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type['id']})
+    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type_id})
+    # puts "zoneNetworkOptions JSON"
+    # puts JSON.pretty_generate(zone_network_options_json)    
     zone_network_data = zone_network_options_json['data'] || {}
     networks = zone_network_data['networks']
     network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| y['sortOrder'] <=> x['sortOrder'] }
     enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
+    has_networks = zone_network_data["hasNetworks"] == true
+    max_networks = zone_network_data["maxNetworks"] ? zone_network_data["maxNetworks"].to_i : nil
 
-    # puts "zoneNetworkOptions JSON"
-    # puts JSON.pretty_generate(zone_network_options_json)    
+    # skip unless provision type supports networks
+    if !has_networks
+      return nil
+    end
 
+    # no networks available, shouldn't happen
     if networks.empty?
       return network_interfaces
     end
@@ -520,7 +521,6 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    #network_interface_types = provision_type['networkTypes'].sort { |x,y| y['sortOrder'] <=> x['sortOrder'] }
     network_interface_type_options = []
     network_interface_types.each do |opt|
       if !opt.nil?
@@ -577,11 +577,24 @@ module Morpheus::Cli::ProvisioningHelper
       interface_index += 1
       has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
       add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?"))
+      if max_networks && network_interfaces.size >= max_networks
+        add_another_interface = false
+      end
 
     end
 
     return network_interfaces
 
+  end
+
+  # reject old networking option types
+  # these will eventually get removed from the server
+  def reject_networking_option_types(option_types)
+    option_types.reject {|opt| 
+        ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
+          'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers'
+        ].include?(opt['fieldName'])
+      }
   end
 
 end
