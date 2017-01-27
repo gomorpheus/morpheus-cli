@@ -174,19 +174,6 @@ class Morpheus::Cli::Instances
 		
 		payload[:instance][:layout] = {id: layout['id']}
 
-		if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
-			# prompt for network interfaces (if supported)
-			begin
-				network_interfaces = prompt_network_interfaces(cloud, layout["provisionType"]["id"], options, @api_client)
-				if !network_interfaces.empty?
-					payload[:networkInterfaces] = network_interfaces
-				end
-			rescue RestClient::Exception => e
-				print_yellow_warning "Unable to load network options. Proceeding..."
-				print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
-			end
-		end
-
 		begin
 			service_plan_options_json = @instance_types_interface.service_plan_options(plan_prompt['servicePlan'], {cloudId: cloud, zoneId: cloud, layoutId: layout_id})
 			
@@ -211,7 +198,19 @@ class Morpheus::Cli::Instances
 			print_rest_exception(e, options)
 			exit 1
 		end
-
+		
+		if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
+			# prompt for network interfaces (if supported)
+			begin
+				network_interfaces = prompt_network_interfaces(cloud, layout["provisionType"]["id"], options, @api_client)
+				if !network_interfaces.empty?
+					payload[:networkInterfaces] = network_interfaces
+				end
+			rescue RestClient::Exception => e
+				print_yellow_warning "Unable to load network options. Proceeding..."
+				print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+			end
+		end
 		
 		
 		type_payload = {}
