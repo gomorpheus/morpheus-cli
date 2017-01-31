@@ -27,12 +27,13 @@ class Morpheus::Cli::Apps
 	end
 
 	def handle(args) 
-		usage = "Usage: morpheus apps [list,add,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]"
+		usage = "Usage: morpheus apps [list,remove,stop,start,restart,resize,upgrade,clone,envs,setenv,delenv,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]"
 		case args[0]
 			when 'list'
 				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
+			# JD: this has never worked, it is time to implement it!
+			# when 'add'
+			# 	add(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			when 'stop'
@@ -101,6 +102,7 @@ class Morpheus::Cli::Apps
 			}
 		}
 
+		# JD: this is old and busted.. appTypeLayouts is not returned..
 		instance_type['appTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
 		puts "Configurations: "
 		instance_type['appTypeLayouts'].each_with_index do |layout, index|
