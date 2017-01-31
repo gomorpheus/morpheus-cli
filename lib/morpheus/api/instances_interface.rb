@@ -155,10 +155,17 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/instances/#{id}/security-groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		puts "payload #{payload}"
 		response = Morpheus::RestClient.execute(method: :post, url: url,
                             timeout: 30, headers: headers,verify_ssl: false, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 	
+	def service_plans(params)
+		url = "#{@base_url}/api/instances/service-plans"
+		headers = { params: params, authorization: "Bearer #{@access_token}" }
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers, verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
 end

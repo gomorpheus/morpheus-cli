@@ -192,7 +192,7 @@ class Morpheus::Cli::Hosts
 			zone_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
 
-		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true }
+		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true }.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
 		if options[:server_type]
 			server_type_code = options[:server_type]
 		else
@@ -210,6 +210,20 @@ class Morpheus::Cli::Hosts
 
 		payload = {}
 		
+		# prompt for service plan
+		service_plans_json = @servers_interface.service_plans({zoneId: zone['id'], serverTypeId: server_type["id"]})
+		service_plans = service_plans_json["plans"]
+		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
+		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
+		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
+		# payload[:servicePlan] = plan_prompt['servicePlan']
+
+		# prompt for volumes
+		volumes = prompt_volumes(service_plan, options, @api_client, {})
+		if !volumes.empty?
+			payload[:volumes] = volumes
+		end
+
 		# prompt for network interfaces (if supported)
 		if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
 			begin
@@ -224,18 +238,25 @@ class Morpheus::Cli::Hosts
 		end
 
 		server_type_option_types = server_type['optionTypes']
+		# remove volume options if volumes were configured
+		if !payload[:volumes].empty?
+			server_type_option_types = reject_volume_option_types(server_type_option_types)
+		end
 		# remove networkId option if networks were configured above
 		if !payload[:networkInterfaces].empty?
 			server_type_option_types = reject_networking_option_types(server_type_option_types)
 		end
 
-		puts "\\nnoptions[:params] is: #{options[:params]}\n\n"
-
 		params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, options[:params])
 		begin
 			params['server'] = params['server'] || {}
 			payload = payload.merge({
-				server: {name: name, zone: {id: zone['id']}, computeServerType: {id: server_type['id']}}.merge(params['server'])
+				server: {
+					name: name, 
+					zone: {id: zone['id']}, 
+					computeServerType: {id: server_type['id']},
+					servicePlan: {id: service_plan["id"]}
+				}.merge(params['server'])
 			})
 			payload[:network] = params['network'] if params['network']
 			payload[:config] = params['config'] if params['config']
@@ -569,8 +590,8 @@ private
 		return group_results['groups'][0]
 	end
 
-	def find_zone_by_name(groupId, name)
-		zone_results = @clouds_interface.get({groupId: groupId, name: name})
+	def find_zone_by_name(group_id, name)
+		zone_results = @clouds_interface.get({groupId: group_id, name: name})
 		if zone_results['zones'].empty?
 			puts "Zone not found by name #{name}"
 			return nil

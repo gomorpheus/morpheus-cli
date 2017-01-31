@@ -124,17 +124,14 @@ class Morpheus::Cli::Instances
 		if instance_type.nil?
 			exit 1
 		end
-		groupId = nil
+		group_id = nil
 		if !options[:group].nil?
-			group = find_group_by_name(options[:group])
-			if !group.nil?
-				groupId = group
-			end
+			group_id = find_group_by_name(options[:group])
 		else
-			groupId = @active_groups[@appliance_name.to_sym]	
+			group_id = @active_groups[@appliance_name.to_sym]	
 		end
 
-		if groupId.nil?
+		if group_id.nil?
 			puts "Group not found or specified! \n #{optparse}"
 			exit 1
 		end
@@ -143,19 +140,19 @@ class Morpheus::Cli::Instances
 			puts "Cloud not specified! \n #{optparse}"
 			exit 1
 		end
-		cloud = find_cloud_by_name(groupId,options[:cloud])
-		if cloud.nil?
+		cloud_id = find_cloud_by_name(group_id, options[:cloud])
+		if cloud_id.nil?
 			puts "Cloud not found! \n #{optparse}"
 			exit 1
 		end
 
 		payload = {
 			:servicePlan => nil,
-			:zoneId => cloud,
+			:zoneId => cloud_id,
 			:instance => {
 				:name => instance_name,
 				:site => {
-					:id => groupId
+					:id => group_id
 				},
 				:instanceType => {
 					:code => instance_type_code
@@ -163,46 +160,30 @@ class Morpheus::Cli::Instances
 			}
 		}
 
-		version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id']})
-		layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+		version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+		layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		layout_id = layout_prompt['layout']
-		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
-		payload[:servicePlan] = plan_prompt['servicePlan']
-
-		layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'].to_i == layout_id.to_i}
-		instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
-		
+		layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}
 		payload[:instance][:layout] = {id: layout['id']}
 
-		begin
-			service_plan_options_json = @instance_types_interface.service_plan_options(plan_prompt['servicePlan'], {cloudId: cloud, zoneId: cloud, layoutId: layout_id})
-			
-			# puts ""
-			# print JSON.pretty_generate(service_plan_options_json)
-			
-			plan_options = service_plan_options_json['plan']
-			volumes = prompt_instance_volumes(plan_options, options, @api_client, {})
+		# prompt for service plan
+		service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+		service_plans = service_plans_json["plans"]
+		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
+		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
+		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
+		payload[:servicePlan] = service_plan["id"]
 
-			# puts "VOLUMES:"
-			# print JSON.pretty_generate(volumes)
-
-			if !volumes.empty?
-				payload[:volumes] = volumes
-			end
-
-			# puts "\nexiting early...\n"
-			# exit 1
-
-		rescue RestClient::Exception => e
-			print_red_alert "Unable to load options for selected plan."
-			print_rest_exception(e, options)
-			exit 1
+		# prompt for volumes
+		volumes = prompt_volumes(service_plan, options, @api_client, {})
+		if !volumes.empty?
+			payload[:volumes] = volumes
 		end
-		
+
 		if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
 			# prompt for network interfaces (if supported)
 			begin
-				network_interfaces = prompt_network_interfaces(cloud, layout["provisionType"]["id"], options, @api_client)
+				network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options, @api_client)
 				if !network_interfaces.empty?
 					payload[:networkInterfaces] = network_interfaces
 				end
@@ -215,9 +196,9 @@ class Morpheus::Cli::Instances
 		
 		type_payload = {}
 		if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
-			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
-			type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+			type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 		if !type_payload['config'].nil?
 			payload.merge!(type_payload['config'])
@@ -226,11 +207,15 @@ class Morpheus::Cli::Instances
 		provision_payload = {}
 		if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
 			instance_type_option_types = layout['provisionType']['optionTypes']
+			# remove volume options if volumes were configured
+			if !payload[:volumes].empty?
+				instance_type_option_types = reject_volume_option_types(instance_type_option_types)
+			end
 			# remove networkId option if networks were configured above
 			if !payload[:networkInterfaces].empty?
 				instance_type_option_types = reject_networking_option_types(instance_type_option_types)
 			end
-			provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+			provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
 		end
 
 		if !provision_payload.nil? && !provision_payload['config'].nil?
@@ -677,46 +662,28 @@ class Morpheus::Cli::Instances
 
 			puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
 
-
-			#plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
-			available_plans_result = @options_interface.options_for_source('instanceServicePlans',{groupId: group_id, zoneId: cloud_id, instanceTypeId: instance['instanceType']['id'], layoutId: layout_id, version: instance['instanceVersion']})
-			available_plans = available_plans_result['data']
-			available_plans.each do |plan|
+			# prompt for service plan
+			service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+			service_plans = service_plans_json["plans"]
+			service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
+			service_plans_dropdown.each do |plan|
 				if plan['value'] && plan['value'].to_i == plan_id.to_i
 					plan['name'] = "#{plan['name']} (current)"
 				end
 			end
-
-			plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'New Plan', 'selectOptions' => available_plans, 'required' => true, 'description' => 'Choose the new plan for this instance'}],options[:options] )
-			new_plan_id = plan_prompt['servicePlan']
+			plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
+			service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
+			new_plan_id = service_plan["id"]
+			#payload[:servicePlan] = new_plan_id # ew, this api uses servicePlanId instead
 			payload[:servicePlanId] = new_plan_id
 
 			volumes_response = @instances_interface.volumes(instance['id'])
 			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
-			begin
-				service_plan_options_json = @instance_types_interface.service_plan_options(new_plan_id, {cloudId: cloud_id, zoneId: cloud_id, layoutId: layout_id})
-				
-				# puts ""
-				# print JSON.pretty_generate(service_plan_options_json)
-				
-				plan_options = service_plan_options_json['plan']
-				volumes = prompt_resize_instance_volumes(current_volumes, plan_options, options, @api_client, {})
-
-				# puts "VOLUMES:"
-				# print JSON.pretty_generate(volumes)
-
-				if !volumes.empty?
-					payload[:volumes] = volumes
-				end
-
-				# puts "\nexiting early...\n"
-				# exit 1
-
-			rescue RestClient::Exception => e
-				print_red_alert "Unable to load options for selected plan."
-				print_rest_exception(e, options)
-				exit 1
+			# prompt for volumes
+			volumes = prompt_resize_volumes(current_volumes, service_plan, options, @api_client, {})
+			if !volumes.empty?
+				payload[:volumes] = volumes
 			end
 
 			# only amazon supports this option
@@ -1065,8 +1032,8 @@ private
 		end
 	end
 
-	def find_cloud_by_name(groupId,name)
-		option_results = @options_interface.options_for_source('clouds',{groupId: groupId})
+	def find_cloud_by_name(group_id, name)
+		option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
 		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
 		if match.nil?
 			return nil

@@ -107,4 +107,13 @@ class Morpheus::ServersInterface < Morpheus::APIClient
                             timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
+
+	def service_plans(params)
+		url = "#{@base_url}/api/servers/service-plans"
+		headers = { params: params, authorization: "Bearer #{@access_token}" }
+		response = Morpheus::RestClient.execute(method: :get, url: url,
+                            timeout: 30, headers: headers, verify_ssl: false)
+		JSON.parse(response.to_s)
+	end
+
 end

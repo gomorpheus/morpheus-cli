@@ -22,6 +22,7 @@ class Morpheus::Cli::AppTemplates
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 	end
@@ -352,40 +353,17 @@ class Morpheus::Cli::AppTemplates
       exit 1
     end
 
-    groupId = app_template['config']['siteId']
-    # groupId = nil
-    # if !options[:group].nil?
-    #   group = find_group_by_name(options[:group])
-    #   if !group.nil?
-    #     groupId = group
-    #   end
-    # else
-    #   groupId = @active_groups[@appliance_name.to_sym]  
-    # end
+    group_id = app_template['config']['siteId']
 
-    if groupId.nil?
+    if group_id.nil?
       #puts "Group not found or specified! \n #{optparse}"
       print_red_alert("Group not found or specified for this template!")
       puts "#{optparse}"
       exit 1
     end
 
-    cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: groupId})
-    cloud = cloud_prompt['cloud']
-
-    # if options[:cloud].nil?
-    #   #puts "Cloud not specified! \n #{optparse}"
-    #   print_red_alert("Cloud not specified!")
-    #   puts "#{optparse}"
-    #   exit 1
-    # end
-    # cloud = find_cloud_by_name(groupId,options[:cloud])
-    # if cloud.nil?
-    #   #puts "Cloud not found! \n #{optparse}"
-    #   #print_red_alert("Cloud not found!")
-    #   puts "#{optparse}"
-    #   exit 1
-    # end
+    cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})
+    cloud_id = cloud_prompt['cloud']
 
 
     instance_option_types = [{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text'}]
@@ -395,11 +373,11 @@ class Morpheus::Cli::AppTemplates
     # copied from instances command, this payload isn't used
     payload = {
       :servicePlan => nil,
-      zoneId: cloud,
+      :zoneId => cloud_id,
       :instance => {
         :name => instance_name,
         :site => {
-          :id => groupId
+          :id => group_id
         },
         :instanceType => {
           :code => instance_type_code
@@ -407,22 +385,26 @@ class Morpheus::Cli::AppTemplates
       }
     }
 
-    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id']})
-    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: groupId, cloudId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     layout_id = layout_prompt['layout']
-    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'optionSource' => 'instanceServicePlans', 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options],@api_client,{groupId: groupId, zoneId: cloud, instanceTypeId: instance_type['id'], layoutId: layout_id, version: version_prompt['version']})
-    payload[:servicePlan] = plan_prompt['servicePlan']
-
     layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'].to_i == layout_id.to_i}
-    instance_type['instanceTypeLayouts'].sort! { |x,y| y['sortOrder'] <=> x['sortOrder'] }
-    
     payload[:instance][:layout] = {id: layout['id']}
+
+    # prompt for service plan
+    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+    service_plans = service_plans_json["plans"]
+    service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
+    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
+    service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
+    payload[:servicePlan] = service_plan["id"]
+    
 
     type_payload = {}
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     end
     if !type_payload['config'].nil?
       payload.merge!(type_payload['config'])
@@ -431,7 +413,7 @@ class Morpheus::Cli::AppTemplates
     provision_payload = {}
     if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
       puts "Checking for option Types"
-      provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: groupId, cloudId: cloud, zoneId: cloud, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+      provision_payload = Morpheus::Cli::OptionTypes.prompt(layout['provisionType']['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     end
 
     if !provision_payload.nil? && !provision_payload['config'].nil?
@@ -491,8 +473,8 @@ class Morpheus::Cli::AppTemplates
         # "volumes.storageType": nil,
 
         "version"=>version_prompt['version'],
-        "siteId"=>groupId.to_s,
-        "zoneId"=>cloud.to_s
+        "siteId"=>group_id.to_s,
+        "zoneId"=>cloud_id.to_s
       }, 
       "grabbable"=>true, "group"=>"nodes", "locked"=>false, 
       #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824}, 
@@ -845,8 +827,8 @@ private
     return group_results['groups'][0]
   end
 
-  def find_cloud_by_name(groupId,name)
-    option_results = @options_interface.options_for_source('clouds',{groupId: groupId})
+  def find_cloud_by_name(group_id, name)
+    option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
     match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
     if match.nil?
       print_red_alert "Cloud not found by name #{name}"

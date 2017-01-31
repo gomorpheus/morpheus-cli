@@ -10,7 +10,7 @@ module Morpheus::Cli::ProvisioningHelper
 
   # This recreates the behavior of multi_disk.js
   # returns array of volumes based on service plan options (plan_info)
-  def prompt_instance_volumes(plan_info, options={}, api_client=nil, api_params={})
+  def prompt_volumes(plan_info, options={}, api_client=nil, api_params={})
     #puts "Configure Volumes:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
 
@@ -203,7 +203,7 @@ module Morpheus::Cli::ProvisioningHelper
 
   # This recreates the behavior of multi_disk.js
   # returns array of volumes based on service plan options (plan_info)
-  def prompt_resize_instance_volumes(current_volumes, plan_info, options={}, api_client=nil, api_params={})
+  def prompt_resize_volumes(current_volumes, plan_info, options={}, api_client=nil, api_params={})
     #puts "Configure Volumes:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
 
@@ -499,7 +499,7 @@ module Morpheus::Cli::ProvisioningHelper
     # puts JSON.pretty_generate(zone_network_options_json)    
     zone_network_data = zone_network_options_json['data'] || {}
     networks = zone_network_data['networks']
-    network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| y['sortOrder'] <=> x['sortOrder'] }
+    network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
     enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
     has_networks = zone_network_data["hasNetworks"] == true
     max_networks = zone_network_data["maxNetworks"] ? zone_network_data["maxNetworks"].to_i : nil
@@ -587,8 +587,18 @@ module Morpheus::Cli::ProvisioningHelper
 
   end
 
+  # reject old volume option types
+  # these will eventually get removed from the associated optionTypes
+  def reject_volume_option_types(option_types)
+    option_types.reject {|opt| 
+        ['osDiskSize', 'osDiskType',
+          'diskSize', 'diskType'
+        ].include?(opt['fieldName'])
+      }
+  end
+
   # reject old networking option types
-  # these will eventually get removed from the server
+  # these will eventually get removed from the associated optionTypes
   def reject_networking_option_types(option_types)
     option_types.reject {|opt| 
         ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
