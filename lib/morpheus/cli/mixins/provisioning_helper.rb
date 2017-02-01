@@ -608,4 +608,12 @@ module Morpheus::Cli::ProvisioningHelper
       }
   end
 
+  # reject old option types that now come from the selected service plan
+  # these will eventually get removed from the associated optionTypes
+  def reject_service_plan_option_types(option_types)
+    option_types.reject {|opt| 
+        ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
+      }
+  end
+
 end

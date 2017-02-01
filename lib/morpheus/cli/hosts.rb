@@ -246,6 +246,8 @@ class Morpheus::Cli::Hosts
 		if !payload[:networkInterfaces].empty?
 			server_type_option_types = reject_networking_option_types(server_type_option_types)
 		end
+		# remove cpu and memory option types, which now come from the plan
+		server_type_option_types = reject_service_plan_option_types(server_type_option_types)
 
 		params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, options[:params])
 		begin
