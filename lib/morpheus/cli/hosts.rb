@@ -255,7 +255,7 @@ class Morpheus::Cli::Hosts
 					name: name, 
 					zone: {id: zone['id']}, 
 					computeServerType: {id: server_type['id']},
-					servicePlan: {id: service_plan["id"]}
+					plan: {id: service_plan["id"]}
 				}.merge(params['server'])
 			})
 			payload[:network] = params['network'] if params['network']
