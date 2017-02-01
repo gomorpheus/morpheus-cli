@@ -592,7 +592,8 @@ module Morpheus::Cli::ProvisioningHelper
   def reject_volume_option_types(option_types)
     option_types.reject {|opt| 
         ['osDiskSize', 'osDiskType',
-          'diskSize', 'diskType'
+          'diskSize', 'diskType',
+          'datastoreId', 'storagePodId'
         ].include?(opt['fieldName'])
       }
   end
