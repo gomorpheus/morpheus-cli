@@ -312,7 +312,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			container_ids = instance['containers']
 			if options[:node_id] && container_ids.include?(options[:node_id])
 				container_ids = [options[:node_id]]
@@ -389,7 +389,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			env_results = @instances_interface.get_envs(instance['id'])
 			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
 			envs = env_results['envs'] || {}
@@ -428,7 +428,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			evar = {name: args[1], value: args[2], export: options[:export], masked: options[:masked]}
 			params = {}
 			@instances_interface.create_env(instance['id'], [evar])
@@ -452,7 +452,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			@instances_interface.del_env(instance['id'], args[1])
 			envs([args[0]])
 		rescue RestClient::Exception => e
@@ -474,7 +474,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
 			end
@@ -503,7 +503,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			json_response = @instances_interface.start(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -529,7 +529,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
 			end
@@ -558,7 +558,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
 			end
@@ -589,7 +589,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			json_response = @instances_interface.start(instance['id'],false)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -617,7 +617,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
 			end
@@ -648,7 +648,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 
 			group_id = instance['group']['id']
 			cloud_id = instance['cloud']['id']
@@ -718,7 +718,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			json_response = @instances_interface.backup(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -816,8 +816,8 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
-			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this instance?", options)
+			instance = find_instance_by_name_or_id(args[0])
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the instance '#{instance['name']}'?", options)
 				exit 1
 			end
 			@instances_interface.destroy(instance['id'],query_params)
@@ -841,7 +841,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			@instances_interface.firewall_disable(instance['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
@@ -889,7 +889,7 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			instance_id = instance['id']
 			json_response = @instances_interface.security_groups(instance_id)
 
@@ -939,7 +939,7 @@ class Morpheus::Cli::Instances
 		end
 
 		begin
-			instance = find_instance_by_name(args[0])
+			instance = find_instance_by_name_or_id(args[0])
 			@instances_interface.apply_security_groups(instance['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
@@ -963,7 +963,7 @@ class Morpheus::Cli::Instances
 		
 		optparse.parse(args)
 		connect(options)
-		instance = find_instance_by_name(args[0])
+		instance = find_instance_by_name_or_id(args[0])
 		workflow = find_workflow_by_name(args[1])
 		task_types = @tasks_interface.task_types()
 		editable_options = []
@@ -1005,6 +1005,15 @@ class Morpheus::Cli::Instances
 
 private 
 	
+	def find_instance_by_id(id)
+		instance_results = @instances_interface.get(id.to_i)
+		if instance_results['instance'].empty?
+			print_red_alert "Instance not found by id #{id}"
+			exit 1
+		end
+		return instance_results['instance']
+	end
+
 	def find_instance_by_name(name)
 		instance_results = @instances_interface.get({name: name})
 		if instance_results['instances'].empty?
@@ -1013,6 +1022,15 @@ private
 		end
 		return instance_results['instances'][0]
 	end
+
+	def find_instance_by_name_or_id(val)
+		if val.to_s =~ /\A\d{1,}\Z/
+			return find_instance_by_id(val)
+		else
+			return find_instance_by_name(val)
+		end
+	end
+
 	def find_workflow_by_name(name)
 		task_set_results = @task_sets_interface.get(name)
 		if !task_set_results['taskSets'].nil? && !task_set_results['taskSets'].empty?
@@ -1022,6 +1040,7 @@ private
 			exit 1
 		end
 	end
+
 	def find_group_by_name(name)
 		option_results = @options_interface.options_for_source('groups',{})
 		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
