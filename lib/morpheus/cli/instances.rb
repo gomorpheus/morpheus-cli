@@ -646,7 +646,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances resize [name]"
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
@@ -697,6 +697,20 @@ class Morpheus::Cli::Instances
 			# for now, always do this
 			payload[:deleteOriginalVolumes] = true
 
+			if options[:dry_run]
+				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+				print cyan
+				print "Request: ", "\n"
+				print reset
+				print "POST #{@appliance_url}/api/instances/#{instance['id']}", "\n\n"
+				print cyan
+				print "JSON: ", "\n"
+				print reset
+				print JSON.pretty_generate(payload)
+				print "\n"
+				print reset
+				return
+			end
 			json_response = @instances_interface.resize(instance['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
