@@ -147,7 +147,6 @@ class Morpheus::Cli::Instances
 		end
 
 		payload = {
-			:servicePlan => nil,
 			:zoneId => cloud_id,
 			:instance => {
 				:name => instance_name,
@@ -172,7 +171,8 @@ class Morpheus::Cli::Instances
 		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
 		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
 		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
-		payload[:servicePlan] = service_plan["id"]
+		payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
+		payload[:servicePlanId] = service_plan["id"]
 
 		# prompt for volumes
 		volumes = prompt_volumes(service_plan, options, @api_client, {})
@@ -226,7 +226,7 @@ class Morpheus::Cli::Instances
 		end
 
 		# avoid 500 error
-		payload[:servicePlanOptions] = {}
+		# payload[:servicePlanOptions] = {}
 
 		begin
 			if options[:dry_run]
@@ -665,7 +665,7 @@ class Morpheus::Cli::Instances
 			payload = {}
 
 			# avoid 500 error
-			payload[:servicePlanOptions] = {}
+			# payload[:servicePlanOptions] = {}
 
 			puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
 
