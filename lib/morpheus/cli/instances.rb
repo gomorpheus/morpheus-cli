@@ -353,23 +353,30 @@ class Morpheus::Cli::Instances
 		end
 		if args.count < 1
 			puts "\n#{optparse.banner}\n\n"
-			return
+			exit 1
 		end
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance_results = @instances_interface.get({name: args[0]})
+			# JD: woah..fix the api withStats logic.. until then re-fetch via index?name=
+			instance = find_instance_by_name_or_id(args[0])
+			instance_results = @instances_interface.get({name: instance['name']})
 			if instance_results['instances'].empty?
 				puts "Instance not found by name #{args[0]}"
-				return
+				exit 1
 			end
 			instance = instance_results['instances'][0]
 			instance_id = instance['id']
 			stats = instance_results['stats'][instance_id.to_s]
+			if options[:json]
+				print JSON.pretty_generate({instance: instance, stats: stats})
+				return
+			end
 			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", reset, "\n\n"
 			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
-			puts instance
+			# TODO: print useful info
+			#puts instance
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
