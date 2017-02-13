@@ -673,8 +673,8 @@ class Morpheus::Cli::Instances
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
+				options[:group_name] = val
 			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
@@ -682,11 +682,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			params = {}
-			if !options[:group].nil?
-				group = find_group_by_name(options[:group])
-				if !group.nil?
-					params['site'] = group
-				end
+			group = find_group_from_options(options)
+			if group
+				params['site'] = group['id']
 			end
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
@@ -978,32 +976,4 @@ private
 		end
 	end
 
-	# def find_group_by_name(name)
-	# 	option_results = @options_interface.options_for_source('groups',{})
-	# 	match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-	# 	if match.nil?
-	# 		return nil
-	# 	else
-	# 		return match['value']
-	# 	end
-	# end
-
-	# def find_cloud_by_name(group_id, name)
-	# 	option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
-	# 	match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-	# 	if match.nil?
-	# 		return nil
-	# 	else
-	# 		return match['value']
-	# 	end
-	# end
-
-	# def find_instance_type_by_code(code)
-	# 	instance_type_results = @instance_types_interface.get({code: code})
-	# 	if instance_type_results['instanceTypes'].empty?
-	# 		puts "Instance Type not found by code #{code}"
-	# 		return nil
-	# 	end
-	# 	return instance_type_results['instanceTypes'][0]
-	# end
 end

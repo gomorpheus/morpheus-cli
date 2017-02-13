@@ -26,7 +26,7 @@ module Morpheus::Cli::ProvisioningHelper
     if !group["clouds"] || refresh
       option_results = @options_interface.options_for_source('clouds', {groupId: group_id})
       group["clouds"] = option_results['data'].collect {|it|
-        {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+        {"id" => it["value"], "name" => it["name"], "value" => it["value"], "zoneTypeId" => it["zoneTypeId"]}
       }
     end
     return group["clouds"]

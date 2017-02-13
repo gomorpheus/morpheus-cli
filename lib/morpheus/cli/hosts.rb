@@ -13,7 +13,6 @@ class Morpheus::Cli::Hosts
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
 	def connect(opts)
@@ -26,12 +25,12 @@ class Morpheus::Cli::Hosts
 		end
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
-		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
 		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
 		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
-		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
 			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			exit 1
@@ -83,7 +82,7 @@ class Morpheus::Cli::Hosts
 		optparse.parse(args)
 		connect(options)
 		begin
-			host = find_host_by_name(args[0])
+			host = find_host_by_name_or_id(args[0])
 			logs = @logs_interface.server_logs([host['id']], { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
 			if options[:json]
 				print JSON.pretty_generate(logs)
@@ -128,18 +127,17 @@ class Morpheus::Cli::Hosts
 		
 		zone=nil
 
-
 		if !options[:zone].nil?
 			zone = find_zone_by_name(nil, options[:zone])
 		end
 
 		if zone.nil?
-			print_red_alert "Cloud not found"
+			print_red_alert "Cloud not found for a"
 			exit 1
 		else
-			zone_type = cloud_type_for_id(zone['zoneTypeId'])
+			cloud_type = cloud_type_for_id(zone['zoneTypeId'])
 		end
-		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true}
+		cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true}
 		if options[:json]
 			print JSON.pretty_generate(cloud_server_types)
 			print "\n"
@@ -158,60 +156,97 @@ class Morpheus::Cli::Hosts
 	end
 
 	def add(args)
-		
-		options = {zone: args[0], params:{}}
-		name = args[1]
-
+		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts add CLOUD NAME [options]"
-			opts.on( '-t', '--type TYPE', "Server Type" ) do |server_type|
-				options[:server_type] = server_type
+			opts.banner = "Usage: morpheus hosts add"
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
+				options[:group_name] = val
+			end
+			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
+				options[:group_id] = val
+			end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+				options[:cloud_name] = val
+			end
+			opts.on( '-t', '--type TYPE', "Server Type" ) do |val|
+				options[:server_type_code] = val
 			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
-		if args.count < 2
-			puts "\n#{optparse}\n\n"
-			exit 1
-		end
 		optparse.parse(args)
-
 		connect(options)
 
-		params = {}
+		# support old format of `hosts add CLOUD NAME`
+		if args[0] && args[0] !~ /\A\-/
+			options[:cloud_name] = args[0]
+			if args[1] && args[1] !~ /\A\-/
+				options[:host_name] = args[1]
+			end
+		end
 		
-		zone=nil
-		if !options[:zone].nil?
-			zone = find_zone_by_name(nil, options[:zone])
-			options[:params][:zoneId] = zone['id'] if zone
+		# use active group by default
+		if !options[:group_name] && !options[:group_id]
+			options[:group_id] = @active_groups[@appliance_name.to_sym]
 		end
 
-		if zone.nil?
-			print_red_alert "Either the cloud was not specified or was not found. Please make sure a cloud is specified at the beginning of the argument."
-			exit 1
+		params = {}
+
+		# Group
+		group_id = nil
+		group = find_group_from_options(options)
+		if group
+			group_id = group["id"]
 		else
-			zone_type = cloud_type_for_id(zone['zoneTypeId'])
+			# print_red_alert "Group not found or specified!"
+			# exit 1
+			group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => get_available_groups(), 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
+			group_id = cloud_prompt['group']
 		end
 
-		cloud_server_types = zone_type['serverTypes'].select{|b| b['creatable'] == true }.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
-		if options[:server_type]
-			server_type_code = options[:server_type]
+		# Cloud
+		cloud_id = nil
+		cloud = find_cloud_from_options(group_id, options)
+		if cloud
+			cloud_id = cloud["id"]
+		else
+			# print_red_alert "Cloud not specified!"
+			# exit 1
+			cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})
+			cloud_id = cloud_prompt['cloud']
+			cloud = find_cloud_by_id(group_id, cloud_id)
+		end
+
+		# Zone Type
+		cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
+
+		# Server Type
+		cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true }.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
+		if options[:server_type_code]
+			server_type_code = options[:server_type_code]
 		else
 			server_type_options = cloud_server_types.collect {|it| {'name' => it['name'], 'value' => it['code']} }
 			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Server Type", 'selectOptions' => server_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a server type.'}], options[:options])
-    	server_type_code = v_prompt['type']
+			server_type_code = v_prompt['type']
 		end
-		
-    server_type = cloud_server_types.find {|it| it['code'] == server_type_code }
-
+		server_type = cloud_server_types.find {|it| it['code'] == server_type_code }
 		if server_type.nil?
-			print_red_alert "Server Type #{server_type_code} not found cloud #{zone['name']}"
+			print_red_alert "Server Type #{server_type_code} not found cloud #{cloud['name']}"
 			exit 1
+		end
+
+		# Server Name
+		host_name = nil
+		if options[:host_name]
+			host_name = options[:host_name]
+		else
+			name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Server Name', 'type' => 'text', 'required' => true}], options[:options])
+			host_name = name_prompt['name'] || ''
 		end
 
 		payload = {}
 		
 		# prompt for service plan
-		service_plans_json = @servers_interface.service_plans({zoneId: zone['id'], serverTypeId: server_type["id"]})
+		service_plans_json = @servers_interface.service_plans({zoneId: cloud['id'], serverTypeId: server_type["id"]})
 		service_plans = service_plans_json["plans"]
 		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
 		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
@@ -227,7 +262,7 @@ class Morpheus::Cli::Hosts
 		# prompt for network interfaces (if supported)
 		if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
 			begin
-				network_interfaces = prompt_network_interfaces(zone['id'], server_type["provisionType"]["id"], options, @api_client)
+				network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options, @api_client)
 				if !network_interfaces.empty?
 					payload[:networkInterfaces] = network_interfaces
 				end
@@ -249,13 +284,13 @@ class Morpheus::Cli::Hosts
 		# remove cpu and memory option types, which now come from the plan
 		server_type_option_types = reject_service_plan_option_types(server_type_option_types)
 
-		params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, options[:params])
+		params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
 		begin
 			params['server'] = params['server'] || {}
 			payload = payload.merge({
 				server: {
-					name: name, 
-					zone: {id: zone['id']}, 
+					name: host_name, 
+					zone: {id: cloud['id']}, 
 					computeServerType: {id: server_type['id']},
 					plan: {id: service_plan["id"]}
 				}.merge(params['server'])
@@ -294,10 +329,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		query_params = {removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts remove [name] [-c CLOUD] [-f] [-S]"
-			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |cloud|
-				options[:zone] = cloud
-			end
+			opts.banner = "Usage: morpheus hosts remove [name] [-f] [-S]"
 			opts.on( '-f', '--force', "Force Remove" ) do
 				query_params[:force] = 'on'
 			end
@@ -313,37 +345,13 @@ class Morpheus::Cli::Hosts
 			exit 1
 		end
 		connect(options)
-		zone=nil
-		if !options[:zone].nil?
-			zone = find_zone_by_name(nil, options[:zone])
-		end
+		
 
 		begin
 			
-			if zone 
-				query_params[:zoneId] = zone['id']
-			end
-			server = nil
-			server_results = @servers_interface.get({name: args[0]})
-			if server_results['servers'].nil? || server_results['servers'].empty?
-				server_results = @servers_interface.get(args[0].to_i)
-				server = server_results['server']
-			else
-				if !server_results['servers'].empty? && server_results['servers'].count > 1
-					puts "Multiple Servers exist with the same name. Try scoping by cloud or using id to confirm"
-					exit 1
-				end
-				server = server_results['servers'][0] unless server_results['servers'].empty?
-			end
-
-			if server.nil?
-				puts "Server not found by name #{args[0]}"
-				exit 1
-			else
-				
-			end
+			server = find_host_by_name_or_id(args[0])
 			
-			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this server?", options)
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
 				exit 1
 			end
 
@@ -366,8 +374,8 @@ class Morpheus::Cli::Hosts
 		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus hosts list"
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
+				options[:group_name] = val
 			end
 			
 			build_common_options(opts, options, [:list, :json, :remote])
@@ -376,11 +384,9 @@ class Morpheus::Cli::Hosts
 		connect(options)
 		begin
 			
-			if !options[:group].nil?
-				group = find_group_by_name(options[:group])
-				if !group.nil?
-					params['site'] = group['id']
-				end
+			group = find_group_from_options(options)
+			if group
+				params['site'] = group['id']
 			end
 
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
@@ -436,7 +442,7 @@ class Morpheus::Cli::Hosts
 		optparse.parse(args)
 		connect(options)
 		begin
-			host = find_host_by_name(args[0])
+			host = find_host_by_name_or_id(args[0])
 			json_response = @servers_interface.start(host['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -464,7 +470,7 @@ class Morpheus::Cli::Hosts
 		optparse.parse(args)
 		connect(options)
 		begin
-			host = find_host_by_name(args[0])
+			host = find_host_by_name_or_id(args[0])
 			json_response = @servers_interface.stop(host['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -492,7 +498,7 @@ class Morpheus::Cli::Hosts
 		optparse.parse(args)
 		connect(options)
 		begin
-			host = find_host_by_name(args[0])
+			host = find_host_by_name_or_id(args[0])
 			json_response = @servers_interface.upgrade(host['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -511,7 +517,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts run-workflow [HOST] [name] [options]"
+			opts.banner = "Usage: morpheus hosts run-workflow [HOST] [name]"
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 2
@@ -521,7 +527,7 @@ class Morpheus::Cli::Hosts
 		
 		optparse.parse(args)
 		connect(options)
-		host = find_host_by_name(args[0])
+		host = find_host_by_name_or_id(args[0])
 		workflow = find_workflow_by_name(args[1])
 		task_types = @tasks_interface.task_types()
 		editable_options = []
@@ -563,40 +569,40 @@ class Morpheus::Cli::Hosts
 
 private
 
-	def find_host_by_name(name)
-		server = nil
-		server_results = @servers_interface.get({name: name})
-		if server_results['servers'].nil? || server_results['servers'].empty?
-			server_results = @servers_interface.get(name.to_i)
-			server = server_results['server']
-		else
-			if !server_results['servers'].empty? && server_results['servers'].count > 1
-				puts "Multiple Servers exist with the same name. Try using id to confirm"
-				exit 1
-			end
-			server = server_results['servers'][0] unless server_results['servers'].empty?
-		end
-
-		if server.nil?
-			puts "Server not found by name #{args[0]}"
+	def find_host_by_id(id)
+		results = @servers_interface.get(id.to_i)
+		if results['server'].empty?
+			print_red_alert "Server not found by id #{id}"
 			exit 1
 		end
-		return server
+		return results['server']
 	end
-	def find_group_by_name(name)
-		group_results = @groups_interface.get(name)
-		if group_results['groups'].empty?
-			puts "Group not found by name #{name}"
-			return nil
+
+	def find_host_by_name(name)
+		results = @servers_interface.get({name: name})
+		if results['servers'].empty?
+			print_red_alert "Server not found by name #{name}"
+			exit 1
+		elsif results['servers'].size > 1
+			print_red_alert "Multiple Servers exist with the name #{name}. Try using id instead"
+			exit 1
 		end
-		return group_results['groups'][0]
+		return results['servers'][0]
+	end
+
+	def find_host_by_name_or_id(val)
+		if val.to_s =~ /\A\d{1,}\Z/
+			return find_host_by_id(val)
+		else
+			return find_host_by_name(val)
+		end
 	end
 
 	def find_zone_by_name(group_id, name)
 		zone_results = @clouds_interface.get({groupId: group_id, name: name})
 		if zone_results['zones'].empty?
-			puts "Zone not found by name #{name}"
-			return nil
+			print_red_alert "Cloud not found by name #{name}"
+			exit 1
 		end
 		return zone_results['zones'][0]
 	end
@@ -606,19 +612,19 @@ private
 			(sv_type['name'].downcase == name.downcase || sv_type['code'].downcase == name.downcase) && sv_type['creatable'] == true
 		end
 		if server_type.nil?
-			puts "Server Type Not Selectable"
+			print_red_alert "Server Type Not Selectable"
 		end
 		return server_type
 	end
 
 	def cloud_type_for_id(id)
-		if !@cloud_types.empty?
-			zone_type = @cloud_types.find { |z| z['id'].to_i == id.to_i}
-			if !zone_type.nil?
-				return zone_type
-			end
+		cloud_types = @clouds_interface.cloud_types['zoneTypes']
+		cloud_type = cloud_types.find { |z| z['id'].to_i == id.to_i}
+		if cloud_type.nil?
+			print_red_alert "Cloud Type not found by id #{id}"
+			exit 1
 		end
-		return nil
+		return cloud_type
 	end
 
 	def find_workflow_by_name(name)
@@ -626,17 +632,9 @@ private
 		if !task_set_results['taskSets'].nil? && !task_set_results['taskSets'].empty?
 			return task_set_results['taskSets'][0]
 		else
-			puts "Workflow not found by name #{name}"
+			print_red_alert "Workflow not found by name #{name}"
 			exit 1
 		end
 	end
 
-	def find_group_by_id(id)
-		group_results = @groups_interface.get(id)
-		if group_results['groups'].empty?
-			puts "Group not found by id #{id}"
-			return nil
-		end
-		return group_results['groups'][0]
-	end
 end
