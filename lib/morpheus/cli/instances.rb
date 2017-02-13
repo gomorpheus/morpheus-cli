@@ -150,7 +150,6 @@ class Morpheus::Cli::Instances
 				print_dry_run("POST #{@appliance_url}/api/instances", payload)
 				return
 			end
-			
 			json_response = @instances_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -639,7 +638,9 @@ class Morpheus::Cli::Instances
 			layout_id = instance['layout']['id']
 
 			plan_id = instance['plan']['id']
-			payload = {}
+			payload = {
+				:instance => {:id => instance["id"]}
+			}
 
 			# avoid 500 error
 			# payload[:servicePlanOptions] = {}
@@ -660,6 +661,7 @@ class Morpheus::Cli::Instances
 			new_plan_id = service_plan["id"]
 			#payload[:servicePlan] = new_plan_id # ew, this api uses servicePlanId instead
 			payload[:servicePlanId] = new_plan_id
+			payload[:instance][:plan] = {id: service_plan["id"]}
 
 			volumes_response = @instances_interface.volumes(instance['id'])
 			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }

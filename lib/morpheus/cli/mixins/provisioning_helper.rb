@@ -196,8 +196,7 @@ module Morpheus::Cli::ProvisioningHelper
     service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
     # todo: pick one of these three, let's go with the last one...
     payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
-    payload[:servicePlanId] = service_plan["id"]
-    payload[:plan] = {id: service_plan["id"]}
+    payload[:instance][:plan] = {id: service_plan["id"]}
 
     # prompt for volumes
     volumes = prompt_volumes(service_plan, options, @api_client, {})
