@@ -348,10 +348,38 @@ class Morpheus::Cli::Instances
 				print JSON.pretty_generate({instance: instance, stats: stats})
 				return
 			end
-			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", reset, "\n\n"
+
+			status_string = instance['status']
+			if status_string == 'running'
+				status_string = "#{green}#{status_string.upcase}#{cyan}"
+			elsif status_string == 'stopped' or status_string == 'failed'
+				status_string = "#{red}#{status_string.upcase}#{cyan}"
+			elsif status_string == 'unknown'
+				status_string = "#{white}#{status_string.upcase}#{cyan}"
+			else
+				status_string = "#{yellow}#{status_string.upcase}#{cyan}"
+			end
+			connection_string = ''
+			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+			end
+
+			print "\n" ,cyan, bold, "Instance Details\n","==================", reset, "\n\n"
+			print cyan
+			puts "ID: #{instance['id']}"
+			puts "Name: #{instance['name']}"
+			puts "Description: #{instance['description']}"
+			puts "Group: #{instance['group'] ? instance['group']['name'] : ''}"
+			puts "Cloud: #{instance['cloud'] ? instance['cloud']['name'] : ''}"
+			puts "Type: #{instance['instanceType']['name']}"
+			puts "Environment: #{instance['instanceContext']}"
+			puts "Nodes: #{instance['containers'] ? instance['containers'].count : 0}"
+			puts "Connection: #{connection_string}"
+			#puts "Account: #{instance['account'] ? instance['account']['name'] : ''}"
+			puts "Status: #{status_string}"
 			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
 			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
-			# TODO: print useful info
+
 			#puts instance
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
