@@ -297,18 +297,9 @@ class Morpheus::Cli::Hosts
 			})
 			payload[:network] = params['network'] if params['network']
 			payload[:config] = params['config'] if params['config']
+
 			if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/servers", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
+				print_dry_run("POST #{@appliance_url}/api/servers", payload)
 				return
 			end
 			json_response = @servers_interface.create(payload)

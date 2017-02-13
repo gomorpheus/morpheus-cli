@@ -72,6 +72,20 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  def print_dry_run(request, payload)
+    print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+    print cyan
+    print "Request: ", "\n"
+    print reset
+    print request.to_s, "\n\n"
+    print cyan
+    print "JSON: ", "\n"
+    print reset
+    print JSON.pretty_generate(payload)
+    print "\n"
+    print reset
+  end
+
   def required_blue_prompt
     "#{cyan}|#{reset}"
   end

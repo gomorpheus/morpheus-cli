@@ -153,23 +153,11 @@ class Morpheus::Cli::Apps
 
 			# todo: allow adding instances with creation..
 
-      json_response = @apps_interface.create(payload)
-
       if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/apps", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
-				return
-			end
-
+        print_dry_run("POST #{@appliance_url}/api/apps", payload)
+        return
+      end
+      json_response = @apps_interface.create(payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -301,24 +289,12 @@ class Morpheus::Cli::Apps
       app_keys = ['name', 'description']
       params = params.select {|k,v| app_keys.include?(k) }
       payload['app'].merge!(params)
-			
-      json_response = @apps_interface.update(app["id"], payload)
 
       if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "PUT #{@appliance_url}/api/apps", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
-				return
-			end
-
+        print_dry_run("PUT #{@appliance_url}/api/apps/#{app['id']}", payload)
+        return
+      end
+      json_response = @apps_interface.update(app["id"], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -379,23 +355,11 @@ class Morpheus::Cli::Apps
   			payload[:tierName] = v_prompt['tier']
   		end
 
-      json_response = @apps_interface.add_instance(app['id'], payload)
-
       if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/apps/#{app['id']}/add-instance", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
-				return
-			end
-
+        print_dry_run("POST #{@appliance_url}/api/apps/#{app['id']}/add-instance", payload)
+        return
+      end
+      json_response = @apps_interface.add_instance(app['id'], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -469,22 +433,12 @@ class Morpheus::Cli::Apps
   		end
   		payload[:instanceId] = instance['id']
 
-      json_response = @apps_interface.remove_instance(app['id'], payload)
-
       if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/apps/#{app['id']}/remove-instance", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
-				return
-			end
+        print_dry_run("POST #{@appliance_url}/api/apps/#{app['id']}/remove-instance", payload)
+        return
+      end
+
+      json_response = @apps_interface.remove_instance(app['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)

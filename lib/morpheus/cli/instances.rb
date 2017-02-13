@@ -147,19 +147,10 @@ class Morpheus::Cli::Instances
 			payload = prompt_new_instance(options)
 
 			if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/instances", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
+				print_dry_run("POST #{@appliance_url}/api/instances", payload)
 				return
 			end
+			
 			json_response = @instances_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -223,17 +214,7 @@ class Morpheus::Cli::Instances
       json_response = @instances_interface.update(instance["id"], payload)
 
       if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "PUT #{@appliance_url}/api/instances", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
+      	print_dry_run("PUT #{@appliance_url}/api/instances", payload)
 				return
 			end
 
@@ -694,17 +675,7 @@ class Morpheus::Cli::Instances
 			payload[:deleteOriginalVolumes] = true
 
 			if options[:dry_run]
-				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
-				print cyan
-				print "Request: ", "\n"
-				print reset
-				print "POST #{@appliance_url}/api/instances/#{instance['id']}", "\n\n"
-				print cyan
-				print "JSON: ", "\n"
-				print reset
-				print JSON.pretty_generate(payload)
-				print "\n"
-				print reset
+				print_dry_run("PUT #{@appliance_url}/api/instances/#{instance['id']}/resize", payload)
 				return
 			end
 			json_response = @instances_interface.resize(instance['id'], payload)
