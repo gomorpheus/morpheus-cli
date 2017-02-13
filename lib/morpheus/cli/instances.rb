@@ -246,14 +246,14 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			instance_results = @instances_interface.get({name: args[0]})
-			if instance_results['instances'].empty?
-				puts "Instance not found by name #{args[0]}"
+			instance = find_instance_by_name_or_id(args[0])
+			json_response = @instances_interface.get(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
 				return
 			end
-			instance = instance_results['instances'][0]
-			instance_id = instance['id']
-			stats = instance_results['stats'][instance_id.to_s]
+			instance = json_response['instance']
+			stats = json_response['stats'] || {}
 			if options[:json]
 				print JSON.pretty_generate(stats)
 				print "\n"
@@ -334,20 +334,15 @@ class Morpheus::Cli::Instances
 		optparse.parse(args)
 		connect(options)
 		begin
-			# JD: woah..fix the api withStats logic.. until then re-fetch via index?name=
 			instance = find_instance_by_name_or_id(args[0])
-			instance_results = @instances_interface.get({name: instance['name']})
-			if instance_results['instances'].empty?
-				puts "Instance not found by name #{args[0]}"
-				exit 1
-			end
-			instance = instance_results['instances'][0]
-			instance_id = instance['id']
-			stats = instance_results['stats'][instance_id.to_s]
+			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
-				print JSON.pretty_generate({instance: instance, stats: stats})
+				print JSON.pretty_generate(json_response)
 				return
 			end
+			instance = json_response['instance']
+			stats = json_response['stats'] || {}
+			# load_balancers = stats = json_response['loadBalancers'] || {}
 
 			status_string = instance['status']
 			if status_string == 'running'
@@ -1027,7 +1022,10 @@ private
 			print_red_alert "Instance not found by id #{id}"
 			exit 1
 		end
-		return instance_results['instance']
+		instance = instance_results['instance']
+		# instance['stats'] = instance_results['stats'] || {}
+		# instance['loadBalancers'] = instance_results['loadBalancers'][0]['lbs'] || {}
+		return instance
 	end
 
 	def find_instance_by_name(name)
@@ -1036,7 +1034,9 @@ private
 			print_red_alert "Instance not found by name #{name}"
 			exit 1
 		end
-		return instance_results['instances'][0]
+		instance = instance_results['instances'][0]
+		# instance['stats'] = instance_results['stats'][instance['id'].to_s] || {}
+		return instance
 	end
 
 	def find_instance_by_name_or_id(val)
