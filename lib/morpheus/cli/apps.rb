@@ -260,7 +260,7 @@ class Morpheus::Cli::Apps
 	end
 
 	def update(args)
-		usage = "Usage: morpheus update [name] [options]"
+		usage = "Usage: morpheus apps update [name] [options]"
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
