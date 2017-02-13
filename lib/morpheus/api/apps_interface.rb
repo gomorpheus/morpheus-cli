@@ -26,36 +26,38 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
-	def get_envs(id, options=nil)
-		url = "#{@base_url}/api/apps/#{id}/envs"
-		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                                                     timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
-	end
-
-	def create_env(id, options)
-		url = "#{@base_url}/api/apps/#{id}/envs"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
-		payload = {envs: options}
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
-	end
-
-	def del_env(id, name)
-		url = "#{@base_url}/api/apps/#{id}/envs/#{name}"
-		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                                                     timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
-	end
-
-
 	def create(options)
 		url = "#{@base_url}/api/apps"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = options
+		response = Morpheus::RestClient.execute(method: :post, url: url,
+                                                     timeout: 30, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def update(app_id, options)
+		url = "#{@base_url}/api/apps/#{app_id}"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                                                     timeout: 30, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def add_instance(app_id, options)
+		url = "#{@base_url}/api/apps/#{app_id}/add-instance"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = options
+		response = Morpheus::RestClient.execute(method: :post, url: url,
+                                                     timeout: 30, headers: headers, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+
+	def remove_instance(app_id, options)
+		url = "#{@base_url}/api/apps/#{app_id}/remove-instance"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
@@ -72,6 +74,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
+=begin
 	def stop(id)
 		url = "#{@base_url}/api/apps/#{id}/stop"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -95,6 +98,7 @@ class Morpheus::AppsInterface < Morpheus::APIClient
                                                      timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
+=end
 
 	def firewall_disable(id)
 		url = "#{@base_url}/api/apps/#{id}/security-groups/disable"
