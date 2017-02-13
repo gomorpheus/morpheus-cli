@@ -394,7 +394,7 @@ class Morpheus::Cli::Apps
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the app '#{app['name']}'?", options)
 				exit 1
 			end
-			@apps_interface.destroy(app_results['app']['id'])
+			@apps_interface.destroy(app['id'])
 			list([])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
