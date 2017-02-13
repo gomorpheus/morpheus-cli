@@ -16,8 +16,6 @@ class Morpheus::Cli::Deploys
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
 		@deploy_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deploy
-		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
 	def handle(args) 

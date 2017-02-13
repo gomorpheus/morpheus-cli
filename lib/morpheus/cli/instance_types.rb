@@ -10,8 +10,6 @@ class Morpheus::Cli::InstanceTypes
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
 

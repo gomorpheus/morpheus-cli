@@ -14,7 +14,6 @@ class Morpheus::Cli::Whoami
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
 	def connect(opts)
