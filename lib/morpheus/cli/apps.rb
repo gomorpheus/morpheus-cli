@@ -323,7 +323,7 @@ class Morpheus::Cli::Apps
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Updated app #{payload['app']['name']}"
+        print_green_success "Updated app #{app['name']}"
         list([])
         # details_options = [payload['app']['name']]
         # details(details_options)

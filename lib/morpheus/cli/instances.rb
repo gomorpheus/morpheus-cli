@@ -41,7 +41,7 @@ class Morpheus::Cli::Instances
 
 
 	def handle(args) 
-		usage = "Usage: morpheus instances [list,details,add,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
+		usage = "Usage: morpheus instances [list,details,add,update,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			return 
@@ -54,6 +54,8 @@ class Morpheus::Cli::Instances
 				details(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'update'
+				update(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			when 'stop'
@@ -171,6 +173,84 @@ class Morpheus::Cli::Instances
 			print_rest_exception(e, options)
 			exit 1
 		end
+	end
+
+	def update(args)
+		usage = "Usage: morpheus instances update [name] [options]"
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = usage
+      build_common_options(opts, options, [:options, :json, :dry_run])
+    end
+    optparse.parse(args)
+    if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+    connect(options)
+
+    begin
+  		
+  		instance = find_instance_by_name_or_id(args[0])
+
+			# group = find_group_from_options(options)
+
+			payload = {
+				'instance' => {id: instance["id"]}
+			}
+
+			update_instance_option_types = [
+				{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this instance'},
+				{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
+				{'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()},
+				{'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}
+			]
+
+			params = options[:options] || {}
+
+      if params.empty?
+        puts "\n#{usage}\n"
+        option_lines = update_instance_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+        puts "\nAvailable Options:\n#{option_lines}\n\n"
+        exit 1
+      end
+
+      instance_keys = ['name', 'description', 'instanceContext', 'tags']
+      params = params.select {|k,v| instance_keys.include?(k) }
+      params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
+      payload['instance'].merge!(params)
+			
+      json_response = @instances_interface.update(instance["id"], payload)
+
+      if options[:dry_run]
+				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+				print cyan
+				print "Request: ", "\n"
+				print reset
+				print "PUT #{@appliance_url}/api/instances", "\n\n"
+				print cyan
+				print "JSON: ", "\n"
+				print reset
+				print JSON.pretty_generate(payload)
+				print "\n"
+				print reset
+				return
+			end
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Updated instance #{instance['name']}"
+        list([])
+        # details_options = [payload['app']['name']]
+        # details(details_options)
+      end
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
 	end
 
 	def stats(args)

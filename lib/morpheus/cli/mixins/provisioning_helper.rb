@@ -154,7 +154,6 @@ module Morpheus::Cli::ProvisioningHelper
       instance_name = name_prompt['name'] || ''
     end
 
-
     payload = {
       :zoneId => cloud_id,
       :instance => {
@@ -167,6 +166,19 @@ module Morpheus::Cli::ProvisioningHelper
         }
       }
     }
+
+    # Description
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
+    payload[:instance][:description] = v_prompt['description'] if !v_prompt['description'].empty?
+
+    # Environment
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()}], options[:options])
+    payload[:instance][:instanceContext] = v_prompt['instanceContext'] if !v_prompt['instanceContext'].empty?
+
+    # Tags
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}], options[:options])
+    payload[:instance][:tags] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
+    
 
     # Version and Layout
 
@@ -845,6 +857,10 @@ module Morpheus::Cli::ProvisioningHelper
     option_types.reject {|opt| 
         ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
       }
+  end
+
+  def instance_context_options
+    [{'name' => 'Dev', 'value' => 'dev'}, {'name' => 'Test', 'value' => 'qa'}, {'name' => 'Staging', 'value' => 'staging'}, {'name' => 'Production', 'value' => 'production'}]
   end
 
 end
