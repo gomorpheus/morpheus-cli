@@ -41,7 +41,7 @@ class Morpheus::Cli::Instances
 
 
 	def handle(args) 
-		usage = "Usage: morpheus instances [list,add,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
+		usage = "Usage: morpheus instances [list,details,add,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			return 
@@ -50,6 +50,8 @@ class Morpheus::Cli::Instances
 		case args[0]
 			when 'list'
 				list(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'add'
 				add(args[1..-1])
 			when 'remove'
@@ -74,8 +76,6 @@ class Morpheus::Cli::Instances
 				stats(args[1..-1])
 			when 'logs'
 				logs(args[1..-1])
-			when 'details'
-				details(args[1..-1])
 			when 'envs'
 				envs(args[1..-1])
 			when 'setenv'
@@ -101,134 +101,49 @@ class Morpheus::Cli::Instances
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances add TYPE NAME"
-			opts.on( '-g', '--group GROUP', "Group" ) do |val|
-				options[:group] = val
+			opts.banner = "Usage: morpheus instances add [type] [name]"
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
+				options[:group_name] = val
 			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
-				options[:cloud] = val
+			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
+				options[:group_id] = val
+			end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+				options[:cloud_name] = val
+			end
+			# this conflicts with --nocolor option
+			# opts.on( '-C', '--cloud CLOUD', "Cloud Id" ) do |val|
+			# 	options[:cloud] = val
+			# end
+			opts.on( '-t', '--type CODE', "Instance Type" ) do |val|
+				options[:instance_type_code] = val
 			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 			
 		end
 
-		if args.count < 2
-			puts "\n#{optparse}\n\n"
-			return
-		end
 		optparse.parse(args)
 		connect(options)
-		instance_name = args[1]
-		instance_type_code = args[0]
-		instance_type = find_instance_type_by_code(instance_type_code)
-		if instance_type.nil?
-			exit 1
-		end
-		group_id = nil
-		if !options[:group].nil?
-			group_id = find_group_by_name(options[:group])
-		else
-			group_id = @active_groups[@appliance_name.to_sym]	
-		end
 
-		if group_id.nil?
-			puts "Group not found or specified! \n #{optparse}"
-			exit 1
-		end
-
-		if options[:cloud].nil?
-			puts "Cloud not specified! \n #{optparse}"
-			exit 1
-		end
-		cloud_id = find_cloud_by_name(group_id, options[:cloud])
-		if cloud_id.nil?
-			puts "Cloud not found! \n #{optparse}"
-			exit 1
-		end
-
-		payload = {
-			:zoneId => cloud_id,
-			:instance => {
-				:name => instance_name,
-				:site => {
-					:id => group_id
-				},
-				:instanceType => {
-					:code => instance_type_code
-				}
-			}
-		}
-
-		version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
-		layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-		layout_id = layout_prompt['layout']
-		layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}
-		payload[:instance][:layout] = {id: layout['id']}
-
-		# prompt for service plan
-		service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
-		service_plans = service_plans_json["plans"]
-		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
-		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
-		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
-		payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
-		payload[:servicePlanId] = service_plan["id"]
-
-		# prompt for volumes
-		volumes = prompt_volumes(service_plan, options, @api_client, {})
-		if !volumes.empty?
-			payload[:volumes] = volumes
-		end
-
-		if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
-			# prompt for network interfaces (if supported)
-			begin
-				network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options, @api_client)
-				if !network_interfaces.empty?
-					payload[:networkInterfaces] = network_interfaces
-				end
-			rescue RestClient::Exception => e
-				print_yellow_warning "Unable to load network options. Proceeding..."
-				print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+		# support old format of `instance add TYPE NAME`
+		if args[0] && args[0] !~ /\A\-/
+			options[:instance_type_code] = args[0]
+			if args[1] && args[1] !~ /\A\-/
+				options[:instance_name] = args[1]
 			end
 		end
 		
+		# use active group by default
+		if !options[:group_name] && !options[:group_id]
+			options[:group_id] = @active_groups[@appliance_name.to_sym]
+		end
+
+		options[:name_required] = true
 		
-		type_payload = {}
-		if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
-			type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-		elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
-			type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-		end
-		if !type_payload['config'].nil?
-			payload.merge!(type_payload['config'])
-		end
-
-		provision_payload = {}
-		if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
-			instance_type_option_types = layout['provisionType']['optionTypes']
-			# remove volume options if volumes were configured
-			if !payload[:volumes].empty?
-				instance_type_option_types = reject_volume_option_types(instance_type_option_types)
-			end
-			# remove networkId option if networks were configured above
-			if !payload[:networkInterfaces].empty?
-				instance_type_option_types = reject_networking_option_types(instance_type_option_types)
-			end
-			provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-		end
-
-		if !provision_payload.nil? && !provision_payload['config'].nil?
-			payload.merge!(provision_payload['config'])
-		end
-		if !provision_payload.nil? && !provision_payload['server'].nil?
-			payload[:server] = provision_payload['server']
-		end
-
-		# avoid 500 error
-		# payload[:servicePlanOptions] = {}
-
 		begin
+
+			payload = prompt_new_instance(options)
+
 			if options[:dry_run]
 				print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
 				print cyan
@@ -248,6 +163,7 @@ class Morpheus::Cli::Instances
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
+				instance_name = json_response["instance"]["name"]
 				print_green_success "Provisioning instance #{instance_name}"
 				list([])
 			end
@@ -1062,32 +978,32 @@ private
 		end
 	end
 
-	def find_group_by_name(name)
-		option_results = @options_interface.options_for_source('groups',{})
-		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-		if match.nil?
-			return nil
-		else
-			return match['value']
-		end
-	end
+	# def find_group_by_name(name)
+	# 	option_results = @options_interface.options_for_source('groups',{})
+	# 	match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+	# 	if match.nil?
+	# 		return nil
+	# 	else
+	# 		return match['value']
+	# 	end
+	# end
 
-	def find_cloud_by_name(group_id, name)
-		option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
-		match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-		if match.nil?
-			return nil
-		else
-			return match['value']
-		end
-	end
+	# def find_cloud_by_name(group_id, name)
+	# 	option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
+	# 	match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+	# 	if match.nil?
+	# 		return nil
+	# 	else
+	# 		return match['value']
+	# 	end
+	# end
 
-	def find_instance_type_by_code(code)
-		instance_type_results = @instance_types_interface.get({code: code})
-		if instance_type_results['instanceTypes'].empty?
-			puts "Instance Type not found by code #{code}"
-			return nil
-		end
-		return instance_type_results['instanceTypes'][0]
-	end
+	# def find_instance_type_by_code(code)
+	# 	instance_type_results = @instance_types_interface.get({code: code})
+	# 	if instance_type_results['instanceTypes'].empty?
+	# 		puts "Instance Type not found by code #{code}"
+	# 		return nil
+	# 	end
+	# 	return instance_type_results['instanceTypes'][0]
+	# end
 end
