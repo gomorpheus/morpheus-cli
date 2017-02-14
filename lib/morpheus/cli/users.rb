@@ -198,7 +198,7 @@ class Morpheus::Cli::Users
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			build_common_options(opts, options, [:account, :options, :json])
+			build_common_options(opts, options, [:account, :options, :dry_run, :json])
 			opts.on('-h', '--help', "Prints this help" ) do
         puts opts
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(add_user_option_types)
@@ -237,6 +237,10 @@ class Morpheus::Cli::Users
 			request_payload = {user: user_payload}
 			json_response = @users_interface.create(account_id, request_payload)
 
+			if options[:dry_run]
+				print_dry_run("POST #{@appliance_url}/api/accounts", request_payload)
+                                return
+                        end
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
