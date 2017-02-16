@@ -157,14 +157,14 @@ module Morpheus
       end
 
       def subcommand_usage(cmd_name, *extra)
-        extra = ["[options]"] if extra.empty?
+        #extra = ["[options]"] if extra.empty?
         "Usage: morpheus #{command_name} #{cmd_name} #{extra.join(' ')}".squeeze(' ').strip
       end
 
       def print_usage()
         puts usage
         if !subcommands.empty?
-          puts "\nCommands:"
+          puts "Commands:"
           subcommands.each {|cmd, method|
             puts "\t#{cmd.to_s}"
           }
@@ -184,7 +184,6 @@ module Morpheus
         end
         if !cmd_method
           print_usage
-          puts ""
           exit 127
         end
         self.send(cmd_method, args[1..-1])

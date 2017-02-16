@@ -59,10 +59,18 @@ module Morpheus::Cli::ProvisioningHelper
     return group
   end
 
+  def find_group_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_group_by_id(val)
+    else
+      return find_group_by_name(val)
+    end
+  end
+
   def find_group_from_options(options)
     group = nil
     if options[:group]
-      group = options[:group]
+      group = find_group_by_name_or_id(options[:group])
     elsif options[:group_name]
       group = find_group_by_name(options[:group_name])
     elsif options[:group_id]
@@ -91,10 +99,18 @@ module Morpheus::Cli::ProvisioningHelper
     return cloud
   end
 
+  def find_cloud_by_name_or_id(group_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_cloud_by_id(group_id, val)
+    else
+      return find_cloud_by_name(group_id, val)
+    end
+  end
+
   def find_cloud_from_options(group_id, options)
     cloud = nil
     if options[:cloud]
-      cloud = options[:cloud]
+      cloud = find_cloud_by_name_or_id(group_id, options[:cloud])
     elsif options[:cloud_name]
       cloud = find_cloud_by_name(group_id, options[:cloud_name])
     elsif options[:cloud_id]

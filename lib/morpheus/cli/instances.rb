@@ -10,9 +10,10 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
+  register_subcommands :list, :details, :add, :update, :remove, :stop, :start, :restart, :backup, :run_workflow, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv
+
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		
+		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
 	end
 
 	def connect(opts)
@@ -38,85 +39,21 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 	end
-
-
-	def handle(args) 
-		usage = "Usage: morpheus instances [list,details,add,update,remove,stop,start,restart,backup,run-workflow,stop-service,start-service,restart-service,resize,upgrade,clone,envs,setenv,delenv] [name]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'stop'
-				stop(args[1..-1])
-			when 'start'
-				start(args[1..-1])
-			when 'restart'
-				restart(args[1..-1])
-			when 'stop-service'
-				stop_service(args[1..-1])
-			when 'start-service'
-				start_service(args[1..-1])
-			when 'restart-service'
-				restart_service(args[1..-1])
-			when 'resize'
-				resize(args[1..-1])
-			when 'run-workflow'
-				run_workflow(args[1..-1])
-			when 'stats'
-				stats(args[1..-1])
-			when 'logs'
-				logs(args[1..-1])
-			when 'envs'
-				envs(args[1..-1])
-			when 'setenv'
-				setenv(args[1..-1])	
-			when 'delenv'
-				delenv(args[1..-1])	
-			when 'firewall-disable'
-				firewall_disable(args[1..-1])	
-			when 'firewall-enable'
-				firewall_enable(args[1..-1])	
-			when 'security-groups'	
-				security_groups(args[1..-1])	
-			when 'apply-security-groups'	
-				apply_security_groups(args[1..-1])	
-			when 'backup'
-				backup(args[1..-1])	
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
+	
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances add [type] [name]"
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-				options[:group_name] = val
+			opts.banner = subcommand_usage("add [type] [name]")
+			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+				options[:group] = val
 			end
-			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
-				options[:group_id] = val
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+				options[:cloud] = val
 			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-				options[:cloud_name] = val
-			end
-			# this conflicts with --nocolor option
-			# opts.on( '-C', '--cloud CLOUD', "Cloud Id" ) do |val|
-			# 	options[:cloud] = val
-			# end
 			opts.on( '-t', '--type CODE', "Instance Type" ) do |val|
 				options[:instance_type_code] = val
 			end
@@ -136,9 +73,7 @@ class Morpheus::Cli::Instances
 		end
 		
 		# use active group by default
-		if !options[:group_name] && !options[:group_id]
-			options[:group_id] = @active_groups[@appliance_name.to_sym]
-		end
+		options[:group] ||= @active_groups[@appliance_name.to_sym]
 
 		options[:name_required] = true
 		
@@ -169,12 +104,12 @@ class Morpheus::Cli::Instances
 		usage = "Usage: morpheus instances update [name] [options]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+    	opts.banner = subcommand_usage("update [name]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
     connect(options)
@@ -236,14 +171,14 @@ class Morpheus::Cli::Instances
 	def stats(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances stats [name]"
+			opts.banner = subcommand_usage("stats [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -275,17 +210,17 @@ class Morpheus::Cli::Instances
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances logs [name]"
+			opts.banner = subcommand_usage("logs [name]")
 			opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
 				options[:node_id] = node_id.to_i
 			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -324,14 +259,14 @@ class Morpheus::Cli::Instances
 	def details(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances details [name]"
+			opts.banner = subcommand_usage("details [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -385,14 +320,14 @@ class Morpheus::Cli::Instances
 	def envs(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances envs [name]"
+			opts.banner = subcommand_usage("envs [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -418,7 +353,7 @@ class Morpheus::Cli::Instances
 		options = {}
 
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME VALUE [-e]"
+			opts.banner = subcommand_usage("setenv [name] NAME VALUE [-e]")
 			opts.on( '-e', "Exportable" ) do |exportable|
 				options[:export] = exportable
 			end
@@ -428,10 +363,10 @@ class Morpheus::Cli::Instances
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 3
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -448,14 +383,14 @@ class Morpheus::Cli::Instances
 	def delenv(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances setenv INSTANCE NAME"
+			opts.banner = subcommand_usage("delenv [name] NAME")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 2
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -470,14 +405,14 @@ class Morpheus::Cli::Instances
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances stop [name]"
+			opts.banner = subcommand_usage("stop [name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -499,14 +434,14 @@ class Morpheus::Cli::Instances
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances start [name]"
+			opts.banner = subcommand_usage("start [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -526,13 +461,14 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances restart [name]"
+			opts.banner = subcommand_usage("restart [name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -554,14 +490,14 @@ class Morpheus::Cli::Instances
 		def stop_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances stop-service [name]"
+			opts.banner = subcommand_usage("stop-service [name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -585,14 +521,14 @@ class Morpheus::Cli::Instances
 	def start_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances start-service [name]"
+			opts.banner = subcommand_usage("start-service [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -613,14 +549,14 @@ class Morpheus::Cli::Instances
 	def restart_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances restart-service [name]"
+			opts.banner = subcommand_usage("restart-service [name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -644,14 +580,14 @@ class Morpheus::Cli::Instances
 	def resize(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances resize [name]"
+			opts.banner = subcommand_usage("resize [name]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -721,14 +657,14 @@ class Morpheus::Cli::Instances
 	def backup(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances backup [name]"
+			opts.banner = subcommand_usage("backup [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1 
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -749,18 +685,16 @@ class Morpheus::Cli::Instances
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-				options[:group_name] = val
+			opts.banner = subcommand_usage("list")
+			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+				options[:group] = val
 			end
-			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
-				options[:group_id] = val
-			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-				options[:cloud_name] = val
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+				options[:cloud] = val
 			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
@@ -775,7 +709,7 @@ class Morpheus::Cli::Instances
 			# 	params['zoneId'] = cloud['id']
 			# end
 			# cloud = nil
-			cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
+			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
 			if cloud
 				params['zoneId'] = cloud['id']
 			end
@@ -792,10 +726,14 @@ class Morpheus::Cli::Instances
 				instances = json_response['instances']
 
 				title = "Morpheus Instances"
-				subtitle = ""
+				subtitles = []
 				if group
-					subtitle << "Group: #{group['name']}"
+					subtitles << "Group: #{group['name']}".strip
 				end
+				if cloud
+					subtitles << "Cloud: #{cloud['name']}".strip
+				end
+				subtitle = subtitles.join(', ')
 				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
 				if instances.empty?
 					puts yellow,"No instances found.",reset
@@ -803,7 +741,7 @@ class Morpheus::Cli::Instances
 					print_instances_table(instances)
 					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 		rescue RestClient::Exception => e
@@ -816,7 +754,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		query_params = {keepBackups: 'off', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances remove [name] [-fB]"
+			opts.banner = subcommand_usage("remove [name] [-fB]")
 			opts.on( '-f', '--force', "Force Remove" ) do
 				query_params[:force] = 'on'
 			end
@@ -830,7 +768,7 @@ class Morpheus::Cli::Instances
 			puts "\n#{optparse}\n\n"
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -848,14 +786,14 @@ class Morpheus::Cli::Instances
 	def firewall_disable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances firewall-disable [name]"
+			opts.banner = subcommand_usage("firewall-disable [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -870,14 +808,14 @@ class Morpheus::Cli::Instances
 	def firewall_enable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances firewall-enable [name]"
+			opts.banner = subcommand_usage("firewall-enable [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance_results = @instances_interface.get({name: args[0]})
@@ -896,14 +834,14 @@ class Morpheus::Cli::Instances
 	def security_groups(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances security-groups [name]"
+			opts.banner = subcommand_usage("security-groups [name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
@@ -920,7 +858,7 @@ class Morpheus::Cli::Instances
 					print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -932,7 +870,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances apply-security-groups [name] [options]"
+			opts.banner = subcommand_usage("apply-security-groups [name]")
 			opts.on( '-c', '--clear', "Clear all security groups" ) do
 				options[:securityGroupIds] = []
 				clear_or_secgroups_specified = true
@@ -944,10 +882,10 @@ class Morpheus::Cli::Instances
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 
 		if !clear_or_secgroups_specified 
@@ -970,7 +908,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances run-workflow [INSTANCE] [name] [options]"
+			opts.banner = subcommand_usage("run-workflow", "[name] [workflow] [options]")
 			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		if args.count < 2
@@ -978,7 +916,7 @@ class Morpheus::Cli::Instances
 			exit 1
 		end
 		
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		instance = find_instance_by_name_or_id(args[0])
 		workflow = find_workflow_by_name(args[1])
@@ -998,7 +936,7 @@ class Morpheus::Cli::Instances
 		params = options[:options] || {}
 
 		if params.empty? && !editable_options.empty?
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 			puts "\nAvailable Options:\n#{option_lines}\n\n"
 			exit 1
@@ -1053,13 +991,24 @@ private
 		end
 	end
 
-	def find_zone_by_name(group_id, name)
-		zone_results = @clouds_interface.get({groupId: group_id, name: name})
-		if zone_results['zones'].empty?
-			print_red_alert "Cloud not found by name #{name}"
-			exit 1
+	def find_zone_by_name_or_id(group_id, val)
+		zone = nil
+		if val.to_s =~ /\A\d{1,}\Z/
+			json_results = @clouds_interface.get(val.to_i)
+			zone = json_results['zone']
+			if zone.nil?
+				print_red_alert "Cloud not found by id #{val}"
+				exit 1
+			end
+		else
+			json_results = @clouds_interface.get({groupId: group_id, name: val})
+			zone = json_results['zones'] ? json_results['zones'][0] : nil
+			if zone.nil?
+				print_red_alert "Cloud not found by name #{val}"
+				exit 1
+			end
 		end
-		return zone_results['zones'][0]
+		return zone
 	end
 
 	def find_workflow_by_name(name)

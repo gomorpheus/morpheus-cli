@@ -11,6 +11,8 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
+  register_subcommands :list, :details, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
@@ -31,60 +33,17 @@ class Morpheus::Cli::Apps
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
-	def handle(args) 
-		usage = "Usage: morpheus apps [list,details,add,update,remove,add-instance,remove-instance,logs,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]"
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'add-instance'
-				add_instance(args[1..-1])
-			when 'remove-instance'
-				remove_instance(args[1..-1])
-			when 'stop'
-				stop(args[1..-1])
-			when 'start'
-				start(args[1..-1])
-			when 'restart'
-				restart(args[1..-1])
-			when 'logs'
-				logs(args[1..-1])
-			# when 'stats'
-			# 	stats(args[1..-1])
-			# when 'envs'
-			# 	envs(args[1..-1])
-			# when 'setenv'
-			# 	setenv(args[1..-1])	
-			# when 'delenv'
-			# 	delenv(args[1..-1])
-			when 'firewall_disable'
-				firewall_disable(args[1..-1])	
-			when 'firewall_enable'
-				firewall_enable(args[1..-1])	
-			when 'security_groups'	
-				security_groups(args[1..-1])	
-			when 'apply_security_groups'	
-				apply_security_groups(args[1..-1])		
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
-	end
+  def handle(args)
+    handle_subcommand(args)
+  end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps list"
+			opts.banner = subcommand_usage("list")
 			build_common_options(opts, options, [:list, :json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
       params = {}
@@ -106,7 +65,7 @@ class Morpheus::Cli::Apps
 			else
 				print_apps_table(apps)
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -114,26 +73,20 @@ class Morpheus::Cli::Apps
 	end
 
 	def add(args)
-		usage = "Usage: morpheus apps add"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
-      opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-				options[:group_name] = val
-			end
-			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
-				options[:group_id] = val
+      opts.banner = subcommand_usage("add")
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+				options[:group] = val
 			end
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     connect(options)
     begin
   		
   		# use active group by default
-			if !options[:group_name] && !options[:group_id]
-				options[:group_id] = @active_groups[@appliance_name.to_sym]
-			end
+			options[:group] ||= @active_groups[@appliance_name.to_sym]
 			group = find_group_from_options(options)
 
 			payload = {
@@ -180,9 +133,9 @@ class Morpheus::Cli::Apps
 			opts.banner = "Usage: morpheus apps details [name]"
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -248,15 +201,14 @@ class Morpheus::Cli::Apps
 	end
 
 	def update(args)
-		usage = "Usage: morpheus apps update [name] [options]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("update [name]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
     connect(options)
@@ -279,7 +231,7 @@ class Morpheus::Cli::Apps
 			params = options[:options] || {}
 
       if params.empty?
-        puts "\n#{usage}\n"
+        puts "\n#{opts.banner}\n"
         option_lines = update_app_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
         puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
@@ -313,15 +265,14 @@ class Morpheus::Cli::Apps
 
 
 	def add_instance(args)
-		usage = "Usage: morpheus apps add-instance [name] [instance] [tier]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("add-instance", "[name] [instance] [tier]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		# optional [tier] and [instance] arguments
@@ -379,12 +330,12 @@ class Morpheus::Cli::Apps
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps remove [name]"
+      opts.banner = subcommand_usage("remove", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -403,15 +354,14 @@ class Morpheus::Cli::Apps
 	end
 
 	def remove_instance(args)
-		usage = "Usage: morpheus apps remove-instance [name] [instance]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("remove-instance", "[name] [instance]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		# optional [tier] and [instance] arguments
@@ -459,12 +409,12 @@ class Morpheus::Cli::Apps
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps logs [name]"
+			opts.banner = subcommand_usage("logs", "[name]")
 			build_common_options(opts, options, [:list, :json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -513,22 +463,18 @@ class Morpheus::Cli::Apps
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps stop [name]"
+			opts.banner = subcommand_usage("stop", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-			@apps_interface.stop(app_results['apps'][0]['id'])
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.stop(app['id'])
 			list([])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -539,22 +485,18 @@ class Morpheus::Cli::Apps
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps start [name]"
+			opts.banner = subcommand_usage("start", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-			@apps_interface.start(app_results['apps'][0]['id'])
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.start(app['id'])
 			list([])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -565,22 +507,18 @@ class Morpheus::Cli::Apps
 	def restart(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps restart [name]"
+			opts.banner = subcommand_usage("restart", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-			@apps_interface.restart(app_results['apps'][0]['id'])
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.restart(app['id'])
 			list([])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -592,23 +530,19 @@ class Morpheus::Cli::Apps
 	def firewall_disable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps firewall_disable [name]"
+			opts.banner = subcommand_usage("firewall-disable", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-			@apps_interface.firewall_disable(app_results['apps'][0]['id'])
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.firewall_disable(app['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -619,23 +553,19 @@ class Morpheus::Cli::Apps
 	def firewall_enable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps firewall_enable [name]"
+      opts.banner = subcommand_usage("firewall-enable", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-			@apps_interface.firewall_enable(app_results['apps'][0]['id'])
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.firewall_enable(app['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -646,28 +576,21 @@ class Morpheus::Cli::Apps
 	def security_groups(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps security_groups [name]"
+			opts.banner = subcommand_usage("security-groups", "[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
 
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-
-			app_id = app_results['apps'][0]['id']
-			json_response = @apps_interface.security_groups(app_id)
-
+			app = find_app_by_name_or_id(args[0])
+			json_response = @apps_interface.security_groups(app['id'])
 			securityGroups = json_response['securityGroups']
-			print "\n" ,cyan, bold, "Morpheus Security Groups for App:#{app_id}\n","==================", reset, "\n\n"
+			print "\n" ,cyan, bold, "Morpheus Security Groups for App: #{app['name']}\n","==================", reset, "\n\n"
 			print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
 			if securityGroups.empty?
 				puts yellow,"No security groups currently applied.",reset
@@ -676,7 +599,7 @@ class Morpheus::Cli::Apps
 					print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -685,14 +608,10 @@ class Morpheus::Cli::Apps
 	end
 
 	def apply_security_groups(args)
-		usage = <<-EOF
-Usage: morpheus apps apply_security_groups [name]
-EOF
-
 		options = {}
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("apply-security-groups", "[name] [--clear] [-s]")
 			opts.on( '-c', '--clear', "Clear all security groups" ) do
 				options[:securityGroupIds] = []
 				clear_or_secgroups_specified = true
@@ -707,26 +626,21 @@ EOF
 			end
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		if !clear_or_secgroups_specified 
-			puts usage
+			puts optparse
 			exit 1
 		end
 
 		connect(options)
 
 		begin
-			app_results = @apps_interface.get({name: args[0]})
-			if app_results['apps'].empty?
-				print_red_alert "App not found by name #{args[0]}"
-				exit 1
-			end
-
-			@apps_interface.apply_security_groups(app_results['apps'][0]['id'], options)
+			app = find_app_by_name_or_id(args[0])
+			@apps_interface.apply_security_groups(app['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

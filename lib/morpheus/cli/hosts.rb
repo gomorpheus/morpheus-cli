@@ -10,7 +10,9 @@ require 'json'
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-  
+	
+	register_subcommands :list, :details, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
@@ -37,53 +39,161 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
-	def handle(args) 
-		usage = "Usage: morpheus hosts [list,details,add,remove,logs,start,stop,resize,run-workflow,make-managed,upgrade-agent,server-types] [name]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			exit 127
-		end
+	def handle(args)
+    handle_subcommand(args)
+  end
 
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'start'
-				start(args[1..-1])
-			when 'stop'
-				start(args[1..-1])
-			when 'resize'
-				resize(args[1..-1])
-			when 'run-workflow'
-				run_workflow(args[1..-1])	
-			when 'upgrade-agent'
-				upgrade(args[1..-1])
-			when 'logs'
-				logs(args[1..-1])	
-			when 'server-types'
-				server_types(args[1..-1])
+  def list(args)
+		options = {}
+		params = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("list")
+			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+				options[:group] = val
+			end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+				options[:cloud] = val
+			end
+			build_common_options(opts, options, [:list, :json, :remote])
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			
+			group = find_group_from_options(options)
+			if group
+				params['siteId'] = group['id']
+			end
+
+			# argh, this doesn't work because groups is group_id is required for options/clouds
+			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
+			# if cloud
+			# 	params['zoneId'] = cloud['id']
+			# end
+			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+			if cloud
+				params['zoneId'] = cloud['id']
+			end
+
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
+			end
+
+			json_response = @servers_interface.get(params)
+
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
 			else
-				puts "\n#{usage}\n\n"
-				exit 127 #Command now foud exit code
+				servers = json_response['servers']
+				title = "Morpheus Hosts"
+				subtitles = []
+				if group
+					subtitles << "Group: #{group['name']}".strip
+				end
+				if cloud
+					subtitles << "Cloud: #{cloud['name']}".strip
+				end
+				subtitle = subtitles.join(', ')
+				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+				if servers.empty?
+					puts yellow,"No hosts found.",reset
+				else
+					print_servers_table(servers)
+					print_results_pagination(json_response)
+				end
+				print reset,"\n"
+			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def details(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("details", "[name]")
+			build_common_options(opts, options, [:json, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			server = find_host_by_name_or_id(args[0])
+			json_response = @servers_interface.get(server['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+			server = json_response['server']
+			stats = server['stats'] || json_response['stats'] || {}
+
+			power_state = nil
+			if server['powerState'] == 'on'
+				power_state = "#{green}ON#{cyan}"
+			elsif server['powerState'] == 'off'
+				power_state = "#{red}OFF#{cyan}"
+			else
+				power_state = "#{white}#{server['powerState'].upcase}#{cyan}"
+			end
+
+			print "\n" ,cyan, bold, "Host Details\n","==================", reset, "\n\n"
+			print cyan
+			puts "ID: #{server['id']}"
+			puts "Name: #{server['name']}"
+			puts "Description: #{server['description']}"
+			puts "Account: #{server['account'] ? server['account']['name'] : ''}"
+			#puts "Group: #{server['group'] ? server['group']['name'] : ''}"
+			#puts "Cloud: #{server['cloud'] ? server['cloud']['name'] : ''}"
+			puts "Cloud: #{server['zone'] ? server['zone']['name'] : ''}"
+			puts "Nodes: #{server['containers'] ? server['containers'].size : ''}"
+			puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
+			puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
+			puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
+			puts "Status: #{server['status']}"
+			puts "Power: #{power_state}"
+			print cyan
+			if stats['usedMemory']
+				print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}\n"
+			elsif server['maxMemory']
+				print cyan, "Memory: \t#{Filesize.from("#{server['maxMemory']} B").pretty}\n"
+			end
+			if stats['usedStorage']
+				print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}\n",reset
+			elsif server['maxStorage']
+				print cyan, "Storage: \t#{Filesize.from("#{server['maxStorage']} B").pretty}\n"
+			end
+			if stats['cpuUsage']
+				print cyan, "CPU Usage: \t#{stats['cpuUsage'].to_f.round(3)}\n",reset
+			end
+			
+			# if server['stats']
+			# 	print cyan, "Stats: #{JSON.pretty_generate(server['stats'])}\n\n",reset
+			# end
+
+			print "\n", reset
+
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts logs [name]"
+			opts.banner = subcommand_usage("logs", "[name]")
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -116,63 +226,51 @@ class Morpheus::Cli::Hosts
 	end
 
 	def server_types(args) 
-		options = {zone: args[0]}
+		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts server-types CLOUD"
+			opts.banner = subcommand_usage("server-types", "[cloud]")
 			build_common_options(opts, options, [:json, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
+		options[:zone] = args[0]
 		connect(options)
 		params = {}
-		
-		zone=nil
 
-		if !options[:zone].nil?
-			zone = find_zone_by_name(nil, options[:zone])
-		end
-
-		if zone.nil?
-			print_red_alert "Cloud not found for a"
-			exit 1
-		else
-			cloud_type = cloud_type_for_id(zone['zoneTypeId'])
-		end
+		zone = find_zone_by_name_or_id(nil, options[:zone])
+		cloud_type = cloud_type_for_id(zone['zoneTypeId'])
 		cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true}
+		cloud_server_types = cloud_server_types.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
 		if options[:json]
 			print JSON.pretty_generate(cloud_server_types)
 			print "\n"
 		else
-			
-			print "\n" ,cyan, bold, "Morpheus Server Types\n","==================", reset, "\n\n"
+			print "\n" ,cyan, bold, "Morpheus Server Types - Cloud: #{zone['name']}\n","==================", reset, "\n\n"
 			if cloud_server_types.nil? || cloud_server_types.empty?
 				puts yellow,"No server types found for the selected cloud.",reset
 			else
 				cloud_server_types.each do |server_type|
-					print cyan, "=  #{server_type['code']} - #{server_type['name']}\n"
+					print cyan, "[#{server_type['code']}]".ljust(20), " - ", "#{server_type['name']}", "\n"
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 		end
 	end
 
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts add"
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-				options[:group_name] = val
+			opts.banner = subcommand_usage("add", "[cloud]", "[name]")
+			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+				options[:group] = val
 			end
-			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
-				options[:group_id] = val
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+				options[:cloud] = val
 			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-				options[:cloud_name] = val
-			end
-			opts.on( '-t', '--type TYPE', "Server Type" ) do |val|
+			opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
 				options[:server_type_code] = val
 			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
@@ -181,17 +279,15 @@ class Morpheus::Cli::Hosts
 		connect(options)
 
 		# support old format of `hosts add CLOUD NAME`
-		if args[0] && args[0] !~ /\A\-/
-			options[:cloud_name] = args[0]
-			if args[1] && args[1] !~ /\A\-/
-				options[:host_name] = args[1]
-			end
+		if args[0]
+			options[:cloud] = args[0]
+		end
+		if args[1]
+			options[:host_name] = args[1]
 		end
 		
 		# use active group by default
-		if !options[:group_name] && !options[:group_id]
-			options[:group_id] = @active_groups[@appliance_name.to_sym]
-		end
+		options[:group] ||= @active_groups[@appliance_name.to_sym]
 
 		params = {}
 
@@ -326,7 +422,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		query_params = {removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts remove [name] [-f] [-S]"
+			opts.banner = subcommand_usage("remove", "[name] [-f] [-S]")
 			opts.on( '-f', '--force', "Force Remove" ) do
 				query_params[:force] = 'on'
 			end
@@ -336,9 +432,9 @@ class Morpheus::Cli::Hosts
 			
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -366,163 +462,17 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
-	def list(args)
-		options = {}
-		params = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts list"
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-				options[:group_name] = val
-			end
-			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
-				options[:group_id] = val
-			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-				options[:cloud_name] = val
-			end
-			build_common_options(opts, options, [:list, :json, :remote])
-		end
-		optparse.parse(args)
-		connect(options)
-		begin
-			
-			group = find_group_from_options(options)
-			if group
-				params['siteId'] = group['id']
-			end
-
-			# argh, this doesn't work because groups is group_id is required for options/clouds
-			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
-			# if cloud
-			# 	params['zoneId'] = cloud['id']
-			# end
-			cloud = nil
-			if !group
-				cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
-				if cloud
-					params['zoneId'] = cloud['id']
-				end
-			end
-
-			[:phrase, :offset, :max, :sort, :direction].each do |k|
-				params[k] = options[k] unless options[k].nil?
-			end
-
-			json_response = @servers_interface.get(params)
-
-			if options[:json]
-				print JSON.pretty_generate(json_response)
-				print "\n"
-			else
-				servers = json_response['servers']
-				title = "Morpheus Hosts"
-				subtitles = []
-				if group
-					subtitles << "Group: #{group['name']}".strip
-				end
-				if cloud
-					subtitles << "Cloud: #{cloud['name']}".strip
-				end
-				subtitle = subtitles.join(', ')
-				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
-				if servers.empty?
-					puts yellow,"No hosts found.",reset
-				else
-					print_servers_table(servers)
-					print_results_pagination(json_response)
-				end
-				print reset,"\n\n"
-			end
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
-
-	def details(args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts details [name]"
-			build_common_options(opts, options, [:json, :remote])
-		end
-		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			exit 1
-		end
-		optparse.parse(args)
-		connect(options)
-		begin
-			server = find_host_by_name_or_id(args[0])
-			json_response = @servers_interface.get(server['id'])
-			if options[:json]
-				print JSON.pretty_generate(json_response)
-				return
-			end
-			server = json_response['server']
-			stats = server['stats'] || json_response['stats'] || {}
-
-			power_state = nil
-			if server['powerState'] == 'on'
-				power_state = "#{green}ON#{cyan}"
-			elsif server['powerState'] == 'off'
-				power_state = "#{red}OFF#{cyan}"
-			else
-				power_state = "#{white}#{server['powerState'].upcase}#{cyan}"
-			end
-
-			print "\n" ,cyan, bold, "Host Details\n","==================", reset, "\n\n"
-			print cyan
-			puts "ID: #{server['id']}"
-			puts "Name: #{server['name']}"
-			puts "Description: #{server['description']}"
-			puts "Account: #{server['account'] ? server['account']['name'] : ''}"
-			#puts "Group: #{server['group'] ? server['group']['name'] : ''}"
-			#puts "Cloud: #{server['cloud'] ? server['cloud']['name'] : ''}"
-			puts "Cloud: #{server['zone'] ? server['zone']['name'] : ''}"
-			puts "Nodes: #{server['containers'] ? server['containers'].size : ''}"
-			puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
-			puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
-			puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
-			puts "Status: #{server['status']}"
-			puts "Power: #{power_state}"
-			print cyan
-			if stats['usedMemory']
-				print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}\n"
-			elsif server['maxMemory']
-				print cyan, "Memory: \t#{Filesize.from("#{server['maxMemory']} B").pretty}\n"
-			end
-			if stats['usedStorage']
-				print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}\n",reset
-			elsif server['maxStorage']
-				print cyan, "Storage: \t#{Filesize.from("#{server['maxStorage']} B").pretty}\n"
-			end
-			if stats['cpuUsage']
-				print cyan, "CPU Usage: \t#{stats['cpuUsage'].to_f.round(3)}\n",reset
-			end
-			
-			# if server['stats']
-			# 	print cyan, "Stats: #{JSON.pretty_generate(server['stats'])}\n\n",reset
-			# end
-
-			print "\n", reset
-
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
-
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts start [name]"
+			opts.banner = subcommand_usage("start", "[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -543,14 +493,14 @@ class Morpheus::Cli::Hosts
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts stop [name]"
+			opts.banner = subcommand_usage("stop", "[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -571,14 +521,14 @@ class Morpheus::Cli::Hosts
 	def resize(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts resize [name]"
+			opts.banner = subcommand_usage("resize", "[name]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			server = find_host_by_name_or_id(args[0])
@@ -664,14 +614,14 @@ class Morpheus::Cli::Hosts
 	def upgrade(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts upgrade [name]"
+			opts.banner = subcommand_usage("upgrade", "[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -693,7 +643,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus hosts run-workflow [HOST] [name]"
+			opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 2
@@ -701,7 +651,7 @@ class Morpheus::Cli::Hosts
 			exit 1
 		end
 		
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		host = find_host_by_name_or_id(args[0])
 		workflow = find_workflow_by_name(args[1])
@@ -721,7 +671,7 @@ class Morpheus::Cli::Hosts
 		params = options[:options] || {}
 
 		if params.empty? && !editable_options.empty?
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 			puts "\nAvailable Options:\n#{option_lines}\n\n"
 			exit 1
@@ -774,13 +724,24 @@ private
 		end
 	end
 
-	def find_zone_by_name(group_id, name)
-		zone_results = @clouds_interface.get({groupId: group_id, name: name})
-		if zone_results['zones'].empty?
-			print_red_alert "Cloud not found by name #{name}"
-			exit 1
+	def find_zone_by_name_or_id(group_id, val)
+		zone = nil
+		if val.to_s =~ /\A\d{1,}\Z/
+			json_results = @clouds_interface.get(val.to_i)
+			zone = json_results['zone']
+			if zone.nil?
+				print_red_alert "Cloud not found by id #{val}"
+				exit 1
+			end
+		else
+			json_results = @clouds_interface.get({groupId: group_id, name: val})
+			zone = json_results['zones'] ? json_results['zones'][0] : nil
+			if zone.nil?
+				print_red_alert "Cloud not found by name #{val}"
+				exit 1
+			end
 		end
-		return zone_results['zones'][0]
+		return zone
 	end
 
 	def find_server_type(zone, name)
