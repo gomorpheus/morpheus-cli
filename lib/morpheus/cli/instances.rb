@@ -29,7 +29,7 @@ class Morpheus::Cli::Instances
 		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
 		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
 		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
@@ -124,7 +124,7 @@ class Morpheus::Cli::Instances
 			
 		end
 
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 
 		# support old format of `instance add TYPE NAME`
@@ -752,6 +752,12 @@ class Morpheus::Cli::Instances
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
 				options[:group_name] = val
 			end
+			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
+				options[:group_id] = val
+			end
+			# opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+			# 	options[:cloud_name] = val
+			# end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
@@ -760,8 +766,22 @@ class Morpheus::Cli::Instances
 			params = {}
 			group = find_group_from_options(options)
 			if group
-				params['site'] = group['id']
+				params['siteId'] = group['id']
 			end
+
+			# argh, this doesn't work because groups is group_id is required for options/clouds
+			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
+			# if cloud
+			# 	params['zoneId'] = cloud['id']
+			# end
+			# cloud = nil
+			# if !group
+			# 	cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
+			# 	if cloud
+			# 		params['zoneId'] = cloud['id']
+			# 	end
+			# end
+
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
@@ -1033,6 +1053,15 @@ private
 		else
 			return find_instance_by_name(val)
 		end
+	end
+
+	def find_zone_by_name(group_id, name)
+		zone_results = @clouds_interface.get({groupId: group_id, name: name})
+		if zone_results['zones'].empty?
+			print_red_alert "Cloud not found by name #{name}"
+			exit 1
+		end
+		return zone_results['zones'][0]
 	end
 
 	def find_workflow_by_name(name)

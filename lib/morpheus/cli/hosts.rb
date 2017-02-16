@@ -177,7 +177,7 @@ class Morpheus::Cli::Hosts
 			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 
 		# support old format of `hosts add CLOUD NAME`
