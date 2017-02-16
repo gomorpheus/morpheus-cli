@@ -109,27 +109,6 @@ class Morpheus::Cli::Clouds
 			puts "Type: #{cloud_type_for_id(cloud['zoneTypeId'])}"
 			puts "Location: #{cloud['location']}"
 			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
-			puts "Total Servers: #{cloud['serverCount']}"
-			if server_counts
-				# if server_counts['host'] && server_counts['host'] != 0
-				# 	puts "Host: #{server_counts['host']}"
-				# end
-				if server_counts['containerHost'] && server_counts['containerHost'] != 0
-					puts "Container Hosts: #{server_counts['containerHost']}"
-				end
-				#if server_counts['hypervisor'] && server_counts['hypervisor'] != 0
-					puts "Hypervisors: #{server_counts['hypervisor']}"
-				#end
-				#if server_counts['baremetal'] && server_counts['baremetal'] != 0
-					puts "Bare Metal: #{server_counts['baremetal']}"
-				#end
-				#if server_counts['vm'] && server_counts['vm'] != 0
-					puts "Virtual Machines: #{server_counts['vm']}"
-				#end
-				#if server_counts['unmanaged'] && server_counts['unmanaged'] != 0
-					puts "Unmanaged: #{server_counts['unmanaged']}"
-				#end
-			end
 			status = nil
 			if cloud['status'] == 'ok'
 				status = "#{green}OK#{cyan}"
@@ -139,6 +118,18 @@ class Morpheus::Cli::Clouds
 				status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
 			end
 			puts "Status: #{status}"
+
+			print "\n" ,cyan, "Cloud Servers (#{cloud['serverCount']})\n","==================", reset, "\n\n"
+			print cyan
+			if server_counts
+			print "Container Hosts: #{server_counts['containerHost']}".center(20)
+				print "Hypervisors: #{server_counts['hypervisor']}".center(20)
+				print "Bare Metal: #{server_counts['baremetal']}".center(20)
+				print "Virtual Machines: #{server_counts['vm']}".center(20)
+				print "Unmanaged: #{server_counts['unmanaged']}".center(20)
+				print "\n"
+			end
+
 			print reset,"\n"
 
 			#puts instance
