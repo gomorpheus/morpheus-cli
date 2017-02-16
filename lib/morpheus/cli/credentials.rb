@@ -42,11 +42,16 @@ module Morpheus
 						print "\n"
 					end
 
-					oauth_url = File.join(@appliance_url, "/oauth/token")
 					begin
-						authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password},verify_ssl: false, timeout: 10)
-
-						json_response = JSON.parse(authorize_response.to_s)
+						#oauth_url = File.join(@appliance_url, "/oauth/token")
+						#authorize_response = Morpheus::RestClient.execute(method: :post, url: oauth_url, headers:{ params: {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}}, payload: {password: password}, timeout: 10)
+						#json_response = JSON.parse(authorize_response.to_s)
+						auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+						json_response = auth_interface.login(username, password)
+						if opts[:json]
+							print JSON.pretty_generate(json_response)
+							print reset, "\n"
+						end
 						access_token = json_response['access_token']
 						if !access_token.empty?
 							save_credentials(access_token) unless skip_save
@@ -61,7 +66,7 @@ module Morpheus
 							if opts[:json]
 								json_response = JSON.parse(e.response.to_s)
 								print JSON.pretty_generate(json_response)
-          			print reset, "\n\n"
+								print reset, "\n"
 							end
 						else
 							print_rest_exception(e, opts)

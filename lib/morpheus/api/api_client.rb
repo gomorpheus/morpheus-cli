@@ -11,6 +11,10 @@ class Morpheus::APIClient
 		end
 	end
 
+	def auth
+		Morpheus::AuthInterface.new(@base_url, @access_token)
+	end
+
 	def whoami
 		Morpheus::WhoamiInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
 	end
