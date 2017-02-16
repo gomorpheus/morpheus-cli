@@ -9,11 +9,12 @@ require 'json'
 class Morpheus::Cli::Clouds
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :details, :add, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 
 	end
-
 
 	def connect(opts)
 		if opts[:remote]
@@ -33,46 +34,20 @@ class Morpheus::Cli::Clouds
 		end
 	end
 
-	def handle(args) 
-
-		if args.empty?
-			puts "\nUsage: morpheus clouds [list,details,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
-			return
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'firewall_disable'
-				firewall_disable(args[1..-1])	
-			when 'firewall_enable'
-				firewall_enable(args[1..-1])	
-			when 'security_groups'	
-				security_groups(args[1..-1])	
-			when 'apply_security_groups'	
-				apply_security_groups(args[1..-1])		
-			else
-				puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
-				exit 127 #Command now foud exit code
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options={}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus clouds list"
+			opts.banner = subcommand_usage("list")
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
@@ -94,8 +69,9 @@ class Morpheus::Cli::Clouds
 					puts yellow,"No clouds found.",reset
 				else
 					print_clouds_table(clouds)
+					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -106,14 +82,14 @@ class Morpheus::Cli::Clouds
 	def details(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus clouds details [name]"
+			opts.banner = subcommand_usage("details [name]")
 			build_common_options(opts, options, [:json])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse.banner
 			exit 1
 		end
-		optparse.parse(args)
 		connect(options)
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
@@ -154,7 +130,7 @@ class Morpheus::Cli::Clouds
 				end
 			end
 
-			print "\n\n",reset
+			print reset,"\n"
 
 			#puts instance
 		rescue RestClient::Exception => e
@@ -167,7 +143,7 @@ class Morpheus::Cli::Clouds
 		options = {}
 		params = {zone_type: 'standard'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus clouds add [name] --group GROUP --type TYPE"
+			opts.banner = subcommand_usage("add [name] --group GROUP --type TYPE")
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				params[:group] = group
 			end
@@ -180,12 +156,10 @@ class Morpheus::Cli::Clouds
 			build_common_options(opts, options, [:options, :json, :remote])
 		end
 		optparse.parse!(args)
-
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-
 		connect(options)
 		zone = {name: args[0], description: params[:description]}
 		if !params[:group].nil?
@@ -218,19 +192,17 @@ class Morpheus::Cli::Clouds
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus clouds remove [name] --group GROUP"
+			opts.banner = subcommand_usage("remove [name] --group GROUP")
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
 			build_common_options(opts, options, [:auto_confirm, :json, :remote])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		if args.count < 2
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse.banner
 			return
 		end
-
 		connect(options)
 		if !options[:group].nil?
 			group = find_group_by_name(options[:group])
@@ -267,17 +239,26 @@ class Morpheus::Cli::Clouds
 	end
 
 	def firewall_disable(args)
+		options = {}
+		clear_or_secgroups_specified = false
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("firewall-disable [name]")
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\nUsage: morpheus clouds firewall_disable [name]\n\n"
+			puts optparse
 			return
 		end
+		connect(options)
 		begin
-			zone_results = @clouds_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
-				puts "Zone not found by name #{args[0]}"
-				exit 1
+			cloud = find_cloud_by_name_or_id(args[0])
+			json_response = @clouds_interface.firewall_disable(cloud['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
 			end
-			@clouds_interface.firewall_disable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -286,17 +267,26 @@ class Morpheus::Cli::Clouds
 	end
 
 	def firewall_enable(args)
+		options = {}
+		clear_or_secgroups_specified = false
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("firewall-enable", "[name]")
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\nUsage: morpheus clouds firewall_enable [name]\n\n"
+			puts optparse
 			return
 		end
+		connect(options)
 		begin
-			zone_results = @clouds_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
-				puts "Zone not found by name #{args[0]}"
-				exit 1
+			cloud = find_cloud_by_name_or_id(args[0])
+			json_response = @clouds_interface.firewall_enable(cloud['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
 			end
-			@clouds_interface.firewall_enable(zone_results['zones'][0]['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -305,22 +295,29 @@ class Morpheus::Cli::Clouds
 	end
 
 	def security_groups(args)
+		options = {}
+		clear_or_secgroups_specified = false
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("security-groups [name]")
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\nUsage: morpheus clouds security_groups [name]\n\n"
+			puts optparse
 			return
 		end
+		connect(options)
 		begin
-			zone_results = @clouds_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
-				puts "Zone not found by name #{args[0]}"
-				exit 1
-			end
-
-			zone_id = zone_results['zones'][0]['id']
+			cloud = find_cloud_by_name_or_id(args[0])
+			zone_id = cloud['id']
 			json_response = @clouds_interface.security_groups(zone_id)
-
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
+			end
 			securityGroups = json_response['securityGroups']
-			print "\n" ,cyan, bold, "Morpheus Security Groups for Zone:#{zone_id}\n","==================", reset, "\n\n"
+			print "\n" ,cyan, bold, "Morpheus Security Groups for Cloud: #{cloud['name']}\n","==================", reset, "\n\n"
 			print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
 			if securityGroups.empty?
 				puts yellow,"No security groups currently applied.",reset
@@ -329,7 +326,7 @@ class Morpheus::Cli::Clouds
 					print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -338,18 +335,10 @@ class Morpheus::Cli::Clouds
 	end
 
 	def apply_security_groups(args)
-		usage = <<-EOF
-Usage: morpheus clouds apply_security_groups [name] [options]
-EOF
-		if args.count < 1
-			puts usage
-			exit 1
-		end
-
 		options = {}
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("apply-security-groups [name] [-s] [--clear]")
 			opts.on( '-c', '--clear', "Clear all security groups" ) do
 				options[:securityGroupIds] = []
 				clear_or_secgroups_specified = true
@@ -358,26 +347,23 @@ EOF
 				options[:securityGroupIds] = secgroups.split(",")
 				clear_or_secgroups_specified = true
 			end
-			opts.on( '-h', '--help', "Prints this help" ) do
-				puts opts
-				exit
-			end
+			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		if !clear_or_secgroups_specified 
-			puts usage
+			puts optparse
 			exit
 		end
-
+		connect(options)
 		begin
-			zone_results = @clouds_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
-				puts "Zone not found by name #{args[0]}"
-				exit 1
+			cloud = find_cloud_by_name_or_id(args[0])
+			zone_id = cloud['id']
+			json_response = @clouds_interface.apply_security_groups(cloud['id'], options)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
 			end
-
-			@clouds_interface.apply_security_groups(zone_results['zones'][0]['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -393,7 +379,7 @@ private
 			print_red_alert "Cloud not found by id #{id}"
 			exit 1
 		end
-		cloud = json_results['cloud']
+		cloud = json_results['zone']
 		return cloud
 	end
 

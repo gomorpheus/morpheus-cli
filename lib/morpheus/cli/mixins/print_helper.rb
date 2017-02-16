@@ -57,9 +57,9 @@ module Morpheus::Cli::PrintHelper
         if options[:json]
           begin
             response = JSON.parse(e.response.to_s)
-            print red, "\n"
+            print red
             print JSON.pretty_generate(response)
-            print reset, "\n\n"
+            print reset, "\n"
           rescue TypeError, JSON::ParserError => ex
             #print_red_alert "Failed to parse JSON response: #{ex}"
           ensure

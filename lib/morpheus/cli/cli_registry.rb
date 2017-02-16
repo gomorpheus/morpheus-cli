@@ -24,13 +24,11 @@ module Morpheus
 
         def add(klass, command_name=nil)
           klass_command_name = cli_ize(klass.name.split('::')[-1])
-
-          if has_command?(klass_command_name) && !command_name.nil?
+          if has_command?(klass_command_name)
             instance.remove(klass_command_name)
-            instance.add(command_name, klass)
-          else
-            instance.add(klass_command_name, klass)
           end
+          command_name ||= klass_command_name
+          instance.add(command_name, klass)
         end
 
         def has_command?(command_name)
@@ -44,8 +42,6 @@ module Morpheus
         def all
           instance.all
         end
-
-        private
 
         def cli_ize(klass_name)
           # borrowed from ActiveSupport

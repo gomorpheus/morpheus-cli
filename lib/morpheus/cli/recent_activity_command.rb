@@ -5,8 +5,8 @@ require 'json'
 class Morpheus::Cli::RecentActivityCommand
   include Morpheus::Cli::CliCommand
   
-  cli_command_name :'recent-activity'
-  cli_command_hidden # remove once this is done
+  set_command_name :'recent-activity'
+  set_command_hidden # remove once this is done
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance

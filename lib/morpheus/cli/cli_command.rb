@@ -7,9 +7,9 @@ module Morpheus
     module CliCommand
 
       def self.included(klass)
-        Morpheus::Cli::CliRegistry.add(klass)
         klass.send :include, Morpheus::Cli::PrintHelper
         klass.extend ClassMethods
+        Morpheus::Cli::CliRegistry.add(klass, klass.command_name)
       end
 
       def build_common_options(opts, options, includes=[])
@@ -116,7 +116,7 @@ module Morpheus
         end
 
         # options that are always included
-        opts.on('-C','--nocolor', "ANSI") do
+        opts.on('-C','--nocolor', "Disable ANSI coloring") do
           Term::ANSIColor::coloring = false
         end
 
@@ -139,19 +139,128 @@ module Morpheus
         end
 
       end
-      
+
+      def command_name
+        self.class.command_name
+      end
+
+      def subcommands
+        self.class.subcommands
+      end
+
+      def usage
+        if !subcommands.empty?
+          "Usage: morpheus #{command_name} [command] [options]"
+        else
+          "Usage: morpheus #{command_name} [options]"
+        end
+      end
+
+      def subcommand_usage(cmd_name, *extra)
+        extra = ["[options]"] if extra.empty?
+        "Usage: morpheus #{command_name} #{cmd_name} #{extra.join(' ')}".squeeze(' ').strip
+      end
+
+      def print_usage()
+        puts usage
+        if !subcommands.empty?
+          puts "\nCommands:"
+          subcommands.each {|cmd, method|
+            puts "\t#{cmd.to_s}"
+          }
+        end
+      end
+
+      # a default handler
+      def handle_subcommand(args)
+        commands = subcommands
+        if subcommands.empty?
+          raise "#{self.class} has no available subcommands"
+        end
+        cmd_name = args[0]
+        cmd_method = subcommands[cmd_name]
+        if cmd_name && !cmd_method
+          #puts "unknown command '#{cmd_name}'"
+        end
+        if !cmd_method
+          print_usage
+          puts ""
+          exit 127
+        end
+        self.send(cmd_method, args[1..-1])
+      end
+
+      def handle(args)
+        raise "#{self} has not defined handle()!"
+      end
 
       module ClassMethods
-        def cli_command_name(cmd_name)
+
+        def registered_command_name
           Morpheus::Cli::CliRegistry.add(self, cmd_name)
         end
 
-        def cli_command_hidden(val=true)
+        def set_command_name(cmd_name)
+          @command_name = cmd_name
+          Morpheus::Cli::CliRegistry.add(self, self.command_name)
+        end
+
+        def default_command_name
+          Morpheus::Cli::CliRegistry.cli_ize(self.name.split('::')[-1])
+        end
+        
+        def command_name
+          @command_name ||= default_command_name
+          @command_name
+        end
+
+        def set_command_hidden(val=true)
           @hidden_command = val
         end
         
         def hidden_command
           !!@hidden_command
+        end
+
+        # construct map of command name => instance method
+        def register_subcommands(*cmds)
+          @subcommands ||= {}
+          cmds.flatten.each {|cmd| 
+            if cmd.is_a?(Hash)
+              cmd.each {|k,v| 
+                # @subcommands[k] = v
+                add_subcommand(k.to_s, v.to_s)
+              }
+            elsif cmd.is_a?(Array) 
+              cmd.each {|it| register_subcommands(it) }
+            elsif cmd.is_a?(String) || cmd.is_a?(Symbol)
+              #k = Morpheus::Cli::CliRegistry.cli_ize(cmd)
+              k = cmd.to_s.gsub('_', '-')
+              v = cmd.to_s.gsub('-', '_')
+              register_subcommands({(k) => v})
+            else
+              raise "Unable to register command of type: #{cmd.class} #{cmd}"
+            end
+          }
+          return
+        end
+
+        def subcommands
+          @subcommands ||= {}
+        end
+
+        def has_subcommand?(cmd_name)
+          @subcommands && @subcommands[cmd_name.to_s]
+        end
+
+        def add_subcommand(cmd_name, method)
+          @subcommands ||= {}
+          @subcommands[cmd_name.to_s] = method
+        end
+
+        def remove_subcommand(cmd_name)
+          @subcommands ||= {}
+          @subcommands.delete(cmd_name.to_s)
         end
 
       end

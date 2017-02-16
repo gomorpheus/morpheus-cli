@@ -4,7 +4,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::VersionCommand
   include Morpheus::Cli::CliCommand
 
-  cli_command_name :version
+  set_command_name :version
   
 	def initialize
 	end

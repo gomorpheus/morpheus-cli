@@ -9,7 +9,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
 
-  cli_command_name :deploy
+  set_command_name :deploy
   
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance

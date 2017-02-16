@@ -2,12 +2,12 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
-require 'morpheus/cli/cli_command'
 require "shellwords"
 require 'readline'
 require 'logger'
 require 'fileutils'
+require 'morpheus/cli/cli_command'
+require 'morpheus/cli/error_handler'
 
 
 class Morpheus::Cli::Shell
@@ -148,16 +148,10 @@ class Morpheus::Cli::Shell
 					rescue SystemExit
 						# nothing to do
 						print "\n"
-					rescue OptionParser::InvalidOption => e
-						print Term::ANSIColor.red, "\n", "#{e.message}", "", Term::ANSIColor.reset
-						print "\n", "Try -h for help with this command.", "\n\n"
 					rescue => e
 						@history_logger.error "#{e.message}" if @history_logger
-						print Term::ANSIColor.red, "\n", "Unexpected Error", "\n\n", Term::ANSIColor.reset
-						if Morpheus::Logging.print_stacktrace?
-							print Term::ANSIColor.red, "\n", "#{e.class}: #{e.message}", "\n", Term::ANSIColor.reset
-							print e.backtrace.join("\n"), "\n\n"
-						end
+						Morpheus::Cli::ErrorHandler.new.handle_error(e)
+						# exit 1
 					end
 						
 					if @return_to_log_level
