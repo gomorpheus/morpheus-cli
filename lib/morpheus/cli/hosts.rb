@@ -204,7 +204,7 @@ class Morpheus::Cli::Hosts
 			# print_red_alert "Group not found or specified!"
 			# exit 1
 			group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => get_available_groups(), 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
-			group_id = cloud_prompt['group']
+			group_id = group_prompt['group']
 		end
 
 		# Cloud
