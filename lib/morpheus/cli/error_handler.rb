@@ -16,7 +16,8 @@ class Morpheus::Cli::ErrorHandler
       print_red_alert "#{err.message}"
     # more special errors?
     when RestClient::Exception
-      print_rest_exception(err, options)
+      #print_rest_exception(err, options)
+      print_rest_exception(err)
     else
       print_red_alert "Unexpected Error"
     end
