@@ -108,6 +108,7 @@ class Morpheus::Cli::Clouds
 			puts "Name: #{cloud['name']}"
 			puts "Type: #{cloud_type_for_id(cloud['zoneTypeId'])}"
 			puts "Location: #{cloud['location']}"
+			puts "Visibility: #{cloud['visibility'].to_s.capitalize}"
 			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
 			status = nil
 			if cloud['status'] == 'ok'
