@@ -114,22 +114,30 @@ class Morpheus::Cli::Clouds
 				# 	puts "Host: #{server_counts['host']}"
 				# end
 				if server_counts['containerHost'] && server_counts['containerHost'] != 0
-					puts "Container: #{server_counts['containerHost']}"
+					puts "Container Hosts: #{server_counts['containerHost']}"
 				end
-				if server_counts['hypervisor'] && server_counts['hypervisor'] != 0
-					puts "Hypervisor: #{server_counts['hypervisor']}"
-				end
-				if server_counts['baremetal'] && server_counts['baremetal'] != 0
+				#if server_counts['hypervisor'] && server_counts['hypervisor'] != 0
+					puts "Hypervisors: #{server_counts['hypervisor']}"
+				#end
+				#if server_counts['baremetal'] && server_counts['baremetal'] != 0
 					puts "Bare Metal: #{server_counts['baremetal']}"
-				end
-				if server_counts['vm'] && server_counts['vm'] != 0
-					puts "VM: #{server_counts['vm']}"
-				end
-				if server_counts['unmanaged'] && server_counts['unmanaged'] != 0
+				#end
+				#if server_counts['vm'] && server_counts['vm'] != 0
+					puts "Virtual Machines: #{server_counts['vm']}"
+				#end
+				#if server_counts['unmanaged'] && server_counts['unmanaged'] != 0
 					puts "Unmanaged: #{server_counts['unmanaged']}"
-				end
+				#end
 			end
-
+			status = nil
+			if cloud['status'] == 'ok'
+				status = "#{green}OK#{cyan}"
+			elsif cloud['status'].nil?
+				status = "#{white}UNKNOWN#{cyan}"
+			else
+				status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
+			end
+			puts "Status: #{status}"
 			print reset,"\n"
 
 			#puts instance
