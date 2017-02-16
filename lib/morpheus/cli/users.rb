@@ -85,6 +85,7 @@ class Morpheus::Cli::Users
 					puts yellow,"No users found.",reset
 				else
 					print_users_table(users)
+					print_results_pagination(json_response)
 				end
 				print reset,"\n"
 			end

@@ -38,7 +38,7 @@ class Morpheus::Cli::Hosts
 	end
 
 	def handle(args) 
-		usage = "Usage: morpheus hosts [list,add,remove,logs,start,stop,run-workflow,make-managed,upgrade-agent,server-types] [name]"
+		usage = "Usage: morpheus hosts [list,details,add,remove,logs,start,stop,resize,run-workflow,make-managed,upgrade-agent,server-types] [name]"
 		if args.empty?
 			puts "\n#{usage}\n\n"
 			exit 127
@@ -49,12 +49,16 @@ class Morpheus::Cli::Hosts
 				list(args[1..-1])
 			when 'add'
 				add(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'remove'
 				remove(args[1..-1])
 			when 'start'
 				start(args[1..-1])
 			when 'stop'
 				start(args[1..-1])
+			when 'resize'
+				resize(args[1..-1])
 			when 'run-workflow'
 				run_workflow(args[1..-1])	
 			when 'upgrade-agent'
@@ -209,9 +213,12 @@ class Morpheus::Cli::Hosts
 		if cloud
 			cloud_id = cloud["id"]
 		else
-			# print_red_alert "Cloud not specified!"
-			# exit 1
-			cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})
+			available_clouds = get_available_clouds(group_id)
+			if available_clouds.empty?
+				print_red_alert "Group #{group['name']} has no available clouds"
+				exit 1
+			end
+			cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => available_clouds, 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})
 			cloud_id = cloud_prompt['cloud']
 			cloud = find_cloud_by_id(group_id, cloud_id)
 		end
@@ -249,9 +256,8 @@ class Morpheus::Cli::Hosts
 		service_plans_json = @servers_interface.service_plans({zoneId: cloud['id'], serverTypeId: server_type["id"]})
 		service_plans = service_plans_json["plans"]
 		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
-		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
-		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
-		# payload[:servicePlan] = plan_prompt['servicePlan']
+		plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
+		service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['plan'].to_i }
 
 		# prompt for volumes
 		volumes = prompt_volumes(service_plan, options, @api_client, {})
@@ -368,7 +374,12 @@ class Morpheus::Cli::Hosts
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
 				options[:group_name] = val
 			end
-			
+			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
+				options[:group_id] = val
+			end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+				options[:cloud_name] = val
+			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
@@ -377,7 +388,20 @@ class Morpheus::Cli::Hosts
 			
 			group = find_group_from_options(options)
 			if group
-				params['site'] = group['id']
+				params['siteId'] = group['id']
+			end
+
+			# argh, this doesn't work because groups is group_id is required for options/clouds
+			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
+			# if cloud
+			# 	params['zoneId'] = cloud['id']
+			# end
+			cloud = nil
+			if !group
+				cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
+				if cloud
+					params['zoneId'] = cloud['id']
+				end
 			end
 
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
@@ -385,32 +409,28 @@ class Morpheus::Cli::Hosts
 			end
 
 			json_response = @servers_interface.get(params)
-			servers = json_response['servers']
+
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				print "\n" ,cyan, bold, "Morpheus Hosts\n","==================", reset, "\n\n"
-				if servers.empty?
-					puts yellow,"No hosts currently configured.",reset
-				else
-					
-
-					server_table =servers.collect do |server|
-						power_state = nil
-						if server['powerState'] == 'on'
-							power_state = "#{green}ON#{cyan}"
-						elsif server['powerState'] == 'off'
-							power_state = "#{red}OFF#{cyan}"
-						else
-							power_state = "#{white}#{server['powerState'].upcase}#{cyan}"
-						end
-						{id: server['id'], name: server['name'], platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A', type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', status: server['status'], power: power_state}
-						# print cyan, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
-					end
+				servers = json_response['servers']
+				title = "Morpheus Hosts"
+				subtitles = []
+				if group
+					subtitles << "Group: #{group['name']}".strip
 				end
-				print cyan
-				tp server_table, :id, :name, :type, :platform, :status, :power
+				if cloud
+					subtitles << "Cloud: #{cloud['name']}".strip
+				end
+				subtitle = subtitles.join(', ')
+				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+				if servers.empty?
+					puts yellow,"No hosts found.",reset
+				else
+					print_servers_table(servers)
+					print_results_pagination(json_response)
+				end
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
@@ -419,6 +439,78 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
+	def details(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts details [name]"
+			build_common_options(opts, options, [:json, :remote])
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			server = find_host_by_name_or_id(args[0])
+			json_response = @servers_interface.get(server['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+			server = json_response['server']
+			stats = server['stats'] || json_response['stats'] || {}
+
+			power_state = nil
+			if server['powerState'] == 'on'
+				power_state = "#{green}ON#{cyan}"
+			elsif server['powerState'] == 'off'
+				power_state = "#{red}OFF#{cyan}"
+			else
+				power_state = "#{white}#{server['powerState'].upcase}#{cyan}"
+			end
+
+			print "\n" ,cyan, bold, "Host Details\n","==================", reset, "\n\n"
+			print cyan
+			puts "ID: #{server['id']}"
+			puts "Name: #{server['name']}"
+			puts "Description: #{server['description']}"
+			puts "Account: #{server['account'] ? server['account']['name'] : ''}"
+			#puts "Group: #{server['group'] ? server['group']['name'] : ''}"
+			#puts "Cloud: #{server['cloud'] ? server['cloud']['name'] : ''}"
+			puts "Cloud: #{server['zone'] ? server['zone']['name'] : ''}"
+			puts "Nodes: #{server['containers'] ? server['containers'].size : ''}"
+			puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
+			puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
+			puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
+			puts "Status: #{server['status']}"
+			puts "Power: #{power_state}"
+			print cyan
+			if stats['usedMemory']
+				print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}\n"
+			elsif server['maxMemory']
+				print cyan, "Memory: \t#{Filesize.from("#{server['maxMemory']} B").pretty}\n"
+			end
+			if stats['usedStorage']
+				print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}\n",reset
+			elsif server['maxStorage']
+				print cyan, "Storage: \t#{Filesize.from("#{server['maxStorage']} B").pretty}\n"
+			end
+			if stats['cpuUsage']
+				print cyan, "CPU Usage: \t#{stats['cpuUsage'].to_f.round(3)}\n",reset
+			end
+			
+			# if server['stats']
+			# 	print cyan, "Stats: #{JSON.pretty_generate(server['stats'])}\n\n",reset
+			# end
+
+			print "\n", reset
+
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
 
 	def start(args)
 		options = {}
@@ -470,6 +562,99 @@ class Morpheus::Cli::Hosts
 				puts "Host #{host[name]} stopped."
 			end
 			return
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def resize(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus hosts resize [name]"
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			server = find_host_by_name_or_id(args[0])
+
+			group_id = server["siteId"] || erver['group']['id']
+			cloud_id = server["zoneId"] || server["zone"]["id"]
+			server_type_id = server['computeServerType']['id']
+			plan_id = server['plan']['id']
+			payload = {
+				:server => {:id => server["id"]}
+			}
+
+			# avoid 500 error
+			# payload[:servicePlanOptions] = {}
+			unless options[:no_prompt]
+				puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
+				# unless hot_resize
+				# 	puts "\nWARNING: Resize actions for this server will cause instances to be restarted.\n\n"
+				# end
+			end
+
+			# prompt for service plan
+			service_plans_json = @servers_interface.service_plans({zoneId: cloud_id, serverTypeId: server_type_id})
+			service_plans = service_plans_json["plans"]
+			service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
+			service_plans_dropdown.each do |plan|
+				if plan['value'] && plan['value'].to_i == plan_id.to_i
+					plan['name'] = "#{plan['name']} (current)"
+				end
+			end
+			plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
+			service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['plan'].to_i }
+			payload[:server][:plan] = {id: service_plan["id"]}
+
+			# fetch volumes
+			volumes_response = @servers_interface.volumes(server['id'])
+			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+
+			# prompt for volumes
+			volumes = prompt_resize_volumes(current_volumes, service_plan, options, @api_client, {})
+			if !volumes.empty?
+				payload[:volumes] = volumes
+			end
+
+			# todo: reconfigure networks
+			#       need to get provision_type_id for network info
+			# prompt for network interfaces (if supported)
+			# if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
+			# 	begin
+			# 		network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options, @api_client)
+			# 		if !network_interfaces.empty?
+			# 			payload[:networkInterfaces] = network_interfaces
+			# 		end
+			# 	rescue RestClient::Exception => e
+			# 		print_yellow_warning "Unable to load network options. Proceeding..."
+			# 		print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+			# 	end
+			# end
+
+			# only amazon supports this option
+			# for now, always do this
+			payload[:deleteOriginalVolumes] = true
+
+			if options[:dry_run]
+				print_dry_run("PUT #{@appliance_url}/api/servers/#{server['id']}/resize", payload)
+				return
+			end
+			json_response = @servers_interface.resize(server['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Resizing server #{server['name']}"
+				list([])
+			end
+			
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -626,6 +811,39 @@ private
 			print_red_alert "Workflow not found by name #{name}"
 			exit 1
 		end
+	end
+
+	def print_servers_table(servers, opts={})
+    table_color = opts[:color] || cyan
+    rows = servers.collect do |server|
+    	power_state = format_server_power_state(server, table_color)
+			{
+				id: server['id'], 
+				name: server['name'], 
+				platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A', 
+				cloud: server['zone'] ? server['zone']['name'] : '', 
+				type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', 
+				nodes: server['containers'] ? server['containers'].size : '',
+				status: server['status'], 
+				power: power_state
+			}
+    end
+    columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+    print table_color
+    tp rows, columns
+    print reset
+  end
+
+	def format_server_power_state(server, return_color=cyan)
+		power_state = nil
+		if server['powerState'] == 'on'
+			power_state = "#{green}ON#{return_color}"
+		elsif server['powerState'] == 'off'
+			power_state = "#{red}OFF#{return_color}"
+		else
+			power_state = "#{white}#{server['powerState'].upcase}#{return_color}"
+		end
+		return power_state
 	end
 
 end

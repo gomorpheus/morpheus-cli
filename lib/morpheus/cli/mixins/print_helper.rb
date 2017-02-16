@@ -86,6 +86,12 @@ module Morpheus::Cli::PrintHelper
     print reset
   end
 
+  def print_results_pagination(json_response)
+    if json_response && json_response["meta"]
+      print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n"
+    end
+  end
+
   def required_blue_prompt
     "#{cyan}|#{reset}"
   end

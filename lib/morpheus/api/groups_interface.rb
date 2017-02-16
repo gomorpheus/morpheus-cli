@@ -26,7 +26,6 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		JSON.parse(response.to_s)
 	end
 
-
 	def create(options)
 		url = "#{@base_url}/api/groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -44,4 +43,15 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
                             timeout: 30, headers: headers, verify_ssl:false)
 		JSON.parse(response.to_s)
 	end
+
+	def update_zones(id, options)
+		url = "#{@base_url}/api/groups/#{id}/update-zones"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		
+		payload = options
+		response = Morpheus::RestClient.execute(method: :put, url: url,
+                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+		JSON.parse(response.to_s)
+	end
+	
 end

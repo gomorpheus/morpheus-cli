@@ -683,7 +683,7 @@ class Morpheus::Cli::Instances
 			service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
 			new_plan_id = service_plan["id"]
 			#payload[:servicePlan] = new_plan_id # ew, this api uses servicePlanId instead
-			payload[:servicePlanId] = new_plan_id
+			#payload[:servicePlanId] = new_plan_id
 			payload[:instance][:plan] = {id: service_plan["id"]}
 
 			volumes_response = @instances_interface.volumes(instance['id'])
@@ -773,29 +773,17 @@ class Morpheus::Cli::Instances
 			else
 				instances = json_response['instances']
 
-				print "\n" ,cyan, bold, "Morpheus Instances\n","==================", reset, "\n\n"
+				title = "Morpheus Instances"
+				subtitle = ""
+				if group
+					subtitle << "Group: #{group['name']}"
+				end
+				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
 				if instances.empty?
-					puts yellow,"No instances currently configured.",reset
+					puts yellow,"No instances found.",reset
 				else
-					print cyan
-					instance_table = instances.collect do |instance|
-						status_string = instance['status']
-						if status_string == 'running'
-							status_string = "#{green}#{status_string.upcase}#{cyan}"
-						elsif status_string == 'stopped' or status_string == 'failed'
-							status_string = "#{red}#{status_string.upcase}#{cyan}"
-						elsif status_string == 'unknown'
-							status_string = "#{white}#{status_string.upcase}#{cyan}"
-						else
-							status_string = "#{yellow}#{status_string.upcase}#{cyan}"
-						end
-						connection_string = ''
-						if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
-							connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
-						end
-						{id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
-					end
-					tp instance_table, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
+					print_instances_table(instances)
+					print_results_pagination(json_response)
 				end
 				print reset,"\n\n"
 			end
@@ -1056,5 +1044,40 @@ private
 			exit 1
 		end
 	end
+
+	def print_instances_table(instances, opts={})
+    table_color = opts[:color] || cyan
+    rows = instances.collect do |instance|
+    	status_string = instance['status']
+			if status_string == 'running'
+				status_string = "#{green}#{status_string.upcase}#{table_color}"
+			elsif status_string == 'stopped' or status_string == 'failed'
+				status_string = "#{red}#{status_string.upcase}#{table_color}"
+			elsif status_string == 'unknown'
+				status_string = "#{white}#{status_string.upcase}#{table_color}"
+			else
+				status_string = "#{yellow}#{status_string.upcase}#{table_color}"
+			end
+			connection_string = ''
+			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+			end
+			{
+				id: instance['id'], 
+				name: instance['name'], 
+				connection: connection_string, 
+				environment: instance['instanceContext'], 
+				nodes: instance['containers'].count, 
+				status: status_string, 
+				type: instance['instanceType']['name'], 
+				group: !instance['group'].nil? ? instance['group']['name'] : nil, 
+				cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
+			}
+    end
+    
+    print table_color
+    tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
+    print reset
+  end
 
 end

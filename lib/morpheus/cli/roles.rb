@@ -107,6 +107,7 @@ class Morpheus::Cli::Roles
 					puts yellow,"No roles found.",reset
 				else
 					print_roles_table(roles, {is_master_account: @is_master_account})
+					print_results_pagination(json_response)
 				end
 				print reset,"\n\n"
 			end

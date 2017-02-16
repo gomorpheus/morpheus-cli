@@ -36,13 +36,15 @@ class Morpheus::Cli::Clouds
 	def handle(args) 
 
 		if args.empty?
-			puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
+			puts "\nUsage: morpheus clouds [list,details,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 			return
 		end
 
 		case args[0]
 			when 'list'
 				list(args[1..-1])
+			when 'details'
+				details(args[1..-1])
 			when 'add'
 				add(args[1..-1])
 			when 'remove'
@@ -58,6 +60,106 @@ class Morpheus::Cli::Clouds
 			else
 				puts "\nUsage: morpheus clouds [list,add,remove,firewall_disable,firewall_enable,security_groups,apply_security_groups] [name]\n\n"
 				exit 127 #Command now foud exit code
+		end
+	end
+
+	def list(args)
+		options={}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus clouds list"
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
+				options[:group] = group
+			end
+			build_common_options(opts, options, [:list, :json, :remote])
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			params = {}
+			if !options[:group].nil?
+				group = find_group_by_name(options[:group])
+				if !group.nil?
+					params['groupId'] = group['id']
+				end
+			end
+
+			json_response = @clouds_interface.get(params)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				clouds = json_response['zones']
+				print "\n" ,cyan, bold, "Morpheus Clouds\n","==================", reset, "\n\n"
+				if clouds.empty?
+					puts yellow,"No clouds found.",reset
+				else
+					print_clouds_table(clouds)
+				end
+				print reset,"\n\n"
+			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def details(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = "Usage: morpheus clouds details [name]"
+			build_common_options(opts, options, [:json])
+		end
+		if args.count < 1
+			puts "\n#{optparse.banner}\n\n"
+			exit 1
+		end
+		optparse.parse(args)
+		connect(options)
+		begin
+			cloud = find_cloud_by_name_or_id(args[0])
+			#json_response = {'zone' => cloud}
+			json_response = @clouds_interface.get(cloud['id'])
+			cloud = json_response['zone']
+			server_counts = json_response['serverCounts']
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+
+			print "\n" ,cyan, bold, "Cloud Details\n","==================", reset, "\n\n"
+			print cyan
+			puts "ID: #{cloud['id']}"
+			puts "Name: #{cloud['name']}"
+			puts "Location: #{cloud['location']}"
+			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
+			puts "Total Servers: #{cloud['serverCount']}"
+			if server_counts
+				# if server_counts['host'] && server_counts['host'] != 0
+				# 	puts "Host: #{server_counts['host']}"
+				# end
+				if server_counts['containerHost'] && server_counts['containerHost'] != 0
+					puts "Container: #{server_counts['containerHost']}"
+				end
+				if server_counts['hypervisor'] && server_counts['hypervisor'] != 0
+					puts "Hypervisor: #{server_counts['hypervisor']}"
+				end
+				if server_counts['baremetal'] && server_counts['baremetal'] != 0
+					puts "Bare Metal: #{server_counts['baremetal']}"
+				end
+				if server_counts['vm'] && server_counts['vm'] != 0
+					puts "VM: #{server_counts['vm']}"
+				end
+				if server_counts['unmanaged'] && server_counts['unmanaged'] != 0
+					puts "Unmanaged: #{server_counts['unmanaged']}"
+				end
+			end
+
+			print "\n\n",reset
+
+			#puts instance
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
 		end
 	end
 
@@ -160,62 +262,6 @@ class Morpheus::Cli::Clouds
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
-			exit 1
-		end
-	end
-
-	def list(args)
-		options={}
-		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus clouds list"
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
-			end
-			build_common_options(opts, options, [:list, :json, :remote])
-		end
-		optparse.parse(args)
-		connect(options)
-		begin
-			params = {}
-			if !options[:group].nil?
-				group = find_group_by_name(options[:group])
-				if !group.nil?
-					params['groupId'] = group['id']
-				end
-			end
-
-			json_response = @clouds_interface.get(params)
-			clouds = json_response['zones']
-			if options[:json]
-				print JSON.pretty_generate(json_response)
-				print "\n"
-			else
-				print "\n" ,cyan, bold, "Morpheus Clouds\n","==================", reset, "\n\n"
-				if clouds.empty?
-					puts yellow,"No clouds currently configured.",reset
-				else
-					clouds_table =clouds.collect do |cloud|
-						status = nil
-						if cloud['status'] == 'ok'
-							status = "#{green}OK#{cyan}"
-						elsif cloud['status'].nil?
-							status = "#{white}UNKNOWN#{cyan}"
-						else
-							status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
-						end
-						{id: cloud['id'], name: cloud['name'], type: cloud_type_for_id(cloud['zoneTypeId']), location: cloud['location'], status: status}
-						# print cyan, "= [#{server['id']}] #{server['name']} - #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'} (#{server['status']}) Power: ", power_state, "\n"
-					end
-					print cyan
-					tp clouds_table, :id, :name, :type, :location, :status
-					print reset,"\n\n"
-				end
-				
-					
-	
-			end
-		rescue => e
-			puts "Error Communicating with the Appliance. Please try again later. #{e}"
 			exit 1
 		end
 	end
@@ -340,6 +386,34 @@ EOF
 	end
 
 private
+	
+	def find_cloud_by_id(id)
+		json_results = @clouds_interface.get(id.to_i)
+		if json_results['zone'].empty?
+			print_red_alert "Cloud not found by id #{id}"
+			exit 1
+		end
+		cloud = json_results['cloud']
+		return cloud
+	end
+
+	def find_cloud_by_name(name)
+		json_results = @clouds_interface.get({name: name})
+		if json_results['zones'].empty?
+			print_red_alert "Cloud not found by name #{name}"
+			exit 1
+		end
+		cloud = json_results['zones'][0]
+		return cloud
+	end
+
+	def find_cloud_by_name_or_id(val)
+		if val.to_s =~ /\A\d{1,}\Z/
+			return find_cloud_by_id(val)
+		else
+			return find_cloud_by_name(val)
+		end
+	end
 
 	def cloud_type_for_id(id)
 		if !@cloud_types.empty?
@@ -378,4 +452,36 @@ private
 		end
 		return group_results['groups'][0]
 	end
+
+	def print_clouds_table(clouds, opts={})
+    table_color = opts[:color] || cyan
+    
+    rows = clouds.collect do |cloud|
+    	status = nil
+			if cloud['status'] == 'ok'
+				status = "#{green}OK#{table_color}"
+			elsif cloud['status'].nil?
+				status = "#{white}UNKNOWN#{table_color}"
+			else
+				status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{table_color} - #{cloud['statusMessage']}" : ''}#{table_color}"
+			end
+			{
+				id: cloud['id'], 
+				name: cloud['name'], 
+				type: cloud_type_for_id(cloud['zoneTypeId']), 
+				location: cloud['location'], 
+				groups: (cloud['groups'] || []).collect {|it| it['name'] }.join(', '),
+				servers: cloud['serverCount'],
+				status: status
+			}
+    end
+    columns = [
+    	:id, :name, :type, :location, :groups, :servers, :status
+    ]
+    print table_color
+    tp rows, columns
+    print reset
+
+  end
+
 end

@@ -15,10 +15,17 @@ module Morpheus::Cli::ProvisioningHelper
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }
     end
+    #puts "get_available_groups() rtn: #{@available_groups.inspect}"
     return @available_groups
   end
 
   def get_available_clouds(group_id, refresh=false)
+    if !group_id
+      option_results = @options_interface.options_for_source('clouds', {})
+      return option_results['data'].collect {|it|
+        {"id" => it["value"], "name" => it["name"], "value" => it["value"], "zoneTypeId" => it["zoneTypeId"]}
+      }
+    end
     group = find_group_by_id(group_id)
     if !group
       return []
