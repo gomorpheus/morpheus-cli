@@ -11,7 +11,7 @@ class Morpheus::Cli::ErrorHandler
     when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument
       # raise e
       print_red_alert "#{err.message}"
-      print "\n", "Try -h for help with this command.", "\n\n"
+      puts "Try -h for help with this command."
     when Errno::ECONNREFUSED
       print_red_alert "#{err.message}"
     # more special errors?
