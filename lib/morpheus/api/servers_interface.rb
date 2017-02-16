@@ -21,7 +21,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -31,7 +31,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -39,7 +39,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/stop"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -47,7 +47,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/start"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -55,7 +55,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/install-agent"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -63,7 +63,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/upgrade"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -71,7 +71,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/reprovision"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -79,7 +79,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/reinitialize"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -87,7 +87,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{serverId}/assign-account"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -95,7 +95,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{id}/workflow"
 		headers = { :params => {:taskSetId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers,verify_ssl: false,payload: payload.to_json)
+                            timeout: 30, headers: headers,payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -103,7 +103,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{id}"
 		headers = { :params => params,:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -111,7 +111,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/service-plans"
 		headers = { params: params, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -119,7 +119,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{id}/volumes"
 		headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers,verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -127,7 +127,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/servers/#{id}/resize"
 		headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers,verify_ssl: false,payload: payload.to_json)
+                            timeout: 30, headers: headers,payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 

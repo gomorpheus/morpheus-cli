@@ -13,7 +13,7 @@ class Morpheus::LogsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/logs"
 		headers = { params: {'containers' => containers}.merge(options), authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -21,7 +21,7 @@ class Morpheus::LogsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/logs"
 		headers = { params: {'servers' => servers}.merge(options), authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -29,7 +29,7 @@ class Morpheus::LogsInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/logs/log-stats"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 

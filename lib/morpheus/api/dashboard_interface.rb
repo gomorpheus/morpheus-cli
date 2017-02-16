@@ -18,7 +18,7 @@ class Morpheus::DashboardInterface < Morpheus::APIClient
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
     response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
     JSON.parse(response.to_s)
   end
 

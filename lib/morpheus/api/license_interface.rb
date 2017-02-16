@@ -13,7 +13,7 @@ class Morpheus::LicenseInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/license"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -22,7 +22,7 @@ class Morpheus::LicenseInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = {license: key}
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json, verify_ssl: false)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 

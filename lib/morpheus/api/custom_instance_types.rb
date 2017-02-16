@@ -13,7 +13,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/custom-instance-types"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers, verify_ssl:false)
+                            timeout: 10, headers: headers)
     JSON.parse(response.to_s)
   end
 
@@ -22,7 +22,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
     response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers, verify_ssl:false)
+                            timeout: 10, headers: headers)
     JSON.parse(response.to_s)
   end
 
@@ -31,7 +31,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
     response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json, verify_ssl:false)
+                            timeout: 10, headers: headers, payload: payload.to_json)
     JSON.parse(response.to_s)
   end
 
@@ -40,7 +40,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
     response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json, verify_ssl:false)
+                            timeout: 10, headers: headers, payload: payload.to_json)
     JSON.parse(response.to_s)
   end
 
@@ -48,7 +48,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/custom-instance-types/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers, verify_ssl:false)
+                            timeout: 10, headers: headers)
     JSON.parse(response.to_s)
   end
 

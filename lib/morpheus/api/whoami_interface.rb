@@ -13,7 +13,7 @@ class Morpheus::WhoamiInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/whoami"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl: false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 

@@ -21,7 +21,7 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -37,7 +37,7 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 			headers[:params]['name'] = options
 		end
 		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 
@@ -58,7 +58,7 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 		
 		payload = options
 		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false, payload: payload.to_json)
+                            timeout: 30, headers: headers, payload: payload.to_json)
 		JSON.parse(response.to_s)
 	end
 
@@ -66,7 +66,7 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 		url = "#{@base_url}/api/load-balancers/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers, verify_ssl:false)
+                            timeout: 30, headers: headers)
 		JSON.parse(response.to_s)
 	end
 end
