@@ -106,6 +106,7 @@ class Morpheus::Cli::Clouds
 			print cyan
 			puts "ID: #{cloud['id']}"
 			puts "Name: #{cloud['name']}"
+			puts "Type: #{cloud_type_for_id(cloud['zoneTypeId'])}"
 			puts "Location: #{cloud['location']}"
 			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
 			puts "Total Servers: #{cloud['serverCount']}"
