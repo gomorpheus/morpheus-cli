@@ -40,6 +40,7 @@ class Morpheus::Cli::Clouds
 
 	def list(args)
 		options={}
+		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("list")
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
@@ -50,7 +51,9 @@ class Morpheus::Cli::Clouds
 		optparse.parse!(args)
 		connect(options)
 		begin
-			params = {}
+			[:phrase, :offset, :max, :sort, :direction].each do |k|
+				params[k] = options[k] unless options[k].nil?
+			end
 			if !options[:group].nil?
 				group = find_group_by_name(options[:group])
 				if !group.nil?
