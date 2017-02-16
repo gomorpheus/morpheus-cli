@@ -110,9 +110,9 @@ class Morpheus::Cli::Instances
 			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
 				options[:group_id] = val
 			end
-			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-				options[:cloud_name] = val
-			end
+			# opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+			# 	options[:cloud_name] = val
+			# end
 			# this conflicts with --nocolor option
 			# opts.on( '-C', '--cloud CLOUD', "Cloud Id" ) do |val|
 			# 	options[:cloud] = val
