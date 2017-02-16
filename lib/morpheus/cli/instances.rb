@@ -110,9 +110,9 @@ class Morpheus::Cli::Instances
 			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
 				options[:group_id] = val
 			end
-			# opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-			# 	options[:cloud_name] = val
-			# end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+				options[:cloud_name] = val
+			end
 			# this conflicts with --nocolor option
 			# opts.on( '-C', '--cloud CLOUD', "Cloud Id" ) do |val|
 			# 	options[:cloud] = val
@@ -755,9 +755,9 @@ class Morpheus::Cli::Instances
 			opts.on( '-G', '--group-id ID', "Group Id" ) do |val|
 				options[:group_id] = val
 			end
-			# opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
-			# 	options[:cloud_name] = val
-			# end
+			opts.on( '-c', '--cloud CLOUD', "Cloud Name" ) do |val|
+				options[:cloud_name] = val
+			end
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		optparse.parse(args)
@@ -775,12 +775,10 @@ class Morpheus::Cli::Instances
 			# 	params['zoneId'] = cloud['id']
 			# end
 			# cloud = nil
-			# if !group
-			# 	cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
-			# 	if cloud
-			# 		params['zoneId'] = cloud['id']
-			# 	end
-			# end
+			cloud = options[:cloud_name] ? find_zone_by_name(nil, options[:cloud_name]) : nil
+			if cloud
+				params['zoneId'] = cloud['id']
+			end
 
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
