@@ -71,7 +71,7 @@ class Morpheus::Cli::Groups
 		end
 		optparse.parse!(args)
 		if args.count < 1
-			puts optparse.banner
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -263,7 +263,7 @@ class Morpheus::Cli::Groups
 	def use(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove-cloud", "[name]", "[--none]")
+			opts.banner = subcommand_usage("use", "[name]", "[--none]")
 			opts.on('--none','--none', "Do not use an active group.") do |json|
 				options[:unuse] = true
 			end
