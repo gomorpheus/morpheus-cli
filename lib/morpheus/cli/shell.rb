@@ -15,9 +15,11 @@ class Morpheus::Cli::Shell
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
+		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
+		@shell_commands = [:clear, :history, :'flush-history', :help, :exit]
+		@available_commands = @morpheus_commands + @shell_commands
 		@auto_complete = proc do |s|
-			command_list = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
-			command_list += [:clear, :history, :flush_history, :exit]
+			command_list = @available_commands
 			result = command_list.grep(/^#{Regexp.escape(s)}/)
 			if result.nil? || result.empty?
 				Readline::FILENAME_COMPLETION_PROC.call(s)
@@ -42,6 +44,9 @@ class Morpheus::Cli::Shell
 			opts.on('-C','--nocolor', "ANSI") do
 				@command_options[:nocolor] = true
         Term::ANSIColor::coloring = false
+      end
+      opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+      	@command_options[:debug] = true
       end
       opts.on( '-h', '--help', "Prints this help" ) do
         puts opts
@@ -68,6 +73,13 @@ class Morpheus::Cli::Shell
 				if input == 'exit'
 					@history_logger.info "exit" if @history_logger
 					break
+				elsif input == 'help'
+					puts "\nCommands:"
+					@available_commands.each {|cmd,klass|
+						puts "\t#{cmd.to_s}"
+					}
+					puts ""
+					next
 				elsif input =~ /^history/
 					n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
 					n_commands = n_commands.empty? ? 25 : n_commands.to_i
@@ -81,7 +93,7 @@ class Morpheus::Cli::Shell
 				elsif input == 'clear'
 					print "\e[H\e[2J"
 					next
-				elsif input == 'flush_history'
+				elsif input == 'flush-history' || input == 'flush_history'
 					file_path = history_file_path
 					if File.exists?(file_path)
 						File.truncate(file_path, 0)
