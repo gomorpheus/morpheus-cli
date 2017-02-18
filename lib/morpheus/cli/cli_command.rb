@@ -153,6 +153,10 @@ module Morpheus
         self.class.subcommands
       end
 
+      def subcommand_aliases
+        self.class.subcommand_aliases
+      end
+
       def usage
         if !subcommands.empty?
           "Usage: morpheus #{command_name} [command] [options]"
@@ -161,9 +165,15 @@ module Morpheus
         end
       end
 
-      def subcommand_usage(cmd_name, *extra)
+      def subcommand_usage(*extra)
+        calling_method = caller[0][/`([^']*)'/, 1].to_s.sub('block in ', '')
+        subcommand_name = subcommands.key(calling_method)
+        extra = extra.flatten
+        if !subcommand_name.empty? && extra.first == subcommand_name
+          extra.shift
+        end
         #extra = ["[options]"] if extra.empty?
-        "Usage: morpheus #{command_name} #{cmd_name} #{extra.join(' ')}".squeeze(' ').strip
+        "Usage: morpheus #{command_name} #{subcommand_name} #{extra.join(' ')}".squeeze(' ').strip
       end
 
       def print_usage()
@@ -183,6 +193,9 @@ module Morpheus
           raise "#{self.class} has no available subcommands"
         end
         cmd_name = args[0]
+        if subcommand_aliases[cmd_name]
+          cmd_name = subcommand_aliases[cmd_name]
+        end
         cmd_method = subcommands[cmd_name]
         if cmd_name && !cmd_method
           #puts "unknown command '#{cmd_name}'"
@@ -261,6 +274,26 @@ module Morpheus
         def remove_subcommand(cmd_name)
           @subcommands ||= {}
           @subcommands.delete(cmd_name.to_s)
+        end
+
+        # register an alias for a command
+        def alias_subcommand(alias_cmd_name, cmd_name)
+          add_subcommand_alias(alias_cmd_name.to_s, cmd_name.to_s.gsub('_', '-'))
+          return
+        end
+
+        def subcommand_aliases
+          @subcommand_aliases ||= {}
+        end
+
+        def add_subcommand_alias(alias_cmd_name, cmd_name)
+          @subcommand_aliases ||= {}
+          @subcommand_aliases[alias_cmd_name.to_s] = cmd_name
+        end
+
+        def remove_subcommand_alias(alias_cmd_name)
+          @subcommand_aliases ||= {}
+          @subcommand_aliases.delete(alias_cmd_name.to_s)
         end
 
       end

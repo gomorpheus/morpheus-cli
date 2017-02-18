@@ -8,10 +8,11 @@ require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
-  include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::ProvisioningHelper
+	include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :details, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow
+	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow
+	alias_subcommand :details, :get
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
@@ -48,7 +49,7 @@ class Morpheus::Cli::Instances
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("add [type] [name]")
+			opts.banner = subcommand_usage("[type] [name]")
 			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
@@ -66,11 +67,11 @@ class Morpheus::Cli::Instances
 		connect(options)
 
 		# support old format of `instance add TYPE NAME`
-		if args[0] && args[0] !~ /\A\-/
+		if args[0]
 			options[:instance_type_code] = args[0]
-			if args[1] && args[1] !~ /\A\-/
-				options[:instance_name] = args[1]
-			end
+		end
+		if args[1]
+			options[:instance_name] = args[1]
 		end
 		
 		# use active group by default
@@ -103,21 +104,21 @@ class Morpheus::Cli::Instances
 
 	def update(args)
 		usage = "Usage: morpheus instances update [name] [options]"
-    options = {}
-    optparse = OptionParser.new do|opts|
-    	opts.banner = subcommand_usage("update [name]")
-      build_common_options(opts, options, [:options, :json, :dry_run])
-    end
-    optparse.parse!(args)
-    if args.count < 1
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
+		end
+		optparse.parse!(args)
+		if args.count < 1
 			puts optparse
 			exit 1
 		end
-    connect(options)
+		connect(options)
 
-    begin
-  		
-  		instance = find_instance_by_name_or_id(args[0])
+		begin
+
+			instance = find_instance_by_name_or_id(args[0])
 
 			payload = {
 				'instance' => {id: instance["id"]}
@@ -132,44 +133,42 @@ class Morpheus::Cli::Instances
 
 			params = options[:options] || {}
 
-      if params.empty?
-        puts "\n#{usage}\n"
-        option_lines = update_instance_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        exit 1
-      end
+			if params.empty?
+				puts "\n#{usage}\n"
+				option_lines = update_instance_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				exit 1
+			end
 
-      instance_keys = ['name', 'description', 'instanceContext', 'tags']
-      params = params.select {|k,v| instance_keys.include?(k) }
-      params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
-      payload['instance'].merge!(params)
+			instance_keys = ['name', 'description', 'instanceContext', 'tags']
+			params = params.select {|k,v| instance_keys.include?(k) }
+			params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
+			payload['instance'].merge!(params)
 			
 			if options[:dry_run]
 				print_dry_run @instances_interface.dry.update(instance["id"], payload)
 				return
 			end
-      json_response = @instances_interface.update(instance["id"], payload)
+			json_response = @instances_interface.update(instance["id"], payload)
 
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Updated instance #{instance['name']}"
-        list([])
-        # details_options = [payload['app']['name']]
-        # details(details_options)
-      end
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Updated instance #{instance['name']}"
+				list([])
+			end
 
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 	def stats(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("stats [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -207,7 +206,7 @@ class Morpheus::Cli::Instances
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("logs [name]")
+			opts.banner = subcommand_usage("[name]")
 			opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
 				options[:node_id] = node_id.to_i
 			end
@@ -258,10 +257,10 @@ class Morpheus::Cli::Instances
 		end
 	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("details [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -335,7 +334,7 @@ class Morpheus::Cli::Instances
 	def envs(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("envs [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -376,7 +375,7 @@ class Morpheus::Cli::Instances
 		options = {}
 
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("setenv [name] NAME VALUE [-e]")
+			opts.banner = subcommand_usage("[name] VAR VALUE [-e]")
 			opts.on( '-e', "Exportable" ) do |exportable|
 				options[:export] = exportable
 			end
@@ -416,7 +415,7 @@ class Morpheus::Cli::Instances
 	def delenv(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("delenv [name] NAME")
+			opts.banner = subcommand_usage("[name] VAR")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 2
@@ -448,7 +447,7 @@ class Morpheus::Cli::Instances
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("stop [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -481,7 +480,7 @@ class Morpheus::Cli::Instances
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("start [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -545,7 +544,7 @@ class Morpheus::Cli::Instances
 		def stop_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("stop-service [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -580,7 +579,7 @@ class Morpheus::Cli::Instances
 	def start_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("start-service [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -612,7 +611,7 @@ class Morpheus::Cli::Instances
 	def restart_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("restart-service [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -647,7 +646,7 @@ class Morpheus::Cli::Instances
 	def resize(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("resize [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -724,7 +723,7 @@ class Morpheus::Cli::Instances
 	def backup(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("backup [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -756,7 +755,7 @@ class Morpheus::Cli::Instances
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("list")
+			opts.banner = subcommand_usage()
 			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
@@ -775,7 +774,7 @@ class Morpheus::Cli::Instances
 			end
 
 			# argh, this doesn't work because group_id is required for options/clouds
-      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+			# cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
 			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
 			if cloud
 				params['zoneId'] = cloud['id']
@@ -825,7 +824,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		query_params = {keepBackups: 'off', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove [name] [-fB]")
+			opts.banner = subcommand_usage("[name] [-fB]")
 			opts.on( '-f', '--force', "Force Remove" ) do
 				query_params[:force] = 'on'
 			end
@@ -866,7 +865,7 @@ class Morpheus::Cli::Instances
 	def firewall_disable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("firewall-disable [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
 		end
 		if args.count < 1
@@ -897,7 +896,7 @@ class Morpheus::Cli::Instances
 	def firewall_enable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("firewall-enable [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
 		end
 		if args.count < 1
@@ -928,7 +927,7 @@ class Morpheus::Cli::Instances
 	def security_groups(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("security-groups [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -972,7 +971,7 @@ class Morpheus::Cli::Instances
 		security_group_ids = nil
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("apply-security-groups [name] [-S] [-c]")
+			opts.banner = subcommand_usage("[name] [-S] [-c]")
 			opts.on( '-S', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
 				security_group_ids = secgroups.split(",")
 				clear_or_secgroups_specified = true
@@ -1020,7 +1019,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("run-workflow", "[name] [workflow] [options]")
+			opts.banner = subcommand_usage("[name] [workflow] [options]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 2
@@ -1137,9 +1136,9 @@ private
 	end
 
 	def print_instances_table(instances, opts={})
-    table_color = opts[:color] || cyan
-    rows = instances.collect do |instance|
-    	status_string = instance['status']
+		table_color = opts[:color] || cyan
+		rows = instances.collect do |instance|
+			status_string = instance['status']
 			if status_string == 'running'
 				status_string = "#{green}#{status_string.upcase}#{table_color}"
 			elsif status_string == 'stopped' or status_string == 'failed'
@@ -1164,11 +1163,11 @@ private
 				group: !instance['group'].nil? ? instance['group']['name'] : nil, 
 				cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
 			}
-    end
-    
-    print table_color
-    tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
-    print reset
-  end
+		end
+
+		print table_color
+		tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
+		print reset
+	end
 
 end

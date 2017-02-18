@@ -11,7 +11,8 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 	
-	register_subcommands :list, :details, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+	register_subcommands :list, :get, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+	alias_subcommand :details, :get
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -47,7 +48,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("list")
+			opts.banner = subcommand_usage()
 			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
@@ -107,10 +108,10 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("details", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
@@ -174,7 +175,7 @@ class Morpheus::Cli::Hosts
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("logs", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:list, :json, :remote])
 		end
 		if args.count < 1
@@ -216,7 +217,7 @@ class Morpheus::Cli::Hosts
 	def server_types(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("server-types", "[cloud]")
+			opts.banner = subcommand_usage("[cloud]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		optparse.parse!(args)
@@ -251,7 +252,7 @@ class Morpheus::Cli::Hosts
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("add", "[cloud]", "[name]")
+			opts.banner = subcommand_usage("[cloud]", "[name]")
 			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
@@ -409,7 +410,7 @@ class Morpheus::Cli::Hosts
 		options = {}
 		query_params = {removeResources: 'on', force: 'off'}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove", "[name] [-f] [-S]")
+			opts.banner = subcommand_usage("[name] [-f] [-S]")
 			opts.on( '-f', '--force', "Force Remove" ) do
 				query_params[:force] = 'on'
 			end
@@ -452,7 +453,7 @@ class Morpheus::Cli::Hosts
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("start", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
@@ -480,7 +481,7 @@ class Morpheus::Cli::Hosts
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("stop", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1
@@ -508,7 +509,7 @@ class Morpheus::Cli::Hosts
 	def resize(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("resize", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -601,7 +602,7 @@ class Morpheus::Cli::Hosts
 	def upgrade(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("upgrade", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
 		if args.count < 1

@@ -11,7 +11,8 @@ class Morpheus::Cli::Apps
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::ProvisioningHelper
 
-	register_subcommands :list, :details, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+	register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+	alias_subcommand :details, :get
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -40,7 +41,7 @@ class Morpheus::Cli::Apps
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("list")
+			opts.banner = subcommand_usage()
 			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -80,7 +81,7 @@ class Morpheus::Cli::Apps
 	def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("add [name]")
+      opts.banner = subcommand_usage("[name]")
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
@@ -135,10 +136,10 @@ class Morpheus::Cli::Apps
     end
 	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("details [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -217,7 +218,7 @@ class Morpheus::Cli::Apps
 	def update(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("update [name]")
+      opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -280,7 +281,7 @@ class Morpheus::Cli::Apps
 	def add_instance(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("add-instance", "[name] [instance] [tier]")
+      opts.banner = subcommand_usage("[name] [instance] [tier]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -343,7 +344,7 @@ class Morpheus::Cli::Apps
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("remove", "[name]")
+      opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :quiet])
 		end
 		optparse.parse!(args)
@@ -379,7 +380,7 @@ class Morpheus::Cli::Apps
 	def remove_instance(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("remove-instance", "[name] [instance]")
+      opts.banner = subcommand_usage("[name] [instance]")
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -432,7 +433,7 @@ class Morpheus::Cli::Apps
 	def logs(args) 
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("logs", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -490,7 +491,7 @@ class Morpheus::Cli::Apps
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("stop", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -516,7 +517,7 @@ class Morpheus::Cli::Apps
 	def start(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("start", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -542,7 +543,7 @@ class Morpheus::Cli::Apps
 	def restart(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("restart", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -569,7 +570,7 @@ class Morpheus::Cli::Apps
 	def firewall_disable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("firewall-disable", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -596,7 +597,7 @@ class Morpheus::Cli::Apps
 	def firewall_enable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("firewall-enable", "[name]")
+      opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -623,7 +624,7 @@ class Morpheus::Cli::Apps
 	def security_groups(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("security-groups", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -662,7 +663,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("apply-security-groups", "[name] [--clear] [-s]")
+			opts.banner = subcommand_usage("[name] [--clear] [-s]")
 			opts.on( '-c', '--clear', "Clear all security groups" ) do
 				options[:securityGroupIds] = []
 				clear_or_secgroups_specified = true

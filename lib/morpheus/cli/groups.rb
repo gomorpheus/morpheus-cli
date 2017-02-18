@@ -10,7 +10,8 @@ class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::InfrastructureHelper
 
-  register_subcommands :list, :details, :add, :use, :unuse, :add_cloud, :remove_cloud, :remove
+	register_subcommands :list, :get, :add, :use, :unuse, :add_cloud, :remove_cloud, :remove
+	alias_subcommand :details, :get
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -35,7 +36,7 @@ class Morpheus::Cli::Groups
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("list")
+			opts.banner = subcommand_usage()
 			build_common_options(opts, options, [:list, :json])
 		end
 		optparse.parse!(args)
@@ -65,10 +66,10 @@ class Morpheus::Cli::Groups
 		end
 	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("details", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json])
 		end
 		optparse.parse!(args)
@@ -115,7 +116,7 @@ class Morpheus::Cli::Groups
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("add", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			opts.on( '-l', '--location LOCATION', "Location" ) do |val|
 				params[:location] = val
 			end
@@ -151,7 +152,7 @@ class Morpheus::Cli::Groups
 	def add_cloud(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("add-cloud", "[name]", "CLOUD")
+			opts.banner = subcommand_usage("[name]", "CLOUD")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -194,7 +195,7 @@ class Morpheus::Cli::Groups
 	def remove_cloud(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove-cloud", "[name]", "CLOUD")
+			opts.banner = subcommand_usage("[name]", "CLOUD")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -236,7 +237,7 @@ class Morpheus::Cli::Groups
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove", "[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm])
 		end
 		optparse.parse!(args)
@@ -266,7 +267,7 @@ class Morpheus::Cli::Groups
 	def use(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("use", "[name]", "[--none]")
+			opts.banner = subcommand_usage("[name]", "[--none]")
 			opts.on('--none','--none', "Do not use an active group.") do |json|
 				options[:unuse] = true
 			end
