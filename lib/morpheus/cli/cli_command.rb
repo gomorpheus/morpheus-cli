@@ -200,10 +200,6 @@ module Morpheus
 
       module ClassMethods
 
-        def registered_command_name
-          Morpheus::Cli::CliRegistry.add(self, cmd_name)
-        end
-
         def set_command_name(cmd_name)
           @command_name = cmd_name
           Morpheus::Cli::CliRegistry.add(self, self.command_name)
