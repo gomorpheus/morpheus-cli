@@ -382,7 +382,7 @@ module Morpheus::Cli::ProvisioningHelper
       volume_index = 1
       
       has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
-      add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?"))
+      add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?", {:default => false}))
       
       while add_another_volume do
         
@@ -448,7 +448,7 @@ module Morpheus::Cli::ProvisioningHelper
         else
           volume_index += 1
           has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
-          add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another data volume?"))
+          add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another data volume?", {:default => false}))
         end
 
       end
@@ -834,7 +834,7 @@ module Morpheus::Cli::ProvisioningHelper
       
       interface_index += 1
       has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
-      add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?"))
+      add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
       if max_networks && network_interfaces.size >= max_networks
         add_another_interface = false
       end

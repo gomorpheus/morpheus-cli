@@ -10,13 +10,21 @@ module Morpheus
           if options[:yes] == true
             return true
           end
+          default_value = options[:default]
           value_found = false
           while value_found == false do
-            print "#{message} (yes/no): "
+            if default_value.nil?
+              print "#{message} (yes/no): "
+            else
+              print "#{message} (yes/no) [#{!!default_value ? 'yes' : 'no'}]: "
+            end
             input = $stdin.gets.chomp!
-            if input.downcase == 'yes'
+            if input.empty? && !default_value.nil?
+              return !!default_value
+            end
+            if input.downcase == 'yes' || input.downcase == 'y'
               return true
-            elsif input.downcase == 'no'
+            elsif input.downcase == 'no' || input.downcase == 'n'
               return false
             else
               puts "Invalid Option... Please try again."
