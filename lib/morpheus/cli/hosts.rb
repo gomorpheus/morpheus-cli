@@ -154,23 +154,14 @@ class Morpheus::Cli::Hosts
 			puts "Status: #{server['status']}"
 			puts "Power: #{power_state}"
 			print cyan
-			if stats['usedMemory']
-				print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}\n"
-			elsif server['maxMemory']
-				print cyan, "Memory: \t#{Filesize.from("#{server['maxMemory']} B").pretty}\n"
+			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				print "\n"
+				stats_map = {}
+				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}"
+				stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}"
+				stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
+				tp [stats_map], :memory,:storage,:cpu
 			end
-			if stats['usedStorage']
-				print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}\n",reset
-			elsif server['maxStorage']
-				print cyan, "Storage: \t#{Filesize.from("#{server['maxStorage']} B").pretty}\n"
-			end
-			if stats['cpuUsage']
-				print cyan, "CPU Usage: \t#{stats['cpuUsage'].to_f.round(3)}\n",reset
-			end
-			
-			# if server['stats']
-			# 	print cyan, "Stats: #{JSON.pretty_generate(server['stats'])}\n\n",reset
-			# end
 
 			print "\n", reset
 
