@@ -60,16 +60,13 @@ class Morpheus::Cli::Hosts
 		connect(options)
 		begin
 			
-			group = find_group_from_options(options)
+			group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 			if group
 				params['siteId'] = group['id']
 			end
 
-			# argh, this doesn't work because groups is group_id is required for options/clouds
-			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
-			# if cloud
-			# 	params['zoneId'] = cloud['id']
-			# end
+			# argh, this doesn't work because group_id is required for options/clouds
+      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
 			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
 			if cloud
 				params['zoneId'] = cloud['id']
@@ -293,7 +290,7 @@ class Morpheus::Cli::Hosts
 
 		# Group
 		group_id = nil
-		group = find_group_from_options(options)
+		group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 		if group
 			group_id = group["id"]
 		else
@@ -305,7 +302,7 @@ class Morpheus::Cli::Hosts
 
 		# Cloud
 		cloud_id = nil
-		cloud = find_cloud_from_options(group_id, options)
+		cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
 		if cloud
 			cloud_id = cloud["id"]
 		else
@@ -316,7 +313,7 @@ class Morpheus::Cli::Hosts
 			end
 			cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => available_clouds, 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})
 			cloud_id = cloud_prompt['cloud']
-			cloud = find_cloud_by_id(group_id, cloud_id)
+			cloud = find_cloud_by_id_for_provisioning(group_id, cloud_id)
 		end
 
 		# Zone Type
@@ -364,7 +361,7 @@ class Morpheus::Cli::Hosts
 		# prompt for network interfaces (if supported)
 		if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
 			begin
-				network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options, @api_client)
+				network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
 				if !network_interfaces.empty?
 					payload[:networkInterfaces] = network_interfaces
 				end
@@ -567,7 +564,7 @@ class Morpheus::Cli::Hosts
 			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
 			# prompt for volumes
-			volumes = prompt_resize_volumes(current_volumes, service_plan, options, @api_client, {})
+			volumes = prompt_resize_volumes(current_volumes, service_plan, options)
 			if !volumes.empty?
 				payload[:volumes] = volumes
 			end
@@ -577,7 +574,7 @@ class Morpheus::Cli::Hosts
 			# prompt for network interfaces (if supported)
 			# if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
 			# 	begin
-			# 		network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options, @api_client)
+			# 		network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
 			# 		if !network_interfaces.empty?
 			# 			payload[:networkInterfaces] = network_interfaces
 			# 		end

@@ -4,10 +4,12 @@ require 'rest_client'
 require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/infrastructure_helper'
 
 class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
-  
+	include Morpheus::Cli::InfrastructureHelper
+
   register_subcommands :list, :details, :add, :use, :unuse, :add_cloud, :remove_cloud, :remove
 
 	def initialize() 
@@ -356,76 +358,6 @@ class Morpheus::Cli::Groups
 	end
 
 protected
-	
-	def find_group_by_id(id)
-		raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
-    begin
-      json_response = @accounts_interface.get(id.to_i)
-      return json_response['groups']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Account not found by id #{id}"
-      else
-        raise e
-      end
-    end
-	end
-
-	def find_group_by_id(id)
-		json_results = @groups_interface.get(id.to_i)
-		if json_results['group'].empty?
-			print_red_alert "Group not found by id #{id}"
-			exit 1
-		end
-		group = json_results['group']
-		return group
-	end
-
-	def find_group_by_name(name)
-		json_results = @groups_interface.get({name: name})
-		if json_results['groups'].empty?
-			print_red_alert "Group not found by name #{name}"
-			exit 1
-		end
-		group = json_results['groups'][0]
-		return group
-	end
-
-	def find_group_by_name_or_id(val)
-		if val.to_s =~ /\A\d{1,}\Z/
-			return find_group_by_id(val)
-		else
-			return find_group_by_name(val)
-		end
-	end
-
-	def find_cloud_by_id(id)
-		json_results = @clouds_interface.get(id.to_i)
-		if json_results['zone'].empty?
-			print_red_alert "Cloud not found by id #{id}"
-			exit 1
-		end
-		cloud = json_results['zone']
-		return cloud
-	end
-
-	def find_cloud_by_name(name)
-		json_results = @clouds_interface.get({name: name})
-		if json_results['zones'].empty?
-			print_red_alert "Cloud not found by name #{name}"
-			exit 1
-		end
-		cloud = json_results['zones'][0]
-		return cloud
-	end
-
-	def find_cloud_by_name_or_id(val)
-		if val.to_s =~ /\A\d{1,}\Z/
-			return find_cloud_by_id(val)
-		else
-			return find_cloud_by_name(val)
-		end
-	end
 
 	def print_groups_table(groups, opts={})
 		table_color = opts[:color] || cyan

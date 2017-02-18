@@ -5,6 +5,7 @@ require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
+require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
@@ -117,8 +118,6 @@ class Morpheus::Cli::Instances
     begin
   		
   		instance = find_instance_by_name_or_id(args[0])
-
-			# group = find_group_from_options(options)
 
 			payload = {
 				'instance' => {id: instance["id"]}
@@ -694,7 +693,7 @@ class Morpheus::Cli::Instances
 			current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
 			# prompt for volumes
-			volumes = prompt_resize_volumes(current_volumes, service_plan, options, @api_client, {})
+			volumes = prompt_resize_volumes(current_volumes, service_plan, options)
 			if !volumes.empty?
 				payload[:volumes] = volumes
 			end
@@ -770,17 +769,13 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			params = {}
-			group = find_group_from_options(options)
+			group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 			if group
 				params['siteId'] = group['id']
 			end
 
-			# argh, this doesn't work because groups is group_id is required for options/clouds
-			# cloud = find_cloud_from_options(group ? group['id'] : nil, options)
-			# if cloud
-			# 	params['zoneId'] = cloud['id']
-			# end
-			# cloud = nil
+			# argh, this doesn't work because group_id is required for options/clouds
+      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
 			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
 			if cloud
 				params['zoneId'] = cloud['id']

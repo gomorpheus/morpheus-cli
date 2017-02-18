@@ -92,7 +92,7 @@ class Morpheus::Cli::Apps
   		
   		# use active group by default
 			options[:group] ||= @active_groups[@appliance_name.to_sym]
-			group = find_group_from_options(options)
+			group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 
 			payload = {
 				'app' => {}
@@ -230,8 +230,6 @@ class Morpheus::Cli::Apps
     begin
   		
   		app = find_app_by_name_or_id(args[0])
-
-			# group = find_group_from_options(options)
 
 			payload = {
 				'app' => {id: app["id"]}

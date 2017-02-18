@@ -3,11 +3,12 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/infrastructure_helper'
 require 'morpheus/cli/option_types'
-require 'json'
 
 class Morpheus::Cli::Clouds
 	include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::InfrastructureHelper
 
 	register_subcommands :list, :details, :add, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
 
@@ -27,11 +28,12 @@ class Morpheus::Cli::Clouds
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-		@cloud_types = @clouds_interface.cloud_types['zoneTypes']
 		if @access_token.empty?
 			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
 		end
+		# preload stuff
+		get_available_cloud_types()
 	end
 
 	def handle(args)
@@ -390,72 +392,6 @@ class Morpheus::Cli::Clouds
 	end
 
 private
-	
-	def find_cloud_by_id(id)
-		json_results = @clouds_interface.get(id.to_i)
-		if json_results['zone'].empty?
-			print_red_alert "Cloud not found by id #{id}"
-			exit 1
-		end
-		cloud = json_results['zone']
-		return cloud
-	end
-
-	def find_cloud_by_name(name)
-		json_results = @clouds_interface.get({name: name})
-		if json_results['zones'].empty?
-			print_red_alert "Cloud not found by name #{name}"
-			exit 1
-		end
-		cloud = json_results['zones'][0]
-		return cloud
-	end
-
-	def find_cloud_by_name_or_id(val)
-		if val.to_s =~ /\A\d{1,}\Z/
-			return find_cloud_by_id(val)
-		else
-			return find_cloud_by_name(val)
-		end
-	end
-
-	def cloud_type_for_id(id)
-		if !@cloud_types.empty?
-			zone_type = @cloud_types.find { |z| z['id'].to_i == id.to_i}
-			if !zone_type.nil?
-				return zone_type['name']
-			end
-		end
-		return nil
-	end
-
-	def cloud_type_for_name(name)
-		if !@cloud_types.empty?
-			zone_type = @cloud_types.find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
-			if !zone_type.nil?
-				return zone_type
-			end
-		end
-		return nil
-	end
-
-	def find_group_by_name(name)
-		group_results = @groups_interface.get(name)
-		if group_results['groups'].empty?
-			puts "Group not found by name #{name}"
-			return nil
-		end
-		return group_results['groups'][0]
-	end
-
-	def find_group_by_id(id)
-		group_results = @groups_interface.get(id)
-		if group_results['groups'].empty?
-			puts "Group not found by id #{id}"
-			return nil
-		end
-		return group_results['groups'][0]
-	end
 
 	def print_clouds_table(clouds, opts={})
     table_color = opts[:color] || cyan
