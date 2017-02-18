@@ -236,12 +236,12 @@ class Morpheus::Cli::Users
 			end
 
 			request_payload = {user: user_payload}
-			json_response = @users_interface.create(account_id, request_payload)
 
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/accounts", request_payload)
-                                return
-                        end
+				print_dry_run @users_interface.dry.create(account_id, request_payload)
+				return
+			end
+
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"

@@ -46,7 +46,7 @@ class Morpheus::Cli::Clouds
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
-			build_common_options(opts, options, [:list, :json, :remote])
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
 		connect(options)
@@ -59,6 +59,11 @@ class Morpheus::Cli::Clouds
 				if !group.nil?
 					params['groupId'] = group['id']
 				end
+			end
+
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.get(params)
+				return
 			end
 
 			json_response = @clouds_interface.get(params)
@@ -86,7 +91,7 @@ class Morpheus::Cli::Clouds
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("details [name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -97,6 +102,10 @@ class Morpheus::Cli::Clouds
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
 			#json_response = {'zone' => cloud}
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.get(cloud['id'])
+				return
+			end
 			json_response = @clouds_interface.get(cloud['id'])
 			cloud = json_response['zone']
 			server_counts = json_response['serverCounts']
@@ -157,7 +166,7 @@ class Morpheus::Cli::Clouds
 			opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
 				params[:description] = desc
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -180,7 +189,12 @@ class Morpheus::Cli::Clouds
 		
 		begin
 			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options],@api_client))
-			json_response = @clouds_interface.create(zone)
+			payload = {zone: zone}
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.create(payload)
+				return
+			end
+			json_response = @clouds_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
@@ -195,41 +209,26 @@ class Morpheus::Cli::Clouds
 
 	def remove(args)
 		options = {}
+		query_params = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("remove [name] --group GROUP")
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				options[:group] = group
+			opts.banner = subcommand_usage("remove [name]")
+			opts.on( '-f', '--force', "Force Remove" ) do
+				query_params[:force] = 'on'
 			end
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
-		if args.count < 2
-			puts optparse.banner
+		if args.count < 1
+			puts optparse
 			return
 		end
 		connect(options)
-		if !options[:group].nil?
-			group = find_group_by_name(options[:group])
-			if !group.nil?
-				options[:groupId] = group['id']
-			else
-				puts "\nGroup #{options[:group]} not found!"
-				exit 1
-			end
-		end
-
-
 		begin
-			zone_results = @clouds_interface.get({name: args[0]})
-			if zone_results['zones'].empty?
-				puts "Zone not found by name #{args[0]}"
-				exit 1
-			end
-			cloud = zone_results['zones'][0]
+			cloud = find_cloud_by_name_or_id(args[0])
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the cloud #{cloud['name']}?")
 				exit
 			end
-			json_response = @clouds_interface.destroy(cloud['id'])
+			json_response = @clouds_interface.destroy(cloud['id'], query_params)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
@@ -247,7 +246,7 @@ class Morpheus::Cli::Clouds
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("firewall-disable [name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -257,6 +256,10 @@ class Morpheus::Cli::Clouds
 		connect(options)
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.firewall_disable(cloud['id'])
+				return
+			end
 			json_response = @clouds_interface.firewall_disable(cloud['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -275,7 +278,7 @@ class Morpheus::Cli::Clouds
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("firewall-enable", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -285,6 +288,10 @@ class Morpheus::Cli::Clouds
 		connect(options)
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.firewall_enable(cloud['id'])
+				return
+			end
 			json_response = @clouds_interface.firewall_enable(cloud['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -303,7 +310,7 @@ class Morpheus::Cli::Clouds
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("security-groups [name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -314,6 +321,10 @@ class Morpheus::Cli::Clouds
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
 			zone_id = cloud['id']
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.security_groups(zone_id)
+				return
+			end
 			json_response = @clouds_interface.security_groups(zone_id)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -351,7 +362,7 @@ class Morpheus::Cli::Clouds
 				options[:securityGroupIds] = secgroups.split(",")
 				clear_or_secgroups_specified = true
 			end
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if !clear_or_secgroups_specified 
@@ -361,7 +372,10 @@ class Morpheus::Cli::Clouds
 		connect(options)
 		begin
 			cloud = find_cloud_by_name_or_id(args[0])
-			zone_id = cloud['id']
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.apply_security_groups(cloud['id'])
+				return
+			end
 			json_response = @clouds_interface.apply_security_groups(cloud['id'], options)
 			if options[:json]
 				print JSON.pretty_generate(json_response)

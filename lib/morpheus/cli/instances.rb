@@ -10,7 +10,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :details, :add, :update, :remove, :stop, :start, :restart, :backup, :run_workflow, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv
+  register_subcommands :list, :details, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
@@ -82,7 +82,7 @@ class Morpheus::Cli::Instances
 			payload = prompt_new_instance(options)
 
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/instances", payload)
+				print_dry_run @instances_interface.dry.create(payload)
 				return
 			end
 			json_response = @instances_interface.create(payload)
@@ -145,12 +145,11 @@ class Morpheus::Cli::Instances
       params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
       payload['instance'].merge!(params)
 			
-      json_response = @instances_interface.update(instance["id"], payload)
-
-      if options[:dry_run]
-      	print_dry_run("PUT #{@appliance_url}/api/instances", payload)
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.update(instance["id"], payload)
 				return
 			end
+      json_response = @instances_interface.update(instance["id"], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -172,7 +171,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("stats [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -182,6 +181,10 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.get(instance['id'])
+				return
+			end
 			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -189,18 +192,13 @@ class Morpheus::Cli::Instances
 			end
 			instance = json_response['instance']
 			stats = json_response['stats'] || {}
-			if options[:json]
-				print JSON.pretty_generate(stats)
-				print "\n"
-			else
-				print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
-				stats_map = {}
-				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-				stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-				stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
-				tp [stats_map], :memory,:storage,:cpu
-				print reset, "\n"
-			end
+			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
+			stats_map = {}
+			stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+			stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+			stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
+			tp [stats_map], :memory,:storage,:cpu
+			print reset, "\n"
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -214,7 +212,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
 				options[:node_id] = node_id.to_i
 			end
-			build_common_options(opts, options, [:list, :json, :remote])
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -228,7 +226,12 @@ class Morpheus::Cli::Instances
 			if options[:node_id] && container_ids.include?(options[:node_id])
 				container_ids = [options[:node_id]]
 			end
-			logs = @logs_interface.container_logs(container_ids, { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]})
+			query_params = { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]}
+			if options[:dry_run]
+				print_dry_run @logs_interface.dry.container_logs(container_ids, query_params)
+				return
+			end
+			logs = @logs_interface.container_logs(container_ids, query_params)
 			if options[:json]
 				puts logs
 			else
@@ -260,7 +263,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("details [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -270,6 +273,10 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.get(instance['id'])
+				return
+			end
 			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -302,13 +309,22 @@ class Morpheus::Cli::Instances
 			puts "Group: #{instance['group'] ? instance['group']['name'] : ''}"
 			puts "Cloud: #{instance['cloud'] ? instance['cloud']['name'] : ''}"
 			puts "Type: #{instance['instanceType']['name']}"
+			puts "Plan: #{instance['plan'] ? instance['plan']['name'] : ''}"
 			puts "Environment: #{instance['instanceContext']}"
 			puts "Nodes: #{instance['containers'] ? instance['containers'].count : 0}"
 			puts "Connection: #{connection_string}"
 			#puts "Account: #{instance['account'] ? instance['account']['name'] : ''}"
 			puts "Status: #{status_string}"
-			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
-			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+			
+			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				print "\n"
+				stats_map = {}
+				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+				stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+				stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
+				tp [stats_map], :memory,:storage,:cpu
+			end
+			print reset, "\n"
 
 			#puts instance
 		rescue RestClient::Exception => e
@@ -321,7 +337,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("envs [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -331,15 +347,23 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			env_results = @instances_interface.get_envs(instance['id'])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.get_envs(instance['id'])
+				return
+			end
+			json_response = @instances_interface.get_envs(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
 			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
-			envs = env_results['envs'] || {}
-			if env_results['readOnlyEnvs']
-				envs += env_results['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
+			envs = json_response['envs'] || {}
+			if json_response['readOnlyEnvs']
+				envs += json_response['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
 			end
 			tp envs, :name, :value, :export
 			print "\n" ,cyan, bold, "Imported Envs\n","==================", "\n\n", reset, cyan
-			 imported_envs = env_results['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
+			 imported_envs = json_response['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
 			 tp imported_envs
 			print reset, "\n"
 			
@@ -360,7 +384,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-M', "Masked" ) do |masked|
 				options[:masked] = masked
 			end
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote, :quiet])
 		end
 		if args.count < 3
 			puts optparse
@@ -371,9 +395,19 @@ class Morpheus::Cli::Instances
 		begin
 			instance = find_instance_by_name_or_id(args[0])
 			evar = {name: args[1], value: args[2], export: options[:export], masked: options[:masked]}
-			params = {}
-			@instances_interface.create_env(instance['id'], [evar])
-			envs([args[0]])
+			payload = {envs: [evar]}
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.create_env(instance['id'], payload)
+				return
+			end
+			json_response = @instances_interface.create_env(instance['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+			if !options[:quiet]
+				envs([args[0]])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -384,7 +418,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("delenv [name] NAME")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 2
 			puts optparse
@@ -394,8 +428,18 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			@instances_interface.del_env(instance['id'], args[1])
-			envs([args[0]])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.del_env(instance['id'], args[1])
+				return
+			end
+			json_response = @instances_interface.del_env(instance['id'], args[1])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+			if !options[:quiet]
+				envs([args[0]])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -406,7 +450,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("stop [name]")
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -418,6 +462,10 @@ class Morpheus::Cli::Instances
 			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.stop(instance['id'])
+				return
 			end
 			json_response = @instances_interface.stop(instance['id'])
 			if options[:json]
@@ -435,7 +483,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("start [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -445,6 +493,10 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.start(instance['id'])
+				return
+			end
 			json_response = @instances_interface.start(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -462,7 +514,7 @@ class Morpheus::Cli::Instances
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus instances restart [name]"
 			opts.banner = subcommand_usage("restart [name]")
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -474,6 +526,10 @@ class Morpheus::Cli::Instances
 			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.restart(instance['id'])
+				return
 			end
 			json_response = @instances_interface.restart(instance['id'])
 			if options[:json]
@@ -491,7 +547,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("stop-service [name]")
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -503,6 +559,10 @@ class Morpheus::Cli::Instances
 			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
 				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.stop(instance['id'],false)
+				return
 			end
 			json_response = @instances_interface.stop(instance['id'],false)
 			if options[:json]
@@ -522,7 +582,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("start-service [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -532,6 +592,10 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.start(instance['id'], false)
+				return
+			end
 			json_response = @instances_interface.start(instance['id'],false)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -550,7 +614,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("restart-service [name]")
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -562,6 +626,10 @@ class Morpheus::Cli::Instances
 			instance = find_instance_by_name_or_id(args[0])
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
 				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.restart(instance['id'],false)
+				return
 			end
 			json_response = @instances_interface.restart(instance['id'],false)
 			if options[:json]
@@ -636,7 +704,7 @@ class Morpheus::Cli::Instances
 			payload[:deleteOriginalVolumes] = true
 
 			if options[:dry_run]
-				print_dry_run("PUT #{@appliance_url}/api/instances/#{instance['id']}/resize", payload)
+				print_dry_run @instances_interface.dry.resize(instance['id'], payload)
 				return
 			end
 			json_response = @instances_interface.resize(instance['id'], payload)
@@ -658,7 +726,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("backup [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -668,6 +736,10 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.backup(instance['id'])
+				return
+			end
 			json_response = @instances_interface.backup(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -692,7 +764,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
 				options[:cloud] = val
 			end
-			build_common_options(opts, options, [:list, :json, :remote])
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
 		connect(options)
@@ -718,6 +790,10 @@ class Morpheus::Cli::Instances
 				params[k] = options[k] unless options[k].nil?
 			end
 
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.list(params)
+				return
+			end
 			json_response = @instances_interface.get(params)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -761,7 +837,7 @@ class Morpheus::Cli::Instances
 			opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
 				query_params[:keepBackups] = 'on'
 			end
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 
 		end
 		if args.count < 1
@@ -775,8 +851,17 @@ class Morpheus::Cli::Instances
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the instance '#{instance['name']}'?", options)
 				exit 1
 			end
-			@instances_interface.destroy(instance['id'],query_params)
-			list([])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.destroy(instance['id'],query_params)
+				return
+			end
+			json_response = @instances_interface.destroy(instance['id'],query_params)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -787,7 +872,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("firewall-disable [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -797,8 +882,17 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			@instances_interface.firewall_disable(instance['id'])
-			security_groups([args[0]])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.firewall_disable(instance['id'])
+				return
+			end
+			json_response = @instances_interface.firewall_disable(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				security_groups([args[0]])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -809,7 +903,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("firewall-enable [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -818,13 +912,18 @@ class Morpheus::Cli::Instances
 		optparse.parse!(args)
 		connect(options)
 		begin
-			instance_results = @instances_interface.get({name: args[0]})
-			if instance_results['instances'].empty?
-				puts "Instance not found by name #{args[0]}"
+			instance = find_instance_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.firewall_enable(instance['id'])
 				return
 			end
-			@instances_interface.firewall_enable(instance_results['instances'][0]['id'])
-			security_groups([args[0]])
+			json_response = @instances_interface.firewall_enable(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				security_groups([args[0]])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -835,7 +934,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("security-groups [name]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -845,11 +944,18 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			instance_id = instance['id']
-			json_response = @instances_interface.security_groups(instance_id)
-
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.security_groups(instance['id'])
+				return
+			end
+			json_response = @instances_interface.security_groups(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
+			end
 			securityGroups = json_response['securityGroups']
-			print "\n" ,cyan, bold, "Morpheus Security Groups for Instance:#{instance_id}\n","==================", reset, "\n\n"
+			print "\n" ,cyan, bold, "Morpheus Security Groups for Instance: #{instance['name']}\n","==================", reset, "\n\n"
 			print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
 			if securityGroups.empty?
 				puts yellow,"No security groups currently applied.",reset
@@ -868,35 +974,46 @@ class Morpheus::Cli::Instances
 
 	def apply_security_groups(args)
 		options = {}
+		security_group_ids = nil
 		clear_or_secgroups_specified = false
 		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("apply-security-groups [name]")
-			opts.on( '-c', '--clear', "Clear all security groups" ) do
-				options[:securityGroupIds] = []
-				clear_or_secgroups_specified = true
-			end
+			opts.banner = subcommand_usage("apply-security-groups [name] [-S] [-c]")
 			opts.on( '-S', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
-				options[:securityGroupIds] = secgroups.split(",")
+				security_group_ids = secgroups.split(",")
 				clear_or_secgroups_specified = true
 			end
-			build_common_options(opts, options, [:json, :remote])
+			opts.on( '-c', '--clear', "Clear all security groups" ) do
+				security_group_ids = []
+				clear_or_secgroups_specified = true
+			end
+			build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
-		connect(options)
-
 		if !clear_or_secgroups_specified 
-			puts usage
+			puts optparse
 			exit
 		end
-
+		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			@instances_interface.apply_security_groups(instance['id'], options)
-			security_groups([args[0]])
+			payload = {securityGroupIds: security_group_ids}
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.apply_security_groups(instance['id'], payload)
+				return
+			end
+			json_response = @instances_interface.apply_security_groups(instance['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
+			end
+			if !options[:quiet]
+				security_groups([args[0]])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -909,7 +1026,7 @@ class Morpheus::Cli::Instances
 		
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("run-workflow", "[name] [workflow] [options]")
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"
@@ -944,7 +1061,10 @@ class Morpheus::Cli::Instances
 
 		workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
 		begin
-			
+			if options[:dry_run]
+				print_dry_run @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
+				return
+			end
 			json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)

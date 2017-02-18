@@ -399,9 +399,8 @@ class Morpheus::Cli::Hosts
 			})
 			payload[:network] = params['network'] if params['network']
 			payload[:config] = params['config'] if params['config']
-
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/servers", payload)
+				print_dry_run @groups_interface.dry.create(payload)
 				return
 			end
 			json_response = @servers_interface.create(payload)
@@ -593,7 +592,7 @@ class Morpheus::Cli::Hosts
 			payload[:deleteOriginalVolumes] = true
 
 			if options[:dry_run]
-				print_dry_run("PUT #{@appliance_url}/api/servers/#{server['id']}/resize", payload)
+				print_dry_run @groups_interface.dry.resize(server['id'], payload)
 				return
 			end
 			json_response = @servers_interface.resize(server['id'], payload)

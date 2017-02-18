@@ -6,12 +6,26 @@ module Morpheus
 
     class << self
 
+      def user_agent
+        if !@user_agent
+          begin
+            @user_agent = "morpheus-cli #{Morpheus::Cli::VERSION}"
+            @user_agent = "#{@user_agent} (#{::RestClient::Platform.architecture}) #{::RestClient::Platform.ruby_agent_version}"
+          rescue => e
+          end
+        end
+        return @user_agent
+      end
+
       def execute(options)
-        opts = options.merge({})
+        opts = {timeout: 30}.merge(options)
 
         unless ssl_verification_enabled?
           opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
         end
+
+        opts[:headers] ||= {}
+        opts[:headers][:user_agent] ||= self.user_agent
 
         ::RestClient::Request.execute opts
       end

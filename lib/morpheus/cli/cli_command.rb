@@ -106,10 +106,15 @@ module Morpheus
             end
 
           when :dry_run
-            opts.on('-d','--dry-run', "Dry Run, print json without making the actual request.") do |json|
+            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do |json|
               options[:dry_run] = true
             end
           
+          when :quiet
+            opts.on('-q','--quiet', "No Output, when successful") do |json|
+              options[:quiet] = true
+            end
+
           else
             raise "Unknown common_option key: #{option_key}"
           end

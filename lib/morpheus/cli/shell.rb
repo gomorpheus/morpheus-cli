@@ -35,23 +35,18 @@ class Morpheus::Cli::Shell
 		@command_options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			opts.on('-a','--account ACCOUNT', "Account Name") do |val|
-				@command_options[:account_name] = val
-      end
-      opts.on('-A','--account-id ID', "Account ID") do |val|
-				@command_options[:account_id] = val
-      end
 			opts.on('-C','--nocolor', "ANSI") do
 				@command_options[:nocolor] = true
-        Term::ANSIColor::coloring = false
-      end
-      opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
-      	@command_options[:debug] = true
-      end
-      opts.on( '-h', '--help', "Prints this help" ) do
-        puts opts
-        exit
-      end
+				Term::ANSIColor::coloring = false
+			end
+			opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+				Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+				@command_options[:debug] = true
+			end
+			opts.on( '-h', '--help', "Prints this help" ) do
+				puts opts
+				exit
+			end
 		end
 		optparse.parse(args)
 
@@ -119,57 +114,62 @@ class Morpheus::Cli::Shell
 							next
 						end
 					end
+				elsif input =~ /^log_level/ # hidden for now
+					log_level = input.split.last
+					if log_level == "debug"
+						log_history_command(input)
+						@command_options[:debug] = true
+						Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+					elsif log_level == "info"
+						log_history_command(input)
+						@command_options.delete(:debug)
+						Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
+					else
+						# other log levels are pointless right now..
+						print_red_alert "unknown log level: #{log_level}"
+					end
+					next
 				end
 
-					begin
-						argv = Shellwords.shellsplit(input)
-						if @command_options[:account_name]
-							argv.push "--account", @command_options[:account_name]
-						end
-						if @command_options[:account_id]
-							argv.push "--account-id", @command_options[:account_id]
-						end
-						if @command_options[:nocolor]
-							argv.push "--nocolor"
-						end
+				begin
+					argv = Shellwords.shellsplit(input)
 
-						# set global log level to debug (print stack trace for bubbled exceptions)
-						if argv.find {|arg| arg == '-V' || arg == '--debug'}
-							@return_to_log_level = Morpheus::Logging.log_level
-						  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-						end
-						argv = argv.find_all {|arg| arg != '-V' && arg != '--debug'}
-
-						#puts "cmd: #{argv.join(' ')}"
-
-						if argv[0] == 'shell'
-							puts "You are already in a shell."
-						elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
-							log_history_command(input)
-							Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
-						else
-							@history_logger.warn "Unrecognized Command: #{input}" if @history_logger
-							puts "Unrecognized Command."
-						end
-					rescue ArgumentError
-						puts "Argument Syntax Error..."
-					rescue Interrupt
-						# nothing to do
-						@history_logger.warn "shell interrupt" if @history_logger
-						print "\n"
-					rescue SystemExit
-						# nothing to do
-						print "\n"
-					rescue => e
-						@history_logger.error "#{e.message}" if @history_logger
-						Morpheus::Cli::ErrorHandler.new.handle_error(e)
-						# exit 1
+					# set global log level to debug (print stack trace for bubbled exceptions)
+					if argv.find {|arg| arg == '-V' || arg == '--debug'}
+						@return_to_log_level = Morpheus::Logging.log_level
+					  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+					elsif @command_options[:debug]
+						argv.push "--debug"
 					end
-						
-					if @return_to_log_level
-						Morpheus::Logging.set_log_level(@return_to_log_level)
-						@return_to_log_level = nil
+
+					if argv[0] == 'shell'
+						puts "You are already in a shell."
+					elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
+						log_history_command(input)
+						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
+					else
+						@history_logger.warn "Unrecognized Command: #{input}" if @history_logger
+						puts "Unrecognized Command."
 					end
+				# rescue ArgumentError
+				# 	puts "Argument Syntax Error..."
+				rescue Interrupt
+					# nothing to do
+					@history_logger.warn "shell interrupt" if @history_logger
+					print "\n"
+				rescue SystemExit
+					# nothing to do
+					print "\n"
+				rescue => e
+					@history_logger.error "#{e.message}" if @history_logger
+					Morpheus::Cli::ErrorHandler.new.handle_error(e)
+					# exit 1
+				end
+
+				if @return_to_log_level
+					Morpheus::Logging.set_log_level(@return_to_log_level)
+					@return_to_log_level = nil
+				end
 
 			end
 		end

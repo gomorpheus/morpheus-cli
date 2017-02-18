@@ -8,10 +8,10 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
 
 class Morpheus::Cli::Apps
-  include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::ProvisioningHelper
+	include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :details, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+	register_subcommands :list, :details, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -41,7 +41,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("list")
-			build_common_options(opts, options, [:list, :json])
+			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
 		optparse.parse!(args)
 		connect(options)
@@ -49,6 +49,11 @@ class Morpheus::Cli::Apps
       params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.get(params)
+				return
 			end
 
 			json_response = @apps_interface.get(params)
@@ -75,11 +80,11 @@ class Morpheus::Cli::Apps
 	def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("add")
+      opts.banner = subcommand_usage("add [name]")
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
     end
     optparse.parse!(args)
     connect(options)
@@ -92,9 +97,12 @@ class Morpheus::Cli::Apps
 			payload = {
 				'app' => {}
 			}
-
-			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
-			payload['app']['name'] = v_prompt['name']
+			if args[0]
+				payload['app']['name'] = args[0]
+			else
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
+				payload['app']['name'] = v_prompt['name']
+			end
 			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
 			payload['app']['description'] = v_prompt['description']
 			if group
@@ -107,14 +115,14 @@ class Morpheus::Cli::Apps
 			# todo: allow adding instances with creation..
 
       if options[:dry_run]
-        print_dry_run("POST #{@appliance_url}/api/apps", payload)
+        print_dry_run @apps_interface.dry.create(payload)
         return
       end
       json_response = @apps_interface.create(payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
+      elsif !options[:quiet]
         print_green_success "Added app #{payload['app']['name']}"
         list([])
         # details_options = [payload['app']['name']]
@@ -130,8 +138,8 @@ class Morpheus::Cli::Apps
 	def details(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus apps details [name]"
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("details [name]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -141,10 +149,16 @@ class Morpheus::Cli::Apps
 		connect(options)
 		begin
 			app = find_app_by_name_or_id(args[0])
-			if options[:json]
-				print JSON.pretty_generate({app: app})
-				return
-			end
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.get(app['id'])
+        return
+      end
+      json_response = @apps_interface.get(app['id'])
+      app = json_response['app']
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        return
+      end
 			
 			print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
 			print cyan
@@ -231,7 +245,7 @@ class Morpheus::Cli::Apps
 			params = options[:options] || {}
 
       if params.empty?
-        puts "\n#{opts.banner}\n"
+        puts opts
         option_lines = update_app_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
         puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
@@ -243,9 +257,10 @@ class Morpheus::Cli::Apps
       payload['app'].merge!(params)
 
       if options[:dry_run]
-        print_dry_run("PUT #{@appliance_url}/api/apps/#{app['id']}", payload)
+        print_dry_run @apps_interface.dry.update(app["id"], payload)
         return
       end
+
       json_response = @apps_interface.update(app["id"], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -307,7 +322,7 @@ class Morpheus::Cli::Apps
   		end
 
       if options[:dry_run]
-        print_dry_run("POST #{@appliance_url}/api/apps/#{app['id']}/add-instance", payload)
+        print_dry_run @apps_interface.dry.add_instance(app['id'], payload)
         return
       end
       json_response = @apps_interface.add_instance(app['id'], payload)
@@ -331,7 +346,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("remove", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run, :quiet])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -345,8 +360,18 @@ class Morpheus::Cli::Apps
 			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the app '#{app['name']}'?", options)
 				exit 1
 			end
-			@apps_interface.destroy(app['id'])
-			list([])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.destroy(app['id'])
+				return
+			end
+			json_response = @apps_interface.destroy(app['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				print_green_success "Removed app #{app['name']}"
+				list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -384,7 +409,7 @@ class Morpheus::Cli::Apps
   		payload[:instanceId] = instance['id']
 
       if options[:dry_run]
-        print_dry_run("POST #{@appliance_url}/api/apps/#{app['id']}/remove-instance", payload)
+        print_dry_run @apps_interface.dry.remove_instance(app['id'], payload)
         return
       end
 
@@ -410,7 +435,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("logs", "[name]")
-			build_common_options(opts, options, [:list, :json])
+			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -430,6 +455,10 @@ class Morpheus::Cli::Apps
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
+      if options[:dry_run]
+        print_dry_run @logs_interface.dry.container_logs(containers, params)
+        return
+      end
 			logs = @logs_interface.container_logs(containers, params)
 			if options[:json]
 				print JSON.pretty_generate(logs)
@@ -464,7 +493,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("stop", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -474,6 +503,10 @@ class Morpheus::Cli::Apps
 		connect(options)
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.stop(app['id'])
+				return
+			end
 			@apps_interface.stop(app['id'])
 			list([])
 		rescue RestClient::Exception => e
@@ -486,7 +519,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("start", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -496,6 +529,10 @@ class Morpheus::Cli::Apps
 		connect(options)
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.start(app['id'])
+				return
+			end
 			@apps_interface.start(app['id'])
 			list([])
 		rescue RestClient::Exception => e
@@ -508,7 +545,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("restart", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -518,6 +555,10 @@ class Morpheus::Cli::Apps
 		connect(options)
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.restart(app['id'])
+				return
+			end
 			@apps_interface.restart(app['id'])
 			list([])
 		rescue RestClient::Exception => e
@@ -531,7 +572,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("firewall-disable", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -542,6 +583,10 @@ class Morpheus::Cli::Apps
 
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.firewall_disable(app['id'])
+				return
+			end
 			@apps_interface.firewall_disable(app['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
@@ -554,7 +599,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("firewall-enable", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -565,6 +610,10 @@ class Morpheus::Cli::Apps
 
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.firewall_enable(app['id'])
+				return
+			end
 			@apps_interface.firewall_enable(app['id'])
 			security_groups([args[0]])
 		rescue RestClient::Exception => e
@@ -577,7 +626,7 @@ class Morpheus::Cli::Apps
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("security-groups", "[name]")
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -588,6 +637,10 @@ class Morpheus::Cli::Apps
 
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.security_groups(app['id'])
+				return
+			end
 			json_response = @apps_interface.security_groups(app['id'])
 			securityGroups = json_response['securityGroups']
 			print "\n" ,cyan, bold, "Morpheus Security Groups for App: #{app['name']}\n","==================", reset, "\n\n"
@@ -624,7 +677,7 @@ class Morpheus::Cli::Apps
 				puts opts
 				exit
 			end
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -640,6 +693,10 @@ class Morpheus::Cli::Apps
 
 		begin
 			app = find_app_by_name_or_id(args[0])
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.apply_security_groups(app['id'], options)
+				return
+			end
 			@apps_interface.apply_security_groups(app['id'], options)
 			security_groups([args[0]])
 		rescue RestClient::Exception => e

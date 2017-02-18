@@ -8,7 +8,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
   
-  register_subcommands :list, :details, :add, :use, :unuse, :add_cloud, :remove_cloud, :use, :remove
+  register_subcommands :list, :details, :add, :use, :unuse, :add_cloud, :remove_cloud, :remove
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -124,11 +124,12 @@ class Morpheus::Cli::Groups
 			puts optparse
 			exit 1
 		end
+		connect(options)
 		begin
 			group = {name: args[0], location: params[:location]}
 			payload = {group: group}
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/groups", payload)
+				print_dry_run @groups_interface.dry.create(payload)
 				return
 			end
 			json_response = @groups_interface.create(payload)
@@ -169,7 +170,7 @@ class Morpheus::Cli::Groups
 			new_zones = current_zones + [{'id' => cloud['id']}]
 			payload = {group: {id: group["id"], zones: new_zones}}
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/groups/#{group['id']}/update-zones", payload)
+				print_dry_run @groups_interface.dry.update_zones(group["id"], payload)
 				return
 			end
 			json_response = @groups_interface.update_zones(group["id"], payload)
@@ -212,7 +213,7 @@ class Morpheus::Cli::Groups
 			new_zones = current_zones.reject {|it| it["id"] == cloud["id"] }
 			payload = {group: {id: group["id"], zones: new_zones}}
 			if options[:dry_run]
-				print_dry_run("POST #{@appliance_url}/api/groups/#{group['id']}/update-zones", payload)
+				print_dry_run @groups_interface.dry.update_zones(group["id"], payload)
 				return
 			end
 			json_response = @groups_interface.update_zones(group["id"], payload)
@@ -237,11 +238,11 @@ class Morpheus::Cli::Groups
 			build_common_options(opts, options, [:auto_confirm])
 		end
 		optparse.parse!(args)
-		connect(options)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
+		connect(options)
 
 		begin
 			group_results = @groups_interface.get(args[0])
@@ -278,8 +279,10 @@ class Morpheus::Cli::Groups
 			end
 			::Morpheus::Cli::Groups.save_groups(@active_groups)
 			unless options[:quiet]
+				print cyan
 				puts "Switched to no active group."
 				puts "You will be prompted for Group during provisioning."
+				print reset
 			end
 			print reset
 			return # exit 0

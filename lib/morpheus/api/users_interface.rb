@@ -14,61 +14,54 @@ class Morpheus::UsersInterface < Morpheus::APIClient
 		raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
 		url = build_url(account_id, id)
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :get, url: url, timeout: 10, headers: headers}
+		execute(opts)
 	end
 
 	def list(account_id, options={})
 		url = build_url(account_id)
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		headers[:params].merge!(options)
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :get, url: url, timeout: 10, headers: headers}
+		execute(opts)
 	end
 
 	def feature_permissions(account_id, id)
 		url = build_url(account_id, id) + "/feature-permissions"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :get, url: url, timeout: 10, headers: headers}
+		execute(opts)
 	end
 
 	def available_roles(account_id, id=nil, options={})
 		url = build_url(account_id, id) + "/available-roles"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		headers[:params].merge!(options)
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :get, url: url, timeout: 10, headers: headers}
+		execute(opts)
 	end
 
 	def create(account_id, options)
 		url = build_url(account_id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		opts = {method: :post, url: url, timeout: 10, headers: headers, payload: payload.to_json}
+		execute(opts)
 	end
 
 	def update(account_id, id, options)
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		opts = {method: :put, url: url, timeout: 10, headers: headers, payload: payload.to_json}
+		execute(opts)
 	end
 
 	def destroy(account_id, id)
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :delete, url: url, timeout: 10, headers: headers}
+		execute(opts)
 	end
 
 private

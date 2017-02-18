@@ -21,37 +21,31 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :get, url: url, timeout: 30, headers: headers}
+		execute(opts)
 	end
 
 	def create(options)
 		url = "#{@base_url}/api/groups"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
-		payload = {group: options}
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		payload = options
+		opts = {method: :post, url: url, timeout: 30, headers: headers, payload: payload.to_json}
+		execute(opts)
 	end
 
 	def destroy(id)
 		url = "#{@base_url}/api/groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		opts = {method: :delete, url: url, timeout: 30, headers: headers}
+		execute(opts)
 	end
 
 	def update_zones(id, options)
 		url = "#{@base_url}/api/groups/#{id}/update-zones"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		opts = {method: :put, url: url, timeout: 30, headers: headers, payload: payload.to_json}
+		execute(opts)
 	end
 	
 end

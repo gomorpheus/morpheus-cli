@@ -96,7 +96,8 @@ class Morpheus::Cli::Deploys
 			deploy_args['env'].each_pair do |key, value| 
 				evars << {name: key, value: value, export: false}
 			end
-			@instances_interface.create_env(instance_id,evars)
+			payload = {envs: evars}
+			@instances_interface.create_env(instance_id, payload)
 			@instances_interface.restart(instance_id)
 		end
 		if deploy_args['options']

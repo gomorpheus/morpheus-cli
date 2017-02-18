@@ -1,3 +1,4 @@
+require 'uri'
 require 'term/ansicolor'
 require 'json'
 
@@ -22,12 +23,12 @@ module Morpheus::Cli::PrintHelper
   def print_errors(response, options={})
     begin
       if options[:json]
-        print red, "\n"
+        print red
         print JSON.pretty_generate(response)
-        print reset, "\n\n"
+        print reset, "\n"
       else
         if !response['success']
-          print red,bold, "\n"
+          print red,bold
           if response['msg']
             puts response['msg']
           end
@@ -36,7 +37,7 @@ module Morpheus::Cli::PrintHelper
               print "* #{key}: #{value}\n"
             end
           end
-          print reset, "\n"
+          print reset
         else
           # this should not really happen
           print cyan,bold, "\nSuccess!"
@@ -49,19 +50,30 @@ module Morpheus::Cli::PrintHelper
 
   def print_rest_exception(e, options={})
     if e.response
+      if options[:debug]
+        begin
+          print_rest_exception_request_and_response(e)
+        ensure
+          print reset
+        end
+        return
+      end
       if e.response.code == 400
         response = JSON.parse(e.response.to_s)
         print_errors(response, options)
       else
-        print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
-        if options[:json]
+        print_red_alert "Error Communicating with the Appliance. #{e}"
+        if options[:json] || options[:debug]
           begin
             response = JSON.parse(e.response.to_s)
             print red
             print JSON.pretty_generate(response)
             print reset, "\n"
           rescue TypeError, JSON::ParserError => ex
-            #print_red_alert "Failed to parse JSON response: #{ex}"
+            print_red_alert "Failed to parse JSON response: #{ex}"
+            print red
+            print response.to_s
+            print reset, "\n"
           ensure
             print reset
           end
@@ -72,16 +84,77 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def print_dry_run(request, payload)
+  def print_rest_request(req)
+    # JD: IOError when accessing payload... we should probably just be printing at the time the request is made..
+    #out = []
+    #out << "#{req.method} #{req.url.inspect}"
+    #out << req.payload.short_inspect if req.payload
+    # payload = req.instance_variable_get("@payload")
+    # out << payload if payload
+    #out << req.processed_headers.to_a.sort.map { |(k, v)| [k.inspect, v.inspect].join("=>") }.join(", ")
+    #print out.join(', ') + "\n"
+    print "Request:"
+    print "\n"
+    print "#{req.method.to_s.upcase} #{req.url.inspect}"
+    print "\n"
+  end
+
+  def print_rest_response(res)
+    # size = @raw_response ? File.size(@tf.path) : (res.body.nil? ? 0 : res.body.size)
+    size = (res.body.nil? ? 0 : res.body.size)
+    print "Response:"
+    print "\n"
+    print "HTTP #{res.net_http_res.code} - #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{size} bytes"
+    print "\n"
+    begin
+      print JSON.pretty_generate(JSON.parse(res.body))
+    rescue
+      print res.body.to_s
+    end
+    print "\n"
+  end
+
+  def print_rest_exception_request_and_response(e)
+    print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
+    response = e.response
+    request = response.instance_variable_get("@request")
+    print red
+    print_rest_request(request)
+    print "\n"
+    print_rest_response(response)
+    print reset
+  end
+
+  def print_dry_run(opts)
+    http_method = opts[:method]
+    url = opts[:url]
+    params = opts[:params]
+    params = opts[:headers][:params] if opts[:headers] && opts[:headers][:params]
+    query_string = params.respond_to?(:map) ? URI.encode_www_form(params) : query_string
+    if query_string && !query_string.empty?
+      url = "#{url}?#{query_string}"
+    end
+    request_string = "#{http_method.to_s.upcase} #{url}".strip
+    payload = opts[:payload]
     print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
     print cyan
     print "Request: ", "\n"
     print reset
-    print request.to_s, "\n\n"
+    print request_string, "\n"
     print cyan
-    print "JSON: ", "\n"
-    print reset
-    print JSON.pretty_generate(payload)
+    if payload
+      if payload.is_a?(String)
+        begin
+          payload = JSON.parse(payload)
+        rescue => e
+          #payload = "(unparsable) #{payload}"
+        end
+      end
+      print "\n"
+      print "JSON: ", "\n"
+      print reset
+      print JSON.pretty_generate(payload)
+    end
     print "\n"
     print reset
   end

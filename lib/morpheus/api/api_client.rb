@@ -1,4 +1,5 @@
 require 'json'
+require 'uri'
 require 'rest-client'
 
 class Morpheus::APIClient
@@ -8,6 +9,28 @@ class Morpheus::APIClient
 		@base_url = base_url
 		if expires_in != nil
 			@expires_at = DateTime.now + expires_in.seconds
+		end
+	end
+
+	def dry_run(val=true)
+		@dry_run = !!val
+		self
+	end
+
+	def dry()
+		dry_run(true)
+	end
+
+	def execute(opts, parse_json=true)
+		if @dry_run
+			# JD: could return a Request object instead...
+			return opts
+		end
+		response = Morpheus::RestClient.execute(opts)
+		if parse_json
+			return JSON.parse(response.to_s)
+		else
+			return response
 		end
 	end
 
