@@ -170,7 +170,7 @@ module Morpheus
         puts usage
         if !subcommands.empty?
           puts "Commands:"
-          subcommands.each {|cmd, method|
+          subcommands.sort.each {|cmd, method|
             puts "\t#{cmd.to_s}"
           }
         end

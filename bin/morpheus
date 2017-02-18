@@ -38,7 +38,7 @@ if Morpheus::Cli::CliRegistry.has_command?(args[0])
 else
   puts "Usage: morpheus [command] [options]"
   puts "\nCommands:"
-  Morpheus::Cli::CliRegistry.all.each {|cmd,klass|
+  Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
     puts "\t#{cmd.to_s}"
   }
   puts ""
