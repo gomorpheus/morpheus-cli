@@ -10,6 +10,9 @@ class Morpheus::Cli::KeyPairs
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
   
+  register_subcommands :list, :get, :add, :update, :remove
+  alias_subcommand :details, :get
+
   def initialize() 
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -26,38 +29,18 @@ class Morpheus::Cli::KeyPairs
   end
 
   def handle(args)
-    usage = "Usage: morpheus key-pairs [list,add,update,remove] [name]"
-    if args.empty?
-      puts "\n#{usage}\n\n"
-      exit 1
-    end
-
-    case args[0]
-      when 'list'
-        list(args[1..-1])
-      when 'details'
-        details(args[1..-1])
-      when 'add'
-        add(args[1..-1])
-      when 'update'
-        update(args[1..-1])
-      when 'remove'
-        remove(args[1..-1])
-      else
-        puts "\n#{usage}\n\n"
-        exit 127
-    end
+    handle_subcommand(args)
   end
 
   def list(args)
-    usage = "Usage: morpheus key-pairs list [options]"
+    raise "oh no!"
     options = {}
     params = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage()
       build_common_options(opts, options, [:account, :list, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     connect(options)
     begin
 
@@ -74,13 +57,23 @@ class Morpheus::Cli::KeyPairs
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Morpheus Key Pairs\n","==================", reset, "\n\n"
+        title = "Morpheus Hosts"
+        subtitles = []
+        if account
+          subtitles << "Account: #{account['name']}".strip
+        end
+        if params[:phrase]
+          subtitles << "Matching: #{params[:phrase]}".strip
+        end
+        subtitle = subtitles.join(', ')
+        print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
         if key_pairs.empty?
           puts yellow,"No key pairs found.",reset
         else
           print_key_pairs_table(key_pairs)
+          print_results_pagination(json_response)
         end
-        print reset,"\n\n"
+        print reset,"\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -88,21 +81,19 @@ class Morpheus::Cli::KeyPairs
     end
   end
 
-  def details(args)
-    usage = "Usage: morpheus key-pairs details [name] [options]"
+  def get(args)
     options = {}
     params = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
     begin
@@ -110,11 +101,7 @@ class Morpheus::Cli::KeyPairs
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
-      # todo: key_pairs_response = @key_pairs_interface.list(account_id, {name: name})
-      #       there may be response data outside of account that needs to be displayed
-
-      # allow finding by ID since name is not unique!
-      key_pair = ((name.to_s =~ /\A\d{1,}\Z/) ? find_key_pair_by_id(account_id, name) : find_key_pair_by_name(account_id, name) )
+      key_pair = find_key_pair_by_name_or_id(account_id, args[0])
       exit 1 if key_pair.nil?
 
       if options[:json]
@@ -142,8 +129,7 @@ class Morpheus::Cli::KeyPairs
   def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = "Usage: morpheus key-pairs add [name] [options]"
-
+      opts.banner = subcommand_usage("[name] [options]")
       opts.on('', '--public-key-file FILENAME', "Public Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
           options['publicKey'] = File.read(File.expand_path(filename))
@@ -178,19 +164,19 @@ class Morpheus::Cli::KeyPairs
         options[:options]['privateKey'] = options['privateKey']
       end
 
-      build_common_options(opts, options, [:account, :options, :json])
+      build_common_options(opts, options, [:account, :options, :json, :dry_run])
     end
-    
-    if args.count < 1
-      puts "\n#{optparse}\n\n"
-      exit 1
+    optparse.parse!(args)
+    # if args.count < 1
+    #   puts optparse
+    #   exit 1
+    # end
+    if args[0]
+      options[:options] ||= {}
+      options[:options]['name'] ||= args[0]
     end
-    optparse.parse(args)
-
     connect(options)
-    
     begin
-
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
@@ -203,12 +189,15 @@ class Morpheus::Cli::KeyPairs
         print_red_alert "privateKey is required"
         exit 1
       end
-      params['name'] = args[0]
+      #params['name'] = args[0]
 
       key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey'].include?(k) }
-
-      request_payload = {keyPair: key_pair_payload}
-      json_response = @key_pairs_interface.create(account_id, request_payload)
+      payload = {keyPair: key_pair_payload}
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.create(account_id, payload)
+        return
+      end
+      json_response = @key_pairs_interface.create(account_id, payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -222,19 +211,17 @@ class Morpheus::Cli::KeyPairs
   end
 
   def update(args)
-    usage = "Usage: morpheus key-pairs update [name] [options]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
-      build_common_options(opts, options, [:account, :options, :json])
+      opts.banner = subcommand_usage("[name] [options]")
+      build_common_options(opts, options, [:account, :options, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
     
@@ -243,22 +230,26 @@ class Morpheus::Cli::KeyPairs
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
-      key_pair = ((name.to_s =~ /\A\d{1,}\Z/) ? find_key_pair_by_id(account_id, name) : find_key_pair_by_name(account_id, name) )
+      key_pair = find_key_pair_by_name_or_id(account_id, args[0])
       exit 1 if key_pair.nil?
 
       #params = Morpheus::Cli::OptionTypes.prompt(update_key_pair_option_types, options[:options], @api_client, options[:params])
       params = options[:options] || {}
 
       if params.empty?
-        puts "\n#{usage}\n\n"
+        puts optparse
         option_lines = update_key_pair_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
         puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
       end
 
       key_pair_payload = params.select {|k,v| ['name'].include?(k) }
-      request_payload = {keyPair: key_pair_payload}
-      json_response = @key_pairs_interface.update(account_id, key_pair['id'], request_payload)
+      payload = {keyPair: key_pair_payload}
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.update(account_id, key_pair['id'], payload)
+        return
+      end
+      json_response = @key_pairs_interface.update(account_id, key_pair['id'], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -272,19 +263,17 @@ class Morpheus::Cli::KeyPairs
   end
 
   def remove(args)
-    usage = "Usage: morpheus key-pairs remove [name]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
-      build_common_options(opts, options, [:account, :auto_confirm, :json])
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
     begin
@@ -292,10 +281,15 @@ class Morpheus::Cli::KeyPairs
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
       # allow finding by ID since name is not unique!
-      key_pair = ((name.to_s =~ /\A\d{1,}\Z/) ? find_key_pair_by_id(account_id, name) : find_key_pair_by_name(account_id, name) )
+      key_pair = find_key_pair_by_name_or_id(account_id, args[0])
       exit 1 if key_pair.nil?
+
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the key pair #{key_pair['name']}?")
         exit
+      end
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.destroy(account_id, key_pair['id'])
+        return
       end
       json_response = @key_pairs_interface.destroy(account_id, key_pair['id'])
       if options[:json]
@@ -313,6 +307,14 @@ class Morpheus::Cli::KeyPairs
 
 private
   
+  def find_key_pair_by_name_or_id(account_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_key_pair_by_id(account_id, val)
+    else
+      return find_key_pair_by_name(account_id, val)
+    end
+  end
+
   def find_key_pair_by_id(account_id, id)
     raise "#{self.class} has not defined @key_pairs_interface" if @key_pairs_interface.nil?
     begin
@@ -336,7 +338,7 @@ private
     elsif key_pairs.size > 1
       print_red_alert "#{key_pairs.size} key_pairs by name #{name}"
       print_key_pairs_table(key_pairs, {color: red})
-      print reset,"\n\n"
+      print reset,"\n"
       return nil
     else
       return key_pairs[0]
@@ -367,6 +369,7 @@ private
 
   def add_key_pair_option_types
     [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'publicKey', 'fieldLabel' => 'Public Key', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
       {'fieldName' => 'privateKey', 'fieldLabel' => 'Private Key', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
     ]

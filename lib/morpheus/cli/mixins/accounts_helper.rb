@@ -10,10 +10,35 @@ module Morpheus::Cli::AccountsHelper
     klass.send :include, Morpheus::Cli::PrintHelper
   end
 
-  def find_account_by_id(id)
+  def accounts_interface
+    # @api_client.accounts
     raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
+    @accounts_interface
+  end
+
+  def users_interface
+    # @api_client.users
+    raise "#{self.class} has not defined @users_interface" if @users_interface.nil?
+    @users_interface
+  end
+
+  def roles_interface
+    # @api_client.roles
+    raise "#{self.class} has not defined @roles_interface" if @roles_interface.nil?
+    @roles_interface
+  end
+
+  def find_account_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_account_by_id(val)
+    else
+      return find_account_by_name(val)
+    end
+  end
+
+  def find_account_by_id(id)
     begin
-      json_response = @accounts_interface.get(id.to_i)
+      json_response = accounts_interface.get(id.to_i)
       return json_response['account']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -25,8 +50,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def find_account_by_name(name)
-    raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
-    accounts = @accounts_interface.list({name: name.to_s})['accounts']
+    accounts = accounts_interface.list({name: name.to_s})['accounts']
     if accounts.empty?
       print_red_alert "Account not found by name #{name}"
       return nil
@@ -43,7 +67,10 @@ module Morpheus::Cli::AccountsHelper
 
   def find_account_from_options(options)
     account = nil
-    if options[:account_name]
+    if options[:account]
+      account = find_account_by_name_or_id(options[:account])
+      exit 1 if account.nil?
+    elsif options[:account_name]
       account = find_account_by_name(options[:account_name])
       exit 1 if account.nil?
     elsif options[:account_id]
@@ -56,9 +83,8 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def find_role_by_id(account_id, id)
-    raise "#{self.class} has not defined @roles_interface" if @roles_interface.nil?
     begin
-      json_response = @roles_interface.get(account_id, id.to_i)
+      json_response = roles_interface.get(account_id, id.to_i)
       return json_response['role']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -70,8 +96,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def find_role_by_name(account_id, name)
-    raise "#{self.class} has not defined @roles_interface" if @roles_interface.nil?
-    roles = @roles_interface.list(account_id, {authority: name.to_s})['roles']
+    roles = roles_interface.list(account_id, {authority: name.to_s})['roles']
     if roles.empty?
       print_red_alert "Role not found by name #{name}"
       return nil
@@ -87,10 +112,17 @@ module Morpheus::Cli::AccountsHelper
 
   alias_method :find_role_by_authority, :find_role_by_name
 
+  def find_user_by_username_or_id(account_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_user_by_id(account_id, val)
+    else
+      return find_user_by_username(account_id, val)
+    end
+  end
+
   def find_user_by_id(account_id, id)
-    raise "#{self.class} has not defined @users_interface" if @users_interface.nil?
     begin
-      json_response = @users_interface.get(account_id, id.to_i)
+      json_response = users_interface.get(account_id, id.to_i)
       return json_response['user']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -102,8 +134,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def find_user_by_username(account_id, username)
-    raise "#{self.class} has not defined @users_interface" if @users_interface.nil?
-    users = @users_interface.list(account_id, {username: username.to_s})['users']
+    users = users_interface.list(account_id, {username: username.to_s})['users']
     if users.empty?
       print_red_alert "User not found by username #{username}"
       return nil

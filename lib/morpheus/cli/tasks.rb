@@ -8,6 +8,10 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Tasks
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :get, :add, :update, :remove, :'task-types'
+	alias_subcommand :details, :get
+	alias_subcommand :types, :'task-types'
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -29,44 +33,26 @@ class Morpheus::Cli::Tasks
 		end
 	end
 
-
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus tasks [list,add, update,remove, details, task-types]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])	
-			when 'details'
-				details(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'task-types'
-				task_types(args[1..-1])
-			else
-				puts "\nUsage: morpheus tasks [list,add, update,remove, details, task-types]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks list [-s] [-o] [-m]"
-			build_common_options(opts, options, [:list, :json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+			if options[:dry_run]
+				print_dry_run @tasks_interface.dry.get(params)
+				return
 			end
 			json_response = @tasks_interface.get(params)
 			if options[:json]
@@ -93,32 +79,40 @@ class Morpheus::Cli::Tasks
 		end
 	end
 
-	def details(args)
-				task_name = args[0]
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks details [task]"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage("[task]")
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		task_name = args[0]
 		connect(options)
 		begin
-			task = find_task_by_name_or_code_or_id(task_name)
-
+			if options[:dry_run]
+				if task_name.to_s =~ /\A\d{1,}\Z/
+					print_dry_run @tasks_interface.dry.get(task_name.to_i)
+				else
+					print_dry_run @tasks_interface.dry.get({name: task_name})
+				end
+				return
+			end
+			task = find_task_by_name_or_id(task_name)
 			exit 1 if task.nil?
 			task_type = find_task_type_by_name(task['taskType']['name'])
 			if options[:json]
-					puts JSON.pretty_generate({task:task})
+				puts JSON.pretty_generate({task:task})
+				print "\n"
 			else
 				print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
 				task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
 					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -127,25 +121,24 @@ class Morpheus::Cli::Tasks
 	end
 
 	def update(args)
-		task_name = args[0]
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks update [task] [options]"
-			build_common_options(opts, options, [:options, :json, :remote])
+			opts.banner = subcommand_usage("[task] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
-
+		task_name = args[0]
 		connect(options)
 		
 		begin
 
 
-			task = find_task_by_name_or_code_or_id(task_name)
+			task = find_task_by_name_or_id(task_name)
 			exit 1 if task.nil?
 			task_type = find_task_type_by_name(task['taskType']['name'])
 
@@ -153,7 +146,7 @@ class Morpheus::Cli::Tasks
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{optparse.banner}\n\n"
+				opts.banner = subcommand_usage("[task]")
 				option_lines = update_task_option_types(task_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -170,8 +163,12 @@ class Morpheus::Cli::Tasks
 				task_payload['taskOptions'].merge!(params['taskOptions'])
 			end
 
-			request_payload = {task: task_payload}
-			response = @tasks_interface.update(task['id'], request_payload)
+			payload = {task: task_payload}
+			if options[:dry_run]
+				print_dry_run @tasks_interface.dry.update(task['id'], payload)
+				return
+			end
+			response = @tasks_interface.update(task['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				if !response['success']
@@ -190,12 +187,16 @@ class Morpheus::Cli::Tasks
 	def task_types(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks task-types"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
+			if options[:dry_run]
+				print_dry_run @tasks_interface.dry.task_types()
+				return
+			end
 			json_response = @tasks_interface.task_types()
 			if options[:json]
 					print JSON.pretty_generate(json_response)
@@ -223,27 +224,22 @@ class Morpheus::Cli::Tasks
 	end
 
 	def add(args)
-		task_name = args[0]
-		task_type_name = nil
 		options = {}
+		task_type_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks add [task] -t TASK_TYPE"
+			opts.banner = subcommand_usage("[name] -t TASK_TYPE")
 			opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
 				task_type_name = val
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
 		end
-		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+		optparse.parse!(args)
+		task_name = args[0]
+		if args.count < 1 || task_type_name.nil?
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
 		connect(options)
-
-		if task_type_name.nil?
-			puts "Task Type must be specified...\n#{optparse.banner}"
-			exit 1
-		end
 		begin
 			task_type = find_task_type_by_name(task_type_name)
 			if task_type.nil?
@@ -252,10 +248,14 @@ class Morpheus::Cli::Tasks
 			end
 			input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
 			payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
+			if options[:dry_run]
+				print_dry_run @tasks_interface.dry.create(payload)
+				return
+			end
 			json_response = @tasks_interface.create(payload)
 			if options[:json]
 					print JSON.pretty_generate(json_response)
-			else
+			elsif !options[:quiet]
 				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"			
 			end
 		rescue RestClient::Exception => e
@@ -268,25 +268,29 @@ class Morpheus::Cli::Tasks
 		task_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks remove [task]"
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			opts.banner = subcommand_usage("[task]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
-			task = find_task_by_name_or_code_or_id(task_name)
+			task = find_task_by_name_or_id(task_name)
 			exit 1 if task.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the task #{task['name']}?")
 				exit
 			end
+			if options[:dry_run]
+				print_dry_run @tasks_interface.dry.destroy(task['id'])
+				return
+			end
 			json_response = @tasks_interface.destroy(task['id'])
 			if options[:json]
 					print JSON.pretty_generate(json_response)
-			else
+			elsif !options[:quiet]
 				print "\n", cyan, "Task #{task['name']} removed", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e
@@ -297,8 +301,8 @@ class Morpheus::Cli::Tasks
 
 
 private
-	def find_task_by_name_or_code_or_id(val)
-		raise "find_task_by_name_or_code_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
+	def find_task_by_name_or_id(val)
+		raise "find_task_by_name_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
 		results = @tasks_interface.get(val)
 		result = nil
 		if !results['tasks'].nil? && !results['tasks'].empty?

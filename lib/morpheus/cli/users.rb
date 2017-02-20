@@ -10,7 +10,10 @@ require 'json'
 class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  
+	
+	register_subcommands :list, :get, :add, :update, :remove
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
@@ -29,39 +32,16 @@ class Morpheus::Cli::Users
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus users [list,details,add,update,remove] [username]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			return
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'feature-permissions'
-				feature_permissions(args[1..-1])
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
+		handle_subcommand(args)
 	end
 
 	def list(args)
-		usage = "Usage: morpheus users list [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:account, :list, :json])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:account, :list, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 
@@ -73,6 +53,10 @@ class Morpheus::Cli::Users
 				params[k] = options[k] unless options[k].nil?
 			end
 			
+			if options[:dry_run]
+				print_dry_run @users_interface.dry.list(account_id, params)
+				return
+			end
 			json_response = @users_interface.list(account_id, params)
 			users = json_response['users']
 
@@ -95,12 +79,10 @@ class Morpheus::Cli::Users
 		end
 	end
 
-	def details(args)
-		usage = "Usage: morpheus users details [username] [options]"
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-      build_common_options(opts, options, [:account, :json])
+			opts.banner = subcommand_usage("[username]")
       opts.on(nil,'--feature-access', "Display Feature Access") do |val|
 				options[:include_feature_access] = true
 			end
@@ -119,24 +101,35 @@ class Morpheus::Cli::Users
 				options[:include_cloud_access] = true
 				options[:include_instance_type_access] = true
 			end
+			build_common_options(opts, options, [:account, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
-		username = args[0]
 
 		connect(options)
 		begin
 			
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
-	
+			
+			if options[:dry_run]
+				if args[0].to_s =~ /\A\d{1,}\Z/
+					print_dry_run @users_interface.dry.get(account_id, args[0].to_i)
+				else
+					print_dry_run @users_interface.dry.get(account_id, {username: args[0]})
+				end
+				if options[:include_feature_access]
+					print_dry_run @users_interface.dry.feature_permissions(account_id, ":id")
+				end
+				return
+			end
 			# todo: users_response = @users_interface.list(account_id, {name: name})
 			#       there may be response data outside of user that needs to be displayed
-			user = find_user_by_username(account_id, username)
+			user = find_user_by_username_or_id(account_id, args[0])
 			exit 1 if user.nil?
 
 			# meh, this should just always be returned with GET /api/users/:id
@@ -195,18 +188,17 @@ class Morpheus::Cli::Users
 	end
 
 	def add(args)
-		usage = "Usage: morpheus users add [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:account, :options, :dry_run, :json])
+			opts.banner = subcommand_usage("[options]")
+			build_common_options(opts, options, [:account, :options, :json, :dry_run])
 			opts.on('-h', '--help', "Prints this help" ) do
         puts opts
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(add_user_option_types)
         exit
       end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 		
@@ -235,10 +227,10 @@ class Morpheus::Cli::Users
 				user_payload['roles'] = roles.collect {|r| {id: r['id']} }
 			end
 
-			request_payload = {user: user_payload}
+			payload = {user: user_payload}
 
 			if options[:dry_run]
-				print_dry_run @users_interface.dry.create(account_id, request_payload)
+				print_dry_run @users_interface.dry.create(account_id, payload)
 				return
 			end
 
@@ -256,7 +248,7 @@ class Morpheus::Cli::Users
 				if account
 					details_options.push "--account-id", account['id'].to_s
 				end
-				details(details_options)
+				get(details_options)
 			end
 
 		rescue RestClient::Exception => e
@@ -266,25 +258,23 @@ class Morpheus::Cli::Users
 	end
 
 	def update(args)
-		usage = "Usage: morpheus users update [username] [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:account, :options, :json])
+			opts.banner = subcommand_usage("[username] [options]")
+			build_common_options(opts, options, [:account, :options, :json, :dry_run])
 			opts.on('-h', '--help', "Prints this help" ) do
         puts opts
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
         exit
       end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 1
-			puts "#{usage}\n\n"
+			puts optparse
 			puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
 			exit 1
 		end
-		username = args[0]
 
 		connect(options)
 		
@@ -293,7 +283,7 @@ class Morpheus::Cli::Users
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			user = find_user_by_username(account_id, username)
+			user = find_user_by_username_or_id(account_id, args[0])
 			exit 1 if user.nil?
 
 			#params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
@@ -304,7 +294,7 @@ class Morpheus::Cli::Users
 			end
 			
 			if params.empty?
-				puts "\n#{usage}\n\n"
+				puts optparse.banner
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
 				exit 1
 			end
@@ -319,9 +309,14 @@ class Morpheus::Cli::Users
 				user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
 			end
 
-			request_payload = {user: user_payload}
-			json_response = @users_interface.update(account_id, user['id'], request_payload)
+			payload = {user: user_payload}
+			json_response = @users_interface.update(account_id, user['id'], payload)
 			
+			if options[:dry_run]
+				print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
+				return
+			end
+
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
@@ -331,7 +326,7 @@ class Morpheus::Cli::Users
 				if account
 					details_options.push "--account-id", account['id'].to_s
 				end
-				details(details_options)
+				get(details_options)
 			end
 
 		rescue RestClient::Exception => e
@@ -344,16 +339,15 @@ class Morpheus::Cli::Users
 		usage = "Usage: morpheus users remove [username]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:account, :auto_confirm, :json])
+			opts.banner = subcommand_usage("[username]")
+			build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
-		username = args[0]
 
 		connect(options)
 		begin
@@ -361,10 +355,14 @@ class Morpheus::Cli::Users
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			user = find_user_by_username(account_id, username)
+			user = find_user_by_username_or_id(account_id, args[0])
 			exit 1 if user.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
 				exit
+			end
+			if options[:dry_run]
+				print_dry_run @users_interface.dry.destroy(account_id, user['id'])
+				return
 			end
 			json_response = @users_interface.destroy(account_id, user['id'])
 
@@ -372,7 +370,7 @@ class Morpheus::Cli::Users
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				print_green_success "User #{username} removed"
+				print_green_success "User #{user['username']} removed"
 				# list([])
 			end
 			

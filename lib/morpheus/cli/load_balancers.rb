@@ -8,6 +8,10 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::LoadBalancers
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :get, :add, :update, :remove, :'lb-types'
+	alias_subcommand :details, :get
+	alias_subcommand :types, :'lb-types'
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -30,43 +34,26 @@ class Morpheus::Cli::LoadBalancers
 	end
 
 
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus load-balancers [list,add, update,remove, details, lb-types]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				# update(args[1..-1])	
-			when 'details'
-				details(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'lb-types'
-				lb_types(args[1..-1])
-			else
-				puts "\nUsage: morpheus load-balancers [list,add, update,remove, details, lb-types]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus load-balancers list [-s] [-o] [-m]"
-			build_common_options(opts, options, [:list, :json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+			if options[:dry_run]
+				print_dry_run @load_balancers_interface.dry.get(params)
+				return
 			end
 			json_response = @load_balancers_interface.get(params)
 			if options[:json]
@@ -93,26 +80,34 @@ class Morpheus::Cli::LoadBalancers
 		end
 	end
 
-	def details(args)
-				lb_name = args[0]
+	# JD: This is broken.. copied from tasks? should optionTypes exist?
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus load-balancers details [name]"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		lb_name = args[0]
 		connect(options)
 		begin
+			if options[:dry_run]
+				if lb_name.to_s =~ /\A\d{1,}\Z/
+					print_dry_run @load_balancers_interface.dry.get(lb_name.to_i)
+				else
+					print_dry_run @load_balancers_interface.dry.get({name:lb_name})
+				end
+				return
+			end
 			lb = find_lb_by_name(lb_name)
-
 			exit 1 if lb.nil?
 			lb_type = find_lb_type_by_name(lb['type']['name'])
 			if options[:json]
-					puts JSON.pretty_generate({task:task})
+				puts JSON.pretty_generate({loadBalancer: lb})
 			else
 				print "\n", cyan, "Lb #{lb['name']} - #{lb['type']['name']}\n\n"
 				lb_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
@@ -126,22 +121,21 @@ class Morpheus::Cli::LoadBalancers
 		end
 	end
 
+	# JD: This is broken.. copied from tasks? should optionTypes exist?
 	def update(args)
 		lb_name = args[0]
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks update [task] [options]"
-			build_common_options(opts, options, [:options, :json, :remote])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
-
 		connect(options)
-		
 		begin
 
 
@@ -153,7 +147,7 @@ class Morpheus::Cli::LoadBalancers
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{optparse.banner}\n\n"
+				puts optparse
 				option_lines = update_task_option_types(lb_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -170,9 +164,12 @@ class Morpheus::Cli::LoadBalancers
 			if params['taskOptions']
 				task_payload['taskOptions'].merge!(params['taskOptions'])
 			end
-
-			request_payload = {task: task_payload}
-			response = @load_balancers_interface.update(task['id'], request_payload)
+			payload = {task: task_payload}
+			if options[:dry_run]
+				print_dry_run @load_balancers_interface.dry.update(task['id'], payload)
+				return
+			end
+			response = @load_balancers_interface.update(task['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				if !response['success']
@@ -191,12 +188,16 @@ class Morpheus::Cli::LoadBalancers
 	def lb_types(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus load-balancers lb-types"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
+			if options[:dry_run]
+				print_dry_run @load_balancers_interface.dry.load_balancer_types()
+				return
+			end
 			json_response = @load_balancers_interface.load_balancer_types()
 			if options[:json]
 					print JSON.pretty_generate(json_response)
@@ -223,26 +224,27 @@ class Morpheus::Cli::LoadBalancers
 		end
 	end
 
+	# JD: This is broken.. copied from tasks? should optionTypes exist?
 	def add(args)
 		lb_name = args[0]
 		lb_type_name = nil
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus load-balancers add [lb] -t LB_TYPE"
+			opts.banner = subcommand_usage("[name] -t LB_TYPE")
 			opts.on( '-t', '--type LB_TYPE', "Lb Type" ) do |val|
 				lb_type_name = val
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
 		connect(options)
 
 		if lb_type_name.nil?
-			puts "LB Type must be specified...\n#{optparse.banner}"
+			puts optparse
 			exit 1
 		end
 
@@ -271,13 +273,13 @@ class Morpheus::Cli::LoadBalancers
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus load-balancers remove [name]"
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
 		connect(options)
 		begin
 			lb = find_lb_by_name(lb_name)

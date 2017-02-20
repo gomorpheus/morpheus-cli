@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::WhoamiInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -12,9 +11,7 @@ class Morpheus::WhoamiInterface < Morpheus::APIClient
 	def get()
 		url = "#{@base_url}/api/whoami"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 end

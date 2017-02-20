@@ -1,7 +1,6 @@
-require 'json'
+require 'morpheus/api/api_client'
 require 'net/http/post/multipart'
 require 'mime/types'
-require 'morpheus/rest_client'
 
 class Morpheus::DeployInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -21,32 +20,25 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 
 	def create(instanceId, options=nil)
 		url = "#{@base_url}/api/instances/#{instanceId}/deploy"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options || {}
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def list_files(id)
 		url = "#{@base_url}/api/deploy/#{id}/files"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
+	# todo: use execute() to support @dry_run?
 	def upload_file(id,path,destination=nil)
 		url_string = "#{@base_url}/api/deploy/#{id}/files"
 		if !destination.empty?
@@ -68,9 +60,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 	def destroy(id)
 		url = "#{@base_url}/api/deploy/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :delete, url: url, headers: headers)
 	end
 
 	def deploy(id, options)
@@ -82,7 +72,6 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 			end
 		end
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :post, url: url, headers: headers, timeout: nil, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :post, url: url, headers: headers, timeout: nil, payload: payload.to_json)
 	end
 end

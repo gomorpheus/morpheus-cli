@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::UsersInterface < Morpheus::APIClient
 	

@@ -16,7 +16,7 @@ class Morpheus::Cli::Shell
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
-		@shell_commands = [:clear, :history, :'flush-history', :help, :exit]
+		@shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
 		@available_commands = @morpheus_commands + @shell_commands
 		@auto_complete = proc do |s|
 			command_list = @available_commands
@@ -48,7 +48,7 @@ class Morpheus::Cli::Shell
 				exit
 			end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		@history_logger ||= load_history_logger
 		@history_logger.info "shell started" if @history_logger
@@ -69,11 +69,19 @@ class Morpheus::Cli::Shell
 					@history_logger.info "exit" if @history_logger
 					break
 				elsif input == 'help'
+
+					puts "You are in a morpheus client shell." 
+					puts "See the available commands below."
+
+
 					puts "\nCommands:"
-					@available_commands.each {|cmd,klass|
+					@available_commands.sort.each {|cmd,klass|
 						puts "\t#{cmd.to_s}"
 					}
-					puts ""
+					puts "\n"
+					puts "For more information."
+					puts "See https://github.com/gomorpheus/morpheus-cli/wiki"
+
 					next
 				elsif input =~ /^history/
 					n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
@@ -97,6 +105,11 @@ class Morpheus::Cli::Shell
 					@last_command_number = 0
 					@history_logger = load_history_logger
 					puts "history cleared!"
+					next
+				elsif input == 'reload' || input == 'reload!'
+					log_history_command(input)
+					# could just fork instead?
+					Morpheus::Cli.load!
 					next
 				elsif input == '!!'
 					cmd_number = @history.keys[-1]
@@ -148,14 +161,16 @@ class Morpheus::Cli::Shell
 						log_history_command(input)
 						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
 					else
-						@history_logger.warn "Unrecognized Command: #{input}" if @history_logger
-						puts "Unrecognized Command."
+						@history_logger.warn "Unrecognized Command: '#{argv[0]}'" if @history_logger
+						puts "Unrecognized Command. '#{input}'. Try 'help'"
+						#puts optparse
 					end
 				# rescue ArgumentError
 				# 	puts "Argument Syntax Error..."
 				rescue Interrupt
 					# nothing to do
 					@history_logger.warn "shell interrupt" if @history_logger
+					puts "\nInterrupt. Aborting command '#{input}'"
 					print "\n"
 				rescue SystemExit
 					# nothing to do

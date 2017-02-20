@@ -1,5 +1,4 @@
-require 'json'
-require 'morpheus/rest_client'
+require 'morpheus/api/api_client'
 
 class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -13,17 +12,13 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/custom-instance-types"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
-    response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :get, url: url, headers: headers)
   end
 
   def get(id)
     url = "#{@base_url}/api/custom-instance-types/#{id}"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :get, url: url, headers: headers)
   end
 
   def create(options)
@@ -36,9 +31,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     # if it
     #   it.each { |k,v| payload["instanceType.#{k}"] = v }
     # end
-    response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def update(id, options)
@@ -51,9 +44,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     # if it
     #   it.each { |k,v| payload["instanceType.#{k}"] = v }
     # end
-    response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
   # NOT json, multipart file upload
@@ -63,71 +54,55 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     payload = {}
     payload[:logo] = logo_file
     payload[:multipart] = true
-    response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload)
-    JSON.parse(response.to_s)
+    execute(method: :post, url: url, headers: headers, payload: payload)
   end
 
   def destroy(id)
     url = "#{@base_url}/api/custom-instance-types/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :delete, url: url, headers: headers)
   end
 
   def create_version(instance_type_id, options)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def update_version(instance_type_id, id, options)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
   def destroy_version(instance_type_id, id)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :delete, url: url, headers: headers)
   end
 
   def create_upgrade(instance_type_id, options)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def update_upgrade(instance_type_id, id, options)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-    JSON.parse(response.to_s)
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
   def destroy_upgrade(instance_type_id, id)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
     payload = options
-    response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :delete, url: url, headers: headers)
   end
 
 end

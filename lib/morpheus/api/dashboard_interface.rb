@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::DashboardInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -17,9 +16,7 @@ class Morpheus::DashboardInterface < Morpheus::APIClient
     url = "#{@base_url}/api/dashboard"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
-    response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :get, url: url, headers: headers)
   end
 
 	def recent_activity(account_id=nil, options={})
@@ -27,11 +24,7 @@ class Morpheus::DashboardInterface < Morpheus::APIClient
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
     headers[:params]['accountId'] = account_id if account_id
-    response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-    JSON.parse(response.to_s)
+    execute(method: :get, url: url, headers: headers)
   end
-
-	
 
 end

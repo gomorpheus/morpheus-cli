@@ -6,6 +6,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Library
   include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :get, :add, :update, :remove, :'add-version'
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
@@ -21,39 +24,28 @@ class Morpheus::Cli::Library
 		@provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
 	end
 
-	def handle(args) 
-		usage = "Usage: morpheus library [list,details,add,update,remove,add-version] [name]"
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'add-version'
-				add_version(args[1..-1])
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
+
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library list"
-			build_common_options(opts, options, [:list, :json])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :dry_run, :json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+
+			if options[:dry_run]
+				print_dry_run @custom_instance_types_interface.dry.list(params)
+				return
 			end
 
 			json_response = @custom_instance_types_interface.list(params)
@@ -84,20 +76,28 @@ class Morpheus::Cli::Library
 		end
 	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library details [name]"
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 
 		connect(options)
 		begin
+			if options[:dry_run]
+				if args[0] =~ /code:/
+					print_dry_run @custom_instance_types_interface.dry.list({code: args[0]})
+				else
+					print_dry_run @custom_instance_types_interface.dry.list({name: args[0]})
+				end
+				return
+			end
 			instance_type = find_custom_instance_type_by_name_or_code(args[0])
 			exit 1 if instance_type.nil?
 
@@ -127,10 +127,10 @@ class Morpheus::Cli::Library
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library add"
-			build_common_options(opts, options, [:options, :json])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:options, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = Morpheus::Cli::OptionTypes.prompt(add_instance_type_option_types, options[:options], @api_client, options[:params])
@@ -152,8 +152,15 @@ class Morpheus::Cli::Library
 			if params['hasDeployment'] == 'on'
 				instance_type_payload['hasDeployment'] = true
 			end
-			request_payload = {instanceType: instance_type_payload}
-			json_response = @custom_instance_types_interface.create(request_payload)
+			payload = {instanceType: instance_type_payload}
+			if options[:dry_run]
+				print_dry_run @custom_instance_types_interface.dry.create(payload)
+				if logo_file
+					print_dry_run @custom_instance_types_interface.dry.update_logo(":id", logo_file)
+				end
+				return
+			end
+			json_response = @custom_instance_types_interface.create(payload)
 
 			if json_response['success']
 				if logo_file
@@ -191,12 +198,12 @@ class Morpheus::Cli::Library
 	def update(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library update [name] [options]"
-			build_common_options(opts, options, [:options, :json])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)
@@ -230,7 +237,7 @@ class Morpheus::Cli::Library
 				instance_type_payload['hasDeployment'] = false
 			end
 			if instance_type_payload.empty? && logo_file.nil?
-				puts "\n#{optparse.banner}\n\n"
+				puts optparse
 				option_lines = update_instance_type_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -239,8 +246,15 @@ class Morpheus::Cli::Library
 				# just updating logo (separate request)
 				instance_type_payload['name'] = instance_type['name']
 			end
-			request_payload = {instanceType: instance_type_payload}
-			json_response = @custom_instance_types_interface.update(instance_type['id'], request_payload)
+			payload = {instanceType: instance_type_payload}
+			if options[:dry_run]
+				print_dry_run @custom_instance_types_interface.dry.update(payload)
+				if logo_file
+					print_dry_run @custom_instance_types_interface.dry.update_logo(":id", logo_file)
+				end
+				return
+			end
+			json_response = @custom_instance_types_interface.update(instance_type['id'], payload)
 
 			if json_response['success']
 				if logo_file
@@ -269,15 +283,14 @@ class Morpheus::Cli::Library
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library remove [name]"
-			build_common_options(opts, options, [:json, :auto_confirm])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		code = args[0]
 		connect(options)
 
 		begin
@@ -288,7 +301,10 @@ class Morpheus::Cli::Library
 			unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the instance type #{instance_type['name']}?", options)
 				exit
 			end
-
+			if options[:dry_run]
+				print_dry_run @custom_instance_types_interface.dry.destroy(instance_type['id'])
+				return
+			end
 			json_response = @custom_instance_types_interface.destroy(instance_type['id'])
 
 			if options[:json]
@@ -307,12 +323,12 @@ class Morpheus::Cli::Library
 	def add_version(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus library add-version [name]"
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:options, :json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		connect(options)

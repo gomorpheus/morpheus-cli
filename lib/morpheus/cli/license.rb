@@ -7,6 +7,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::License
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :get, :apply
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -28,36 +31,24 @@ class Morpheus::Cli::License
 		end
 	end
 
-
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus license [details, apply]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'apply'
-				apply(args[1..-1])	
-			when 'details'
-				details(args[1..-1])
-			else
-				puts "\nUsage: morpheus license [details, apply]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
-
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus license details"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
+			if options[:dry_run]
+				print_dry_run @license_interface.dry.get()
+				return
+			end
 			license = @license_interface.get()
-			
 			if options[:json]
 					puts JSON.pretty_generate(license)
 			else
@@ -88,20 +79,22 @@ class Morpheus::Cli::License
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus license apply [key]"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage("[key]")
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
-
 		connect(options)
 		
 		begin
+			if options[:dry_run]
+				print_dry_run @license_interface.dry.apply(key)
+				return
+			end
 			license_results = @license_interface.apply(key)
-
 			if options[:json]
 					puts JSON.pretty_generate(license_results)
 			else

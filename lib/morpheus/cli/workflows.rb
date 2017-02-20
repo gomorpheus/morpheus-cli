@@ -8,6 +8,8 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Workflows
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :add, :update, :remove
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -30,39 +32,27 @@ class Morpheus::Cli::Workflows
 	end
 
 
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus workflows [list,add,remove]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			else
-				puts "\nUsage: morpheus workflows [list,add,remove]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
+
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus workflows list [-s] [-o] [-m]"
-			build_common_options(opts, options, [:list, :json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+			if options[:dry_run]
+				print_dry_run @task_sets_interface.dry.get(params)
+				return
 			end
 			json_response = @task_sets_interface.get(params)
 			if options[:json]
@@ -91,17 +81,17 @@ class Morpheus::Cli::Workflows
 		workflow_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus workflows add [name] "
+			opts.banner = subcommand_usage("[name] --tasks x,y,z")
 			opts.on("--tasks x,y,z", Array, "List of tasks to run in order") do |list|
 				options[:task_names]= list
 			end
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
-		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+		if args.count < 1 || options[:task_names].empty?
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			tasks = []
@@ -110,6 +100,10 @@ class Morpheus::Cli::Workflows
 			end
 
 			payload = {taskSet: {name: workflow_name, tasks: tasks}}
+			if options[:dry_run]
+				print_dry_run @task_sets_interface.dry.create(payload)
+				return
+			end
 			json_response = @task_sets_interface.create(payload)
 			if options[:json]
 					print JSON.pretty_generate(json_response)
@@ -126,17 +120,17 @@ class Morpheus::Cli::Workflows
 	end
 
 	def remove(args)
-		workflow_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = "Usage: morpheus workflows remove [name]"
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		workflow_name = args[0]
 		connect(options)
 		begin
 			workflow = find_workflow_by_name_or_code_or_id(workflow_name)
@@ -144,10 +138,14 @@ class Morpheus::Cli::Workflows
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the workflow #{workflow['name']}?")
 				exit 1
 			end
+			if options[:dry_run]
+				print_dry_run @task_sets_interface.dry.destroy(task['id'])
+				return
+			end
 			json_response = @tasks_interface.destroy(task['id'])
 			if options[:json]
-					print JSON.pretty_generate(json_response)
-			else
+				print JSON.pretty_generate(json_response)
+			elsif !options[:quiet]
 				print "\n", cyan, "Workflow #{workflow['name']} removed", reset, "\n\n"
 			end
 		rescue RestClient::Exception => e

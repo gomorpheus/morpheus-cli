@@ -8,37 +8,23 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :add, :update, :remove, :use
+
 	def initialize() 
 		@appliances = ::Morpheus::Cli::Remote.load_appliance_file
 	end
 
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus remote [list,add,remove,use] [name] [host]\n\n"
-      return
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'use'
-				use(args[1..-1])
-			else
-				puts "\nUsage: morpheus remote [list,add,remove,use] [name] [host]\n\n"
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus remote list"
+			opts.banner = subcommand_usage()
 			build_common_options(opts, options, [])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		print "\n" ,cyan, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
 		# print red, bold, "red bold", reset, "\n"
@@ -65,23 +51,23 @@ class Morpheus::Cli::Remote
 			# 	end
 			# end
 
-			print "\n\n# => - current\n\n"
+			print cyan, "\n\n# => - current\n\n", reset
 		end
 	end
 
 	def add(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus remote add [name] [host] [--default]"
+			opts.banner = subcommand_usage("[name] [host] [--default]")
 			build_common_options(opts, options, [])
 			opts.on( '-d', '--default', "Make this the default remote appliance" ) do
 				options[:default] = true
 			end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 2
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			exit 1
 		end
 
 		name = args[0].to_sym
@@ -103,16 +89,16 @@ class Morpheus::Cli::Remote
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus remote remove [name]"
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [])
 			opts.on( '-d', '--default', "Make this the default remote appliance" ) do
 				options[:default] = true
 			end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.empty?
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			exit 1
 		end
 		
 		name = args[0].to_sym
@@ -127,35 +113,41 @@ class Morpheus::Cli::Remote
 			if active && !@appliances.empty?
 				@appliances[@appliances.keys.first][:active] = true
 			end
+			::Morpheus::Cli::Remote.save_appliances(@appliances)
+			list([])
 		end
-		::Morpheus::Cli::Remote.save_appliances(@appliances)
-		list([])
 	end
 
 	def use(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus remote use [name]"
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [])
 			opts.on( '-d', '--default', "Make this the default remote appliance. This does the same thing as remote use." ) do
 				options[:default] = true
 			end
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.empty?
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
+			if active_appliance_name
+				puts "\n=> You are currently using remote appliance: #{active_appliance_name} - #{active_appliance_host}\n"
+			else
+				puts "\nYou are not using any appliance.\n"
+			end
+			exit 1
 		end
 		
 		name = args[0].to_sym
 		if @appliances[name] == nil
 			print red, "Remote appliance not configured for #{args[0]}", reset, "\n"
 		else
+			@@appliance = nil # clear cached active appliance
 			set_active_appliance name
+			::Morpheus::Cli::Remote.save_appliances(@appliances)
+			list([])
 		end
-		::Morpheus::Cli::Remote.save_appliances(@appliances)
-		list([])
-		@@appliance = nil
 	end
 
 	def set_active_appliance(name)

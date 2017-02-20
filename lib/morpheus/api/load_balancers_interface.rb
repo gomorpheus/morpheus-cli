@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -12,7 +11,6 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 	def load_balancer_types(options={})
 		url = "#{@base_url}/api/load-balancer-types"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		elsif options.is_a?(Numeric)
@@ -20,15 +18,12 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 	def get(options=nil)
 		url = "#{@base_url}/api/load-balancers"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		elsif options.is_a?(Numeric)
@@ -36,37 +31,27 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 	def update(id, options)
 		url = "#{@base_url}/api/load-balancers/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 
 	def create(options)
 		url = "#{@base_url}/api/load-balancers"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def destroy(id)
 		url = "#{@base_url}/api/load-balancers/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :delete, url: url, headers: headers)
 	end
 end

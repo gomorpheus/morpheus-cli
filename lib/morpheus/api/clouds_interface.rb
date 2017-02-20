@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::CloudsInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 

@@ -10,7 +10,10 @@ require 'json'
 class Morpheus::Cli::Roles
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  
+	
+	register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		#@active_groups = ::Morpheus::Cli::Groups.load_group_file
@@ -36,51 +39,17 @@ class Morpheus::Cli::Roles
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus roles [list,details,add,update,remove,update-feature-access,update-global-group-access,update-group-access,update-global-cloud-access,update-cloud-access,update-global-instance-type-access,update-instance-type-access] [name]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			exit 1
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'update-feature-access'
-				update_feature_access(args[1..-1])
-			when 'update-global-group-access'
-				update_global_group_access(args[1..-1])
-			when 'update-group-access'
-				update_group_access(args[1..-1])
-			when 'update-global-cloud-access'
-				update_global_cloud_access(args[1..-1])
-			when 'update-cloud-access'
-				update_cloud_access(args[1..-1])
-			when 'update-global-instance-type-access'
-				update_global_instance_type_access(args[1..-1])
-			when 'update-instance-type-access'
-				update_instance_type_access(args[1..-1])
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
+		handle_subcommand(args)
 	end
 
 	def list(args)
-		usage = "Usage: morpheus roles list"
+		
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:list, :json])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 		begin
@@ -94,7 +63,11 @@ class Morpheus::Cli::Roles
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
-			
+
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.list(account_id, params)
+				return
+			end
 			json_response = @roles_interface.list(account_id, params)
 			roles = json_response['roles']
 			
@@ -117,11 +90,10 @@ class Morpheus::Cli::Roles
 		end
 	end
 
-	def details(args)
-		usage = "Usage: morpheus roles details [name]"
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[name]")
 			opts.on(nil,'--feature-access', "Display Feature Access") do |val|
 				options[:include_feature_access] = true
 			end
@@ -140,12 +112,12 @@ class Morpheus::Cli::Roles
 				options[:include_cloud_access] = true
 				options[:include_instance_type_access] = true
 			end
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
@@ -155,7 +127,12 @@ class Morpheus::Cli::Roles
 			
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
-	
+			
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.list(account_id, {name: name})
+				return
+			end
+
 			role = find_role_by_name(account_id, name)
 			exit 1 if role.nil?
 
@@ -266,10 +243,10 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles add [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:options, :json])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 		begin
@@ -323,8 +300,19 @@ class Morpheus::Cli::Roles
 				role_payload['instanceLimits']['maxCpu'] = v_prompt['instanceLimits.maxCpu'].to_i
 			end
 
-			request_payload = {role: role_payload}
-			response = @roles_interface.create(account_id, request_payload)
+			payload = {role: role_payload}
+
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.create(account_id, payload)
+				return
+			end
+			json_response = @roles_interface.create(account_id, payload)
+
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
+			end
 
 			if account
 				print_green_success "Added role #{role_payload['authority']} to account #{account['name']}"
@@ -336,7 +324,7 @@ class Morpheus::Cli::Roles
 			if account
 				details_options.push "--account-id", account['id'].to_s
 			end
-			details(details_options)
+			get(details_options)
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -348,13 +336,13 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update [name] [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:options, :json])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
@@ -382,7 +370,7 @@ class Morpheus::Cli::Roles
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{usage}\n\n"
+				puts optparse
 				option_lines = prompt_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -401,16 +389,26 @@ class Morpheus::Cli::Roles
 			if params['multitenant'].to_s != ''
 				role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
 			end
-			request_payload = {role: role_payload}
-			response = @roles_interface.update(account_id, role['id'], request_payload)
+			payload = {role: role_payload}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update(account_id, role['id'], payload)
+				return
+			end
+			json_response = @roles_interface.update(account_id, role['id'], payload)
 			
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+				return
+			end
+
 			print_green_success "Updated role #{role_payload['authority']}"
 
 			details_options = [role_payload["authority"] || role['authority']]
 			if account
 				details_options.push "--account-id", account['id'].to_s
 			end
-			details(details_options)
+			get(details_options)
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -422,13 +420,13 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles remove [name]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:auto_confirm, :json])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
@@ -443,6 +441,10 @@ class Morpheus::Cli::Roles
 			exit 1 if role.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the role #{role['authority']}?")
 				exit
+			end
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.destroy(account_id, role['id'])
+				return
 			end
 			json_response = @roles_interface.destroy(account_id, role['id'])
 			
@@ -460,23 +462,23 @@ class Morpheus::Cli::Roles
 	end
 
 	def update_feature_access(args)
-		usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|custom|none]"
+		usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [code] [full|read|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 3
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		permission_code = args[1]
 		access_value = args[2].to_s.downcase
 		if !['full', 'read', 'custom', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -490,6 +492,10 @@ class Morpheus::Cli::Roles
 			exit 1 if role.nil?
 
 			params = {permissionCode: permission_code, access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_permission(account_id, role['id'], params)
 
 			if options[:json]
@@ -509,19 +515,19 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-global-group-access [name] [full|read|custom|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [code] [full|read|custom|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		access_value = args[1].to_s.downcase
 		if !['full', 'read', 'custom', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -535,6 +541,10 @@ class Morpheus::Cli::Roles
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'ComputeSite', access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_permission(account_id, role['id'], params)
 
 			if options[:json]
@@ -554,20 +564,20 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-group-access [name] [group_name] [full|read|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [group] [full|read|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		group_name = args[1]
 		access_value = args[2].to_s.downcase
 		if !['full', 'read', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -596,6 +606,10 @@ class Morpheus::Cli::Roles
 			group_id = group['id']
 
 			params = {groupId: group_id, access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_group(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_group(account_id, role['id'], params)
 
 			if options[:json]
@@ -615,19 +629,19 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-global-cloud-access [name] [full|custom|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [full|custom|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		access_value = args[1].to_s.downcase
 		if !['full', 'custom', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -641,6 +655,10 @@ class Morpheus::Cli::Roles
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'ComputeZone', access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_permission(account_id, role['id'], params)
 
 			if options[:json]
@@ -660,23 +678,23 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-cloud-access [name] [cloud_name] [full|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[name] [cloud] [full|none]")
 			opts.on( '-g', '--group GROUP', "Group to find cloud in" ) do |val|
 				options[:group] = val
 			end
-			build_common_options(opts, options, [:json])
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		cloud_name = args[1]
 		access_value = args[2].to_s.downcase
 		if !['full', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -713,6 +731,10 @@ class Morpheus::Cli::Roles
 			cloud_id = find_cloud_id_by_name(group_id, cloud_name)
 			exit 1 if cloud_id.nil?
 			params = {cloudId: cloud_id, access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_cloud(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_cloud(account_id, role['id'], params)
 
 			if options[:json]
@@ -732,19 +754,19 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-global-instance-type-access [name] [full|custom|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [full|custom|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		access_value = args[1].to_s.downcase
 		if !['full', 'custom', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -759,6 +781,10 @@ class Morpheus::Cli::Roles
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'InstanceType', access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_permission(account_id, role['id'], params)
 
 			if options[:json]
@@ -778,20 +804,20 @@ class Morpheus::Cli::Roles
 		usage = "Usage: morpheus roles update-instance-type-access [name] [instance_type_name] [full|none]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name] [instance-type] [full|none]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		if args.count < 2
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 		name = args[0]
 		instance_type_name = args[1]
 		access_value = args[2].to_s.downcase
 		if !['full', 'none'].include?(access_value)
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
 
@@ -817,6 +843,10 @@ class Morpheus::Cli::Roles
 			exit 1 if instance_type.nil?
 
 			params = {instanceTypeId: instance_type['id'], access: access_value}
+			if options[:dry_run]
+				print_dry_run @roles_interface.dry.update_instance_type(account_id, role['id'], params)
+				return
+			end
 			json_response = @roles_interface.update_instance_type(account_id, role['id'], params)
 
 			if options[:json]

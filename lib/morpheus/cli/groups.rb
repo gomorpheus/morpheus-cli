@@ -183,7 +183,7 @@ class Morpheus::Cli::Groups
 			else
 				print_green_success "Added cloud #{cloud["id"]} to group #{group['name']}"
 				#list([])
-				details([group["id"]])
+				get([group["id"]])
 			end			
 			
 		rescue RestClient::Exception => e
@@ -226,7 +226,7 @@ class Morpheus::Cli::Groups
 			else
 				print_green_success "Removed cloud #{cloud['name']} from group #{group['name']}"
 				# list([])
-				details([group["id"]])
+				get([group["id"]])
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

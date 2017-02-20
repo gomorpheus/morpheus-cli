@@ -22,7 +22,7 @@ class Morpheus::Cli::VersionCommand
       end
       build_common_options(opts, options)
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
 		client_version = Morpheus::Cli::VERSION
 		 if options[:short]

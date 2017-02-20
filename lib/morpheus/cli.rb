@@ -8,66 +8,53 @@ Dir[File.dirname(__FILE__)  + "/ext/*.rb"].each {|file| require file }
 
 module Morpheus
   module Cli
-  	require 'morpheus/api/api_client'
-    require 'morpheus/api/auth_interface'
-    require 'morpheus/api/whoami_interface'
-    require 'morpheus/api/options_interface'
-  	require 'morpheus/api/groups_interface'
-  	require 'morpheus/api/clouds_interface'
-  	require 'morpheus/api/servers_interface'
-    require 'morpheus/api/tasks_interface'
-    require 'morpheus/api/deployments_interface'
-    require 'morpheus/api/license_interface'
-    require 'morpheus/api/virtual_images_interface'
-    require 'morpheus/api/task_sets_interface'
-    require 'morpheus/api/load_balancers_interface'
-  	require 'morpheus/api/instances_interface'
-    require 'morpheus/api/instance_types_interface'
-    require 'morpheus/api/provision_types_interface'
-    require 'morpheus/api/apps_interface'
-    require 'morpheus/api/app_templates_interface'
-    require 'morpheus/api/deploy_interface'
-    require 'morpheus/api/security_groups_interface'
-    require 'morpheus/api/security_group_rules_interface'
-    require 'morpheus/api/accounts_interface'
-    require 'morpheus/api/users_interface'
-    require 'morpheus/api/logs_interface'
-    require 'morpheus/api/roles_interface'
-    require 'morpheus/api/key_pairs_interface'
-    require 'morpheus/api/custom_instance_types_interface'
-    require 'morpheus/api/dashboard_interface'
-  	
-    require 'morpheus/cli/cli_command'
-    require 'morpheus/cli/remote'
-    require 'morpheus/cli/login'
-    require 'morpheus/cli/logout'
-    require 'morpheus/cli/whoami'
-    require 'morpheus/cli/dashboard_command'
-    require 'morpheus/cli/recent_activity_command'
-    require 'morpheus/cli/credentials'
-  	require 'morpheus/cli/groups'
-  	require 'morpheus/cli/clouds'
-  	require 'morpheus/cli/hosts'
-    require 'morpheus/cli/load_balancers'
-    require 'morpheus/cli/shell'
-    require 'morpheus/cli/tasks'
-    require 'morpheus/cli/workflows'
-    require 'morpheus/cli/deployments'
-    require 'morpheus/cli/instances'
-    require 'morpheus/cli/apps'
-    require 'morpheus/cli/app_templates'
-    require 'morpheus/cli/deploys'
-    require 'morpheus/cli/license'
-    require 'morpheus/cli/instance_types'
-    require 'morpheus/cli/security_groups'
-    require 'morpheus/cli/security_group_rules'
-    require 'morpheus/cli/accounts'
-    require 'morpheus/cli/users'
-    require 'morpheus/cli/roles'
-    require 'morpheus/cli/key_pairs'
-    require 'morpheus/cli/virtual_images'
-    require 'morpheus/cli/library'
-    require 'morpheus/cli/version_command'
-    # Your code goes here...
+    
+    def self.load!()
+      # load interfaces
+      require 'morpheus/api/api_client.rb'
+      Dir[File.dirname(__FILE__)  + "/api/*.rb"].each {|file| load file }
+
+      # load mixins
+      Dir[File.dirname(__FILE__)  + "/cli/mixins/*.rb"].each {|file| load file }
+
+      # load commands
+      # Dir[File.dirname(__FILE__)  + "/cli/*.rb"].each {|file| load file }
+      # commands must be well known..
+      load 'morpheus/cli/cli_command.rb'
+      load 'morpheus/cli/remote.rb'
+      load 'morpheus/cli/login.rb'
+      load 'morpheus/cli/logout.rb'
+      load 'morpheus/cli/whoami.rb'
+      load 'morpheus/cli/dashboard_command.rb'
+      load 'morpheus/cli/recent_activity_command.rb'
+      load 'morpheus/cli/credentials.rb'
+      load 'morpheus/cli/groups.rb'
+      load 'morpheus/cli/clouds.rb'
+      load 'morpheus/cli/hosts.rb'
+      load 'morpheus/cli/load_balancers.rb'
+      load 'morpheus/cli/shell.rb'
+      load 'morpheus/cli/tasks.rb'
+      load 'morpheus/cli/workflows.rb'
+      load 'morpheus/cli/deployments.rb'
+      load 'morpheus/cli/instances.rb'
+      load 'morpheus/cli/apps.rb'
+      load 'morpheus/cli/app_templates.rb'
+      load 'morpheus/cli/deploys.rb'
+      load 'morpheus/cli/license.rb'
+      load 'morpheus/cli/instance_types.rb'
+      load 'morpheus/cli/security_groups.rb'
+      load 'morpheus/cli/security_group_rules.rb'
+      load 'morpheus/cli/accounts.rb'
+      load 'morpheus/cli/users.rb'
+      load 'morpheus/cli/roles.rb'
+      load 'morpheus/cli/key_pairs.rb'
+      load 'morpheus/cli/virtual_images.rb'
+      load 'morpheus/cli/library.rb'
+      load 'morpheus/cli/version_command.rb'
+      # Your code goes here...
+    end
+
+    load!
+
   end
 end

@@ -1,5 +1,4 @@
-require 'json'
-require 'morpheus/rest_client'
+require 'morpheus/api/api_client'
 
 class Morpheus::ProvisionTypesInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -20,8 +19,6 @@ class Morpheus::ProvisionTypesInterface < Morpheus::APIClient
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 end

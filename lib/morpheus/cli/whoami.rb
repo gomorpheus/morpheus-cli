@@ -60,8 +60,7 @@ class Morpheus::Cli::Whoami
 			end
 			build_common_options(opts, options, [:json]) # todo: support :remote too
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		connect(options)
 		begin
 			

@@ -7,128 +7,101 @@ require 'json'
 
 class Morpheus::Cli::AppTemplates
   include Morpheus::Cli::CliCommand
-  
-	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
 
-	def connect(opts)
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
-		@active_groups = ::Morpheus::Cli::Groups.load_group_file
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
-		@app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
+  register_subcommands :list, :get, :add, :update, :remove, :'add-instance', :'remove-instance', :'connect-tiers', :'available-tiers', :'available-types'
+  alias_subcommand :details, :get
+
+  def initialize()
+    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
+
+  def connect(opts)
+    @access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
+    if @access_token.empty?
+      print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
+      exit 1
+    end
+    @active_groups = ::Morpheus::Cli::Groups.load_group_file
+    @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+    @app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
-	end
+  end
 
-	def handle(args)
-		usage = "Usage: morpheus app-templates [list,details,add,update,remove,add-instance,remove-instance,connect-tiers,available-tiers] [name]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			exit 1
-		end
+  def handle(args)
+    handle_subcommand(args)
+  end
 
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-      when 'add-instance'
-        add_instance(args[1..-1])
-      when 'remove-instance'
-        remove_instance(args[1..-1])
-      when 'connect-tiers'
-        connect_tiers(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-      when 'available-tiers'
-        available_tiers(args[1..-1])
-      when 'available-types'
-        available_types(args[1..-1])
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
-	end
-
-	def list(args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-			build_common_options(opts, options, [:list, :json])
-		end
-		optparse.parse(args)
-		connect(options)
-		begin
+  def list(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:list, :json])
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
       params = {}
-			[:phrase, :offset, :max, :sort, :direction].each do |k|
-				params[k] = options[k] unless options[k].nil?
-			end
+      [:phrase, :offset, :max, :sort, :direction].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
 
-			json_response = @app_templates_interface.list(params)
-			app_templates = json_response['appTemplates']
-			if options[:json]
-				print JSON.pretty_generate(json_response)
-				print "\n"
-			else
-				print "\n" ,cyan, bold, "Morpheus App Templates\n","==================", reset, "\n\n"
-				if app_templates.empty?
-					puts yellow,"No app templates found.",reset
-				else
-					print_app_templates_table(app_templates)
-				end
-				print reset,"\n\n"
-			end
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
+      json_response = @app_templates_interface.list(params)
+      app_templates = json_response['appTemplates']
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print "\n" ,cyan, bold, "Morpheus App Templates\n","==================", reset, "\n\n"
+        if app_templates.empty?
+          puts yellow,"No app templates found.",reset
+        else
+          print_app_templates_table(app_templates)
+          print_results_pagination(json_response)
+        end
+        print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
-	def details(args)
-		usage = "Usage: morpheus app-templates details [name]"
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+  def get(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
       opts.on( '-c', '--config', "Display Config Data" ) do |val|
         options[:config] = true
       end
       build_common_options(opts, options, [:json])
-		end
-		optparse.parse(args)
+    end
+    optparse.parse!(args)
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
-		connect(options)
-		begin
-	
-			app_template = find_app_template_by_name(name)
-			exit 1 if app_template.nil?
+    connect(options)
+    begin
 
-			json_response = @app_templates_interface.get(app_template['id'])
-			app_template = json_response['appTemplate']
+      app_template = find_app_template_by_name_or_id(args[0])
+      exit 1 if app_template.nil?
 
-			if options[:json]
-				print JSON.pretty_generate(json_response)
-				print "\n"
-			else
-				print "\n" ,cyan, bold, "App Template Details\n","==================", reset, "\n\n"
-				print cyan
-				puts "ID: #{app_template['id']}"
-				puts "Name: #{app_template['name']}"
-				#puts "Category: #{app_template['category']}"
-				puts "Account: #{app_template['account'] ? app_template['account']['name'] : ''}"
+      json_response = @app_templates_interface.get(app_template['id'])
+      app_template = json_response['appTemplate']
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print "\n" ,cyan, bold, "App Template Details\n","==================", reset, "\n\n"
+        print cyan
+        puts "ID: #{app_template['id']}"
+        puts "Name: #{app_template['name']}"
+        #puts "Category: #{app_template['category']}"
+        puts "Account: #{app_template['account'] ? app_template['account']['name'] : ''}"
         instance_type_names = (app_template['instanceTypes'] || []).collect {|it| it['name'] }
         #puts "Instance Types: #{instance_type_names.join(', ')}"
         config = app_template['config']['tierView']
@@ -154,35 +127,34 @@ class Morpheus::Cli::AppTemplates
           puts JSON.pretty_generate(config)
         end
 
-				print reset,"\n\n"
-			end
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
+        print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
-	def add(args)
-		usage = "Usage: morpheus app-templates add"
+  def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage()
       # opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
       #   options[:options] ||= {}
       #   options[:options]['group'] = group
       # end
       build_common_options(opts, options, [:options, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     connect(options)
     begin
-  
+
       params = Morpheus::Cli::OptionTypes.prompt(add_app_template_option_types, options[:options], @api_client, options[:params])
 
       #puts "parsed params is : #{params.inspect}"
       app_template_keys = ['name']
       app_template_payload = params.select {|k,v| app_template_keys.include?(k) }
-      
+
       group = nil
       if params['group'].to_s != ''
         group = find_group_by_name(params['group'])
@@ -203,42 +175,40 @@ class Morpheus::Cli::AppTemplates
       else
         print_green_success "Added app template #{app_template_payload['name']}"
         details_options = [app_template_payload["name"]]
-        details(details_options)
+        get(details_options)
       end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
-	end
+  end
 
-	def update(args)
-		usage = "Usage: morpheus app-templates update [name] [options]"
+  def update(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name] [options]")
       build_common_options(opts, options, [:options, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
-    
+
     begin
 
-      app_template = find_app_template_by_name(name)
+      app_template = find_app_template_by_name_or_id(args[0])
       exit 1 if app_template.nil?
 
       #params = Morpheus::Cli::OptionTypes.prompt(update_app_template_option_types, options[:options], @api_client, options[:params])
       params = options[:options] || {}
 
       if params.empty?
-        puts "\n#{usage}\n\n"
+        puts optparse
         option_lines = update_app_template_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
         puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
@@ -247,7 +217,7 @@ class Morpheus::Cli::AppTemplates
       #puts "parsed params is : #{params.inspect}"
       app_template_keys = ['name']
       app_template_payload = params.select {|k,v| app_template_keys.include?(k) }
-      
+
       group = nil
       if params['group'].to_s != ''
         group = find_group_by_name(params['group'])
@@ -265,47 +235,44 @@ class Morpheus::Cli::AppTemplates
       request_payload['config'] = config
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
-      
+
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         print_green_success "Updated app template #{app_template_payload['name']}"
         details_options = [app_template_payload["name"] || app_template['name']]
-        details(details_options)
+        get(details_options)
       end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
-	end
+  end
 
   def remove(args)
-    usage = "Usage: morpheus app-templates remove [name]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 1
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
     begin
-      # allow finding by ID since name is not unique!
-      app_template = ((name.to_s =~ /\A\d{1,}\Z/) ? find_app_template_by_id(name) : find_app_template_by_name(name) )
+      app_template = find_app_template_by_name_or_id(args[0])
       exit 1 if app_template.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
         exit
       end
       json_response = @app_templates_interface.destroy(app_template['id'])
-      
+
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -320,10 +287,9 @@ class Morpheus::Cli::AppTemplates
   end
 
   def add_instance(args)
-    usage = "Usage: morpheus app-templates add-instance [name] [tier] [instance-type]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name] [tier] [instance-type]")
       # opts.on( '-g', '--group GROUP', "Group" ) do |val|
       #   options[:group] = val
       # end
@@ -332,7 +298,7 @@ class Morpheus::Cli::AppTemplates
       # end
       build_common_options(opts, options, [:json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 3
       puts "\n#{optparse}\n\n"
@@ -341,11 +307,11 @@ class Morpheus::Cli::AppTemplates
 
     connect(options)
 
-    name = args[0]
+    app_template_name = args[0]
     tier_name = args[1]
     instance_type_code = args[2]
 
-    app_template = find_app_template_by_name(name)
+    app_template = find_app_template_by_name_or_id(app_template_name)
     exit 1 if app_template.nil?
 
     instance_type = find_instance_type_by_code(instance_type_code)
@@ -398,7 +364,7 @@ class Morpheus::Cli::AppTemplates
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
     service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
     payload[:servicePlan] = service_plan["id"]
-    
+
 
     type_payload = {}
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
@@ -428,43 +394,43 @@ class Morpheus::Cli::AppTemplates
 
     config['nodes'] ||= []
 
-    tier = config['nodes'].find {|node| 
+    tier = config['nodes'].find {|node|
       node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == "newtier-#{tier_name}"
     }
     if !tier
       tier = {
-        "classes"=>"tier newtier-#{tier_name}", 
-        "data"=>{"id"=>"newtier-#{tier_name}", "name"=> tier_name, "type"=>"tier"}, 
-        "grabbable"=>true, "group"=>"nodes","locked"=>false, 
-        #"position"=>{"x"=>-2.5, "y"=>-45}, 
+        "classes"=>"tier newtier-#{tier_name}",
+        "data"=>{"id"=>"newtier-#{tier_name}", "name"=> tier_name, "type"=>"tier"},
+        "grabbable"=>true, "group"=>"nodes","locked"=>false,
+        #"position"=>{"x"=>-2.5, "y"=>-45},
         "removed"=>false, "selectable"=>true, "selected"=>false
       }
       config['nodes'] << tier
     end
-    
+
     instance_id = generate_id()
 
     instance_type_node = {
-      "classes"=>"instance newinstance-#{instance_id} #{instance_type['code']}", 
+      "classes"=>"instance newinstance-#{instance_id} #{instance_type['code']}",
       "data"=>{
         "controlName" => "instance.layout.id",
-        "id"=>"newinstance-#{instance_id}", 
+        "id"=>"newinstance-#{instance_id}",
         "nodeId"=>["newinstance-#{instance_id}"], # not sure what this is for..
-        "index"=>nil, 
+        "index"=>nil,
         "instance.layout.id"=>layout_id.to_s,
-        "instance.name"=>instance_name, 
-        "instanceType"=>instance_type['code'], 
-        "isPlaced"=>true, 
-        "name"=> instance_name, 
-        "parent"=>tier['data']['id'], 
-        "type"=>"instance", 
+        "instance.name"=>instance_name,
+        "instanceType"=>instance_type['code'],
+        "isPlaced"=>true,
+        "name"=> instance_name,
+        "parent"=>tier['data']['id'],
+        "type"=>"instance",
         "typeName"=>instance_type['name'],
         "servicePlan"=>plan_prompt['servicePlan'].to_s,
         # "servicePlanOptions.maxCpu": "",
         # "servicePlanOptions.maxCpuId": nil,
         # "servicePlanOptions.maxMemory": "",
         # "servicePlanOptions.maxMemoryId": nil,
-        
+
         # "volumes.datastoreId": nil,
         # "volumes.name": "root",
         # "volumes.rootVolume": "true",
@@ -475,9 +441,9 @@ class Morpheus::Cli::AppTemplates
         "version"=>version_prompt['version'],
         "siteId"=>group_id.to_s,
         "zoneId"=>cloud_id.to_s
-      }, 
-      "grabbable"=>true, "group"=>"nodes", "locked"=>false, 
-      #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824}, 
+      },
+      "grabbable"=>true, "group"=>"nodes", "locked"=>false,
+      #"position"=>{"x"=>-79.83254449505226, "y"=>458.33806818181824},
       "removed"=>false, "selectable"=>true, "selected"=>false
     }
 
@@ -493,7 +459,7 @@ class Morpheus::Cli::AppTemplates
 
     # re-index nodes for this tier
     tier_instances = config['nodes'].select {|node| node['data']['parent'] == tier['data']['id'] }
-    tier_instances.each_with_index do |node, idx| 
+    tier_instances.each_with_index do |node, idx|
       node['data']['index'] = idx
     end
 
@@ -510,48 +476,46 @@ class Morpheus::Cli::AppTemplates
         print "\n"
       else
         print_green_success "Added instance type to app template #{app_template['name']}"
-        details_options = [app_template['name']]
-        details(details_options)
+        get([app_template['name']])
       end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
-    
+
   end
 
   def remove_instance(args)
-    usage = "Usage: morpheus app-templates remove-instance [name] [instance-id]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name] [instance-id]")
       build_common_options(opts, options, [:auto_confirm, :json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 2
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
+    app_template_name = args[0]
     instance_id = args[1]
 
     connect(options)
-    
+
     begin
 
-      app_template = find_app_template_by_name(name)
+      app_template = find_app_template_by_name_or_id(app_template_name)
       exit 1 if app_template.nil?
 
-      config = app_template['config']['tierView']      
+      config = app_template['config']['tierView']
 
       config['nodes'] ||= []
 
-      instance_node = config['nodes'].find { |node| 
+      instance_node = config['nodes'].find { |node|
         node["data"] && node["data"]["type"] == "instance" && node["data"]["id"] == "newinstance-#{instance_id}"
       }
-      
+
       if instance_node.nil?
         print_red_alert "Instance not found by id #{instance_id}"
         exit 1
@@ -561,7 +525,7 @@ class Morpheus::Cli::AppTemplates
         exit
       end
 
-      tier = config['nodes'].find {|node| 
+      tier = config['nodes'].find {|node|
         node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == instance_node['data']['parent']
       }
 
@@ -574,11 +538,11 @@ class Morpheus::Cli::AppTemplates
       config['nodes'] = config['nodes'].reject {|node|
         node["data"] && node["data"]["type"] == "instance" && node["data"]["id"] == "newinstance-#{instance_id}"
       }
-      
+
 
       # re-index nodes for this tier
       tier_instances = config['nodes'].select {|node| node['data']['parent'] == tier['data']['id'] }
-      tier_instances.each_with_index do |node, idx| 
+      tier_instances.each_with_index do |node, idx|
         node['data']['index'] = idx
       end
 
@@ -588,14 +552,13 @@ class Morpheus::Cli::AppTemplates
       request_payload['config'] = config
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
-      
+
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         print_green_success "Added instance type to app template #{app_template['name']}"
-        details_options = [app_template['name']]
-        details(details_options)
+        get([app_template['name']])
       end
 
     rescue RestClient::Exception => e
@@ -605,34 +568,33 @@ class Morpheus::Cli::AppTemplates
   end
 
   def connect_tiers(args)
-    usage = "Usage: morpheus app-templates connect-tiers [name] [tier1] [tier2]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name] [tier1] [tier2]")
       build_common_options(opts, options, [:json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
 
     if args.count < 3
-      puts "\n#{usage}\n\n"
+      puts optparse
       exit 1
     end
-    name = args[0]
+    app_template_name = args[0]
     tier1_name = args[1]
     tier2_name = args[2]
 
     connect(options)
-    
+
     begin
 
-      app_template = find_app_template_by_name(name)
+      app_template = find_app_template_by_name_or_id(app_template_name)
       exit 1 if app_template.nil?
 
-      config = app_template['config']['tierView']      
+      config = app_template['config']['tierView']
 
       config['nodes'] ||= []
 
-      tier1 = config['nodes'].find {|node| 
+      tier1 = config['nodes'].find {|node|
         node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == "newtier-#{tier1_name}"
       }
       if tier1.nil?
@@ -640,14 +602,14 @@ class Morpheus::Cli::AppTemplates
         exit 1
       end
 
-      tier2 = config['nodes'].find {|node| 
+      tier2 = config['nodes'].find {|node|
         node["data"] && node["data"]["type"] == "tier" && node["data"]["id"] == "newtier-#{tier2_name}"
       }
       if tier2.nil?
         print_red_alert "Tier not found by name #{tier2_name}!"
         exit 1
       end
-      
+
       config['edges'] ||= []
 
       found_edge = config['edges'].find {|edge|
@@ -663,12 +625,12 @@ class Morpheus::Cli::AppTemplates
       # not sure how this id is being generated in the ui exactly
       new_edge_index = (1..999).find {|i|
         !config['edges'].find {|edge| edge['data']['id'] == "ele#{i}" }
-      }      
+      }
       new_edge = {
-        "classes"=>"", 
-        "data"=>{"id"=>"ele#{new_edge_index}", "source"=>tier1['data']['id'], "target"=>tier2['data']['id']}, 
-        "grabbable"=>true, "group"=>"edges", "locked"=>false, 
-        #"position"=>{}, 
+        "classes"=>"",
+        "data"=>{"id"=>"ele#{new_edge_index}", "source"=>tier1['data']['id'], "target"=>tier2['data']['id']},
+        "grabbable"=>true, "group"=>"edges", "locked"=>false,
+        #"position"=>{},
         "removed"=>false, "selectable"=>true, "selected"=>false
       }
 
@@ -681,14 +643,13 @@ class Morpheus::Cli::AppTemplates
       request_payload['config'] = config
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
-      
+
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         print_green_success "Connected tiers for app template #{app_template['name']}"
-        details_options = [app_template['name']]
-        details(details_options)
+        get([app_template['name']])
       end
 
     rescue RestClient::Exception => e
@@ -702,10 +663,10 @@ class Morpheus::Cli::AppTemplates
     optparse = OptionParser.new do|opts|
       build_common_options(opts, options, [:json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     connect(options)
     params = {}
-  
+
     begin
       json_response = @app_templates_interface.list_tiers(params)
       tiers = json_response['tiers']
@@ -719,21 +680,21 @@ class Morpheus::Cli::AppTemplates
         else
           rows = tiers.collect do |tier|
             {
-              id: tier['id'], 
-              name: tier['name'], 
+              id: tier['id'],
+              name: tier['name'],
             }
           end
           print cyan
           tp rows, [:name]
           print reset
         end
-        print reset,"\n\n"
+        print reset,"\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
-    
+
   end
 
   def available_types(args)
@@ -741,10 +702,10 @@ class Morpheus::Cli::AppTemplates
     optparse = OptionParser.new do|opts|
       build_common_options(opts, options, [:json])
     end
-    optparse.parse(args)
+    optparse.parse!(args)
     connect(options)
     params = {}
-  
+
     begin
       json_response = @app_templates_interface.list_types(params)
       instance_types = json_response['types']
@@ -758,39 +719,47 @@ class Morpheus::Cli::AppTemplates
         else
           rows = instance_types.collect do |instance_type|
             {
-              id: instance_type['id'], 
-              code: instance_type['code'], 
-              name: instance_type['name'], 
+              id: instance_type['id'],
+              code: instance_type['code'],
+              name: instance_type['name'],
             }
           end
           print cyan
           tp rows, [:code, :name]
           print reset
         end
-        print reset,"\n\n"
+        print reset,"\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
-    
+
   end
 
-private
-	
+  private
 
-	def add_app_template_option_types
-		[
-			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+
+  def add_app_template_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
-		]
-	end
+    ]
+  end
 
-	def update_app_template_option_types
-		add_app_template_option_types
-	end
+  def update_app_template_option_types
+    add_app_template_option_types
+  end
 
-	def find_app_template_by_id(id)
+  def find_app_template_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_app_template_by_id(val)
+    else
+      return find_app_template_by_name(val)
+    end
+  end
+
+  def find_app_template_by_id(id)
     begin
       json_response = @app_templates_interface.get(id.to_i)
       return json_response['appTemplate']
@@ -803,7 +772,7 @@ private
     end
   end
 
-	def find_app_template_by_name(name)
+  def find_app_template_by_name(name)
     app_templates = @app_templates_interface.list({name: name.to_s})['appTemplates']
     if app_templates.empty?
       print_red_alert "App Template not found by name #{name}"
@@ -811,7 +780,7 @@ private
     elsif app_templates.size > 1
       print_red_alert "#{app_templates.size} app templates by name #{name}"
       print_app_templates_table(app_templates, {color: red})
-      print reset,"\n\n"
+      print reset,"\n"
       return nil
     else
       return app_templates[0]
@@ -856,26 +825,26 @@ private
     return results['instanceTypes'][0]
   end
 
-	def print_app_templates_table(app_templates, opts={})
+  def print_app_templates_table(app_templates, opts={})
     table_color = opts[:color] || cyan
     rows = app_templates.collect do |app_template|
-    	instance_type_names = (app_template['instanceTypes'] || []).collect {|it| it['name'] }.join(', ')
+      instance_type_names = (app_template['instanceTypes'] || []).collect {|it| it['name'] }.join(', ')
       {
-        id: app_template['id'], 
-        name: app_template['name'], 
-        #code: app_template['code'], 
+        id: app_template['id'],
+        name: app_template['name'],
+        #code: app_template['code'],
         instance_types: instance_type_names,
-        account: app_template['account'] ? app_template['account']['name'] : nil, 
-        #dateCreated: format_local_dt(app_template['dateCreated']) 
+        account: app_template['account'] ? app_template['account']['name'] : nil,
+        #dateCreated: format_local_dt(app_template['dateCreated'])
       }
     end
-    
+
     print table_color
     tp rows, [
-      :id, 
-      :name, 
+      :id,
+      :name,
       {:instance_types => {:display_name => "Instance Types"} },
-      :account, 
+      :account,
       #{:dateCreated => {:display_name => "Date Created"} }
     ]
     print reset

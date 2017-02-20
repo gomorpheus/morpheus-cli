@@ -37,7 +37,7 @@ class Morpheus::Cli::Login
 			opts.banner = usage
 			build_common_options(opts, options, [:json]) # todo: support :remote too perhaps
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 

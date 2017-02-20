@@ -23,7 +23,7 @@ class Morpheus::Cli::DashboardCommand
 	end
 
 	def usage
-		"Usage: morpheus dashboard"
+		"Usage: morpheus #{command_name}"
 	end
 
 	def handle(args)
@@ -34,15 +34,18 @@ class Morpheus::Cli::DashboardCommand
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
-			build_common_options(opts, options, [:json]) # todo: support :account
+			build_common_options(opts, options, [:json, :dry_run]) # todo: support :account
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 		begin
 			
 			params = {}
-
+			if options[:dry_run]
+				print_dry_run @dashboard_interface.dry.get(params)
+				return
+			end
 			json_response = @dashboard_interface.get(params)
 			
 			if options[:json]

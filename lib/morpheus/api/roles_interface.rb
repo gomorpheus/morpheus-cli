@@ -1,5 +1,4 @@
-require 'json'
-require 'rest-client'
+require 'morpheus/api/api_client'
 
 class Morpheus::RolesInterface < Morpheus::APIClient
 	
@@ -14,80 +13,63 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 		raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
 		url = build_url(account_id, id)
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 	def list(account_id, options={})
 		url = build_url(account_id)
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 		headers[:params].merge!(options)
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 	def create(account_id, options)
 		url = build_url(account_id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def update(account_id, id, options)
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def destroy(account_id, id)
 		url = build_url(account_id, id)
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 10, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :delete, url: url, headers: headers)
 	end
 
 	def update_permission(account_id, id, options)
 		url = build_url(account_id, id) + "/update-permission"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def update_instance_type(account_id, id, options)
 		url = build_url(account_id, id) + "/update-instance-type"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def update_group(account_id, id, options)
 		url = build_url(account_id, id) + "/update-group"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def update_cloud(account_id, id, options)
 		url = build_url(account_id, id) + "/update-cloud"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
-		response = Morpheus::RestClient.execute(method: :put, url: url,
-                            timeout: 10, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	private

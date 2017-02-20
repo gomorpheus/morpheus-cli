@@ -8,57 +8,39 @@ require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::Accounts
-  include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::AccountsHelper
+	include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::AccountsHelper
   
+	register_subcommands :list, :get, :add, :update, :remove
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
 
 	def connect(opts)
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
 		@roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
+		if @access_token.empty?
+			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
+			exit 1
+		end
 	end
 
 	def handle(args)
-		usage = "Usage: morpheus accounts [list,details,add,update,remove] [name]"
-		if args.empty?
-			puts "\n#{usage}\n\n"
-			exit 1
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			else
-				puts "\n#{usage}\n\n"
-				exit 127
-		end
+		handle_subcommand(args)
 	end
 
 	def list(args)
-		usage = "Usage: morpheus accounts list"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage()
 			build_common_options(opts, options, [:list, :json])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
@@ -77,8 +59,9 @@ class Morpheus::Cli::Accounts
 					puts yellow,"No accounts found.",reset
 				else
 					print_accounts_table(accounts)
+					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -86,34 +69,21 @@ class Morpheus::Cli::Accounts
 		end
 	end
 
-	def details(args)
-		usage = "Usage: morpheus accounts details [name] [options]"
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
-		name = args[0]
-
 		connect(options)
 		begin
-	
-			# todo: accounts_response = @accounts_interface.list({name: name})
-			#       there may be response data outside of account that needs to be displayed
 
-			account = nil
-			if name.to_s =~ /\Aid:/
-				id = name.sub('id:', '')
-				account = find_account_by_id(id)
-			else
-				account = find_account_by_name(name)
-			end
+			account = find_account_by_name_or_id(args[0])
 			exit 1 if account.nil?
 
 			if options[:json]
@@ -142,8 +112,7 @@ class Morpheus::Cli::Accounts
 				puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
 				puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"
 				puts "CPU Count: #{account['instanceLimits'] ? account['instanceLimits']['maxCpu'] : 0}"
-				print cyan
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -152,20 +121,15 @@ class Morpheus::Cli::Accounts
 	end
 
 	def add(args)
-		usage = "Usage: morpheus accounts add [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[options]")
 			build_common_options(opts, options, [:options, :json])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		connect(options)
-		
 		begin
-
 			params = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params])
-
 			#puts "parsed params is : #{params.inspect}"
 			account_keys = ['name', 'description', 'currency']
 			account_payload = params.select {|k,v| account_keys.include?(k) }
@@ -189,7 +153,7 @@ class Morpheus::Cli::Accounts
 				print "\n"
 			else
 				print_green_success "Account #{account_payload['name']} added"
-				details([account_payload["name"]])
+				get([account_payload["name"]])
 			end
 
 		rescue RestClient::Exception => e
@@ -199,38 +163,26 @@ class Morpheus::Cli::Accounts
 	end
 
 	def update(args)
-		usage = "Usage: morpheus accounts update [name] [options]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[name] [options]")
 			build_common_options(opts, options, [:options, :json])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
-		name = args[0].strip
-
 		connect(options)
-		
 		begin
-
-			account = nil
-			if name.to_s =~ /\Aid:/
-				id = name.sub('id:', '').strip
-				account = find_account_by_id(id)
-			else
-				account = find_account_by_name(name)
-			end
+			account = find_account_by_name_or_id(args[0])
 			exit 1 if account.nil?
 
 			#params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params])
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{usage}\n\n"
+				puts optparse
 				option_lines = update_account_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -260,7 +212,7 @@ class Morpheus::Cli::Accounts
 			else
 				account_name = account_payload['name'] || account['name']
 				print_green_success "Account #{account_name} updated"
-				details([account_name])
+				get([account_name])
 			end
 			
 		rescue RestClient::Exception => e
@@ -270,24 +222,20 @@ class Morpheus::Cli::Accounts
 	end
 
 	def remove(args)
-		usage = "Usage: morpheus accounts remove [name]"
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = usage
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json])
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{usage}\n\n"
+			puts optparse
 			exit 1
 		end
-		name = args[0]
-
 		connect(options)
 		begin
 			# allow finding by ID since name is not unique!
-			account = ((name.to_s =~ /\A\d{1,}\Z/) ? find_account_by_id(name) : find_account_by_name(name) )
+			account = find_account_by_name_or_id(args[0])
 			exit 1 if account.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
 				exit

@@ -1,5 +1,4 @@
-require 'json'
-require 'morpheus/rest_client'
+require 'morpheus/api/api_client'
 
 class Morpheus::SecurityGroupRulesInterface < Morpheus::APIClient
 	def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -19,27 +18,19 @@ class Morpheus::SecurityGroupRulesInterface < Morpheus::APIClient
 		elsif options.is_a?(Numeric)
 			url = "#{@base_url}/api/security-groups/#{security_group_id}/rules/#{options}"
 		end
-		response = Morpheus::RestClient.execute(method: :get, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :get, url: url, headers: headers)
 	end
 
 	def create(security_group_id, options)
 		url = "#{@base_url}/api/security-groups/#{security_group_id}/rules"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
 		payload = options
-		response = Morpheus::RestClient.execute(method: :post, url: url,
-                            timeout: 30, headers: headers, payload: payload.to_json)
-		JSON.parse(response.to_s)
+		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def delete(security_group_id, id)
 		url = "#{@base_url}/api/security-groups/#{security_group_id}/rules/#{id}"
-		print "url #{url}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		response = Morpheus::RestClient.execute(method: :delete, url: url,
-                            timeout: 30, headers: headers)
-		JSON.parse(response.to_s)
+		execute(method: :delete, url: url, headers: headers)
 	end
 end

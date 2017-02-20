@@ -1,3 +1,5 @@
+require 'morpheus/api/api_client'
+
 class Morpheus::AuthInterface < Morpheus::APIClient
 
   attr_reader :access_token
@@ -12,11 +14,11 @@ class Morpheus::AuthInterface < Morpheus::APIClient
     url = "#{@base_url}/oauth/token"
     params = {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}
     payload = {password: password}
-    response = Morpheus::RestClient.execute(method: :post, url: url, 
-                            headers:{ params: params}, payload: payload, timeout: 10)
-    json = JSON.parse(response.to_s)
-    @access_token = json['access_token']
-    return json
+    opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 10}
+    response = execute(opts)
+    return response if @dry_run
+    @access_token = response['access_token']
+    return response
   end
 
   def logout()

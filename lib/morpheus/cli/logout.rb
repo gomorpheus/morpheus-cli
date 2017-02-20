@@ -22,7 +22,7 @@ class Morpheus::Cli::Logout
 	end
 
 	def usage
-		"Usage: morpheus login"
+		"Usage: morpheus logout"
 	end
 
 	def handle(args)
@@ -35,7 +35,7 @@ class Morpheus::Cli::Logout
 			opts.banner = usage
 			build_common_options(opts, options, []) # todo: support :remote too perhaps
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 

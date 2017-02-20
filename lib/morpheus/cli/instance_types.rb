@@ -1,52 +1,48 @@
 require 'io/console'
 require 'optparse'
-require 'filesize'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::InstanceTypes
   include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :get
+	alias_subcommand :details, :get
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+	end
+
+	def connect(opts)
 		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-	end
-
-
-	def handle(args) 
 		if @access_token.empty?
 			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			return 1
-		end
-		if args.empty?
-			puts "\nUsage: morpheus instance-types [list,details] [name]\n\n"
-			return
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'details'
-				details(args[1..-1])
-			else
-				puts "\nUsage: morpheus instance-types [list,details] [name]\n\n"
+			exit 1
 		end
 	end
 
+	def handle(args)
+		handle_subcommand(args)
+	end
 
-	def details(args)
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instance-type details [name]"
-			build_common_options(opts, options, [:json])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
-			return
+			puts optparse
+			exit 
 		end
 		name = args[0]
+		connect(options)
 		begin
+			if options[:dry_run]
+				print_dry_run @instance_types_interface.dry.get({name: name})
+				return
+			end
 			json_response = @instance_types_interface.get({name: name})
 
 			if options[:json]
@@ -77,15 +73,22 @@ class Morpheus::Cli::InstanceTypes
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			build_common_options(opts, options, [:list, :json])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
+		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
 
+			if options[:dry_run]
+				print_dry_run @instance_types_interface.dry.get(params)
+				return
+			end
+			
 			json_response = @instance_types_interface.get(params)
 
 			if options[:json]

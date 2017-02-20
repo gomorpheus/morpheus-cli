@@ -7,6 +7,8 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Deployments
 	include Morpheus::Cli::CliCommand
 
+	register_subcommands :list, :add, :update, :remove, {:versions => 'list_versions'}
+
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 	end
@@ -27,42 +29,26 @@ class Morpheus::Cli::Deployments
 		end
 	end
 
-
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus deployments [list,add, update,remove, versions]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				update(args[1..-1])	
-			when 'remove'
-				remove(args[1..-1])
-			when 'versions'
-				list_versions(args[1..-1])
-			else
-				puts "\nUsage: morpheus deployments [list,add, update,remove, versions]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments list [-s] [-o] [-m]"
-			build_common_options(opts, options, [:list, :json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+			if options[:dry_run]
+				print_dry_run @deployments_interface.dry.get(params)
+				return
 			end
 			json_response = @deployments_interface.get(params)
 			if options[:json]
@@ -92,12 +78,12 @@ class Morpheus::Cli::Deployments
 	def list_versions(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments versions [deployment] [-s] [-o] [-m]"
-			build_common_options(opts, options, [:list, :json, :remote])
+			opts.banner = subcommand_usage("[name] versions")
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
 		deployment_name  = args[0]
@@ -107,9 +93,13 @@ class Morpheus::Cli::Deployments
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
-			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
+			deployment = find_deployment_by_name_or_id(deployment_name)
 			exit 1 if deployment.nil?
 
+			if options[:dry_run]
+				print_dry_run @deployments_interface.dry.list_versions(deployment['id'],params)
+				return
+			end
 			json_response = @deployments_interface.list_versions(deployment['id'],params)
 			if options[:json]
 					puts JSON.pretty_generate(json_response)
@@ -138,26 +128,24 @@ class Morpheus::Cli::Deployments
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments update [deployment] [options]"
-			build_common_options(opts, options, [:options, :json, :remote])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
-
+		optparse.parse!(args)
 		connect(options)
-		
 		begin
-			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
+			deployment = find_deployment_by_name_or_id(deployment_name)
 			exit 1 if deployment.nil?
 
 			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{optparse.banner}\n\n"
+				puts optparse
 				option_lines = update_deployment_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -172,8 +160,12 @@ class Morpheus::Cli::Deployments
 			end
 
 
-			request_payload = {deployment: deployment_payload}
-			response = @deployments_interface.update(deployment['id'], request_payload)
+			payload = {deployment: deployment_payload}
+			if options[:dry_run]
+				print_dry_run @deployments_interface.dry.update(deployment['id'], payload)
+				return
+			end
+			response = @deployments_interface.update(deployment['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				if !response['success']
@@ -189,24 +181,27 @@ class Morpheus::Cli::Deployments
 	end
 
 	def add(args)
-		deployment_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments add [name]"
+			opts.banner = subcommand_usage("[name]")
 			opts.on( '-d', '--description DESCRIPTION', "Description" ) do |val|
 				options[:description] = val
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		deployment_name = args[0]
 		connect(options)
-
 		begin
 			payload = {deployment: {name: deployment_name, description: options[:description]}}
+			if options[:dry_run]
+				print_dry_run @deployments_interface.dry.create(payload)
+				return
+			end
 			json_response = @deployments_interface.create(payload)
 			if options[:json]
 					print JSON.pretty_generate(json_response)
@@ -220,23 +215,27 @@ class Morpheus::Cli::Deployments
 	end
 
 	def remove(args)
-		deployment_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus deployments remove [deployment]"
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		deployment_name = args[0]
 		connect(options)
 		begin
-			deployment = find_deployment_by_name_or_code_or_id(deployment_name)
+			deployment = find_deployment_by_name_or_id(deployment_name)
 			exit 1 if deployment.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment #{deployment['name']}?")
 				exit
+			end
+			if options[:dry_run]
+				print_dry_run @deployments_interface.dry.destroy(deployment['id'])
+				return
 			end
 			json_response = @deployments_interface.destroy(deployment['id'])
 			if options[:json]
@@ -252,8 +251,8 @@ class Morpheus::Cli::Deployments
 
 
 private
-	def find_deployment_by_name_or_code_or_id(val)
-		raise "find_deployment_by_name_or_code_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
+	def find_deployment_by_name_or_id(val)
+		raise "find_deployment_by_name_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
 		results = @deployments_interface.get(val)
 		result = nil
 		if !results['deployments'].nil? && !results['deployments'].empty?

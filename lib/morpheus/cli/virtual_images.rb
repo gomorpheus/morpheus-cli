@@ -5,8 +5,13 @@ require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 
+# JD: I don't think a lot of this has ever worked, fix it up.
+
 class Morpheus::Cli::VirtualImages
 	include Morpheus::Cli::CliCommand
+
+	register_subcommands :list, :get, :add, :update, :types => :virtual_image_types
+	alias_subcommand :details, :get
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
@@ -29,36 +34,14 @@ class Morpheus::Cli::VirtualImages
 		end
 	end
 
-
-	def handle(args) 
-		if args.empty?
-			puts "\nUsage: morpheus virtual-images [list,add, update,remove, details, lb-types]\n\n"
-			return 
-		end
-
-		case args[0]
-			when 'list'
-				list(args[1..-1])
-			when 'add'
-				add(args[1..-1])
-			when 'update'
-				# update(args[1..-1])	
-			when 'details'
-				details(args[1..-1])
-			when 'remove'
-				remove(args[1..-1])
-			when 'virtual-image-types'
-				virtual_image_types(args[1..-1])
-			else
-				puts "\nUsage: morpheus virtual-images [list,add, update,remove, details, lb-types]\n\n"
-				exit 127
-		end
+	def handle(args)
+		handle_subcommand(args)
 	end
 
 	def list(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus virtual-images list [-s] [-o] [-m] [-t]"
+			opts.banner = subcommand_usage()
 			opts.on( '-t', '--type IMAGE_TYPE', "Image Type" ) do |val|
 				options[:imageType] = val.downcase
 			end
@@ -72,9 +55,9 @@ class Morpheus::Cli::VirtualImages
 			opts.on( '', '--system', "System Images" ) do |val|
 				options[:filterType] = 'System'
 			end
-			build_common_options(opts, options, [:list, :json, :remote])
+			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
 			params = {}
@@ -87,9 +70,13 @@ class Morpheus::Cli::VirtualImages
 			if options[:filterType]
 				params[:filterType] = options[:filterType]
 			end
+			if options[:dry_run]
+				print_dry_run @virtual_images_interface.dry.get(params)
+				return
+			end
 			json_response = @virtual_images_interface.get(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				images = json_response['virtualImages']
 				print "\n" ,cyan, bold, "Morpheus Virtual Images\n","=======================", reset, "\n\n"
@@ -101,8 +88,9 @@ class Morpheus::Cli::VirtualImages
 						{name: image['name'], id: image['id'], type: image['imageType'].upcase, source: image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}"), storage: !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default', size: image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}"}
 					end
 					tp image_table_data, :id, :name, :type, :storage, :size, :source
+					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 			
@@ -112,32 +100,38 @@ class Morpheus::Cli::VirtualImages
 		end
 	end
 
-	def details(args)
-				image_name = args[0]
+	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus virtual-images details [name]"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		image_name = args[0]
 		connect(options)
 		begin
-			lb = find_lb_by_name(image_name)
+			if options[:dry_run]
+				print_dry_run @virtual_images_interface.dry.get({name: image_name})
+				return
+			end
+			image = find_image_by_name(image_name)
+			exit 1 if image.nil?
 
-			exit 1 if lb.nil?
-			lb_type = find_lb_type_by_name(lb['type']['name'])
 			if options[:json]
-					puts JSON.pretty_generate({task:task})
+				puts JSON.pretty_generate({virtualImage: image})
 			else
-				print "\n", cyan, "Lb #{lb['name']} - #{lb['type']['name']}\n\n"
-				lb_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
-				end
-				print reset,"\n\n"
+				print "\n" ,cyan, bold, "Virtual Image Details\n","==================", reset, "\n\n"
+				print cyan
+				puts "ID: #{image['id']}"
+				puts "Name: #{image['name']}"
+				puts "Type: #{image['imageType']}"
+				puts "Date Created: #{format_local_dt(image['dateCreated'])}"
+				#puts "Last Updated: #{format_local_dt(image['lastUpdated'])}"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -145,53 +139,46 @@ class Morpheus::Cli::VirtualImages
 		end
 	end
 
+	# JD: I don't think this has ever worked
 	def update(args)
 		image_name = args[0]
 		options = {}
 		account_name = nil
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus tasks update [task] [options]"
-			build_common_options(opts, options, [:options, :json, :remote])
+			opts.banner = subcommand_usage("[name] [options]")
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 
 		connect(options)
 		
 		begin
 
+			image = find_image_by_name(image_name)
+			exit 1 if image.nil?
 
-			task = find_task_by_name_or_code_or_id(image_name)
-			exit 1 if task.nil?
-			lb_type = find_lb_type_by_name(task['type']['name'])
-
-			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
 			params = options[:options] || {}
 
 			if params.empty?
-				puts "\n#{optparse.banner}\n\n"
-				option_lines = update_task_option_types(lb_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+				puts optparse
+				option_lines = update_virtual_image_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
 			end
 
-			#puts "parsed params is : #{params.inspect}"
-			task_keys = ['name']
-			changes_payload = (params.select {|k,v| task_keys.include?(k) })
-			task_payload = task
-			if changes_payload
-				task_payload.merge!(changes_payload)
+			image_payload = {id: image['id']}
+			image_payload.merge(params)
+			# JD: what can be updated?
+			payload = {virtualImage: image_payload}
+			if options[:dry_run]
+				print_dry_run @virtual_images_interface.dry.update(image['id'], payload)
+				return
 			end
-			puts params
-			if params['taskOptions']
-				task_payload['taskOptions'].merge!(params['taskOptions'])
-			end
-
-			request_payload = {task: task_payload}
-			response = @virtual_images_interface.update(task['id'], request_payload)
+			response = @virtual_images_interface.update(image['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				if !response['success']
@@ -206,27 +193,32 @@ class Morpheus::Cli::VirtualImages
 		end
 	end
 
-
+	# JD: this endpoint does not exist??
 	def virtual_image_types(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus virtual-images lb-types"
-			build_common_options(opts, options, [:json, :remote])
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
-		optparse.parse(args)
+		optparse.parse!(args)
 		connect(options)
 		begin
-			json_response = @virtual_images_interface.load_balancer_types()
+			params = {}
+			if options[:dry_run]
+				print_dry_run @virtual_images_interface.dry.virtual_image_types(params)
+				return
+			end
+			json_response = @virtual_images_interface.virtual_image_types(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
-				lb_types = json_response['virtualImageTypes']
+				image_types = json_response['virtualImageTypes']
 				print "\n" ,cyan, bold, "Morpheus Virtual Image Types\n","============================", reset, "\n\n"
-				if lb_types.nil? || lb_types.empty?
+				if image_types.nil? || image_types.empty?
 					puts yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset
 				else
 					print cyan
-					lb_table_data = lb_types.collect do |lb_type|
+					lb_table_data = image_types.collect do |lb_type|
 						{name: lb_type['name'], id: lb_type['id'], code: lb_type['code']}
 					end
 					tp lb_table_data, :id, :name, :code
@@ -242,37 +234,42 @@ class Morpheus::Cli::VirtualImages
 		end
 	end
 
+	# JD: I don't think this has ever worked
 	def add(args)
-		image_name = args[0]
-		lb_type_name = nil
+		image_type_name = nil
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus virtual-images add [lb] -t LB_TYPE"
-			opts.on( '-t', '--type LB_TYPE', "Lb Type" ) do |val|
-				lb_type_name = val
+			opts.banner = subcommand_usage("[name] -t TYPE")
+			opts.banner = "Usage: morpheus virtual-images add [name] -t TYPE"
+			opts.on( '-t', '--type TYPE', "Virtual Image Type" ) do |val|
+				image_type_name = val
 			end
-			build_common_options(opts, options, [:options, :json, :remote])
+			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		image_name = args[0]
 		connect(options)
 
-		if lb_type_name.nil?
-			puts "LB Type must be specified...\n#{optparse.banner}"
+		if image_type_name.nil?
+			puts "Virtual Image Type must be specified"
+			puts optparse
 			exit 1
 		end
 
-		lb_type = find_lb_type_by_name(lb_type_name)
-		if lb_type.nil?
-			puts "LB Type not found!"
-			exit 1
-		end
+		image_type = find_image_type_by_name(image_type_name)
+		exit 1 if image_type.nil?
+
 		input_options = Morpheus::Cli::OptionTypes.prompt(lb_type['optionTypes'],options[:options],@api_client, options[:params])
 		payload = {task: {name: image_name, taskOptions: input_options['taskOptions'], type: {code: lb_type['code'], id: lb_type['id']}}}
 		begin
+			if options[:dry_run]
+				print_dry_run @virtual_images_interface.dry.create(payload)
+				return
+			end
 			json_response = @virtual_images_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -286,17 +283,17 @@ class Morpheus::Cli::VirtualImages
 	end
 
 	def remove(args)
-		image_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus virtual-images remove [name]"
-			build_common_options(opts, options, [:auto_confirm, :json, :remote])
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
-			puts "\n#{optparse.banner}\n\n"
+			puts optparse
 			exit 1
 		end
-		optparse.parse(args)
+		image_name = args[0]
 		connect(options)
 		begin
 			image = find_image_by_name(image_name)
@@ -350,6 +347,18 @@ private
 			return nil
 		end
 		return result
+	end
+
+	# JD: todo filename, etc...
+	def add_virtual_image_option_types
+		[
+			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 0}
+		]
+	end
+
+	# JD: what can be updated?
+	def update_virtual_image_option_types
+		[]
 	end
 
 end
