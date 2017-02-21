@@ -124,7 +124,7 @@ class Morpheus::Cli::Hosts
 			server = find_host_by_name_or_id(args[0])
 			json_response = @servers_interface.get(server['id'])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			server = json_response['server']

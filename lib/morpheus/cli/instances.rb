@@ -185,7 +185,7 @@ class Morpheus::Cli::Instances
 			end
 			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			instance = json_response['instance']
@@ -277,7 +277,7 @@ class Morpheus::Cli::Instances
 			end
 			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			instance = json_response['instance']
@@ -351,7 +351,7 @@ class Morpheus::Cli::Instances
 			end
 			json_response = @instances_interface.get_envs(instance['id'])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
@@ -400,7 +400,7 @@ class Morpheus::Cli::Instances
 			end
 			json_response = @instances_interface.create_env(instance['id'], payload)
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			if !options[:quiet]
@@ -432,7 +432,7 @@ class Morpheus::Cli::Instances
 			end
 			json_response = @instances_interface.del_env(instance['id'], args[1])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			if !options[:quiet]

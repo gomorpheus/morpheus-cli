@@ -114,7 +114,7 @@ class Morpheus::Cli::Clouds
 			cloud = json_response['zone']
 			server_counts = json_response['serverCounts']
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 

@@ -83,7 +83,7 @@ class Morpheus::Cli::Groups
 			#json_response = @groups_interface.get(group['id'])
 			json_response = {'group' => group}
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
 			group = json_response['group']
