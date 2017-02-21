@@ -10,7 +10,7 @@ class Morpheus::Cli::Clouds
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::InfrastructureHelper
 
-	register_subcommands :list, :get, :add, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+	register_subcommands :list, :get, :add, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :types => :list_cloud_types
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -29,6 +29,7 @@ class Morpheus::Cli::Clouds
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 		if @access_token.empty?
 			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
 			return 1
@@ -157,14 +158,14 @@ class Morpheus::Cli::Clouds
 
 	def add(args)
 		options = {}
-		params = {zone_type: 'standard'}
+		params = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[name] --group GROUP --type TYPE")
-			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-				params[:group] = group
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
+				params[:group] = val
 			end
-			opts.on( '-t', '--type TYPE', "Cloud Type" ) do |zone_type|
-				params[:zone_type] = zone_type
+			opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
+				params[:zone_type] = val
 			end
 			opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
 				params[:description] = desc
@@ -172,27 +173,67 @@ class Morpheus::Cli::Clouds
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
-		if args.count < 1
-			puts optparse
-			exit 1
-		end
+		# if args.count < 1
+		# 	puts optparse
+		# 	exit 1
+		# end
 		connect(options)
-		zone = {name: args[0], description: params[:description]}
-		if !params[:group].nil?
-			group = find_group_by_name(params[:group])
-			if !group.nil?
-				zone['groupId'] = group['id']
-			end
-		end
 
-		if !params[:zone_type].nil?
-			cloud_type = cloud_type_for_name(params[:zone_type])
-			zone['zoneType'] = {code: cloud_type['code']}
-		end
-		
+		zone_payload = {name: args[0], description: params[:description]}
+
 		begin
-			zone.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options],@api_client))
-			payload = {zone: zone}
+
+			# use active group by default
+			params[:group] ||= @active_groups[@appliance_name.to_sym]
+
+			# Group
+	    group_id = nil
+	    group = params[:group] ? find_group_by_name_or_id(params[:group]) : nil
+	    if group
+	      group_id = group["id"]
+	    else
+	      # print_red_alert "Group not found or specified!"
+	      # exit 1
+	      groups_dropdown = @groups_interface.get({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
+	      group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
+	      group_id = group_prompt['group']
+	    end
+	    zone_payload['groupId'] = group_id
+	    # todo: pass groups as an array instead
+
+	    # Cloud Name
+
+			if args[0]
+				zone_payload[:name] = args[0]
+			elsif !options[:no_prompt]
+				name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options])
+				zone_payload[:name] = name_prompt['name']
+			end
+
+			# Cloud Type
+
+	    cloud_type = nil
+	    if params[:zone_type]
+	      cloud_type = cloud_type_for_name(params[:zone_type])
+	    elsif !options[:no_prompt]
+	      # print_red_alert "Cloud Type not found or specified!"
+	      # exit 1
+	      cloud_types_dropdown = get_available_cloud_types().select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} } 
+	      cloud_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'selectOptions' => cloud_types_dropdown, 'required' => true, 'description' => 'Select Cloud Type.'}],options[:options],@api_client,{})
+	      cloud_type_code = cloud_type_prompt['type']
+	      cloud_type = cloud_type_for_name(cloud_type_code) # this does work
+	    end
+			if !cloud_type
+				print_red_alert "A cloud type is required."
+				exit 1
+			end
+			zone_payload[:zoneType] = {code: cloud_type['code']}
+			
+			# Cloud Type specific Option Types
+			# TODO: I think we're missing some here..
+			zone_payload.merge!(Morpheus::Cli::OptionTypes.prompt(cloud_type['optionTypes'],options[:options],@api_client))
+
+			payload = {zone: zone_payload}
 			if options[:dry_run]
 				print_dry_run @clouds_interface.dry.create(payload)
 				return
@@ -386,6 +427,47 @@ class Morpheus::Cli::Clouds
 				return
 			end
 			security_groups([args[0]])
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def list_cloud_types(args)
+		options={}
+		params = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage()
+			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
+				options[:group] = group
+			end
+			build_common_options(opts, options, [:json])
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			if options[:dry_run]
+				print_dry_run @clouds_interface.dry.cloud_types({})
+				return
+			end
+			cloud_types = get_available_cloud_types() # @clouds_interface.dry.cloud_types({})['zoneTypes']
+			if options[:json]
+				print JSON.pretty_generate({zoneTypes: cloud_types})
+				print "\n"
+			else
+				print "\n" ,cyan, bold, "Morpheus Cloud Types\n","==================", reset, "\n\n"
+				if cloud_types.empty?
+					puts yellow,"No cloud types found.",reset
+				else
+					print cyan
+					cloud_types = cloud_types.select {|it| it['enabled'] }
+					rows = cloud_types.collect do |cloud_type|
+						{id: cloud_type['id'], name: cloud_type['name'], code: cloud_type['code']}
+					end
+					tp rows, :id, :name, :code
+				end
+				print reset,"\n"
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1

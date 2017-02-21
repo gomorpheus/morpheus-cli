@@ -87,26 +87,20 @@ module Morpheus::Cli::InfrastructureHelper
     return @available_cloud_types
   end
 
-  def cloud_type_for_id(id)
-    cloud_types = get_available_cloud_types()
-    if cloud_types.empty?
-      cloud_type = cloud_types.find { |z| z['id'].to_i == id.to_i}
-      if cloud_type.nil?
-        return cloud_type['name']
-      end
+  def cloud_type_for_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return cloud_type_for_id(val)
+    else
+      return cloud_type_for_name(val)
     end
-    return nil
+  end
+  
+  def cloud_type_for_id(id)
+    return get_available_cloud_types().find { |z| z['id'].to_i == id.to_i}
   end
 
   def cloud_type_for_name(name)
-    cloud_types = get_available_cloud_types()
-    if !cloud_types.empty?
-      zone_type = cloud_types.find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
-      if !zone_type.nil?
-        return zone_type
-      end
-    end
-    return nil
+    return get_available_cloud_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
   end
 
 end
