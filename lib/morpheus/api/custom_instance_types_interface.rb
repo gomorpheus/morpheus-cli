@@ -49,7 +49,7 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
 
   # NOT json, multipart file upload
   def update_logo(id, logo_file)
-    url = "#{@base_url}/api/custom-instance-types/#{id}/updateLogo"
+    url = "#{@base_url}/api/custom-instance-types/#{id}/update-logo"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
     payload = {}
     payload[:logo] = logo_file
