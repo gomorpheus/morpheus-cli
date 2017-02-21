@@ -58,9 +58,13 @@ class Morpheus::Cli::InstanceTypes
 				print "\n" ,cyan, bold, "Instance Type Details\n","==================", reset, "\n\n"
 				versions = instance_type['versions'].join(', ')
 				print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
-				instance_type['instanceTypeLayouts'].each do |layout|
-					print green, "     - #{layout['name']}\n",reset
+				layout_names = instance_type['instanceTypeLayouts'].collect { |layout| layout['name'] }.uniq.sort
+				layout_names.each do |layout_name|
+					print green, "     - #{layout_name}\n",reset
 				end
+				# instance_type['instanceTypeLayouts'].each do |layout|
+				# 	print green, "     - #{layout['name']}\n",reset
+				# end
 				print reset,"\n\n"
 			end
 
@@ -104,10 +108,16 @@ class Morpheus::Cli::InstanceTypes
 				instance_types.each do |instance_type|
 					versions = instance_type['versions'].join(', ')
 					print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
-					instance_type['instanceTypeLayouts'].each do |layout|
-						print green, "     - #{layout['name']}\n",reset
+					layout_names = instance_type['instanceTypeLayouts'].collect { |layout| layout['name'] }.uniq.sort
+					layout_names.each do |layout_name|
+						print green, "     - #{layout_name}\n",reset
 					end
+					# instance_type['instanceTypeLayouts'].each do |layout|
+					# 	print green, "     - #{layout['name']}\n",reset
+					# end
+					#print JSON.pretty_generate(instance_type['instanceTypeLayouts'].first), "\n"
 				end
+
 			end
 			print reset,"\n\n"
 			
