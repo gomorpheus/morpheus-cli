@@ -171,11 +171,11 @@ class Morpheus::Cli::Instances
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
