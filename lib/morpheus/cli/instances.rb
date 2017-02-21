@@ -1129,7 +1129,7 @@ class Morpheus::Cli::Instances
 		workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
 		begin
 			if options[:dry_run]
-				print_dry_run @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
+				print_dry_run @instances_interface.dry.workflow(instance['id'],workflow['id'], workflow_payload)
 				return
 			end
 			json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
