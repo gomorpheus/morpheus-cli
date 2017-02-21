@@ -8,9 +8,8 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::LoadBalancers
 	include Morpheus::Cli::CliCommand
 
-	register_subcommands :list, :get, :add, :update, :remove, :'lb-types'
+	register_subcommands :list, :get, :add, :update, :remove, {:types => :lb_types}
 	alias_subcommand :details, :get
-	alias_subcommand :types, :'lb-types'
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
@@ -80,7 +79,6 @@ class Morpheus::Cli::LoadBalancers
 		end
 	end
 
-	# JD: This is broken.. copied from tasks? should optionTypes exist?
 	def get(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
@@ -103,16 +101,16 @@ class Morpheus::Cli::LoadBalancers
 				end
 				return
 			end
-			lb = find_lb_by_name(lb_name)
+			lb = find_lb_by_name_or_id(lb_name)
 			exit 1 if lb.nil?
-			lb_type = find_lb_type_by_name(lb['type']['name'])
+			lb_type = load_balancer_type_for_name_or_id(lb['type']['code'])
 			if options[:json]
 				puts JSON.pretty_generate({loadBalancer: lb})
 			else
 				print "\n", cyan, "Lb #{lb['name']} - #{lb['type']['name']}\n\n"
-				lb_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
-				end
+				# lb_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
+				# 	puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
+				# end
 				print reset,"\n\n"
 			end
 		rescue RestClient::Exception => e
@@ -121,7 +119,6 @@ class Morpheus::Cli::LoadBalancers
 		end
 	end
 
-	# JD: This is broken.. copied from tasks? should optionTypes exist?
 	def update(args)
 		lb_name = args[0]
 		options = {}
@@ -138,12 +135,11 @@ class Morpheus::Cli::LoadBalancers
 		connect(options)
 		begin
 
+			lb = find_lb_by_name_or_id(lb_name)
+			exit 1 if lb.nil?
+			lb_type = load_balancer_type_for_name_or_id(lb['type']['code'])
 
-			task = find_task_by_name_or_code_or_id(lb_name)
-			exit 1 if task.nil?
-			lb_type = find_lb_type_by_name(task['type']['name'])
-
-			#params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
+			#params = Morpheus::Cli::OptionTypes.prompt(add_load_balancer_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
 			params = options[:options] || {}
 
 			if params.empty?
@@ -153,8 +149,9 @@ class Morpheus::Cli::LoadBalancers
 				exit 1
 			end
 
+			# todo: fix this...
 			#puts "parsed params is : #{params.inspect}"
-			task_keys = ['name']
+			lb_keys = ['name']
 			changes_payload = (params.select {|k,v| task_keys.include?(k) })
 			task_payload = task
 			if changes_payload
@@ -200,7 +197,7 @@ class Morpheus::Cli::LoadBalancers
 			end
 			json_response = @load_balancers_interface.load_balancer_types()
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				lb_types = json_response['loadBalancerTypes']
 				print "\n" ,cyan, bold, "Morpheus Load Balancer Types\n","============================", reset, "\n\n"
@@ -214,9 +211,8 @@ class Morpheus::Cli::LoadBalancers
 					tp lb_table_data, :id, :name, :code
 				end
 
-				print reset,"\n\n"
+				print reset,"\n"
 			end
-			
 			
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -226,36 +222,37 @@ class Morpheus::Cli::LoadBalancers
 
 	# JD: This is broken.. copied from tasks? should optionTypes exist?
 	def add(args)
-		lb_name = args[0]
 		lb_type_name = nil
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[name] -t LB_TYPE")
-			opts.on( '-t', '--type LB_TYPE', "Lb Type" ) do |val|
+			opts.on( '-t', '--type LB_TYPE', "Load Balancer Type" ) do |val|
 				lb_type_name = val
 			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
+		lb_name = args[0]
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		connect(options)
-
 		if lb_type_name.nil?
 			puts optparse
 			exit 1
 		end
-
-		lb_type = find_lb_type_by_name(lb_type_name)
-		if lb_type.nil?
-			puts "LB Type not found!"
-			exit 1
-		end
-		input_options = Morpheus::Cli::OptionTypes.prompt(lb_type['optionTypes'],options[:options],@api_client, options[:params])
-		payload = {task: {name: lb_name, taskOptions: input_options['taskOptions'], type: {code: lb_type['code'], id: lb_type['id']}}}
+		connect(options)
 		begin
+			lb_type = load_balancer_type_for_name_or_id(lb_type_name)
+			if lb_type.nil?
+				print_red_alert "LB Type #{lb_type_name} not found!"
+				exit 1
+			end
+
+			payload = {loadBalancer: {name: lb_name, type: {code: lb_type['code'], id: lb_type['id']}}}
+
+			# todo: The options available here are specific by type...
+			#input_options = Morpheus::Cli::OptionTypes.prompt(lb_type['optionTypes'],options[:options],@api_client, options[:params])
 			json_response = @load_balancers_interface.create(payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
@@ -272,7 +269,7 @@ class Morpheus::Cli::LoadBalancers
 		lb_name = args[0]
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus load-balancers remove [name]"
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
@@ -282,14 +279,18 @@ class Morpheus::Cli::LoadBalancers
 		end
 		connect(options)
 		begin
-			lb = find_lb_by_name(lb_name)
+			lb = find_lb_by_name_or_id(lb_name)
 			exit 1 if lb.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the load balancer #{lb['name']}?")
 				exit
 			end
+			if options[:dry_run]
+				print_dry_run @load_balancers_interface.dry.destroy(lb['id'])
+				return
+			end
 			json_response = @load_balancers_interface.destroy(lb['id'])
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response), "\n"
 			else
 				print "\n", cyan, "Load Balancer #{lb['name']} removed", reset, "\n\n"
 			end
@@ -301,38 +302,64 @@ class Morpheus::Cli::LoadBalancers
 
 
 private
-	def find_lb_by_name(val)
-		raise "find_lb_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
-		results = @load_balancers_interface.get(val)
-		result = nil
-		if !results['loadBalancers'].nil? && !results['loadBalancers'].empty?
-			result = results['loadBalancers'][0]
-		elsif val.to_i.to_s == val
-			results = @load_balancers_interface.get(val.to_i)
-			result = results['loadBalancer']
+
+	def find_lb_by_name_or_id(val)
+		if val.to_s =~ /\A\d{1,}\Z/
+			return find_lb_by_id(val)
+		else
+			return find_lb_by_name(val)
 		end
-		if result.nil?
-			print_red_alert "LB not found by '#{val}'"
-			return nil
-		end
-		return result
 	end
 
-	def find_lb_type_by_name(val)
-		raise "find_lb_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
-		results = @load_balancers_interface.load_balancer_types(val)
-		result = nil
-		if !results['loadBalancerTypes'].nil? && !results['loadBalancerTypes'].empty?
-			result = results['loadBalancerTypes'][0]
-		elsif val.to_i.to_s == val
-			results = @load_balancers_interface.load_balancer_types(val.to_i)
-			result = results['loadBalancerType']
+	def find_lb_by_id(id)
+		begin
+			json_response = @load_balancers_interface.get(id.to_i)
+			return json_response['loadBalancer']
+		rescue RestClient::Exception => e
+			if e.response && e.response.code == 404
+				print_red_alert "Load Balancer not found by id #{id}"
+			else
+				raise e
+			end
 		end
-		if result.nil?
-			print_red_alert "LB Type not found by '#{val}'"
+	end
+
+	def find_lb_by_name(name)
+		lbs = @load_balancers_interface.get({name: name.to_s})['loadBalancers']
+		if lbs.empty?
+			print_red_alert "Load Balancer not found by name #{name}"
 			return nil
+		elsif lbs.size > 1
+			print_red_alert "#{lbs.size} load balancers found by name #{name}"
+			#print_lbs_table(lbs, {color: red})
+			print reset,"\n\n"
+			return nil
+		else
+			return lbs[0]
 		end
-		return result
+	end
+
+	def get_available_load_balancer_types(refresh=false)
+		if !@available_load_balancer_types || refresh
+			@available_load_balancer_types = @load_balancers_interface.load_balancer_types['loadBalancerTypes']
+		end
+		return @available_load_balancer_types
+	end
+
+	def load_balancer_type_for_name_or_id(val)
+		if val.to_s =~ /\A\d{1,}\Z/
+			return load_balancer_type_for_id(val)
+		else
+			return load_balancer_type_for_name(val)
+		end
+	end
+
+	def load_balancer_type_for_id(id)
+		return get_available_load_balancer_types().find { |z| z['id'].to_i == id.to_i}
+	end
+
+	def load_balancer_type_for_name(name)
+		return get_available_load_balancer_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
 	end
 
 end
