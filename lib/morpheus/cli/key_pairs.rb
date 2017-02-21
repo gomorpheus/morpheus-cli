@@ -63,7 +63,7 @@ class Morpheus::Cli::KeyPairs
           subtitles << "Account: #{account['name']}".strip
         end
         if params[:phrase]
-          subtitles << "Matching: #{params[:phrase]}".strip
+          subtitles << "Search: #{params[:phrase]}".strip
         end
         subtitle = subtitles.join(', ')
         print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"

@@ -96,6 +96,9 @@ class Morpheus::Cli::Hosts
 				if cloud
 					subtitles << "Cloud: #{cloud['name']}".strip
 				end
+				if params[:phrase]
+					subtitles << "Search: #{params[:phrase]}".strip
+				end
 				subtitle = subtitles.join(', ')
 				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
 				if servers.empty?
