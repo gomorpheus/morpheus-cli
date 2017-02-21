@@ -66,7 +66,7 @@ class Morpheus::Cli::License
 					puts "Memory: #{used_memory} / #{max_memory}"
 					puts "Max Storage: #{max_storage}"
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

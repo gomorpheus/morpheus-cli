@@ -183,7 +183,7 @@ EOT
 					print cyan, "=  #{rule['id']} - (CIDR:#{rule['source']}, Port Range:#{rule['portRange']}, Protocol:#{rule['protocol']}, Custom Rule:#{rule['customRule']}, Instance Type:#{rule['instanceTypeId']})\n"
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 			
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

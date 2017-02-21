@@ -68,8 +68,9 @@ class Morpheus::Cli::Tasks
 						{name: task['name'], id: task['id'], type: task['taskType']['name']}
 					end
 					tp tasks_table_data, :id, :name, :type
+					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 			
@@ -108,9 +109,20 @@ class Morpheus::Cli::Tasks
 				puts JSON.pretty_generate({task:task})
 				print "\n"
 			else
-				print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
+				#print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
+				print "\n" ,cyan, bold, "Task Details\n","==================", reset, "\n\n"
+				print cyan
+				puts "ID: #{task['id']}"
+				puts "Name: #{task['name']}"
+				puts "Type: #{task['taskType']['name']}"
+				#puts "Description: #{workflow['description']}"
+				# print "\n", cyan, "Config:\n"
 				task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-					puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
+					if optionType['fieldLabel'].to_s.downcase == 'script'
+						print cyan,bold,"Script:","\n",reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+					else
+						print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
+					end
 				end
 				print reset,"\n"
 			end
@@ -146,7 +158,7 @@ class Morpheus::Cli::Tasks
 			params = options[:options] || {}
 
 			if params.empty?
-				opts.banner = subcommand_usage("[task]")
+				puts optparse.banner
 				option_lines = update_task_option_types(task_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
 				puts "\nAvailable Options:\n#{option_lines}\n\n"
 				exit 1
@@ -176,6 +188,7 @@ class Morpheus::Cli::Tasks
 				end
 			else
 				print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
+				get([task['id']])
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -213,7 +226,7 @@ class Morpheus::Cli::Tasks
 					tp tasks_table_data, :id, :name, :code, :description
 				end
 
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 			
@@ -256,7 +269,8 @@ class Morpheus::Cli::Tasks
 			if options[:json]
 					print JSON.pretty_generate(json_response)
 			elsif !options[:quiet]
-				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"			
+				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
+				list([])
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -302,20 +316,39 @@ class Morpheus::Cli::Tasks
 
 private
 	def find_task_by_name_or_id(val)
-		raise "find_task_by_name_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
-		results = @tasks_interface.get(val)
-		result = nil
-		if !results['tasks'].nil? && !results['tasks'].empty?
-			result = results['tasks'][0]
-		elsif val.to_i.to_s == val
-			results = @tasks_interface.get(val.to_i)
-			result = results['task']
+		if val.to_s =~ /\A\d{1,}\Z/
+			return find_task_by_id(val)
+		else
+			return find_task_by_name(val)
 		end
-		if result.nil?
-			print_red_alert "Task not found by '#{val}'"
+	end
+
+	def find_task_by_id(id)
+		begin
+			json_response = @tasks_interface.get(id.to_i)
+			return json_response['task']
+		rescue RestClient::Exception => e
+			if e.response && e.response.code == 404
+				print_red_alert "Task not found by id #{id}"
+			else
+				raise e
+			end
+		end
+	end
+
+	def find_task_by_name(name)
+		tasks = @tasks_interface.get({name: name.to_s})['tasks']
+		if tasks.empty?
+			print_red_alert "Task not found by name #{name}"
 			return nil
+		elsif tasks.size > 1
+			print_red_alert "#{tasks.size} tasks by name #{name}"
+			print_tasks_table(tasks, {color: red})
+			print reset,"\n\n"
+			return nil
+		else
+			return tasks[0]
 		end
-		return result
 	end
 
 	def find_task_type_by_name(val)

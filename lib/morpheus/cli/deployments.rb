@@ -65,7 +65,7 @@ class Morpheus::Cli::Deployments
 					end
 					tp deployments_table_data, :id, :name, :description, :updated
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 			
@@ -115,7 +115,7 @@ class Morpheus::Cli::Deployments
 					end
 					tp versions_table_data, :version, :type, :updated
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

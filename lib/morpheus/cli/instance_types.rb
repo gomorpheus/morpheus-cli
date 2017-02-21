@@ -65,7 +65,7 @@ class Morpheus::Cli::InstanceTypes
 				# instance_type['instanceTypeLayouts'].each do |layout|
 				# 	print green, "     - #{layout['name']}\n",reset
 				# end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 
 		rescue RestClient::Exception => e
@@ -119,7 +119,7 @@ class Morpheus::Cli::InstanceTypes
 				end
 
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 			
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)

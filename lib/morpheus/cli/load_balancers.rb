@@ -70,7 +70,7 @@ class Morpheus::Cli::LoadBalancers
 					end
 					tp lb_table_data, :id, :name, :type
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 			
 			

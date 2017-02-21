@@ -68,7 +68,7 @@ class Morpheus::Cli::Library
 					end
 				end
 			end
-			print reset,"\n\n"
+			print reset,"\n"
 			
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -115,7 +115,7 @@ class Morpheus::Cli::Library
 				instance_type['instanceTypeLayouts'].each do |layout|
 					print green, "     - #{layout['name']}\n",reset
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 
 		rescue RestClient::Exception => e
@@ -439,7 +439,7 @@ private
         print "= #{instance_type['name']} (#{instance_type['code']})\n"
       end
       print "\n", "Find by code:<code> instead"
-      print reset,"\n\n"
+      print reset,"\n"
       return nil
     else
       return instance_types[0]

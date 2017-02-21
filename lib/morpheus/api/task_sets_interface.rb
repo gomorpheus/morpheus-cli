@@ -14,7 +14,7 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		elsif options.is_a?(Numeric)
-			url = "#{@base_url}/api/tasks/#{options}"
+			url = "#{@base_url}/api/task-sets/#{options}"
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
@@ -27,6 +27,13 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		payload = options
 		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+	end
+
+	def update(id, options)
+		url = "#{@base_url}/api/task-sets/#{id}"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 	def destroy(id)

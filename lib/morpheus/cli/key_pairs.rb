@@ -114,7 +114,7 @@ class Morpheus::Cli::KeyPairs
         puts "MD5: #{key_pair['md5']}"
         puts "Date Created: #{format_local_dt(key_pair['dateCreated'])}"
         #puts "Last Updated: #{format_local_dt(key_pair['lastUpdated'])}"
-        print reset,"\n\n"
+        print reset,"\n"
 
         # todo: show public key
 
