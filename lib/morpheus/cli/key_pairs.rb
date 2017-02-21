@@ -33,7 +33,6 @@ class Morpheus::Cli::KeyPairs
   end
 
   def list(args)
-    raise "oh no!"
     options = {}
     params = {}
     optparse = OptionParser.new do|opts|
