@@ -270,11 +270,15 @@ class Morpheus::Cli::Instances
 		optparse.parse!(args)
 		connect(options)
 		begin
-			instance = find_instance_by_name_or_id(args[0])
 			if options[:dry_run]
-				print_dry_run @instances_interface.dry.get(instance['id'])
+				if args[0].to_s =~ /\A\d{1,}\Z/
+					print_dry_run @instances_interface.dry.get(args[0].to_i)
+				else
+					print_dry_run @instances_interface.dry.get({name:args[0]})
+				end
 				return
 			end
+			instance = find_instance_by_name_or_id(args[0])
 			json_response = @instances_interface.get(instance['id'])
 			if options[:json]
 				print JSON.pretty_generate(json_response), "\n"
