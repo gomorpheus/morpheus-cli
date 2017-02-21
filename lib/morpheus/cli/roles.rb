@@ -82,7 +82,7 @@ class Morpheus::Cli::Roles
 					print_roles_table(roles, {is_master_account: @is_master_account})
 					print_results_pagination(json_response)
 				end
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -133,7 +133,7 @@ class Morpheus::Cli::Roles
 				return
 			end
 
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			json_response = @roles_interface.get(account_id, role['id'])
@@ -231,7 +231,7 @@ class Morpheus::Cli::Roles
 					end
 				end
 
-				print reset,"\n\n"
+				print reset,"\n"
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -274,7 +274,7 @@ class Morpheus::Cli::Roles
 
 			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4}], options[:options])
 			if v_prompt['baseRole'].to_s != ''
-				base_role = find_role_by_name(account_id, v_prompt['baseRole'])
+				base_role = find_role_by_name_or_id(account_id, v_prompt['baseRole'])
 				exit 1 if base_role.nil?
 				role_payload['baseRoleId'] = base_role['id']
 			end
@@ -346,7 +346,6 @@ class Morpheus::Cli::Roles
 			exit 1
 		end
 		name = args[0]
-
 		connect(options)
 		
 		begin
@@ -356,7 +355,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			prompt_option_types = update_role_option_types()
@@ -430,14 +429,13 @@ class Morpheus::Cli::Roles
 			exit 1
 		end
 		name = args[0]
-
 		connect(options)
 		begin
 
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the role #{role['authority']}?")
 				exit
@@ -488,7 +486,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			params = {permissionCode: permission_code, access: access_value}
@@ -537,7 +535,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'ComputeSite', access: access_value}
@@ -587,7 +585,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			role_json = @roles_interface.get(account_id, role['id'])
@@ -651,7 +649,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'ComputeZone', access: access_value}
@@ -704,7 +702,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			role_json = @roles_interface.get(account_id, role['id'])
@@ -777,7 +775,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			params = {permissionCode: 'InstanceType', access: access_value}
@@ -827,7 +825,7 @@ class Morpheus::Cli::Roles
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 	
-			role = find_role_by_name(account_id, name)
+			role = find_role_by_name_or_id(account_id, name)
 			exit 1 if role.nil?
 
 			role_json = @roles_interface.get(account_id, role['id'])
