@@ -50,6 +50,9 @@ class Morpheus::Cli::Clouds
 			opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
 				options[:group] = group
 			end
+			opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
+				options[:zone_type] = val
+			end
 			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
@@ -57,6 +60,10 @@ class Morpheus::Cli::Clouds
 		begin
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
+			end
+			if options[:zone_type]
+				cloud_type = cloud_type_for_name(options[:zone_type])
+				params[:type] = cloud_type['code']
 			end
 			if !options[:group].nil?
 				group = find_group_by_name(options[:group])
