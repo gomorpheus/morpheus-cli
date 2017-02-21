@@ -124,12 +124,12 @@ class Morpheus::Cli::Clouds
 				print JSON.pretty_generate(json_response), "\n"
 				return
 			end
-
+			cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
 			print "\n" ,cyan, bold, "Cloud Details\n","==================", reset, "\n\n"
 			print cyan
 			puts "ID: #{cloud['id']}"
 			puts "Name: #{cloud['name']}"
-			puts "Type: #{cloud_type_for_id(cloud['zoneTypeId'])}"
+			puts "Type: #{cloud_type ? cloud_type['name'] : ''}"
 			puts "Location: #{cloud['location']}"
 			puts "Visibility: #{cloud['visibility'].to_s.capitalize}"
 			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
