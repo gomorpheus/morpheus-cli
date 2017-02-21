@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'yaml'
 require 'io/console'
 require 'rest_client'
@@ -129,7 +130,12 @@ module Morpheus
 					credential_map = {}
 				end
 				credential_map[@appliance_name] = token
-				File.open(credentials_file_path, 'w') {|f| f.write credential_map.to_yaml } #Store
+				begin
+					File.open(credentials_file_path, 'w') {|f| f.write credential_map.to_yaml } #Store
+					FileUtils.chmod(0600, credentials_file_path)
+				rescue => e
+					puts "failed to save #{credentials_file_path}. #{e}"
+				end
 			end
 		end
 	end
