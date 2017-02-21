@@ -211,7 +211,7 @@ module Morpheus::Cli::ProvisioningHelper
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
     service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
     # todo: pick one of these three, let's go with the last one...
-    payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
+    #payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
     payload[:instance][:plan] = {id: service_plan["id"]}
 
     # prompt for volumes
