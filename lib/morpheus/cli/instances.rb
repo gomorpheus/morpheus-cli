@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::ProvisioningHelper
 
-	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow
+	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -329,6 +329,69 @@ class Morpheus::Cli::Instances
 			print reset, "\n"
 
 			#puts instance
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def backups(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name_or_id(args[0])
+			params = {}
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.backups(instance['id'], params)
+				return
+			end
+			json_response = @instances_interface.backups(instance['id'], params)
+			if options[:json]
+				print JSON.pretty_generate(json_response), "\n"
+				return
+			end
+			backups = json_response['backups']
+			stats = json_response['stats'] || {}
+			# load_balancers = stats = json_response['loadBalancers'] || {}
+
+			status_string = instance['status']
+			if status_string == 'running'
+				status_string = "#{green}#{status_string.upcase}#{cyan}"
+			elsif status_string == 'stopped' or status_string == 'failed'
+				status_string = "#{red}#{status_string.upcase}#{cyan}"
+			elsif status_string == 'unknown'
+				status_string = "#{white}#{status_string.upcase}#{cyan}"
+			else
+				status_string = "#{yellow}#{status_string.upcase}#{cyan}"
+			end
+			connection_string = ''
+			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+			end
+
+			print "\n" ,cyan, bold, "Instance Backups\n","==================", reset, "\n\n"
+			print cyan
+			puts "ID: #{instance['id']}"
+			puts "Name: #{instance['name']}"
+			print "\n"
+			puts "Backups:"
+			backup_rows = backups.collect {|it| {id: it['id'], name: it['name'], dateCreated: it['dateCreated']} }
+			print cyan
+			tp backup_rows, [
+				:id,
+				:name,
+				{:dateCreated => {:display_name => "Date Created"} }
+			]
+			print reset, "\n"
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -728,7 +791,7 @@ class Morpheus::Cli::Instances
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[name]")
-			build_common_options(opts, options, [:json, :dry_run, :remote])
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
 			puts optparse
@@ -738,6 +801,9 @@ class Morpheus::Cli::Instances
 		connect(options)
 		begin
 			instance = find_instance_by_name_or_id(args[0])
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to backup the instance '#{instance['name']}'?", options)
+				exit 1
+			end
 			if options[:dry_run]
 				print_dry_run @instances_interface.dry.backup(instance['id'])
 				return
@@ -1073,6 +1139,62 @@ class Morpheus::Cli::Instances
 			else
 				puts "Running workflow..."
 			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def import_snapshot(args)
+		options = {}
+		storage_provider_id = nil
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			opts.on("--storage-provider ID", String, "Optional storage provider") do |val|
+				storage_provider_id = val
+			end
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name_or_id(args[0])
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to import a snapshot of the instance '#{instance['name']}'?", options)
+				exit 1
+			end
+
+			payload = {}
+
+			# Prompt for Storage Provider, use default value.
+			begin
+				options[:options] ||= {}
+				options[:options]['storageProviderId'] = storage_provider_id if storage_provider_id
+				storage_provider_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Storage Provider', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider.'}], options[:options], @api_client, {})
+				if !storage_provider_prompt['storageProviderId'].empty?
+					payload['storageProviderId'] = storage_provider_prompt['storageProviderId']
+				end
+			rescue RestClient::Exception => e
+				puts "Failed to load storage providers"
+				#print_rest_exception(e, options)
+				exit 1
+			end
+
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.import_snapshot(instance['id'], payload)
+				return
+			end
+			json_response = @instances_interface.import_snapshot(instance['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				puts "Snapshot import initiated."
+			end
+			return
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1

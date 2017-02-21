@@ -117,6 +117,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		execute(opts)
 	end
 
+	def backups(id, params)
+		url = "#{@base_url}/api/instances/#{id}/backups"
+		headers = { params: params, authorization: "Bearer #{@access_token}" }
+		opts = {method: :get, url: url, headers: headers}
+		execute(opts)
+	end
+
 	def firewall_disable(id)
 		url = "#{@base_url}/api/instances/#{id}/security-groups/disable"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -146,6 +153,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		execute(opts)
 	end
 	
+	def import_snapshot(id, params={})
+		url = "#{@base_url}/api/instances/#{id}/import-snapshot"
+		headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		opts = {method: :put, url: url, headers: headers}
+		execute(opts)
+	end
+
 	def service_plans(params)
 		url = "#{@base_url}/api/instances/service-plans"
 		headers = { params: params, authorization: "Bearer #{@access_token}" }
