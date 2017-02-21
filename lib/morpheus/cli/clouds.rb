@@ -132,7 +132,7 @@ class Morpheus::Cli::Clouds
 			puts "Type: #{cloud_type ? cloud_type['name'] : ''}"
 			puts "Location: #{cloud['location']}"
 			puts "Visibility: #{cloud['visibility'].to_s.capitalize}"
-			puts "Groups: #{cloud['groups'].collect {|it| it['name'] }.join(', ')}"
+			puts "Groups: #{cloud['groups'].collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', ')}"
 			status = nil
 			if cloud['status'] == 'ok'
 				status = "#{green}OK#{cyan}"
@@ -501,7 +501,7 @@ private
 				name: cloud['name'], 
 				type: cloud_type ? cloud_type['name'] : '', 
 				location: cloud['location'], 
-				groups: (cloud['groups'] || []).collect {|it| it['name'] }.join(', '),
+				groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
 				servers: cloud['serverCount'],
 				status: status
 			}
