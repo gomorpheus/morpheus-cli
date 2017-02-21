@@ -15,7 +15,6 @@ class Morpheus::Cli::Shell
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
-		@available_commands = []
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
 		@shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
 		@exploded_commands = []
@@ -26,10 +25,9 @@ class Morpheus::Cli::Shell
 				@exploded_commands << "#{cmd} #{sub_cmd}"
 			end
 		end
-		@available_commands = @exploded_commands + @shell_commands
-		@available_commands = @available_commands.collect {|it| it.to_s }
+		@auto_complete_commands = (@exploded_commands + @shell_commands).collect {|it| it.to_s }
 		@auto_complete = proc do |s|
-			command_list = @available_commands || []
+			command_list = @auto_complete_commands
 			result = command_list.grep(/^#{Regexp.escape(s)}/)
 			if result.nil? || result.empty?
 				Readline::FILENAME_COMPLETION_PROC.call(s)
@@ -86,13 +84,19 @@ class Morpheus::Cli::Shell
 
 
 					puts "\nCommands:"
-					@available_commands.sort.each {|cmd,klass|
+					# commands = @morpheus_commands + @shell_commands
+					@morpheus_commands.sort.each {|cmd|
+						puts "\t#{cmd.to_s}"
+					}
+					puts "\n"
+					puts "\nShell Commands:"
+					@shell_commands.each {|cmd|
 						puts "\t#{cmd.to_s}"
 					}
 					puts "\n"
 					puts "For more information."
 					puts "See https://github.com/gomorpheus/morpheus-cli/wiki"
-
+					print "\n"
 					next
 				elsif input =~ /^history/
 					n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
