@@ -488,10 +488,11 @@ private
 			else
 				status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{table_color} - #{cloud['statusMessage']}" : ''}#{table_color}"
 			end
+			cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
 			{
 				id: cloud['id'], 
 				name: cloud['name'], 
-				type: cloud_type_for_id(cloud['zoneTypeId']), 
+				type: cloud_type ? cloud_type['name'] : '', 
 				location: cloud['location'], 
 				groups: (cloud['groups'] || []).collect {|it| it['name'] }.join(', '),
 				servers: cloud['serverCount'],
