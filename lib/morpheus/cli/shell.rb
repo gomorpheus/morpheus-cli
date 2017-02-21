@@ -15,11 +15,21 @@ class Morpheus::Cli::Shell
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
+		@available_commands = []
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
 		@shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
-		@available_commands = @morpheus_commands + @shell_commands
+		@exploded_commands = []
+		Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
+			@exploded_commands << cmd.to_s
+			subcommands = klass.subcommands rescue []
+			subcommands.keys.each do |sub_cmd| 
+				@exploded_commands << "#{cmd} #{sub_cmd}"
+			end
+		end
+		@available_commands = @exploded_commands + @shell_commands
+		@available_commands = @available_commands.collect {|it| it.to_s }
 		@auto_complete = proc do |s|
-			command_list = @available_commands
+			command_list = @available_commands || []
 			result = command_list.grep(/^#{Regexp.escape(s)}/)
 			if result.nil? || result.empty?
 				Readline::FILENAME_COMPLETION_PROC.call(s)
@@ -58,7 +68,8 @@ class Morpheus::Cli::Shell
 		while !exit do
 			Readline.completion_append_character = " "
 			Readline.completion_proc = @auto_complete
-			Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
+			Readline.basic_word_break_characters = ""
+			#Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
 			input = Readline.readline("#{cyan}morpheus> #{reset}", true).to_s
 			input = input.strip
 			# print cyan,"morpheus > ",reset
