@@ -665,7 +665,7 @@ class Morpheus::Cli::Hosts
 		
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
-			build_common_options(opts, options, [:json, :remote])
+			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
 		if args.count < 2
 			puts "\n#{optparse}\n\n"
@@ -699,8 +699,11 @@ class Morpheus::Cli::Hosts
 		end
 
 		workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
-		begin
-			
+		begin	
+			if options[:dry_run]
+				print_dry_run @servers_interface.dry.workflow(host['id'],workflow['id'], workflow_payload)
+				return
+			end
 			json_response = @servers_interface.workflow(host['id'],workflow['id'], workflow_payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
