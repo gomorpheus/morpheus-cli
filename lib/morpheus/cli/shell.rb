@@ -50,7 +50,7 @@ class Morpheus::Cli::Shell
 		end
 		optparse.parse!(args)
 
-		@history_logger ||= load_history_logger
+		@history_logger ||= load_history_logger rescue nil
 		@history_logger.info "shell started" if @history_logger
 		load_history_from_log_file()
 
@@ -225,11 +225,10 @@ class Morpheus::Cli::Shell
 		@history ||= {}
 		@last_command_number ||= 0
 
-		if Gem.win_platform?
-			return @history
-		end
-
 		begin
+			if Gem.win_platform?
+				return @history
+			end
 			file_path = history_file_path
 			FileUtils.mkdir_p(File.dirname(file_path))
 			# grab extra lines because not all log entries are commands
@@ -253,9 +252,10 @@ class Morpheus::Cli::Shell
 				end
 			end
 		rescue => e
-			raise e
+			# raise e
+			# puts "failed to load history from log"
+			@history = {}
 		end
-
 		return @history
 	end
 
