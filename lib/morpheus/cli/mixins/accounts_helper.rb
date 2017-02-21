@@ -82,6 +82,14 @@ module Morpheus::Cli::AccountsHelper
     return account
   end
 
+  def find_role_by_name_or_id(account_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_role_by_id(account_id, val)
+    else
+      return find_role_by_name(account_id, val)
+    end
+  end
+
   def find_role_by_id(account_id, id)
     begin
       json_response = roles_interface.get(account_id, id.to_i)
