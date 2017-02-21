@@ -233,7 +233,7 @@ class Morpheus::Cli::Users
 				print_dry_run @users_interface.dry.create(account_id, payload)
 				return
 			end
-
+			json_response = @users_interface.create(account_id, payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
