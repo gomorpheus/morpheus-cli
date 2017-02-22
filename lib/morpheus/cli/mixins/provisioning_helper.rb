@@ -909,7 +909,8 @@ module Morpheus::Cli::ProvisioningHelper
   def reject_networking_option_types(option_types)
     option_types.reject {|opt| 
         ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
-          'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers'
+          'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers',
+          'subnetId'
         ].include?(opt['fieldName'])
       }
   end
