@@ -18,13 +18,13 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 	end
 
 	def get(options=nil)
-		url = "#{@base_url}/api/v-images"
+		url = "#{@base_url}/api/virtual-images"
 		headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
 		if options.is_a?(Hash)
 			headers[:params].merge!(options)
 		elsif options.is_a?(Numeric)
-			url = "#{@base_url}/api/v-images/#{options}"
+			url = "#{@base_url}/api/virtual-images/#{options}"
 		elsif options.is_a?(String)
 			headers[:params]['name'] = options
 		end
@@ -32,14 +32,14 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 	end
 
 	def update(id, options)
-		url = "#{@base_url}/api/v-images/#{id}"
+		url = "#{@base_url}/api/virtual-images/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		execute(method: :put, url: url, headers: headers, payload: payload.to_json)
 	end
 
 
 	def create(options)
-		url = "#{@base_url}/api/v-images"
+		url = "#{@base_url}/api/virtual-images"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		
 		payload = options
@@ -47,14 +47,14 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 	end
 
 	def destroy(id)
-		url = "#{@base_url}/api/v-images/#{id}"
+		url = "#{@base_url}/api/virtual-images/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		execute(method: :delete, url: url, headers: headers)
 	end
 
 	# NOT json, multipart file upload
   def upload(id, image_file)
-    url = "#{@base_url}/api/v-images/#{id}/upload"
+    url = "#{@base_url}/api/virtual-images/#{id}/upload"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
     payload = {}
     payload[:file] = image_file
@@ -63,8 +63,8 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   end
 
   def destroy_file(id, filename)
-		url = "#{@base_url}/api/v-images/#{id}/files"
-		#url = "#{@base_url}/api/v-images/#{id}/files/#{filename}"
+		url = "#{@base_url}/api/virtual-images/#{id}/files"
+		#url = "#{@base_url}/api/virtual-images/#{id}/files/#{filename}"
 		headers = { params: {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
 		headers[:params][:filename] = filename
 		execute(method: :delete, url: url, headers: headers)
