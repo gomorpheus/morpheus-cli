@@ -312,6 +312,12 @@ module Morpheus::Cli::ProvisioningHelper
       payload[:server] = provision_payload['server'] || {}
     end
 
+    # prompt for environment variables
+    evars = prompt_evars(options)
+    if !evars.empty?
+      payload[:evars] = evars
+    end
+
     return payload
   end
 
@@ -896,42 +902,38 @@ module Morpheus::Cli::ProvisioningHelper
 
   # Prompts user for environment variables for new instance
   # returns array of evar objects {id: null, name: "VAR", value: "somevalue"}
-  def prompt_exposed_ports(options={}, api_client=nil, api_params={})
-    #puts "Configure ports:"
+  def prompt_evars(options={})
+    #puts "Configure Environment Variables:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
 
-    ports = []
-    port_index = 0
+    evars = []
+    evar_index = 0
     
-    has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
-    add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an exposed port?"))
+    has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
+    add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an environment variable?", {default: false}))
     
-    while add_another_port do
+    while add_another_evar do
       
-      field_context = "exposedPort#{port_index}"
+      field_context = "evar#{evar_index}"
 
-      port = {}
-      #port['name'] ||= "Port #{port_index}"
-      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
-      port['name'] = v_prompt[field_context]['name']
+      evar = {}
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
-      port['port'] = v_prompt[field_context]['port']
+      evar['id'] = nil
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
-      port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
+      evar_label = evar_index == 0 ? "ENV" : "ENV [#{evar_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{evar_label} Name", 'required' => true, 'description' => 'Environment Variable Name.', 'defaultValue' => evar['name']}], options[:options])
+      evar['name'] = v_prompt[field_context]['name']
 
-      ports << port
-      
-      port_index += 1
-      has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
-      add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?"))
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{evar_label} Value", 'required' => true, 'description' => 'Environment Variable Value', 'defaultValue' => evar['value']}], options[:options])
+      evar['value'] = v_prompt[field_context]['value']
 
+      evars << evar
+      evar_index += 1
+      has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
+      add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another environment variable?", {default: false}))
     end
 
-
-    return ports
+    return evars
   end
 
   # reject old volume option types
