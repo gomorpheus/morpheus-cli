@@ -7,6 +7,7 @@ require 'json'
 
 class Morpheus::Cli::AppTemplates
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
 
   register_subcommands :list, :get, :add, :update, :remove, :'add-instance', :'remove-instance', :'connect-tiers', :'available-tiers', :'available-types'
   alias_subcommand :details, :get
@@ -38,7 +39,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json])
+      build_common_options(opts, options, [:list, :json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
@@ -47,7 +48,10 @@ class Morpheus::Cli::AppTemplates
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.list(params)
+        return
+      end
       json_response = @app_templates_interface.list(params)
       app_templates = json_response['appTemplates']
       if options[:json]
@@ -76,7 +80,7 @@ class Morpheus::Cli::AppTemplates
       opts.on( '-c', '--config', "Display Config Data" ) do |val|
         options[:config] = true
       end
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -85,7 +89,14 @@ class Morpheus::Cli::AppTemplates
     end
     connect(options)
     begin
-
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @instances_interface.dry.get(args[0].to_i)
+        else
+          print_dry_run @instances_interface.dry.list({name:args[0]})
+        end
+        return
+      end
       app_template = find_app_template_by_name_or_id(args[0])
       exit 1 if app_template.nil?
 
@@ -114,8 +125,9 @@ class Morpheus::Cli::AppTemplates
             print "\n"
             print cyan, "=  #{tier['data']['name']}\n"
             instances.each do |instance|
-              instance_id = instance['data']['id'].sub('newinstance-', '')
-              print green, "     - #{instance['data']['typeName']} (#{instance_id})\n",reset
+              instance_id = instance['data']['id'].to_s.sub('newinstance-', '')
+              instance_name = instance['data']['instance.name'] || ''
+              print green, "    #{instance_name} - #{instance['data']['typeName']} (#{instance_id})\n",reset
             end
 
           end
@@ -143,7 +155,7 @@ class Morpheus::Cli::AppTemplates
       #   options[:options] ||= {}
       #   options[:options]['group'] = group
       # end
-      build_common_options(opts, options, [:options, :json])
+      build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
@@ -167,6 +179,12 @@ class Morpheus::Cli::AppTemplates
       request_payload = {appTemplate: app_template_payload}
       request_payload['siteId'] = group['id'] if group
       request_payload['config'] = config
+
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.create(request_payload)
+        return
+      end
+
       json_response = @app_templates_interface.create(request_payload)
 
       if options[:json]
@@ -188,7 +206,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_common_options(opts, options, [:options, :json])
+      build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
 
@@ -233,6 +251,12 @@ class Morpheus::Cli::AppTemplates
       end
       # request_payload['config'] = config['tierView']
       request_payload['config'] = config
+
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        return
+      end
+
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
 
@@ -255,7 +279,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
     end
     optparse.parse!(args)
 
@@ -270,6 +294,10 @@ class Morpheus::Cli::AppTemplates
       exit 1 if app_template.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
         exit
+      end
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.destroy(app_template['id'])
+        return
       end
       json_response = @app_templates_interface.destroy(app_template['id'])
 
@@ -469,6 +497,10 @@ class Morpheus::Cli::AppTemplates
     request_payload['config'] = config
 
     begin
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        return
+      end
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
       if options[:json]
@@ -571,7 +603,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [tier1] [tier2]")
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
 
@@ -641,6 +673,11 @@ class Morpheus::Cli::AppTemplates
       request_payload['siteId'] = app_template['config']['siteId']
       # request_payload['config'] = config['tierView']
       request_payload['config'] = config
+
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        return
+      end
       json_response = @app_templates_interface.update(app_template['id'], request_payload)
 
 
@@ -661,13 +698,17 @@ class Morpheus::Cli::AppTemplates
   def available_tiers(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
     params = {}
 
     begin
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.list_tiers(params)
+        return
+      end
       json_response = @app_templates_interface.list_tiers(params)
       tiers = json_response['tiers']
       if options[:json]
@@ -707,6 +748,10 @@ class Morpheus::Cli::AppTemplates
     params = {}
 
     begin
+      if options[:dry_run]
+        print_dry_run @app_templates_interface.dry.list_types(params)
+        return
+      end
       json_response = @app_templates_interface.list_types(params)
       instance_types = json_response['types']
       if options[:json]
@@ -805,24 +850,6 @@ class Morpheus::Cli::AppTemplates
     else
       return match['value']
     end
-  end
-
-  def find_instance_type_by_code(code)
-    results = @instance_types_interface.get({code: code})
-    if results['instanceTypes'].empty?
-      print_red_alert "Instance Type not found by code #{code}"
-      return nil
-    end
-    return results['instanceTypes'][0]
-  end
-
-  def find_instance_type_by_name(name)
-    results = @instance_types_interface.get({name: name})
-    if results['instanceTypes'].empty?
-      print_red_alert "Instance Type not found by name #{name}"
-      return nil
-    end
-    return results['instanceTypes'][0]
   end
 
   def print_app_templates_table(app_templates, opts={})

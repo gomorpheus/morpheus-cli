@@ -1203,37 +1203,6 @@ class Morpheus::Cli::Instances
 
 private 
 	
-	def find_instance_by_id(id)
-		instance_results = @instances_interface.get(id.to_i)
-		if instance_results['instance'].empty?
-			print_red_alert "Instance not found by id #{id}"
-			exit 1
-		end
-		instance = instance_results['instance']
-		# instance['stats'] = instance_results['stats'] || {}
-		# instance['loadBalancers'] = instance_results['loadBalancers'][0]['lbs'] || {}
-		return instance
-	end
-
-	def find_instance_by_name(name)
-		instance_results = @instances_interface.get({name: name})
-		if instance_results['instances'].empty?
-			print_red_alert "Instance not found by name #{name}"
-			exit 1
-		end
-		instance = instance_results['instances'][0]
-		# instance['stats'] = instance_results['stats'][instance['id'].to_s] || {}
-		return instance
-	end
-
-	def find_instance_by_name_or_id(val)
-		if val.to_s =~ /\A\d{1,}\Z/
-			return find_instance_by_id(val)
-		else
-			return find_instance_by_name(val)
-		end
-	end
-
 	def find_zone_by_name_or_id(group_id, val)
 		zone = nil
 		if val.to_s =~ /\A\d{1,}\Z/

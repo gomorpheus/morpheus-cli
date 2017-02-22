@@ -211,8 +211,9 @@ class Morpheus::Cli::Hosts
 				return
 			end
 			logs = @logs_interface.server_logs([host['id']], params)
+			output = ""
 			if options[:json]
-				print JSON.pretty_generate(logs)
+				output << JSON.pretty_generate(logs)
 			else
 				logs['data'].reverse.each do |log_entry|
 					log_level = ''
@@ -228,10 +229,10 @@ class Morpheus::Cli::Hosts
 						when 'FATAL'
 							log_level = "#{red}#{bold}FATAL#{reset}"
 					end
-					puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+					output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
 				end
-				print reset,"\n"
 			end
+			print output, reset, "\n"
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1

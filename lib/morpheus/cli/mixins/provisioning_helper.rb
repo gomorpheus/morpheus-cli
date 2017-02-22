@@ -13,6 +13,12 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client
   end
 
+  def instances_interface
+    # @api_client.instances
+    raise "#{self.class} has not defined @instances_interface" if @instances_interface.nil?
+    @instances_interface
+  end
+
   def options_interface
     # @api_client.options
     raise "#{self.class} has not defined @options_interface" if @options_interface.nil?
@@ -116,9 +122,51 @@ module Morpheus::Cli::ProvisioningHelper
     results = instance_types_interface.get({code: code})
     if results['instanceTypes'].empty?
       print_red_alert "Instance Type not found by code #{code}"
+      # return nil
       exit 1
     end
     return results['instanceTypes'][0]
+  end
+
+  def find_instance_type_by_name(name)
+    results = instance_types_interface.get({name: name})
+    if results['instanceTypes'].empty?
+      print_red_alert "Instance Type not found by name #{name}"
+      # return nil
+      exit 1
+    end
+    return results['instanceTypes'][0]
+  end
+
+  def find_instance_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_instance_by_id(val)
+    else
+      return find_instance_by_name(val)
+    end
+  end
+
+  def find_instance_by_id(id)
+    begin
+      json_response = instances_interface.get(id.to_i)
+      return json_response['instance']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Instance not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_instance_by_name(name)
+    json_results = instances_interface.get({name: name.to_s})
+    if json_results['instances'].empty?
+      print_red_alert "Instance not found by name #{name}"
+      exit 1
+    end
+    instance = json_results['instances'][0]
+    return instance
   end
 
   # prompts user for all the configuartion options for a particular instance

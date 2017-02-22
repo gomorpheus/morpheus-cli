@@ -248,7 +248,7 @@ class Morpheus::Cli::Library
 			end
 			payload = {instanceType: instance_type_payload}
 			if options[:dry_run]
-				print_dry_run @custom_instance_types_interface.dry.update(payload)
+				print_dry_run @custom_instance_types_interface.dry.update(instance_type['id'], payload)
 				if logo_file
 					print_dry_run @custom_instance_types_interface.dry.update_logo(":id", logo_file)
 				end
@@ -529,14 +529,14 @@ private
 
       port = {}
       #port['name'] ||= "Port #{port_index}"
-
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "Port #{port_index} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
+      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
       port['name'] = v_prompt[field_context]['name']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "Port #{port_index} Number", 'required' => true, 'description' => 'Choose port number.', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
       port['port'] = v_prompt[field_context]['port']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "Port #{port_index} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
       port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
 
       ports << port

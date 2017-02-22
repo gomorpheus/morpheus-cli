@@ -108,6 +108,8 @@ module Morpheus
               elsif option_type['type'] == 'hidden'
                 value = option_type['defaultValue']
                 input = value
+              elsif option_type['type'] == 'file'
+                value = file_prompt(option_type)
               else
                 value = generic_prompt(option_type)
               end
@@ -300,6 +302,33 @@ module Morpheus
                 end
             end
             return value
+        end
+
+        def self.file_prompt(option_type)
+          value_found = false
+          value = nil
+          while !value_found do
+            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+            input = $stdin.gets.chomp!
+            value = input.empty? ? option_type['defaultValue'] : input.to_s
+            if input == '?'
+              help_prompt(option_type)
+            elsif value.empty? && option_type['required'] != true
+              value = nil
+              value_found = true
+            elsif value
+              filename = File.expand_path(value)
+              if !File.exists?(filename)
+                # print_red_alert "File not found: #{filename}"
+                # exit 1
+                print Term::ANSIColor.red,"  File not found: #{filename}",Term::ANSIColor.reset, "\n"
+              else
+                value = filename
+                value_found = true
+              end
+            end
+          end
+          return value
         end
 
         def self.help_prompt(option_type)

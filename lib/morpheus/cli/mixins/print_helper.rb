@@ -104,7 +104,8 @@ module Morpheus::Cli::PrintHelper
     size = (res.body.nil? ? 0 : res.body.size)
     print "Response:"
     print "\n"
-    print "HTTP #{res.net_http_res.code} - #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{size} bytes"
+    display_size = Filesize.from("#{size} B").pretty rescue size
+    print "HTTP #{res.net_http_res.code} - #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{display_size}"
     print "\n"
     begin
       print JSON.pretty_generate(JSON.parse(res.body))
