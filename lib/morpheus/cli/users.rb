@@ -64,7 +64,13 @@ class Morpheus::Cli::Users
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				print "\n" ,cyan, bold, "Morpheus Users\n","==================", reset, "\n\n"
+				title = "Morpheus Users"
+				subtitles = []
+				if account
+					subtitles << "Account: #{account['name']}".strip
+				end
+				subtitle = subtitles.join(', ')
+				print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
 				if users.empty?
 					puts yellow,"No users found.",reset
 				else
