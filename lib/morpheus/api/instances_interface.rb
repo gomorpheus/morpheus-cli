@@ -89,6 +89,20 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
 		execute(opts)
 	end
 
+	def suspend(id,server=true)
+		url = "#{@base_url}/api/instances/#{id}/suspend"
+		headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		opts = {method: :put, url: url, headers: headers}
+		execute(opts)
+	end
+
+	def eject(id,server=true)
+		url = "#{@base_url}/api/instances/#{id}/eject"
+		headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		opts = {method: :put, url: url, headers: headers}
+		execute(opts)
+	end
+
 	def volumes(id)
 		url = "#{@base_url}/api/instances/#{id}/volumes"
 		headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

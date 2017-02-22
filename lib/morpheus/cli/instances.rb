@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::ProvisioningHelper
 
-	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot
+	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -577,8 +577,7 @@ class Morpheus::Cli::Instances
 	def restart(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-			opts.banner = "Usage: morpheus instances restart [name]"
-			opts.banner = subcommand_usage("restart [name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		if args.count < 1
@@ -608,7 +607,73 @@ class Morpheus::Cli::Instances
 		end
 	end
 
-		def stop_service(args)
+	def suspend(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name_or_id(args[0])
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to suspend this instance?", options)
+				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.suspend(instance['id'])
+				return
+			end
+			json_response = @instances_interface.suspend(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def eject(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("restart [name]")
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+			instance = find_instance_by_name_or_id(args[0])
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to eject this instance?", options)
+				exit 1
+			end
+			if options[:dry_run]
+				print_dry_run @instances_interface.dry.eject(instance['id'])
+				return
+			end
+			json_response = @instances_interface.eject(instance['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			end
+			return
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def stop_service(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[name]")
