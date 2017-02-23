@@ -221,7 +221,7 @@ class Morpheus::Cli::Instances
 
 		begin
 			instance = find_instance_by_name_or_id(args[0])
-			link = "#{@appliance_url}/terminal/#{instance['id']}"
+			link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/terminal/#{instance['id']}"
 			container_ids = instance['containers']
 			if options[:node_id] && container_ids.include?(options[:node_id])
 				link += "?containerId=#{options[:node_id]}"
