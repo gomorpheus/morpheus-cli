@@ -121,11 +121,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			if options[:dry_run]
@@ -193,11 +193,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:list, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -484,11 +484,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -512,11 +512,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])
@@ -544,11 +544,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			server = find_host_by_name_or_id(args[0])
@@ -639,11 +639,11 @@ class Morpheus::Cli::Hosts
 			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :quiet, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			host = find_host_by_name_or_id(args[0])

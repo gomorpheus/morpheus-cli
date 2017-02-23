@@ -285,11 +285,11 @@ class Morpheus::Cli::Tasks
 			opts.banner = subcommand_usage("[task]")
 			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			task = find_task_by_name_or_id(task_name)

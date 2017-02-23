@@ -131,11 +131,11 @@ class Morpheus::Cli::Deployments
 			opts.banner = subcommand_usage("[name] [options]")
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 		end
+		optparse.parse!(args)
 		if args.count < 1
 			puts optparse
 			exit 1
 		end
-		optparse.parse!(args)
 		connect(options)
 		begin
 			deployment = find_deployment_by_name_or_id(deployment_name)
