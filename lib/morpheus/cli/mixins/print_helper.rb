@@ -183,9 +183,9 @@ module Morpheus::Cli::PrintHelper
     if max_value.to_i == 0
       percent = 0
     else
-      percent = ((used_value.to_f / max_value.to_f) * 100).round(2)
+      percent = ((used_value.to_f / max_value.to_f) * 100)
     end
-    percent_label = (used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent}%"
+    percent_label = (used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent.round(2)}%".rjust(6, ' ')
     bar_display = ""
     if percent > 100
       max_bars.times { bars << "|" }
@@ -220,7 +220,7 @@ module Morpheus::Cli::PrintHelper
         #rainbow_bar <<  " " * padding
       end
       rainbow_bar << reset
-      bar_display = white + "[" + rainbow_bar + white + "]" + " #{percent_label}" + reset
+      bar_display = white + "[" + rainbow_bar + white + "]" + " #{cur_rainbow_color}#{percent_label}#{reset}"
       out << bar_display
     else
       bar_color = cyan
@@ -238,14 +238,14 @@ module Morpheus::Cli::PrintHelper
 
   def print_stats_usage(stats, opts={})
     if opts[:include].nil? || opts[:include].include?(:memory)
-      print cyan, "Memory:".ljust(10, ' ')  + generate_usage_bar(stats['usedMemory'], stats['maxMemory']).strip.ljust(75, ' ') + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
+      print cyan, "Memory:".ljust(10, ' ')  + generate_usage_bar(stats['usedMemory'], stats['maxMemory']) + cyan + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
     end
     if opts[:include].nil? || opts[:include].include?(:storage)
-      print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']).strip.ljust(75, ' ') + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
+      print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']) + cyan + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
     end
     if opts[:include].nil? || opts[:include].include?(:cpu)
       cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
-      print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(cpu_usage.to_f, 100).strip.ljust(75, ' ') + "\n"
+      print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
   end
 
