@@ -170,8 +170,14 @@ class Morpheus::Cli::Apps
 			# puts "Group: #{app['siteId']}"
 			
 			stats = app['stats']
-			print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
-			print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+        print "\n"
+        # print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
+        # print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+        print_stats_usage(stats, {include: [:memory, :storage]})
+      else
+        #print yellow, "No stat data.", reset
+      end
 
 			app_tiers = app['appTiers']
 			if app_tiers.empty?
