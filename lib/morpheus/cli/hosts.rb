@@ -11,7 +11,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 	
-	register_subcommands :list, :get, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+	register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -143,16 +143,8 @@ class Morpheus::Cli::Hosts
 				return
 			end
 			server = json_response['server']
-			stats = server['stats'] || json_response['stats'] || {}
-
-			power_state = nil
-			if server['powerState'] == 'on'
-				power_state = "#{green}ON#{cyan}"
-			elsif server['powerState'] == 'off'
-				power_state = "#{red}OFF#{cyan}"
-			else
-				power_state = "#{white}#{server['powerState'].upcase}#{cyan}"
-			end
+			#stats = server['stats'] || json_response['stats'] || {}
+			stats = json_response['stats'] || {}
 
 			print "\n" ,cyan, bold, "Host Details\n","==================", reset, "\n\n"
 			print cyan
@@ -167,19 +159,77 @@ class Morpheus::Cli::Hosts
 			puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
 			puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
 			puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
-			puts "Status: #{server['status']}"
-			puts "Power: #{power_state}"
-			print cyan
+			puts "Status: #{format_host_status(server)}"
+			puts "Power: #{format_server_power_state(server)}"
 			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				# stats_map = {}
 				print "\n"
-				stats_map = {}
-				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{server['maxMemory']} B").pretty}"
-				stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{server['maxStorage']} B").pretty}"
-				stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
-				tp [stats_map], :memory,:storage,:cpu
+				#print "\n" ,cyan, bold, "Host Stats\n","==================", reset, "\n\n"
+				# stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+				# stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+				# stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
+				# tp [stats_map], :memory,:storage,:cpu
+				print_stats_usage(stats)
+			else
+				#print yellow, "No stat data.", reset
 			end
 
-			print "\n", reset
+			print reset, "\n"
+
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def stats(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:json, :dry_run, :remote])
+		end
+		optparse.parse!(args)
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		connect(options)
+		begin
+			if options[:dry_run]
+				if args[0].to_s =~ /\A\d{1,}\Z/
+					print_dry_run @servers_interface.dry.get(args[0].to_i)
+				else
+					print_dry_run @servers_interface.dry.get({name: args[0]})
+				end
+				return
+			end
+			server = find_host_by_name_or_id(args[0])
+			json_response = @servers_interface.get(server['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response), "\n"
+				return
+			end
+			server = json_response['server']
+			#stats = server['stats'] || json_response['stats'] || {}
+			stats = json_response['stats'] || {}
+
+			print "\n" ,cyan, bold, "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})\n","==================", "\n\n", reset, cyan
+			puts "Status: #{format_host_status(server)}"
+			puts "Power: #{format_server_power_state(server)}"
+			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				# stats_map = {}
+				print "\n"
+				#print "\n" ,cyan, bold, "Host Stats\n","==================", reset, "\n\n"
+				# stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+				# stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+				# stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
+				# tp [stats_map], :memory,:storage,:cpu
+				print_stats_usage(stats)
+			else
+				#print yellow, "No stat data.", reset
+			end
+
+			print reset, "\n"
 
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -721,12 +771,17 @@ class Morpheus::Cli::Hosts
 private
 
 	def find_host_by_id(id)
-		results = @servers_interface.get(id.to_i)
-		if results['server'].empty?
-			print_red_alert "Server not found by id #{id}"
-			exit 1
-		end
-		return results['server']
+		begin
+      json_response = @servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Host not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
 	end
 
 	def find_host_by_name(name)
@@ -802,7 +857,6 @@ private
 	def print_servers_table(servers, opts={})
     table_color = opts[:color] || cyan
     rows = servers.collect do |server|
-    	power_state = format_server_power_state(server, table_color)
 			{
 				id: server['id'], 
 				name: server['name'], 
@@ -810,8 +864,8 @@ private
 				cloud: server['zone'] ? server['zone']['name'] : '', 
 				type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', 
 				nodes: server['containers'] ? server['containers'].size : '',
-				status: server['status'], 
-				power: power_state
+				status: format_host_status(server, table_color), 
+				power: format_server_power_state(server, table_color)
 			}
     end
     columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
@@ -821,15 +875,23 @@ private
   end
 
 	def format_server_power_state(server, return_color=cyan)
-		power_state = nil
+		out = ""
 		if server['powerState'] == 'on'
-			power_state = "#{green}ON#{return_color}"
+			out << "#{green}ON#{return_color}"
 		elsif server['powerState'] == 'off'
-			power_state = "#{red}OFF#{return_color}"
+			out << "#{red}OFF#{return_color}"
 		else
-			power_state = "#{white}#{server['powerState'].upcase}#{return_color}"
+			out << "#{white}#{server['powerState'].upcase}#{return_color}"
 		end
-		return power_state
+		out
+	end
+
+	def format_host_status(server, return_color=cyan)
+		out = ""
+		status_string = server['status']
+		# todo: colorize, upcase?
+		out << status_string.to_s
+		out
 	end
 
 end

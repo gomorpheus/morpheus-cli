@@ -185,7 +185,7 @@ class Morpheus::Cli::Apps
 						puts yellow, "This tier is empty", reset
 					else
 						instance_table = instances.collect do |instance|
-							status_string = instance['status']
+							status_string = instance['status'].to_s
 							if status_string == 'running'
 								status_string = "#{green}#{status_string.upcase}#{cyan}"
 							elsif status_string == 'stopped' or status_string == 'failed'

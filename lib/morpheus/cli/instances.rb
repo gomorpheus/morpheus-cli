@@ -190,12 +190,20 @@ class Morpheus::Cli::Instances
 			end
 			instance = json_response['instance']
 			stats = json_response['stats'] || {}
-			print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
-			stats_map = {}
-			stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-			stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-			stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
-			tp [stats_map], :memory,:storage,:cpu
+			print "\n" ,cyan, bold, "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
+			puts "Status: #{format_instance_status(instance)}"
+			print "\n"
+			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				# stats_map = {}
+				# stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+				# stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+				# stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
+				# tp [stats_map], :memory,:storage,:cpu
+				# print "\n"
+				print_stats_usage(stats)
+			else
+				print cyan, "No data.", "\n", reset
+			end
 			print reset, "\n"
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -326,16 +334,6 @@ class Morpheus::Cli::Instances
 			stats = json_response['stats'] || {}
 			# load_balancers = stats = json_response['loadBalancers'] || {}
 
-			status_string = instance['status']
-			if status_string == 'running'
-				status_string = "#{green}#{status_string.upcase}#{cyan}"
-			elsif status_string == 'stopped' or status_string == 'failed'
-				status_string = "#{red}#{status_string.upcase}#{cyan}"
-			elsif status_string == 'unknown'
-				status_string = "#{white}#{status_string.upcase}#{cyan}"
-			else
-				status_string = "#{yellow}#{status_string.upcase}#{cyan}"
-			end
 			connection_string = ''
 			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
 				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
@@ -354,15 +352,18 @@ class Morpheus::Cli::Instances
 			puts "Nodes: #{instance['containers'] ? instance['containers'].count : 0}"
 			puts "Connection: #{connection_string}"
 			#puts "Account: #{instance['account'] ? instance['account']['name'] : ''}"
-			puts "Status: #{status_string}"
+			puts "Status: #{format_instance_status(instance)}"
 			
 			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
 				print "\n"
-				stats_map = {}
-				stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-				stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-				stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
-				tp [stats_map], :memory,:storage,:cpu
+				# stats_map = {}
+				# stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
+				# stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
+				# stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
+				# tp [stats_map], :memory,:storage,:cpu
+				print_stats_usage(stats)
+			else
+				# print cyan, "No data.", "\n", reset
 			end
 			print reset, "\n"
 
@@ -400,21 +401,6 @@ class Morpheus::Cli::Instances
 			backups = json_response['backups']
 			stats = json_response['stats'] || {}
 			# load_balancers = stats = json_response['loadBalancers'] || {}
-
-			status_string = instance['status']
-			if status_string == 'running'
-				status_string = "#{green}#{status_string.upcase}#{cyan}"
-			elsif status_string == 'stopped' or status_string == 'failed'
-				status_string = "#{red}#{status_string.upcase}#{cyan}"
-			elsif status_string == 'unknown'
-				status_string = "#{white}#{status_string.upcase}#{cyan}"
-			else
-				status_string = "#{yellow}#{status_string.upcase}#{cyan}"
-			end
-			connection_string = ''
-			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
-				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
-			end
 
 			print "\n" ,cyan, bold, "Instance Backups\n","==================", reset, "\n\n"
 			print cyan
@@ -1339,16 +1325,6 @@ private
 	def print_instances_table(instances, opts={})
 		table_color = opts[:color] || cyan
 		rows = instances.collect do |instance|
-			status_string = instance['status']
-			if status_string == 'running'
-				status_string = "#{green}#{status_string.upcase}#{table_color}"
-			elsif status_string == 'stopped' or status_string == 'failed'
-				status_string = "#{red}#{status_string.upcase}#{table_color}"
-			elsif status_string == 'unknown'
-				status_string = "#{white}#{status_string.upcase}#{table_color}"
-			else
-				status_string = "#{yellow}#{status_string.upcase}#{table_color}"
-			end
 			connection_string = ''
 			if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
 				connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
@@ -1359,7 +1335,7 @@ private
 				connection: connection_string, 
 				environment: instance['instanceContext'], 
 				nodes: instance['containers'].count, 
-				status: status_string, 
+				status: format_instance_status(instance, table_color), 
 				type: instance['instanceType']['name'], 
 				group: !instance['group'].nil? ? instance['group']['name'] : nil, 
 				cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
@@ -1371,4 +1347,19 @@ private
 		print reset
 	end
 
+	def format_instance_status(instance, return_color=cyan)
+		out = ""
+		status_string = instance['status']
+		if status_string == 'running'
+			out << "#{green}#{status_string.upcase}#{return_color}"
+		elsif status_string == 'stopped' or status_string == 'failed'
+			out << "#{red}#{status_string.upcase}#{return_color}"
+		elsif status_string == 'unknown'
+			out << "#{white}#{status_string.upcase}#{return_color}"
+		else
+			out << "#{yellow}#{status_string.upcase}#{return_color}"
+		end
+		out
+	end
+	
 end

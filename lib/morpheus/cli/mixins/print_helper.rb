@@ -169,4 +169,77 @@ module Morpheus::Cli::PrintHelper
   def required_blue_prompt
     "#{cyan}|#{reset}"
   end
+
+
+  # shows cyan, yellow, red progress bar where 50% looks like [|||||     ]
+  # todo: render units used / available here too maybe
+  def generate_usage_bar(used_value, max_value, opts={})
+    rainbow = opts[:rainbow] != false
+    max_bars = opts[:max_bars] || 50
+    out = ""
+    bars = []
+    
+    percent = 0
+    if max_value.to_i == 0
+      percent = 0
+    else
+      percent = ((used_value.to_f / max_value.to_f) * 100).round(2)
+    end
+    percent_label = (used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent}%"
+    bar_display = ""
+    if percent > 100
+      max_bars.times { bars << "|" }
+      # percent = 100
+    else
+      n_bars = ((percent / 100.0) * max_bars).ceil
+      n_bars.times { bars << "|" }
+    end
+
+    if rainbow
+      rainbow_bar = ""
+      cur_rainbow_color = white
+      bars.each_with_index {|bar, i|
+        reached_percent = (i / max_bars.to_f) * 100
+        new_bar_color = cur_rainbow_color
+        if reached_percent > 80
+          new_bar_color = red
+        elsif reached_percent > 50
+          new_bar_color = yellow
+        elsif reached_percent > 10
+          new_bar_color = cyan
+        end
+        if cur_rainbow_color != new_bar_color
+          cur_rainbow_color = new_bar_color
+          rainbow_bar << cur_rainbow_color
+        end
+        rainbow_bar << bar
+      }
+      padding = max_bars - bars.size
+      if padding > 0
+        padding.times { rainbow_bar << " " }
+        #rainbow_bar <<  " " * padding
+      end
+      rainbow_bar << reset
+      bar_display = white + "[" + rainbow_bar + white + "]" + " #{percent_label}" + reset
+      out << bar_display
+    else
+      bar_color = cyan
+      if percent > 80
+        bar_color = red
+      elsif percent > 50
+        bar_color = yellow
+      end
+      bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
+      out << bar_display
+    end
+    
+    return out
+  end
+
+  def print_stats_usage(stats)
+    print cyan, "Memory:".ljust(10, ' ')  + generate_usage_bar(stats['usedMemory'], stats['maxMemory']).strip.ljust(75, ' ') + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
+    print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']).strip.ljust(75, ' ') + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
+    print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(stats['usedCpu'].to_f * 100, 100).strip.ljust(75, ' ') + "\n"
+  end
+
 end
