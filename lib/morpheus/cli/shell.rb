@@ -138,7 +138,7 @@ class Morpheus::Cli::Shell
 					if cmd_number != 0
 						input = @history[cmd_number]
 						if !input
-							puts "Command not found by number #{cmd_index}"
+							puts "Command not found by number #{cmd_number}"
 							next
 						end
 					end
