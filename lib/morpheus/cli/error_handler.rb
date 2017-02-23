@@ -8,7 +8,7 @@ class Morpheus::Cli::ErrorHandler
 
   def handle_error(err)
     case (err) 
-    when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument
+    when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument, OptionParser::InvalidArgument
       # raise e
       print_red_alert "#{err.message}"
       puts "Try -h for help with this command."

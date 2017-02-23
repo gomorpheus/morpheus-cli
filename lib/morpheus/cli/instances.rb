@@ -59,6 +59,12 @@ class Morpheus::Cli::Instances
 			opts.on( '-t', '--type CODE', "Instance Type" ) do |val|
 				options[:instance_type_code] = val
 			end
+			opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
+				options[:copies] = val.to_i
+			end
+			opts.on("--layout-size NUMBER", Integer, "Apply a multiply factor of containers/vms within the instance") do |val|
+				options[:layout_size] = val.to_i
+			end
 			build_common_options(opts, options, [:options, :json, :dry_run, :remote])
 			
 		end
@@ -82,7 +88,8 @@ class Morpheus::Cli::Instances
 		begin
 
 			payload = prompt_new_instance(options)
-
+			payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+			payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0
 			if options[:dry_run]
 				print_dry_run @instances_interface.dry.create(payload)
 				return
