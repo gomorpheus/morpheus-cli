@@ -177,7 +177,7 @@ class Morpheus::Cli::Shell
 						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
 					else
 						@history_logger.warn "Unrecognized Command: '#{argv[0]}'" if @history_logger
-						puts "Unrecognized Command. '#{input}'. Try 'help'"
+						puts "Unrecognized Command '#{input}'. Try 'help'"
 						#puts optparse
 					end
 				# rescue ArgumentError
