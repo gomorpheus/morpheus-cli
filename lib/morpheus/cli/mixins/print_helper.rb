@@ -244,7 +244,8 @@ module Morpheus::Cli::PrintHelper
       print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']).strip.ljust(75, ' ') + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
     end
     if opts[:include].nil? || opts[:include].include?(:cpu)
-      print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(stats['usedCpu'].to_f * 100, 100).strip.ljust(75, ' ') + "\n"
+      cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
+      print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(cpu_usage.to_f, 100).strip.ljust(75, ' ') + "\n"
     end
   end
 
