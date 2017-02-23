@@ -171,13 +171,13 @@ class Morpheus::Cli::Shell
 					end
 
 					if argv[0] == 'shell'
-						puts "You are already in a shell."
+						print "#{cyan}You are already in a shell.#{reset}\n"
 					elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
 						log_history_command(input)
 						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
 					else
+						print_yellow_warning "Unrecognized Command '#{input}'. Try 'help'"
 						@history_logger.warn "Unrecognized Command: '#{argv[0]}'" if @history_logger
-						puts "Unrecognized Command '#{input}'. Try 'help'"
 						#puts optparse
 					end
 				# rescue ArgumentError
@@ -185,8 +185,7 @@ class Morpheus::Cli::Shell
 				rescue Interrupt
 					# nothing to do
 					@history_logger.warn "shell interrupt" if @history_logger
-					puts "\nInterrupt. Aborting command '#{input}'"
-					print "\n"
+					print "\nInterrupt. Aborting command '#{input}'\n"
 				rescue SystemExit
 					# nothing to do
 					print "\n"

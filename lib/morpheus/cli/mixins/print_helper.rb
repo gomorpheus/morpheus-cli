@@ -9,15 +9,15 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_red_alert(msg)
-    print red,  "\n#{msg}\n", reset
+    print "#{red}#{msg}#{reset}\n"
   end
 
   def print_yellow_warning(msg)
-    print yellow, "\n#{msg}\n", reset
+    print "#{yellow}#{msg}#{reset}\n"
   end
 
   def print_green_success(msg)
-    print green, "\n#{msg}\n", reset
+    print "#{green}#{msg}#{reset}\n"
   end
 
   def print_errors(response, options={})
