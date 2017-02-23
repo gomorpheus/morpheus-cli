@@ -10,7 +10,7 @@ class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::InfrastructureHelper
 
-	register_subcommands :list, :get, :add, :use, :unuse, :add_cloud, :remove_cloud, :remove
+	register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -95,6 +95,7 @@ class Morpheus::Cli::Groups
 			print cyan
 			puts "ID: #{group['id']}"
 			puts "Name: #{group['name']}"
+			puts "Code: #{group['code']}"
 			puts "Location: #{group['location']}"
 			puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
 			puts "Hosts: #{group['serverCount']}"
@@ -120,7 +121,59 @@ class Morpheus::Cli::Groups
 			opts.on( '-l', '--location LOCATION', "Location" ) do |val|
 				params[:location] = val
 			end
-			build_common_options(opts, options, [:json, :dry_run])
+			build_common_options(opts, options, [:options, :json, :dry_run])
+		end
+		optparse.parse!(args)
+		# if args.count < 1
+		# 	puts optparse
+		# 	exit 1
+		# end
+		connect(options)
+		begin
+			# group = {name: args[0], location: params[:location]}
+			# payload = {group: group}
+			group_payload = {}
+			if args[0]
+				group_payload[:name] = args[0]
+				options[:options]['name'] = args[0] # to skip prompt
+			end
+			if params[:location]
+				group_payload[:name] = params[:location]
+				options[:options]['location'] = params[:location] # to skip prompt
+			end
+			all_option_types = add_group_option_types()
+			params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
+			group_payload.merge!(params)
+			payload = {group: group_payload}
+
+			if options[:dry_run]
+				print_dry_run @groups_interface.dry.create(payload)
+				return
+			end
+			json_response = @groups_interface.create(payload)
+			group = json_response['group']
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Added group #{group['name']}"
+				list([])
+			end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def update(args)
+		options = {}
+		params = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name] [options]")
+			opts.on( '-l', '--location LOCATION', "Location" ) do |val|
+				params[:location] = val
+			end
+			build_common_options(opts, options, [:options, :json, :dry_run])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -129,19 +182,35 @@ class Morpheus::Cli::Groups
 		end
 		connect(options)
 		begin
-			group = {name: args[0], location: params[:location]}
-			payload = {group: group}
+			group = find_group_by_name_or_id(args[0])
+			
+			group_payload = {id: group['id']}
+
+			all_option_types = update_group_option_types()
+			#params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
+			params = options[:options] || {}
+
+			if params.empty?
+				puts optparse.banner
+				print_available_options(all_option_types)
+				exit 1
+			end
+
+			group_payload.merge!(params)
+
+			payload = {group: group_payload}
+
 			if options[:dry_run]
-				print_dry_run @groups_interface.dry.create(payload)
+				print_dry_run @groups_interface.dry.update(group['id'], payload)
 				return
 			end
-			json_response = @groups_interface.create(payload)
+			json_response = @groups_interface.update(group['id'], payload)
 			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
-				print_green_success "Added group #{group['name']}"
-				list([])
+				#list([])
+				get([group["id"]])
 			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
@@ -238,7 +307,7 @@ class Morpheus::Cli::Groups
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[name]")
-			build_common_options(opts, options, [:auto_confirm])
+			build_common_options(opts, options, [:json, :dry_run, :auto_confirm])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -248,16 +317,22 @@ class Morpheus::Cli::Groups
 		connect(options)
 
 		begin
-			group_results = @groups_interface.get(args[0])
-			if group_results['groups'].empty?
-				print_red_alert "Group not found by name #{args[0]}"
-				exit 1
-			end
-			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group_results['groups'][0]['name']}?")
+			group = find_group_by_name_or_id(args[0])
+			unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group['name']}?")
 				exit
 			end
-			@groups_interface.destroy(group_results['groups'][0]['id'])
-			list([])
+			if options[:dry_run]
+				print_dry_run @groups_interface.dry.destroy(group['id'])
+				return
+			end
+			json_response = @groups_interface.destroy(group['id'])
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				print_green_success "Removed group #{group['name']}"
+				#list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
@@ -385,6 +460,23 @@ protected
 		print table_color
 		tp rows, columns
 		print reset
+	end
+
+	def add_group_option_types()
+		tmp_option_types = [
+			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+			{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+			{'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3}
+		]
+
+		# Advanced Options
+		# TODO: Service Registry
+
+		return tmp_option_types
+	end
+
+	def update_group_option_types()
+		add_group_option_types().collect {|it| it['required'] = false; it }
 	end
 
 end

@@ -32,6 +32,14 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		execute(opts)
 	end
 
+	def update(id, options)
+		url = "#{@base_url}/api/groups/#{id}"
+		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+		payload = options
+		opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+		execute(opts)
+	end
+
 	def destroy(id)
 		url = "#{@base_url}/api/groups/#{id}"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

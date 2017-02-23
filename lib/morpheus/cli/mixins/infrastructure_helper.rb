@@ -36,6 +36,7 @@ module Morpheus::Cli::InfrastructureHelper
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Group not found by id #{id}"
+        exit 1
       else
         raise e
       end

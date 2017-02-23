@@ -237,16 +237,22 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_stats_usage(stats, opts={})
-    if opts[:include].nil? || opts[:include].include?(:memory)
+    opts[:include] ||= [:memory, :storage, :cpu]
+    if opts[:include].include?(:memory)
       print cyan, "Memory:".ljust(10, ' ')  + generate_usage_bar(stats['usedMemory'], stats['maxMemory']) + cyan + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
     end
-    if opts[:include].nil? || opts[:include].include?(:storage)
+    if opts[:include].include?(:storage)
       print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']) + cyan + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
     end
-    if opts[:include].nil? || opts[:include].include?(:cpu)
+    if opts[:include].include?(:cpu)
       cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
       print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
+  end
+
+  def print_available_options(option_types)
+    option_lines = option_types.collect {|it| "\t-O #{it['fieldContext'] ? it['fieldContext'] + '.' : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+    puts "Available Options:\n#{option_lines}\n\n"
   end
 
 end
