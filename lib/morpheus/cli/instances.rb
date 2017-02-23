@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::ProvisioningHelper
 
-	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot
+	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -197,6 +197,44 @@ class Morpheus::Cli::Instances
 			stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
 			tp [stats_map], :memory,:storage,:cpu
 			print reset, "\n"
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
+	end
+
+	def console(args) 
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			opts.on( '-n', '--node NODE_ID', "Scope console to specific Container or VM" ) do |node_id|
+				options[:node_id] = node_id.to_i
+			end
+			# build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+		end
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		optparse.parse!(args)
+		connect(options)
+
+		begin
+			instance = find_instance_by_name_or_id(args[0])
+			link = "#{@appliance_url}/terminal/#{instance['id']}"
+			container_ids = instance['containers']
+			if options[:node_id] && container_ids.include?(options[:node_id])
+				link += "?containerId=#{options[:node_id]}"
+			end
+
+		
+			if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+			  system "start #{link}"
+			elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+			  system "open #{link}"
+			elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+			  system "xdg-open #{link}"
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
