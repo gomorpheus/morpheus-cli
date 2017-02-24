@@ -11,7 +11,7 @@ class Morpheus::Cli::AliasCommand
   include Morpheus::Cli::CliCommand
   
   set_command_name :alias
-  set_command_hidden # maybe remove this...
+  #set_command_hidden # maybe remove this...
 
   register_subcommands :add, :remove, :list
   #set_default_subcommand :add
