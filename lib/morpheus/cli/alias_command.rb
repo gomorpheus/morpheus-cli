@@ -1,5 +1,6 @@
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/shell'
 require 'json'
 
 # This command allows the creation of an alias
@@ -70,9 +71,10 @@ class Morpheus::Cli::AliasCommand
       Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
       Morpheus::Cli::ConfigFile.instance.save_file()
       #puts "registered alias #{alias_name}='#{command_string}'"
-      puts "registered alias"
+      print "registered alias '#{alias_name}'", "\n"
     end
 
+    Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
 
   end
   

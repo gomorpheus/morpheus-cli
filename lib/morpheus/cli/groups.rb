@@ -383,9 +383,15 @@ class Morpheus::Cli::Groups
 				print_red_alert "Group not found by name #{args[0]}"
 				exit 1
 			end
-			@active_groups[@appliance_name.to_sym] = group['id']
-			::Morpheus::Cli::Groups.save_groups(@active_groups)
-			list([])
+
+			if @active_groups[@appliance_name.to_sym] == group['id']
+				print reset,"Already using the group #{group['name']}","\n",reset
+			else
+				@active_groups[@appliance_name.to_sym] = group['id']
+				::Morpheus::Cli::Groups.save_groups(@active_groups)
+				#print cyan,"Switched to using group #{group['name']}","\n",reset
+				#list([])
+			end
 		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1

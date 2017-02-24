@@ -159,15 +159,22 @@ class Morpheus::Cli::Remote
 			exit 1
 		end
 
-		name = args[0].to_sym
-
-		if @appliances[name] == nil
-			print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
+		new_appliance_name = args[0].to_sym
+		active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
+		# if @@appliance && (@@appliance[:name].to_s == new_appliance_name.to_s)
+		if active_appliance_name && active_appliance_name.to_s == new_appliance_name.to_s
+			print reset,"Already using the appliance '#{args[0]}'","\n",reset
 		else
-			@@appliance = nil # clear cached active appliance
-			set_active_appliance name
-			list([])
+			if @appliances[new_appliance_name] == nil
+				print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
+			else
+				@@appliance = nil # clear cached active appliance
+				set_active_appliance(new_appliance_name)
+				#print cyan,"Switched to using appliance #{args[0]}","\n",reset
+				#list([])
+			end
 		end
+
 	end
 
 	def unuse(args)

@@ -13,9 +13,15 @@ require 'morpheus/cli/error_handler'
 class Morpheus::Cli::Shell
 	include Morpheus::Cli::CliCommand
 
+	def self.instance
+		@@instance
+	end
+
 	def initialize() 
 		#@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 		#connect()
+		#raise "one shell only" if @@instance
+		@@instance = self
 		recalculate_auto_complete_commands()
 	end
 

@@ -15,6 +15,11 @@ module Morpheus
         end
 
         def exec(command_name, args)
+          exec_command(command_name, args)
+        end
+
+        def exec_command(command_name, args)
+          #puts "exec_command(#{command_name}, #{args})"
           Term::ANSIColor::coloring = STDOUT.isatty
           found_alias_command = instance.get_alias(command_name)
           if found_alias_command
@@ -26,12 +31,28 @@ module Morpheus
         end
 
         def exec_alias(alias_name, args)
+          #puts "exec_alias(#{alias_name}, #{args})"
           found_alias_command = instance.get_alias(alias_name)
-          alias_args = found_alias_command.split(' ')
+          alias_args = found_alias_command.to_s.split(/\s+/) # or just ' '
           command_name = alias_args.shift
-          args = alias_args + args
-          #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
-          instance.get(command_name).new.handle(args)
+          command_args = alias_args + args
+          if command_name == alias_name
+            # needs to be better than this
+            print Term::ANSIColor.red,"alias '#{alias_name}' is calling itself? '#{found_alias_command}'", Term::ANSIColor.reset, "\n"
+            exit 1
+          end
+          # this allows aliases to use other aliases
+          # todo: prevent recursion infinite loop
+          if has_alias?(command_name) 
+            exec_alias(command_name, command_args)
+          elsif has_command?(command_name)
+            #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
+            instance.get(command_name).new.handle(alias_args + args)
+          else
+            # raise UnrecognizedCommandError.new(command_name)
+            print Term::ANSIColor.red,"alias '#{alias_name}' uses and unknown command: '#{command_name}'", Term::ANSIColor.reset, "\n"
+            exit 1
+          end
         end
 
         def add(klass, command_name=nil)

@@ -45,6 +45,7 @@ class Morpheus::Cli::ConfigFile
         FileUtils.mkdir_p(File.dirname(@filename))
       end
       if !File.exists?(@filename)
+        #print Term::ANSIColor.dark,"Initializing your default morpheus config file","\n",Term::ANSIColor.reset
         #puts "initializing default config file #{@filename}"
         FileUtils.touch(@filename)
         save_file()
