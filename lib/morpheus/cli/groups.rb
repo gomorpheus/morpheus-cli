@@ -10,7 +10,7 @@ class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::InfrastructureHelper
 
-	register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove
+	register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove, :current => :print_current
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -394,6 +394,25 @@ class Morpheus::Cli::Groups
 
 	def unuse(args)
 		use(args + ['--none'])
+	end
+
+	def print_current(args)
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage()
+			build_common_options(opts, options, [])
+		end
+		optparse.parse!(args)
+		connect(options)
+
+		#current_active_group = self.class.active_group
+		active_group_id = @active_groups[@appliance_name.to_sym]
+		group = active_group_id ? find_group_by_name_or_id(active_group_id) : nil
+		if group
+			print cyan,group['name'].to_s,"\n",reset
+		else
+			print dark,"No active group. See `remote use`","\n",reset
+		end
 	end
 
 	# Provides the current active group information
