@@ -128,5 +128,10 @@ class Morpheus::Cli::ConfigFile
     return true
   end
 
+  def reload_file
+    # this will load any local changes, and then resave everything in the config (shell)
+    load_file
+    save_file
+  end
 
 end

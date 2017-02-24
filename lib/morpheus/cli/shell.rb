@@ -15,6 +15,10 @@ class Morpheus::Cli::Shell
 
 	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
+		recalculate_auto_complete_commands()		
+	end
+
+	def recalculate_auto_complete_commands
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
 		@shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
 		@alias_commands = Morpheus::Cli::CliRegistry.all_aliases.keys
@@ -36,7 +40,6 @@ class Morpheus::Cli::Shell
 				result
 			end
 		end
-
 	end
 
 	def handle(args)
@@ -126,6 +129,9 @@ class Morpheus::Cli::Shell
 					log_history_command(input)
 					# could just fork instead?
 					Morpheus::Cli.load!
+					Morpheus::Cli::ConfigFile.instance.reload_file
+					recalculate_auto_complete_commands()
+					print cyan,"Your shell has been reloaded",reset,"\n"
 					next
 				elsif input == '!!'
 					cmd_number = @history.keys[-1]
