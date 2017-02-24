@@ -59,9 +59,8 @@ class Morpheus::Cli::AliasCommand
     end
 
     alias_definition = args[0]
-    # puts "debug: alias_definition is #{alias_definition}"
-    alias_name, command_string = alias_definition.sub(/^alias\s+/, "").split('=')
-    command_string = command_string.strip.sub(/^'/, "").sub(/'\Z/, "").strip
+    alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(alias_definition)
+
     if alias_name.empty? || command_string.empty?
       print_red_alert "invalid alias syntax: #{alias_definition}"
       exit 1
@@ -150,7 +149,7 @@ class Morpheus::Cli::AliasCommand
     end
     out <<  "\n"
     if num_aliases > 0
-      out << "\n# aliases:\n\n"
+      #out << "\n# aliases:\n\n"
     end
     # todo: store these in config file sorted too?
     my_aliases.keys.sort.each {|alias_name|

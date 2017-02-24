@@ -77,9 +77,8 @@ class Morpheus::Cli::ConfigFile
       next if line =~ /^\#/ # skip comments
 
       if line =~ /^alias\s+/
-        # todo: one multi group regex would work
-        alias_name, command_string = line.sub(/^alias\s+/, "").split('=')
-        command_string = command_string.strip.sub(/^'/, "").sub(/'\Z/, "").strip
+        
+        alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(line)
         if alias_name.empty? || command_string.empty?
           puts "bad config line #{line_num}: #{line} | Invalid alias declaration"
         else

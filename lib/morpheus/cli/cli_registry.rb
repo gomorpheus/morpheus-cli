@@ -99,6 +99,18 @@ module Morpheus
           word.downcase!
           word.chop.tr('_', '-')
         end
+
+        def parse_alias_definition(input)
+          # todo: one multi group regex would work
+          alias_name, command_string = nil, nil
+          chunks = input.to_s.sub(/^alias\s+/, "").split('=')
+          alias_name = chunks.shift
+          command_string = chunks.compact.reject {|it| it.empty? }.join('=')
+          command_string = command_string.strip.sub(/^'/, "").sub(/'\Z/, "").strip
+          return alias_name, command_string
+        end
+
+
       end
 
       def all
