@@ -12,25 +12,10 @@ class Morpheus::Cli::Tasks
 	alias_subcommand :details, :get
 	alias_subcommand :types, :'task-types'
 
-	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
-	end
-
 	def connect(opts)
-		if opts[:remote]
-			@appliance_url = opts[:remote]
-			@appliance_name = opts[:remote]
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		else
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
+    @api_client = establish_remote_appliance_connection(opts)
 		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
 		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 	end
 
 	def handle(args)

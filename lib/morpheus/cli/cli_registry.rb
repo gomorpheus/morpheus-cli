@@ -4,8 +4,8 @@ module Morpheus
     class CliRegistry
 
       def initialize
-        @commands = {}
-        @aliases = {} # this is alias => full input string
+        @commands = {} # this is command => Class that includes ::CliCommand
+        @aliases = {} # this is alias => String full input string
       end
       
       class << self

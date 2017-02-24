@@ -12,7 +12,7 @@ class Morpheus::Cli::AliasCommand
   set_command_name :alias
   set_command_hidden # maybe remove this...
 
-  register_subcommands :add, :remove
+  register_subcommands :add, :remove, :list
   #set_default_subcommand :add
 
   def initialize() 
@@ -25,10 +25,13 @@ class Morpheus::Cli::AliasCommand
   end
 
   def handle(args)
-    if args.count == 1
+    if self.class.has_subcommand?(args[0])
+      handle_subcommand(args)
+    elsif args.count == 1
       add(args)
     else
       handle_subcommand(args)
+      #list([])
     end
   end
   
@@ -55,7 +58,7 @@ class Morpheus::Cli::AliasCommand
     end
 
     alias_definition = args[0]
-
+    # puts "debug: alias_definition is #{alias_definition}"
     alias_name, command_string = alias_definition.sub(/^alias\s+/, "").split('=')
     command_string = command_string.strip.sub(/^'/, "").sub(/'\Z/, "").strip
     if alias_name.empty? || command_string.empty?
@@ -66,7 +69,8 @@ class Morpheus::Cli::AliasCommand
       # config[:aliases] << {name: alias_name, command: command_string}
       Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
       Morpheus::Cli::ConfigFile.instance.save_file()
-      puts "registered alias #{alias_name}='#{command_string}'"
+      #puts "registered alias #{alias_name}='#{command_string}'"
+      puts "registered alias"
     end
 
 
@@ -76,7 +80,7 @@ class Morpheus::Cli::AliasCommand
     options = {}
     do_remove = false
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[alias1] [alias2]")
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
@@ -85,16 +89,76 @@ class Morpheus::Cli::AliasCommand
       puts optparse
       exit 1
     end
-    alias_name = args[0]
-
-    if !Morpheus::Cli::CliRegistry.has_alias?(args[0])
-      print_red_alert "alias not found by name '#{args[0]}'"
-      exit 1
+    
+    alias_names = args
+    
+    alias_names.each do |arg|
+      if !Morpheus::Cli::CliRegistry.has_alias?(arg)
+        print_red_alert "alias not found by name '#{arg}'"
+        exit 1
+      end
     end
 
-    Morpheus::Cli::CliRegistry.instance.remove_alias(alias_name)
+    alias_names.each do |arg|
+      Morpheus::Cli::CliRegistry.instance.remove_alias(arg)
+    end
+
     Morpheus::Cli::ConfigFile.instance.save_file()
-    puts "removed alias '#{alias_name}'"
+    if args.count == 1
+      puts "removed alias '#{alias_names[0]}'"
+    else
+      puts "removed aliases '#{alias_names.join(', ')}'"
+    end
+  end
+
+  def list(args)
+    options = {}
+    do_remove = false
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+        options[:phrase] = phrase
+      end
+      build_common_options(opts, options, [])
+    end
+    optparse.parse!(args)
+
+    my_aliases = Morpheus::Cli::CliRegistry.all_aliases
+    if options[:phrase]
+      # my_aliases = my_aliases.grep(/^#{Regexp.escape(options[:phrase])}/)
+      match_regex = /#{Regexp.escape(options[:phrase])}/
+      my_aliases = my_aliases.select {|k,v| 
+        k.to_s =~ match_regex || v.to_s =~ match_regex
+      }
+    end
+    num_aliases = my_aliases.keys.size
+    out = ""
+    if num_aliases == 0
+      #print "You have #{num_aliases} aliases defined."
+      out << "Found #{num_aliases} aliases"
+    elsif num_aliases == 1
+      #print "You have just one alias defined."
+      out <<  "Found #{num_aliases} alias"
+    else
+      #print "You have #{num_aliases} aliases defined."
+      out <<  "Found #{num_aliases} aliases"
+    end
+    if options[:phrase]
+      out << " matching '#{options[:phrase]}'"
+    end
+    out <<  "\n"
+    if num_aliases > 0
+      out << "\n# aliases:\n\n"
+    end
+    # todo: store these in config file sorted too?
+    my_aliases.keys.sort.each {|alias_name|
+      cmd = Morpheus::Cli::CliRegistry.instance.get_alias(alias_name)
+      out <<  "#{alias_name}='#{cmd}'"
+      out << "\n"
+    }
+
+    out <<  "\n"
+    print out
   end
 
 end

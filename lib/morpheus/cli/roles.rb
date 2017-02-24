@@ -14,18 +14,8 @@ class Morpheus::Cli::Roles
 	register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
 	alias_subcommand :details, :get
 
-	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		#@active_groups = ::Morpheus::Cli::Groups.load_group_file
-	end
-
 	def connect(opts)
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+    @api_client = establish_remote_appliance_connection(opts)
 		@whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
@@ -35,7 +25,6 @@ class Morpheus::Cli::Roles
 		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		#@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-
 	end
 
 	def handle(args)

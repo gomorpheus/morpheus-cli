@@ -11,16 +11,11 @@ class Morpheus::Cli::RecentActivityCommand
   set_command_hidden # remove once this is done
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).load_saved_credentials()
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@dashboard_interface = @api_client.dashboard
 		@accounts_interface = @api_client.accounts
 	end

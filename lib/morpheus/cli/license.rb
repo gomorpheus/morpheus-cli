@@ -11,24 +11,13 @@ class Morpheus::Cli::License
 	alias_subcommand :details, :get
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		if opts[:remote]
-			@appliance_url = opts[:remote]
-			@appliance_name = opts[:remote]
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		else
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		end
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
 		@license_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).license
-		
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 	end
 
 	def handle(args)

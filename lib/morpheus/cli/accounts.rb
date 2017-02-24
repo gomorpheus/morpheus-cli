@@ -19,15 +19,10 @@ class Morpheus::Cli::Accounts
 	end
 
 	def connect(opts)
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+		@api_client = establish_remote_appliance_connection(opts)
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
 		@roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 	end
 
 	def handle(args)

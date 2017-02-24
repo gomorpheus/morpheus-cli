@@ -53,6 +53,8 @@ module Morpheus
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
       # Your code goes here...
+
+      
     end
 
     load!

@@ -15,16 +15,11 @@ class Morpheus::Cli::Users
 	alias_subcommand :details, :get
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
 
 	def connect(opts)
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+		@api_client = establish_remote_appliance_connection(opts)
 		@whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
 		@users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
 		@accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts

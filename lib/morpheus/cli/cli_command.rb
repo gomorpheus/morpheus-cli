@@ -1,5 +1,8 @@
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/mixins/print_helper'
+require 'morpheus/cli/credentials'
+require 'morpheus/api/api_client'
+require 'morpheus/cli/remote'
 
 module Morpheus
   module Cli
@@ -76,6 +79,17 @@ module Morpheus
             end
 
           when :remote
+
+            # this is the only option now... 
+            # first, you must do `remote use [appliance]`
+            opts.on( '-r', '--remote REMOTE', "Remote Appliance Name to use for this command. The current appliance is used by default." ) do |val|
+              options[:remote] = val
+              options[:non_active_remote] = true # unused
+            end
+
+            # skipping the rest of this for now..
+            next
+
             opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
               options[:remote] = remote
             end
@@ -212,6 +226,64 @@ module Morpheus
         raise "#{self} has not defined handle()!"
       end
 
+      # This supports the simple remote option eg. `instances add --remote "qa"`
+      # It will establish a connection to the pre-configured appliance named "qa"
+      # The calling command needs to populate @appliances and/or @appliance_name
+      # This returns a new instance of Morpheus::APIClient (and sets @access_token, and @appliance)
+      # Your command should be ready to make api requests after this.
+      # todo: probably don't exit here, just return nil or raise
+      def establish_remote_appliance_connection(options)
+        @appliances ||= ::Morpheus::Cli::Remote.load_appliance_file
+        if !@appliance_name
+          @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+        end
+
+        # todo: support old way of accepting --username and --password on the command line
+        # it's probably better not to do that tho, just so it stays out of history files
+
+        # use a specific remote appliance by name
+        if options[:remote]
+          @appliance_name = options[:remote].to_sym rescue nil
+          if !@appliances
+            print_red_alert "You have no appliances configured. See the `remote add` command."
+            exit 1
+          end
+          found_appliance = @appliances[@appliance_name.to_sym]
+          if !found_appliance
+            print_red_alert "You have no appliance named '#{@appliance_name}' configured. See the `remote add` command."
+            exit 1
+          end
+          @appliance = found_appliance
+          @appliance_name = @appliance_name
+          @appliance_url = @appliance[:host]
+          if options[:debug]
+            print dark,"# => Using remote appliance [#{@appliance_name}] #{@appliance_url}",reset,"\n" if !options[:quiet]
+          end
+        else
+          #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+        end
+
+        if !@appliance_name
+          print_red_alert "No active appliance found. See the `remote use` command."
+          exit 1
+        end
+        
+        # ok, get some credentials.
+        # this prompts for username, password
+        @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
+        
+        # bail if we got nothing
+        if @access_token.empty?
+          print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
+          exit 1
+        end
+
+        # ok, connect to the appliance.. actually this just instantiates an ApiClient
+        # setup our api client for all including commands to use.
+        @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+        return @api_client
+      end
+
       module ClassMethods
 
         def set_command_name(cmd_name)
@@ -264,6 +336,7 @@ module Morpheus
         end
 
         def has_subcommand?(cmd_name)
+          return false if cmd_name.empty?
           @subcommands && @subcommands[cmd_name.to_s]
         end
 

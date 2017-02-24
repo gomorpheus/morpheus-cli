@@ -11,12 +11,11 @@ class Morpheus::Cli::Login
   # include Morpheus::Cli::AccountsHelper
   
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		#@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
-		#@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 	end
 
 	def usage

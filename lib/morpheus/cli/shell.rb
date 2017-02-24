@@ -14,9 +14,14 @@ class Morpheus::Cli::Shell
 	include Morpheus::Cli::CliCommand
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
-		recalculate_auto_complete_commands()		
+		#@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+		#connect()
+		recalculate_auto_complete_commands()
 	end
+
+	def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
+  end
 
 	def recalculate_auto_complete_commands
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
@@ -131,7 +136,13 @@ class Morpheus::Cli::Shell
 					Morpheus::Cli.load!
 					Morpheus::Cli::ConfigFile.instance.reload_file
 					recalculate_auto_complete_commands()
-					print cyan,"Your shell has been reloaded",reset,"\n"
+					begin
+						load __FILE__
+					rescue => err
+						print "failed to reload #{__FILE__}. oh well"
+						# print err
+					end
+					print dark,"Your shell has been reloaded",reset,"\n"
 					next
 				elsif input == '!!'
 					cmd_number = @history.keys[-1]
@@ -174,7 +185,8 @@ class Morpheus::Cli::Shell
 						@return_to_log_level = Morpheus::Logging.log_level
 					  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
 					elsif @command_options[:debug]
-						argv.push "--debug"
+						# dont do this anymore.. 
+						# argv.push "--debug"
 					end
 
 					if argv[0] == 'shell'
@@ -195,7 +207,7 @@ class Morpheus::Cli::Shell
 					print "\nInterrupt. Aborting command '#{input}'\n"
 				rescue SystemExit
 					# nothing to do
-					print "\n"
+					# print "\n"
 				rescue => e
 					@history_logger.error "#{e.message}" if @history_logger
 					Morpheus::Cli::ErrorHandler.new.handle_error(e)

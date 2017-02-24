@@ -11,35 +11,24 @@ class Morpheus::Cli::Instances
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::ProvisioningHelper
 
-	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console
+	register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
 	alias_subcommand :details, :get
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
+		#@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
 	end
 
 	def connect(opts)
-		if opts[:remote]
-			@appliance_url = opts[:remote]
-			@appliance_name = opts[:remote]
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		else
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
-		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
-		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
-		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
-		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
-		@provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
-		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+		@api_client = establish_remote_appliance_connection(opts)
+		@instances_interface = @api_client.instances
+		@task_sets_interface = @api_client.task_sets
+		@logs_interface = @api_client.logs
+		@tasks_interface = @api_client.tasks
+		@instance_types_interface = @api_client.instance_types
+		@clouds_interface = @api_client.clouds
+		@provision_types_interface = @api_client.provision_types
+		@options_interface = @api_client.options
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 	end
 	
 	def handle(args)
@@ -170,6 +159,39 @@ class Morpheus::Cli::Instances
 			print_rest_exception(e, options)
 			exit 1
 		end
+	end
+
+	def status_check(args)
+		out = ""
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:quiet, :json, :remote]) # no :dry_run, just do it man
+		end
+		optparse.parse!(args)
+		if args.count < 1
+			puts optparse
+			exit 1
+		end
+		connect(options)
+		# todo: just return status or maybe check if instance['status'] == args[0]
+		instance = find_instance_by_name_or_id(args[0])
+		exit_code = 0
+		if instance['status'].to_s.downcase != (args[1] || "running").to_s.downcase
+			exit_code = 1
+		end
+		if options[:json]
+			mock_json = {status: instance['status'], exit: exit_code}
+			out << JSON.pretty_generate(mock_json)
+			out << "\n"
+		elsif !options[:quiet]
+			out << cyan
+			out << "Status: #{format_instance_status(instance)}"
+			out << reset
+			out << "\n"
+		end
+		print out unless options[:quiet]
+		exit exit_code #return exit_code
 	end
 
 	def stats(args)
@@ -1295,6 +1317,10 @@ class Morpheus::Cli::Instances
 			print_rest_exception(e, options)
 			exit 1
 		end
+	end
+
+	# check the instance 
+	def check_status
 	end
 
 private 

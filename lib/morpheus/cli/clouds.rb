@@ -14,26 +14,14 @@ class Morpheus::Cli::Clouds
 	alias_subcommand :details, :get
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	end
-
-	def connect(opts)
-		if opts[:remote]
-			@appliance_url = opts[:remote]
-			@appliance_name = opts[:remote]
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		else
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			return 1
-		end
 		# preload stuff
 		get_available_cloud_types()
 	end

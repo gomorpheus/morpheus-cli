@@ -15,18 +15,11 @@ class Morpheus::Cli::Hosts
 	alias_subcommand :details, :get
 
 	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
 
 	def connect(opts)
-		if opts[:remote]
-			@appliance_url = opts[:remote]
-			@appliance_name = opts[:remote]
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		else
-			@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials(opts)
-		end
-		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+		@api_client = establish_remote_appliance_connection(opts)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
@@ -34,10 +27,6 @@ class Morpheus::Cli::Hosts
 		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
 		@servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
 		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
-		if @access_token.empty?
-			print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-			exit 1
-		end
 	end
 
 	def handle(args)

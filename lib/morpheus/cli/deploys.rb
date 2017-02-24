@@ -11,9 +11,13 @@ class Morpheus::Cli::Deploys
 
   set_command_name :deploy
   
-	def initialize() 
-		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-		@access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).request_credentials()
+  def initialize() 
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    connect()
+  end
+
+	def connect() 
+		@api_client = establish_remote_appliance_connection(opts)
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
 		@deploy_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deploy
 	end
