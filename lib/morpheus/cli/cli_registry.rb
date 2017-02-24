@@ -5,6 +5,7 @@ module Morpheus
 
       def initialize
         @commands = {}
+        @aliases = {} # this is alias => full input string
       end
       
       class << self
@@ -14,12 +15,23 @@ module Morpheus
         end
 
         def exec(command_name, args)
-          # begin
-            Term::ANSIColor::coloring = STDOUT.isatty
+          Term::ANSIColor::coloring = STDOUT.isatty
+          found_alias_command = instance.get_alias(command_name)
+          if found_alias_command
+            exec_alias(command_name, args)
+          else
+            #puts "running regular command #{command_name} with arguments #{args.join(' ')}"
             instance.get(command_name).new.handle(args)
-          # rescue SystemExit, Interrupt
-          #   puts "Interrupted..."
-          # end
+          end
+        end
+
+        def exec_alias(alias_name, args)
+          found_alias_command = instance.get_alias(alias_name)
+          alias_args = found_alias_command.split(' ')
+          command_name = alias_args.shift
+          args = alias_args + args
+          #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
+          instance.get(command_name).new.handle(args)
         end
 
         def add(klass, command_name=nil)
@@ -39,8 +51,20 @@ module Morpheus
           end
         end
 
+        def has_alias?(alias_name)
+          if alias_name.nil? || alias_name == ''
+            false
+          else
+            !instance.get_alias(alias_name).nil?
+          end
+        end
+
         def all
           instance.all
+        end
+
+        def all_aliases
+          instance.all_aliases
         end
 
         def cli_ize(klass_name)
@@ -71,6 +95,23 @@ module Morpheus
       def remove(cmd_name)
         @commands.delete(cmd_name.to_sym)
       end
+
+      def all_aliases
+        @aliases
+      end
+
+      def get_alias(alias_name)
+        @aliases[alias_name.to_sym]
+      end
+
+      def add_alias(alias_name, command_string)
+        @aliases[alias_name.to_sym] = command_string
+      end
+
+      def remove_alias(alias_name)
+        @aliases.delete(alias_name.to_sym)
+      end
+
     end
   end
 end

@@ -3,6 +3,7 @@ require 'optparse'
 require 'morpheus/cli'
 require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
+require 'morpheus/cli/config_file'
 require 'morpheus/cli/error_handler'
 
 # short circuit version switch
@@ -12,22 +13,84 @@ if ARGV[0] == '-v' && ARGV.size == 1
   exit 0
 end
 
+args = ARGV.dup
+
 # handle global options
-args = ARGV
-# set global log level to debug (print stack trace for bubbled exceptions)
-if args.find {|arg| arg == '-V' || arg == '--debug'}
-  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-  args = args.reject {|arg| arg == '-V' && arg == '--debug'}
+# todo: put this in a Morpheus::Cli::Main < CliCommand
+extra_args = []
+begin
+  optparse = OptionParser.new do|opts|
+    opts.banner = "morpheus [command] [options]"
+    opts.on('-V','--debug', "Print extra output for debugging.") do |val|
+      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+    end
+    opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+      Morpheus::RestClient.enable_ssl_verification = false
+    end
+    opts.on("--home DIRECTORY", String, "Specify morpheus home directory. Default is ~/.morpheus") do |val|
+      ENV['MORPHEUS_CLI_HOME'] = val
+    end
+    opts.on("--conf FILE", String, "Specify morpheus config file. Default is $home/.morpheusrc") do |val|
+      ENV['MORPHEUS_CLI_CONFIG_FILE'] = val
+    end
+    opts.on('-h', '--help', "Prints this help" ) do
+      puts opts.banner
+      puts "Usage: morpheus [command] [options]"
+      puts "\nCommands:"
+      Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
+        puts "\t#{cmd.to_s}"
+      }
+      puts ""
+      exit 127
+      exit
+    end
+  end
+
+  # note: this strips args of these options, while skipping invalid arguments, 
+  # and re-appending them to args for the call to exec()
+  100.times {
+    begin 
+      optparse.parse!(args)
+    rescue OptionParser::InvalidOption => e 
+      extra_args.concat e.args
+      retry
+      puts "retrying main optparse afte err #{e}"
+    end
+  }
+  
+rescue => err
+  puts "Failed to parse global options: #{err.class} #{err}"
 end
+
+args = args + extra_args
+
+# set global log level to debug (print stack trace for bubbled exceptions)
+# if args.find {|arg| arg == '-V' || arg == '--debug'}
+#   Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+#   args = args.reject {|arg| arg == '-V' && arg == '--debug'}
+# end
 
 # JD: figure out what to do with --insecure option
-if args.find {|arg| arg == '--insecure'}
-  Morpheus::RestClient.enable_ssl_verification = false
-  args = args.find_all {|arg| arg != '--insecure'}
+# if args.find {|arg| arg == '--insecure'}
+#   Morpheus::RestClient.enable_ssl_verification = false
+#   args = args.find_all {|arg| arg != '--insecure'}
+# end
+
+# use a config file
+# todo: parse these switches
+if args.find {|arg| arg == '--homedir'}
+  ENV['MORPHEUS_CLI_HOME'] = 
+  args = args.find_all {|arg| arg != '--homedir'}
 end
+if args.find {|arg| arg == '--config'}
+  Morpheus::RestClient.enable_ssl_verification = false
+  args = args.find_all {|arg| arg != '--config'}
+end
+config_file = nil 
+Morpheus::Cli::ConfigFile.init(config_file)
 
 # all commands should be registered commands
-if Morpheus::Cli::CliRegistry.has_command?(args[0])
+if Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0])
   begin
     Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
   rescue => e

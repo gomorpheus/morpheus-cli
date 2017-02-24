@@ -51,6 +51,7 @@ module Morpheus
       load 'morpheus/cli/virtual_images.rb'
       load 'morpheus/cli/library.rb'
       load 'morpheus/cli/version_command.rb'
+      load 'morpheus/cli/alias_command.rb'
       # Your code goes here...
     end
 

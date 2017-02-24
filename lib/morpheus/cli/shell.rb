@@ -17,6 +17,7 @@ class Morpheus::Cli::Shell
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
 		@shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
+		@alias_commands = Morpheus::Cli::CliRegistry.all_aliases.keys
 		@exploded_commands = []
 		Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
 			@exploded_commands << cmd.to_s
@@ -25,7 +26,7 @@ class Morpheus::Cli::Shell
 				@exploded_commands << "#{cmd} #{sub_cmd}"
 			end
 		end
-		@auto_complete_commands = (@exploded_commands + @shell_commands).collect {|it| it.to_s }
+		@auto_complete_commands = (@exploded_commands + @shell_commands + @alias_commands).collect {|it| it.to_s }
 		@auto_complete = proc do |s|
 			command_list = @auto_complete_commands
 			result = command_list.grep(/^#{Regexp.escape(s)}/)
@@ -172,7 +173,7 @@ class Morpheus::Cli::Shell
 
 					if argv[0] == 'shell'
 						print "#{cyan}You are already in a shell.#{reset}\n"
-					elsif Morpheus::Cli::CliRegistry.has_command?(argv[0])
+					elsif Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
 						log_history_command(input)
 						Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
 					else
