@@ -309,7 +309,12 @@ module Morpheus
           value = nil
           while !value_found do
             print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
-            input = $stdin.gets.chomp!
+            Readline.completion_append_character = ""
+            Readline.basic_word_break_characters = ''
+            Readline.completion_proc = proc {|s| Readline::FILENAME_COMPLETION_PROC.call(s) }
+            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
+            input = input.chomp.strip
+            #input = $stdin.gets.chomp!
             value = input.empty? ? option_type['defaultValue'] : input.to_s
             if input == '?'
               help_prompt(option_type)
@@ -322,6 +327,8 @@ module Morpheus
                 # print_red_alert "File not found: #{filename}"
                 # exit 1
                 print Term::ANSIColor.red,"  File not found: #{filename}",Term::ANSIColor.reset, "\n"
+              elsif !File.file?(filename)
+                print Term::ANSIColor.red,"  Argument is not a file: #{filename}",Term::ANSIColor.reset, "\n"
               else
                 value = filename
                 value_found = true
