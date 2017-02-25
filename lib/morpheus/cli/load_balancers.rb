@@ -12,11 +12,11 @@ class Morpheus::Cli::LoadBalancers
 	alias_subcommand :details, :get
 
 	def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+	end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+	def connect(opts)
+		@api_client = establish_remote_appliance_connection(opts)
 		@load_balancers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).load_balancers
 	end
 
@@ -44,7 +44,7 @@ class Morpheus::Cli::LoadBalancers
 			end
 			json_response = @load_balancers_interface.get(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				lbs = json_response['loadBalancers']
 				print "\n" ,cyan, bold, "Morpheus Load Balancers\n","==================", reset, "\n\n"
@@ -59,9 +59,7 @@ class Morpheus::Cli::LoadBalancers
 				end
 				print reset,"\n"
 			end
-			
-			
-		rescue RestClient::Exception => e
+								rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -201,8 +199,7 @@ class Morpheus::Cli::LoadBalancers
 
 				print reset,"\n"
 			end
-			
-		rescue RestClient::Exception => e
+					rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -289,7 +286,7 @@ class Morpheus::Cli::LoadBalancers
 	end
 
 
-private
+	private
 
 	def find_lb_by_name_or_id(val)
 		if val.to_s =~ /\A\d{1,}\Z/

@@ -1,8 +1,7 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::UsersInterface < Morpheus::APIClient
-	
-	def initialize(access_token, refresh_token, expires_at = nil, base_url=nil) 
+		def initialize(access_token, refresh_token, expires_at = nil, base_url=nil) 
 		@access_token = access_token
 		@refresh_token = refresh_token
 		@base_url = base_url
@@ -63,7 +62,7 @@ class Morpheus::UsersInterface < Morpheus::APIClient
 		execute(opts)
 	end
 
-private
+	private
 
 	def build_url(account_id=nil, user_id=nil)
 		url = "#{@base_url}/api"

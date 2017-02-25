@@ -41,8 +41,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 	def create(options)
 		url = "#{@base_url}/api/virtual-images"
 		headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-		
-		payload = options
+				payload = options
 		execute(method: :post, url: url, headers: headers, payload: payload.to_json)
 	end
 
@@ -53,16 +52,16 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 	end
 
 	# NOT json, multipart file upload
-  def upload(id, image_file)
-    url = "#{@base_url}/api/virtual-images/#{id}/upload"
-    headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
-    payload = {}
-    payload[:file] = image_file
-    payload[:multipart] = true
-    execute(method: :post, url: url, headers: headers, payload: payload)
-  end
+	def upload(id, image_file)
+		url = "#{@base_url}/api/virtual-images/#{id}/upload"
+		headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
+		payload = {}
+		payload[:file] = image_file
+		payload[:multipart] = true
+		execute(method: :post, url: url, headers: headers, payload: payload)
+	end
 
-  def destroy_file(id, filename)
+	def destroy_file(id, filename)
 		url = "#{@base_url}/api/virtual-images/#{id}/files"
 		#url = "#{@base_url}/api/virtual-images/#{id}/files/#{filename}"
 		headers = { params: {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

@@ -15,23 +15,23 @@ class Morpheus::Cli::Apps
 	alias_subcommand :details, :get
 
 	def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+	end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+	def connect(opts)
+		@api_client = establish_remote_appliance_connection(opts)
 		@apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).apps
 		@instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
 		@instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+		@options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 	end
 
-  def handle(args)
-    handle_subcommand(args)
-  end
+	def handle(args)
+		handle_subcommand(args)
+	end
 
 	def list(args)
 		options = {}
@@ -42,7 +42,7 @@ class Morpheus::Cli::Apps
 		optparse.parse!(args)
 		connect(options)
 		begin
-      params = {}
+			params = {}
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
@@ -53,8 +53,7 @@ class Morpheus::Cli::Apps
 			end
 
 			json_response = @apps_interface.get(params)
-			
-			if options[:json]
+						if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 				return
@@ -74,19 +73,18 @@ class Morpheus::Cli::Apps
 	end
 
 	def add(args)
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
-      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
 				options[:group] = val
 			end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
-    end
-    optparse.parse!(args)
-    connect(options)
-    begin
-  		
-  		# use active group by default
+			build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+		end
+		optparse.parse!(args)
+		connect(options)
+		begin
+						# use active group by default
 			options[:group] ||= @active_groups[@appliance_name.to_sym]
 			group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 
@@ -110,25 +108,25 @@ class Morpheus::Cli::Apps
 
 			# todo: allow adding instances with creation..
 
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.create(payload)
-        return
-      end
-      json_response = @apps_interface.create(payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        print_green_success "Added app #{payload['app']['name']}"
-        list([])
-        # details_options = [payload['app']['name']]
-        # details(details_options)
-      end
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.create(payload)
+				return
+			end
+			json_response = @apps_interface.create(payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			elsif !options[:quiet]
+				print_green_success "Added app #{payload['app']['name']}"
+				list([])
+				# details_options = [payload['app']['name']]
+				# details(details_options)
+			end
 
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 	def get(args)
@@ -145,34 +143,32 @@ class Morpheus::Cli::Apps
 		connect(options)
 		begin
 			app = find_app_by_name_or_id(args[0])
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.get(app['id'])
-        return
-      end
-      json_response = @apps_interface.get(app['id'])
-      app = json_response['app']
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        return
-      end
-			
-			print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.get(app['id'])
+				return
+			end
+			json_response = @apps_interface.get(app['id'])
+			app = json_response['app']
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				return
+			end
+						print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
 			print cyan
 			puts "ID: #{app['id']}"
 			puts "Name: #{app['name']}"
 			puts "Description: #{app['description']}"
 			puts "Account: #{app['account'] ? app['account']['name'] : ''}"
 			# puts "Group: #{app['siteId']}"
-			
-			stats = app['stats']
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        print "\n"
-        # print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
-        # print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
-        print_stats_usage(stats, {include: [:memory, :storage]})
-      else
-        #print yellow, "No stat data.", reset
-      end
+						stats = app['stats']
+			if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+				print "\n"
+				# print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
+				# print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+				print_stats_usage(stats, {include: [:memory, :storage]})
+			else
+				#print yellow, "No stat data.", reset
+			end
 
 			app_tiers = app['appTiers']
 			if app_tiers.empty?
@@ -217,21 +213,20 @@ class Morpheus::Cli::Apps
 	end
 
 	def update(args)
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:options, :json, :dry_run])
-    end
-    optparse.parse!(args)
-    if args.count < 1
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
+		end
+		optparse.parse!(args)
+		if args.count < 1
 			puts optparse
 			exit 1
 		end
-    connect(options)
+		connect(options)
 
-    begin
-  		
-  		app = find_app_by_name_or_id(args[0])
+		begin
+						app = find_app_by_name_or_id(args[0])
 
 			payload = {
 				'app' => {id: app["id"]}
@@ -244,49 +239,49 @@ class Morpheus::Cli::Apps
 
 			params = options[:options] || {}
 
-      if params.empty?
-        puts opts
-        option_lines = update_app_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        exit 1
-      end
+			if params.empty?
+				puts opts
+				option_lines = update_app_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
+				puts "\nAvailable Options:\n#{option_lines}\n\n"
+				exit 1
+			end
 
-      #puts "parsed params is : #{params.inspect}"
-      app_keys = ['name', 'description']
-      params = params.select {|k,v| app_keys.include?(k) }
-      payload['app'].merge!(params)
+			#puts "parsed params is : #{params.inspect}"
+			app_keys = ['name', 'description']
+			params = params.select {|k,v| app_keys.include?(k) }
+			payload['app'].merge!(params)
 
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.update(app["id"], payload)
-        return
-      end
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.update(app["id"], payload)
+				return
+			end
 
-      json_response = @apps_interface.update(app["id"], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Updated app #{app['name']}"
-        list([])
-        # details_options = [payload['app']['name']]
-        # details(details_options)
-      end
+			json_response = @apps_interface.update(app["id"], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Updated app #{app['name']}"
+				list([])
+				# details_options = [payload['app']['name']]
+				# details(details_options)
+			end
 
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 
 	def add_instance(args)
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [instance] [tier]")
-      build_common_options(opts, options, [:options, :json, :dry_run])
-    end
-    optparse.parse!(args)
-    if args.count < 1
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name] [instance] [tier]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
+		end
+		optparse.parse!(args)
+		if args.count < 1
 			puts optparse
 			exit 1
 		end
@@ -297,55 +292,54 @@ class Morpheus::Cli::Apps
 				options[:tier_name] = args[2]
 			end
 		end
-    connect(options)
-    begin
-  		
-  		app = find_app_by_name_or_id(args[0])
+		connect(options)
+		begin
+						app = find_app_by_name_or_id(args[0])
 
-  		# Only supports adding an existing instance right now..
+			# Only supports adding an existing instance right now..
 
-  		payload = {}
+			payload = {}
 
-  		if options[:instance_name]
-  			instance = find_instance_by_name_or_id(options[:instance_name])
-  		else
-  			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instance', 'fieldLabel' => 'Instance', 'type' => 'text', 'required' => true, 'description' => 'Enter the instance name or id'}], options[:options])
-  			instance = find_instance_by_name_or_id(v_prompt['instance'])
-  		end
-  		payload[:instanceId] = instance['id']
+			if options[:instance_name]
+				instance = find_instance_by_name_or_id(options[:instance_name])
+			else
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instance', 'fieldLabel' => 'Instance', 'type' => 'text', 'required' => true, 'description' => 'Enter the instance name or id'}], options[:options])
+				instance = find_instance_by_name_or_id(v_prompt['instance'])
+			end
+			payload[:instanceId] = instance['id']
 
-  		if options[:tier_name]
-  			payload[:tierName] = options[:tier_name]
-  		else
-  			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tier', 'fieldLabel' => 'Tier', 'type' => 'text', 'required' => true, 'description' => 'Enter the name of the tier'}], options[:options])
-  			payload[:tierName] = v_prompt['tier']
-  		end
+			if options[:tier_name]
+				payload[:tierName] = options[:tier_name]
+			else
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tier', 'fieldLabel' => 'Tier', 'type' => 'text', 'required' => true, 'description' => 'Enter the name of the tier'}], options[:options])
+				payload[:tierName] = v_prompt['tier']
+			end
 
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.add_instance(app['id'], payload)
-        return
-      end
-      json_response = @apps_interface.add_instance(app['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Added instance #{instance['name']} to app #{app['name']}"
-        list([])
-        # details_options = [app['name']]
-        # details(details_options)
-      end
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.add_instance(app['id'], payload)
+				return
+			end
+			json_response = @apps_interface.add_instance(app['id'], payload)
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Added instance #{instance['name']} to app #{app['name']}"
+				list([])
+				# details_options = [app['name']]
+				# details(details_options)
+			end
 
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 	def remove(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run, :quiet])
 		end
 		optparse.parse!(args)
@@ -379,13 +373,13 @@ class Morpheus::Cli::Apps
 	end
 
 	def remove_instance(args)
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [instance]")
-      build_common_options(opts, options, [:options, :json, :dry_run])
-    end
-    optparse.parse!(args)
-    if args.count < 1
+		options = {}
+		optparse = OptionParser.new do|opts|
+			opts.banner = subcommand_usage("[name] [instance]")
+			build_common_options(opts, options, [:options, :json, :dry_run])
+		end
+		optparse.parse!(args)
+		if args.count < 1
 			puts optparse
 			exit 1
 		end
@@ -393,42 +387,41 @@ class Morpheus::Cli::Apps
 		if args[1] && args[1] !~ /\A\-/
 			options[:instance_name] = args[1]
 		end
-    connect(options)
-    begin
-  		
-  		app = find_app_by_name_or_id(args[0])
+		connect(options)
+		begin
+						app = find_app_by_name_or_id(args[0])
 
-  		payload = {}
+			payload = {}
 
-  		if options[:instance_name]
-  			instance = find_instance_by_name_or_id(options[:instance_name])
-  		else
-  			v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instance', 'fieldLabel' => 'Instance', 'type' => 'text', 'required' => true, 'description' => 'Enter the instance name or id'}], options[:options])
-  			instance = find_instance_by_name_or_id(v_prompt['instance'])
-  		end
-  		payload[:instanceId] = instance['id']
+			if options[:instance_name]
+				instance = find_instance_by_name_or_id(options[:instance_name])
+			else
+				v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instance', 'fieldLabel' => 'Instance', 'type' => 'text', 'required' => true, 'description' => 'Enter the instance name or id'}], options[:options])
+				instance = find_instance_by_name_or_id(v_prompt['instance'])
+			end
+			payload[:instanceId] = instance['id']
 
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.remove_instance(app['id'], payload)
-        return
-      end
+			if options[:dry_run]
+				print_dry_run @apps_interface.dry.remove_instance(app['id'], payload)
+				return
+			end
 
-      json_response = @apps_interface.remove_instance(app['id'], payload)
+			json_response = @apps_interface.remove_instance(app['id'], payload)
 
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Removed instance #{instance['name']} from app #{app['name']}"
-        list([])
-        # details_options = [app['name']]
-        # details(details_options)
-      end
+			if options[:json]
+				print JSON.pretty_generate(json_response)
+				print "\n"
+			else
+				print_green_success "Removed instance #{instance['name']} from app #{app['name']}"
+				list([])
+				# details_options = [app['name']]
+				# details(details_options)
+			end
 
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+		rescue RestClient::Exception => e
+			print_rest_exception(e, options)
+			exit 1
+		end
 	end
 
 	def logs(args) 
@@ -455,10 +448,10 @@ class Morpheus::Cli::Apps
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
-      if options[:dry_run]
-        print_dry_run @logs_interface.dry.container_logs(containers, params)
-        return
-      end
+			if options[:dry_run]
+				print_dry_run @logs_interface.dry.container_logs(containers, params)
+				return
+			end
 			logs = @logs_interface.container_logs(containers, params)
 			if options[:json]
 				print JSON.pretty_generate(logs)
@@ -467,16 +460,16 @@ class Morpheus::Cli::Apps
 				logs['data'].reverse.each do |log_entry|
 					log_level = ''
 					case log_entry['level']
-						when 'INFO'
-							log_level = "#{blue}#{bold}INFO#{reset}"
-						when 'DEBUG'
-							log_level = "#{white}#{bold}DEBUG#{reset}"
-						when 'WARN'
-							log_level = "#{yellow}#{bold}WARN#{reset}"
-						when 'ERROR'
-							log_level = "#{red}#{bold}ERROR#{reset}"
-						when 'FATAL'
-							log_level = "#{red}#{bold}FATAL#{reset}"
+					when 'INFO'
+						log_level = "#{blue}#{bold}INFO#{reset}"
+					when 'DEBUG'
+						log_level = "#{white}#{bold}DEBUG#{reset}"
+					when 'WARN'
+						log_level = "#{yellow}#{bold}WARN#{reset}"
+					when 'ERROR'
+						log_level = "#{red}#{bold}ERROR#{reset}"
+					when 'FATAL'
+						log_level = "#{red}#{bold}FATAL#{reset}"
 					end
 					puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
 				end
@@ -598,7 +591,7 @@ class Morpheus::Cli::Apps
 	def firewall_enable(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+			opts.banner = subcommand_usage("[name]")
 			build_common_options(opts, options, [:json, :dry_run])
 		end
 		optparse.parse!(args)
@@ -705,7 +698,7 @@ class Morpheus::Cli::Apps
 		end
 	end
 
-private
+	private
 
 	def find_app_by_id(id)
 		app_results = @apps_interface.get(id.to_i)
@@ -734,14 +727,14 @@ private
 	end
 
 	def print_apps_table(apps, opts={})
-    table_color = opts[:color] || cyan
-    rows = apps.collect do |app|
-    	instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
+		table_color = opts[:color] || cyan
+		rows = apps.collect do |app|
+			instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
 			containers_str = (app['containerCount'].to_i == 1) ? "1 Container" : "#{app['containerCount']} Containers"
-    	status_string = app['status']
-    	if app['instanceCount'].to_i == 0
-    		# show this instead of WARNING
-    		status_string = "#{white}EMPTY#{table_color}"
+			status_string = app['status']
+			if app['instanceCount'].to_i == 0
+				# show this instead of WARNING
+				status_string = "#{white}EMPTY#{table_color}"
 			elsif status_string == 'running'
 				status_string = "#{green}#{status_string.upcase}#{table_color}"
 			elsif status_string == 'stopped' or status_string == 'failed'
@@ -751,35 +744,33 @@ private
 			else
 				status_string = "#{yellow}#{status_string.upcase}#{table_color}"
 			end
-			
-      {
-        id: app['id'], 
-        name: app['name'], 
-        instances: instances_str,
-        containers: containers_str,
-        account: app['account'] ? app['account']['name'] : nil, 
-        status: status_string, 
-        #dateCreated: format_local_dt(app['dateCreated']) 
-      }
-    end
-    
-    print table_color
-    tp rows, [
-      :id, 
-      :name, 
-      :instances,
-      :containers,
-      #:account, 
-      :status,
-      #{:dateCreated => {:display_name => "Date Created"} }
-    ]
-    print reset
-  end
+						{
+				id: app['id'], 
+				name: app['name'], 
+				instances: instances_str,
+				containers: containers_str,
+				account: app['account'] ? app['account']['name'] : nil, 
+				status: status_string, 
+				#dateCreated: format_local_dt(app['dateCreated']) 
+			}
+		end
+				print table_color
+		tp rows, [
+			:id, 
+			:name, 
+			:instances,
+			:containers,
+			#:account, 
+			:status,
+			#{:dateCreated => {:display_name => "Date Created"} }
+		]
+		print reset
+	end
 
-  def generate_id(len=16)
-    id = ""
-    len.times { id << (1 + rand(9)).to_s }
-    id
-  end
+	def generate_id(len=16)
+		id = ""
+		len.times { id << (1 + rand(9)).to_s }
+		id
+	end
 
 end

@@ -55,5 +55,4 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
 		headers[:params].merge!(options)
 		execute(method: :get, url: url, headers: headers)
 	end
-	
-end
+	end

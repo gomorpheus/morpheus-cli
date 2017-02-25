@@ -26,8 +26,8 @@ class Morpheus::Cli::Shell
 	end
 
 	def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
-  end
+		@api_client = establish_remote_appliance_connection(opts)
+	end
 
 	def recalculate_auto_complete_commands
 		@morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
@@ -219,7 +219,7 @@ class Morpheus::Cli::Shell
 				# set global log level to debug (print stack trace for bubbled exceptions)
 				if argv.find {|arg| arg == '-V' || arg == '--debug'}
 					@return_to_log_level = Morpheus::Logging.log_level
-				  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+					Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
 				elsif @command_options[:debug]
 					# dont do this anymore.. 
 					# argv.push "--debug"
@@ -235,8 +235,8 @@ class Morpheus::Cli::Shell
 					@history_logger.warn "Unrecognized Command: '#{argv[0]}'" if @history_logger
 					#puts optparse
 				end
-			# rescue ArgumentError
-			# 	puts "Argument Syntax Error..."
+				# rescue ArgumentError
+				# 	puts "Argument Syntax Error..."
 			rescue Interrupt
 				# nothing to do
 				@history_logger.warn "shell interrupt" if @history_logger

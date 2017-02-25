@@ -8,23 +8,23 @@ class Morpheus::DashboardInterface < Morpheus::APIClient
 		@expires_at = expires_at
 	end
 
-  def get(options={})
-    dashboard(options)
-  end
+	def get(options={})
+		dashboard(options)
+	end
 
-  def dashboard(options={})
-    url = "#{@base_url}/api/dashboard"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    execute(method: :get, url: url, headers: headers)
-  end
+	def dashboard(options={})
+		url = "#{@base_url}/api/dashboard"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		execute(method: :get, url: url, headers: headers)
+	end
 
 	def recent_activity(account_id=nil, options={})
-    url = "#{@base_url}/api/dashboard/recentActivity"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    headers[:params]['accountId'] = account_id if account_id
-    execute(method: :get, url: url, headers: headers)
-  end
+		url = "#{@base_url}/api/dashboard/recentActivity"
+		headers = { params: {}, authorization: "Bearer #{@access_token}" }
+		headers[:params].merge!(options)
+		headers[:params]['accountId'] = account_id if account_id
+		execute(method: :get, url: url, headers: headers)
+	end
 
 end

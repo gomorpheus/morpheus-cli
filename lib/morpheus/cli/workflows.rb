@@ -45,7 +45,7 @@ class Morpheus::Cli::Workflows
 			end
 			json_response = @task_sets_interface.get(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				task_sets = json_response['taskSets']
 				print "\n" ,cyan, bold, "Morpheus Workflows\n","==================", reset, "\n\n"
@@ -93,7 +93,7 @@ class Morpheus::Cli::Workflows
 			end
 			json_response = @task_sets_interface.create(payload)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				print "\n", cyan, "Workflow #{json_response['taskSet']['name']} created successfully", reset, "\n\n"
 			end
@@ -127,8 +127,7 @@ class Morpheus::Cli::Workflows
 			end
 			workflow = find_workflow_by_name_or_id(workflow_name)
 			exit 1 if workflow.nil?
-			
-			# refetch it..
+						# refetch it..
 			json_response = @task_sets_interface.get(workflow['id'])
 			workflow = json_response['taskSet']
 
@@ -247,7 +246,7 @@ class Morpheus::Cli::Workflows
 	end
 
 
-private
+	private
 
 	def find_workflow_by_name_or_id(val)
 		if val.to_s =~ /\A\d{1,}\Z/
@@ -335,8 +334,7 @@ private
 				dateCreated: format_local_dt(workflow['dateCreated']) 
 			}
 		end
-		
-		print table_color
+				print table_color
 		tp rows, [
 			:id, 
 			:name, 

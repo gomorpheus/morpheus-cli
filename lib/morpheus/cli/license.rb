@@ -11,11 +11,11 @@ class Morpheus::Cli::License
 	alias_subcommand :details, :get
 
 	def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+	end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+	def connect(opts)
+		@api_client = establish_remote_appliance_connection(opts)
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
 		@license_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).license
 	end
@@ -39,7 +39,7 @@ class Morpheus::Cli::License
 			end
 			license = @license_interface.get()
 			if options[:json]
-					puts JSON.pretty_generate(license)
+				puts JSON.pretty_generate(license)
 			else
 				if license['license'].nil?
 					puts "No License Currently Applied to the appliance."
@@ -77,15 +77,14 @@ class Morpheus::Cli::License
 			exit 1
 		end
 		connect(options)
-		
-		begin
+				begin
 			if options[:dry_run]
 				print_dry_run @license_interface.dry.apply(key)
 				return
 			end
 			license_results = @license_interface.apply(key)
 			if options[:json]
-					puts JSON.pretty_generate(license_results)
+				puts JSON.pretty_generate(license_results)
 			else
 				puts "License applied successfully!"
 			end

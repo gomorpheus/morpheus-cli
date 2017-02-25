@@ -13,7 +13,7 @@ class Morpheus::Cli::Tasks
 	alias_subcommand :types, :'task-types'
 
 	def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+		@api_client = establish_remote_appliance_connection(opts)
 		@tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
 		@task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
 	end
@@ -41,7 +41,7 @@ class Morpheus::Cli::Tasks
 			end
 			json_response = @tasks_interface.get(params)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				tasks = json_response['tasks']
 				print "\n" ,cyan, bold, "Morpheus Tasks\n","==================", reset, "\n\n"
@@ -57,9 +57,7 @@ class Morpheus::Cli::Tasks
 				end
 				print reset,"\n"
 			end
-			
-			
-		rescue RestClient::Exception => e
+								rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -131,8 +129,7 @@ class Morpheus::Cli::Tasks
 		end
 		task_name = args[0]
 		connect(options)
-		
-		begin
+				begin
 
 
 			task = find_task_by_name_or_id(task_name)
@@ -197,7 +194,7 @@ class Morpheus::Cli::Tasks
 			end
 			json_response = @tasks_interface.task_types()
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				task_types = json_response['taskTypes']
 				print "\n" ,cyan, bold, "Morpheus Task Types\n","==================", reset, "\n\n"
@@ -213,9 +210,7 @@ class Morpheus::Cli::Tasks
 
 				print reset,"\n"
 			end
-			
-			
-		rescue RestClient::Exception => e
+								rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -252,7 +247,7 @@ class Morpheus::Cli::Tasks
 			end
 			json_response = @tasks_interface.create(payload)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			elsif !options[:quiet]
 				print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
 				list([])
@@ -288,7 +283,7 @@ class Morpheus::Cli::Tasks
 			end
 			json_response = @tasks_interface.destroy(task['id'])
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			elsif !options[:quiet]
 				print "\n", cyan, "Task #{task['name']} removed", reset, "\n\n"
 			end
@@ -299,7 +294,7 @@ class Morpheus::Cli::Tasks
 	end
 
 
-private
+	private
 	def find_task_by_name_or_id(val)
 		if val.to_s =~ /\A\d{1,}\Z/
 			return find_task_by_id(val)

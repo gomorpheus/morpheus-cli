@@ -10,8 +10,7 @@ require 'json'
 class Morpheus::Cli::Accounts
 	include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::AccountsHelper
-  
-	register_subcommands :list, :get, :add, :update, :remove
+		register_subcommands :list, :get, :add, :update, :remove
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -142,8 +141,7 @@ class Morpheus::Cli::Accounts
 			end
 			request_payload = {account: account_payload}
 			json_response = @accounts_interface.create(request_payload)
-			
-			if options[:json]
+						if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
@@ -209,8 +207,7 @@ class Morpheus::Cli::Accounts
 				print_green_success "Account #{account_name} updated"
 				get([account_name])
 			end
-			
-		rescue RestClient::Exception => e
+					rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -236,8 +233,7 @@ class Morpheus::Cli::Accounts
 				exit
 			end
 			json_response = @accounts_interface.destroy(account['id'])
-			
-			if options[:json]
+						if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
@@ -250,9 +246,8 @@ class Morpheus::Cli::Accounts
 		end
 	end
 
-private
+	private
 	
-
 	def add_account_option_types
 		[
 			{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},

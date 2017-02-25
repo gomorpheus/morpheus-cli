@@ -82,9 +82,7 @@ class Morpheus::Cli::VirtualImages
 				end
 				print reset,"\n"
 			end
-			
-			
-		rescue RestClient::Exception => e
+								rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -162,8 +160,7 @@ class Morpheus::Cli::VirtualImages
 		end
 
 		connect(options)
-		
-		begin
+				begin
 
 			image = find_virtual_image_by_name_or_id(image_name)
 			exit 1 if image.nil?
@@ -232,9 +229,7 @@ class Morpheus::Cli::VirtualImages
 
 				print reset,"\n\n"
 			end
-			
-			
-		rescue RestClient::Exception => e
+								rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -277,12 +272,11 @@ class Morpheus::Cli::VirtualImages
 			# options[:options]['imageType'] ||= image_type['code']
 		else
 			image_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'imageType', 'fieldLabel' => 'Image Type', 'type' => 'select', 'optionSource' => 'virtualImageTypes', 'required' => true, 'description' => 'Select Virtual Image Type.', 'displayOrder' => 2}],options[:options],@api_client,{})
-    	image_type = virtual_image_type_for_name_or_code(image_type_prompt['imageType'])
+			image_type = virtual_image_type_for_name_or_code(image_type_prompt['imageType'])
 		end
 
 		begin
-			
-			my_option_types = add_virtual_image_option_types(image_type)
+						my_option_types = add_virtual_image_option_types(image_type)
 			params = Morpheus::Cli::OptionTypes.prompt(add_virtual_image_option_types(image_type), options[:options], @api_client, options[:params])
 			virtual_image_payload = {}.merge(params)
 			virtual_image_files = virtual_image_payload.delete('virtualImageFiles')
@@ -409,7 +403,7 @@ class Morpheus::Cli::VirtualImages
 			end
 			json_response = @virtual_images_interface.destroy_file(image['id'], filename)
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				print "\n", cyan, "Virtual Image #{image['name']} filename #{filename} removed", reset, "\n\n"
 			end
@@ -444,7 +438,7 @@ class Morpheus::Cli::VirtualImages
 			end
 			json_response = @virtual_images_interface.destroy(image['id'])
 			if options[:json]
-					print JSON.pretty_generate(json_response)
+				print JSON.pretty_generate(json_response)
 			else
 				print "\n", cyan, "Virtual Image #{image['name']} removed", reset, "\n\n"
 			end
@@ -455,9 +449,8 @@ class Morpheus::Cli::VirtualImages
 	end
 
 
-private
-	
-	def find_virtual_image_by_name_or_id(val)
+	private
+		def find_virtual_image_by_name_or_id(val)
 		if val.to_s =~ /\A\d{1,}\Z/
 			return find_virtual_image_by_id(val)
 		else
@@ -495,12 +488,11 @@ private
 		end
 		return @available_virtual_image_types
 	end
-  
-	def virtual_image_type_for_name_or_code(name)
+		def virtual_image_type_for_name_or_code(name)
 		return get_available_virtual_image_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
 	end
 
-  def add_virtual_image_option_types(image_type)
+	def add_virtual_image_option_types(image_type)
 		image_type_code = image_type['code']
 		# todo: make api provide virtualImageType and its optionTypes.
 		tmp_option_types = [

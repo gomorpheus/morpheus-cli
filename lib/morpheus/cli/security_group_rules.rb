@@ -7,12 +7,12 @@ require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::SecurityGroupRules
-  include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::CliCommand
 
 	register_subcommands :list, :'add-custom-rule', :'add-instance-rule', :remove
 
 	def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+		@api_client = establish_remote_appliance_connection(opts)
 		@security_group_rules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_group_rules
 		@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
 	end
@@ -23,7 +23,7 @@ class Morpheus::Cli::SecurityGroupRules
 
 	def add_custom_rule(args)
 		usage = <<-EOT
-Usage: morpheus #{command_name} add-custom-rule SOURCE_CIDR PORT_RANGE PROTOCOL [options]
+		Usage: morpheus #{command_name} add-custom-rule SOURCE_CIDR PORT_RANGE PROTOCOL [options]
   SOURCE_CIDR: CIDR to white-list
   PORT_RANGE: Port value (i.e. 123) or port range (i.e. 1-65535)
   PROTOCOL: tcp, udp, icmp
@@ -82,7 +82,7 @@ EOT
 
 	def add_instance_rule(args)
 		usage = <<-EOT
-Usage: morpheus #{command_name} add_instance_rule SOURCE_CIDR INSTANCE_TYPE_ID [options]
+		Usage: morpheus #{command_name} add_instance_rule SOURCE_CIDR INSTANCE_TYPE_ID [options]
   SOURCE_CIDR: CIDR to white-list
   INSTANCE_TYPE_ID: ID of the Instance Type to access
 EOT
@@ -176,8 +176,7 @@ EOT
 				end
 			end
 			print reset,"\n"
-			
-		rescue RestClient::Exception => e
+					rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end

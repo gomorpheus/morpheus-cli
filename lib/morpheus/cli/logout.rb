@@ -8,17 +8,16 @@ require 'morpheus/cli/credentials'
 require 'json'
 
 class Morpheus::Cli::Logout
-  include Morpheus::Cli::CliCommand
-  # include Morpheus::Cli::WhoamiHelper
-  # include Morpheus::Cli::AccountsHelper
-  
-	def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
+	include Morpheus::Cli::CliCommand
+	# include Morpheus::Cli::WhoamiHelper
+	# include Morpheus::Cli::AccountsHelper
+		def initialize() 
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+	end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
-  end
+	def connect(opts)
+		@api_client = establish_remote_appliance_connection(opts)
+	end
 
 	def usage
 		"Usage: morpheus logout"
@@ -27,8 +26,7 @@ class Morpheus::Cli::Logout
 	def handle(args)
 		logout(args)
 	end
-	
-	def logout(args)
+		def logout(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
@@ -56,5 +54,4 @@ class Morpheus::Cli::Logout
 	end
 
 	
-
 end

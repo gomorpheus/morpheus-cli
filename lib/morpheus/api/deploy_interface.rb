@@ -47,14 +47,13 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 
 		url = URI.parse(url_string)
 		req = Net::HTTP::Post::Multipart.new url.path,
-		  "file" => UploadIO.new(File.new(path,'rb'), "image/jpeg", File.basename(path))
+		"file" => UploadIO.new(File.new(path,'rb'), "image/jpeg", File.basename(path))
 
-		  req['Authorization'] = "Bearer #{@access_token}"
+		req['Authorization'] = "Bearer #{@access_token}"
 		res = Net::HTTP.start(url.host, url.port) do |http|
-		  http.request(req)
+			http.request(req)
 		end
-		
-		res
+				res
 	end
 
 	def destroy(id)

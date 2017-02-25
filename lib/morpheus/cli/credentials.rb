@@ -15,8 +15,7 @@ module Morpheus
 				@appliance_url = appliance_url
 				@appliance_name = appliance_name
 			end
-			
-			def request_credentials(opts = {})
+						def request_credentials(opts = {})
 				username = nil
 				password = nil
 				creds = nil

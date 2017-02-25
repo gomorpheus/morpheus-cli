@@ -7,14 +7,13 @@ require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Deploys
-  include Morpheus::Cli::CliCommand
+	include Morpheus::Cli::CliCommand
 
-  set_command_name :deploy
-  
-  def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-    connect()
-  end
+	set_command_name :deploy
+		def initialize() 
+		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+		connect()
+	end
 
 	def connect() 
 		@api_client = establish_remote_appliance_connection(opts)
