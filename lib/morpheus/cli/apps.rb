@@ -481,7 +481,7 @@ class Morpheus::Cli::Apps
     end
   end
 
-  =begin
+=begin
 	def stop(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
