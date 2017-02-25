@@ -148,7 +148,6 @@ class Morpheus::Cli::Shell
 					cmd = @history[cmd_number]
 					puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
 				end
-				puts "returning now..."
 				return 0
 			elsif input == 'clear'
 				print "\e[H\e[2J"
