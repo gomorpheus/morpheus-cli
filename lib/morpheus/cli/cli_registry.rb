@@ -33,26 +33,32 @@ module Morpheus
         def exec_alias(alias_name, args)
           #puts "exec_alias(#{alias_name}, #{args})"
           found_alias_command = instance.get_alias(alias_name)
-          alias_args = found_alias_command.to_s.split(/\s+/) # or just ' '
-          command_name = alias_args.shift
-          command_args = alias_args + args
-          if command_name == alias_name
-            # needs to be better than this
-            print Term::ANSIColor.red,"alias '#{alias_name}' is calling itself? '#{found_alias_command}'", Term::ANSIColor.reset, "\n"
-            exit 1
+          # support aliases of multiple commands, semicolon delimiter
+          all_commands = found_alias_command.gsub(/(\;)(?=(?:[^"']|"[^'"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
+          puts "alias #{alias_name} all_commands is : #{all_commands.inspect}"
+          all_commands.each do |a_command_string|
+            alias_args = a_command_string.to_s.split(/\s+/) # or just ' '
+            command_name = alias_args.shift
+            command_args = alias_args + args
+            if command_name == alias_name
+              # needs to be better than this
+              print Term::ANSIColor.red,"alias '#{alias_name}' is calling itself? '#{found_alias_command}'", Term::ANSIColor.reset, "\n"
+              exit 1
+            end
+            # this allows aliases to use other aliases
+            # todo: prevent recursion infinite loop
+            if has_alias?(command_name) 
+              exec_alias(command_name, command_args)
+            elsif has_command?(command_name)
+              #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
+              instance.get(command_name).new.handle(alias_args + args)
+            else
+              # raise UnrecognizedCommandError.new(command_name)
+              print Term::ANSIColor.red,"alias '#{alias_name}' uses and unknown command: '#{command_name}'", Term::ANSIColor.reset, "\n"
+              exit 1
+            end
           end
-          # this allows aliases to use other aliases
-          # todo: prevent recursion infinite loop
-          if has_alias?(command_name) 
-            exec_alias(command_name, command_args)
-          elsif has_command?(command_name)
-            #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
-            instance.get(command_name).new.handle(alias_args + args)
-          else
-            # raise UnrecognizedCommandError.new(command_name)
-            print Term::ANSIColor.red,"alias '#{alias_name}' uses and unknown command: '#{command_name}'", Term::ANSIColor.reset, "\n"
-            exit 1
-          end
+          
         end
 
         def add(klass, command_name=nil)
