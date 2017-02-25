@@ -9,7 +9,7 @@ class Morpheus::Cli::Login
   include Morpheus::Cli::CliCommand
   # include Morpheus::Cli::WhoamiHelper
   # include Morpheus::Cli::AccountsHelper
-    def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -24,8 +24,8 @@ class Morpheus::Cli::Login
   def handle(args)
     login(args)
   end
-    # def login
-  # 	Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login()	
+  # def login
+  #   Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login()
   # end
 
   def login(args)
@@ -39,7 +39,7 @@ class Morpheus::Cli::Login
     connect(options)
 
     begin
-            Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
+      Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -48,5 +48,5 @@ class Morpheus::Cli::Login
 
   end
 
-  
+
 end

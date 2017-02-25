@@ -43,7 +43,7 @@ module Morpheus::Cli::PrintHelper
           print cyan,bold, "\nSuccess!"
         end
       end
-      ensure
+    ensure
       print reset
     end
   end
@@ -53,7 +53,7 @@ module Morpheus::Cli::PrintHelper
       if options[:debug]
         begin
           print_rest_exception_request_and_response(e)
-          ensure
+        ensure
           print reset
         end
         return
@@ -74,7 +74,7 @@ module Morpheus::Cli::PrintHelper
             print red
             print response.to_s
             print reset, "\n"
-            ensure
+          ensure
             print reset
           end
         end
@@ -178,7 +178,7 @@ module Morpheus::Cli::PrintHelper
     max_bars = opts[:max_bars] || 50
     out = ""
     bars = []
-        percent = 0
+    percent = 0
     if max_value.to_i == 0
       percent = 0
     else
@@ -231,7 +231,7 @@ module Morpheus::Cli::PrintHelper
       bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
       out << bar_display
     end
-        return out
+    return out
   end
 
   def print_stats_usage(stats, opts={})

@@ -13,7 +13,7 @@ class Morpheus::Cli::Clouds
   register_subcommands :list, :get, :add, :update, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :types => :list_cloud_types
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -170,8 +170,8 @@ class Morpheus::Cli::Clouds
     end
     optparse.parse!(args)
     # if args.count < 1
-    # 	puts optparse
-    # 	exit 1
+    #   puts optparse
+    #   exit 1
     # end
     connect(options)
 
@@ -203,8 +203,8 @@ class Morpheus::Cli::Clouds
         cloud_payload[:name] = args[0]
         options[:options]['name'] = args[0] # to skip prompt
       elsif !options[:no_prompt]
-        #	name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options])
-        #	cloud_payload[:name] = name_prompt['name']
+        # name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options])
+        # cloud_payload[:name] = name_prompt['name']
       end
 
       # Cloud Type
@@ -255,13 +255,13 @@ class Morpheus::Cli::Clouds
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       # opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
-      # 	params[:group] = val
+      #   params[:group] = val
       # end
       # opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
-      # 	params[:zone_type] = val
+      #   params[:zone_type] = val
       # end
       # opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
-      # 	params[:description] = desc
+      #   params[:description] = desc
       # end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -463,7 +463,7 @@ class Morpheus::Cli::Clouds
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if !clear_or_secgroups_specified 
+    if !clear_or_secgroups_specified
       puts optparse
       exit
     end
@@ -532,7 +532,7 @@ class Morpheus::Cli::Clouds
 
   def print_clouds_table(clouds, opts={})
     table_color = opts[:color] || cyan
-        rows = clouds.collect do |cloud|
+    rows = clouds.collect do |cloud|
       status = nil
       if cloud['status'] == 'ok'
         status = "#{green}OK#{table_color}"
@@ -543,10 +543,10 @@ class Morpheus::Cli::Clouds
       end
       cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       {
-        id: cloud['id'], 
-        name: cloud['name'], 
-        type: cloud_type ? cloud_type['name'] : '', 
-        location: cloud['location'], 
+        id: cloud['id'],
+        name: cloud['name'],
+        type: cloud_type ? cloud_type['name'] : '',
+        location: cloud['location'],
         groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
         servers: cloud['serverCount'],
         status: status
@@ -578,13 +578,13 @@ class Morpheus::Cli::Clouds
     if cloud_type && cloud_type['optionTypes']
       # adjust displayOrder to put these at the end
       #tmp_option_types = tmp_option_types + cloud_type['optionTypes']
-      cloud_type['optionTypes'].each do |opt| 
+      cloud_type['optionTypes'].each do |opt|
         tmp_option_types << opt.merge({'displayOrder' => opt['displayOrder'].to_i + 100})
       end
     end
 
     # TODO:
-        # Advanced Options
+    # Advanced Options
     ## (a whole bunch needed here)
 
     # Provisioning Options
@@ -601,7 +601,7 @@ class Morpheus::Cli::Clouds
   end
 
   def cloud_types_for_dropdown
-    get_available_cloud_types().select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} } 
+    get_available_cloud_types().select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} }
   end
 
 end

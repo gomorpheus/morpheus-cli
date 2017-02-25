@@ -14,7 +14,7 @@ class Morpheus::Cli::Apps
   register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -53,7 +53,7 @@ class Morpheus::Cli::Apps
       end
 
       json_response = @apps_interface.get(params)
-            if options[:json]
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
         return
@@ -84,7 +84,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     connect(options)
     begin
-            # use active group by default
+      # use active group by default
       options[:group] ||= @active_groups[@appliance_name.to_sym]
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 
@@ -153,14 +153,14 @@ class Morpheus::Cli::Apps
         print JSON.pretty_generate(json_response)
         return
       end
-            print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
+      print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
       print cyan
       puts "ID: #{app['id']}"
       puts "Name: #{app['name']}"
       puts "Description: #{app['description']}"
       puts "Account: #{app['account'] ? app['account']['name'] : ''}"
       # puts "Group: #{app['siteId']}"
-            stats = app['stats']
+      stats = app['stats']
       if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
         print "\n"
         # print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
@@ -226,7 +226,7 @@ class Morpheus::Cli::Apps
     connect(options)
 
     begin
-            app = find_app_by_name_or_id(args[0])
+      app = find_app_by_name_or_id(args[0])
 
       payload = {
         'app' => {id: app["id"]}
@@ -294,7 +294,7 @@ class Morpheus::Cli::Apps
     end
     connect(options)
     begin
-            app = find_app_by_name_or_id(args[0])
+      app = find_app_by_name_or_id(args[0])
 
       # Only supports adding an existing instance right now..
 
@@ -389,7 +389,7 @@ class Morpheus::Cli::Apps
     end
     connect(options)
     begin
-            app = find_app_by_name_or_id(args[0])
+      app = find_app_by_name_or_id(args[0])
 
       payload = {}
 
@@ -424,7 +424,7 @@ class Morpheus::Cli::Apps
     end
   end
 
-  def logs(args) 
+  def logs(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -482,83 +482,83 @@ class Morpheus::Cli::Apps
   end
 
 =begin
-	def stop(args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("[name]")
-			build_common_options(opts, options, [:json, :dry_run])
-		end
-		optparse.parse!(args)
-		if args.count < 1
-			puts optparse
-			exit 1
-		end
-		connect(options)
-		begin
-			app = find_app_by_name_or_id(args[0])
-			if options[:dry_run]
-				print_dry_run @apps_interface.dry.stop(app['id'])
-				return
-			end
-			@apps_interface.stop(app['id'])
-			list([])
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
+  def stop(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :dry_run])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.stop(app['id'])
+        return
+      end
+      @apps_interface.stop(app['id'])
+      list([])
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
-	def start(args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("[name]")
-			build_common_options(opts, options, [:json, :dry_run])
-		end
-		optparse.parse!(args)
-		if args.count < 1
-			puts optparse
-			exit 1
-		end
-		connect(options)
-		begin
-			app = find_app_by_name_or_id(args[0])
-			if options[:dry_run]
-				print_dry_run @apps_interface.dry.start(app['id'])
-				return
-			end
-			@apps_interface.start(app['id'])
-			list([])
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
+  def start(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :dry_run])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.start(app['id'])
+        return
+      end
+      @apps_interface.start(app['id'])
+      list([])
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
-	def restart(args)
-		options = {}
-		optparse = OptionParser.new do|opts|
-			opts.banner = subcommand_usage("[name]")
-			build_common_options(opts, options, [:json, :dry_run])
-		end
-		optparse.parse!(args)
-		if args.count < 1
-			puts optparse
-			exit 1
-		end
-		connect(options)
-		begin
-			app = find_app_by_name_or_id(args[0])
-			if options[:dry_run]
-				print_dry_run @apps_interface.dry.restart(app['id'])
-				return
-			end
-			@apps_interface.restart(app['id'])
-			list([])
-		rescue RestClient::Exception => e
-			print_rest_exception(e, options)
-			exit 1
-		end
-	end
+  def restart(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :dry_run])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.restart(app['id'])
+        return
+      end
+      @apps_interface.restart(app['id'])
+      list([])
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 =end
 
   def firewall_disable(args)
@@ -677,7 +677,7 @@ class Morpheus::Cli::Apps
       puts optparse
       exit 1
     end
-    if !clear_or_secgroups_specified 
+    if !clear_or_secgroups_specified
       puts optparse
       exit 1
     end
@@ -744,23 +744,23 @@ class Morpheus::Cli::Apps
       else
         status_string = "#{yellow}#{status_string.upcase}#{table_color}"
       end
-            {
-        id: app['id'], 
-        name: app['name'], 
+      {
+        id: app['id'],
+        name: app['name'],
         instances: instances_str,
         containers: containers_str,
-        account: app['account'] ? app['account']['name'] : nil, 
-        status: status_string, 
-        #dateCreated: format_local_dt(app['dateCreated']) 
+        account: app['account'] ? app['account']['name'] : nil,
+        status: status_string,
+        #dateCreated: format_local_dt(app['dateCreated'])
       }
     end
-        print table_color
+    print table_color
     tp rows, [
-      :id, 
-      :name, 
+      :id,
+      :name,
       :instances,
       :containers,
-      #:account, 
+      #:account,
       :status,
       #{:dateCreated => {:display_name => "Date Created"} }
     ]

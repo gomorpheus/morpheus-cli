@@ -57,7 +57,7 @@ class Morpheus::Cli::Tasks
         end
         print reset,"\n"
       end
-                rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -129,7 +129,7 @@ class Morpheus::Cli::Tasks
     end
     task_name = args[0]
     connect(options)
-        begin
+    begin
 
 
       task = find_task_by_name_or_id(task_name)
@@ -210,7 +210,7 @@ class Morpheus::Cli::Tasks
 
         print reset,"\n"
       end
-                rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end

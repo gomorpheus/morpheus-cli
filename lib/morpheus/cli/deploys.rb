@@ -10,22 +10,22 @@ class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
 
   set_command_name :deploy
-    def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
     connect()
   end
 
-  def connect() 
+  def connect()
     @api_client = establish_remote_appliance_connection(opts)
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @deploy_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deploy
   end
 
-  def handle(args) 
+  def handle(args)
     if @access_token.empty?
       print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
       return 1
-    end	
+    end
 
     deploy(args)
   end
@@ -96,7 +96,7 @@ class Morpheus::Cli::Deploys
     deploy_payload = {}
     if deploy_args['env']
       evars = []
-      deploy_args['env'].each_pair do |key, value| 
+      deploy_args['env'].each_pair do |key, value|
         evars << {name: key, value: value, export: false}
       end
       payload = {envs: evars}

@@ -10,7 +10,7 @@ class Morpheus::Cli::Remote
 
   register_subcommands :list, :add, :update, :remove, :use, :unuse, :current => :print_current
 
-  def initialize() 
+  def initialize()
     @appliances = ::Morpheus::Cli::Remote.load_appliance_file
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
     #connect()
@@ -43,8 +43,8 @@ class Morpheus::Cli::Remote
     else
       rows = @appliances.collect do |app_name, v|
         {
-          active: (v[:active] ? "=>" : ""), 
-          name: app_name, 
+          active: (v[:active] ? "=>" : ""),
+          name: app_name,
           host: v[:host]
         }
       end
@@ -114,7 +114,7 @@ class Morpheus::Cli::Remote
       puts optparse
       exit 1
     end
-        name = args[0].to_sym
+    name = args[0].to_sym
     if @appliances[name] == nil
       print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
     else
@@ -152,7 +152,7 @@ class Morpheus::Cli::Remote
       end
       return # exit 0
     end
-        if args.count == 0
+    if args.count == 0
       puts optparse
       exit 1
     end
@@ -226,7 +226,7 @@ class Morpheus::Cli::Remote
     end
   end
 
-  
+
   def self.load_appliance_file
     remote_file = appliances_file_path
     if File.exist? remote_file
@@ -234,10 +234,10 @@ class Morpheus::Cli::Remote
     else
       return {}
       # return {
-      # 	morpheus: {
-      # 		host: 'https://api.gomorpheus.com',
-      # 		active: true
-      # 	}
+      #   morpheus: {
+      #     host: 'https://api.gomorpheus.com',
+      #     active: true
+      #   }
       # }
     end
   end

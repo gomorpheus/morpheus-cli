@@ -10,8 +10,8 @@ class Morpheus::Cli::Workflows
 
   register_subcommands :list, :get, :add, :update, :remove
 
-  # def initialize() 
-  # 	@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
+  # def initialize()
+  #   @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   # end
 
   def connect(opts)
@@ -127,7 +127,7 @@ class Morpheus::Cli::Workflows
       end
       workflow = find_workflow_by_name_or_id(workflow_name)
       exit 1 if workflow.nil?
-            # refetch it..
+      # refetch it..
       json_response = @task_sets_interface.get(workflow['id'])
       workflow = json_response['taskSet']
 
@@ -138,7 +138,7 @@ class Morpheus::Cli::Workflows
       else
         # tasks = []
         # (workflow['tasks'] || []).each do |task_name|
-        # 	tasks << find_task_by_name_or_id(task_name)['id']
+        #   tasks << find_task_by_name_or_id(task_name)['id']
         # end
         tasks = workflow['taskSetTasks'].sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }
         print "\n" ,cyan, bold, "Workflow Details\n","==================", reset, "\n\n"
@@ -149,7 +149,7 @@ class Morpheus::Cli::Workflows
         #task_names = tasks.collect {|it| it['name'] }
         print "\n", cyan, "Tasks:\n"
         tasks.each_with_index do |taskSetTask, index|
-          puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}" 
+          puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
         end
         print reset,"\n"
       end
@@ -328,16 +328,16 @@ class Morpheus::Cli::Workflows
         task_names << taskSetTask['task']['name']
       end
       {
-        id: workflow['id'], 
-        name: workflow['name'], 
-        tasks: task_names.join(', '), 
-        dateCreated: format_local_dt(workflow['dateCreated']) 
+        id: workflow['id'],
+        name: workflow['name'],
+        tasks: task_names.join(', '),
+        dateCreated: format_local_dt(workflow['dateCreated'])
       }
     end
-        print table_color
+    print table_color
     tp rows, [
-      :id, 
-      :name, 
+      :id,
+      :name,
       :tasks
     ]
     print reset

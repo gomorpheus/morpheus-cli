@@ -5,7 +5,7 @@ class Morpheus::Cli::VersionCommand
   include Morpheus::Cli::CliCommand
 
   set_command_name :version
-    def initialize
+  def initialize
   end
 
   def usage
@@ -29,15 +29,15 @@ class Morpheus::Cli::VersionCommand
     else
       print cyan
       banner = "" +
-      "   __  ___              __              \n" +
-      "  /  |/  /__  _______  / /  ___ __ _____\n" +
-      " / /|_/ / _ \\/ __/ _ \\/ _ \\/ -_) // (_-<\n" +
-      "/_/  /_/\\___/_/ / .__/_//_/\\__/\\_,_/___/\n" +
-      "****************************************"
+        "   __  ___              __              \n" +
+        "  /  |/  /__  _______  / /  ___ __ _____\n" +
+        " / /|_/ / _ \\/ __/ _ \\/ _ \\/ -_) // (_-<\n" +
+        "/_/  /_/\\___/_/ / .__/_//_/\\__/\\_,_/___/\n" +
+        "****************************************"
       puts(banner)
       puts("  Client Version: #{client_version}")
       puts("****************************************")
-      print reset
+      print reset,"\n"
     end
-  end	
   end
+end

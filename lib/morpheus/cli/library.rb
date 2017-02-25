@@ -9,7 +9,7 @@ class Morpheus::Cli::Library
   register_subcommands :list, :get, :add, :update, :remove, :'add-version'
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -64,7 +64,7 @@ class Morpheus::Cli::Library
         end
       end
       print reset,"\n"
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -173,7 +173,7 @@ class Morpheus::Cli::Library
       end
 
       print_green_success "Added Instance Type #{instance_type_payload['name']}"
-            unless options[:no_prompt]
+      unless options[:no_prompt]
         if ::Morpheus::Cli::OptionTypes::confirm("Add first version?", options)
           puts "\n"
           add_version(["code:#{json_response['code']}"])
@@ -206,7 +206,7 @@ class Morpheus::Cli::Library
       # option_types = update_instance_type_option_types(instance_type)
       # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
       params = options[:options] || {}
-            instance_type_keys = ['name', 'description', 'category', 'visibility', 'environmentPrefix']
+      instance_type_keys = ['name', 'description', 'category', 'visibility', 'environmentPrefix']
       instance_type_payload = params.select {|k,v| instance_type_keys.include?(k) }
       logo_file = nil
       if params['logo']
@@ -286,7 +286,7 @@ class Morpheus::Cli::Library
     connect(options)
 
     begin
-            instance_type = find_custom_instance_type_by_name_or_code(args[0])
+      instance_type = find_custom_instance_type_by_name_or_code(args[0])
       exit 1 if instance_type.nil?
 
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the instance type #{instance_type['name']}?", options)
@@ -328,13 +328,13 @@ class Morpheus::Cli::Library
       exit 1 if instance_type.nil?
 
       #params = Morpheus::Cli::OptionTypes.prompt(add_version_option_types, options[:options], @api_client, options[:params])
-            provision_types = @provision_types_interface.get({customSupported: true})['provisionTypes']
+      provision_types = @provision_types_interface.get({customSupported: true})['provisionTypes']
       if provision_types.empty?
         print_red_alert "No available provision types found!"
         exit 1
       end
       provision_type_options = provision_types.collect {|it| { 'name' => it['name'], 'value' => it['code']} }
-            payload = {'containerType' => {}, 'instanceTypeLayout' => {}, 'instanceType' => {}}
+      payload = {'containerType' => {}, 'instanceTypeLayout' => {}, 'instanceType' => {}}
 
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'instanceTypeLayout', 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'A name for this layout.'}], options[:options])
       payload['instanceTypeLayout']['name'] = v_prompt['instanceTypeLayout']['name']
@@ -358,7 +358,7 @@ class Morpheus::Cli::Library
         puts yellow,"Sorry, no options were found for #{provision_type['name']}.",reset
         exit 1
       end
-            # prompt custom options for the selected provision type
+      # prompt custom options for the selected provision type
       field_group_name = custom_option_types.first['fieldGroup'] || "#{provision_type['name']} Options"
       puts field_group_name
       puts "==============="
@@ -380,7 +380,7 @@ class Morpheus::Cli::Library
 
       # puts "PAYLOAD:"
       # puts JSON.pretty_generate(payload)
-            # puts "\nexiting early"
+      # puts "\nexiting early"
       # exit 0
 
       payload['exposedPorts'] = prompt_exposed_ports(options, @api_client)
@@ -506,33 +506,33 @@ class Morpheus::Cli::Library
 
     ports = []
     port_index = 0
-        has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
+    has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
     add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an exposed port?"))
-        while add_another_port do
-            field_context = "exposedPort#{port_index}"
+    while add_another_port do
+        field_context = "exposedPort#{port_index}"
 
-      port = {}
-      #port['name'] ||= "Port #{port_index}"
-      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
-      port['name'] = v_prompt[field_context]['name']
+        port = {}
+        #port['name'] ||= "Port #{port_index}"
+        port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
+        port['name'] = v_prompt[field_context]['name']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
-      port['port'] = v_prompt[field_context]['port']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
+        port['port'] = v_prompt[field_context]['port']
 
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
-      port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
+        port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
 
-      ports << port
-            port_index += 1
-      has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
-      add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?"))
+        ports << port
+        port_index += 1
+        has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
+        add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?"))
 
+      end
+
+
+      return ports
     end
 
 
-    return ports
   end
-
-
-end

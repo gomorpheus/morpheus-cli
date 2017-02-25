@@ -8,7 +8,7 @@ class Morpheus::Cli::InstanceTypes
   register_subcommands :list, :get
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -30,7 +30,7 @@ class Morpheus::Cli::InstanceTypes
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 
+      exit
     end
     name = args[0]
     connect(options)
@@ -59,7 +59,7 @@ class Morpheus::Cli::InstanceTypes
           print green, "     - #{layout_name}\n",reset
         end
         # instance_type['instanceTypeLayouts'].each do |layout|
-        # 	print green, "     - #{layout['name']}\n",reset
+        #   print green, "     - #{layout['name']}\n",reset
         # end
         print reset,"\n"
       end
@@ -88,7 +88,7 @@ class Morpheus::Cli::InstanceTypes
         print_dry_run @instance_types_interface.dry.get(params)
         return
       end
-            json_response = @instance_types_interface.get(params)
+      json_response = @instance_types_interface.get(params)
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
@@ -108,14 +108,14 @@ class Morpheus::Cli::InstanceTypes
             print green, "     - #{layout_name}\n",reset
           end
           # instance_type['instanceTypeLayouts'].each do |layout|
-          # 	print green, "     - #{layout['name']}\n",reset
+          #   print green, "     - #{layout['name']}\n",reset
           # end
           #print JSON.pretty_generate(instance_type['instanceTypeLayouts'].first), "\n"
         end
 
       end
       print reset,"\n"
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end

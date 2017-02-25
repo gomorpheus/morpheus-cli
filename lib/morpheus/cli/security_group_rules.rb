@@ -23,13 +23,13 @@ class Morpheus::Cli::SecurityGroupRules
 
   def add_custom_rule(args)
     usage = <<-EOT
-    Usage: morpheus #{command_name} add-custom-rule SOURCE_CIDR PORT_RANGE PROTOCOL [options]
-  SOURCE_CIDR: CIDR to white-list
-  PORT_RANGE: Port value (i.e. 123) or port range (i.e. 1-65535)
-  PROTOCOL: tcp, udp, icmp
+Usage: morpheus #{command_name} add-custom-rule SOURCE_CIDR PORT_RANGE PROTOCOL [options]
+\tSOURCE_CIDR: CIDR to white-list
+\tPORT_RANGE: Port value (i.e. 123) or port range (i.e. 1-65535)
+\tPROTOCOL: tcp, udp, icmp
 EOT
-		options = {}
-    security_group_id = nil 
+    options = {}
+    security_group_id = nil
     optparse = OptionParser.new do|opts|
       opts.banner = usage
       opts.on( '-s', '--secgroup SECGROUP', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
@@ -82,13 +82,13 @@ EOT
 
   def add_instance_rule(args)
     usage = <<-EOT
-    Usage: morpheus #{command_name} add_instance_rule SOURCE_CIDR INSTANCE_TYPE_ID [options]
-  SOURCE_CIDR: CIDR to white-list
-  INSTANCE_TYPE_ID: ID of the Instance Type to access
+Usage: morpheus #{command_name} add_instance_rule SOURCE_CIDR INSTANCE_TYPE_ID [options]
+\tSOURCE_CIDR: CIDR to white-list
+\tINSTANCE_TYPE_ID: ID of the Instance Type to access
 EOT
-		
+
     options = {}
-    security_group_id = nil 
+    security_group_id = nil
     optparse = OptionParser.new do|opts|
       opts.banner = usage
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
@@ -137,7 +137,7 @@ EOT
 
   def list(args)
     options = {}
-    security_group_id = nil 
+    security_group_id = nil
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :dry_run])
@@ -176,7 +176,7 @@ EOT
         end
       end
       print reset,"\n"
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -184,7 +184,7 @@ EOT
 
   def remove(args)
     options = {}
-    security_group_id = nil 
+    security_group_id = nil
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id] [options]")
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|

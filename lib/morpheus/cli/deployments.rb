@@ -9,7 +9,7 @@ class Morpheus::Cli::Deployments
 
   register_subcommands :list, :add, :update, :remove, {:versions => 'list_versions'}
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -56,7 +56,7 @@ class Morpheus::Cli::Deployments
         end
         print reset,"\n"
       end
-                rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -193,7 +193,7 @@ class Morpheus::Cli::Deployments
       if options[:json]
         print JSON.pretty_generate(json_response)
       else
-        print "\n", cyan, "Deployment #{json_response['deployment']['name']} created successfully", reset, "\n\n"			
+        print "\n", cyan, "Deployment #{json_response['deployment']['name']} created successfully", reset, "\n\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

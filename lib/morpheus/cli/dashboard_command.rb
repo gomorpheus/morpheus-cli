@@ -4,10 +4,10 @@ require 'json'
 
 class Morpheus::Cli::DashboardCommand
   include Morpheus::Cli::CliCommand
-    set_command_name :dashboard
+  set_command_name :dashboard
   set_command_hidden # remove once this is done
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -23,7 +23,8 @@ class Morpheus::Cli::DashboardCommand
   def handle(args)
     show(args)
   end
-    def show(args)
+  
+  def show(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
@@ -33,22 +34,22 @@ class Morpheus::Cli::DashboardCommand
 
     connect(options)
     begin
-            params = {}
+      params = {}
       if options[:dry_run]
         print_dry_run @dashboard_interface.dry.get(params)
         return
       end
       json_response = @dashboard_interface.get(params)
-            if options[:json]
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        
+
         # todo: impersonate command and show that info here
 
         print "\n" ,cyan, bold, "Dashboard\n","==================", reset, "\n\n"
         print cyan
-                print "\n"
+        print "\n"
         puts "Coming soon.... see --json"
         print "\n"
 
@@ -60,5 +61,5 @@ class Morpheus::Cli::DashboardCommand
       exit 1
     end
   end
-  
+
 end

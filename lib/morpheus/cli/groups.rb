@@ -13,7 +13,7 @@ class Morpheus::Cli::Groups
   register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove, :current => :print_current
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -95,7 +95,7 @@ class Morpheus::Cli::Groups
       puts "Location: #{group['location']}"
       puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
       puts "Hosts: #{group['serverCount']}"
-            if is_active
+      if is_active
         puts "\n => This is the active group."
       end
 
@@ -120,8 +120,8 @@ class Morpheus::Cli::Groups
     end
     optparse.parse!(args)
     # if args.count < 1
-    # 	puts optparse
-    # 	exit 1
+    #   puts optparse
+    #   exit 1
     # end
     connect(options)
     begin
@@ -178,7 +178,7 @@ class Morpheus::Cli::Groups
     connect(options)
     begin
       group = find_group_by_name_or_id(args[0])
-            group_payload = {id: group['id']}
+      group_payload = {id: group['id']}
 
       all_option_types = update_group_option_types()
       #params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
@@ -247,8 +247,8 @@ class Morpheus::Cli::Groups
         print_green_success "Added cloud #{cloud["id"]} to group #{group['name']}"
         #list([])
         get([group["id"]])
-      end			
-          rescue RestClient::Exception => e
+      end
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -343,8 +343,8 @@ class Morpheus::Cli::Groups
     end
     optparse.parse!(args)
     connect(options)
-        if options[:unuse]
-      if @active_groups[@appliance_name.to_sym] 
+    if options[:unuse]
+      if @active_groups[@appliance_name.to_sym]
         @active_groups.delete(@appliance_name.to_sym)
       end
       ::Morpheus::Cli::Groups.save_groups(@active_groups)
@@ -357,7 +357,7 @@ class Morpheus::Cli::Groups
       print reset
       return # exit 0
     end
-        if args.length == 0
+    if args.length == 0
       active_group_id = @active_groups[@appliance_name.to_sym]
       if active_group_id
         active_group = find_group_by_id(active_group_id)
@@ -425,7 +425,7 @@ class Morpheus::Cli::Groups
     return @@groups[appliance_name.to_sym]
   end
 
-  
+
   def self.load_group_file
     remote_file = groups_file_path
     if File.exist? remote_file
@@ -456,20 +456,20 @@ class Morpheus::Cli::Groups
     rows = groups.collect do |group|
       is_active = active_group_id && (active_group_id == group['id'])
       {
-        active: (is_active ? "=>" : ""), 
-        id: group['id'], 
-        name: group['name'], 
-        location: group['location'], 
-        cloud_count: group['zones'] ? group['zones'].size : 0, 
+        active: (is_active ? "=>" : ""),
+        id: group['id'],
+        name: group['name'],
+        location: group['location'],
+        cloud_count: group['zones'] ? group['zones'].size : 0,
         server_count: group['serverCount']
       }
     end
     columns = [
-      {:active => {:display_name => ""}}, 
-      {:id => {:width => 10}}, 
-      {:name => {:width => 16}}, 
-      {:location => {:width => 32}}, 
-      {:cloud_count => {:display_name => "Clouds"}}, 
+      {:active => {:display_name => ""}},
+      {:id => {:width => 10}},
+      {:name => {:width => 16}},
+      {:location => {:width => 32}},
+      {:cloud_count => {:display_name => "Clouds"}},
       {:server_count => {:display_name => "Hosts"}}
     ]
     print table_color

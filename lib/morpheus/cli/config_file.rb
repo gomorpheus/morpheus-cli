@@ -4,13 +4,13 @@ require 'morpheus/cli/cli_registry'
 class Morpheus::Cli::ConfigFile
 
   class << self
-        def init(filename)
+    def init(filename)
       @instance ||= Morpheus::Cli::ConfigFile.new(filename)
     end
 
     def instance
       @instance ||= init(nil)
-    end  
+    end
 
     def home_directory
       if ENV['MORPHEUS_CLI_HOME']
@@ -52,7 +52,7 @@ class Morpheus::Cli::ConfigFile
     end
     load_file()
   end
-    def load_file
+  def load_file
     #puts "loading config #{@filename}"
     @config = {}
     if !@filename
@@ -63,17 +63,17 @@ class Morpheus::Cli::ConfigFile
     end
     file_contents = File.read(@filename)
     file_contents.split
-        config_text = File.open(@filename).read
+    config_text = File.open(@filename).read
     config_lines = config_text.split(/\n/)
     #config_lines = config_lines.reject {|line| line =~ /^\#/} # strip comments
     config_lines.each_with_index do |line, line_num|
       line = line.strip
       #puts "parsing config line #{line_num} : #{line}"
-            next if line.empty?
+      next if line.empty?
       next if line =~ /^\#/ # skip comments
 
       if line =~ /^alias\s+/
-                alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(line)
+        alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(line)
         if alias_name.empty? || command_string.empty?
           puts "bad config line #{line_num}: #{line} | Invalid alias declaration"
         else
@@ -90,7 +90,7 @@ class Morpheus::Cli::ConfigFile
       end
     end
 
-        # if @config[:aliases]
+    # if @config[:aliases]
     #   @config[:aliases].each do |it|
     #     Morpheus::Cli::CliRegistry.instance.add_alias(it[:name], it[:command])
     #   end

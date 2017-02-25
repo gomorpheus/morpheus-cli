@@ -7,8 +7,10 @@ module Morpheus
         @commands = {} # this is command => Class that includes ::CliCommand
         @aliases = {} # this is alias => String full input string
       end
-            class << self
-                def instance
+
+      class << self
+        
+        def instance
           @instance ||= CliRegistry.new
         end
 
@@ -45,7 +47,7 @@ module Morpheus
             end
             # this allows aliases to use other aliases
             # todo: prevent recursion infinite loop
-            if has_alias?(command_name) 
+            if has_alias?(command_name)
               exec_alias(command_name, command_args)
             elsif has_command?(command_name)
               #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
@@ -56,7 +58,7 @@ module Morpheus
               exit 1
             end
           end
-                  end
+        end
 
         def add(klass, command_name=nil)
           klass_command_name = cli_ize(klass.name.split('::')[-1])

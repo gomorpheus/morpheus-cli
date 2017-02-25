@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Roles
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-    register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
+  register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
   alias_subcommand :details, :get
 
   def connect(opts)
@@ -31,7 +31,7 @@ class Morpheus::Cli::Roles
   end
 
   def list(args)
-        options = {}
+    options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :dry_run])
@@ -40,11 +40,11 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            load_whoami()
+      load_whoami()
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            params = {}
+      params = {}
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
@@ -55,7 +55,7 @@ class Morpheus::Cli::Roles
       end
       json_response = @roles_interface.list(account_id, params)
       roles = json_response['roles']
-            if options[:json]
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
@@ -108,9 +108,9 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            if options[:dry_run]
+      if options[:dry_run]
         print_dry_run @roles_interface.dry.list(account_id, {name: name})
         return
       end
@@ -149,9 +149,9 @@ class Morpheus::Cli::Roles
         if options[:include_feature_access]
           rows = json_response['featurePermissions'].collect do |it|
             {
-              code: it['code'], 
-              name: it['name'], 
-              access: get_access_string(it['access']), 
+              code: it['code'],
+              name: it['name'],
+              access: get_access_string(it['access']),
             }
           end
           tp rows, [:code, :name, :access]
@@ -161,13 +161,13 @@ class Morpheus::Cli::Roles
 
         print "\n" ,cyan, bold, "Group Access\n","==================", reset, "\n\n"
         print cyan
-                puts "Global Group Access: #{get_access_string(json_response['globalSiteAccess'])}\n\n"
+        puts "Global Group Access: #{get_access_string(json_response['globalSiteAccess'])}\n\n"
         if json_response['globalSiteAccess'] == 'custom'
           if options[:include_group_access]
             rows = json_response['sites'].collect do |it|
               {
-                name: it['name'], 
-                access: get_access_string(it['access']), 
+                name: it['name'],
+                access: get_access_string(it['access']),
               }
             end
             tp rows, [:name, :access]
@@ -178,13 +178,13 @@ class Morpheus::Cli::Roles
 
         print "\n" ,cyan, bold, "Cloud Access\n","==================", reset, "\n\n"
         print cyan
-                puts "Global Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}\n\n"
+        puts "Global Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}\n\n"
         if json_response['globalZoneAccess'] == 'custom'
           if options[:include_cloud_access]
             rows = json_response['zones'].collect do |it|
               {
-                name: it['name'], 
-                access: get_access_string(it['access']), 
+                name: it['name'],
+                access: get_access_string(it['access']),
               }
             end
             tp rows, [:name, :access]
@@ -195,13 +195,13 @@ class Morpheus::Cli::Roles
 
         print "\n" ,cyan, bold, "Instance Type Access\n","==================", reset, "\n\n"
         print cyan
-                puts "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}\n\n"
+        puts "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}\n\n"
         if json_response['globalInstanceTypeAccess'] == 'custom'
           if options[:include_instance_type_access]
             rows = json_response['instanceTypePermissions'].collect do |it|
               {
-                name: it['name'], 
-                access: get_access_string(it['access']), 
+                name: it['name'],
+                access: get_access_string(it['access']),
               }
             end
             tp rows, [:name, :access]
@@ -231,7 +231,7 @@ class Morpheus::Cli::Roles
     begin
 
       load_whoami()
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
       # argh, some options depend on others here...eg. multitenant is only available when roleType == 'user'
@@ -325,7 +325,7 @@ class Morpheus::Cli::Roles
     end
     name = args[0]
     connect(options)
-        begin
+    begin
 
       load_whoami()
 
@@ -371,7 +371,7 @@ class Morpheus::Cli::Roles
         return
       end
       json_response = @roles_interface.update(account_id, role['id'], payload)
-            if options[:json]
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
         return
@@ -399,7 +399,7 @@ class Morpheus::Cli::Roles
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
     end
     optparse.parse!(args)
-        if args.count < 1
+    if args.count < 1
       puts optparse
       exit 1
     end
@@ -420,13 +420,13 @@ class Morpheus::Cli::Roles
         return
       end
       json_response = @roles_interface.destroy(account_id, role['id'])
-            if options[:json]
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         print_green_success "Role #{role['authority']} removed"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -455,9 +455,9 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       params = {permissionCode: permission_code, access: access_value}
@@ -473,7 +473,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} feature access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -501,9 +501,9 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       params = {permissionCode: 'ComputeSite', access: access_value}
@@ -519,7 +519,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global group access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -548,13 +548,13 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       role_json = @roles_interface.get(account_id, role['id'])
-            if role_json['globalSiteAccess'] != 'custom'
+      if role_json['globalSiteAccess'] != 'custom'
         print "\n", red, "Global Group Access is currently: #{role_json['globalSiteAccess'].capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-group-access \"#{name}\" custom`"
         print "\n\n", reset
@@ -580,7 +580,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global group access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -608,9 +608,9 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       params = {permissionCode: 'ComputeZone', access: access_value}
@@ -626,7 +626,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global cloud access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -658,13 +658,13 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       role_json = @roles_interface.get(account_id, role['id'])
-            if role_json['globalZoneAccess'] != 'custom'
+      if role_json['globalZoneAccess'] != 'custom'
         print "\n", red, "Global Cloud Access is currently: #{role_json['globalZoneAccess'].capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-cloud-access \"#{name}\" custom`"
         print "\n\n", reset
@@ -675,7 +675,7 @@ class Morpheus::Cli::Roles
       if !options[:group].nil?
         group_id = find_group_id_by_name(options[:group])
       else
-        group_id = @active_groups[@appliance_name.to_sym]	
+        group_id = @active_groups[@appliance_name.to_sym]
       end
 
       if group_id.nil?
@@ -698,7 +698,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global cloud access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -727,9 +727,9 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       params = {permissionCode: 'InstanceType', access: access_value}
@@ -745,7 +745,7 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global instance type access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -774,13 +774,13 @@ class Morpheus::Cli::Roles
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            role = find_role_by_name_or_id(account_id, name)
+      role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
       role_json = @roles_interface.get(account_id, role['id'])
-            if role_json['globalInstanceTypeAccess'] != 'custom'
+      if role_json['globalInstanceTypeAccess'] != 'custom'
         print "\n", red, "Global Instance Type Access is currently: #{role_json['globalInstanceTypeAccess'].capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-instance-type-access \"#{name}\" custom`"
         print "\n\n", reset
@@ -803,20 +803,20 @@ class Morpheus::Cli::Roles
       else
         print_green_success "Role #{role['authority']} global instance type access updated"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
   end
 
   private
-    # def get_access_string(val)
-  # 	val ||= 'none'
-  # 	if val == 'none'
-  # 		"#{white}#{val.to_s.capitalize}#{cyan}"
-  # 	else
-  # 		"#{green}#{val.to_s.capitalize}#{cyan}"
-  # 	end
+  # def get_access_string(val)
+  #   val ||= 'none'
+  #   if val == 'none'
+  #     "#{white}#{val.to_s.capitalize}#{cyan}"
+  #   else
+  #     "#{green}#{val.to_s.capitalize}#{cyan}"
+  #   end
   # end
 
   def add_role_option_types
@@ -849,15 +849,15 @@ class Morpheus::Cli::Roles
 
   # no worky, returning  {"success"=>true, "data"=>[]}
   # def find_group_id_by_name(name)
-  # 	option_results = @options_interface.options_for_source('groups',{})
-  # 	puts "option_results: #{option_results.inspect}"
-  # 	match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-  # 	if match.nil?
-  # 		print_red_alert "Group not found by name #{name}"
-  # 		return nil
-  # 	else
-  # 		return match['value']
-  # 	end
+  #   option_results = @options_interface.options_for_source('groups',{})
+  #   puts "option_results: #{option_results.inspect}"
+  #   match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
+  #   if match.nil?
+  #     print_red_alert "Group not found by name #{name}"
+  #     return nil
+  #   else
+  #     return match['value']
+  #   end
   # end
 
   def find_cloud_id_by_name(group_id, name)
@@ -882,7 +882,7 @@ class Morpheus::Cli::Roles
 
   def load_whoami
     whoami_response = @whoami_interface.get()
-    @current_user = whoami_response["user"] 
+    @current_user = whoami_response["user"]
     if @current_user.empty?
       print_red_alert "Unauthenticated. Please login."
       exit 1

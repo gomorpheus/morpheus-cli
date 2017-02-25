@@ -11,7 +11,7 @@ class Morpheus::Cli::Whoami
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
-    def initialize() 
+  def initialize()
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -19,11 +19,11 @@ class Morpheus::Cli::Whoami
     @access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).load_saved_credentials()
     # always try this.. it will 401
     # if @access_token.empty?
-    # 	print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-    # 	exit 1
+    #   print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
+    #   exit 1
     # end
     @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
-    
+
   end
 
   def usage
@@ -33,7 +33,7 @@ class Morpheus::Cli::Whoami
   def handle(args)
     show(args)
   end
-    def show(args)
+  def show(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
@@ -41,13 +41,13 @@ class Morpheus::Cli::Whoami
         options[:include_feature_access] = true
       end
       # opts.on(nil,'--group-access', "Display Group Access") do
-      # 	options[:include_group_access] = true
+      #   options[:include_group_access] = true
       # end
       # opts.on(nil,'--cloud-access', "Display Cloud Access") do
-      # 	options[:include_cloud_access] = true
+      #   options[:include_cloud_access] = true
       # end
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
-      # 	options[:include_instance_type_access] = true
+      #   options[:include_instance_type_access] = true
       # end
       opts.on(nil,'--all-access', "Display All Access Lists") do
         options[:include_feature_access] = true
@@ -60,8 +60,8 @@ class Morpheus::Cli::Whoami
     optparse.parse!(args)
     connect(options)
     begin
-            json_response = load_whoami()
-            if options[:json]
+      json_response = load_whoami()
+      if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
@@ -127,5 +127,5 @@ class Morpheus::Cli::Whoami
     end
   end
 
-  
+
 end

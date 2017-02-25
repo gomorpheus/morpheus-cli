@@ -10,10 +10,10 @@ require 'json'
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-    register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+  register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -48,7 +48,7 @@ class Morpheus::Cli::Hosts
     optparse.parse!(args)
     connect(options)
     begin
-            group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
       if group
         params['siteId'] = group['id']
       end
@@ -224,7 +224,7 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def logs(args) 
+  def logs(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -276,7 +276,7 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def server_types(args) 
+  def server_types(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[cloud]")
@@ -336,7 +336,7 @@ class Morpheus::Cli::Hosts
     if args[1]
       options[:host_name] = args[1]
     end
-        # use active group by default
+    # use active group by default
     options[:group] ||= @active_groups[@appliance_name.to_sym]
 
     params = {}
@@ -397,7 +397,7 @@ class Morpheus::Cli::Hosts
     end
 
     payload = {}
-        # prompt for service plan
+    # prompt for service plan
     service_plans_json = @servers_interface.service_plans({zoneId: cloud['id'], serverTypeId: server_type["id"]})
     service_plans = service_plans_json["plans"]
     service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
@@ -439,12 +439,12 @@ class Morpheus::Cli::Hosts
     begin
       params['server'] = params['server'] || {}
       payload = payload.merge({
-        server: {
-          name: host_name, 
-          zone: {id: cloud['id']}, 
-          computeServerType: {id: server_type['id']},
-          plan: {id: service_plan["id"]}
-        }.merge(params['server'])
+                                server: {
+                                  name: host_name,
+                                  zone: {id: cloud['id']},
+                                  computeServerType: {id: server_type['id']},
+                                  plan: {id: service_plan["id"]}
+                                }.merge(params['server'])
       })
       payload[:network] = params['network'] if params['network']
       payload[:config] = params['config'] if params['config']
@@ -477,7 +477,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure" ) do
         query_params[:removeResources] = 'off'
       end
-            build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -485,10 +485,10 @@ class Morpheus::Cli::Hosts
       exit 1
     end
     connect(options)
-    
+
     begin
-            server = find_host_by_name_or_id(args[0])
-            unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
+      server = find_host_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
         exit 1
       end
       if options[:dry_run]
@@ -597,7 +597,7 @@ class Morpheus::Cli::Hosts
       unless options[:no_prompt]
         puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
         # unless hot_resize
-        # 	puts "\nWARNING: Resize actions for this server will cause instances to be restarted.\n\n"
+        #   puts "\nWARNING: Resize actions for this server will cause instances to be restarted.\n\n"
         # end
       end
 
@@ -628,15 +628,15 @@ class Morpheus::Cli::Hosts
       #       need to get provision_type_id for network info
       # prompt for network interfaces (if supported)
       # if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
-      # 	begin
-      # 		network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
-      # 		if !network_interfaces.empty?
-      # 			payload[:networkInterfaces] = network_interfaces
-      # 		end
-      # 	rescue RestClient::Exception => e
-      # 		print_yellow_warning "Unable to load network options. Proceeding..."
-      # 		print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
-      # 	end
+      #   begin
+      #     network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
+      #     if !network_interfaces.empty?
+      #       payload[:networkInterfaces] = network_interfaces
+      #     end
+      #   rescue RestClient::Exception => e
+      #     print_yellow_warning "Unable to load network options. Proceeding..."
+      #     print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+      #   end
       # end
 
       # only amazon supports this option
@@ -657,7 +657,7 @@ class Morpheus::Cli::Hosts
           list([])
         end
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -693,7 +693,7 @@ class Morpheus::Cli::Hosts
 
   def run_workflow(args)
     options = {}
-        optparse = OptionParser.new do|opts|
+    optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -701,7 +701,7 @@ class Morpheus::Cli::Hosts
       puts "\n#{optparse}\n\n"
       exit 1
     end
-        optparse.parse!(args)
+    optparse.parse!(args)
     connect(options)
     host = find_host_by_name_or_id(args[0])
     workflow = find_workflow_by_name(args[1])
@@ -728,7 +728,7 @@ class Morpheus::Cli::Hosts
     end
 
     workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
-    begin	
+    begin
       if options[:dry_run]
         print_dry_run @servers_interface.dry.workflow(host['id'],workflow['id'], workflow_payload)
         return
@@ -836,13 +836,13 @@ class Morpheus::Cli::Hosts
     table_color = opts[:color] || cyan
     rows = servers.collect do |server|
       {
-        id: server['id'], 
-        name: server['name'], 
-        platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A', 
-        cloud: server['zone'] ? server['zone']['name'] : '', 
-        type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged', 
+        id: server['id'],
+        name: server['name'],
+        platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+        cloud: server['zone'] ? server['zone']['name'] : '',
+        type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
         nodes: server['containers'] ? server['containers'].size : '',
-        status: format_host_status(server, table_color), 
+        status: format_host_status(server, table_color),
         power: format_server_power_state(server, table_color)
       }
     end

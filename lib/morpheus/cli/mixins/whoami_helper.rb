@@ -1,7 +1,7 @@
 require 'table_print'
 require 'morpheus/cli/mixins/print_helper'
 
-# Mixin for Morpheus::Cli command classes 
+# Mixin for Morpheus::Cli command classes
 # Provides common methods for fetching and printing accounts, roles, and users.
 # The including class must establish @accounts_interface, @roles_interface, @users_interface
 module Morpheus::Cli::WhoamiHelper
@@ -14,7 +14,7 @@ module Morpheus::Cli::WhoamiHelper
     whoami_interface = @whoami_interface || @api_client.whoami
     whoami_response = whoami_interface.get()
     # whoami_response = @whoami_interface.get()
-    @current_user = whoami_response["user"] 
+    @current_user = whoami_response["user"]
     if @current_user.empty?
       print_red_alert "Unauthenticated. Please login."
       exit 1

@@ -9,10 +9,10 @@ require 'json'
 class Morpheus::Cli::KeyPairs
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-    register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -90,7 +90,7 @@ class Morpheus::Cli::KeyPairs
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
       key_pair = find_key_pair_by_name_or_id(account_id, args[0])
@@ -216,7 +216,7 @@ class Morpheus::Cli::KeyPairs
     end
 
     connect(options)
-        begin
+    begin
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
@@ -297,7 +297,7 @@ class Morpheus::Cli::KeyPairs
   end
 
   private
-    def find_key_pair_by_name_or_id(account_id, val)
+  def find_key_pair_by_name_or_id(account_id, val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_key_pair_by_id(account_id, val)
     else
@@ -339,16 +339,16 @@ class Morpheus::Cli::KeyPairs
     table_color = opts[:color] || cyan
     rows = key_pairs.collect do |key_pair|
       {
-        id: key_pair['id'], 
-        name: key_pair['name'], 
+        id: key_pair['id'],
+        name: key_pair['name'],
         md5: key_pair['md5'],
-        dateCreated: format_local_dt(key_pair['dateCreated']) 
+        dateCreated: format_local_dt(key_pair['dateCreated'])
       }
     end
-        print table_color
+    print table_color
     tp rows, [
-      :id, 
-      :name, 
+      :id,
+      :name,
       :md5,
       {:dateCreated => {:display_name => "Date Created"} }
     ]

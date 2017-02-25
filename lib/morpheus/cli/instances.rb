@@ -14,8 +14,8 @@ class Morpheus::Cli::Instances
   register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
   alias_subcommand :details, :get
 
-  def initialize() 
-    #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance		
+  def initialize()
+    #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
   def connect(opts)
@@ -30,7 +30,8 @@ class Morpheus::Cli::Instances
     @options_interface = @api_client.options
     @active_groups = ::Morpheus::Cli::Groups.load_group_file
   end
-    def handle(args)
+  
+  def handle(args)
     handle_subcommand(args)
   end
 
@@ -54,7 +55,7 @@ class Morpheus::Cli::Instances
         options[:layout_size] = val.to_i
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-          end
+    end
 
     optparse.parse!(args)
     connect(options)
@@ -66,11 +67,11 @@ class Morpheus::Cli::Instances
     if args[1]
       options[:instance_name] = args[1]
     end
-        # use active group by default
+    # use active group by default
     options[:group] ||= @active_groups[@appliance_name.to_sym]
 
     options[:name_required] = true
-        begin
+    begin
 
       payload = prompt_new_instance(options)
       payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
@@ -136,7 +137,7 @@ class Morpheus::Cli::Instances
       params = params.select {|k,v| instance_keys.include?(k) }
       params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
       payload['instance'].merge!(params)
-            if options[:dry_run]
+      if options[:dry_run]
         print_dry_run @instances_interface.dry.update(instance["id"], payload)
         return
       end
@@ -235,7 +236,7 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def console(args) 
+  def console(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -259,7 +260,7 @@ class Morpheus::Cli::Instances
         link += "?containerId=#{options[:node_id]}"
       end
 
-            if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
         system "start #{link}"
       elsif RbConfig::CONFIG['host_os'] =~ /darwin/
         system "open #{link}"
@@ -272,7 +273,7 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def logs(args) 
+  def logs(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -376,7 +377,7 @@ class Morpheus::Cli::Instances
       puts "Connection: #{connection_string}"
       #puts "Account: #{instance['account'] ? instance['account']['name'] : ''}"
       puts "Status: #{format_instance_status(instance)}"
-            if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
+      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
         print "\n"
         # stats_map = {}
         # stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
@@ -477,7 +478,7 @@ class Morpheus::Cli::Instances
       imported_envs = json_response['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
       tp imported_envs
       print reset, "\n"
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -890,13 +891,13 @@ class Morpheus::Cli::Instances
         print_green_success "Resizing instance #{instance['name']}"
         list([])
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
   end
 
-  def backup(args) 
+  def backup(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -904,7 +905,7 @@ class Morpheus::Cli::Instances
     end
     if args.count < 1
       puts optparse
-      exit 1 
+      exit 1
     end
     optparse.parse!(args)
     connect(options)
@@ -995,7 +996,7 @@ class Morpheus::Cli::Instances
         end
         print reset,"\n"
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -1168,7 +1169,7 @@ class Morpheus::Cli::Instances
       puts optparse
       exit 1
     end
-    if !clear_or_secgroups_specified 
+    if !clear_or_secgroups_specified
       puts optparse
       exit
     end
@@ -1198,7 +1199,7 @@ class Morpheus::Cli::Instances
 
   def run_workflow(args)
     options = {}
-        optparse = OptionParser.new do|opts|
+    optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [workflow] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -1206,7 +1207,7 @@ class Morpheus::Cli::Instances
       puts "\n#{optparse}\n\n"
       exit 1
     end
-        optparse.parse!(args)
+    optparse.parse!(args)
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     workflow = find_workflow_by_name(args[1])
@@ -1307,12 +1308,12 @@ class Morpheus::Cli::Instances
     end
   end
 
-  # check the instance 
+  # check the instance
   def check_status
   end
 
-  private 
-    def find_zone_by_name_or_id(group_id, val)
+  private
+  def find_zone_by_name_or_id(group_id, val)
     zone = nil
     if val.to_s =~ /\A\d{1,}\Z/
       json_results = @clouds_interface.get(val.to_i)
@@ -1350,14 +1351,14 @@ class Morpheus::Cli::Instances
         connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
       end
       {
-        id: instance['id'], 
-        name: instance['name'], 
-        connection: connection_string, 
-        environment: instance['instanceContext'], 
-        nodes: instance['containers'].count, 
-        status: format_instance_status(instance, table_color), 
-        type: instance['instanceType']['name'], 
-        group: !instance['group'].nil? ? instance['group']['name'] : nil, 
+        id: instance['id'],
+        name: instance['name'],
+        connection: connection_string,
+        environment: instance['instanceContext'],
+        nodes: instance['containers'].count,
+        status: format_instance_status(instance, table_color),
+        type: instance['instanceType']['name'],
+        group: !instance['group'].nil? ? instance['group']['name'] : nil,
         cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
       }
     end
@@ -1381,4 +1382,4 @@ class Morpheus::Cli::Instances
     end
     out
   end
-  end
+end

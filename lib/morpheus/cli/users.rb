@@ -10,10 +10,10 @@ require 'json'
 class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-    register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove
   alias_subcommand :details, :get
 
-  def initialize() 
+  def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
@@ -46,7 +46,7 @@ class Morpheus::Cli::Users
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-            if options[:dry_run]
+      if options[:dry_run]
         print_dry_run @users_interface.dry.list(account_id, params)
         return
       end
@@ -86,13 +86,13 @@ class Morpheus::Cli::Users
         options[:include_feature_access] = true
       end
       # opts.on(nil,'--group-access', "Display Group Access") do
-      # 	options[:include_group_access] = true
+      #   options[:include_group_access] = true
       # end
       # opts.on(nil,'--cloud-access', "Display Cloud Access") do
-      # 	options[:include_cloud_access] = true
+      #   options[:include_cloud_access] = true
       # end
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
-      # 	options[:include_instance_type_access] = true
+      #   options[:include_instance_type_access] = true
       # end
       opts.on(nil,'--all-access', "Display All Access Lists") do
         options[:include_feature_access] = true
@@ -111,9 +111,9 @@ class Morpheus::Cli::Users
 
     connect(options)
     begin
-            account = find_account_from_options(options)
+      account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-            if options[:dry_run]
+      if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @users_interface.dry.get(account_id, args[0].to_i)
         else
@@ -198,14 +198,14 @@ class Morpheus::Cli::Users
     optparse.parse!(args)
 
     connect(options)
-        begin
+    begin
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
       # remove role option_type, it is just for help display, the role prompt is separate down below
       prompt_option_types = add_user_option_types().reject {|it| ['role'].include?(it['fieldName']) }
-            params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
+      params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 
       #puts "parsed params is : #{params.inspect}"
       user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
@@ -272,7 +272,7 @@ class Morpheus::Cli::Users
     end
 
     connect(options)
-        begin
+    begin
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
@@ -286,7 +286,7 @@ class Morpheus::Cli::Users
       if !roles.empty?
         params['roles'] = roles.collect {|r| {id: r['id']} }
       end
-            if params.empty?
+      if params.empty?
         puts optparse.banner
         puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
         exit 1
@@ -304,7 +304,7 @@ class Morpheus::Cli::Users
 
       payload = {user: user_payload}
       json_response = @users_interface.update(account_id, user['id'], payload)
-            if options[:dry_run]
+      if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return
       end
@@ -365,7 +365,7 @@ class Morpheus::Cli::Users
         print_green_success "User #{user['username']} removed"
         # list([])
       end
-          rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -433,7 +433,7 @@ class Morpheus::Cli::Users
 
     if !passed_role_names.empty?
       invalid_role_names = []
-      passed_role_names.each do |role_name| 
+      passed_role_names.each do |role_name|
         found_role = available_roles.find {|ar| ar['authority'] == role_name}
         if found_role
           # found_roles << found_role
@@ -456,20 +456,20 @@ class Morpheus::Cli::Users
         roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
         add_another_role = true
         while add_another_role do
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
-          if v_prompt['roleId'].to_s.empty?
-            add_another_role = false
-          else
-            role_id = v_prompt['roleId']
-            roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
+            if v_prompt['roleId'].to_s.empty?
+              add_another_role = false
+            else
+              role_id = v_prompt['roleId']
+              roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
+            end
           end
         end
       end
+
+      roles = roles.compact
+      return roles
+
     end
 
-    roles = roles.compact
-    return roles
-
   end
-
-end

@@ -5,7 +5,7 @@ require 'logger'
 #
 module Morpheus::Logging
 
-  DEFAULT_LOG_LEVEL = ENV['DEBUG'] ? Logger::DEBUG : Logger::INFO  
+  DEFAULT_LOG_LEVEL = ENV['DEBUG'] ? Logger::DEBUG : Logger::INFO
 
   @@log_level = DEFAULT_LOG_LEVEL
   @@logger = nil

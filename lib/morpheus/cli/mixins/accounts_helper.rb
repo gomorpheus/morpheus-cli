@@ -1,7 +1,7 @@
 require 'table_print'
 require 'morpheus/cli/mixins/print_helper'
 
-# Mixin for Morpheus::Cli command classes 
+# Mixin for Morpheus::Cli command classes
 # Provides common methods for fetching and printing accounts, roles, and users.
 # The including class must establish @accounts_interface, @roles_interface, @users_interface
 module Morpheus::Cli::AccountsHelper
@@ -166,20 +166,20 @@ module Morpheus::Cli::AccountsHelper
         status_state = "#{red}INACTIVE#{table_color}"
       end
       {
-        id: account['id'], 
-        name: account['name'], 
-        description: account['description'], 
-        role: account['role'] ? account['role']['authority'] : nil, 
+        id: account['id'],
+        name: account['name'],
+        description: account['description'],
+        role: account['role'] ? account['role']['authority'] : nil,
         status: status_state,
-        dateCreated: format_local_dt(account['dateCreated']) 
+        dateCreated: format_local_dt(account['dateCreated'])
       }
     end
-        print table_color
+    print table_color
     tp rows, [
-      :id, 
-      :name, 
-      :description, 
-      :role, 
+      :id,
+      :name,
+      :description,
+      :role,
       {:dateCreated => {:display_name => "Date Created"} },
       :status
     ]
@@ -216,21 +216,21 @@ module Morpheus::Cli::AccountsHelper
     # ]
     rows = roles.collect do |role|
       {
-        id: role['id'], 
-        name: role['authority'], 
-        description: role['description'], 
+        id: role['id'],
+        name: role['authority'],
+        description: role['description'],
         scope: role['scope'],
         multitenant: role['multitenant'] ? 'Yes' : 'No',
         type: format_role_type(role),
         owner: role['owner'] ? role['owner']['name'] : "System",
-        dateCreated: format_local_dt(role['dateCreated']) 
+        dateCreated: format_local_dt(role['dateCreated'])
       }
     end
     print table_color
     tp rows, [
-      :id, 
-      :name, 
-      :description, 
+      :id,
+      :name,
+      :description,
       # opts[:is_master_account] ? :scope : nil,
       opts[:is_master_account] ? :type : nil,
       opts[:is_master_account] ? :multitenant : nil,

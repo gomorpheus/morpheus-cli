@@ -3,10 +3,10 @@ require 'optparse'
 #require 'rest_client'
 require 'morpheus/logging'
 class Morpheus::Cli::ErrorHandler
-    include Morpheus::Cli::PrintHelper
+  include Morpheus::Cli::PrintHelper
 
   def handle_error(err)
-    case (err) 
+    case (err)
     when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument, OptionParser::InvalidArgument
       # raise e
       print_red_alert "#{err.message}"
