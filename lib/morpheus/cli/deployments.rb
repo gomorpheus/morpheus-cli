@@ -10,11 +10,11 @@ class Morpheus::Cli::Deployments
 	register_subcommands :list, :add, :update, :remove, {:versions => 'list_versions'}
 
 	def initialize() 
-		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		@api_client = establish_remote_appliance_connection(opts)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@deployments_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deployments
 	end
 
@@ -41,7 +41,7 @@ class Morpheus::Cli::Deployments
 			end
 			json_response = @deployments_interface.get(params)
 			if options[:json]
-				puts JSON.pretty_generate(json_response)
+					puts JSON.pretty_generate(json_response)
 			else
 				deployments = json_response['deployments']
 				print "\n" ,cyan, bold, "Morpheus Deployments\n","====================", reset, "\n\n"
@@ -56,7 +56,9 @@ class Morpheus::Cli::Deployments
 				end
 				print reset,"\n"
 			end
-								rescue RestClient::Exception => e
+			
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -89,7 +91,7 @@ class Morpheus::Cli::Deployments
 			end
 			json_response = @deployments_interface.list_versions(deployment['id'],params)
 			if options[:json]
-				puts JSON.pretty_generate(json_response)
+					puts JSON.pretty_generate(json_response)
 			else
 				versions = json_response['versions']
 				print "\n" ,cyan, bold, "Morpheus Deployment Versions\n","=============================", reset, "\n\n"
@@ -191,7 +193,7 @@ class Morpheus::Cli::Deployments
 			end
 			json_response = @deployments_interface.create(payload)
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+					print JSON.pretty_generate(json_response)
 			else
 				print "\n", cyan, "Deployment #{json_response['deployment']['name']} created successfully", reset, "\n\n"			
 			end
@@ -226,7 +228,7 @@ class Morpheus::Cli::Deployments
 			end
 			json_response = @deployments_interface.destroy(deployment['id'])
 			if options[:json]
-				print JSON.pretty_generate(json_response)
+					print JSON.pretty_generate(json_response)
 			else
 				print "\n", cyan, "Deployment #{deployment['name']} removed", reset, "\n\n"
 			end
@@ -237,7 +239,7 @@ class Morpheus::Cli::Deployments
 	end
 
 
-	private
+private
 	def find_deployment_by_name_or_id(val)
 		raise "find_deployment_by_name_or_id passed a bad name: #{val.inspect}" if val.to_s == ''
 		results = @deployments_interface.get(val)

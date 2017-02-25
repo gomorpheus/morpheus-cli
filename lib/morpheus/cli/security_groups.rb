@@ -7,12 +7,12 @@ require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::SecurityGroups
-	include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::CliCommand
 
-	register_subcommands :list, :get, :add, :remove, :use, :unuse
+  register_subcommands :list, :get, :add, :remove, :use, :unuse
 
 	def connect(opts)
-		@api_client = establish_remote_appliance_connection(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@security_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_groups
 		@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
 	end
@@ -60,7 +60,8 @@ class Morpheus::Cli::SecurityGroups
 				end
 			end
 			print reset,"\n"
-					rescue RestClient::Exception => e
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -97,7 +98,8 @@ class Morpheus::Cli::SecurityGroups
 				print cyan, "=  #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
 			end
 			print reset,"\n\n"
-					rescue RestClient::Exception => e
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end

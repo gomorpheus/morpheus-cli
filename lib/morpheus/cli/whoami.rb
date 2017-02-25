@@ -8,10 +8,11 @@ require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::Whoami
-	include Morpheus::Cli::CliCommand
-	include Morpheus::Cli::WhoamiHelper
-	include Morpheus::Cli::AccountsHelper
-		def initialize() 
+  include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::WhoamiHelper
+  include Morpheus::Cli::AccountsHelper
+  
+	def initialize() 
 		@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
 	end
 
@@ -24,6 +25,7 @@ class Morpheus::Cli::Whoami
 		# end
 		@api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
 		
+
 	end
 
 	def usage
@@ -33,7 +35,8 @@ class Morpheus::Cli::Whoami
 	def handle(args)
 		show(args)
 	end
-		def show(args)
+	
+	def show(args)
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = usage
@@ -60,8 +63,10 @@ class Morpheus::Cli::Whoami
 		optparse.parse!(args)
 		connect(options)
 		begin
-						json_response = load_whoami()
-						if options[:json]
+			
+			json_response = load_whoami()
+			
+			if options[:json]
 				print JSON.pretty_generate(json_response)
 				print "\n"
 			else
@@ -76,8 +81,8 @@ class Morpheus::Cli::Whoami
 				print "\n" ,cyan, bold, "Current User\n","==================", reset, "\n\n"
 				print cyan
 				# if @is_master_account
-				puts "ID: #{user['id']}"
-				puts "Account: #{user['account'] ? user['account']['name'] : nil}" + (@is_master_account ? " (Master Account)" : "")
+					puts "ID: #{user['id']}"
+					puts "Account: #{user['account'] ? user['account']['name'] : nil}" + (@is_master_account ? " (Master Account)" : "")
 				# end
 				puts "First Name: #{user['firstName']}"
 				puts "Last Name: #{user['lastName']}"
@@ -128,4 +133,5 @@ class Morpheus::Cli::Whoami
 	end
 
 	
+
 end

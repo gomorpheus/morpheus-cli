@@ -8,9 +8,10 @@ require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
 class Morpheus::Cli::Users
-	include Morpheus::Cli::CliCommand
-	include Morpheus::Cli::AccountsHelper
-		register_subcommands :list, :get, :add, :update, :remove
+  include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
+	
+	register_subcommands :list, :get, :add, :update, :remove
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -46,7 +47,8 @@ class Morpheus::Cli::Users
 			[:phrase, :offset, :max, :sort, :direction].each do |k|
 				params[k] = options[k] unless options[k].nil?
 			end
-						if options[:dry_run]
+			
+			if options[:dry_run]
 				print_dry_run @users_interface.dry.list(account_id, params)
 				return
 			end
@@ -82,7 +84,7 @@ class Morpheus::Cli::Users
 		options = {}
 		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("[username]")
-			opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
 				options[:include_feature_access] = true
 			end
 			# opts.on(nil,'--group-access', "Display Group Access") do
@@ -111,9 +113,11 @@ class Morpheus::Cli::Users
 
 		connect(options)
 		begin
-						account = find_account_from_options(options)
+			
+			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
-						if options[:dry_run]
+			
+			if options[:dry_run]
 				if args[0].to_s =~ /\A\d{1,}\Z/
 					print_dry_run @users_interface.dry.get(account_id, args[0].to_i)
 				else
@@ -190,22 +194,24 @@ class Morpheus::Cli::Users
 			opts.banner = subcommand_usage("[options]")
 			build_common_options(opts, options, [:account, :options, :json, :dry_run])
 			opts.on('-h', '--help', "Prints this help" ) do
-				puts opts
+        puts opts
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(add_user_option_types)
-				exit
-			end
+        exit
+      end
 		end
 		optparse.parse!(args)
 
 		connect(options)
-				begin
+		
+		begin
 
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
 
 			# remove role option_type, it is just for help display, the role prompt is separate down below
 			prompt_option_types = add_user_option_types().reject {|it| ['role'].include?(it['fieldName']) }
-						params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
+			
+			params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 
 			#puts "parsed params is : #{params.inspect}"
 			user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
@@ -258,10 +264,10 @@ class Morpheus::Cli::Users
 			opts.banner = subcommand_usage("[username] [options]")
 			build_common_options(opts, options, [:account, :options, :json, :dry_run])
 			opts.on('-h', '--help', "Prints this help" ) do
-				puts opts
+        puts opts
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
-				exit
-			end
+        exit
+      end
 		end
 		optparse.parse!(args)
 
@@ -272,7 +278,8 @@ class Morpheus::Cli::Users
 		end
 
 		connect(options)
-				begin
+		
+		begin
 
 			account = find_account_from_options(options)
 			account_id = account ? account['id'] : nil
@@ -286,7 +293,8 @@ class Morpheus::Cli::Users
 			if !roles.empty?
 				params['roles'] = roles.collect {|r| {id: r['id']} }
 			end
-						if params.empty?
+			
+			if params.empty?
 				puts optparse.banner
 				puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
 				exit 1
@@ -304,7 +312,8 @@ class Morpheus::Cli::Users
 
 			payload = {user: user_payload}
 			json_response = @users_interface.update(account_id, user['id'], payload)
-						if options[:dry_run]
+			
+			if options[:dry_run]
 				print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
 				return
 			end
@@ -365,13 +374,14 @@ class Morpheus::Cli::Users
 				print_green_success "User #{user['username']} removed"
 				# list([])
 			end
-					rescue RestClient::Exception => e
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
 	end
 
-	private
+private
 
 	def add_user_option_types
 		[

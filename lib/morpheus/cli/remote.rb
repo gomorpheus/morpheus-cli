@@ -16,9 +16,9 @@ class Morpheus::Cli::Remote
 		#connect()
 	end
 
-	# def connect(opts)
-	#   @api_client = establish_remote_appliance_connection(opts)
-	# end
+  # def connect(opts)
+  #   @api_client = establish_remote_appliance_connection(opts)
+  # end
 
 	def handle(args)
 		if args.count == 0
@@ -42,15 +42,15 @@ class Morpheus::Cli::Remote
 			puts yellow,"No remote appliances configured. Use `remote add`",reset
 		else
 			rows = @appliances.collect do |app_name, v|
-				{
-					active: (v[:active] ? "=>" : ""), 
-					name: app_name, 
-					host: v[:host]
-				}
-			end
-			print cyan
-			tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
-			print reset
+      	{
+      		active: (v[:active] ? "=>" : ""), 
+      		name: app_name, 
+      		host: v[:host]
+      	}
+    	end
+	    print cyan
+	    tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
+	    print reset
 			# if @@appliance
 			active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
 			if active_appliance_name
@@ -114,7 +114,8 @@ class Morpheus::Cli::Remote
 			puts optparse
 			exit 1
 		end
-				name = args[0].to_sym
+		
+		name = args[0].to_sym
 		if @appliances[name] == nil
 			print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
 		else
@@ -152,7 +153,8 @@ class Morpheus::Cli::Remote
 			end
 			return # exit 0
 		end
-				if args.count == 0
+		
+		if args.count == 0
 			puts optparse
 			exit 1
 		end
@@ -227,6 +229,7 @@ class Morpheus::Cli::Remote
 	end
 
 	
+
 	def self.load_appliance_file
 		remote_file = appliances_file_path
 		if File.exist? remote_file
@@ -258,10 +261,10 @@ class Morpheus::Cli::Remote
 	end
 
 	#  wtf, but then could just do Morpheus::Cli.Remote.connect(options)
-	def self.connect(options={})
-		newobj = self.new
-		establish_remote_appliance_connection(options)
-		return newobj
-	end
+  def self.connect(options={})
+    newobj = self.new
+    establish_remote_appliance_connection(options)
+    return newobj
+  end
 
 end

@@ -1,5 +1,5 @@
 class NilClass
-	def empty?
-		true
-	end
+  def empty?
+    true
+  end
 end

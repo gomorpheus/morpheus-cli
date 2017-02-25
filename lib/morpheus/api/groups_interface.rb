@@ -54,4 +54,5 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 		opts = {method: :put, url: url, timeout: 30, headers: headers, payload: payload.to_json}
 		execute(opts)
 	end
-	end
+	
+end

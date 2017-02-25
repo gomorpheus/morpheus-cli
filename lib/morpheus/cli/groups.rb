@@ -7,18 +7,18 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 
 class Morpheus::Cli::Groups
-	include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::CliCommand
 	include Morpheus::Cli::InfrastructureHelper
 
 	register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove, :current => :print_current
 	alias_subcommand :details, :get
 
 	def initialize() 
-		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		@api_client = establish_remote_appliance_connection(opts)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
@@ -95,7 +95,8 @@ class Morpheus::Cli::Groups
 			puts "Location: #{group['location']}"
 			puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
 			puts "Hosts: #{group['serverCount']}"
-						if is_active
+			
+			if is_active
 				puts "\n => This is the active group."
 			end
 
@@ -178,7 +179,8 @@ class Morpheus::Cli::Groups
 		connect(options)
 		begin
 			group = find_group_by_name_or_id(args[0])
-						group_payload = {id: group['id']}
+			
+			group_payload = {id: group['id']}
 
 			all_option_types = update_group_option_types()
 			#params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
@@ -248,7 +250,8 @@ class Morpheus::Cli::Groups
 				#list([])
 				get([group["id"]])
 			end			
-					rescue RestClient::Exception => e
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -343,7 +346,8 @@ class Morpheus::Cli::Groups
 		end
 		optparse.parse!(args)
 		connect(options)
-				if options[:unuse]
+		
+		if options[:unuse]
 			if @active_groups[@appliance_name.to_sym] 
 				@active_groups.delete(@appliance_name.to_sym)
 			end
@@ -357,7 +361,8 @@ class Morpheus::Cli::Groups
 			print reset
 			return # exit 0
 		end
-				if args.length == 0
+		
+		if args.length == 0
 			active_group_id = @active_groups[@appliance_name.to_sym]
 			if active_group_id
 				active_group = find_group_by_id(active_group_id)
@@ -426,6 +431,7 @@ class Morpheus::Cli::Groups
 	end
 
 	
+
 	def self.load_group_file
 		remote_file = groups_file_path
 		if File.exist? remote_file
@@ -448,7 +454,7 @@ class Morpheus::Cli::Groups
 		File.open(groups_file_path, 'w') {|f| f.write group_map.to_yaml } #Store
 	end
 
-	protected
+protected
 
 	def print_groups_table(groups, opts={})
 		table_color = opts[:color] || cyan

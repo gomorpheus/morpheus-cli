@@ -14,11 +14,11 @@ class Morpheus::Cli::Clouds
 	alias_subcommand :details, :get
 
 	def initialize() 
-		# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-	end
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+  end
 
-	def connect(opts)
-		@api_client = establish_remote_appliance_connection(opts)
+  def connect(opts)
+    @api_client = establish_remote_appliance_connection(opts)
 		@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
 		@groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
 		@active_groups = ::Morpheus::Cli::Groups.load_group_file
@@ -183,43 +183,43 @@ class Morpheus::Cli::Clouds
 			params[:group] ||= @active_groups[@appliance_name.to_sym]
 
 			# Group
-			group_id = nil
-			group = params[:group] ? find_group_by_name_or_id(params[:group]) : nil
-			if group
-				group_id = group["id"]
-			else
-				# print_red_alert "Group not found or specified!"
-				# exit 1
-				groups_dropdown = @groups_interface.get({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
-				group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
-				group_id = group_prompt['group']
-			end
-			cloud_payload['groupId'] = group_id
-			# todo: pass groups as an array instead
+	    group_id = nil
+	    group = params[:group] ? find_group_by_name_or_id(params[:group]) : nil
+	    if group
+	      group_id = group["id"]
+	    else
+	      # print_red_alert "Group not found or specified!"
+	      # exit 1
+	      groups_dropdown = @groups_interface.get({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
+	      group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
+	      group_id = group_prompt['group']
+	    end
+	    cloud_payload['groupId'] = group_id
+	    # todo: pass groups as an array instead
 
-			# Cloud Name
+	    # Cloud Name
 
 			if args[0]
 				cloud_payload[:name] = args[0]
 				options[:options]['name'] = args[0] # to skip prompt
 			elsif !options[:no_prompt]
-				#	name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options])
-				#	cloud_payload[:name] = name_prompt['name']
+			#	name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options])
+			#	cloud_payload[:name] = name_prompt['name']
 			end
 
 			# Cloud Type
 
-			cloud_type = nil
-			if params[:zone_type]
-				cloud_type = cloud_type_for_name(params[:zone_type])
-			elsif !options[:no_prompt]
-				# print_red_alert "Cloud Type not found or specified!"
-				# exit 1
-				cloud_types_dropdown = cloud_types_for_dropdown
-				cloud_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Cloud Type', 'selectOptions' => cloud_types_dropdown, 'required' => true, 'description' => 'Select Cloud Type.'}],options[:options],@api_client,{})
-				cloud_type_code = cloud_type_prompt['type']
-				cloud_type = cloud_type_for_name(cloud_type_code) # this does work
-			end
+	    cloud_type = nil
+	    if params[:zone_type]
+	      cloud_type = cloud_type_for_name(params[:zone_type])
+	    elsif !options[:no_prompt]
+	      # print_red_alert "Cloud Type not found or specified!"
+	      # exit 1
+	      cloud_types_dropdown = cloud_types_for_dropdown
+	      cloud_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Cloud Type', 'selectOptions' => cloud_types_dropdown, 'required' => true, 'description' => 'Select Cloud Type.'}],options[:options],@api_client,{})
+	      cloud_type_code = cloud_type_prompt['type']
+	      cloud_type = cloud_type_for_name(cloud_type_code) # this does work
+	    end
 			if !cloud_type
 				print_red_alert "A cloud type is required."
 				exit 1
@@ -528,12 +528,13 @@ class Morpheus::Cli::Clouds
 		end
 	end
 
-	private
+private
 
 	def print_clouds_table(clouds, opts={})
-		table_color = opts[:color] || cyan
-				rows = clouds.collect do |cloud|
-			status = nil
+    table_color = opts[:color] || cyan
+    
+    rows = clouds.collect do |cloud|
+    	status = nil
 			if cloud['status'] == 'ok'
 				status = "#{green}OK#{table_color}"
 			elsif cloud['status'].nil?
@@ -551,17 +552,17 @@ class Morpheus::Cli::Clouds
 				servers: cloud['serverCount'],
 				status: status
 			}
-		end
-		columns = [
-			:id, :name, :type, :location, :groups, :servers, :status
-		]
-		print table_color
-		tp rows, columns
-		print reset
+    end
+    columns = [
+    	:id, :name, :type, :location, :groups, :servers, :status
+    ]
+    print table_color
+    tp rows, columns
+    print reset
 
-	end
+  end
 
-	def add_cloud_option_types(cloud_type)
+  def add_cloud_option_types(cloud_type)
 		# note: Type is selected before this
 		tmp_option_types = [
 			#{'fieldName' => 'zoneType.code', 'fieldLabel' => 'Image Type', 'type' => 'select', 'selectOptions' => cloud_types_for_dropdown, 'required' => true, 'description' => 'Cloud Type.', 'displayOrder' => 0},
@@ -584,7 +585,8 @@ class Morpheus::Cli::Clouds
 		end
 
 		# TODO:
-				# Advanced Options
+		
+		# Advanced Options
 		## (a whole bunch needed here)
 
 		# Provisioning Options

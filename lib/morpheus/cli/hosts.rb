@@ -8,9 +8,10 @@ require 'morpheus/cli/option_types'
 require 'json'
 
 class Morpheus::Cli::Hosts
-	include Morpheus::Cli::CliCommand
-	include Morpheus::Cli::ProvisioningHelper
-		register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+  include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
+	
+	register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
 	alias_subcommand :details, :get
 
 	def initialize() 
@@ -29,10 +30,10 @@ class Morpheus::Cli::Hosts
 	end
 
 	def handle(args)
-		handle_subcommand(args)
-	end
+    handle_subcommand(args)
+  end
 
-	def list(args)
+  def list(args)
 		options = {}
 		params = {}
 		optparse = OptionParser.new do|opts|
@@ -48,13 +49,14 @@ class Morpheus::Cli::Hosts
 		optparse.parse!(args)
 		connect(options)
 		begin
-						group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+			
+			group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 			if group
 				params['siteId'] = group['id']
 			end
 
 			# argh, this doesn't work because group_id is required for options/clouds
-			# cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
 			cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
 			if cloud
 				params['zoneId'] = cloud['id']
@@ -255,16 +257,16 @@ class Morpheus::Cli::Hosts
 				logs['data'].reverse.each do |log_entry|
 					log_level = ''
 					case log_entry['level']
-					when 'INFO'
-						log_level = "#{blue}#{bold}INFO#{reset}"
-					when 'DEBUG'
-						log_level = "#{white}#{bold}DEBUG#{reset}"
-					when 'WARN'
-						log_level = "#{yellow}#{bold}WARN#{reset}"
-					when 'ERROR'
-						log_level = "#{red}#{bold}ERROR#{reset}"
-					when 'FATAL'
-						log_level = "#{red}#{bold}FATAL#{reset}"
+						when 'INFO'
+							log_level = "#{blue}#{bold}INFO#{reset}"
+						when 'DEBUG'
+							log_level = "#{white}#{bold}DEBUG#{reset}"
+						when 'WARN'
+							log_level = "#{yellow}#{bold}WARN#{reset}"
+						when 'ERROR'
+							log_level = "#{red}#{bold}ERROR#{reset}"
+						when 'FATAL'
+							log_level = "#{red}#{bold}FATAL#{reset}"
 					end
 					output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
 				end
@@ -336,7 +338,8 @@ class Morpheus::Cli::Hosts
 		if args[1]
 			options[:host_name] = args[1]
 		end
-				# use active group by default
+		
+		# use active group by default
 		options[:group] ||= @active_groups[@appliance_name.to_sym]
 
 		params = {}
@@ -397,7 +400,8 @@ class Morpheus::Cli::Hosts
 		end
 
 		payload = {}
-				# prompt for service plan
+		
+		# prompt for service plan
 		service_plans_json = @servers_interface.service_plans({zoneId: cloud['id'], serverTypeId: server_type["id"]})
 		service_plans = service_plans_json["plans"]
 		service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
@@ -477,7 +481,8 @@ class Morpheus::Cli::Hosts
 			opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure" ) do
 				query_params[:removeResources] = 'off'
 			end
-						build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+			
+			build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
 		end
 		optparse.parse!(args)
 		if args.count < 1
@@ -486,9 +491,12 @@ class Morpheus::Cli::Hosts
 		end
 		connect(options)
 		
+
 		begin
-						server = find_host_by_name_or_id(args[0])
-						unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
+			
+			server = find_host_by_name_or_id(args[0])
+			
+			unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
 				exit 1
 			end
 			if options[:dry_run]
@@ -657,7 +665,8 @@ class Morpheus::Cli::Hosts
 					list([])
 				end
 			end
-					rescue RestClient::Exception => e
+			
+		rescue RestClient::Exception => e
 			print_rest_exception(e, options)
 			exit 1
 		end
@@ -693,7 +702,8 @@ class Morpheus::Cli::Hosts
 
 	def run_workflow(args)
 		options = {}
-				optparse = OptionParser.new do|opts|
+		
+		optparse = OptionParser.new do|opts|
 			opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
 			build_common_options(opts, options, [:json, :dry_run, :remote])
 		end
@@ -701,7 +711,8 @@ class Morpheus::Cli::Hosts
 			puts "\n#{optparse}\n\n"
 			exit 1
 		end
-				optparse.parse!(args)
+		
+		optparse.parse!(args)
 		connect(options)
 		host = find_host_by_name_or_id(args[0])
 		workflow = find_workflow_by_name(args[1])
@@ -746,20 +757,20 @@ class Morpheus::Cli::Hosts
 		end
 	end
 
-	private
+private
 
 	def find_host_by_id(id)
 		begin
-			json_response = @servers_interface.get(id.to_i)
-			return json_response['server']
-		rescue RestClient::Exception => e
-			if e.response && e.response.code == 404
-				print_red_alert "Host not found by id #{id}"
-				exit 1
-			else
-				raise e
-			end
-		end
+      json_response = @servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Host not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
 	end
 
 	def find_host_by_name(name)
@@ -833,8 +844,8 @@ class Morpheus::Cli::Hosts
 	end
 
 	def print_servers_table(servers, opts={})
-		table_color = opts[:color] || cyan
-		rows = servers.collect do |server|
+    table_color = opts[:color] || cyan
+    rows = servers.collect do |server|
 			{
 				id: server['id'], 
 				name: server['name'], 
@@ -845,12 +856,12 @@ class Morpheus::Cli::Hosts
 				status: format_host_status(server, table_color), 
 				power: format_server_power_state(server, table_color)
 			}
-		end
-		columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-		print table_color
-		tp rows, columns
-		print reset
-	end
+    end
+    columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+    print table_color
+    tp rows, columns
+    print reset
+  end
 
 	def format_server_power_state(server, return_color=cyan)
 		out = ""
