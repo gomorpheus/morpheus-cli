@@ -3,8 +3,7 @@ require 'optparse'
 #require 'rest_client'
 require 'morpheus/logging'
 class Morpheus::Cli::ErrorHandler
-    
-  include Morpheus::Cli::PrintHelper
+    include Morpheus::Cli::PrintHelper
 
   def handle_error(err)
     case (err) 
@@ -14,7 +13,7 @@ class Morpheus::Cli::ErrorHandler
       puts "Try -h for help with this command."
     when Errno::ECONNREFUSED
       print_red_alert "#{err.message}"
-    # more special errors?
+      # more special errors?
     when RestClient::Exception
       #print_rest_exception(err, options)
       print_rest_exception(err)

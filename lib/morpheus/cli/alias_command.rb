@@ -9,16 +9,14 @@ require 'json'
 #
 class Morpheus::Cli::AliasCommand
   include Morpheus::Cli::CliCommand
-  
-  set_command_name :alias
+    set_command_name :alias
   #set_command_hidden # maybe remove this...
 
   register_subcommands :add, :remove, :list
   #set_default_subcommand :add
 
   def initialize() 
-    
-  end
+      end
 
   def usage
     out = "Usage: morpheus #{command_name} [alias]=[command string]"
@@ -35,8 +33,7 @@ class Morpheus::Cli::AliasCommand
       #list([])
     end
   end
-  
-  def add(args)
+    def add(args)
 
     options = {}
     do_remove = false
@@ -48,12 +45,10 @@ class Morpheus::Cli::AliasCommand
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
-    
-    if do_remove
+        if do_remove
       return remove(args)
     end
-    
-    if args.count < 1
+        if args.count < 1
       puts optparse
       exit 1
     end
@@ -76,8 +71,7 @@ class Morpheus::Cli::AliasCommand
     Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
 
   end
-  
-  def remove(args)
+    def remove(args)
     options = {}
     do_remove = false
     optparse = OptionParser.new do|opts|
@@ -85,15 +79,12 @@ class Morpheus::Cli::AliasCommand
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
-    
-    if args.count < 1
+        if args.count < 1
       puts optparse
       exit 1
     end
-    
-    alias_names = args
-    
-    alias_names.each do |arg|
+        alias_names = args
+        alias_names.each do |arg|
       if !Morpheus::Cli::CliRegistry.has_alias?(arg)
         print_red_alert "alias not found by name '#{arg}'"
         exit 1

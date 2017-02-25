@@ -117,8 +117,7 @@ module Morpheus::Cli::ProvisioningHelper
       return find_cloud_by_name_for_provisioning(group_id, val)
     end
   end
-  
-  def find_instance_type_by_code(code)
+    def find_instance_type_by_code(code)
     results = instance_types_interface.get({code: code})
     if results['instanceTypes'].empty?
       print_red_alert "Instance Type not found by code #{code}"
@@ -186,7 +185,6 @@ module Morpheus::Cli::ProvisioningHelper
       group_id = group_prompt['group']
     end
     
-
     # Cloud
     cloud_id = nil
     cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
@@ -198,7 +196,6 @@ module Morpheus::Cli::ProvisioningHelper
       cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.'}],options[:options],api_client,{groupId: group_id})
       cloud_id = cloud_prompt['cloud']
     end
-    
     # Instance Type
     instance_type_code = nil
     if options[:instance_type_code]
@@ -244,7 +241,6 @@ module Morpheus::Cli::ProvisioningHelper
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}], options[:options])
     payload[:instance][:tags] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
     
-
     # Version and Layout
 
     version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
@@ -281,8 +277,6 @@ module Morpheus::Cli::ProvisioningHelper
         print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
       end
     end
-    
-    
     type_payload = {}
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
       type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
@@ -435,13 +429,10 @@ module Morpheus::Cli::ProvisioningHelper
 
     if plan_info['addVolumes']
       volume_index = 1
-      
-      has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
+            has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
       add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?", {:default => false}))
-      
-      while add_another_volume do
-        
-        #puts "Configure Data #{volume_index} Volume"
+            while add_another_volume do
+                #puts "Configure Data #{volume_index} Volume"
 
         field_context = "dataVolume#{volume_index}"
 
@@ -449,7 +440,6 @@ module Morpheus::Cli::ProvisioningHelper
         storage_type_id = v_prompt[field_context]['storageType']
         storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
         
-
         # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
         custom_size_options = []
         if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
@@ -631,7 +621,6 @@ module Morpheus::Cli::ProvisioningHelper
     # modify or delete existing data volumes
     (1..(current_volumes.size-1)).each do |volume_index|
       current_volume = current_volumes[volume_index]
-      
       if current_volume
 
         field_context = "dataVolume#{volume_index}"
@@ -659,13 +648,11 @@ module Morpheus::Cli::ProvisioningHelper
           }
           volumes << volume
         else
-        
-          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+                    # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
           # storage_type_id = v_prompt[field_context]['storageType']
           storage_type_id = current_volume['type'] || current_volume['storageType']
           storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
-          
-          # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
+                    # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
           custom_size_options = []
           if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
             plan_info['customSizeOptions'][storage_type_id.to_s].each do |opt|
@@ -719,13 +706,10 @@ module Morpheus::Cli::ProvisioningHelper
 
     if plan_info['addVolumes']
       volume_index = current_volumes.size
-      
       has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
       add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?"))
-      
-      while add_another_volume do
-        
-        #puts "Configure Data #{volume_index} Volume"
+            while add_another_volume do
+                #puts "Configure Data #{volume_index} Volume"
 
         field_context = "dataVolume#{volume_index}"
 
@@ -733,7 +717,6 @@ module Morpheus::Cli::ProvisioningHelper
         storage_type_id = v_prompt[field_context]['storageType']
         storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
         
-
         # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
         custom_size_options = []
         if plan_info['customSizeOptions'] && plan_info['customSizeOptions'][storage_type_id.to_s]
@@ -804,7 +787,6 @@ module Morpheus::Cli::ProvisioningHelper
   def prompt_network_interfaces(zone_id, provision_type_id, options={})
     #puts "Configure Networks:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-    
     network_interfaces = []
 
     zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type_id})
@@ -843,13 +825,8 @@ module Morpheus::Cli::ProvisioningHelper
 
 
     interface_index = 1
-    
-    # has_another_interface = options[:options] && options[:options]["networkInterface"]
-    # add_another_interface = has_another_interface || (!no_prompt)
     add_another_interface = true
-    
     while add_another_interface do
-      
       # if !no_prompt
       #   if interface_index == 1
       #     puts "Configure Network Interface"
@@ -859,8 +836,7 @@ module Morpheus::Cli::ProvisioningHelper
       # end
 
       field_context = interface_index == 1 ? "networkInterface" : "networkInterface#{interface_index}"
-      
-      network_interface = {}
+            network_interface = {}
 
       # choose network
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
@@ -888,9 +864,7 @@ module Morpheus::Cli::ProvisioningHelper
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
         network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
       end
-      
       network_interfaces << network_interface
-      
       interface_index += 1
       has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
       add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
@@ -909,28 +883,19 @@ module Morpheus::Cli::ProvisioningHelper
   def prompt_evars(options={})
     #puts "Configure Environment Variables:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-
     evars = []
     evar_index = 0
-    
     has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
     add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an environment variable?", {default: false}))
-    
     while add_another_evar do
-      
       field_context = "evar#{evar_index}"
-
       evar = {}
-
       evar['id'] = nil
-
       evar_label = evar_index == 0 ? "ENV" : "ENV [#{evar_index+1}]"
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{evar_label} Name", 'required' => true, 'description' => 'Environment Variable Name.', 'defaultValue' => evar['name']}], options[:options])
       evar['name'] = v_prompt[field_context]['name']
-
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{evar_label} Value", 'required' => true, 'description' => 'Environment Variable Value', 'defaultValue' => evar['value']}], options[:options])
       evar['value'] = v_prompt[field_context]['value']
-
       evars << evar
       evar_index += 1
       has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
@@ -944,30 +909,30 @@ module Morpheus::Cli::ProvisioningHelper
   # these will eventually get removed from the associated optionTypes
   def reject_volume_option_types(option_types)
     option_types.reject {|opt| 
-        ['osDiskSize', 'osDiskType',
-          'diskSize', 'diskType',
-          'datastoreId', 'storagePodId'
-        ].include?(opt['fieldName'])
-      }
+      ['osDiskSize', 'osDiskType',
+        'diskSize', 'diskType',
+        'datastoreId', 'storagePodId'
+      ].include?(opt['fieldName'])
+    }
   end
 
   # reject old networking option types
   # these will eventually get removed from the associated optionTypes
   def reject_networking_option_types(option_types)
     option_types.reject {|opt| 
-        ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
-          'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers',
-          'subnetId'
-        ].include?(opt['fieldName'])
-      }
+      ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
+        'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers',
+        'subnetId'
+      ].include?(opt['fieldName'])
+    }
   end
 
   # reject old option types that now come from the selected service plan
   # these will eventually get removed from the associated optionTypes
   def reject_service_plan_option_types(option_types)
     option_types.reject {|opt| 
-        ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
-      }
+      ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
+    }
   end
 
   def instance_context_options

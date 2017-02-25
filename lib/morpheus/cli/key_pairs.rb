@@ -9,8 +9,7 @@ require 'json'
 class Morpheus::Cli::KeyPairs
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  
-  register_subcommands :list, :get, :add, :update, :remove
+    register_subcommands :list, :get, :add, :update, :remove
   alias_subcommand :details, :get
 
   def initialize() 
@@ -91,8 +90,7 @@ class Morpheus::Cli::KeyPairs
 
     connect(options)
     begin
-    
-      account = find_account_from_options(options)
+            account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
       key_pair = find_key_pair_by_name_or_id(account_id, args[0])
@@ -218,8 +216,7 @@ class Morpheus::Cli::KeyPairs
     end
 
     connect(options)
-    
-    begin
+        begin
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
@@ -299,9 +296,8 @@ class Morpheus::Cli::KeyPairs
     end
   end
 
-private
-  
-  def find_key_pair_by_name_or_id(account_id, val)
+  private
+    def find_key_pair_by_name_or_id(account_id, val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_key_pair_by_id(account_id, val)
     else
@@ -349,8 +345,7 @@ private
         dateCreated: format_local_dt(key_pair['dateCreated']) 
       }
     end
-    
-    print table_color
+        print table_color
     tp rows, [
       :id, 
       :name, 

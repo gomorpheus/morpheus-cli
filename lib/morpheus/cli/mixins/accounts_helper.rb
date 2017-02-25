@@ -174,8 +174,7 @@ module Morpheus::Cli::AccountsHelper
         dateCreated: format_local_dt(account['dateCreated']) 
       }
     end
-    
-    print table_color
+        print table_color
     tp rows, [
       :id, 
       :name, 

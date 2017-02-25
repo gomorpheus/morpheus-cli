@@ -29,7 +29,6 @@ module Morpheus
 
         ::RestClient::Request.execute opts
       end
-      
       def post(url, payload)
         execute url: url, payload: payload, method: :post
       end
@@ -48,15 +47,12 @@ module Morpheus
 
       private
 
+      # unused eh?
       def build_request_args(url, method, payload)
-        args = {url: url,
-                method: method,
-                payload: payload}
-
+        args = {url: url, method: method, payload: payload}
         unless ssl_verification_enabled?
           args[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
         end
-        
         args
       end
     end

@@ -47,8 +47,7 @@ module Morpheus
               else
                 custom_options[custom_option_args[0]] = custom_option_args[1]
               end
-              
-              options[:options] = custom_options
+                            options[:options] = custom_options
             end
             opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|
               options[:no_prompt] = true
@@ -57,8 +56,7 @@ module Morpheus
               options[:options][:no_prompt] = true
             end
           when :list
-            
-            opts.on( '-m', '--max MAX', "Max Results" ) do |max|
+                        opts.on( '-m', '--max MAX', "Max Results" ) do |max|
               options[:max] = max.to_i
             end
 
@@ -109,13 +107,11 @@ module Morpheus
             opts.on( '-T', '--token ACCESS_TOKEN', "Access Token" ) do |remote|
               options[:remote_token] = remote
             end
-          
-          when :auto_confirm
+                      when :auto_confirm
             opts.on( '-y', '--yes', "Auto Confirm" ) do
               options[:yes] = true
             end
-          
-          when :json
+                      when :json
             opts.on('-j','--json', "JSON Output") do |json|
               options[:json] = true
             end
@@ -124,8 +120,7 @@ module Morpheus
             opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do |json|
               options[:dry_run] = true
             end
-          
-          when :quiet
+                      when :quiet
             opts.on('-q','--quiet', "No Output, when successful") do |json|
               options[:quiet] = true
             end
@@ -152,8 +147,7 @@ module Morpheus
           #   @logger.log_level = Morpheus::Logging::Logger::DEBUG
           # end
         end
-        
-        opts.on('-h', '--help', "Prints this help" ) do
+                opts.on('-h', '--help', "Prints this help" ) do
           puts opts
           exit
         end
@@ -267,12 +261,10 @@ module Morpheus
           print_red_alert "No active appliance found. See the `remote use` command."
           exit 1
         end
-        
-        # ok, get some credentials.
+                # ok, get some credentials.
         # this prompts for username, password
         @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
-        
-        # bail if we got nothing
+                # bail if we got nothing
         if @access_token.empty?
           print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
           exit 1
@@ -294,8 +286,7 @@ module Morpheus
         def default_command_name
           Morpheus::Cli::CliRegistry.cli_ize(self.name.split('::')[-1])
         end
-        
-        def command_name
+                def command_name
           @command_name ||= default_command_name
           @command_name
         end
@@ -303,8 +294,7 @@ module Morpheus
         def set_command_hidden(val=true)
           @hidden_command = val
         end
-        
-        def hidden_command
+                def hidden_command
           !!@hidden_command
         end
 

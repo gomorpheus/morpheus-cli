@@ -8,7 +8,6 @@ Dir[File.dirname(__FILE__)  + "/ext/*.rb"].each {|file| require file }
 
 module Morpheus
   module Cli
-    
     def self.load!()
       # load interfaces
       require 'morpheus/api/api_client.rb'
@@ -54,7 +53,6 @@ module Morpheus
       load 'morpheus/cli/alias_command.rb'
       # Your code goes here...
 
-      
     end
 
     load!

@@ -95,8 +95,7 @@ module Morpheus::Cli::InfrastructureHelper
       return cloud_type_for_name(val)
     end
   end
-  
-  def cloud_type_for_id(id)
+    def cloud_type_for_id(id)
     return get_available_cloud_types().find { |z| z['id'].to_i == id.to_i}
   end
 

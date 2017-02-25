@@ -5,15 +5,14 @@ class Morpheus::Cli::VersionCommand
   include Morpheus::Cli::CliCommand
 
   set_command_name :version
-  
-	def initialize
-	end
+    def initialize
+  end
 
   def usage
     "morpheus version"
   end
 
-	def handle(args)
+  def handle(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
@@ -24,11 +23,11 @@ class Morpheus::Cli::VersionCommand
     end
     optparse.parse!(args)
 
-		client_version = Morpheus::Cli::VERSION
-		 if options[:short]
-    	puts client_version
+    client_version = Morpheus::Cli::VERSION
+    if options[:short]
+      puts client_version
     else
-    	print cyan
+      print cyan
       banner = "" +
       "   __  ___              __              \n" +
       "  /  |/  /__  _______  / /  ___ __ _____\n" +
@@ -40,6 +39,5 @@ class Morpheus::Cli::VersionCommand
       puts("****************************************")
       print reset
     end
-	end	
-	
-end
+  end	
+  end
