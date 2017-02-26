@@ -211,7 +211,7 @@ class Morpheus::Cli::Remote
     if @appliance_name
       print cyan, @appliance_name,"\n",reset
     else
-      print yellow, "\n# => No active appliance, see `remote use`\n\n", reset
+      print yellow, "No active appliance, see `remote use`\n", reset
     end
   end
 
