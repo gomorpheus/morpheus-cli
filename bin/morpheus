@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+require 'term/ansicolor'
 require 'optparse'
 require 'morpheus/cli'
 require 'morpheus/rest_client'
@@ -6,101 +7,43 @@ require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/config_file'
 require 'morpheus/cli/error_handler'
 
+# use colors by default
+Term::ANSIColor::coloring = STDOUT.isatty
+# include Term::ANSIColor # tempting
+
 # short circuit version switch
-if ARGV[0] == '-v' && ARGV.size == 1
+if ARGV[0] == '-v'
   version = Morpheus::Cli::VERSION
   puts version
   exit 0
 end
 
 args = ARGV.dup
-#print Term::ANSIColor.dark,"args is : #{args}",Term::ANSIColor.reset,"\n"
-# handle global options
-# todo: put this in a Morpheus::Cli::Main < CliCommand
-extra_args = []
-begin
-  optparse = OptionParser.new do|opts|
-    opts.banner = "morpheus [command] [options]"
-    opts.on('-V','--debug', "Print extra output for debugging.") do |val|
-      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-    end
-    opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
-      Morpheus::RestClient.enable_ssl_verification = false
-    end
-    opts.on("--home DIRECTORY", String, "Specify morpheus home directory. Default is ~/.morpheus") do |val|
-      ENV['MORPHEUS_CLI_HOME'] = val
-    end
-    opts.on("--conf FILE", String, "Specify morpheus config file. Default is $home/.morpheusrc") do |val|
-      ENV['MORPHEUS_CLI_CONFIG_FILE'] = val
-    end
-    opts.on('-h', '--help', "Prints this help" ) do
-      puts opts.banner
-      puts "X X X X X X X Usage: morpheus [command] [options]"
-      puts "\nCommands:"
-      Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
-        puts "\t#{cmd.to_s}"
-      }
-      puts ""
-      exit 127
-      exit
-    end
-  end
 
-  # note: this strips args of these options, while allowing extra (invalid) arguments, 
-  # and re-appending them to args for the call to exec()
-  
-    begin 
-      # argh..make this work or refactor
-      num_retries = 0
-      #optparse.parse!(args) unless num_retries > 100
-    rescue OptionParser::InvalidOption => e 
-      puts "retrying main optparse afte err #{e}"
-      puts "adding invalid extra args #{e.args}"
-      extra_args.concat e.args
-      # JD: what? it's not being removed by parse! ??
-      args = args.reject {|it| e.args.include?(it) } # JD: why isnt this removing it from args!?
-      num_retries += 0
-      retry
-    end
-  
-  
-rescue => err
-  print Term::ANSIColor.dark,"Failed to parse global options: #{err.class} #{err}",Term::ANSIColor.reset,"\n"
-end
-#print Term::ANSIColor.dark,"after parse, args is : #{args}",Term::ANSIColor.reset,"\n"
-args = args + extra_args
-#print Term::ANSIColor.dark,"continuing with the command args: #{args}",Term::ANSIColor.reset,"\n"
+# load config file(s)
+Morpheus::Cli::ConfigFile.init(ENV['MORPHEUS_CLI_HOME'])
 
-# todo: remove this in favor of optparse above..
-# set global log level to debug (print stack trace for bubbled exceptions)
-if args.find {|arg| arg == '-V' || arg == '--debug'}
-  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-  args = args.reject {|arg| arg == '-V' && arg == '--debug'}
-end
-if args.find {|arg| arg == '--insecure'}
-  Morpheus::RestClient.enable_ssl_verification = false
-  args = args.find_all {|arg| arg != '--insecure'}
-end
-
-# It will use the default of $HOME/.morpheus/.morpheusrc 
-config_file = nil
-Morpheus::Cli::ConfigFile.init(config_file)
-
-# all commands should be registered commands
+# all commands should be registered commands or aliases
 if Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0])
   begin
-    Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+    cmd_result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+    if cmd_result == false
+      exit 1
+    else
+      exit 0
+    end
   rescue => e
     Morpheus::Cli::ErrorHandler.new.handle_error(e)
     exit 1
   end
-  exit 0
 else
   puts "Usage: morpheus [command] [options]"
   puts "\nCommands:"
   Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
     puts "\t#{cmd.to_s}"
   }
+  puts ""
+  puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
   puts ""
   exit 127
 end
