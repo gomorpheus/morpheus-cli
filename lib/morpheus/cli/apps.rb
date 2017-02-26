@@ -13,7 +13,8 @@ class Morpheus::Cli::Apps
 
   register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
   alias_subcommand :details, :get
-
+  set_default_subcommand :list
+  
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -26,7 +27,7 @@ class Morpheus::Cli::Apps
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
   def handle(args)
@@ -85,7 +86,7 @@ class Morpheus::Cli::Apps
     connect(options)
     begin
       # use active group by default
-      options[:group] ||= @active_groups[@appliance_name.to_sym]
+      options[:group] ||= @active_group_id
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
 
       payload = {

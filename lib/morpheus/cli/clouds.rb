@@ -12,6 +12,7 @@ class Morpheus::Cli::Clouds
 
   register_subcommands :list, :get, :add, :update, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :types => :list_cloud_types
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -21,7 +22,7 @@ class Morpheus::Cli::Clouds
     @api_client = establish_remote_appliance_connection(opts)
     @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     # preload stuff
     get_available_cloud_types()
   end
@@ -90,7 +91,7 @@ class Morpheus::Cli::Clouds
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -180,7 +181,7 @@ class Morpheus::Cli::Clouds
     begin
 
       # use active group by default
-      params[:group] ||= @active_groups[@appliance_name.to_sym]
+      params[:group] ||= @active_group_id
 
       # Group
       group_id = nil
@@ -344,7 +345,7 @@ class Morpheus::Cli::Clouds
     clear_or_secgroups_specified = false
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -376,7 +377,7 @@ class Morpheus::Cli::Clouds
     clear_or_secgroups_specified = false
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -408,7 +409,7 @@ class Morpheus::Cli::Clouds
     clear_or_secgroups_specified = false
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -460,7 +461,7 @@ class Morpheus::Cli::Clouds
         options[:securityGroupIds] = secgroups.split(",")
         clear_or_secgroups_specified = true
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if !clear_or_secgroups_specified
@@ -495,7 +496,7 @@ class Morpheus::Cli::Clouds
       opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
         options[:group] = group
       end
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)

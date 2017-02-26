@@ -18,16 +18,16 @@ class Morpheus::Cli::Shell
   end
 
   def initialize()
-    #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
     #connect()
     #raise "one shell only" if @@instance
     @@instance = self
     recalculate_auto_complete_commands()
   end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
-  end
+  # def connect(opts)
+  #   @api_client = establish_remote_appliance_connection(opts)
+  # end
 
   def recalculate_auto_complete_commands
     @morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
@@ -55,7 +55,7 @@ class Morpheus::Cli::Shell
 
   def handle(args)
     usage = "Usage: morpheus #{command_name}"
-    @command_options = {}
+    @command_options = {} # this is a way to curry options to all commands.. but meh
     optparse = OptionParser.new do|opts|
       opts.banner = usage
       opts.on('-C','--nocolor', "ANSI") do
@@ -116,6 +116,7 @@ class Morpheus::Cli::Shell
       if !input.empty?
 
         if input == 'exit'
+          #print cyan,"Goodbye\n",reset
           @history_logger.info "exit" if @history_logger
           exit 0
         elsif input == 'help'
@@ -167,6 +168,9 @@ class Morpheus::Cli::Shell
           # could just fork instead?
           Morpheus::Cli.load!
           Morpheus::Cli::ConfigFile.instance.reload_file
+          # initialize()
+          # gotta reload appliance, groups, credentials
+          @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
           recalculate_auto_complete_commands()
           begin
             load __FILE__
@@ -197,8 +201,10 @@ class Morpheus::Cli::Shell
             return 0
           end
         elsif input =~ /^log_level/ # hidden for now
-          log_level = input.split.last
-          if log_level == "debug"
+          log_level = input.sub(/^log_level\s*/, '').strip
+          if log_level == ""
+            puts "#{Morpheus::Logging.log_level}"
+          elsif log_level == "debug"
             #log_history_command(input)
             @command_options[:debug] = true
             Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
@@ -206,33 +212,45 @@ class Morpheus::Cli::Shell
             #log_history_command(input)
             @command_options.delete(:debug)
             Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
-          else
+          elsif log_level.to_s == "0" || (log_level.to_i > 0 && log_level.to_i < 7)
             # other log levels are pointless right now..
+            @command_options.delete(:debug)
+            Morpheus::Logging.set_log_level(log_level.to_i)
+          else
             print_red_alert "unknown log level: #{log_level}"
           end
           return 0
+        # lots of hidden commands
+        elsif input == "debug"
+          @command_options[:debug] = true
+          Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          return 0
+        elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
+          print "#{input.capitalize}, how may I #{cyan}help#{reset} you?\n"
+          return
+        elsif input == "colorize"
+          Term::ANSIColor::coloring = true
+          @command_options[:nocolor] = false
+          return 0
+        elsif input == "uncolorize"
+          Term::ANSIColor::coloring = false
+          @command_options[:nocolor] = true
+          return 0
+        elsif input == "shell"
+          print "#{cyan}You are already in a shell.#{reset}\n"
+          return false
         end
 
         begin
           argv = Shellwords.shellsplit(input)
 
-          # set global log level to debug (print stack trace for bubbled exceptions)
-          if argv.find {|arg| arg == '-V' || arg == '--debug'}
-            @return_to_log_level = Morpheus::Logging.log_level
-            Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-          elsif @command_options[:debug]
-            # dont do this anymore..
-            # argv.push "--debug"
-          end
 
-          if argv[0] == 'shell'
-            print "#{cyan}You are already in a shell.#{reset}\n"
-          elsif Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
+          if Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
             #log_history_command(input)
             Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
           else
-            print_yellow_warning "Unrecognized Command '#{input}'. Try 'help'"
-            @history_logger.warn "Unrecognized Command: '#{argv[0]}'" if @history_logger
+            print_yellow_warning "Unrecognized Command '#{argv[0]}'. Try 'help' to see a list of available commands."
+            @history_logger.warn "Unrecognized Command #{argv[0]}" if @history_logger
             #puts optparse
           end
           # rescue ArgumentError
@@ -240,13 +258,13 @@ class Morpheus::Cli::Shell
         rescue Interrupt
           # nothing to do
           @history_logger.warn "shell interrupt" if @history_logger
-          print "\nInterrupt. Aborting command '#{input}'\n"
+          print "\nInterrupt. aborting command '#{input}'\n"
         rescue SystemExit
           # nothing to do
           # print "\n"
         rescue => e
           @history_logger.error "#{e.message}" if @history_logger
-          Morpheus::Cli::ErrorHandler.new.handle_error(e)
+          Morpheus::Cli::ErrorHandler.new.handle_error(e, @command_options)
           # exit 1
         end
 

@@ -5,7 +5,11 @@ require 'morpheus/logging'
 class Morpheus::Cli::ErrorHandler
   include Morpheus::Cli::PrintHelper
 
-  def handle_error(err)
+  def handle_error(err, options={})
+    # heh
+    if Morpheus::Logging.debug? && options[:debug].nil?
+      options[:debug] = true
+    end
     case (err)
     when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument, OptionParser::InvalidArgument
       # raise e
@@ -15,15 +19,19 @@ class Morpheus::Cli::ErrorHandler
       print_red_alert "#{err.message}"
       # more special errors?
     when RestClient::Exception
-      #print_rest_exception(err, options)
-      print_rest_exception(err)
+      print_rest_exception(err, options)
     else
-      print_red_alert "Unexpected Error"
+      print_red_alert "Unexpected Error."
+      if !options[:debug]
+        print "Use --debug for more information.\n"
+      end
     end
 
-    if Morpheus::Logging.print_stacktrace?
+    if options[:debug]
       print Term::ANSIColor.red, "\n", "#{err.class}: #{err.message}", "\n", Term::ANSIColor.reset
       print err.backtrace.join("\n"), "\n\n"
+    else
+      #print "Use --debug for more information.\n"
     end
   end
 

@@ -12,6 +12,7 @@ class Morpheus::Cli::VirtualImages
 
   register_subcommands :list, :get, :add, :add_file, :remove_file, :update, :remove, :types => :virtual_image_types
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   # def initialize() 
   # 	# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	

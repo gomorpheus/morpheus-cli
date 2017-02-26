@@ -5,6 +5,7 @@ require 'optparse'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
+require 'morpheus/logging'
 
 class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
@@ -12,6 +13,7 @@ class Morpheus::Cli::Groups
 
   register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove, :current => :print_current
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -20,8 +22,8 @@ class Morpheus::Cli::Groups
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
     @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
   def handle(args)
@@ -31,9 +33,10 @@ class Morpheus::Cli::Groups
   def list(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json])
+      build_common_options(opts, options, [:list, :json, :remote])
+      opts.footer = "This outputs a paginated list of groups."
     end
     optparse.parse!(args)
     connect(options)
@@ -54,6 +57,17 @@ class Morpheus::Cli::Groups
       else
         print_groups_table(groups)
         print_results_pagination(json_response)
+        if @active_group_id
+          active_group = groups.find { |it| it['id'] == @active_group_id }
+          active_group = active_group || find_group_by_name_or_id(@active_group_id)
+          #unless @appliances.keys.size == 1
+            print cyan, "\n# => Currently using #{active_group['name']}\n", reset
+          #end
+        else
+          unless options[:remote]
+            print "\n# => No active group, see `groups use`\n", reset
+          end
+        end
       end
       print reset,"\n"
     rescue RestClient::Exception => e
@@ -64,9 +78,10 @@ class Morpheus::Cli::Groups
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :remote])
+      opts.footer = "This outputs details about a specific group."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -84,8 +99,7 @@ class Morpheus::Cli::Groups
       end
       group = json_response['group']
 
-      active_group_id = @active_groups[@appliance_name.to_sym]
-      is_active = active_group_id && (active_group_id == group['id'])
+      is_active = @active_group_id && (@active_group_id == group['id'])
 
       print "\n" ,cyan, bold, "Group Details\n","==================", reset, "\n\n"
       print cyan
@@ -111,12 +125,13 @@ class Morpheus::Cli::Groups
   def add(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-l', '--location LOCATION', "Location" ) do |val|
         params[:location] = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.footer = "Create a new group."
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -163,12 +178,13 @@ class Morpheus::Cli::Groups
   def update(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on( '-l', '--location LOCATION', "Location" ) do |val|
         params[:location] = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.footer = "Update an existing group."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -214,9 +230,10 @@ class Morpheus::Cli::Groups
 
   def add_cloud(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]", "CLOUD")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Add a cloud to a group."
     end
     optparse.parse!(args)
     if args.count < 2
@@ -256,9 +273,10 @@ class Morpheus::Cli::Groups
 
   def remove_cloud(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]", "CLOUD")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Remove a cloud from a group."
     end
     optparse.parse!(args)
     if args.count < 2
@@ -298,9 +316,11 @@ class Morpheus::Cli::Groups
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :auto_confirm])
+      build_common_options(opts, options, [:json, :dry_run, :auto_confirm, :remote])
+      opts.footer = "Delete a group."
+      # more info to display here
     end
     optparse.parse!(args)
     if args.count < 1
@@ -334,127 +354,97 @@ class Morpheus::Cli::Groups
 
   def use(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]", "[--none]")
-      opts.on('--none','--none', "Do not use an active group.") do |json|
-        options[:unuse] = true
-      end
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.footer = "" +
+        "This sets the current active group.\n" +
+        "It will be auto-selected for use during provisioning.\n" +
+        "You can still use the --group option to override this."
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
-    connect(options)
-    if options[:unuse]
-      if @active_groups[@appliance_name.to_sym]
-        @active_groups.delete(@appliance_name.to_sym)
-      end
-      ::Morpheus::Cli::Groups.save_groups(@active_groups)
-      unless options[:quiet]
-        print cyan
-        puts "Switched to no active group."
-        puts "You will be prompted for Group during provisioning."
-        print reset
-      end
-      print reset
-      return # exit 0
-    end
-    if args.length == 0
-      active_group_id = @active_groups[@appliance_name.to_sym]
-      if active_group_id
-        active_group = find_group_by_id(active_group_id)
-      end
-      puts "#{optparse}"
-      if active_group
-        puts "\n=> You are currently using the group '#{active_group['name']}'\n"
-      else
-        puts "\nYou are not using any group.\n"
-      end
-      print reset
+    if args.count < 1
+      puts optparse
       exit 1
     end
-
+    connect(options)
     begin
+      # todo: this is a problem for unprivileged users, need to use find_group_by_id_for_provisioning(group_id)
       group = find_group_by_name_or_id(args[0])
       if !group
         print_red_alert "Group not found by name #{args[0]}"
         exit 1
       end
 
-      if @active_groups[@appliance_name.to_sym] == group['id']
+      if @active_group_id == group['id']
         print reset,"Already using the group #{group['name']}","\n",reset
       else
-        @active_groups[@appliance_name.to_sym] = group['id']
-        ::Morpheus::Cli::Groups.save_groups(@active_groups)
-        #print cyan,"Switched to using group #{group['name']}","\n",reset
+        ::Morpheus::Cli::Groups.set_active_group(@appliance_name, group['id'])
+        # ::Morpheus::Cli::Groups.save_groups(@active_groups)
+        #print cyan,"Switched active group to #{group['name']}","\n",reset
         #list([])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
+
   end
 
   def unuse(args)
-    use(args + ['--none'])
-  end
-
-  def print_current(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage() + "\n\n" +
+        "This will clear the active group." + "\n" +
+        "You will be prompted for a Group during provisioning." + "\n\n"
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
     connect(options)
 
-    #current_active_group = self.class.active_group
-    active_group_id = @active_groups[@appliance_name.to_sym]
-    group = active_group_id ? find_group_by_name_or_id(active_group_id) : nil
+    if @active_group_id
+      ::Morpheus::Cli::Groups.clear_active_group(@appliance_name)
+      # unless options[:quiet]
+      #   print cyan
+      #   puts "Switched to no active group."
+      #   puts "You will be prompted for Group during provisioning."
+      #   print reset
+      # end
+      return true
+    else
+      puts "You are not using any group for appliance #{@appliance_name}"
+      #return false
+    end
+  end
+
+  def print_current(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [])
+      opts.footer = "" +
+        "This will set the current remote appliance.\n" +
+        "It will be used for all subsequent commands.\n" +
+        "You may still use the --remote option to override this."
+    end
+    optparse.parse!(args)
+    connect(options)
+
+    group = @active_group_id ? find_group_by_name_or_id(@active_group_id) : nil
     if group
       print cyan,group['name'].to_s,"\n",reset
     else
-      print dark,"No active group. See `remote use`","\n",reset
+      print dark,"No active group. See `groups use`","\n",reset
     end
-  end
-
-  # Provides the current active group information
-  def self.active_group
-    appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
-    if !defined?(@@groups)
-      @@groups = load_group_file
-    end
-    return @@groups[appliance_name.to_sym]
-  end
-
-
-  def self.load_group_file
-    remote_file = groups_file_path
-    if File.exist? remote_file
-      return YAML.load_file(remote_file)
-    else
-      {}
-    end
-  end
-
-  def self.groups_file_path
-    home_dir = Dir.home
-    morpheus_dir = File.join(home_dir,".morpheus")
-    if !Dir.exist?(morpheus_dir)
-      Dir.mkdir(morpheus_dir)
-    end
-    return File.join(morpheus_dir,"groups")
-  end
-
-  def self.save_groups(group_map)
-    File.open(groups_file_path, 'w') {|f| f.write group_map.to_yaml } #Store
   end
 
   protected
 
   def print_groups_table(groups, opts={})
     table_color = opts[:color] || cyan
-    active_group_id = @active_groups[@appliance_name.to_sym]
+    active_group_id = @active_group_id # Morpheus::Cli::Groups.active_group
     rows = groups.collect do |group|
-      is_active = active_group_id && (active_group_id == group['id'])
+      is_active = @active_group_id && (@active_group_id == group['id'])
       {
         active: (is_active ? "=>" : ""),
         id: group['id'],
@@ -492,6 +482,74 @@ class Morpheus::Cli::Groups
 
   def update_group_option_types()
     add_group_option_types().collect {|it| it['required'] = false; it }
+  end
+
+  # todo: This belongs elsewhere, like module Morpheus::Cli::ActiveGroups
+
+public
+  
+  @@groups = nil
+
+  class << self
+    include Term::ANSIColor
+    # Provides the current active group information
+    def active_groups_map
+      @@groups ||= load_group_file || {}
+    end
+
+    def active_groups
+      active_groups_map
+    end
+
+    # Provides the current active group information (just the ID right now)
+    # appliance_name should probably be required.. or just use this instead: Groups.active_groups[appliance_name]
+    def active_group(appliance_name=nil)
+      if appliance_name == nil
+        appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
+      end
+      if !appliance_name
+        return nil
+      end
+      return active_groups_map[appliance_name.to_sym]
+    end
+
+    # alias (unused)
+    def active_group_id(appliance_name=nil)
+      active_group(appliance_name)
+    end
+
+    def set_active_group(appliance_name, group_id)
+      the_groups = active_groups_map
+      the_groups[appliance_name.to_sym] = group_id
+      save_groups(the_groups)
+    end
+
+    def clear_active_group(appliance_name)
+      the_groups = active_groups_map
+      the_groups.delete(appliance_name.to_sym)
+      save_groups(the_groups)
+    end
+
+    def load_group_file
+      fn = groups_file_path
+      if File.exist? fn
+        print "#{dark} #=> loading groups file #{fn}#{reset}\n" if Morpheus::Logging.debug?
+        return YAML.load_file(fn)
+      else
+        {}
+      end
+    end
+
+    def groups_file_path
+      return File.join(Morpheus::Cli.home_directory, "groups")
+    end
+
+    def save_groups(groups_map)
+      File.open(groups_file_path, 'w') {|f| f.write groups_map.to_yaml } #Store
+      FileUtils.chmod(0600, groups_file_path)
+      @@groups = groups_map
+    end
+
   end
 
 end

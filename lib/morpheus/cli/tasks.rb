@@ -11,7 +11,8 @@ class Morpheus::Cli::Tasks
   register_subcommands :list, :get, :add, :update, :remove, :'task-types'
   alias_subcommand :details, :get
   alias_subcommand :types, :'task-types'
-
+  set_default_subcommand :list
+  
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks

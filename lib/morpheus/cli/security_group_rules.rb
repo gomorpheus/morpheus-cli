@@ -10,7 +10,8 @@ class Morpheus::Cli::SecurityGroupRules
   include Morpheus::Cli::CliCommand
 
   register_subcommands :list, :'add-custom-rule', :'add-instance-rule', :remove
-
+  set_default_subcommand :list
+  
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @security_group_rules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_group_rules

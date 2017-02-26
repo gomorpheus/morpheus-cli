@@ -11,7 +11,7 @@ class Morpheus::WhoamiInterface < Morpheus::APIClient
   def get()
     url = "#{@base_url}/api/whoami"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    execute(method: :get, url: url, headers: headers)
+    execute(method: :get, url: url, headers: headers, timeout: 5)
   end
 
 end

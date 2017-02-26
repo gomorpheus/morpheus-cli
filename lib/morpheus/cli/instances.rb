@@ -13,7 +13,8 @@ class Morpheus::Cli::Instances
 
   register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
   alias_subcommand :details, :get
-
+  set_default_subcommand :list
+  
   def initialize()
     #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -28,7 +29,7 @@ class Morpheus::Cli::Instances
     @clouds_interface = @api_client.clouds
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
+    @active_group_id = Morpheus::Cli::Groups.active_group
   end
   
   def handle(args)
@@ -68,7 +69,7 @@ class Morpheus::Cli::Instances
       options[:instance_name] = args[1]
     end
     # use active group by default
-    options[:group] ||= @active_groups[@appliance_name.to_sym]
+    options[:group] ||= @active_group_id
 
     options[:name_required] = true
     begin
@@ -100,7 +101,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1

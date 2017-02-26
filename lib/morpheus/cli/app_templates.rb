@@ -11,19 +11,20 @@ class Morpheus::Cli::AppTemplates
 
   register_subcommands :list, :get, :add, :update, :remove, :'add-instance', :'remove-instance', :'connect-tiers', :'available-tiers', :'available-types'
   alias_subcommand :details, :get
-
+  set_default_subcommand :list
+  
   def initialize() 
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
     @app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
   def handle(args)

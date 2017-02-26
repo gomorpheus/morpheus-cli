@@ -12,6 +12,7 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::AccountsHelper
   register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -19,11 +20,11 @@ class Morpheus::Cli::Roles
     @users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
     @roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     #@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @active_group_id = Morpheus::Cli::Groups.active_group
   end
 
   def handle(args)
@@ -675,7 +676,7 @@ class Morpheus::Cli::Roles
       if !options[:group].nil?
         group_id = find_group_id_by_name(options[:group])
       else
-        group_id = @active_groups[@appliance_name.to_sym]
+        group_id = @active_group_id
       end
 
       if group_id.nil?

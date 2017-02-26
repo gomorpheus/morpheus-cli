@@ -8,6 +8,23 @@ Dir[File.dirname(__FILE__)  + "/ext/*.rb"].each {|file| require file }
 
 module Morpheus
   module Cli
+  
+    # the home directory, where morpheus-cli stores things
+    def self.home_directory
+      if ENV['MORPHEUS_CLI_HOME']
+        ENV['MORPHEUS_CLI_HOME']
+      else
+        File.join(Dir.home, ".morpheus")
+      end
+    end
+
+    # the location of your config file
+    # this is not configurable right now.
+    def self.config_filename
+      File.join(self.home_directory, ".morpheusrc")
+    end
+
+    # load all the well known commands and utilties they need
     def self.load!()
       # load interfaces
       require 'morpheus/api/api_client.rb'
@@ -18,15 +35,19 @@ module Morpheus
 
       # load commands
       # Dir[File.dirname(__FILE__)  + "/cli/*.rb"].each {|file| load file }
-      # commands must be well known..
+
+      # utilites
+      load 'morpheus/cli/credentials.rb'
       load 'morpheus/cli/cli_command.rb'
+      load 'morpheus/cli/option_types.rb'
+      
+      # all the known commands
       load 'morpheus/cli/remote.rb'
       load 'morpheus/cli/login.rb'
       load 'morpheus/cli/logout.rb'
       load 'morpheus/cli/whoami.rb'
       load 'morpheus/cli/dashboard_command.rb'
       load 'morpheus/cli/recent_activity_command.rb'
-      load 'morpheus/cli/credentials.rb'
       load 'morpheus/cli/groups.rb'
       load 'morpheus/cli/clouds.rb'
       load 'morpheus/cli/hosts.rb'
@@ -51,11 +72,12 @@ module Morpheus
       load 'morpheus/cli/library.rb'
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
-      # Your code goes here...
+      # Your new commands goes here...
 
     end
 
     load!
-
+    
   end
+
 end

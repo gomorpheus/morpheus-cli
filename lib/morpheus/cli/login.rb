@@ -24,21 +24,22 @@ class Morpheus::Cli::Login
   def handle(args)
     login(args)
   end
-  # def login
-  #   Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login()
-  # end
 
   def login(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      build_common_options(opts, options, [:json]) # todo: support :remote too perhaps
+      build_common_options(opts, options, [:json, :remote]) # todo: support :remote too perhaps
     end
     optparse.parse!(args)
 
     connect(options)
 
     begin
+      if !@appliance_name
+        print yellow,"Please specify a remote appliance to login to with -r or see the command `remote use`#{reset}\n"
+        return
+      end
       Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
 
     rescue RestClient::Exception => e

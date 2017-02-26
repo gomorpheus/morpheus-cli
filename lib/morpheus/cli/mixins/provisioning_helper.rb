@@ -274,7 +274,7 @@ module Morpheus::Cli::ProvisioningHelper
         end
       rescue RestClient::Exception => e
         print_yellow_warning "Unable to load network options. Proceeding..."
-        print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+        print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end
     type_payload = {}

@@ -1,3 +1,4 @@
+require 'morpheus/cli/option_parser'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/mixins/print_helper'
 require 'morpheus/cli/credentials'
@@ -81,17 +82,22 @@ module Morpheus
 
             # this is the only option now... 
             # first, you must do `remote use [appliance]`
-            opts.on( '-r', '--remote REMOTE', "Remote Appliance Name to use for this command. The current appliance is used by default." ) do |val|
+            opts.on( '-r', '--remote REMOTE', "Remote Appliance Name to use for this command. The active appliance is used by default." ) do |val|
               options[:remote] = val
-              options[:non_active_remote] = true # unused
+            end
+
+            # todo: also require this for talking to plain old HTTP
+            opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+              Morpheus::RestClient.enable_ssl_verification = false
             end
 
             # skipping the rest of this for now..
+
             next
 
-            opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
-              options[:remote] = remote
-            end
+            # opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
+            #   options[:remote] = remote
+            # end
 
             opts.on( '-U', '--url REMOTE', "API Url" ) do |remote|
               options[:remote_url] = remote
@@ -132,14 +138,15 @@ module Morpheus
         end
 
         # options that are always included
+
+        # disable ANSI coloring
         opts.on('-C','--nocolor', "Disable ANSI coloring") do
           Term::ANSIColor::coloring = false
         end
 
         opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
           options[:debug] = true
-          # this is handled upstream for now...
-          # Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           # perhaps...
           # create a new logger instance just for this command instance
           # this way we don't elevate the global level for subsequent commands in a shell
@@ -148,7 +155,8 @@ module Morpheus
           #   @logger.log_level = Morpheus::Logging::Logger::DEBUG
           # end
         end
-                opts.on('-h', '--help', "Prints this help" ) do
+
+        opts.on('-h', '--help', "Prints this help" ) do
           puts opts
           exit
         end
@@ -165,6 +173,10 @@ module Morpheus
 
       def subcommand_aliases
         self.class.subcommand_aliases
+      end
+
+      def default_subcommand
+        self.class.default_subcommand
       end
 
       def usage
@@ -202,6 +214,11 @@ module Morpheus
         if subcommands.empty?
           raise "#{self.class} has no available subcommands"
         end
+        # meh, could deprecate and make subcommand define handle() itself
+        if args.count == 0 && default_subcommand
+          # p "using default subcommand #{default_subcommand}"
+          return self.send(default_subcommand, args || [])
+        end
         cmd_name = args[0]
         if subcommand_aliases[cmd_name]
           cmd_name = subcommand_aliases[cmd_name]
@@ -228,7 +245,7 @@ module Morpheus
       # Your command should be ready to make api requests after this.
       # todo: probably don't exit here, just return nil or raise
       def establish_remote_appliance_connection(options)
-        @appliances ||= ::Morpheus::Cli::Remote.load_appliance_file
+        @appliances ||= ::Morpheus::Cli::Remote.appliances
         if !@appliance_name
           @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
         end
@@ -259,13 +276,17 @@ module Morpheus
         end
 
         if !@appliance_name
-          print_red_alert "No active appliance found. See the `remote use` command."
+          print_red_alert "You must specify a remote appliance with --remote, or see the `remote use` command."
           exit 1
         end
-                # ok, get some credentials.
-        # this prompts for username, password
+
+        puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
+
+        # ok, get some credentials.
+        # this prompts for username, password  without options[:no_prompt]
         @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
-                # bail if we got nothing
+        
+        # bail if we got nothing
         if @access_token.empty?
           print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
           exit 1
@@ -287,7 +308,8 @@ module Morpheus
         def default_command_name
           Morpheus::Cli::CliRegistry.cli_ize(self.name.split('::')[-1])
         end
-                def command_name
+        
+        def command_name
           @command_name ||= default_command_name
           @command_name
         end
@@ -295,7 +317,8 @@ module Morpheus
         def set_command_hidden(val=true)
           @hidden_command = val
         end
-                def hidden_command
+        
+        def hidden_command
           !!@hidden_command
         end
 
@@ -320,6 +343,14 @@ module Morpheus
             end
           }
           return
+        end
+
+        def set_default_subcommand(cmd)
+          @default_subcommand = cmd
+        end
+
+        def default_subcommand
+          @default_subcommand
         end
 
         def subcommands

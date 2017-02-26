@@ -37,8 +37,15 @@ def format_local_date(dt, options={})
   format_dt(dt, {local: true, format: "%x"}.merge(options))
 end
 
-# returns
 def format_dt_as_param(dt)
   dt = dt.getutc
   format_dt(dt, {format: "%Y-%m-%d %X"})
+end
+
+def display_appliance(name, url)
+  "#{name} - #{url}"
+end
+
+def iso8601(dt)
+  dt.instance_of(Time) ? dt.iso8601 : "#{dt}"
 end

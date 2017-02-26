@@ -19,7 +19,6 @@ module Morpheus
 
       def execute(options)
         opts = {timeout: 30}.merge(options)
-
         unless ssl_verification_enabled?
           opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
         end

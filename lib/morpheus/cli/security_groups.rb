@@ -10,7 +10,8 @@ class Morpheus::Cli::SecurityGroups
   include Morpheus::Cli::CliCommand
 
   register_subcommands :list, :get, :add, :remove, :use, :unuse
-
+  set_default_subcommand :list
+  
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @security_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_groups

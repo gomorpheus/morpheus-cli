@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'yaml'
 require 'io/console'
 require 'rest_client'
@@ -8,17 +9,12 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :add, :update, :remove, :use, :unuse, :current => :print_current
+  register_subcommands :list, :add, :remove, :use, :unuse, :current => :print_current
+  set_default_subcommand :list
 
   def initialize()
-    @appliances = ::Morpheus::Cli::Remote.load_appliance_file
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-    #connect()
+    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
-
-  # def connect(opts)
-  #   @api_client = establish_remote_appliance_connection(opts)
-  # end
 
   def handle(args)
     if args.count == 0
@@ -30,16 +26,17 @@ class Morpheus::Cli::Remote
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
+      opts.footer = "This outputs a list of the remote appliances.\n" + 
+                    "It also displays the current active appliance.\n" + 
+                    "The shortcut `remote` can be used instead of `remote list`."
     end
     optparse.parse!(args)
-
-    print "\n" ,cyan, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
-    # print red, bold, "red bold", reset, "\n"
+    @appliances = ::Morpheus::Cli::Remote.appliances
     if @appliances == nil || @appliances.empty?
-      puts yellow,"No remote appliances configured. Use `remote add`",reset
+      print yellow,"No remote appliances configured, see `remote add`",reset,"\n"
     else
       rows = @appliances.collect do |app_name, v|
         {
@@ -48,24 +45,26 @@ class Morpheus::Cli::Remote
           host: v[:host]
         }
       end
+      print "\n" ,cyan, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
       print cyan
       tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
       print reset
-      # if @@appliance
-      active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
-      if active_appliance_name
-        print cyan, "\n# => - current\n\n", reset
+      if @appliance_name
+        #unless @appliances.keys.size == 1
+          print cyan, "\n# => Currently using #{@appliance_name}\n", reset
+        #end
       else
-        print yellow, "\n# => no current remote appliance\n\n", reset
+        print "\n# => No active remote appliance, see `remote use`\n", reset
       end
+      print "\n" # meh
     end
   end
 
   def add(args)
     options = {}
     use_it = false
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [host] [--use]")
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] [url]")
       build_common_options(opts, options, [])
       opts.on( '--use', '--use', "Make this the current remote appliance" ) do
         use_it = true
@@ -74,194 +73,228 @@ class Morpheus::Cli::Remote
       opts.on( '-d', '--default', "Does the same thing as --use" ) do
         use_it = true
       end
+      # todo: use Morpheus::Cli::OptionParser < OptionParser
+      # opts.on('-h', '--help', "Prints this help" ) do
+      #   hidden_switches = ["--default"]
+      #   good_opts = opts.to_s.split("\n").delete_if { |line| hidden_switches.find {|it| line =~ /#{Regexp.escape(it)}/ } }.join("\n") 
+      #   puts good_opts
+      #   exit
+      # end
+      opts.footer = "This will add a new appliance to your list.\n" + 
+                    "If it's first one, it will be made the current active appliance."
     end
     optparse.parse!(args)
     if args.count < 2
       puts optparse
       exit 1
     end
-
-    name = args[0].to_sym
-
-    if @appliances[name] != nil
-      print red, "Remote appliance already configured for #{args[0]}", reset, "\n"
+    
+    new_appliance_name = args[0].to_sym
+    url = args[1]
+    if url !~ /^https?\:\/\//
+      print red, "The specified appliance url is invalid: '#{args[1]}'", reset, "\n"
+      puts optparse
+      exit 1
+    end
+    # maybe a ping here would be cool
+    @appliances = ::Morpheus::Cli::Remote.appliances
+    if @appliances.keys.empty?
+      use_it = true
+    end
+    if @appliances[new_appliance_name] != nil
+      print red, "Remote appliance already configured with the name '#{args[0]}'", reset, "\n"
     else
-      @appliances[name] = {
-        host: args[1],
+      @appliances[new_appliance_name] = {
+        host: url,
         active: use_it
       }
+      ::Morpheus::Cli::Remote.save_appliances(@appliances)
       if use_it
-        set_active_appliance name
-        # save_appliances(@appliances)
-      else
-        ::Morpheus::Cli::Remote.save_appliances(@appliances)
+        #Morpheus::Cli::Remote.set_active_appliance(new_appliance_name)
+        @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
       end
     end
-    list([])
+    #list([])
   end
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [])
       opts.on( '-d', '--default', "Make this the default remote appliance" ) do
         options[:default] = true
       end
+      opts.footer = "This will delete an appliance from your list."
+      build_common_options(opts, options, [:auto_confirm])
     end
     optparse.parse!(args)
     if args.empty?
       puts optparse
       exit 1
     end
-    name = args[0].to_sym
-    if @appliances[name] == nil
+    @appliances = ::Morpheus::Cli::Remote.appliances
+    appliance_name = args[0].to_sym
+    if @appliances[appliance_name] == nil
       print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
     else
-      active = false
-      if @appliances[name][:active]
-        active = true
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove this remote appliance '#{appliance_name}'?", options)
+        exit 1
       end
-      @appliances.delete(name)
-      if active && !@appliances.empty?
-        @appliances[@appliances.keys.first][:active] = true
-      end
+      @appliances.delete(appliance_name)
       ::Morpheus::Cli::Remote.save_appliances(@appliances)
-      list([])
+      # todo: also delete credentials and groups[appliance_name]
+      ::Morpheus::Cli::Groups.clear_active_group(appliance_name) # rescue nil
+      # this should be a class method too
+      #::Morpheus::Cli::Credentials.clear_saved_credentials(appliance_name)
+      ::Morpheus::Cli::Credentials.new(appliance_name, nil).clear_saved_credentials(appliance_name) # rescue nil
+      #list([])
     end
   end
 
   def use(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [--none]")
-      opts.on('--none','--none', "Do not use any appliance. This will prevent you from executing commands unless --remote is used.") do |val|
-        options[:unuse] = true
-      end
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [])
+      opts.footer = "This allows you to switch between your different appliances."
     end
     optparse.parse!(args)
-
-    if options[:unuse]
-      set_active_appliance nil # clear
-      unless options[:quiet]
-        print dark
-        puts "Switched to no active appliance."
-        puts "This will prevent you from executing commands unless --remote is used."
-        print reset
-      end
-      return # exit 0
-    end
-    if args.count == 0
+    if args.count < 1
       puts optparse
       exit 1
     end
-
     new_appliance_name = args[0].to_sym
-    active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
-    # if @@appliance && (@@appliance[:name].to_s == new_appliance_name.to_s)
-    if active_appliance_name && active_appliance_name.to_s == new_appliance_name.to_s
+    @appliances = ::Morpheus::Cli::Remote.appliances
+    if @appliance_name && @appliance_name.to_s == new_appliance_name.to_s
       print reset,"Already using the appliance '#{args[0]}'","\n",reset
     else
       if @appliances[new_appliance_name] == nil
         print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
       else
-        @@appliance = nil # clear cached active appliance
-        set_active_appliance(new_appliance_name)
+        Morpheus::Cli::Remote.set_active_appliance(new_appliance_name)
+        @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
         #print cyan,"Switched to using appliance #{args[0]}","\n",reset
         #list([])
       end
     end
-
   end
 
   def unuse(args)
-    use(args + ['--none'])
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
+      opts.footer = "" +
+        "This will switch to no active appliance.\n" +
+        "You will need to use an appliance again, or pass the --remote option to your commands..\n"
+      build_common_options(opts, options, [])
+    end
+    optparse.parse!(args)
+    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    if @appliance_name
+      Morpheus::Cli::Remote.clear_active_appliance()
+      @appliance_name, @appliance_url = nil, nil
+      return true
+    else
+      puts "You are not using any appliance"
+      return false
+    end
   end
 
   def print_current(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
 
-    active_appliance_name, active_appliance_host = Morpheus::Cli::Remote.active_appliance
-    if active_appliance_name
-      print cyan,active_appliance_name,"\n",reset
+    if @appliance_name
+      print cyan, @appliance_name,"\n",reset
     else
-      print dark,"No active appliance. See `remote use`","\n",reset
+      print yellow, "\n# => No active appliance, see `remote use`\n\n", reset
     end
   end
 
-  def set_active_appliance(name)
-    @@appliance = nil # clear cached active appliance
-    @appliances.each do |k,v|
-      is_match = (name ? (k == name.to_sym) : false)
-      if is_match
-        v[:active] = true
-        # @@appliance = v
+  class << self
+    include Term::ANSIColor
+
+    # for caching the the contents of YAML file $home/appliances
+    # it is structured like :appliance_name => {:host => "htt[://api.gomorpheus.com", :active => true}
+    # not named @@appliances to avoid confusion with the instance variable . This is also a command class...
+    @@appliance_config = nil 
+    #@@current_appliance = nil
+
+
+
+    def appliances
+      self.appliance_config
+    end
+
+    def appliance_config
+      @@appliance_config ||= load_appliance_file || {}
+    end
+
+    # Returns two things, the remote appliance name and url
+    def active_appliance
+      if self.appliances.empty?
+        return nil, nil
+      end
+      app_name, app_map = self.appliances.find {|k,v| v[:active] == true }
+      if app_name
+        return app_name, app_map[:host]
       else
-        v[:active] = false
+        return app_name, nil
       end
     end
-    ::Morpheus::Cli::Remote.save_appliances(@appliances)
-  end
 
-  # Provides the current active appliance name, url
-  def self.active_appliance
-    if !defined?(@@appliance) || @@appliance.nil?
-      @@appliance = load_appliance_file.select { |k,v| v[:active] == true}
+    def set_active_appliance(name)
+      new_appliances = self.appliances
+      new_appliances.each do |k,v|
+        is_match = (name ? (k == name.to_sym) : false)
+        if is_match
+          v[:active] = true
+        else
+          v[:active] = false
+        end
+      end
+      save_appliances(new_appliances)
     end
-    # return @@appliance.keys[0], @@appliance[@@appliance.keys[0]][:host]
-    # wtf!
-    if !@@appliance.keys[0]
-      return nil, nil
+
+    def clear_active_appliance
+      new_appliances = self.appliances
+      new_appliances.each do |k,v|
+        v[:active] = false
+      end
+      save_appliances(new_appliances)
     end
-    begin
-      return @@appliance.keys[0], @@appliance[@@appliance.keys[0]][:host]
-    rescue
-      return nil, nil
+
+    def load_appliance_file
+      fn = appliances_file_path
+      if File.exist? fn
+        print "#{dark} #=> loading appliances file #{fn}#{reset}\n" if Morpheus::Logging.debug?
+        return YAML.load_file(fn)
+      else
+        return {}
+        # return {
+        #   morpheus: {
+        #     host: 'https://api.gomorpheus.com',
+        #     active: true
+        #   }
+        # }
+      end
     end
-  end
 
-
-  def self.load_appliance_file
-    remote_file = appliances_file_path
-    if File.exist? remote_file
-      return YAML.load_file(remote_file)
-    else
-      return {}
-      # return {
-      #   morpheus: {
-      #     host: 'https://api.gomorpheus.com',
-      #     active: true
-      #   }
-      # }
+    def appliances_file_path
+      File.join(Morpheus::Cli.home_directory,"appliances")
     end
-  end
 
-  def self.appliances_file_path
-    home_dir = Dir.home
-    morpheus_dir = File.join(home_dir,".morpheus")
-    if !Dir.exist?(morpheus_dir)
-      Dir.mkdir(morpheus_dir)
+    def save_appliances(new_config)
+      File.open(appliances_file_path, 'w') {|f| f.write new_config.to_yaml } #Store
+      FileUtils.chmod(0600, appliances_file_path)
+      #@@appliance_config = load_appliance_file
+      @@appliance_config = new_config
     end
-    return File.join(morpheus_dir,"appliances")
-  end
 
-  def self.save_appliances(appliance_map)
-    File.open(appliances_file_path, 'w') {|f| f.write appliance_map.to_yaml } #Store
-    @appliances = appliance_map
-    @appliances
-  end
-
-  #  wtf, but then could just do Morpheus::Cli.Remote.connect(options)
-  def self.connect(options={})
-    newobj = self.new
-    establish_remote_appliance_connection(options)
-    return newobj
   end
 
 end

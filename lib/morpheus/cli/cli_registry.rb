@@ -1,4 +1,4 @@
-
+require 'term/ansicolor'
 module Morpheus
   module Cli
     class CliRegistry
@@ -9,18 +9,21 @@ module Morpheus
       end
 
       class << self
+        include Term::ANSIColor
         
+        ALIAS_SPLIT_REGEX=/(\;)(?=(?:[^"']|"[^'"]*")*$)/
+
         def instance
           @instance ||= CliRegistry.new
         end
 
+        #todo: move execution out of the CliRegistry
         def exec(command_name, args)
           exec_command(command_name, args)
         end
 
         def exec_command(command_name, args)
           #puts "exec_command(#{command_name}, #{args})"
-          Term::ANSIColor::coloring = STDOUT.isatty
           found_alias_command = instance.get_alias(command_name)
           if found_alias_command
             exec_alias(command_name, args)
@@ -34,8 +37,9 @@ module Morpheus
           #puts "exec_alias(#{alias_name}, #{args})"
           found_alias_command = instance.get_alias(alias_name)
           # support aliases of multiple commands, semicolon delimiter
-          all_commands = found_alias_command.gsub(/(\;)(?=(?:[^"']|"[^'"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-          puts "alias #{alias_name} all_commands is : #{all_commands.inspect}"
+          # todo: 
+          all_commands = found_alias_command.gsub(ALIAS_SPLIT_REGEX, '__ALIAS_SPLIT_REGEX__').split('__ALIAS_SPLIT_REGEX__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
+          print "#{dark} #=> exec_alias alias #{alias_name} as #{all_commands.join('; ')}#{reset}\n" if Morpheus::Logging.debug?
           all_commands.each do |a_command_string|
             alias_args = a_command_string.to_s.split(/\s+/) # or just ' '
             command_name = alias_args.shift
@@ -84,7 +88,7 @@ module Morpheus
             !instance.get_alias(alias_name).nil?
           end
         end
-
+        
         def all
           instance.all
         end

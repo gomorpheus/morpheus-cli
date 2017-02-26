@@ -12,6 +12,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::ProvisioningHelper
   register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -21,11 +22,11 @@ class Morpheus::Cli::Hosts
     @api_client = establish_remote_appliance_connection(opts)
     @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
-    @active_groups = ::Morpheus::Cli::Groups.load_group_file
     @tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
     @task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
     @servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
+    @active_group_id = Morpheus::Cli::Groups.active_group
   end
 
   def handle(args)
@@ -337,7 +338,7 @@ class Morpheus::Cli::Hosts
       options[:host_name] = args[1]
     end
     # use active group by default
-    options[:group] ||= @active_groups[@appliance_name.to_sym]
+    options[:group] ||= @active_group_id
 
     params = {}
 
@@ -419,7 +420,7 @@ class Morpheus::Cli::Hosts
         end
       rescue RestClient::Exception => e
         print_yellow_warning "Unable to load network options. Proceeding..."
-        print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+        print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end
 
@@ -635,7 +636,7 @@ class Morpheus::Cli::Hosts
       #     end
       #   rescue RestClient::Exception => e
       #     print_yellow_warning "Unable to load network options. Proceeding..."
-      #     print_rest_exception(e, options) if Morpheus::Logging.print_stacktrace?
+      #     print_rest_exception(e, options) if Morpheus::Logging.debug?
       #   end
       # end
 

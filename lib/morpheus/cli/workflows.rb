@@ -9,7 +9,8 @@ class Morpheus::Cli::Workflows
   include Morpheus::Cli::CliCommand
 
   register_subcommands :list, :get, :add, :update, :remove
-
+  set_default_subcommand :list
+  
   # def initialize()
   #   @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   # end

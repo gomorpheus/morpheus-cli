@@ -12,6 +12,7 @@ class Morpheus::Cli::Users
   include Morpheus::Cli::AccountsHelper
   register_subcommands :list, :get, :add, :update, :remove
   alias_subcommand :details, :get
+  set_default_subcommand :list
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance

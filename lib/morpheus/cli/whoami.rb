@@ -11,28 +11,26 @@ class Morpheus::Cli::Whoami
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::InfrastructureHelper
+
+  set_command_name :whoami
+
+  # no subcommands, just show()
+
   def initialize()
-    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
   def connect(opts)
-    @access_token = Morpheus::Cli::Credentials.new(@appliance_name,@appliance_url).load_saved_credentials()
-    # always try this.. it will 401
-    # if @access_token.empty?
-    #   print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-    #   exit 1
-    # end
-    @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
-
-  end
-
-  def usage
-    "Usage: morpheus whoami"
+    @api_client = establish_remote_appliance_connection(opts)
+    @groups_interface = @api_client.groups
+    @active_group_id = Morpheus::Cli::Groups.active_group
   end
 
   def handle(args)
     show(args)
   end
+
   def show(args)
     options = {}
     optparse = OptionParser.new do|opts|
@@ -55,12 +53,21 @@ class Morpheus::Cli::Whoami
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
       end
-      build_common_options(opts, options, [:json]) # todo: support :remote too
+      build_common_options(opts, options, [:json, :remote]) # todo: support :remote too
     end
     optparse.parse!(args)
+    # todo: check to see if they have credentials instead of just trying to connect (and prompting)
     connect(options)
     begin
       json_response = load_whoami()
+      group = nil
+      begin
+        group = @active_group_id ? find_group_by_name_or_id(@active_group_id) : nil # via InfrastructureHelper mixin
+      rescue => err
+        if options[:debug]
+          print red,"Unable to determine active group: #{err}\n",reset
+        end
+      end
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -74,7 +81,7 @@ class Morpheus::Cli::Whoami
         # todo: impersonate command and show that info here
 
         print "\n" ,cyan, bold, "Current User\n","==================", reset, "\n\n"
-        print cyan
+        # print cyan
         # if @is_master_account
         puts "ID: #{user['id']}"
         puts "Account: #{user['account'] ? user['account']['name'] : nil}" + (@is_master_account ? " (Master Account)" : "")
@@ -106,7 +113,7 @@ class Morpheus::Cli::Whoami
         end
 
         print "\n" ,cyan, bold, "Remote Appliance\n","==================", reset, "\n\n"
-        print cyan
+        # print cyan
         if @appliance_name
           puts "Name: #{@appliance_name}"
         end
@@ -116,13 +123,28 @@ class Morpheus::Cli::Whoami
         if @appliance_build_verison
           puts "Build Version: #{@appliance_build_verison}"
         end
-        print cyan
+        # print cyan
+
+        if group
+          print "\n" ,cyan, bold, "Active Group\n","==================", reset, "\n\n"
+          print "ID: #{group['id']}\n" 
+          print "Name: #{group['name']}\n" 
+        else
+          print "\n"
+          print "No active group. See `groups use`\n",reset
+        end
 
         print reset,"\n"
-
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
+      if e.reponse && e.response.code == 400
+        puts "It looks like you need to login to the remote appliance [#{@appliance_name}] #{@appliance_url}"
+        if Morpheus::Cli::OptionTypes.confirm("Would you like to login now?")
+          #return Morpheus::Cli::Login.new.login([])
+          puts "Cya"
+        end
+      end
       exit 1
     end
   end
