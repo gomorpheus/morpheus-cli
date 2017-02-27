@@ -125,10 +125,14 @@ class Morpheus::Cli::Groups
   def add(args)
     options = {}
     params = {}
+    use_it = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-l', '--location LOCATION', "Location" ) do |val|
         params[:location] = val
+      end
+      opts.on( '--use', '--use', "Make this the current active group" ) do
+        use_it = true
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Create a new group."
@@ -162,6 +166,9 @@ class Morpheus::Cli::Groups
       end
       json_response = @groups_interface.create(payload)
       group = json_response['group']
+      if use_it
+        ::Morpheus::Cli::Groups.set_active_group(@appliance_name, group['id'])
+      end
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
