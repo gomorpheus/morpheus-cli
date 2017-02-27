@@ -215,10 +215,10 @@ module Morpheus
           raise "#{self.class} has no available subcommands"
         end
         # meh, could deprecate and make subcommand define handle() itself
-        if args.count == 0 && default_subcommand
-          # p "using default subcommand #{default_subcommand}"
-          return self.send(default_subcommand, args || [])
-        end
+        # if args.count == 0 && default_subcommand
+        #   # p "using default subcommand #{default_subcommand}"
+        #   return self.send(default_subcommand, args || [])
+        # end
         cmd_name = args[0]
         if subcommand_aliases[cmd_name]
           cmd_name = subcommand_aliases[cmd_name]
