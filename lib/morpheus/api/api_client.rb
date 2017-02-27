@@ -142,4 +142,8 @@ class Morpheus::APIClient
     Morpheus::DashboardInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def setup
+    Morpheus::SetupInterface.new(@base_url)
+  end
+  
 end

@@ -9,7 +9,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :add, :remove, :use, :unuse, :current => :print_current
+  register_subcommands :list, :add, :remove, :use, :unuse, {:current => :print_current}, :setup
   set_default_subcommand :list
 
   def initialize()
@@ -170,6 +170,7 @@ class Morpheus::Cli::Remote
     else
       if @appliances[new_appliance_name] == nil
         print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
+        return false
       else
         Morpheus::Cli::Remote.set_active_appliance(new_appliance_name)
         @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -204,7 +205,7 @@ class Morpheus::Cli::Remote
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:json])
     end
     optparse.parse!(args)
 
@@ -212,6 +213,136 @@ class Morpheus::Cli::Remote
       print cyan, @appliance_name,"\n",reset
     else
       print yellow, "No active appliance, see `remote use`\n", reset
+      return false
+    end
+  end
+
+  # this is a wizard that walks through the /api/setup controller
+  # it only needs to be used once to initialize a new appliance
+  def setup(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:options, :json, :dry_run])
+      opts.footer = "This can be used to initialize a new appliance.\n" + 
+                    "You will be prompted to create the master account.\n" + 
+                    "This is only available on a new, freshly installed, remote appliance."
+    end
+    optparse.parse!(args)
+
+    if !@appliance_name
+      print yellow, "No active appliance, see `remote use`\n", reset
+      return false
+    end
+
+    # this works without any authentication!
+    # it will allow anyone to use it, if there are no users/accounts in the system.
+    #@api_client = establish_remote_appliance_connection(options)
+    #@setup_interface = @api_client.setup
+    @setup_interface = Morpheus::SetupInterface.new(@appliance_url)
+    appliance_status_json = nil
+    begin
+      appliance_status_json = @setup_interface.get()
+      if appliance_status_json['success'] != true
+        print red, "Setup not available for appliance #{@appliance_name} - #{@appliance_url}.\n", reset
+        print red, "#{appliance_status_json['msg']}\n", reset
+        return false
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return false
+    end
+    
+    payload = {}
+
+    if appliance_status_json['hubRegistrationEnabled']
+      link = File.join(@appliance_url, '/setup')
+      print red, "Sorry, setup with hub registration is not yet available.\n", reset
+      print "You can use the UI to setup your appliance.\n"
+      print "Go to #{link}\n", reset
+      # if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+      #   system "start #{link}"
+      # elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+      #   system "open #{link}"
+      # elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+      #   system "xdg-open #{link}"
+      # end
+      return false
+    else
+      print "\n" ,cyan, bold, "Morpheus Appliance Setup", "\n", "==================", reset, "\n\n"
+
+      puts "It looks like you're the first one here."
+      puts "Let's initialize your remote appliance at #{@appliance_url}"
+
+
+      
+      # Master Account
+      print "\n" ,cyan, bold, "Create Master account", "\n", "==================", reset, "\n\n"
+      account_option_types = [
+        {'fieldName' => 'accountName', 'fieldLabel' => 'Master Account Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+      ]
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(account_option_types, options[:options])
+      payload.merge!(v_prompt)
+
+      # Master User
+      print "\n" ,cyan, bold, "Create Master User", "\n", "==================", reset, "\n\n"
+      user_option_types = [
+        {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
+        {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+        {'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
+        {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'displayOrder' => 4},
+      ]
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(user_option_types, options[:options])
+      payload.merge!(v_prompt)
+
+      # Password prompt with re-prompting if no match
+      password_option_types = [
+        {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
+        {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 7},
+      ]
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+      while v_prompt['passwordConfirmation'] != v_prompt['password']
+        print red, "Password confirmation does not match. Re-enter your new password.", reset, "\n"
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+      end
+      payload.merge!(v_prompt)
+
+      # Extra settings
+      print "\n" ,cyan, bold, "Initial Setup", "\n", "==================", reset, "\n\n"
+      extra_option_types = [
+        {'fieldName' => 'applianceName', 'fieldLabel' => 'Appliance Name', 'type' => 'text', 'required' => true, 'defaultValue' => nil},
+        {'fieldName' => 'applianceUrl', 'fieldLabel' => 'Appliance URL', 'type' => 'text', 'required' => true, 'defaultValue' => appliance_status_json['applianceUrl']},
+        {'fieldName' => 'backups', 'fieldLabel' => 'Enable Backups', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'off'},
+        {'fieldName' => 'monitoring', 'fieldLabel' => 'Enable Monitoring', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'on'},
+        {'fieldName' => 'logs', 'fieldLabel' => 'Enable Logs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'on'}
+      ]
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(extra_option_types, options[:options])
+      payload.merge!(v_prompt)
+
+      begin
+        if options[:dry_run]
+          print_dry_run @setup_interface.dry.init(payload)
+          return
+        end
+        if !options[:json]
+          print "\nInitializing the appliance now...\n\n"
+        end
+        json_response = @setup_interface.init(payload)
+        if options[:json]
+          print JSON.pretty_generate(json_response)
+          print "\n"
+          return
+        end
+        print "\n"
+        print cyan, "You have successfully setup the appliance.\n"
+        print cyan, "You may now login with the command `login`.\n"
+        print "\n",reset
+      rescue RestClient::Exception => e
+        print_rest_exception(e, options)
+        return false
+      end
+
+
     end
   end
 
