@@ -20,6 +20,11 @@ end
 
 args = ARGV.dup
 
+# raise log level right away
+if args.find {|it| it == '-V' || it == '--debug'}
+  Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+end
+
 # load config file(s)
 Morpheus::Cli::ConfigFile.init(ENV['MORPHEUS_CLI_HOME'])
 
