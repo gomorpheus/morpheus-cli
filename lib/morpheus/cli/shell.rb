@@ -178,7 +178,7 @@ class Morpheus::Cli::Shell
             print "failed to reload #{__FILE__}. oh well"
             # print err
           end
-          print dark,"Your shell has been reloaded",reset,"\n"
+          print dark," #=> shell has been reloaded",reset,"\n"  if Morpheus::Logging.debug?
           return 0
         elsif input == '!!'
           cmd_number = @history.keys[-1]
