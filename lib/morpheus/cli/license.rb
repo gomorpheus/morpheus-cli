@@ -59,12 +59,11 @@ class Morpheus::Cli::License
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return false
     end
   end
 
   def apply(args)
-    key = args[0]
     options = {}
     account_name = nil
     optparse = OptionParser.new do|opts|
@@ -72,12 +71,14 @@ class Morpheus::Cli::License
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
     connect(options)
-        begin
+    begin
+      if args[0]
+        key = args[0]
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
+        instance_name = v_prompt['licenseKey'] || ''
+      end
       if options[:dry_run]
         print_dry_run @license_interface.dry.apply(key)
         return
@@ -90,7 +91,7 @@ class Morpheus::Cli::License
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return false
     end
   end
 

@@ -325,23 +325,47 @@ class Morpheus::Cli::Remote
           return
         end
         if !options[:json]
-          print "\nInitializing the appliance now...\n\n"
+          print "Initializing the appliance...\n"
         end
         json_response = @setup_interface.init(payload)
-        if options[:json]
-          print JSON.pretty_generate(json_response)
-          print "\n"
-          return
-        end
-        print "\n"
-        print cyan, "You have successfully setup the appliance.\n"
-        print cyan, "You may now login with the command `login`.\n"
-        print "\n",reset
       rescue RestClient::Exception => e
         print_rest_exception(e, options)
         return false
       end
 
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+        return
+      end
+      print "\n"
+      print cyan, "You have successfully setup the appliance.\n"
+      #print cyan, "You may now login with the command `login`.\n"
+      # uh, just use Credentials.login(username, password, {save: true})
+      cmd_res = Morpheus::Cli::Login.new.login(['--username', payload['username'], '--password', payload['password'], '-q'])
+      # print "\n"
+      print cyan, "You are now logged in as the System Admin #{payload['username']}.\n"
+      print reset
+      #print "\n"
+
+      if ::Morpheus::Cli::OptionTypes::confirm("Would you like to apply your License Key now?", options.merge({:default => true}))
+        cmd_res = Morpheus::Cli::License.new.apply([])
+        # license_is_valid = cmd_res != false
+      end
+
+      if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first group now?", options.merge({:default => true}))
+        cmd_res = Morpheus::Cli::Groups.new.add(['--use'])
+
+        #print "\n"
+
+        # if cmd_res !=
+          if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first cloud now?", options.merge({:default => true}))
+            cmd_res = Morpheus::Cli::Clouds.new.add([])
+            #print "\n"
+          end
+        # end
+      end
+      print "\n",reset
 
     end
   end

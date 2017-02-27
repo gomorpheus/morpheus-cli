@@ -10,11 +10,11 @@ class Morpheus::Cli::Login
   # include Morpheus::Cli::WhoamiHelper
   # include Morpheus::Cli::AccountsHelper
   def initialize()
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    
   end
 
   def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+    #@api_client = establish_remote_appliance_connection(opts)
   end
 
   def usage
@@ -27,19 +27,45 @@ class Morpheus::Cli::Login
 
   def login(args)
     options = {}
+    username, password = nil, nil
     optparse = OptionParser.new do|opts|
       opts.banner = usage
+      opts.on( '-u', '--username USERNAME', "Username" ) do |val|
+        username = val
+      end
+      opts.on( '-p', '--password PASSWORD', "Password" ) do |val|
+        password = val
+      end
       build_common_options(opts, options, [:json, :remote, :quiet])
     end
     optparse.parse!(args)
 
-    connect(options)
+    # connect(options)
+    if options[:remote]
+      appliance = Morpheus::Cli::Remote.appliances[options[:remote].to_sym]
+      if appliance
+        @appliance_name, @appliance_url = options[:remote].to_sym, appliance[:host]
+      else
+        @appliance_name, @appliance_url = nil, nil
+      end
+    else
+      @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    end
 
     begin
       if !@appliance_name
-        print yellow,"Please specify a remote appliance to login to with -r or see the command `remote use`#{reset}\n"
-        return
+        print yellow,"Please specify a remote appliance with -r or see the command `remote use`#{reset}\n"
+        return false
       end
+      if options[:quiet]
+        if username.empty? || password.empty?
+          print yellow,"You have not specified username and password\n"
+          return false
+        end
+      end
+      options[:remote_username] = username if username
+      options[:remote_password] = password if password
+      #options[:remote_url] = true # will skip credentials save
       Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
 
     rescue RestClient::Exception => e

@@ -289,7 +289,7 @@ module Morpheus
                       value_found = false
                       while !value_found do
                           print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}: "
-                          input = STDIN.noecho(&:gets).chomp!
+                          input = $stdin.noecho(&:gets).chomp!
                           value = input
                           print "\n"
                           if input == '?'

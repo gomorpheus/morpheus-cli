@@ -19,6 +19,7 @@ module Morpheus
       end
       
       def request_credentials(opts = {})
+        #puts "request_credentials(#{opts})"
         username = nil
         password = nil
         creds = nil
@@ -34,20 +35,28 @@ module Morpheus
         if creds
           return creds
         end
-
-        print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
-        if username.nil? || username.empty?
-          # print "Username: "
-          print "Username: #{required_blue_prompt} "
-          username = $stdin.gets.chomp!
+        unless opts[:quiet] || opts[:no_prompt]
+          # if username.empty? || password.empty?
+            print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+          # end
+          if username.empty?
+            print "Username: #{required_blue_prompt} "
+            username = $stdin.gets.chomp!
+          else
+            print "Username: #{required_blue_prompt} #{username}\n"
+          end
+          if password.empty?
+            print "Password: #{required_blue_prompt} "
+            password = STDIN.noecho(&:gets).chomp!
+            print "\n"
+          else
+            print "Password: #{required_blue_prompt} \n"
+          end
         end
-        if password.nil? || password.empty?
-          # print "Password: "
-          print "Password: #{required_blue_prompt} "
-          password = STDIN.noecho(&:gets).chomp!
-          print "\n"
+        if username.empty? || password.empty?
+          print_red_alert "Username and password are required to login."
+          return nil
         end
-
         begin
           auth_interface = Morpheus::AuthInterface.new(@appliance_url)
           json_response = auth_interface.login(username, password)
@@ -57,7 +66,9 @@ module Morpheus
           end
           access_token = json_response['access_token']
           if !access_token.empty?
-            save_credentials(@appliance_name, access_token) unless skip_save
+            unless skip_save
+              save_credentials(@appliance_name, access_token)
+            end
             return access_token
           else
             print_red_alert "Credentials not verified."
@@ -75,11 +86,6 @@ module Morpheus
           else
             print_rest_exception(e, opts)
           end
-          #exit 1
-        rescue => e
-          #raise e
-          print_red_alert "Error Communicating with the Appliance. #{e}"
-          exit 1
         end
 
       end
@@ -100,22 +106,20 @@ module Morpheus
         File.open(credentials_file_path, 'w') {|f| f.write @@saved_credentials_map.to_yaml } #Store
       end
 
-      # Provides the current credential information, simply :appliance_name => "access_token"
-      def saved_credentials_map
-        #appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance
-        if !defined?(@@saved_credentials_map)
-          @@saved_credentials_map = load_credentials_file
-        end
-        return @@saved_credentials_map ? @@saved_credentials_map[@appliance_name.to_sym] : nil
-      end
-
-
       def load_saved_credentials(reload=false)
         if saved_credentials_map && !reload
           return saved_credentials_map
         end
         @@saved_credentials_map = load_credentials_file || {}
         return @@saved_credentials_map[@appliance_name]
+      end
+
+      # Provides the current credential information, simply :appliance_name => "access_token"
+      def saved_credentials_map
+        if !defined?(@@saved_credentials_map)
+          @@saved_credentials_map = load_credentials_file
+        end
+        return @@saved_credentials_map ? @@saved_credentials_map[@appliance_name.to_sym] : nil
       end
 
       def load_credentials_file
@@ -133,17 +137,20 @@ module Morpheus
       end
 
       def save_credentials(app_name, token)
-        credential_map = load_credentials_file
+        # credential_map = saved_credentials_map
+        # reloading file is better for now, otherwise you can lose credentials with multiple shells.
+        credential_map = load_credentials_file || {}
         if credential_map.nil?
           credential_map = {}
         end
         credential_map[app_name] = token
         begin
-          puts " #=> adding credentials to #{credentials_file_path}"  if Morpheus::Logging.debug?
-          File.open(credentials_file_path, 'w') {|f| f.write credential_map.to_yaml } #Store
-          FileUtils.chmod(0600, credentials_file_path)
+          fn = credentials_file_path
+          print "#{dark} #=> adding credentials to #{fn}#{reset}\n" if Morpheus::Logging.debug?
+          File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
+          FileUtils.chmod(0600, fn)
         rescue => e
-          puts "failed to save #{credentials_file_path}. #{e}"  if Morpheus::Logging.debug?
+          puts "failed to save #{fn}. #{e}"  if Morpheus::Logging.debug?
         end
       end
     end
