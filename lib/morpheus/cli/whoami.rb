@@ -138,11 +138,10 @@ class Morpheus::Cli::Whoami
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      if e.reponse && e.response.code == 400
+      if e.response && e.response.code == 401
         puts "It looks like you need to login to the remote appliance [#{@appliance_name}] #{@appliance_url}"
         if Morpheus::Cli::OptionTypes.confirm("Would you like to login now?")
-          #return Morpheus::Cli::Login.new.login([])
-          puts "Cya"
+          return Morpheus::Cli::Login.new.login([])
         end
       end
       exit 1
