@@ -17,7 +17,7 @@ class Morpheus::Cli::AliasCommand
   end
 
   def usage
-    out = "Usage: morpheus #{command_name} [alias]=[command string]"
+    out = "Usage: morpheus #{command_name} [name]='[command]'"
     out
   end
 
@@ -47,31 +47,40 @@ class Morpheus::Cli::AliasCommand
         subcommands.sort.each {|cmd, method|
             puts "\t#{cmd.to_s}"
           }
-        puts "This defines an alias of a command.\n" + 
+        puts "" + 
+              "This defines an alias of a command.\n" + 
+              "The [name] should be a one word .\n" + 
+              "The [command] must be quoted if it is more than one word.\n" + 
+              "The [command] may include multiple commands, semicolon delimited.\n" + 
+              #"Example: alias cloud='clouds' .\n" + 
               "Aliases are preserved for future use in your config.\n" + 
-              "You can simply use 'alias' instead of 'alias add'"
+              "You can use just `alias` instead of `alias add`.\n" +
+              "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias"
         exit
       end
     end
     optparse.parse!(args)
-    if args.count < 1
+    if args.count != 1
       puts optparse
       exit 1
     end
-
     alias_definition = args[0]
     alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(alias_definition)
 
     if alias_name.empty? || command_string.empty?
       print_red_alert "invalid alias syntax: #{alias_definition}"
-      exit 1
+      return false
     else
       # config[:aliases] ||= []
       # config[:aliases] << {name: alias_name, command: command_string}
-      Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
+      begin
+        Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
+        #print "registered alias #{alias_name}", "\n"
+      rescue => err
+        print_red_alert "#{err.message}"
+        return false
+      end
       Morpheus::Cli::ConfigFile.instance.save_file()
-      #puts "registered alias #{alias_name}='#{command_string}'"
-      #print "registered alias '#{alias_name}'", "\n"
     end
 
     Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
@@ -115,11 +124,8 @@ class Morpheus::Cli::AliasCommand
     options = {format:'friendly', sort:'name'}
     do_remove = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
-      opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
-        options[:phrase] = phrase
-      end
-      opts.on( '-E', '--export', "Output the aliases just as they would appear in your .morpheusrc config file." ) do
+      opts.banner = subcommand_usage()
+      opts.on( '-E', '--export', "Generate output that can be used verbatim in a .morpheusrc config file." ) do
         options[:format] = 'export'
       end
       build_common_options(opts, options, [:list, :json])

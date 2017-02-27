@@ -54,7 +54,8 @@ class Morpheus::Cli::ConfigFile
     config_text = File.open(@filename).read
     config_lines = config_text.split(/\n/)
     #config_lines = config_lines.reject {|line| line =~ /^\#/} # strip comments
-    config_lines.each_with_index do |line, line_num|
+    config_lines.each_with_index do |line, line_index|
+      line_num = line_index + 1
       line = line.strip
       #puts "parsing config line #{line_num} : #{line}"
       next if line.empty?
@@ -63,18 +64,23 @@ class Morpheus::Cli::ConfigFile
       if line =~ /^alias\s+/
         alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(line)
         if alias_name.empty? || command_string.empty?
-          puts "bad config line #{line_num}: #{line} | Invalid alias declaration"
+          print "#{dark} #=> bad config line #{line_num} invalid alias definition: #{line}\n" if Morpheus::Logging.debug?
         else
           # @config[:aliases] ||= []
           # @config[:aliases] << {name: alias_name, command: command_string}
-          Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
-          #puts "registered alias #{alias_name}='#{command_string}'"
+          begin
+            Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
+          rescue => err
+            print "#{dark} #=> #{err.message}#{reset}\n" if Morpheus::Logging.debug?
+          end
         end
-      elsif line =~ /^disable-coloring/
+      elsif line =~ /^colorize/
+        Term::ANSIColor::coloring = true
+      elsif line =~ /^uncolorize/
         Term::ANSIColor::coloring = false
-        # what else do we want to configure in here?
+      # what else shall we make configurable?
       else
-        puts "config line #{line_num} unrecognized : #{line}"
+        print "#{dark} #=> config line #{line_num} unrecognized: #{line}#{reset}\n" if Morpheus::Logging.debug?
       end
     end
 

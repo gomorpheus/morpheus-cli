@@ -39,7 +39,7 @@ module Morpheus
           # support aliases of multiple commands, semicolon delimiter
           # todo: 
           all_commands = found_alias_command.gsub(ALIAS_SPLIT_REGEX, '__ALIAS_SPLIT_REGEX__').split('__ALIAS_SPLIT_REGEX__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-          print "#{dark} #=> exec_alias alias #{alias_name} as #{all_commands.join('; ')}#{reset}\n" if Morpheus::Logging.debug?
+          print "#{dark} #=> executing alias #{alias_name} as #{all_commands.join('; ')}#{reset}\n" if Morpheus::Logging.debug?
           all_commands.each do |a_command_string|
             alias_args = a_command_string.to_s.split(/\s+/) # or just ' '
             command_name = alias_args.shift
@@ -88,7 +88,7 @@ module Morpheus
             !instance.get_alias(alias_name).nil?
           end
         end
-        
+
         def all
           instance.all
         end
@@ -147,6 +147,12 @@ module Morpheus
       end
 
       def add_alias(alias_name, command_string)
+        #return @commands[alias_name.to_sym]
+        if self.class.has_command?(alias_name)
+          raise "alias name '#{alias_name}' is invalid. That is the name of a morpheus command."
+        elsif alias_name.to_s.downcase.strip == command_string.to_s.downcase.strip
+          raise "alias #{alias_name}=#{command_string} is invalid..."
+        end
         @aliases[alias_name.to_sym] = command_string
       end
 
