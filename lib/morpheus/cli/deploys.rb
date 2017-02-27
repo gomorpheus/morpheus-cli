@@ -10,28 +10,32 @@ class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
 
   set_command_name :deploy
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-    connect()
   end
 
-  def connect()
+  def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @deploy_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deploy
   end
 
   def handle(args)
-    if @access_token.empty?
-      print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-      return 1
-    end
-
     deploy(args)
   end
 
   def deploy(args)
-    environment = 'production'
+    options={}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = "Usage: morpheus deploy [environment]"
+      build_common_options(opts, options, [])
+      opts.footer = "Deploy to an environment using the morpheus.yml file, located in the working directory."
+      # "todo: document me better!"
+    end
+    optparse.parse!(args)
+    connect(options)
+    environment = 'production' # yikes!
     if args.count > 0
       environment = args[0]
     end
