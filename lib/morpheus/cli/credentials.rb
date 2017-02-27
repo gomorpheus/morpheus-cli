@@ -64,7 +64,7 @@ module Morpheus
             return nil
           end
         rescue ::RestClient::Exception => e
-          raise e
+          #raise e
           if (e.response && e.response.code == 400)
             print_red_alert "Credentials not verified."
             if opts[:json]
@@ -75,9 +75,9 @@ module Morpheus
           else
             print_rest_exception(e, opts)
           end
-          exit 1
+          #exit 1
         rescue => e
-          raise e
+          #raise e
           print_red_alert "Error Communicating with the Appliance. #{e}"
           exit 1
         end
