@@ -29,7 +29,7 @@ class Morpheus::Cli::Login
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      build_common_options(opts, options, [:json, :remote]) # todo: support :remote too perhaps
+      build_common_options(opts, options, [:json, :remote, :quiet])
     end
     optparse.parse!(args)
 
