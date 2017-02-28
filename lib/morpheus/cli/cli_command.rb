@@ -16,6 +16,27 @@ module Morpheus
         Morpheus::Cli::CliRegistry.add(klass, klass.command_name)
       end
 
+      # the beginning of instance variables from optparse !
+
+      # this setting makes it easy for the called to disable prompting
+      attr_reader :no_prompt
+
+      # disabled prompting for this command
+      def noninteractive()
+        @no_prompt = true
+        self
+      end
+
+      # whether to prompt or not, this is true by default.
+      def interactive?
+        @no_prompt != true
+      end
+
+      # appends to the passed OptionParser all the generic options
+      # @param opts [OptionParser] the option parser object being constructed
+      # @param options [Hash] the output Hash that is to being modified
+      # @param includes [Array] which options to include eg. :options, :json, :remote
+      # @return opts
       def build_common_options(opts, options, includes=[])
         includes = includes.clone
         while (option_key = includes.shift) do
@@ -149,6 +170,7 @@ module Morpheus
         opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
           options[:debug] = true
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           # perhaps...
           # create a new logger instance just for this command instance
           # this way we don't elevate the global level for subsequent commands in a shell

@@ -26,6 +26,8 @@ class Morpheus::APIClient
       # JD: could return a Request object instead...
       return opts
     end
+    # puts "#{Term::ANSIColor.dark} #=> Morpheus::RestClient.execute(#{opts})#{Term::ANSIColor.reset}" if Morpheus::Logging.debug?
+    # instead, using ::RestClient.log = STDOUT 
     response = Morpheus::RestClient.execute(opts)
     if parse_json
       return JSON.parse(response.to_s)

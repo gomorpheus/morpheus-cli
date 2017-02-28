@@ -156,7 +156,9 @@ class Morpheus::Cli::Remote
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [])
-      opts.footer = "This allows you to switch between your different appliances."
+      opts.footer = "This sets the current active appliance.\n" +
+                    "This allows you to switch between your different appliances.\n" + 
+                    "You may override this with the --remote option in your commands."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -185,8 +187,8 @@ class Morpheus::Cli::Remote
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       opts.footer = "" +
-        "This will switch to no active appliance.\n" +
-        "You will need to use an appliance again, or pass the --remote option to your commands..\n"
+        "This clears the current active appliance.\n" +
+        "You will need to use an appliance, or pass the --remote option to your commands."
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
@@ -206,6 +208,7 @@ class Morpheus::Cli::Remote
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json])
+      opts.footer = "Prints the name of the current remote appliance"
     end
     optparse.parse!(args)
 

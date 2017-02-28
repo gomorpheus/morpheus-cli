@@ -10,18 +10,18 @@ module Morpheus
   module Cli
   
     # the home directory, where morpheus-cli stores things
-    def self.home_directory
-      if ENV['MORPHEUS_CLI_HOME']
-        ENV['MORPHEUS_CLI_HOME']
-      else
-        File.join(Dir.home, ".morpheus")
-      end
+    def self.home_directory=(fn)
+      @@home_directory = fn
     end
 
-    # the location of your config file
-    # this is not configurable right now.
-    def self.config_filename
-      File.join(self.home_directory, ".morpheusrc")
+    def self.home_directory
+      if @@home_directory
+        @@home_directory
+      elsif ENV['MORPHEUS_CLI_HOME']
+        @@home_directory = ENV['MORPHEUS_CLI_HOME']
+      else
+        @@home_directory = File.join(Dir.home, ".morpheus")
+      end
     end
 
     # load all the well known commands and utilties they need
@@ -37,9 +37,11 @@ module Morpheus
       # Dir[File.dirname(__FILE__)  + "/cli/*.rb"].each {|file| load file }
 
       # utilites
-      load 'morpheus/cli/credentials.rb'
+      require 'morpheus/cli/cli_registry.rb'
+      require 'morpheus/cli/dot_file.rb'
       load 'morpheus/cli/cli_command.rb'
       load 'morpheus/cli/option_types.rb'
+      load 'morpheus/cli/credentials.rb'
       
       # all the known commands
       load 'morpheus/cli/remote.rb'
@@ -72,6 +74,8 @@ module Morpheus
       load 'morpheus/cli/library.rb'
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
+      load 'morpheus/cli/echo_command.rb'
+      load 'morpheus/cli/source_command.rb'
       # Your new commands goes here...
 
     end

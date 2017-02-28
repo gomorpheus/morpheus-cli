@@ -13,8 +13,10 @@ require 'morpheus/cli/error_handler'
 class Morpheus::Cli::Shell
   include Morpheus::Cli::CliCommand
 
+  @@instance = nil
+
   def self.instance
-    @@instance
+    @@instance ||= self.new
   end
 
   def initialize()
@@ -64,6 +66,7 @@ class Morpheus::Cli::Shell
       end
       opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+        ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
         @command_options[:debug] = true
       end
       opts.on( '-h', '--help', "Prints this help" ) do
@@ -76,6 +79,12 @@ class Morpheus::Cli::Shell
     @history_logger ||= load_history_logger rescue nil
     @history_logger.info "shell started" if @history_logger
     load_history_from_log_file()
+
+
+    # execute startup script
+    if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+      Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
+    end
 
     exit = false
     while !exit do
@@ -167,11 +176,14 @@ class Morpheus::Cli::Shell
           #log_history_command(input)
           # could just fork instead?
           Morpheus::Cli.load!
-          Morpheus::Cli::ConfigFile.instance.reload_file
           # initialize()
           # gotta reload appliance, groups, credentials
           @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
           recalculate_auto_complete_commands()
+          # execute startup script
+          # if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+          #   Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
+          # end
           begin
             load __FILE__
           rescue => err
@@ -208,14 +220,17 @@ class Morpheus::Cli::Shell
             #log_history_command(input)
             @command_options[:debug] = true
             Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+            ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           elsif log_level == "info"
             #log_history_command(input)
             @command_options.delete(:debug)
             Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
+            ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           elsif log_level.to_s == "0" || (log_level.to_i > 0 && log_level.to_i < 7)
             # other log levels are pointless right now..
             @command_options.delete(:debug)
             Morpheus::Logging.set_log_level(log_level.to_i)
+            ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           else
             print_red_alert "unknown log level: #{log_level}"
           end
@@ -224,6 +239,7 @@ class Morpheus::Cli::Shell
         elsif input == "debug"
           @command_options[:debug] = true
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           return 0
         elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
           print "#{input.capitalize}, how may I #{cyan}help#{reset} you?\n"
@@ -239,6 +255,23 @@ class Morpheus::Cli::Shell
         elsif input == "shell"
           print "#{cyan}You are already in a shell.#{reset}\n"
           return false
+        # there is actually a Cli::SourceCommand !
+        # elsif input =~ /^source\s*/i
+        #   source_file = input.sub(/^source\s*/i, '')
+        #   # execute a source script
+        #   if File.exists?(source_file)
+        #     cmd_results = Morpheus::Cli::DotFile.new(source_file).execute()
+        #     # return !cmd_results.include?(false)
+        #     return true
+        #   else
+        #     print_red_alert "file not found: '#{source_file}'"
+        #     return false
+        #   end
+        # there is actually a Cli::EchoCommand !
+        # elsif input =~ /^echo\s*/i
+        #   your_words = input.sub(/^echo\s*/i, '')
+        #   print your_words.to_s + "\n"
+        #   return true
         end
 
         begin
@@ -270,6 +303,7 @@ class Morpheus::Cli::Shell
 
         if @return_to_log_level
           Morpheus::Logging.set_log_level(@return_to_log_level)
+          ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
           @return_to_log_level = nil
         end
 

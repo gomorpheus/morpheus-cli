@@ -364,8 +364,8 @@ class Morpheus::Cli::Groups
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       opts.footer = "" +
-        "This sets the current active group.\n" +
-        "It will be auto-selected for use during provisioning.\n" +
+        "This sets the active group.\n" +
+        "The active group will be auto-selected for use during provisioning.\n" +
         "You can still use the --group option to override this."
       build_common_options(opts, options, [])
     end
@@ -401,9 +401,10 @@ class Morpheus::Cli::Groups
   def unuse(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage() + "\n\n" +
-        "This will clear the active group." + "\n" +
-        "You will be prompted for a Group during provisioning." + "\n\n"
+      opts.banner = subcommand_usage()
+      opts.footer = "" +
+        "This will clear the current active group.\n" +
+        "You will be prompted for a Group during provisioning."
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
@@ -429,10 +430,7 @@ class Morpheus::Cli::Groups
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
-      opts.footer = "" +
-        "This will set the current remote appliance.\n" +
-        "It will be used for all subsequent commands.\n" +
-        "You may still use the --remote option to override this."
+      opts.footer = "Prints the name of the current active group"
     end
     optparse.parse!(args)
     connect(options)
@@ -509,7 +507,6 @@ public
     end
 
     # Provides the current active group information (just the ID right now)
-    # appliance_name should probably be required.. or just use this instead: Groups.active_groups[appliance_name]
     def active_group(appliance_name=nil)
       if appliance_name == nil
         appliance_name, appliance_url = Morpheus::Cli::Remote.active_appliance

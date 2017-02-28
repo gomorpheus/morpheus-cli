@@ -4,8 +4,11 @@ require 'optparse'
 require 'morpheus/cli'
 require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
-require 'morpheus/cli/config_file'
+require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
+
+# setup environment variables
+Morpheus::Cli.home_directory = ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
 
 # use colors by default
 Term::ANSIColor::coloring = STDOUT.isatty
@@ -20,13 +23,17 @@ end
 
 args = ARGV.dup
 
+# global options
+
 # raise log level right away
 if args.find {|it| it == '-V' || it == '--debug'}
   Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
 end
 
-# load config file(s)
-Morpheus::Cli::ConfigFile.init(ENV['MORPHEUS_CLI_HOME'])
+# execute startup script
+if File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
+  Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename).execute()
+end
 
 # all commands should be registered commands or aliases
 if Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0])

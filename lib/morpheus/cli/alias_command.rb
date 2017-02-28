@@ -5,12 +5,12 @@ require 'json'
 
 # This command allows the creation of an alias
 # these aliases are stored in the $MORPHEUS_CLI_HOME/.morpheusrc
-# See Morpheus::Cli::ConfigFile
+# See Morpheus::Cli::DotFile
 #
 class Morpheus::Cli::AliasCommand
   include Morpheus::Cli::CliCommand
   set_command_name :alias
-  register_subcommands :add, :remove, :list
+  register_subcommands :add, :export, :remove, :list
   #set_default_subcommand :add
 
   def initialize() 
@@ -37,12 +37,15 @@ class Morpheus::Cli::AliasCommand
   
   def add(args)
     options = {}
-    do_remove = false
+    do_export = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = usage
       #build_common_options(opts, options, [])
+      opts.on( '-e', '--export', "Export this alias to your .morpheus_profile right away" ) do
+        do_export = true
+      end
       opts.on('-h', '--help', "Prints this help" ) do
-        puts opts.banner
+        puts opts
         puts "Commands:"
         subcommands.sort.each {|cmd, method|
             puts "\t#{cmd.to_s}"
@@ -76,24 +79,31 @@ class Morpheus::Cli::AliasCommand
       begin
         Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
         #print "registered alias #{alias_name}", "\n"
+        if do_export
+          puts "exporting alias '#{alias_name}' now..."
+          morpheus_profile = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+          morpheus_profile.export_aliases({(alias_name) => command_string})
+        end
       rescue => err
+        raise err
         print_red_alert "#{err.message}"
         return false
       end
-      Morpheus::Cli::ConfigFile.instance.save_file()
     end
 
-    Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
+    if Morpheus::Cli::Shell.instance
+      Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
+    end
 
   end
   
-  def remove(args)
+  def export(args)
     options = {}
-    do_remove = false
+    do_export = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[alias1] [alias2]")
+      opts.banner = subcommand_usage("[alias] [alias2] [alias3]")
       build_common_options(opts, options, [])
-      opts.footer = "This is how you remove alias definitions from your config."
+      opts.footer = "Export an alias, saving it to your .morpheus_profile for future use"
     end
     optparse.parse!(args)
     if args.count < 1
@@ -104,20 +114,56 @@ class Morpheus::Cli::AliasCommand
     alias_names.each do |arg|
       if !Morpheus::Cli::CliRegistry.has_alias?(arg)
         print_red_alert "alias not found by name '#{arg}'"
-        exit 1
+        return false
       end
     end
+    alias_definitions = {}
+    alias_names.each do |alias_name|
+      alias_definitions[alias_name] = Morpheus::Cli::CliRegistry.instance.get_alias(alias_name)
+    end
+    morpheus_profile = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+    morpheus_profile.export_aliases(alias_definitions)
+    
+    # Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands() if Morpheus::Cli::Shell.instance
 
+  end
+
+  def remove(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[alias1] [alias2]")
+      build_common_options(opts, options, [])
+      opts.footer = "This is how you remove alias definitions from your .morpheus_profile" + "\n"
+                    "Pass one or more alias names to remove."
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    alias_names = args
     alias_names.each do |arg|
-      Morpheus::Cli::CliRegistry.instance.remove_alias(arg)
+      if !Morpheus::Cli::CliRegistry.has_alias?(arg)
+        print_red_alert "alias not found by name '#{arg}'"
+        return false
+      end
+    end
+    morpheus_profile = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+    morpheus_profile.remove_aliases(alias_names)
+
+    # unregister them
+    alias_names.each do |alias_name|
+      Morpheus::Cli::CliRegistry.instance.remove_alias(alias_name)
     end
 
-    Morpheus::Cli::ConfigFile.instance.save_file()
-    if args.count == 1
-      puts "removed alias '#{alias_names[0]}'"
-    else
-      puts "removed aliases '#{alias_names.join(', ')}'"
-    end
+    # if args.count == 1
+    #   puts "removed alias '#{alias_names[0]}'"
+    # else
+    #   puts "removed aliases '#{alias_names.join(', ')}'"
+    # end
+
+    Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands() if Morpheus::Cli::Shell.instance
+
   end
 
   def list(args)
@@ -125,9 +171,6 @@ class Morpheus::Cli::AliasCommand
     do_remove = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      opts.on( '-E', '--export', "Generate output that can be used verbatim in a .morpheusrc config file." ) do
-        options[:format] = 'export'
-      end
       build_common_options(opts, options, [:list, :json])
       opts.footer = "This outputs a list of your defined aliases."
     end
