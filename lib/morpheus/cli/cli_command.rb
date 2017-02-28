@@ -32,7 +32,9 @@ module Morpheus
           when :options
             options[:options] ||= {}
             opts.on( '-O', '--option OPTION', "Option in the format var=\"value\"" ) do |option|
-              custom_option_args = option.split('=')
+              # todo: look ahead and parse ALL the option=value args after -O switch
+              #custom_option_args = option.split('=')
+              custom_option_args = option.sub(/\s?\=\s?/, '__OPTION_DELIM__').split('__OPTION_DELIM__')
               custom_options = options[:options]
               option_name_args = custom_option_args[0].split('.')
               if option_name_args.count > 1
