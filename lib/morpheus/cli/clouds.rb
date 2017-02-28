@@ -230,7 +230,7 @@ class Morpheus::Cli::Clouds
       all_option_types = add_cloud_option_types(cloud_type)
       params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {zoneTypeId: cloud_type['id']})
       # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
-      if params['zone']
+      if params['zone'].is_a?(Hash)
         cloud_payload.merge!(params.delete('zone'))
       end
       cloud_payload.merge!(params)
@@ -287,6 +287,10 @@ class Morpheus::Cli::Clouds
         puts optparse.banner
         print_available_options(all_option_types)
         exit 1
+      end
+      # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
+      if params['zone'].is_a?(Hash)
+        cloud_payload.merge!(params.delete('zone'))
       end
       cloud_payload.merge!(params)
       payload = {zone: cloud_payload}
