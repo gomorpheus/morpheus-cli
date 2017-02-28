@@ -73,28 +73,6 @@ module Morpheus
                   # select type is special because it supports skipSingleOption
                   # and prints the available options on error
                   if option_type['type'] == 'select'
-                    # so, the /api/options/source is may need ALL the previously
-                    # selected values that are being accumulated in options
-                    # api_params is just extra params to always send
-                    # I suppose the entered value should take precedence
-                    # api_params = api_params.merge(options) # this might be good enough
-                    if options && !options.empty?
-                      # dup it
-                      api_params = {}.merge(api_params || {})
-                      options.each do |k,v|
-                        # some stuff might be in the config namespace, 
-                        # but needs to be at root for optionSource, maybe?
-                        if k == 'config' && v.is_a?(Hash)
-                          api_params.merge(options['config'])
-                        else
-                          # could be String/Symbol duplication issues here.
-                          if !api_params[k.to_s].empty?
-                            api_params.delete(k.to_s) if !api_params[k.to_s].empty?
-                          end
-                          api_params[k.to_sym] = v
-                        end
-                      end
-                    end
                     value = select_prompt(option_type, api_client, api_params, true)
                     value_found = !!value
                   end
@@ -126,7 +104,26 @@ module Morpheus
               elsif option_type['type'] == 'code-editor'
                 value = multiline_prompt(option_type)
               elsif option_type['type'] == 'select'
-                value = select_prompt(option_type,api_client, api_params)
+                # so, the /api/options/source is may need ALL the previously
+                # selected values that are being accumulated in options
+                # api_params is just extra params to always send
+                # I suppose the entered value should take precedence
+                # api_params = api_params.merge(options) # this might be good enough
+                  # dup it
+                  select_api_params = {}.merge(api_params || {})
+                  results.each do |k,v|
+                    if v.is_a?(Hash)
+                      # grailsify params k.k2, otherwise you'll get bracked param names like k[k2]
+                      v.each {|k2, v2| 
+                        select_api_params["#{k}.#{k2}"] = v2
+                      }
+                    else
+                      # could be String/Symbol duplication issues here.
+                      select_api_params.delete(k.to_sym)
+                      select_api_params[k.to_s] = v
+                    end
+                  end
+                value = select_prompt(option_type,api_client, select_api_params)
               elsif option_type['type'] == 'hidden'
                 value = option_type['defaultValue']
                 input = value
