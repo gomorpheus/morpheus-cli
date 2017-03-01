@@ -81,7 +81,7 @@ class Morpheus::Cli::Whoami
         # todo: impersonate command and show that info here
 
         print "\n" ,cyan, bold, "Current User\n","==================", reset, "\n\n"
-        # print cyan
+        print cyan
         # if @is_master_account
         puts "ID: #{user['id']}"
         puts "Account: #{user['account'] ? user['account']['name'] : nil}" + (@is_master_account ? " (Master Account)" : "")
@@ -94,7 +94,7 @@ class Morpheus::Cli::Whoami
         # puts "Date Created: #{format_local_dt(user['dateCreated'])}"
         # puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
         # print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
-        # print cyan
+        print cyan
         # puts "Max Storage (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxStorage'] : 0}"
         # puts "Max Memory (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxMemory'] : 0}"
         # puts "CPU Count: #{user['instanceLimits'] ? user['instanceLimits']['maxCpu'] : 0}"
@@ -113,7 +113,7 @@ class Morpheus::Cli::Whoami
         end
 
         print "\n" ,cyan, bold, "Remote Appliance\n","==================", reset, "\n\n"
-        # print cyan
+        print cyan
         if @appliance_name
           puts "Name: #{@appliance_name}"
         end
@@ -123,7 +123,7 @@ class Morpheus::Cli::Whoami
         if @appliance_build_verison
           puts "Build Version: #{@appliance_build_verison}"
         end
-        # print cyan
+        print cyan
 
         if group
           print "\n" ,cyan, bold, "Active Group\n","==================", reset, "\n\n"
