@@ -23,7 +23,7 @@ module Morpheus
         out = ""
         out << original_to_s
         if footer
-          out << footer.to_s.strip
+          out << footer.to_s
           out << "\n"
         end
         out

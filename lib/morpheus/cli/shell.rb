@@ -60,7 +60,10 @@ class Morpheus::Cli::Shell
     @command_options = {} # this is a way to curry options to all commands.. but meh
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      opts.on('-C','--nocolor', "ANSI") do
+      opts.on('--norc','--norc', "Do not read and execute the personal initialization script .morpheusrc") do
+        @norc = true
+      end
+      opts.on('-C','--nocolor', "Disable ANSI coloring") do
         @command_options[:nocolor] = true
         Term::ANSIColor::coloring = false
       end
@@ -82,8 +85,10 @@ class Morpheus::Cli::Shell
 
 
     # execute startup script
-    if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
-      Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
+    if !@norc
+      if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+        Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
+      end
     end
 
     exit = false

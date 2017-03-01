@@ -30,32 +30,59 @@ if args.find {|it| it == '-V' || it == '--debug'}
   Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
 end
 
-# execute startup script
-if File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
+# execute startup script .morpheus_profile  unless --noprofile is passed
+noprofile = false
+if args.find {|it| it == '--noprofile' }
+  noprofile = true
+  args.delete_if {|it| it == '--noprofile' }
+end
+if !noprofile && File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
   Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename).execute()
 end
 
 # all commands should be registered commands or aliases
-if Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0])
-  begin
-    cmd_result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
-    if cmd_result == false
-      exit 1
-    else
-      exit 0
+if (args.count == 0) || !(Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0]))
+  # just for printing help. todo: start using this. maybe in class Cli::MainCommand
+  optparse = Morpheus::Cli::OptionParser.new do|opts|
+    opts.banner = "Options:" # hack alert
+    opts.on('--noprofile','--noprofile', "Do not read and execute the personal initialization script .morpheus_profile") do
+     @noprofile = true
     end
-  rescue => e
-    Morpheus::Cli::ErrorHandler.new.handle_error(e)
-    exit 1
+    opts.on('-C','--nocolor', "Disable ANSI coloring") do
+      Term::ANSIColor::coloring = false
+    end
+    opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+      ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+    end
+    opts.on( '-h', '--help', "Prints this help" ) do
+      puts opts
+    end
   end
-else
-  puts "Usage: morpheus [command] [options]"
-  puts "\nCommands:"
+  out = "Usage: morpheus [command] [options]\n"
+  out << "Commands:\n"
   Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
-    puts "\t#{cmd.to_s}"
+    out << "\t#{cmd.to_s}\n"
   }
-  puts ""
-  puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
-  puts ""
+  # out << "Options:\n"
+  out << optparse.to_s
+  out << "\n"
+  out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+  out << "\n"
+  puts out
+  optparse.to_s
   exit 127
+end
+
+# ok, execute the command (or alias)
+begin
+  cmd_result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+  if cmd_result == false
+    exit 1
+  else
+    exit 0
+  end
+rescue => e
+  Morpheus::Cli::ErrorHandler.new.handle_error(e)
+  exit 1
 end
