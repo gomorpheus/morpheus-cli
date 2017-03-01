@@ -32,12 +32,74 @@ module Morpheus
         @no_prompt != true
       end
 
+      # Appends Array of OptionType definitions to an OptionParser instance
+      # This adds an option like --fieldContext.fieldName="VALUE"
+      # @param opts [OptionParser]
+      # @param options [Hash] output map that is being constructed
+      # @param option_types [Array] list of OptionType definitions to add
+      # @return void, this modifies the opts in place.
+      def build_option_type_options(opts, options, option_types=[])
+        #opts.separator ""
+        #opts.separator "Options:"
+        options[:options] ||= {} # this is where these go..for now
+        custom_options = options[:options]
+        
+        # add each one to the OptionParser
+        option_types.each do |option_type|
+          field_namespace = []
+          field_name = option_type['fieldName'].to_s
+          if field_name.empty?
+            puts "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
+            next
+          end
+          
+          if !option_type['fieldContext'].to_s.empty?
+            option_type['fieldContext'].split(".").each do |ns|
+              field_namespace << ns
+            end
+          end
+          
+          full_field_name = field_name
+          if !field_namespace.empty?
+            full_field_name = "#{field_namespace.join('.')}.#{field_name}"
+          end
+
+          description = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' Default: '+option_type['defaultValue'].to_s : ''}"
+          # description = option_type['description'].to_s
+          # if option_type['defaultValue']
+          #   description = "#{description} Default: #{option_type['defaultValue']}"
+          # end
+          # if option_type['required'] == true
+          #   description = "(Required) #{description}"
+          # end
+          
+          opts.on("--#{full_field_name} VALUE", String, description) do |val|
+            cur_namespace = custom_options
+            field_namespace.each do |ns|
+              next if ns.empty?
+              cur_namespace[ns.to_s] ||= {}
+              cur_namespace = cur_namespace[ns.to_s]
+            end
+            cur_namespace[field_name] = val
+          end
+
+          # todo: all the various types
+          # number 
+          # checkbox [on|off]
+          # select for optionSource and selectOptions
+
+        end
+
+      end
+      
       # appends to the passed OptionParser all the generic options
       # @param opts [OptionParser] the option parser object being constructed
       # @param options [Hash] the output Hash that is to being modified
       # @param includes [Array] which options to include eg. :options, :json, :remote
       # @return opts
       def build_common_options(opts, options, includes=[])
+        #opts.separator ""
+        opts.separator "Common options:"
         includes = includes.clone
         while (option_key = includes.shift) do
           case option_key.to_sym
