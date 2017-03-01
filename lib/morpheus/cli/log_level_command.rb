@@ -7,25 +7,21 @@ class Morpheus::Cli::LogLevelCommand
   set_command_name :'log-level' # :log_level
   set_command_hidden
 
-  def usage
-    <<-EOT
-Usage: morpheus #{command_name} [debug|info|0|1]
-\tThis is intended for use in your morpheus scripts.
-\tIt allows you to set the global logging level.
-\tThe only available levels right now are debug [0] and info [1].
-\tThe default is info [1].
-EOT
-  end
-
   def handle(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = "Usage: morpheus #{command_name} [debug|info|0|1]"
       #build_common_options(opts, options, [])
       opts.on('-h', '--help', "Prints this help" ) do
         puts opts
         exit
       end
+      opts.footer = <<-EOT
+This is intended for use in your morpheus scripts.
+It allows you to set the global logging level.
+The only available levels right now are debug [0] and info [1].
+The default is info [1].
+EOT
     end
     optparse.parse!(args)
     if args.count == 0
