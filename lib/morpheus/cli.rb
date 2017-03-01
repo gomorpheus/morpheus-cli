@@ -43,6 +43,12 @@ module Morpheus
       load 'morpheus/cli/option_types.rb'
       load 'morpheus/cli/credentials.rb'
       
+      # shell scripting commands
+      load 'morpheus/cli/source_command.rb'
+      load 'morpheus/cli/echo_command.rb'
+      load 'morpheus/cli/coloring_command.rb'
+      load 'morpheus/cli/log_level_command.rb'
+
       # all the known commands
       load 'morpheus/cli/remote.rb'
       load 'morpheus/cli/login.rb'
@@ -74,8 +80,6 @@ module Morpheus
       load 'morpheus/cli/library.rb'
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
-      load 'morpheus/cli/echo_command.rb'
-      load 'morpheus/cli/source_command.rb'
       # Your new commands goes here...
 
     end

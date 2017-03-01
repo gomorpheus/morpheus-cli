@@ -15,7 +15,7 @@ Term::ANSIColor::coloring = STDOUT.isatty
 # include Term::ANSIColor # tempting
 
 # short circuit version switch
-if ARGV[0] == '-v'
+if ARGV[0] == '-v' || ARGV[0] == '--version'
   version = Morpheus::Cli::VERSION
   puts version
   exit 0
@@ -45,8 +45,12 @@ if (args.count == 0) || !(Morpheus::Cli::CliRegistry.has_command?(args[0]) || Mo
   # just for printing help. todo: start using this. maybe in class Cli::MainCommand
   optparse = Morpheus::Cli::OptionParser.new do|opts|
     opts.banner = "Options:" # hack alert
+    opts.on('-v','--version', "Print the version.") do
+      puts Morpheus::Cli::VERSION
+      exit
+    end
     opts.on('--noprofile','--noprofile', "Do not read and execute the personal initialization script .morpheus_profile") do
-     @noprofile = true
+      @noprofile = true
     end
     opts.on('-C','--nocolor', "Disable ANSI coloring") do
       Term::ANSIColor::coloring = false
@@ -57,6 +61,7 @@ if (args.count == 0) || !(Morpheus::Cli::CliRegistry.has_command?(args[0]) || Mo
     end
     opts.on( '-h', '--help', "Prints this help" ) do
       puts opts
+      exit
     end
   end
   out = "Usage: morpheus [command] [options]\n"

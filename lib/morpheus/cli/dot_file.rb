@@ -7,6 +7,9 @@ require 'term/ansicolor'
 class Morpheus::Cli::DotFile
   include Term::ANSIColor
 
+  DEFAULT_EXEC_PROC = lambda {|args|
+
+  }
   EXPORTED_ALIASES_HEADER = "# exported aliases"
 
   # the path of the profile source file
@@ -33,9 +36,11 @@ class Morpheus::Cli::DotFile
 
   # execute this file as a morpheus shell script
   # @param stop_on_failure [true, false] the will halt execution if a command returns false. 
-  #  Default is false, keep going...
+  #   Default is false, keep going...
+  # @block [Proc] if a block is given, each command in the file will be yielded to it
+  #   The default is executes the command with the CliRegistry.exec(cmd, args)
   # @return [Array] exit codes of all the commands that were run.
-  def execute(stop_on_failure=false)
+  def execute(stop_on_failure=false, &block)
     if !File.exists?(@filename)
       print "#{Term::ANSIColor.red}source file not found: #{@filename}#{Term::ANSIColor.reset}\n" # if Morpheus::Logging.debug?
     else
@@ -61,19 +66,28 @@ class Morpheus::Cli::DotFile
           next
         end
         argv = Shellwords.shellsplit(input)
+
         if Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
           #log_history_command(input)
-          cmd_result = Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
-          cmd_results << cmd_result
-          if cmd_result == false
-            if stop_on_failure
-              return cmd_results
-            end
+          cmd_result = nil
+          begin
+            cmd_result = Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
+          rescue SystemExit => err
+            puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: exited non zero - #{err}"
+            cmd_result = false
+          rescue => err
+            raise err
           end
+          cmd_results << cmd_result
           # next command please!
         else
           puts "#{red}Unrecognized source command file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset}"
-          # exit 0 if do_exit
+          cmd_result = false
+        end
+        if cmd_result == false
+          if stop_on_failure
+            return cmd_results
+          end
         end
       end
 
