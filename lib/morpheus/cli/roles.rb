@@ -223,7 +223,8 @@ class Morpheus::Cli::Roles
     usage = "Usage: morpheus roles add [options]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[options]")
+      build_option_type_options(opts, options, add_role_option_types)
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -316,6 +317,7 @@ class Morpheus::Cli::Roles
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
+      build_option_type_options(opts, options, update_role_option_types)
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)

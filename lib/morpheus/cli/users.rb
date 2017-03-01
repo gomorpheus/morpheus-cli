@@ -189,12 +189,8 @@ class Morpheus::Cli::Users
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[options]")
+      build_option_type_options(opts, options, add_user_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run])
-      opts.on('-h', '--help', "Prints this help" ) do
-        puts opts
-        puts Morpheus::Cli::OptionTypes.display_option_types_help(add_user_option_types)
-        exit
-      end
     end
     optparse.parse!(args)
 
@@ -257,18 +253,14 @@ class Morpheus::Cli::Users
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[username] [options]")
+      build_option_type_options(opts, options, update_user_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run])
-      opts.on('-h', '--help', "Prints this help" ) do
-        puts opts
-        puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
-        exit
-      end
     end
     optparse.parse!(args)
 
     if args.count < 1
+      print_red_alert "Specify atleast one option to update"
       puts optparse
-      puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
       exit 1
     end
 
@@ -283,6 +275,10 @@ class Morpheus::Cli::Users
 
       #params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
       params = options[:options] || {}
+      if params.empty?
+        puts optparse
+        exit 1
+      end
       roles = prompt_user_roles(account_id, user['id'], options.merge(no_prompt: true))
       if !roles.empty?
         params['roles'] = roles.collect {|r| {id: r['id']} }

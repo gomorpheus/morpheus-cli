@@ -77,9 +77,10 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
-        options[:group] = val
-      end
+      # opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+      #   options[:group] = val
+      # end
+      build_option_type_options(opts, options, add_app_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
     end
     optparse.parse!(args)
@@ -217,6 +218,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      build_option_type_options(opts, options, update_app_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -233,17 +235,11 @@ class Morpheus::Cli::Apps
         'app' => {id: app["id"]}
       }
 
-      update_app_option_types = [
-        {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
-        {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}
-      ]
-
       params = options[:options] || {}
 
       if params.empty?
-        puts opts
-        option_lines = update_app_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
+        print_red_alert "Specify atleast one option to update"
+        puts optparse
         exit 1
       end
 
@@ -700,6 +696,21 @@ class Morpheus::Cli::Apps
   end
 
   private
+
+  def add_app_option_types(connected=true)
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
+      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
+    ]
+  end
+
+  def update_app_option_types(connected=true)
+    list = add_app_option_types(connected)
+    list = list.reject {|it| ["group"].include? it['fieldName'] }
+    list.each {|it| it['required'] = false }
+    list
+  end
 
   def find_app_by_id(id)
     app_results = @apps_interface.get(id.to_i)

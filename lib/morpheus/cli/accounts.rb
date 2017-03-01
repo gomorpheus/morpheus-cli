@@ -129,6 +129,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[options]")
+      build_option_type_options(opts, options, add_account_option_types)
       build_common_options(opts, options, [:options, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
@@ -175,9 +176,11 @@ class Morpheus::Cli::Accounts
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_common_options(opts, options, [:options, :json, :remote, :dry_run])
+      build_option_type_options(opts, options, update_account_option_types)
     end
     optparse.parse!(args)
     if args.count < 1
+      print_red_alert "Specify atleast one option to update"
       puts optparse
       exit 1
     end
@@ -191,8 +194,6 @@ class Morpheus::Cli::Accounts
 
       if params.empty?
         puts optparse
-        option_lines = update_account_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
       end
 
