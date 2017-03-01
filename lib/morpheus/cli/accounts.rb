@@ -33,7 +33,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json])
+      build_common_options(opts, options, [:list, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
@@ -42,7 +42,10 @@ class Morpheus::Cli::Accounts
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      if options[:dry_run]
+        print_dry_run @accounts_interface.dry.list(params)
+        return
+      end
       json_response = @accounts_interface.list(params)
       accounts = json_response['accounts']
       if options[:json]
@@ -68,7 +71,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json])
+      build_common_options(opts, options, [:json, :remote, :dry_run])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -77,7 +80,14 @@ class Morpheus::Cli::Accounts
     end
     connect(options)
     begin
-
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @accounts_interface.dry.get(args[0].to_i)
+        else
+          print_dry_run @accounts_interface.dry.list({name:args[0]})
+        end
+        return
+      end
       account = find_account_by_name_or_id(args[0])
       exit 1 if account.nil?
 
@@ -119,7 +129,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[options]")
-      build_common_options(opts, options, [:options, :json])
+      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
@@ -141,6 +151,10 @@ class Morpheus::Cli::Accounts
         account_payload['role'] = {id: role['id']}
       end
       request_payload = {account: account_payload}
+      if options[:dry_run]
+        print_dry_run @accounts_interface.dry.create(request_payload)
+        return
+      end
       json_response = @accounts_interface.create(request_payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -160,7 +174,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_common_options(opts, options, [:options, :json])
+      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -198,6 +212,10 @@ class Morpheus::Cli::Accounts
         account_payload['role'] = {id: role['id']}
       end
       request_payload = {account: account_payload}
+      if options[:dry_run]
+        print_dry_run @accounts_interface.dry.update(account['id'], request_payload)
+        return
+      end
       json_response = @accounts_interface.update(account['id'], request_payload)
 
       if options[:json]
@@ -218,7 +236,7 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json])
+      build_common_options(opts, options, [:auto_confirm, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -232,6 +250,10 @@ class Morpheus::Cli::Accounts
       exit 1 if account.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
         exit
+      end
+      if options[:dry_run]
+        print_dry_run @accounts_interface.dry.destroy(account['id'])
+        return
       end
       json_response = @accounts_interface.destroy(account['id'])
       if options[:json]
