@@ -91,7 +91,7 @@ module Morpheus
         end
 
       end
-      
+
       # appends to the passed OptionParser all the generic options
       # @param opts [OptionParser] the option parser object being constructed
       # @param options [Hash] the output Hash that is to being modified
@@ -199,7 +199,8 @@ module Morpheus
             opts.on( '-T', '--token ACCESS_TOKEN', "Access Token" ) do |remote|
               options[:remote_token] = remote
             end
-                      when :auto_confirm
+            
+          when :auto_confirm
             opts.on( '-y', '--yes', "Auto Confirm" ) do
               options[:yes] = true
             end
@@ -212,7 +213,8 @@ module Morpheus
             opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do |json|
               options[:dry_run] = true
             end
-                      when :quiet
+
+          when :quiet
             opts.on('-q','--quiet', "No Output, when successful") do |json|
               options[:quiet] = true
             end
