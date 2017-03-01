@@ -41,7 +41,7 @@ class Morpheus::Cli::AliasCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = usage
       #build_common_options(opts, options, [])
-      opts.on( '-e', '--export', "Export this alias to your .morpheus_profile right away" ) do
+      opts.on( '-e', '--export', "Export this alias to your .morpheus_profile for future use" ) do
         do_export = true
       end
       opts.on('-h', '--help', "Prints this help" ) do
@@ -56,7 +56,7 @@ class Morpheus::Cli::AliasCommand
               "The [command] must be quoted if it is more than one word.\n" + 
               "The [command] may include multiple commands, semicolon delimited.\n" + 
               #"Example: alias cloud='clouds' .\n" + 
-              "Aliases are preserved for future use in your config.\n" + 
+              "Aliases can be exported for future use with the -e option.\n" + 
               "You can use just `alias` instead of `alias add`.\n" +
               "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias"
         exit
@@ -171,6 +171,9 @@ class Morpheus::Cli::AliasCommand
     do_remove = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
+      opts.on( '-f', '--format FORMAT', "The format for the output: export, json, friendly (default)." ) do |val|
+        options[:format] = val
+      end
       build_common_options(opts, options, [:list, :json])
       opts.footer = "This outputs a list of your defined aliases."
     end
@@ -227,9 +230,9 @@ class Morpheus::Cli::AliasCommand
       out << "\n"
     elsif options[:format] == 'export' || options[:format] == 'config'
       # out << "# morpheus aliases for #{`whoami`}\n" # windows!
-      out << "# morpheus aliases\n"
+      #out << "# morpheus aliases\n"
       my_aliases.each do |it|
-        out <<  "#{it[:name]}='#{it[:command_string]}'"
+        out <<  "alias #{it[:name]}='#{it[:command_string]}'"
         out << "\n"
       end
     else 
