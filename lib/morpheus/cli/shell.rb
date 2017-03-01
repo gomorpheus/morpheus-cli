@@ -63,6 +63,9 @@ class Morpheus::Cli::Shell
       opts.on('--norc','--norc', "Do not read and execute the personal initialization script .morpheusrc") do
         @norc = true
       end
+      opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+        Morpheus::RestClient.enable_ssl_verification = false
+      end
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         @command_options[:nocolor] = true
         Term::ANSIColor::coloring = false
@@ -219,6 +222,10 @@ class Morpheus::Cli::Shell
           execute_commands(input)
           return 0
         end
+
+      elsif input == "insecure"
+        Morpheus::RestClient.enable_ssl_verification = false
+        return 0
       # use log-level [debug|info]
       # elsif input =~ /^log_level/ # hidden for now
       #   log_level = input.sub(/^log_level\s*/, '').strip
