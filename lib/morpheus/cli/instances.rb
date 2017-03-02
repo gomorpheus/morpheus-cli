@@ -446,6 +446,67 @@ class Morpheus::Cli::Instances
     end
   end
 
+  def clone(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] -g GROUP")
+      build_option_type_options(opts, options, clone_instance_option_types(false))
+      opts.on( '-g', '--group GROUP', "Group Name or ID for the new instance" ) do |val|
+        options[:group] = val
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    if !options[:group]
+      print_red_alert "GROUP is required."
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      options[:options] ||= {}
+      # use the -g GROUP or active group by default
+      options[:options]['group'] ||= options[:group] # || @active_group_id # always choose a group for now?
+      # support [new-name] 
+      # if args[1]
+      #   options[:options]['name'] = args[1]
+      # end
+      payload = {
+
+      }
+      params = Morpheus::Cli::OptionTypes.prompt(clone_instance_option_types, options[:options], @api_client, options[:params])
+      group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
+      payload.merge!(params)
+      payload['group'] = {id: group['id']}
+
+      instance = find_instance_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance '#{instance['name']}'?", options)
+        exit 1
+      end
+      
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.clone(instance['id'], payload)
+        return
+      end
+      json_response = @instances_interface.clone(instance['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Cloning instance #{instance['name']} to '#{payload['name']}'"
+      end
+      return
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+
   def envs(args)
     options = {}
     optparse = OptionParser.new do|opts|
@@ -1382,5 +1443,12 @@ class Morpheus::Cli::Instances
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
     out
+  end
+
+  def clone_instance_option_types(connected=true)
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for the new instance'},
+      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
+    ]
   end
 end
