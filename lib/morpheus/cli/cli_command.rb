@@ -89,7 +89,7 @@ module Morpheus
           # select for optionSource and selectOptions
 
         end
-
+        opts
       end
 
       # appends to the passed OptionParser all the generic options
@@ -204,7 +204,8 @@ module Morpheus
             opts.on( '-y', '--yes', "Auto Confirm" ) do
               options[:yes] = true
             end
-                      when :json
+          
+          when :json
             opts.on('-j','--json', "JSON Output") do |json|
               options[:json] = true
             end
@@ -248,7 +249,7 @@ module Morpheus
           puts opts
           exit
         end
-
+        opts
       end
 
       def command_name
