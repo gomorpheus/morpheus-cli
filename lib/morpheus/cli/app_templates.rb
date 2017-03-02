@@ -151,13 +151,23 @@ class Morpheus::Cli::AppTemplates
       #   options[:options] ||= {}
       #   options[:options]['group'] = group
       # end
+      build_option_type_options(opts, options, add_app_template_option_types(false))
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:options] ||= {}
+        options[:options]['group']
+        # options[:group] = val
+      end
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
     begin
-
+      options[:options] ||= {}
+      # use active group by default
+      options[:options]['group'] ||= @active_group_id
+      
       params = Morpheus::Cli::OptionTypes.prompt(add_app_template_option_types, options[:options], @api_client, options[:params])
+      group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
 
       #puts "parsed params is : #{params.inspect}"
       app_template_keys = ['name']
@@ -202,6 +212,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
+      build_option_type_options(opts, options, update_app_template_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -222,9 +233,8 @@ class Morpheus::Cli::AppTemplates
       params = options[:options] || {}
 
       if params.empty?
+        print_red_alert "Specify atleast one option to update"
         puts optparse
-        option_lines = update_app_template_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
         exit 1
       end
 
@@ -694,6 +704,7 @@ class Morpheus::Cli::AppTemplates
   def available_tiers(args)
     options = {}
     optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
@@ -737,6 +748,7 @@ class Morpheus::Cli::AppTemplates
   def available_types(args)
     options = {}
     optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json])
     end
     optparse.parse!(args)
@@ -781,15 +793,18 @@ class Morpheus::Cli::AppTemplates
   private
 
 
-  def add_app_template_option_types
+  def add_app_template_option_types(connected=true)
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
+      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true}
     ]
   end
 
-  def update_app_template_option_types
-    add_app_template_option_types
+  def update_app_template_option_types(connected=true)
+    list = add_app_template_option_types(connected)
+    list = list.reject {|it| ["group"].include? it['fieldName'] }
+    list.each {|it| it['required'] = false }
+    list
   end
 
   def find_app_template_by_name_or_id(val)
