@@ -325,7 +325,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
         options[:server_type_code] = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -457,8 +457,8 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
-        print_green_success "Provisioning Server..."
+      elsif !options[:quiet]
+        print_green_success "Provisioning Server..." 
         list([])
       end
     rescue RestClient::Exception => e
@@ -478,7 +478,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure" ) do
         query_params[:removeResources] = 'off'
       end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -500,9 +500,9 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
-        print_green_success "Removing Server..."
-        list([])
+      elsif !options[:quiet]
+        print_green_success "Host #{server['name']} is being removed..."
+        #list([])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -514,7 +514,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :remote])
+      build_common_options(opts, options, [:json, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -528,8 +528,8 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
-        puts "Host #{host['name']} started."
+      elsif !options[:quiet]
+        print_green_success "Host #{host['name']} started."
       end
       return
     rescue RestClient::Exception => e
@@ -542,7 +542,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :remote])
+      build_common_options(opts, options, [:json, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -560,8 +560,8 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
-        puts "Host #{host['name']} stopped." unless options[:quiet]
+      elsif !options[:quiet]
+        puts "Host #{host['name']} stopped."
       end
       return
     rescue RestClient::Exception => e
@@ -654,7 +654,7 @@ class Morpheus::Cli::Hosts
         print "\n"
       else
         unless options[:quiet]
-          print_green_success "Resizing server #{server['name']}"
+          puts "Host #{server['name']} resizing..."
           list([])
         end
       end
@@ -664,11 +664,11 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def upgrade(args)
+  def upgrade_agent(args)
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :quiet, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -678,6 +678,10 @@ class Morpheus::Cli::Hosts
     connect(options)
     begin
       host = find_host_by_name_or_id(args[0])
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.upgrade(host['id'])
+        return
+      end
       json_response = @servers_interface.upgrade(host['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -696,7 +700,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
     if args.count < 2
       puts "\n#{optparse}\n\n"
@@ -738,8 +742,8 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      else
-        puts "Running workflow..."
+      elsif !options[:quiet]
+        puts "Workflow #{workflow['name']} is running..."
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
