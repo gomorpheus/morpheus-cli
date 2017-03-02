@@ -904,11 +904,11 @@ class Morpheus::Cli::Instances
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
+    optparse.parse!(args)
     if args.count < 1
       puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
@@ -1017,11 +1017,11 @@ class Morpheus::Cli::Instances
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 
     end
+    optparse.parse!(args)
     if args.count < 1
       puts "\n#{optparse}\n\n"
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
@@ -1051,11 +1051,11 @@ class Morpheus::Cli::Instances
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
+    optparse.parse!(args)
     if args.count < 1
       puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
@@ -1082,11 +1082,11 @@ class Morpheus::Cli::Instances
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
+    optparse.parse!(args)
     if args.count < 1
       puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
@@ -1113,11 +1113,11 @@ class Morpheus::Cli::Instances
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
+    optparse.parse!(args)
     if args.count < 1
       puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
@@ -1204,11 +1204,11 @@ class Morpheus::Cli::Instances
       opts.banner = subcommand_usage("[name] [workflow] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
+    optparse.parse!(args)
     if args.count < 2
       puts "\n#{optparse}\n\n"
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     workflow = find_workflow_by_name(args[1])
@@ -1263,11 +1263,11 @@ class Morpheus::Cli::Instances
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
+    optparse.parse!(args)
     if args.count < 1
       puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
