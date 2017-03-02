@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :upgrade, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
+  register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
   alias_subcommand :details, :get
   set_default_subcommand :list
   
