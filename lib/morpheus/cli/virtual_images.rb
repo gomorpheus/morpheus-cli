@@ -34,14 +34,13 @@ class Morpheus::Cli::VirtualImages
       opts.on( '-t', '--type IMAGE_TYPE', "Image Type" ) do |val|
         options[:imageType] = val.downcase
       end
-
-      opts.on( '', '--all', "All Images" ) do |val|
+      opts.on('--all', "All Images" ) do
         options[:filterType] = 'All'
       end
-      opts.on( '', '--user', "User Images" ) do |val|
+      opts.on('--user', "User Images" ) do
         options[:filterType] = 'User'
       end
-      opts.on( '', '--system', "System Images" ) do |val|
+      opts.on('--system', "System Images" ) do
         options[:filterType] = 'System'
       end
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
