@@ -8,9 +8,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Tasks
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :get, :add, :update, :remove, :'task-types'
+  register_subcommands :list, :get, :add, :update, :remove, :types => :task_types
   alias_subcommand :details, :get
-  alias_subcommand :types, :'task-types'
+  alias_subcommand :'task-types', :task_types
   set_default_subcommand :list
   
   def connect(opts)
