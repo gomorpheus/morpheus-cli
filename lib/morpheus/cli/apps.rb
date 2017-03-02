@@ -77,10 +77,11 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      # opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
-      #   options[:group] = val
-      # end
+      
       build_option_type_options(opts, options, add_app_option_types(false))
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
     end
     optparse.parse!(args)
@@ -105,7 +106,8 @@ class Morpheus::Cli::Apps
         payload['app']['site'] = {id: group["id"]}
       else
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true}], options[:options])
-        payload['app']['site'] = {id: v_prompt["group"]}
+        group = find_group_by_name_or_id_for_provisioning(v_prompt["group"])
+        payload['app']['site'] = {id: group["id"]}
       end
 
       # todo: allow adding instances with creation..
@@ -337,7 +339,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :auto_confirm])
     end
     optparse.parse!(args)
     if args.count < 1
