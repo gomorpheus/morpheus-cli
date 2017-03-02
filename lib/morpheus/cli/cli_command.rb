@@ -308,13 +308,17 @@ module Morpheus
         #   # p "using default subcommand #{default_subcommand}"
         #   return self.send(default_subcommand, args || [])
         # end
-        cmd_name = args[0]
-        if subcommand_aliases[cmd_name]
-          cmd_name = subcommand_aliases[cmd_name]
+        subcommand_name = args[0]
+        if args[0] == "-h" || args[0] == "--help" || args[0] == "help"
+          print_usage
+          exit
         end
-        cmd_method = subcommands[cmd_name]
-        if cmd_name && !cmd_method
-          #puts "unknown command '#{cmd_name}'"
+        if subcommand_aliases[subcommand_name]
+          subcommand_name = subcommand_aliases[subcommand_name]
+        end
+        cmd_method = subcommands[subcommand_name]
+        if subcommand_name && !cmd_method
+          puts "unknown command '#{self.command_name} #{subcommand_name}'"
         end
         if !cmd_method
           print_usage
