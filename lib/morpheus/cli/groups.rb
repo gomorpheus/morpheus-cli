@@ -128,12 +128,14 @@ class Morpheus::Cli::Groups
     use_it = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on( '-l', '--location LOCATION', "Location" ) do |val|
-        params[:location] = val
-      end
+      build_option_type_options(opts, options, add_group_option_types())
+      # opts.on( '-l', '--location LOCATION', "Location" ) do |val|
+      #   params[:location] = val
+      # end
       opts.on( '--use', '--use', "Make this the current active group" ) do
         use_it = true
       end
+
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Create a new group."
     end
@@ -187,9 +189,10 @@ class Morpheus::Cli::Groups
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on( '-l', '--location LOCATION', "Location" ) do |val|
-        params[:location] = val
-      end
+      build_option_type_options(opts, options, update_group_option_types())
+      # opts.on( '-l', '--location LOCATION', "Location" ) do |val|
+      #   params[:location] = val
+      # end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update an existing group."
     end
@@ -203,13 +206,11 @@ class Morpheus::Cli::Groups
       group = find_group_by_name_or_id(args[0])
       group_payload = {id: group['id']}
 
-      all_option_types = update_group_option_types()
-      #params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
+      #params = Morpheus::Cli::OptionTypes.prompt(update_group_option_types, options[:options], @api_client, {})
       params = options[:options] || {}
 
       if params.empty?
-        puts optparse.banner
-        print_available_options(all_option_types)
+        puts optparse
         exit 1
       end
 
