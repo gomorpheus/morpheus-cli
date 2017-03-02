@@ -147,6 +147,11 @@ class Morpheus::Cli::Hosts
       puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
       puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
       puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
+      if server['agentInstalled']
+        puts "Agent: #{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}"
+      else
+        puts "Agent: (not installed)"
+      end
       puts "Status: #{format_host_status(server)}"
       puts "Power: #{format_server_power_state(server)}"
       if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
@@ -702,11 +707,11 @@ class Morpheus::Cli::Hosts
       opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
+    optparse.parse!(args)
     if args.count < 2
-      puts "\n#{optparse}\n\n"
+      puts optparse
       exit 1
     end
-    optparse.parse!(args)
     connect(options)
     host = find_host_by_name_or_id(args[0])
     workflow = find_workflow_by_name(args[1])
