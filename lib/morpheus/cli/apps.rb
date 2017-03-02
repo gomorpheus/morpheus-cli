@@ -87,28 +87,21 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     connect(options)
     begin
-      # use active group by default
-      options[:group] ||= @active_group_id
-      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+      options[:options] ||= {}
+      # use the -g GROUP or active group by default
+      options[:options]['group'] ||= options[:group] || @active_group_id
+      # support [name] as first argument still
+      if args[0]
+        options[:options]['name'] = args[0]
+      end
 
       payload = {
         'app' => {}
       }
-      if args[0]
-        payload['app']['name'] = args[0]
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
-        payload['app']['name'] = v_prompt['name']
-      end
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
-      payload['app']['description'] = v_prompt['description']
-      if group
-        payload['app']['site'] = {id: group["id"]}
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true}], options[:options])
-        group = find_group_by_name_or_id_for_provisioning(v_prompt["group"])
-        payload['app']['site'] = {id: group["id"]}
-      end
+      params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
+      group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
+      payload['app'].merge!(params)
+      payload['app']['group'] = {id: group['id']}
 
       # todo: allow adding instances with creation..
 
