@@ -501,9 +501,6 @@ class Morpheus::Cli::Clouds
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      opts.on( '-g', '--group GROUP', "Group Name" ) do |group|
-        options[:group] = group
-      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
