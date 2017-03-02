@@ -73,10 +73,16 @@ class Morpheus::Cli::DotFile
           begin
             cmd_result = Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
           rescue SystemExit => err
-            puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: exited non zero - #{err}"
-            cmd_result = false
+            if err.success?
+              cmd_result = true
+            else
+              puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: exited non zero - #{err}"
+              cmd_result = false
+            end
           rescue => err
-            raise err
+            # raise err
+            puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: unexpected error - #{err}"
+            cmd_result = false
           end
           cmd_results << cmd_result
           # next command please!
