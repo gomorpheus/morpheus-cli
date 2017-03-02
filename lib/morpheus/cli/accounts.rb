@@ -175,8 +175,8 @@ class Morpheus::Cli::Accounts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
       build_option_type_options(opts, options, update_account_option_types)
+      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
     end
     optparse.parse!(args)
     if args.count < 1
