@@ -206,17 +206,17 @@ module Morpheus
             end
           
           when :json
-            opts.on('-j','--json', "JSON Output") do |json|
+            opts.on('-j','--json', "JSON Output") do
               options[:json] = true
             end
 
           when :dry_run
-            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do |json|
+            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
               options[:dry_run] = true
             end
 
           when :quiet
-            opts.on('-q','--quiet', "No Output, when successful") do |json|
+            opts.on('-q','--quiet', "No Output, when successful") do
               options[:quiet] = true
             end
 
@@ -232,7 +232,7 @@ module Morpheus
           Term::ANSIColor::coloring = false
         end
 
-        opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+        opts.on('-V','--debug', "Print extra output for debugging. ") do
           options[:debug] = true
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
