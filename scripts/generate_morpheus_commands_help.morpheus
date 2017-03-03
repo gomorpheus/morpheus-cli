@@ -442,12 +442,12 @@ echo ```
 hosts logs -h
 echo ```
 echo
-# echo #### hosts make-managed
-# echo
-# echo ```
-# hosts make-managed -h
-# echo ```
-# echo
+echo #### hosts make-managed
+echo
+echo ```
+hosts make-managed -h
+echo ```
+echo
 echo #### hosts remove
 echo
 echo ```
