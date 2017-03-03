@@ -127,6 +127,7 @@ class Morpheus::Cli::Whoami
 
         if group
           print "\n" ,cyan, bold, "Active Group\n","==================", reset, "\n\n"
+          print cyan
           print "ID: #{group['id']}\n" 
           print "Name: #{group['name']}\n" 
         else
