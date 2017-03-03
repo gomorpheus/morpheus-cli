@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-  register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent, :server_types
+  register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -519,7 +519,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :quiet, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -529,6 +529,10 @@ class Morpheus::Cli::Hosts
     connect(options)
     begin
       host = find_host_by_name_or_id(args[0])
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.start(host['id'])
+        return
+      end
       json_response = @servers_interface.start(host['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -547,7 +551,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :quiet, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -663,6 +667,58 @@ class Morpheus::Cli::Hosts
           list([])
         end
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def install_agent(args)
+    options = {}
+    optparse = OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_option_type_options(opts, options, install_agent_option_types(false))
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      host = find_host_by_name_or_id(args[0])
+      if host['agentInstalled']
+        print_red_alert "Agent already installed on host '#{host['name']}'"
+        return false
+      end
+      payload = {
+        'server' => {}
+      }
+      params = Morpheus::Cli::OptionTypes.prompt(install_agent_option_types, options[:options], @api_client, options[:params])
+      server_os = params.delete('serverOs')
+      if server_os
+        payload['server']['serverOs'] = {id: server_os}
+      end
+      account_id = params.delete('account') # not yet implemented
+      if account_id
+        payload['server']['account'] = {id: account}
+      end
+      payload['server'].merge!(params)
+
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.install_agent(host['id'], payload)
+        return
+      end
+      json_response = @servers_interface.install_agent(host['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Host #{host['name']} is being converted to managed."
+        puts "Public Key:\n#{json_response['publicKey']}\n(copy to your authorized_keys file)"
+      end
+      return true
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -880,6 +936,15 @@ class Morpheus::Cli::Hosts
     # todo: colorize, upcase?
     out << status_string.to_s
     out
+  end
+
+   def install_agent_option_types(connected=true)
+    [
+      #{'fieldName' => 'account', 'fieldLabel' => 'Account', 'type' => 'select', 'optionSource' => 'accounts', 'required' => true},
+      {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'sshPassword', 'fieldLabel' => 'SSH Password', 'type' => 'password', 'required' => true},
+      {'fieldName' => 'serverOs', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => true},
+    ]
   end
 
 end
