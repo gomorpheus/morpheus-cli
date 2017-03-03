@@ -53,7 +53,7 @@ class Morpheus::Cli::Whoami
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
       end
-      build_common_options(opts, options, [:json, :remote]) # todo: support :remote too
+      build_common_options(opts, options, [:json, :remote, :dry_run]) # todo: support :remote too
     end
     optparse.parse!(args)
     # todo: check to see if they have credentials instead of just trying to connect (and prompting)
