@@ -12,12 +12,14 @@ class Morpheus::Cli::ErrorHandler
     end
     case (err)
     when OptionParser::InvalidOption, OptionParser::AmbiguousOption, OptionParser::MissingArgument, OptionParser::InvalidArgument
-      # raise e
+      # raise err
       print_red_alert "#{err.message}"
       puts "Try -h for help with this command."
     when Errno::ECONNREFUSED
       print_red_alert "#{err.message}"
       # more special errors?
+    when OpenSSL::SSL::SSLError
+      print_red_alert "Error Communicating with the Appliance. #{err.message}"
     when RestClient::Exception
       print_rest_exception(err, options)
     else

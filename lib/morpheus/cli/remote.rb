@@ -65,7 +65,6 @@ class Morpheus::Cli::Remote
     use_it = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [url]")
-      build_common_options(opts, options, [])
       opts.on( '--use', '--use', "Make this the current remote appliance" ) do
         use_it = true
       end
@@ -80,6 +79,7 @@ class Morpheus::Cli::Remote
       #   puts good_opts
       #   exit
       # end
+      build_common_options(opts, options, [:quiet])
       opts.footer = "This will add a new appliance to your list.\n" + 
                     "If it's first one, it will be made the current active appliance."
     end
@@ -103,6 +103,7 @@ class Morpheus::Cli::Remote
     end
     if @appliances[new_appliance_name] != nil
       print red, "Remote appliance already configured with the name '#{args[0]}'", reset, "\n"
+      return false
     else
       @appliances[new_appliance_name] = {
         host: url,
@@ -110,11 +111,38 @@ class Morpheus::Cli::Remote
       }
       ::Morpheus::Cli::Remote.save_appliances(@appliances)
       if use_it
-        #Morpheus::Cli::Remote.set_active_appliance(new_appliance_name)
+        Morpheus::Cli::Remote.set_active_appliance(new_appliance_name)
         @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
       end
     end
-    #list([])
+    
+    if options[:quiet] || options[:no_prompt]
+      return true
+    end
+    
+    # check to see if this is a fresh appliance. 
+    # GET /api/setup only returns 200 if it can still be initialized, else 400
+    @setup_interface = Morpheus::SetupInterface.new(@appliance_url)
+    appliance_status_json = nil
+    begin
+      appliance_status_json = @setup_interface.get()
+      if appliance_status_json['success'] == true
+        return setup([new_appliance_name])
+      end
+      # should not get here
+    rescue RestClient::Exception => e
+      #print_rest_exception(e, options)
+      # laff, treating any non - 200 as meaning it is good ...is bad.. could be at the wrong site.. sending credentials..
+      print cyan,"Appliance is ready.\n", reset
+    end
+
+    if use_it
+      if ::Morpheus::Cli::OptionTypes::confirm("Would you like to login now?", options.merge({default: true}))
+        return ::Morpheus::Cli::Login.new.handle([new_appliance_name])
+      end
+    end
+
+    return true
   end
 
   def remove(args)

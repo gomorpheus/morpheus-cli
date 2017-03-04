@@ -333,7 +333,8 @@ module Morpheus
 
       # This supports the simple remote option eg. `instances add --remote "qa"`
       # It will establish a connection to the pre-configured appliance named "qa"
-      # The calling command needs to populate @appliances and/or @appliance_name
+      # The calling command can populate @appliances and/or @appliance_name
+      # Otherwise, the current active appliance is used...
       # This returns a new instance of Morpheus::APIClient (and sets @access_token, and @appliance)
       # Your command should be ready to make api requests after this.
       # todo: probably don't exit here, just return nil or raise
@@ -377,18 +378,32 @@ module Morpheus
 
         # ok, get some credentials.
         # this prompts for username, password  without options[:no_prompt]
-        @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
-        
-        # bail if we got nothing
+        # used saved credentials please
+        @api_credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
+        @access_token = @api_credentials.load_saved_credentials()
+        if @access_token.to_s.empty?
+          unless options[:no_prompt]
+            @access_token = @api_credentials.request_credentials(options)
+          end
+        end
+
+        # bail if we got nothing still
+        unless options[:skip_verify_access_token]
+          verify_access_token!
+        end
+
+        # ok, connect to the appliance.. actually this just instantiates an ApiClient
+        api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+        @api_client = api_client # meh, just return w/o setting instance attrs
+        return api_client
+      end
+
+      def verify_access_token!
         if @access_token.empty?
           print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
           exit 1
         end
-
-        # ok, connect to the appliance.. actually this just instantiates an ApiClient
-        # setup our api client for all including commands to use.
-        @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
-        return @api_client
+        true
       end
 
       module ClassMethods
