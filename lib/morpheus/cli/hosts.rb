@@ -942,8 +942,8 @@ class Morpheus::Cli::Hosts
     [
       #{'fieldName' => 'account', 'fieldLabel' => 'Account', 'type' => 'select', 'optionSource' => 'accounts', 'required' => true},
       {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => true},
-      {'fieldName' => 'sshPassword', 'fieldLabel' => 'SSH Password', 'type' => 'password', 'required' => true},
-      {'fieldName' => 'serverOs', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => true},
+      {'fieldName' => 'sshPassword', 'fieldLabel' => 'SSH Password', 'type' => 'password', 'required' => false},
+      {'fieldName' => 'serverOs', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => false},
     ]
   end
 
