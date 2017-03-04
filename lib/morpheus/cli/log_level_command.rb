@@ -36,7 +36,7 @@ EOT
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
       ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
     elsif ["info", "1"].include?(args[0].to_s.strip.downcase)
-      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
       ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
     elsif args[0].to_i < 6
       Morpheus::Logging.set_log_level(args[0].to_i)
