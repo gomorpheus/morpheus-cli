@@ -41,23 +41,31 @@ module Morpheus
           value = nil
           value_found=false
           if option_type['fieldContext']
-            results[option_type['fieldContext']] ||= {}
-            context_map = results[option_type['fieldContext']]
-            if options[option_type['fieldContext']] and options[option_type['fieldContext']].key?(option_type['fieldName'])
-              value = options[option_type['fieldContext']][option_type['fieldName']]
+            cur_namespace = options
+            namespaces = option_type['fieldContext'].split(".")
+            namespaces.each do |ns|
+              next if ns.empty?
+              cur_namespace[ns.to_s] ||= {}
+              cur_namespace = cur_namespace[ns.to_s]
+              context_map[ns.to_s] ||= {}
+              context_map = context_map[ns.to_s]
+            end
+            if cur_namespace.key?(option_type['fieldName'])
+              value = cur_namespace[option_type['fieldName']]
               if option_type['type'] == 'number'
                 value = value.to_i
               end
               value_found = true
             end
-          end
-
-          if value_found == false && options.key?(option_type['fieldName'])
-            value = options[option_type['fieldName']]
-            if option_type['type'] == 'number'
-              value = value.to_i
+          else
+            # no fieldContext
+            if value_found == false && options.key?(option_type['fieldName'])
+              value = options[option_type['fieldName']]
+              if option_type['type'] == 'number'
+                value = value.to_i
+              end
+              value_found = true
             end
-            value_found = true
           end
 
           # no_prompt means skip prompting and instead

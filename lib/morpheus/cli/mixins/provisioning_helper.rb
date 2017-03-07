@@ -300,10 +300,13 @@ module Morpheus::Cli::ProvisioningHelper
       end
       provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     end
-
+    # todo: just merge in any namespace that option types can produce!
     payload[:config] = provision_payload['config'] || {}
     if provision_payload['server']
       payload[:server] = provision_payload['server'] || {}
+    end
+    if provision_payload['instance']
+      payload[:instance].merge!(provision_payload['instance'])
     end
 
     # prompt for environment variables
