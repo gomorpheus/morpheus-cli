@@ -50,10 +50,14 @@ module Morpheus
               context_map[ns.to_s] ||= {}
               context_map = context_map[ns.to_s]
             end
+            # use the value passed in the options map
             if cur_namespace.key?(option_type['fieldName'])
               value = cur_namespace[option_type['fieldName']]
               if option_type['type'] == 'number'
                 value = value.to_i
+              elsif option_type['type'] == 'select'
+                # this should just fall down through below, with the extra params no_prompt, use_value
+                value = select_prompt(option_type, api_client, api_params, true, value)
               end
               value_found = true
             end
@@ -86,8 +90,8 @@ module Morpheus
                 end
                 if !value_found
                   if option_type['required']
-                    print Term::ANSIColor.red, "\nMissing Required Option\n\n"
-                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+                    print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
                     print "\n"
                     exit 1
                   else
@@ -198,25 +202,41 @@ module Morpheus
         return value
       end
 
-      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false)
+      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil)
         value_found = false
         value = nil
+        # local array of options
         if option_type['selectOptions']
           select_options = option_type['selectOptions']
+        # remote optionSource aka /api/options/$optionSource?
         elsif option_type['optionSource']
           select_options = load_source_options(option_type['optionSource'],api_client,api_params)
         else
           raise "select_prompt() requires selectOptions or optionSource!"
         end
-        if !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
+        # ensure the preselected value (passed as an option) is in the dropdown
+        if !use_value.nil?
+          matched_value = select_options.find {|opt| opt['value'].to_s == use_value.to_s }
+          if !matched_value.nil?
+            value = use_value
+            value_found = true
+          else
+            print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
+            print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+            display_select_options(select_options)
+            print "\n"
+            exit 1
+          end
+        elsif !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
           value_found = true
           value = select_options[0]['value']
         end
+
         if no_prompt
           if !value_found
             if option_type['required']
-              print Term::ANSIColor.red, "\nMissing Required Option\n\n"
-              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+              print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
               display_select_options(select_options)
               print "\n"
               exit 1
@@ -377,7 +397,6 @@ module Morpheus
         select_options.each do |option|
           puts " * #{option['name']} [#{option['value']}]"
         end
-        puts "\n\n"
       end
 
       def self.format_option_types_help(option_types)
