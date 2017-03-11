@@ -81,7 +81,12 @@ end
 
 # ok, execute the command (or alias)
 begin
-  cmd_result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+  # shell is a Singleton command class
+  if args[0] == "shell"
+    cmd_result = Morpheus::Cli::Shell.instance.handle(args[1..-1])
+  else
+    cmd_result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+  end
   if cmd_result == false
     exit 1
   else

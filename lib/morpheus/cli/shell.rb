@@ -119,14 +119,14 @@ class Morpheus::Cli::Shell
       execute_command(cmd)
     end
     # skip logging of exit and !cmd
-    unless input.strip.empty? || (["exit"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
+    unless input.strip.empty? || (["exit", "history"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
       log_history_command(input.strip)
     end
   end
 
   def execute_command(input)
     #puts "shell execute_command(#{input})"
-    @command_options = {}
+    @command_options ||= {}
 
     input = input.to_s.strip
 
@@ -213,29 +213,35 @@ class Morpheus::Cli::Shell
       elsif input =~ /^\!.+/
         cmd_number = input.sub("!", "").to_i
         if cmd_number != 0
-          input = @history[cmd_number]
-          if !input
+          old_input = @history[cmd_number]
+          if !old_input
             puts "Command not found by number #{cmd_number}"
             return 0
           end
-          #puts "executing history command: (#{cmd_number}) #{input}"
-          execute_commands(input)
-          return 0
+          #puts "executing history command: (#{cmd_number}) #{old_input}"
+          # log_history_command(old_input)
+          # remove this from readline, and replace it with the old command
+          Readline::HISTORY.pop
+          Readline::HISTORY << old_input
+          return execute_commands(old_input)
         end
 
       elsif input == "insecure"
         Morpheus::RestClient.enable_ssl_verification = false
         return 0
+
       # use log-level [debug|info]
       # elsif input =~ /^log_level/ # hidden for now
       #   log_level = input.sub(/^log_level\s*/, '').strip
       #   if log_level == ""
       #     puts "#{Morpheus::Logging.log_level}"
-      #   elsif log_level == "debug"
-      #     #log_history_command(input)
-      #     @command_options[:debug] = true
-      #     Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-      #     ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+      elsif input == "debug"
+        log_history_command(input)
+        Morpheus::Cli::LogLevelCommand.new.handle(["debug"])
+        @command_options[:debug] = true
+        return 0
+          # Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          # ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
       #   elsif log_level == "info"
       #     #log_history_command(input)
       #     @command_options.delete(:debug)
@@ -258,7 +264,7 @@ class Morpheus::Cli::Shell
       #   return 0
       elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
         print "#{input.capitalize}, how may I #{cyan}help#{reset} you?\n"
-        return
+        return 0
       # use morpheus coloring [on|off]
       # elsif input == "colorize"
       #   Term::ANSIColor::coloring = true
