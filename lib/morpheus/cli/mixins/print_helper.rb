@@ -162,7 +162,7 @@ module Morpheus::Cli::PrintHelper
 
   def print_results_pagination(json_response)
     if json_response && json_response["meta"]
-      print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n"
+      print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n", reset
     end
   end
 
