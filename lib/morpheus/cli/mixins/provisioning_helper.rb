@@ -247,6 +247,10 @@ module Morpheus::Cli::ProvisioningHelper
     layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     layout_id = layout_prompt['layout']
     layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}
+    if !layout
+      print_red_alert "Layout not found by id #{layout_id}"
+      exit 1
+    end
     payload[:instance][:layout] = {id: layout['id']}
 
     # prompt for service plan
@@ -277,15 +281,6 @@ module Morpheus::Cli::ProvisioningHelper
         print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end
-    type_payload = {}
-    if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-    elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-    end
-    if !type_payload['config'].nil?
-      payload.merge!(type_payload['config'])
-    end
 
     provision_payload = {}
     if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
@@ -298,6 +293,7 @@ module Morpheus::Cli::ProvisioningHelper
       if !payload[:networkInterfaces].empty?
         instance_type_option_types = reject_networking_option_types(instance_type_option_types)
       end
+      #print "#{dark} #=> gathering instance type option types for layout provision type...#{reset}\n" if Morpheus::Logging.debug?
       provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     end
     # todo: just merge in any namespace that option types can produce!
@@ -847,10 +843,10 @@ module Morpheus::Cli::ProvisioningHelper
             network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_i
             selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
 
-            # if !selected_network
-            #   print_red_alert "Network not found by id #{network_interface['network']['id']}!"
-            #   exit 1
-            # end
+            if !selected_network
+              print_red_alert "Network not found by id #{network_interface['network']['id']}!"
+              exit 1
+            end
 
             # choose network interface type
             if enable_network_type_selection && !network_interface_type_options.empty?
