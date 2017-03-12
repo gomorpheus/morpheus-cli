@@ -217,29 +217,29 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     payload = {
-      :zoneId => cloud_id,
-      :instance => {
-        :name => instance_name,
-        :site => {
-          :id => group_id
+      'zoneId' => cloud_id,
+      'instance' => {
+        'name' => instance_name,
+        'site' => {
+          'id' => group_id
         },
-        :instanceType => {
-          :code => instance_type_code
+        'instanceType' => {
+          'code' => instance_type_code
         }
       }
     }
 
     # Description
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
-    payload[:instance][:description] = v_prompt['description'] if !v_prompt['description'].empty?
+    payload['instance']['description'] = v_prompt['description'] if !v_prompt['description'].empty?
 
     # Environment
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()}], options[:options])
-    payload[:instance][:instanceContext] = v_prompt['instanceContext'] if !v_prompt['instanceContext'].empty?
+    payload['instance']['instanceContext'] = v_prompt['instanceContext'] if !v_prompt['instanceContext'].empty?
 
     # Tags
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}], options[:options])
-    payload[:instance][:tags] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
+    payload['instance']['tags'] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
 
     # Version and Layout
 
@@ -251,7 +251,7 @@ module Morpheus::Cli::ProvisioningHelper
       print_red_alert "Layout not found by id #{layout_id}"
       exit 1
     end
-    payload[:instance][:layout] = {id: layout['id']}
+    payload['instance']['layout'] = {'id' => layout['id']}
 
     # prompt for service plan
     service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
@@ -259,14 +259,12 @@ module Morpheus::Cli::ProvisioningHelper
     service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
     service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
-    # todo: pick one of these three, let's go with the last one...
-    #payload[:servicePlan] = service_plan["id"] # pre-2.10 appliances
-    payload[:instance][:plan] = {id: service_plan["id"]}
+    payload['instance']['plan'] = {'id' => service_plan["id"]}
 
     # prompt for volumes
     volumes = prompt_volumes(service_plan, options, api_client, {})
     if !volumes.empty?
-      payload[:volumes] = volumes
+      payload['volumes'] = volumes
     end
 
     if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
@@ -274,7 +272,7 @@ module Morpheus::Cli::ProvisioningHelper
       begin
         network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options)
         if !network_interfaces.empty?
-          payload[:networkInterfaces] = network_interfaces
+          payload['networkInterfaces'] = network_interfaces
         end
       rescue RestClient::Exception => e
         print_yellow_warning "Unable to load network options. Proceeding..."
@@ -282,33 +280,34 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    provision_payload = {}
+    
+    if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
+      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+      payload.deep_merge!(type_payload)
+    elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
+      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+      payload.deep_merge!(type_payload)
+    end
+    
     if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
       instance_type_option_types = layout['provisionType']['optionTypes']
       # remove volume options if volumes were configured
-      if !payload[:volumes].empty?
+      if !payload['volumes'].empty?
         instance_type_option_types = reject_volume_option_types(instance_type_option_types)
       end
       # remove networkId option if networks were configured above
-      if !payload[:networkInterfaces].empty?
+      if !payload['networkInterfaces'].empty?
         instance_type_option_types = reject_networking_option_types(instance_type_option_types)
       end
       #print "#{dark} #=> gathering instance type option types for layout provision type...#{reset}\n" if Morpheus::Logging.debug?
       provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-    end
-    # todo: just merge in any namespace that option types can produce!
-    payload[:config] = provision_payload['config'] || {}
-    if provision_payload['server']
-      payload[:server] = provision_payload['server'] || {}
-    end
-    if provision_payload['instance']
-      payload[:instance].merge!(provision_payload['instance'])
+      payload.deep_merge!(provision_payload)
     end
 
     # prompt for environment variables
     evars = prompt_evars(options)
     if !evars.empty?
-      payload[:evars] = evars
+      payload['evars'] = evars
     end
 
     return payload
