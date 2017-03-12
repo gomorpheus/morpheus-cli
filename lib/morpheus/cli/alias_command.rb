@@ -27,7 +27,7 @@ class Morpheus::Cli::AliasCommand
       exit 127
     elsif self.class.has_subcommand?(args[0])
       handle_subcommand(args)
-    elsif args.count == 1
+    elsif args.count == 1 || (args.count == 2 && args.include?('-e'))
       add(args)
     else
       handle_subcommand(args)
@@ -80,7 +80,7 @@ class Morpheus::Cli::AliasCommand
         Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
         #print "registered alias #{alias_name}", "\n"
         if do_export
-          puts "exporting alias '#{alias_name}' now..."
+          # puts "exporting alias '#{alias_name}' now..."
           morpheus_profile = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
           morpheus_profile.export_aliases({(alias_name) => command_string})
         end
