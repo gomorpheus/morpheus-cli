@@ -475,8 +475,12 @@ class Morpheus::Cli::Remote
     end
 
     def save_appliances(new_config)
-      File.open(appliances_file_path, 'w') {|f| f.write new_config.to_yaml } #Store
-      FileUtils.chmod(0600, appliances_file_path)
+      fn = appliances_file_path
+      if !Dir.exists?(File.dirname(fn))
+        FileUtils.mkdir_p(File.dirname(fn))
+      end
+      File.open(fn, 'w') {|f| f.write new_config.to_yaml } #Store
+      FileUtils.chmod(0600, fn)
       #@@appliance_config = load_appliance_file
       @@appliance_config = new_config
     end

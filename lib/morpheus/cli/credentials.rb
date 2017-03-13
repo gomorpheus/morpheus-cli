@@ -146,6 +146,9 @@ module Morpheus
         credential_map[app_name] = token
         begin
           fn = credentials_file_path
+          if !Dir.exists?(File.dirname(fn))
+            FileUtils.mkdir_p(File.dirname(fn))
+          end
           print "#{dark} #=> adding credentials to #{fn}#{reset}\n" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)

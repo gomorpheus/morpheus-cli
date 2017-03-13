@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'yaml'
 require 'io/console'
 require 'rest_client'
@@ -550,8 +551,12 @@ public
     end
 
     def save_groups(groups_map)
-      File.open(groups_file_path, 'w') {|f| f.write groups_map.to_yaml } #Store
-      FileUtils.chmod(0600, groups_file_path)
+      fn = groups_file_path
+      if !Dir.exists?(File.dirname(fn))
+        FileUtils.mkdir_p(File.dirname(fn))
+      end
+      File.open(fn, 'w') {|f| f.write groups_map.to_yaml } #Store
+      FileUtils.chmod(0600, fn)
       @@groups = groups_map
     end
 
