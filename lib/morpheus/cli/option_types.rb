@@ -214,7 +214,12 @@ module Morpheus
           select_options = option_type['selectOptions']
         # remote optionSource aka /api/options/$optionSource?
         elsif option_type['optionSource']
-          select_options = load_source_options(option_type['optionSource'],api_client,api_params)
+          # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
+          if option_type['optionSource'] == 'list'
+            select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})
+          else
+            select_options = load_source_options(option_type['optionSource'], api_client, api_params)
+          end          
         else
           raise "select_prompt() requires selectOptions or optionSource!"
         end
