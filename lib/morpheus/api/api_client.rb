@@ -140,6 +140,14 @@ class Morpheus::APIClient
     Morpheus::CustomInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def option_types
+    Morpheus::OptionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def option_type_lists
+    Morpheus::OptionTypeListsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def dashboard
     Morpheus::DashboardInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end

@@ -32,6 +32,10 @@ module Morpheus
         end
       end
 
+      def self.no_prompt(option_types, options={}, api_client=nil,api_params={})
+        prompt(option_types, options, api_client, api_params, true)
+      end
+
       def self.prompt(option_types, options={}, api_client=nil,api_params={}, no_prompt=false)
         results = {}
         options = options || {}

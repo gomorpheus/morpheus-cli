@@ -65,6 +65,12 @@ module Morpheus
           end
 
           description = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' Default: '+option_type['defaultValue'].to_s : ''}"
+          if option_type['description']
+            description << "\n                                     #{option_type['description']}"
+          end
+          if option_type['helpBlock']
+            description << "\n                                     #{option_type['helpBlock']}"
+          end
           # description = option_type['description'].to_s
           # if option_type['defaultValue']
           #   description = "#{description} Default: #{option_type['defaultValue']}"
