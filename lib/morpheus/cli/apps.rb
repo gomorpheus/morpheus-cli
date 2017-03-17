@@ -60,11 +60,23 @@ class Morpheus::Cli::Apps
         return
       end
       apps = json_response['apps']
-      print "\n" ,cyan, bold, "Morpheus Apps\n","==================", reset, "\n\n"
+      title = "Morpheus Apps"
+      subtitles = []
+      # if group
+      #   subtitles << "Group: #{group['name']}".strip
+      # end
+      # if cloud
+      #   subtitles << "Cloud: #{cloud['name']}".strip
+      # end
+      if params[:phrase]
+        subtitles << "Search: #{params[:phrase]}".strip
+      end
+      print_h1 title, subtitles
       if apps.empty?
-        puts yellow,"No apps currently configured.",reset
+        print cyan,"No apps found.",reset,"\n"
       else
         print_apps_table(apps)
+        print_results_pagination(json_response)
       end
       print reset,"\n"
     rescue RestClient::Exception => e
@@ -150,21 +162,22 @@ class Morpheus::Cli::Apps
         print JSON.pretty_generate(json_response)
         return
       end
-      print "\n" ,cyan, bold, "App Details\n","==================", reset, "\n\n"
+      print_h1 "App Details"
       print cyan
-      puts "ID: #{app['id']}"
-      puts "Name: #{app['name']}"
-      puts "Description: #{app['description']}"
-      puts "Account: #{app['account'] ? app['account']['name'] : ''}"
-      # puts "Group: #{app['siteId']}"
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        # "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
+        "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Status" => lambda {|it| format_app_status(it) }
+      }
+      print_description_list(description_cols, app)
+
       stats = app['stats']
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        print "\n"
-        # print cyan, "Memory: \t#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}\n"
-        # print cyan, "Storage: \t#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}\n\n",reset
+      if app['instanceCount'].to_i > 0
+        print_h2 "App Usage"
         print_stats_usage(stats, {include: [:memory, :storage]})
-      else
-        #print yellow, "No stat data.", reset
       end
 
       app_tiers = app['appTiers']
@@ -172,13 +185,14 @@ class Morpheus::Cli::Apps
         puts yellow, "This app is empty", reset
       else
         app_tiers.each do |app_tier|
-          print "\n" ,cyan, bold, "Tier: #{app_tier['tier']['name']}\n","==================", reset, "\n\n"
+          print_h2 "Tier: #{app_tier['tier']['name']}\n"
           print cyan
           instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
           if instances.empty?
             puts yellow, "This tier is empty", reset
           else
             instance_table = instances.collect do |instance|
+              # JD: fix bug here, status is not returned because withStats: false !?
               status_string = instance['status'].to_s
               if status_string == 'running'
                 status_string = "#{green}#{status_string.upcase}#{cyan}"
@@ -628,11 +642,13 @@ class Morpheus::Cli::Apps
       end
       json_response = @apps_interface.security_groups(app['id'])
       securityGroups = json_response['securityGroups']
-      print "\n" ,cyan, bold, "Morpheus Security Groups for App: #{app['name']}\n","==================", reset, "\n\n"
-      print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
+      print_h1 "Morpheus Security Groups for App: #{app['name']}"
+      print cyan
+      print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
       if securityGroups.empty?
-        puts yellow,"No security groups currently applied.",reset
+        print yellow,"\n","No security groups currently applied.",reset,"\n"
       else
+        print "\n"
         securityGroups.each do |securityGroup|
           print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
         end
@@ -734,30 +750,18 @@ class Morpheus::Cli::Apps
   end
 
   def print_apps_table(apps, opts={})
+    output = ""
     table_color = opts[:color] || cyan
     rows = apps.collect do |app|
       instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
       containers_str = (app['containerCount'].to_i == 1) ? "1 Container" : "#{app['containerCount']} Containers"
-      status_string = app['status']
-      if app['instanceCount'].to_i == 0
-        # show this instead of WARNING
-        status_string = "#{white}EMPTY#{table_color}"
-      elsif status_string == 'running'
-        status_string = "#{green}#{status_string.upcase}#{table_color}"
-      elsif status_string == 'stopped' or status_string == 'failed'
-        status_string = "#{red}#{status_string.upcase}#{table_color}"
-      elsif status_string == 'unknown'
-        status_string = "#{white}#{status_string.upcase}#{table_color}"
-      else
-        status_string = "#{yellow}#{status_string.upcase}#{table_color}"
-      end
       {
         id: app['id'],
         name: app['name'],
         instances: instances_str,
         containers: containers_str,
         account: app['account'] ? app['account']['name'] : nil,
-        status: status_string,
+        status: format_app_status(app, table_color),
         #dateCreated: format_local_dt(app['dateCreated'])
       }
     end
@@ -774,10 +778,21 @@ class Morpheus::Cli::Apps
     print reset
   end
 
-  def generate_id(len=16)
-    id = ""
-    len.times { id << (1 + rand(9)).to_s }
-    id
+  def format_app_status(app, return_color=cyan)
+    out = ""
+    status_string = app['status']
+    if app['instanceCount'].to_i == 0
+      # show this instead of WARNING
+      out <<  "#{white}EMPTY#{return_color}"
+    elsif status_string == 'running'
+      out <<  "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'stopped' or status_string == 'failed'
+      out <<  "#{red}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'unknown'
+      out <<  "#{white}#{status_string.upcase}#{return_color}"
+    else
+      out <<  "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
   end
-
 end

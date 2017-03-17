@@ -243,7 +243,7 @@ module Morpheus::Cli::AccountsHelper
   def print_users_table(users, opts={})
     table_color = opts[:color] || cyan
     rows = users.collect do |user|
-      {id: user['id'], username: user['username'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), account: user['account'] ? user['account']['name'] : nil}
+      {id: user['id'], username: user['username'], name: user['displayName'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), account: user['account'] ? user['account']['name'] : nil}
     end
     print table_color
     tp rows, :id, :account, :first, :last, :username, :email, :role

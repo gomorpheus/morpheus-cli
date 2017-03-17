@@ -50,7 +50,7 @@ class Morpheus::Cli::KeyPairs
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        title = "Morpheus Hosts"
+        title = "Morpheus Key Pairs"
         subtitles = []
         if account
           subtitles << "Account: #{account['name']}".strip
@@ -58,8 +58,7 @@ class Morpheus::Cli::KeyPairs
         if params[:phrase]
           subtitles << "Search: #{params[:phrase]}".strip
         end
-        subtitle = subtitles.join(', ')
-        print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+        print_h1 title, subtitles
         if key_pairs.empty?
           puts yellow,"No key pairs found.",reset
         else
@@ -100,13 +99,20 @@ class Morpheus::Cli::KeyPairs
         print JSON.pretty_generate({keyPair: key_pair})
         print "\n"
       else
-        print "\n" ,cyan, bold, "Key Pair Details\n","==================", reset, "\n\n"
+        print_h1 "Key Pair Details"
         print cyan
-        puts "ID: #{key_pair['id']}"
-        puts "Name: #{key_pair['name']}"
-        puts "MD5: #{key_pair['md5']}"
-        puts "Date Created: #{format_local_dt(key_pair['dateCreated'])}"
-        #puts "Last Updated: #{format_local_dt(key_pair['lastUpdated'])}"
+        if account
+          # print_description_list({"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' } }, key_pair)
+          print_description_list({"Account" => lambda {|it| account['name'] } }, key_pair)
+        end
+        print_description_list({
+          "ID" => 'id',
+          "Name" => 'name',
+          "MD5" => 'md5',
+          # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
+          #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        }, key_pair)
         print reset,"\n"
 
         # todo: show public key

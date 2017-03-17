@@ -57,7 +57,6 @@ class Morpheus::Cli::Shell
 
   def handle(args)
     usage = "Usage: morpheus #{command_name}"
-    @command_options = {} # this is a way to curry options to all commands.. but meh
     optparse = OptionParser.new do|opts|
       opts.banner = usage
       opts.on('--norc','--norc', "Do not read and execute the personal initialization script .morpheusrc") do
@@ -67,13 +66,11 @@ class Morpheus::Cli::Shell
         Morpheus::RestClient.enable_ssl_verification = false
       end
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
-        @command_options[:nocolor] = true
         Term::ANSIColor::coloring = false
       end
       opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
         ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
-        @command_options[:debug] = true
       end
       opts.on( '-h', '--help', "Prints this help" ) do
         puts opts
@@ -126,12 +123,8 @@ class Morpheus::Cli::Shell
 
   def execute_command(input)
     #puts "shell execute_command(#{input})"
-    @command_options ||= {}
-
     input = input.to_s.strip
 
-    # print cyan,"morpheus > ",reset
-    # input = $stdin.gets.chomp!
     if !input.empty?
 
       if input == 'exit'
@@ -139,6 +132,9 @@ class Morpheus::Cli::Shell
         @history_logger.info "exit" if @history_logger
         exit 0
       elsif input == 'help'
+
+        #print_h1 "Morpheus Shell Help", [], white
+        #print "\n"
 
         puts "You are in a morpheus client shell."
         puts "See the available commands below."
@@ -149,15 +145,14 @@ class Morpheus::Cli::Shell
         @morpheus_commands.sort.each {|cmd|
           puts "\t#{cmd.to_s}"
         }
-        puts "\n"
+        #puts "\n"
         puts "\nShell Commands:"
         @shell_commands.each {|cmd|
           puts "\t#{cmd.to_s}"
         }
         puts "\n"
-        puts "For more information."
-        puts "See https://github.com/gomorpheus/morpheus-cli/wiki"
-        print "\n"
+        puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+        #print "\n"
         return 0
       elsif input =~ /^history/
         n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
@@ -237,63 +232,17 @@ class Morpheus::Cli::Shell
       #     puts "#{Morpheus::Logging.log_level}"
       elsif input == "debug"
         log_history_command(input)
-        Morpheus::Cli::LogLevelCommand.new.handle(["debug"])
-        @command_options[:debug] = true
-        return 0
-          # Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-          # ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
-      #   elsif log_level == "info"
-      #     #log_history_command(input)
-      #     @command_options.delete(:debug)
-      #     Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
-      #     ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
-      #   elsif log_level.to_s == "0" || (log_level.to_i > 0 && log_level.to_i < 7)
-      #     # other log levels are pointless right now..
-      #     @command_options.delete(:debug)
-      #     Morpheus::Logging.set_log_level(log_level.to_i)
-      #     ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
-      #   else
-      #     print_red_alert "unknown log level: #{log_level}"
-      #   end
-      #   return 0
-      # # lots of hidden commands
-      # elsif input == "debug"
-      #   @command_options[:debug] = true
-      #   Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-      #   ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
-      #   return 0
+        return Morpheus::Cli::LogLevelCommand.new.handle(["debug"])
       elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
         print "#{input.capitalize}, how may I #{cyan}help#{reset} you?\n"
         return 0
-      # use morpheus coloring [on|off]
-      # elsif input == "colorize"
-      #   Term::ANSIColor::coloring = true
-      #   @command_options[:nocolor] = false
-      #   return 0
-      # elsif input == "uncolorize"
-      #   Term::ANSIColor::coloring = false
-      #   @command_options[:nocolor] = true
-      #   return 0
       elsif input == "shell"
         print "#{cyan}You are already in a shell.#{reset}\n"
         return false
-      # there is actually a Cli::SourceCommand !
-      # elsif input =~ /^source\s*/i
-      #   source_file = input.sub(/^source\s*/i, '')
-      #   # execute a source script
-      #   if File.exists?(source_file)
-      #     cmd_results = Morpheus::Cli::DotFile.new(source_file).execute()
-      #     # return !cmd_results.include?(false)
-      #     return true
-      #   else
-      #     print_red_alert "file not found: '#{source_file}'"
-      #     return false
-      #   end
-      # there is actually a Cli::EchoCommand !
-      # elsif input =~ /^echo\s*/i
-      #   your_words = input.sub(/^echo\s*/i, '')
-      #   print your_words.to_s + "\n"
-      #   return true
+      elsif input =~ /^\.\s/
+        # dot alias for source <file>
+        log_history_command(input)
+        return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
 
       begin
@@ -304,7 +253,8 @@ class Morpheus::Cli::Shell
           #log_history_command(input)
           Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
         else
-          print_yellow_warning "Unrecognized Command '#{argv[0]}'. Try 'help' to see a list of available commands."
+          print_red_alert "Unrecognized Command '#{argv[0]}'."
+          puts "Try 'help' to see a list of available commands."
           @history_logger.warn "Unrecognized Command #{argv[0]}" if @history_logger
           #puts optparse
         end
@@ -319,7 +269,7 @@ class Morpheus::Cli::Shell
         # print "\n"
       rescue => e
         @history_logger.error "#{e.message}" if @history_logger
-        Morpheus::Cli::ErrorHandler.new.handle_error(e, @command_options)
+        Morpheus::Cli::ErrorHandler.new.handle_error(e)
         # exit 1
       end
 
@@ -334,84 +284,88 @@ class Morpheus::Cli::Shell
   end
 
   def get_prompt
+
+    # print cyan,"morpheus > ",reset
+    # input = $stdin.gets.chomp!
+
     input = ''
     while char=$stdin.getch do
-        if char == '\n'
-          print "\r\n"
-          puts "executing..."
-          break
-        end
-        print char
-        input << char
+      if char == '\n'
+        print "\r\n"
+        puts "executing..."
+        break
       end
-      return input
+      print char
+      input << char
     end
+    return input
+  end
 
-    def history_file_path
-      File.join(Morpheus::Cli.home_directory, "shell_history")
+  def history_file_path
+    File.join(Morpheus::Cli.home_directory, "shell_history")
+  end
+
+  def load_history_logger
+    file_path = history_file_path
+    if !Dir.exists?(File.dirname(file_path))
+      FileUtils.mkdir_p(File.dirname(file_path))
     end
+    if !File.exists?(file_path)
+      FileUtils.touch(file_path)
+      FileUtils.chmod(0600, file_path)
+    end
+    logger = Logger.new(file_path)
+    # logger.formatter = proc do |severity, datetime, progname, msg|
+    #   "#{msg}\n"
+    # end
+    return logger
+  end
 
-    def load_history_logger
+  def load_history_from_log_file(n_commands=1000)
+    @history ||= {}
+    @last_command_number ||= 0
+
+    begin
+      if Gem.win_platform?
+        return @history
+      end
       file_path = history_file_path
-      if !Dir.exists?(File.dirname(file_path))
-        FileUtils.mkdir_p(File.dirname(file_path))
+      FileUtils.mkdir_p(File.dirname(file_path))
+      # grab extra lines because not all log entries are commands
+      n_lines = n_commands + 500
+      history_lines = `tail -n #{n_lines} #{file_path}`.split(/\n/)
+      command_lines = history_lines.select do |line|
+        line.match(/\(cmd (\d+)\) (.+)/)
       end
-      if !File.exists?(file_path)
-        FileUtils.touch(file_path)
-        FileUtils.chmod(0600, file_path)
+      command_lines = command_lines.last(n_commands)
+      command_lines.each do |line|
+        matches = line.match(/\(cmd (\d+)\) (.+)/)
+        if matches && matches.size == 3
+          cmd_number = matches[1].to_i
+          cmd = matches[2]
+
+          @last_command_number = cmd_number
+          @history[@last_command_number] = cmd
+
+          # for Ctrl+R history searching
+          Readline::HISTORY << cmd
+        end
       end
-      logger = Logger.new(file_path)
-      # logger.formatter = proc do |severity, datetime, progname, msg|
-      #   "#{msg}\n"
-      # end
-      return logger
+    rescue => e
+      # raise e
+      # puts "failed to load history from log"
+      @history = {}
     end
+    return @history
+  end
 
-    def load_history_from_log_file(n_commands=1000)
-      @history ||= {}
-      @last_command_number ||= 0
-
-      begin
-        if Gem.win_platform?
-          return @history
-        end
-        file_path = history_file_path
-        FileUtils.mkdir_p(File.dirname(file_path))
-        # grab extra lines because not all log entries are commands
-        n_lines = n_commands + 500
-        history_lines = `tail -n #{n_lines} #{file_path}`.split(/\n/)
-        command_lines = history_lines.select do |line|
-          line.match(/\(cmd (\d+)\) (.+)/)
-        end
-        command_lines = command_lines.last(n_commands)
-        command_lines.each do |line|
-          matches = line.match(/\(cmd (\d+)\) (.+)/)
-          if matches && matches.size == 3
-            cmd_number = matches[1].to_i
-            cmd = matches[2]
-
-            @last_command_number = cmd_number
-            @history[@last_command_number] = cmd
-
-            # for Ctrl+R history searching
-            Readline::HISTORY << cmd
-          end
-        end
-      rescue => e
-        # raise e
-        # puts "failed to load history from log"
-        @history = {}
-      end
-      return @history
-    end
-
-    def log_history_command(cmd)
-      @history ||= {}
-      @last_command_number ||= 0
-      @last_command_number += 1
-      @history[@last_command_number] = cmd
-      if @history_logger
-        @history_logger.info "(cmd #{@last_command_number}) #{cmd}"
-      end
+  def log_history_command(cmd)
+    @history ||= {}
+    @last_command_number ||= 0
+    @last_command_number += 1
+    @history[@last_command_number] = cmd
+    if @history_logger
+      @history_logger.info "(cmd #{@last_command_number}) #{cmd}"
     end
   end
+end

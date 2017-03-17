@@ -13,7 +13,6 @@ class Morpheus::RolesInterface < Morpheus::APIClient
     url = build_url(account_id, id)
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
-    execute(method: :get, url: url, headers: headers)
   end
 
   def list(account_id, options={})

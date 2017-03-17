@@ -54,9 +54,14 @@ class Morpheus::Cli::AppTemplates
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Morpheus App Templates\n","==================", reset, "\n\n"
+        title = "Morpheus App Templates"
+        subtitles = []
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if app_templates.empty?
-          puts yellow,"No app templates found.",reset
+          print cyan,"No app templates found.",reset,"\n"
         else
           print_app_templates_table(app_templates)
           print_results_pagination(json_response)
@@ -103,12 +108,15 @@ class Morpheus::Cli::AppTemplates
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "App Template Details\n","==================", reset, "\n\n"
+        print_h1 "App Template Details"
         print cyan
-        puts "ID: #{app_template['id']}"
-        puts "Name: #{app_template['name']}"
-        #puts "Category: #{app_template['category']}"
-        puts "Account: #{app_template['account'] ? app_template['account']['name'] : ''}"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' }
+        }
+        print_description_list(description_cols, app_template)
+
         instance_type_names = (app_template['instanceTypes'] || []).collect {|it| it['name'] }
         #puts "Instance Types: #{instance_type_names.join(', ')}"
         config = app_template['config']['tierView']
@@ -722,9 +730,9 @@ class Morpheus::Cli::AppTemplates
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Tiers\n","==================", reset, "\n\n"
+        print_h1 "Available Tiers"
         if tiers.empty?
-          puts yellow,"No tiers found.",reset
+          print yellow,"No tiers found.",reset,"\n"
         else
           rows = tiers.collect do |tier|
             {
@@ -766,9 +774,9 @@ class Morpheus::Cli::AppTemplates
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Instance Types\n","==================", reset, "\n\n"
+        print_h1 "Available Instance Types"
         if instance_types.empty?
-          puts yellow,"No instance types found.",reset
+          print yellow,"No instance types found.",reset,"\n"
         else
           rows = instance_types.collect do |instance_type|
             {

@@ -49,9 +49,14 @@ class Morpheus::Cli::Workflows
         print JSON.pretty_generate(json_response)
       else
         task_sets = json_response['taskSets']
-        print "\n" ,cyan, bold, "Morpheus Workflows\n","==================", reset, "\n\n"
+        title = "Morpheus Workflows"
+        subtitles = []
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if task_sets.empty?
-          puts yellow,"No workflows currently configured.",reset
+          print cyan,"No workflows found.",reset,"\n"
         else
           print cyan
           print_workflows_table(task_sets)
@@ -142,15 +147,25 @@ class Morpheus::Cli::Workflows
         #   tasks << find_task_by_name_or_id(task_name)['id']
         # end
         tasks = workflow['taskSetTasks'].sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }
-        print "\n" ,cyan, bold, "Workflow Details\n","==================", reset, "\n\n"
+        print_h1 "Workflow Details"
+
         print cyan
-        puts "ID: #{workflow['id']}"
-        puts "Name: #{workflow['name']}"
-        #puts "Description: #{workflow['description']}"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          #"Description" => 'description',
+        }
+        print_description_list(description_cols, workflow)
+
         #task_names = tasks.collect {|it| it['name'] }
-        print "\n", cyan, "Tasks:\n"
-        tasks.each_with_index do |taskSetTask, index|
-          puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
+        print_h2 "Tasks"
+        if tasks.empty?
+          print yellow,"No tasks in this workflow.",reset,"\n"
+        else
+          print cyan
+          tasks.each_with_index do |taskSetTask, index|
+            puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
+          end
         end
         print reset,"\n"
       end

@@ -72,9 +72,20 @@ class Morpheus::Cli::Clouds
         print "\n"
       else
         clouds = json_response['zones']
-        print "\n" ,cyan, bold, "Morpheus Clouds\n","==================", reset, "\n\n"
+        title = "Morpheus Clouds"
+        subtitles = []
+        if group
+          subtitles << "Group: #{group['name']}".strip
+        end
+        if cloud_type
+          subtitles << "Type: #{cloud_type['name']}".strip
+        end
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if clouds.empty?
-          puts yellow,"No clouds found.",reset
+          print cyan,"No clouds found.",reset,"\n"
         else
           print_clouds_table(clouds)
           print_results_pagination(json_response)
@@ -114,26 +125,29 @@ class Morpheus::Cli::Clouds
         return
       end
       cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
-      print "\n" ,cyan, bold, "Cloud Details\n","==================", reset, "\n\n"
+      print_h1 "Cloud Details"
       print cyan
-      puts "ID: #{cloud['id']}"
-      puts "Name: #{cloud['name']}"
-      puts "Type: #{cloud_type ? cloud_type['name'] : ''}"
-      puts "Code: #{cloud['code']}"
-      puts "Location: #{cloud['location']}"
-      puts "Visibility: #{cloud['visibility'].to_s.capitalize}"
-      puts "Groups: #{cloud['groups'].collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', ')}"
-      status = nil
-      if cloud['status'] == 'ok'
-        status = "#{green}OK#{cyan}"
-      elsif cloud['status'].nil?
-        status = "#{white}UNKNOWN#{cyan}"
-      else
-        status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{cyan} - #{cloud['statusMessage']}" : ''}#{cyan}"
-      end
-      puts "Status: #{status}"
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
+        "Code" => 'code',
+        "Location" => 'location',
+        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+        "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
+        "Status" => lambda {|it| format_cloud_status(it) }
+      }
+      print_description_list(description_cols, cloud)
+      # puts "ID: #{cloud['id']}"
+      # puts "Name: #{cloud['name']}"
+      # puts "Type: #{cloud_type ? cloud_type['name'] : ''}"
+      # puts "Code: #{cloud['code']}"
+      # puts "Location: #{cloud['location']}"
+      # puts "Visibility: #{cloud['visibility'].to_s.capitalize}"
+      # puts "Groups: #{cloud['groups'].collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', ')}"
+      # puts "Status: #{format_cloud_status(cloud)}"
 
-      print "\n" ,cyan, "Cloud Servers (#{cloud['serverCount']})\n","==================", reset, "\n\n"
+      print_h2 "Cloud Servers"
       print cyan
       if server_counts
         print "Container Hosts: #{server_counts['containerHost']}".center(20)
@@ -439,11 +453,13 @@ class Morpheus::Cli::Clouds
         return
       end
       securityGroups = json_response['securityGroups']
-      print "\n" ,cyan, bold, "Morpheus Security Groups for Cloud: #{cloud['name']}\n","==================", reset, "\n\n"
-      print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
+      print_h1 "Morpheus Security Groups for Cloud: #{cloud['name']}"
+      print cyan
+      print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
       if securityGroups.empty?
-        puts yellow,"No security groups currently applied.",reset
+        print yellow,"\n","No security groups currently applied.",reset,"\n"
       else
+        print "\n"
         securityGroups.each do |securityGroup|
           print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
         end
@@ -515,9 +531,9 @@ class Morpheus::Cli::Clouds
         print JSON.pretty_generate({zoneTypes: cloud_types})
         print "\n"
       else
-        print "\n" ,cyan, bold, "Morpheus Cloud Types\n","==================", reset, "\n\n"
+        print_h1 "Morpheus Cloud Types"
         if cloud_types.empty?
-          puts yellow,"No cloud types found.",reset
+          print yellow,"No instances found.",reset,"\n"
         else
           print cyan
           cloud_types = cloud_types.select {|it| it['enabled'] }
@@ -608,6 +624,19 @@ class Morpheus::Cli::Clouds
 
   def cloud_types_for_dropdown
     get_available_cloud_types().select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+  end
+
+  def format_cloud_status(cloud, return_color=cyan)
+    out = ""
+    status_string = cloud['status']
+    if status_string.nil? || status_string.empty? || status_string == "unknown"
+      out << "#{white}UNKNOWN#{return_color}"
+    elsif status_string == 'ok'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    else
+      out << "#{red}#{status_string ? status_string.upcase : 'N/A'}#{cloud['statusMessage'] ? "#{return_color} - #{cloud['statusMessage']}" : ''}#{return_color}"
+    end
+    out
   end
 
 end

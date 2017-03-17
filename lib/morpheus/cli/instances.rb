@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :get, :add, :update, :remove, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
+  register_subcommands :list, :get, :add, :update, :remove, :logs, :stats, :stop, :start, :restart, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check
   alias_subcommand :details, :get
   set_default_subcommand :list
   
@@ -216,20 +216,16 @@ class Morpheus::Cli::Instances
       end
       instance = json_response['instance']
       stats = json_response['stats'] || {}
-      print "\n" ,cyan, bold, "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
-      puts "Status: #{format_instance_status(instance)}"
-      print "\n"
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        # stats_map = {}
-        # stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-        # stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-        # stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
-        # tp [stats_map], :memory,:storage,:cpu
-        # print "\n"
-        print_stats_usage(stats)
-      else
-        print cyan, "No data.", "\n", reset
-      end
+      title = "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})"
+      print_h1 title
+      print cyan
+      # print "\n"
+      puts dd_dt("Status", format_instance_status(instance))
+      puts dd_dt("Nodes", instance['containers'] ? instance['containers'].count : 0)
+      #puts dd_dt("Connection", format_instance_connection_string(instance))
+      #print "\n\n"
+      #print_h2 "Instance Usage"
+      print_stats_usage(stats)
       print reset, "\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -281,7 +277,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -295,32 +291,52 @@ class Morpheus::Cli::Instances
       if options[:node_id] && container_ids.include?(options[:node_id])
         container_ids = [options[:node_id]]
       end
-      query_params = { max: options[:max] || 100, offset: options[:offset] || 0, query: options[:phrase]}
+      params = {}
+      [:phrase, :offset, :max, :sort, :direction].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
+      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @logs_interface.dry.container_logs(container_ids, query_params)
+        print_dry_run @logs_interface.dry.server_logs([server['id']], params)
         return
       end
-      logs = @logs_interface.container_logs(container_ids, query_params)
+      if options[:dry_run]
+        print_dry_run @logs_interface.dry.container_logs(container_ids, params)
+        return
+      end
+      logs = @logs_interface.container_logs(container_ids, params)
+      output = ""
       if options[:json]
-        puts logs
+        output << JSON.pretty_generate(logs)
       else
-        logs['data'].reverse.each do |log_entry|
-          log_level = ''
-          case log_entry['level']
-          when 'INFO'
-            log_level = "#{blue}#{bold}INFO#{reset}"
-          when 'DEBUG'
-            log_level = "#{white}#{bold}DEBUG#{reset}"
-          when 'WARN'
-            log_level = "#{yellow}#{bold}WARN#{reset}"
-          when 'ERROR'
-            log_level = "#{red}#{bold}ERROR#{reset}"
-          when 'FATAL'
-            log_level = "#{red}#{bold}FATAL#{reset}"
-          end
-          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+        title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
         end
-        print reset,"\n"
+        # todo: startMs, endMs, sorts insteaad of sort..etc
+        print_h1 title, subtitles
+        if logs['data'].empty?
+          output << "#{cyan}No logs found.#{reset}\n"
+        else
+          logs['data'].reverse.each do |log_entry|
+            log_level = ''
+            case log_entry['level']
+            when 'INFO'
+              log_level = "#{blue}#{bold}INFO#{reset}"
+            when 'DEBUG'
+              log_level = "#{white}#{bold}DEBUG#{reset}"
+            when 'WARN'
+              log_level = "#{yellow}#{bold}WARN#{reset}"
+            when 'ERROR'
+              log_level = "#{red}#{bold}ERROR#{reset}"
+            when 'FATAL'
+              log_level = "#{red}#{bold}FATAL#{reset}"
+            end
+            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
+          end
+        end
+        print output, reset, "\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -332,7 +348,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -355,39 +371,51 @@ class Morpheus::Cli::Instances
         print JSON.pretty_generate(json_response), "\n"
         return
       end
+      if options[:csv]
+        print_instances_csv([json_response['instance']], options)
+        print "\n"
+        return
+      end
       instance = json_response['instance']
       stats = json_response['stats'] || {}
       # load_balancers = stats = json_response['loadBalancers'] || {}
 
-      connection_string = ''
-      if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
-        connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
-      end
-
-      print "\n" ,cyan, bold, "Instance Details\n","==================", reset, "\n\n"
+      print_h1 "Instance Details"
       print cyan
-      puts "ID: #{instance['id']}"
-      puts "Name: #{instance['name']}"
-      puts "Description: #{instance['description']}"
-      puts "Group: #{instance['group'] ? instance['group']['name'] : ''}"
-      puts "Cloud: #{instance['cloud'] ? instance['cloud']['name'] : ''}"
-      puts "Type: #{instance['instanceType']['name']}"
-      puts "Plan: #{instance['plan'] ? instance['plan']['name'] : ''}"
-      puts "Environment: #{instance['instanceContext']}"
-      puts "Nodes: #{instance['containers'] ? instance['containers'].count : 0}"
-      puts "Connection: #{connection_string}"
-      #puts "Account: #{instance['account'] ? instance['account']['name'] : ''}"
-      puts "Status: #{format_instance_status(instance)}"
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        print "\n"
-        # stats_map = {}
-        # stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-        # stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-        # stats_map[:cpu] = "#{stats['usedCpu'].to_f.round(2)}%"
-        # tp [stats_map], :memory,:storage,:cpu
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        "Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
+        "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
+        "Type" => lambda {|it| it['instanceType']['name'] },
+        "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "Environment" => 'instanceContext',
+        "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
+        "Connection" => lambda {|it| format_instance_connection_string(it) },
+        #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Status" => lambda {|it| format_instance_status(it) }
+      }
+      print_description_list(description_cols, instance)
+
+      # puts dd_dt("ID", "#{instance['id']}")
+      # puts dd_dt("Name", "#{instance['name']}")
+      # if !instance['description'].empty?
+      #   puts dd_dt("Description", "#{instance['description']}")
+      # end
+      # puts dd_dt("Group", "#{instance['group'] ? instance['group']['name'] : ''}")
+      # puts dd_dt("Cloud", "#{instance['cloud'] ? instance['cloud']['name'] : ''}")
+      # puts dd_dt("Type", "#{instance['instanceType']['name']}")
+      # puts dd_dt("Plan", "#{instance['plan'] ? instance['plan']['name'] : ''}")
+      # puts dd_dt("Environment", "#{instance['instanceContext']}")
+      # puts dd_dt("Nodes", "#{instance['containers'] ? instance['containers'].count : 0}")
+      # puts dd_dt("Connection", "#{format_instance_connection_string(instance)}")
+      # #puts "Account", "#{instance['account'] ? instance['account']['name'] : ''}")
+      # puts dd_dt("Status", "#{format_instance_status(instance)}")
+
+      if (stats)
+        print_h2 "Instance Usage"
         print_stats_usage(stats)
-      else
-        # print cyan, "No data.", "\n", reset
       end
       print reset, "\n"
 
@@ -426,12 +454,7 @@ class Morpheus::Cli::Instances
       stats = json_response['stats'] || {}
       # load_balancers = stats = json_response['loadBalancers'] || {}
 
-      print "\n" ,cyan, bold, "Instance Backups\n","==================", reset, "\n\n"
-      print cyan
-      puts "ID: #{instance['id']}"
-      puts "Name: #{instance['name']}"
-      print "\n"
-      puts "Backups:"
+      print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
       backup_rows = backups.collect {|it| {id: it['id'], name: it['name'], dateCreated: it['dateCreated']} }
       print cyan
       tp backup_rows, [
@@ -530,13 +553,14 @@ class Morpheus::Cli::Instances
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print "\n" ,cyan, bold, "#{instance['name']} (#{instance['instanceType']['name']})\n","==================", "\n\n", reset, cyan
+      print_h1 "Instance Envs: #{instance['name']} (#{instance['instanceType']['name']})"
+      print cyan
       envs = json_response['envs'] || {}
       if json_response['readOnlyEnvs']
         envs += json_response['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
       end
       tp envs, :name, :value, :export
-      print "\n" ,cyan, bold, "Imported Envs\n","==================", "\n\n", reset, cyan
+      print_h2 "Imported Envs"
       imported_envs = json_response['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
       tp imported_envs
       print reset, "\n"
@@ -1004,7 +1028,7 @@ class Morpheus::Cli::Instances
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -1034,6 +1058,9 @@ class Morpheus::Cli::Instances
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
+      elsif options[:csv]
+        print_instances_csv(json_response['instances'], options)
+        print "\n"
       else
         instances = json_response['instances']
 
@@ -1048,10 +1075,9 @@ class Morpheus::Cli::Instances
         if params[:phrase]
           subtitles << "Search: #{params[:phrase]}".strip
         end
-        subtitle = subtitles.join(', ')
-        print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+        print_h1 title, subtitles
         if instances.empty?
-          puts yellow,"No instances found.",reset
+          print yellow,"No instances found.",reset,"\n"
         else
           print_instances_table(instances)
           print_results_pagination(json_response)
@@ -1193,16 +1219,20 @@ class Morpheus::Cli::Instances
         return
       end
       securityGroups = json_response['securityGroups']
-      print "\n" ,cyan, bold, "Morpheus Security Groups for Instance: #{instance['name']}\n","==================", reset, "\n\n"
-      print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
+      print_h1 "Morpheus Security Groups for Instance: #{instance['name']}"
+      print cyan
+      print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
+      #print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
       if securityGroups.empty?
-        puts yellow,"No security groups currently applied.",reset
+        print yellow,"\n","No security groups currently applied.",reset,"\n"
       else
+        print "\n"
         securityGroups.each do |securityGroup|
           print cyan, "=  #{securityGroup['id']} (#{securityGroup['name']}) - (#{securityGroup['description']})\n"
         end
+        print "\n"
       end
-      print reset,"\n"
+      print reset, "\n"
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1407,15 +1437,11 @@ class Morpheus::Cli::Instances
 
   def print_instances_table(instances, opts={})
     table_color = opts[:color] || cyan
-    rows = instances.collect do |instance|
-      connection_string = ''
-      if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
-        connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
-      end
+    rows = instances.collect {|instance| 
       {
         id: instance['id'],
         name: instance['name'],
-        connection: connection_string,
+        connection: format_instance_connection_string(instance),
         environment: instance['instanceContext'],
         nodes: instance['containers'].count,
         status: format_instance_status(instance, table_color),
@@ -1423,11 +1449,34 @@ class Morpheus::Cli::Instances
         group: !instance['group'].nil? ? instance['group']['name'] : nil,
         cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
       }
-    end
-
+    }
     print table_color
     tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
     print reset
+  end
+
+  def print_instances_csv(instances, opts={})
+    # cols = [:id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status]
+    cols = {
+        "id" => 'id',
+        "name" => 'name',
+        "description" => 'description',
+        "group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
+        "cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
+        "type" => lambda {|it| it['instanceType']['name'] },
+        "plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "environment" => 'instanceContext',
+        "nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
+        "connection" => lambda {|it| format_instance_connection_string(it) },
+        #"account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "status" => 'status'
+      }
+    if opts[:csv_columns] == 'all'
+      cols = instances.first ? instances.first.keys : cols
+    elsif opts[:csv_columns].is_a?(Array)
+      cols = opts[:csv_columns]
+    end
+    print as_csv(cols, instances, opts)
   end
 
   def format_instance_status(instance, return_color=cyan)
@@ -1443,6 +1492,12 @@ class Morpheus::Cli::Instances
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
     out
+  end
+
+  def format_instance_connection_string(instance)
+    if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+      connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+    end
   end
 
   def clone_instance_option_types(connected=true)

@@ -52,7 +52,12 @@ class Morpheus::Cli::Accounts
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Morpheus Accounts\n","==================", reset, "\n\n"
+        title = "Morpheus Accounts"
+        subtitles = []
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if accounts.empty?
           puts yellow,"No accounts found.",reset
         else
@@ -95,7 +100,7 @@ class Morpheus::Cli::Accounts
         print JSON.pretty_generate({account: account})
         print "\n"
       else
-        print "\n" ,cyan, bold, "Account Details\n","==================", reset, "\n\n"
+        print_h1 "Account Details"
         print cyan
         puts "ID: #{account['id']}"
         puts "Name: #{account['name']}"
@@ -112,7 +117,7 @@ class Morpheus::Cli::Accounts
           status_state = "#{red}INACTIVE#{cyan}"
         end
         puts "Status: #{status_state}"
-        print "\n" ,cyan, bold, "Account Instance Limits\n","==================", reset, "\n\n"
+        print_h2 "Account Instance Limits"
         print cyan
         puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
         puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"

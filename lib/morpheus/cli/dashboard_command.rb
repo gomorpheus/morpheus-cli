@@ -45,14 +45,9 @@ class Morpheus::Cli::DashboardCommand
         print "\n"
       else
 
-        # todo: impersonate command and show that info here
-
-        print "\n" ,cyan, bold, "Dashboard\n","==================", reset, "\n\n"
+        print_h1 "Dashboard"
         print cyan
-        print "\n"
-        puts "Coming soon.... see --json"
-        print "\n"
-
+        puts "Coming soon... see --json"
         print reset,"\n"
 
       end

@@ -52,7 +52,7 @@ class Morpheus::Cli::Groups
         return
       end
       groups = json_response['groups']
-      print "\n" ,cyan, bold, "Morpheus Groups\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Groups"
       if groups.empty?
         puts yellow,"No groups currently configured.",reset
       else
@@ -62,7 +62,7 @@ class Morpheus::Cli::Groups
           active_group = groups.find { |it| it['id'] == @active_group_id }
           active_group = active_group || find_group_by_name_or_id(@active_group_id)
           #unless @appliances.keys.size == 1
-            print cyan, "\n# => Currently using #{active_group['name']}\n", reset
+            print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
           #end
         else
           unless options[:remote]
@@ -99,17 +99,24 @@ class Morpheus::Cli::Groups
         return
       end
       group = json_response['group']
-
       is_active = @active_group_id && (@active_group_id == group['id'])
-
-      print "\n" ,cyan, bold, "Group Details\n","==================", reset, "\n\n"
+      print_h1 "Group Details"
       print cyan
-      puts "ID: #{group['id']}"
-      puts "Name: #{group['name']}"
-      puts "Code: #{group['code']}"
-      puts "Location: #{group['location']}"
-      puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
-      puts "Hosts: #{group['serverCount']}"
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Code" => 'code',
+        "Location" => 'location',
+        "Clouds" => lambda {|it| it['zones'].collect {|z| z['name'] }.join(', ') },
+        "Hosts" => 'serverCount'
+      }
+      print_description_list(description_cols, group)
+      # puts "ID: #{group['id']}"
+      # puts "Name: #{group['name']}"
+      # puts "Code: #{group['code']}"
+      # puts "Location: #{group['location']}"
+      # puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
+      # puts "Hosts: #{group['serverCount']}"
       if is_active
         puts "\n => This is the active group."
       end

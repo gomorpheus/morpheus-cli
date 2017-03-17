@@ -45,7 +45,7 @@ class Morpheus::Cli::Remote
           host: v[:host]
         }
       end
-      print "\n" ,cyan, bold, "Morpheus Appliances\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Appliances"
       print cyan
       tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
       print reset
@@ -300,7 +300,7 @@ class Morpheus::Cli::Remote
       # end
       return false
     else
-      print "\n" ,cyan, bold, "Morpheus Appliance Setup", "\n", "==================", reset, "\n\n"
+      print_h1 "Morpheus Appliance Setup"
 
       puts "It looks like you're the first one here."
       puts "Let's initialize your remote appliance at #{@appliance_url}"
@@ -308,7 +308,7 @@ class Morpheus::Cli::Remote
 
       
       # Master Account
-      print "\n" ,cyan, bold, "Create Master account", "\n", "==================", reset, "\n\n"
+      print_h2 "Create Master Account"
       account_option_types = [
         {'fieldName' => 'accountName', 'fieldLabel' => 'Master Account Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       ]
@@ -316,7 +316,7 @@ class Morpheus::Cli::Remote
       payload.merge!(v_prompt)
 
       # Master User
-      print "\n" ,cyan, bold, "Create Master User", "\n", "==================", reset, "\n\n"
+      print_h2 "Create Master User"
       user_option_types = [
         {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
         {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
@@ -339,7 +339,7 @@ class Morpheus::Cli::Remote
       payload.merge!(v_prompt)
 
       # Extra settings
-      print "\n" ,cyan, bold, "Initial Setup", "\n", "==================", reset, "\n\n"
+      print_h2 "Initial Setup"
       extra_option_types = [
         {'fieldName' => 'applianceName', 'fieldLabel' => 'Appliance Name', 'type' => 'text', 'required' => true, 'defaultValue' => nil},
         {'fieldName' => 'applianceUrl', 'fieldLabel' => 'Appliance URL', 'type' => 'text', 'required' => true, 'defaultValue' => appliance_status_json['applianceUrl']},

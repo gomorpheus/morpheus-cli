@@ -60,9 +60,14 @@ class Morpheus::Cli::Roles
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Morpheus Roles\n","==================", reset, "\n\n"
+        title = "Morpheus Roles"
+        subtitles = []
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if roles.empty?
-          puts yellow,"No roles found.",reset
+          print cyan,"No roles found.",reset,"\n"
         else
           print_roles_table(roles, {is_master_account: @is_master_account})
           print_results_pagination(json_response)
@@ -105,46 +110,68 @@ class Morpheus::Cli::Roles
       puts optparse
       exit 1
     end
-    name = args[0]
 
     connect(options)
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
       if options[:dry_run]
-        print_dry_run @roles_interface.dry.list(account_id, {name: name})
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
+        else
+          print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
+        end
         return
       end
 
-      role = find_role_by_name_or_id(account_id, name)
-      exit 1 if role.nil?
+      # role = find_role_by_name_or_id(account_id, args[0])
+      # exit 1 if role.nil?
+      # refetch from show action, argh
+      # json_response = @roles_interface.get(account_id, role['id'])
+      # role = json_response['role']
 
-      json_response = @roles_interface.get(account_id, role['id'])
-      role = json_response['role']
+      json_response = nil
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        json_response = @roles_interface.get(account_id, args[0].to_i)
+        role = json_response['role']
+      else
+        role = find_role_by_name_or_id(account_id, args[0])
+        exit 1 if role.nil?
+        # refetch from show action, argh
+        json_response = @roles_interface.get(account_id, role['id'])
+        role = json_response['role']
+      end
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print "\n" ,cyan, bold, "Role Details\n","==================", reset, "\n\n"
         print cyan
-        puts "ID: #{role['id']}"
-        puts "Name: #{role['authority']}"
-        puts "Description: #{role['description']}"
-        puts "Scope: #{role['scope']}"
-        puts "Type: #{format_role_type(role)}"
-        puts "Multitenant: #{role['multitenant'] ? 'Yes' : 'No'}"
-        puts "Owner: #{role['owner'] ? role['owner']['name'] : nil}"
-        puts "Date Created: #{format_local_dt(role['dateCreated'])}"
-        puts "Last Updated: #{format_local_dt(role['lastUpdated'])}"
-
-        print "\n" ,cyan, bold, "Role Instance Limits\n","==================", reset, "\n\n"
+        print_h1 "Role Details"
         print cyan
-        puts "Max Storage (bytes): #{role['instanceLimits'] ? role['instanceLimits']['maxStorage'] : 0}"
-        puts "Max Memory (bytes): #{role['instanceLimits'] ? role['instanceLimits']['maxMemory'] : 0}"
-        puts "CPU Count: #{role['instanceLimits'] ? role['instanceLimits']['maxCpu'] : 0}"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Description" => 'description',
+          "Scope" => lambda {|it| it['scope'] },
+          "Type" => lambda {|it| format_role_type(it) },
+          "Multitenant" => lambda {|it| format_boolean(it['multitenant']) },
+          "Owner" => lambda {|it| role['owner'] ? role['owner']['name'] : '' },
+          #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        }
+        print_description_list(description_cols, role)
 
-        print "\n" ,cyan, bold, "Feature Access\n","==================", reset, "\n\n"
+        print_h2 "Role Instance Limits"
+        print cyan
+        print_description_list({
+          "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
+          "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
+          "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
+        }, role['instanceLimits'])
+
+        print_h2 "Feature Access"
         print cyan
 
         if options[:include_feature_access]
@@ -160,7 +187,7 @@ class Morpheus::Cli::Roles
           puts "Use --feature-access to list feature access"
         end
 
-        print "\n" ,cyan, bold, "Group Access\n","==================", reset, "\n\n"
+        print_h2 "Group Access"
         print cyan
         puts "Global Group Access: #{get_access_string(json_response['globalSiteAccess'])}\n\n"
         if json_response['globalSiteAccess'] == 'custom'
@@ -177,7 +204,7 @@ class Morpheus::Cli::Roles
           end
         end
 
-        print "\n" ,cyan, bold, "Cloud Access\n","==================", reset, "\n\n"
+        print_h2 "Cloud Access"
         print cyan
         puts "Global Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}\n\n"
         if json_response['globalZoneAccess'] == 'custom'
@@ -194,7 +221,7 @@ class Morpheus::Cli::Roles
           end
         end
 
-        print "\n" ,cyan, bold, "Instance Type Access\n","==================", reset, "\n\n"
+        print_h2 "Instance Type Access"
         print cyan
         puts "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}\n\n"
         if json_response['globalInstanceTypeAccess'] == 'custom'

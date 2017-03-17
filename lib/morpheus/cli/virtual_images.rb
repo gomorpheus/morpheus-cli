@@ -67,9 +67,20 @@ class Morpheus::Cli::VirtualImages
         print JSON.pretty_generate(json_response)
       else
         images = json_response['virtualImages']
-        print "\n" ,cyan, bold, "Morpheus Virtual Images\n","=======================", reset, "\n\n"
+        title = "Morpheus Virtual Images"
+        subtitles = []
+        if options[:imageType]
+          subtitles << "Image Type: #{options[:imageType]}".strip
+        end
+        if options[:filterType]
+          subtitles << "Image Type: #{options[:filterType]}".strip
+        end
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if images.empty?
-          puts yellow,"No virtual images currently exist.",reset
+          print yellow,"No virtual images found.",reset,"\n"
         else
           print cyan
           image_table_data = images.collect do |image|
@@ -122,15 +133,19 @@ class Morpheus::Cli::VirtualImages
       else
         image_type = virtual_image_type_for_name_or_code(image['imageType'])
         image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
-        print "\n" ,cyan, bold, "Virtual Image Details\n","==================", reset, "\n\n"
+        print_h1 "Virtual Image Details"
         print cyan
-        puts "ID: #{image['id']}"
-        puts "Name: #{image['name']}"
-        puts "Type: #{image_type_display}"
-        #puts "Date Created: #{format_local_dt(image['dateCreated'])}"
-        #puts "Last Updated: #{format_local_dt(image['lastUpdated'])}"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Type" => lambda {|it| image_type_display },
+          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        }
+        print_description_list(description_cols, image)
+
         if image_files
-          puts "Files:"
+          print_h2 "Files"
           image_files.each {|image_file|
             pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
             print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
@@ -216,9 +231,9 @@ class Morpheus::Cli::VirtualImages
         print JSON.pretty_generate(json_response)
       else
         image_types = json_response['virtualImageTypes']
-        print "\n" ,cyan, bold, "Morpheus Virtual Image Types\n","============================", reset, "\n\n"
+        print_h1 "Morpheus Virtual Image Types"
         if image_types.nil? || image_types.empty?
-          puts yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset
+          print yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset,"\n"
         else
           print cyan
           lb_table_data = image_types.collect do |lb_type|
@@ -227,7 +242,7 @@ class Morpheus::Cli::VirtualImages
           tp lb_table_data, :name, :code
         end
 
-        print reset,"\n\n"
+        print reset,"\n"
       end
                 rescue RestClient::Exception => e
       print_rest_exception(e, options)

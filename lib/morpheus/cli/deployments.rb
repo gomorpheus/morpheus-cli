@@ -44,9 +44,9 @@ class Morpheus::Cli::Deployments
         puts JSON.pretty_generate(json_response)
       else
         deployments = json_response['deployments']
-        print "\n" ,cyan, bold, "Morpheus Deployments\n","====================", reset, "\n\n"
+        print_h1 "Morpheus Deployments"
         if deployments.empty?
-          puts yellow,"No deployments currently configured.",reset
+          print yellow,"No deployments currently configured.",reset,"\n"
         else
           print cyan
           deployments_table_data = deployments.collect do |deployment|
@@ -92,9 +92,9 @@ class Morpheus::Cli::Deployments
         puts JSON.pretty_generate(json_response)
       else
         versions = json_response['versions']
-        print "\n" ,cyan, bold, "Morpheus Deployment Versions\n","=============================", reset, "\n\n"
+        print_h1 "Deployment Versions: #{deployment['name']}"
         if versions.empty?
-          puts yellow,"No deployment versions currently exist.",reset
+          print yellow,"No deployment versions currently exist.",reset,"\n"
         else
           print cyan
           versions_table_data = versions.collect do |version|

@@ -210,10 +210,55 @@ module Morpheus
             opts.on( '-y', '--yes', "Auto Confirm" ) do
               options[:yes] = true
             end
-          
+
           when :json
             opts.on('-j','--json', "JSON Output") do
               options[:json] = true
+              options[:format] = :json
+            end
+
+          when :csv
+            opts.on(nil, '--csv', "CSV Output") do
+              options[:csv] = true
+              options[:format] = :csv
+              #options[:csv_delim] = options[:csv_delim] || ","
+            end
+
+            opts.on('--csv-delim STRING', String, "Delimiter for --csv") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              options[:csv_delim] = val
+            end
+
+            opts.on('--csv-newline STRING', String, "Row delimiter for csv output. Default is \\n") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              options[:csv_newline] = val
+            end
+
+            opts.on(nil, '--csv-quotes', "Quote CSV values for --csv. Default is false.") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              options[:csv_quotes] = val
+            end
+
+            opts.on(nil, '--csv-no-header', "Exclude header for --csv.") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              options[:csv_no_header] = true
+            end
+
+            opts.on('--csv-columns COLUMNS', String, "Fields to include in the CSV output.") do |val|
+              if val.empty?
+                raise OptionParser::InvalidArgument.new("--csv-columns must include atleast one column, separate fields with a comma.")
+              end
+              options[:csv] = true
+              options[:format] = :csv
+              if val == "all"
+                options[:csv_columns] = 'all'
+              else
+                options[:csv_columns] = val.to_s.split(/\s?\,+\s?/).select {|it| it && !it.empty? }
+              end
             end
 
           when :dry_run
@@ -324,7 +369,8 @@ module Morpheus
         end
         cmd_method = subcommands[subcommand_name]
         if subcommand_name && !cmd_method
-          puts "unknown command '#{self.command_name} #{subcommand_name}'"
+          unknown_cmd = "#{self.command_name} #{subcommand_name}".strip
+          print_red_alert "Unrecognized Command '#{unknown_cmd}'"
         end
         if !cmd_method
           print_usage

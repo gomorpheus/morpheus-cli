@@ -45,7 +45,7 @@ class Morpheus::Cli::License
           puts "No License Currently Applied to the appliance."
           exit 1
         else
-          print "\n", cyan, "License\n=======\n"
+          print_h1 "License"
           max_memory = Filesize.from("#{license['license']['maxMemory']} B").pretty
           max_storage = Filesize.from("#{license['license']['maxStorage']} B").pretty
           used_memory = Filesize.from("#{license['usedMemory']} B").pretty

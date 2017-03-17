@@ -52,7 +52,7 @@ class Morpheus::Cli::InstanceTypes
       if instance_type.nil?
         puts yellow,"No instance type found by name #{name}.",reset
       else
-        print "\n" ,cyan, bold, "Instance Type Details\n","==================", reset, "\n\n"
+        print_h1 "Instance Type Details"
         versions = instance_type['versions'].join(', ')
         print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
         layout_names = instance_type['instanceTypeLayouts'].collect { |layout| layout['name'] }.uniq.sort
@@ -97,7 +97,7 @@ class Morpheus::Cli::InstanceTypes
       end
 
       instance_types = json_response['instanceTypes']
-      print "\n" ,cyan, bold, "Morpheus Instance Types\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Instance Types"
       if instance_types.empty?
         puts yellow,"No instance types currently configured.",reset
       else

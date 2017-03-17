@@ -57,8 +57,7 @@ class Morpheus::Cli::Deploys
     end
     instance = instance_results['instances'][0]
     instance_id = instance['id']
-    print "\n" ,cyan, bold, "Morpheus Deployment\n","==================", reset, "\n\n"
-
+    print_h1 "Morpheus Deployment"
     if !deploy_args['script'].nil?
       print cyan, bold, "  - Executing Pre Deploy Script...", reset, "\n"
 

@@ -60,9 +60,9 @@ class Morpheus::Cli::Whoami
     connect(options)
     begin
       json_response = load_whoami()
-      group = nil
+      active_group = nil
       begin
-        group = @active_group_id ? find_group_by_name_or_id(@active_group_id) : nil # via InfrastructureHelper mixin
+        active_group = @active_group_id ? find_group_by_name_or_id(@active_group_id) : nil # via InfrastructureHelper mixin
       rescue => err
         if options[:debug]
           print red,"Unable to determine active group: #{err}\n",reset
@@ -80,28 +80,24 @@ class Morpheus::Cli::Whoami
 
         # todo: impersonate command and show that info here
 
-        print "\n" ,cyan, bold, "Current User\n","==================", reset, "\n\n"
+        print_h1 "Current User"
         print cyan
-        # if @is_master_account
-        puts "ID: #{user['id']}"
-        puts "Account: #{user['account'] ? user['account']['name'] : nil}" + (@is_master_account ? " (Master Account)" : "")
-        # end
-        puts "First Name: #{user['firstName']}"
-        puts "Last Name: #{user['lastName']}"
-        puts "Username: #{user['username']}"
-        puts "Email: #{user['email']}"
-        puts "Role: #{format_user_role_names(user)}"
-        # puts "Date Created: #{format_local_dt(user['dateCreated'])}"
-        # puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
-        # print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
+        print_description_list({
+          "ID" => 'id',
+          "Account" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Account)" : '') },
+          # "First Name" => 'firstName',
+          # "Last Name" => 'lastName',
+          # "Name" => 'displayName',
+          "Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
+          "Username" => 'username',
+          "Email" => 'email',
+          "Role" => lambda {|it| format_user_role_names(it) }
+        }, user)
         print cyan
-        # puts "Max Storage (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxStorage'] : 0}"
-        # puts "Max Memory (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxMemory'] : 0}"
-        # puts "CPU Count: #{user['instanceLimits'] ? user['instanceLimits']['maxCpu'] : 0}"
 
         if options[:include_feature_access]
           if @user_permissions
-            print "\n" ,cyan, bold, "Feature Permissions\n","==================", reset, "\n\n"
+            print_h2 "Feature Permissions"
             print cyan
             rows = @user_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }
@@ -112,24 +108,28 @@ class Morpheus::Cli::Whoami
           end
         end
 
-        print "\n" ,cyan, bold, "Remote Appliance\n","==================", reset, "\n\n"
+        print_h1 "Remote Appliance"
         print cyan
-        if @appliance_name
-          puts "Name: #{@appliance_name}"
-        end
-        if @appliance_url
-          puts "Url: #{@appliance_url}"
-        end
-        if @appliance_build_verison
-          puts "Build Version: #{@appliance_build_verison}"
-        end
-        print cyan
+        appliance_data = {
+          'name' => @appliance_name,
+          'url' => @appliance_url,
+          'buildVersion' => @appliance_build_verison
+        }
+        print_description_list({
+          "Name" => 'name',
+          "Url" => 'url',
+          "Version" => 'buildVersion'
+        }, appliance_data)
 
-        if group
-          print "\n" ,cyan, bold, "Active Group\n","==================", reset, "\n\n"
+        if active_group
           print cyan
-          print "ID: #{group['id']}\n" 
-          print "Name: #{group['name']}\n" 
+          # print_h1 "Active Group"
+          # print cyan
+          # print_description_list({
+          #   "ID" => 'id',
+          #   "Name" => 'name'
+          # }, active_group)
+          print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
         else
           print "\n"
           print "No active group. See `groups use`\n",reset

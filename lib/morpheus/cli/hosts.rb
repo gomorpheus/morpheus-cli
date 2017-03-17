@@ -44,7 +44,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -74,6 +74,9 @@ class Morpheus::Cli::Hosts
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
+      elsif options[:csv]
+        print_servers_csv(json_response['servers'], options)
+        print "\n"
       else
         servers = json_response['servers']
         title = "Morpheus Hosts"
@@ -87,8 +90,7 @@ class Morpheus::Cli::Hosts
         if params[:phrase]
           subtitles << "Search: #{params[:phrase]}".strip
         end
-        subtitle = subtitles.join(', ')
-        print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+        print_h1 title, subtitles
         if servers.empty?
           puts yellow,"No hosts found.",reset
         else
@@ -107,7 +109,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -130,43 +132,35 @@ class Morpheus::Cli::Hosts
         print JSON.pretty_generate(json_response), "\n"
         return
       end
+      if options[:csv]
+        print_servers_csv([json_response['server']], options)
+        print "\n"
+        return
+      end
       server = json_response['server']
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
-
-      print "\n" ,cyan, bold, "Host Details\n","==================", reset, "\n\n"
+      title = "Host Details"
+      print_h1 title
       print cyan
-      puts "ID: #{server['id']}"
-      puts "Name: #{server['name']}"
-      puts "Description: #{server['description']}"
-      puts "Account: #{server['account'] ? server['account']['name'] : ''}"
-      #puts "Group: #{server['group'] ? server['group']['name'] : ''}"
-      #puts "Cloud: #{server['cloud'] ? server['cloud']['name'] : ''}"
-      puts "Cloud: #{server['zone'] ? server['zone']['name'] : ''}"
-      puts "Nodes: #{server['containers'] ? server['containers'].size : ''}"
-      puts "Type: #{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'}"
-      puts "Platform: #{server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A'}"
-      puts "Plan: #{server['plan'] ? server['plan']['name'] : ''}"
-      if server['agentInstalled']
-        puts "Agent: #{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}"
-      else
-        puts "Agent: (not installed)"
-      end
-      puts "Status: #{format_host_status(server)}"
-      puts "Power: #{format_server_power_state(server)}"
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        # stats_map = {}
-        print "\n"
-        #print "\n" ,cyan, bold, "Host Stats\n","==================", reset, "\n\n"
-        # stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-        # stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-        # stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
-        # tp [stats_map], :memory,:storage,:cpu
-        print_stats_usage(stats)
-      else
-        #print yellow, "No stat data.", reset
-      end
-
+      print_description_list({
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        #"Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
+        "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
+        "Type" => lambda {|it| it['computeServerType'] ? it['computeServerType']['name'] : 'unmanaged' },
+        "Platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
+        "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "Agent" => lambda {|it| it['agentInstalled'] ? "#{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}" : '(not installed)' },
+        "Status" => lambda {|it| format_host_status(it) },
+        "Nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
+        "Power" => lambda {|it| format_server_power_state(it) },
+      }, server)
+      
+      print_h2 "Host Usage"
+      print_stats_usage(stats)
       print reset, "\n"
 
     rescue RestClient::Exception => e
@@ -205,22 +199,14 @@ class Morpheus::Cli::Hosts
       server = json_response['server']
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
-
-      print "\n" ,cyan, bold, "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})\n","==================", "\n\n", reset, cyan
-      puts "Status: #{format_host_status(server)}"
-      puts "Power: #{format_server_power_state(server)}"
-      if ((stats['maxMemory'].to_i != 0) || (stats['maxStorage'].to_i != 0))
-        # stats_map = {}
-        print "\n"
-        #print "\n" ,cyan, bold, "Host Stats\n","==================", reset, "\n\n"
-        # stats_map[:memory] = "#{Filesize.from("#{stats['usedMemory']} B").pretty} / #{Filesize.from("#{stats['maxMemory']} B").pretty}"
-        # stats_map[:storage] = "#{Filesize.from("#{stats['usedStorage']} B").pretty} / #{Filesize.from("#{stats['maxStorage']} B").pretty}"
-        # stats_map[:cpu] = "#{stats['cpuUsage'].to_f.round(2)}%"
-        # tp [stats_map], :memory,:storage,:cpu
-        print_stats_usage(stats)
-      else
-        #print yellow, "No stat data.", reset
-      end
+      title = "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})"
+      print_h1 title
+      print cyan
+      puts dd_dt("Nodes", "#{server['containers'] ? server['containers'].size : ''}", 10)
+      puts dd_dt("Status", format_host_status(server), 10)
+      puts dd_dt("Power", format_server_power_state(server), 10)
+      # print "\n\n"
+      print_stats_usage(stats, {label_width: 10})
 
       print reset, "\n"
 
@@ -243,36 +229,47 @@ class Morpheus::Cli::Hosts
     end
     connect(options)
     begin
-      host = find_host_by_name_or_id(args[0])
+      server = find_host_by_name_or_id(args[0])
       params = {}
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @logs_interface.dry.server_logs([host['id']], params)
+        print_dry_run @logs_interface.dry.server_logs([server['id']], params)
         return
       end
-      logs = @logs_interface.server_logs([host['id']], params)
+      logs = @logs_interface.server_logs([server['id']], params)
       output = ""
       if options[:json]
         output << JSON.pretty_generate(logs)
       else
-        logs['data'].reverse.each do |log_entry|
-          log_level = ''
-          case log_entry['level']
-          when 'INFO'
-            log_level = "#{blue}#{bold}INFO#{reset}"
-          when 'DEBUG'
-            log_level = "#{white}#{bold}DEBUG#{reset}"
-          when 'WARN'
-            log_level = "#{yellow}#{bold}WARN#{reset}"
-          when 'ERROR'
-            log_level = "#{red}#{bold}ERROR#{reset}"
-          when 'FATAL'
-            log_level = "#{red}#{bold}FATAL#{reset}"
+        title = "Host Logs: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
+        end
+        # todo: startMs, endMs, sorts insteaad of sort..etc
+        print_h1 title, subtitles
+        if logs['data'].empty?
+          output << "#{cyan}No logs found.#{reset}\n"
+        else
+          logs['data'].reverse.each do |log_entry|
+            log_level = ''
+            case log_entry['level']
+            when 'INFO'
+              log_level = "#{blue}#{bold}INFO#{reset}"
+            when 'DEBUG'
+              log_level = "#{white}#{bold}DEBUG#{reset}"
+            when 'WARN'
+              log_level = "#{yellow}#{bold}WARN#{reset}"
+            when 'ERROR'
+              log_level = "#{red}#{bold}ERROR#{reset}"
+            when 'FATAL'
+              log_level = "#{red}#{bold}FATAL#{reset}"
+            end
+            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
           end
-          output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
         end
       end
       print output, reset, "\n"
@@ -305,7 +302,7 @@ class Morpheus::Cli::Hosts
       print JSON.pretty_generate(cloud_server_types)
       print "\n"
     else
-      print "\n" ,cyan, bold, "Morpheus Server Types - Cloud: #{zone['name']}\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Server Types - Cloud: #{zone['name']}"
       if cloud_server_types.nil? || cloud_server_types.empty?
         puts yellow,"No server types found for the selected cloud.",reset
       else
@@ -916,6 +913,32 @@ class Morpheus::Cli::Hosts
     print table_color
     tp rows, columns
     print reset
+  end
+
+  def print_servers_csv(records, opts={})
+    # cols = [:id, :name, :type, :cloud, :nodes, :status, :power]
+    cols = {
+      "id" => 'id',
+      "name" => 'name',
+      "description" => 'description',
+      "account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      #"group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
+      "cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
+      "type" => lambda {|it| it['computeServerType'] ? it['computeServerType']['name'] : 'unmanaged' },
+      "platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
+      "plan.name" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+      "agentInstalled" => "agentInstalled",
+      "lastAgentUpdate" => "lastAgentUpdate",
+      "status" => lambda {|it| it['status'] },
+      "nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
+      "power" => lambda {|it| it['powerState'] },
+    }
+    if opts[:csv_columns] == 'all'
+      cols = records.first ? records.first.keys : cols
+    elsif opts[:csv_columns].is_a?(Array)
+      cols = opts[:csv_columns]
+    end
+    print as_csv(cols, records, opts)
   end
 
   def format_server_power_state(server, return_color=cyan)

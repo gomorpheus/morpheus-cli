@@ -63,8 +63,10 @@ class Morpheus::Cli::Users
         if account
           subtitles << "Account: #{account['name']}".strip
         end
-        subtitle = subtitles.join(', ')
-        print "\n" ,cyan, bold, title, (subtitle.empty? ? "" : " - #{subtitle}"), "\n", "==================", reset, "\n\n"
+        if params[:phrase]
+          subtitles << "Search: #{params[:phrase]}".strip
+        end
+        print_h1 title, subtitles
         if users.empty?
           puts yellow,"No users found.",reset
         else
@@ -146,26 +148,34 @@ class Morpheus::Cli::Users
           print "\n"
         end
       else
-        print "\n" ,cyan, bold, "User Details\n","==================", reset, "\n\n"
+        print_h1 "User Details"
         print cyan
-        puts "ID: #{user['id']}"
-        puts "Account: #{user['account'] ? user['account']['name'] : nil}"
-        puts "First Name: #{user['firstName']}"
-        puts "Last Name: #{user['lastName']}"
-        puts "Username: #{user['username']}"
-        puts "Email: #{user['email']}"
-        puts "Role: #{format_user_role_names(user)}"
-        puts "Date Created: #{format_local_dt(user['dateCreated'])}"
-        puts "Last Updated: #{format_local_dt(user['lastUpdated'])}"
-        print "\n" ,cyan, bold, "User Instance Limits\n","==================", reset, "\n\n"
+        description_cols = {
+          "ID" => 'id',
+          "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          # "First" => 'firstName',
+          # "Last" => 'lastName',
+          # "Name" => 'displayName',
+          "Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
+          "Username" => 'username',
+          "Email" => 'email',
+          "Role" => lambda {|it| format_user_role_names(it) },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        }
+        print_description_list(description_cols, user)
+
+        print_h2 "User Instance Limits"
         print cyan
-        puts "Max Storage (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxStorage'] : 0}"
-        puts "Max Memory (bytes): #{user['instanceLimits'] ? user['instanceLimits']['maxMemory'] : 0}"
-        puts "CPU Count: #{user['instanceLimits'] ? user['instanceLimits']['maxCpu'] : 0}"
+        print_description_list({
+          "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
+          "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
+          "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
+        }, user['instanceLimits'])
 
         if options[:include_feature_access] && user_feature_permissions
           if user_feature_permissions
-            print "\n" ,cyan, bold, "Feature Permissions\n","==================", reset, "\n\n"
+            print_h2 "Feature Permissions"
             print cyan
             rows = user_feature_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }

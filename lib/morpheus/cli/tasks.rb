@@ -45,9 +45,9 @@ class Morpheus::Cli::Tasks
         print JSON.pretty_generate(json_response)
       else
         tasks = json_response['tasks']
-        print "\n" ,cyan, bold, "Morpheus Tasks\n","==================", reset, "\n\n"
+        print_h1 "Morpheus Tasks"
         if tasks.empty?
-          puts yellow,"No tasks currently configured.",reset
+          puts cyan,"No tasks found.",reset,"\n"
         else
           print cyan
           tasks_table_data = tasks.collect do |task|
@@ -94,16 +94,20 @@ class Morpheus::Cli::Tasks
         print "\n"
       else
         #print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
-        print "\n" ,cyan, bold, "Task Details\n","==================", reset, "\n\n"
+        print_h1 "Task Details"
         print cyan
-        puts "ID: #{task['id']}"
-        puts "Name: #{task['name']}"
-        puts "Type: #{task['taskType']['name']}"
-        #puts "Description: #{workflow['description']}"
-        # print "\n", cyan, "Config:\n"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Type" => lambda {|it| it['taskType']['name'] },
+        }
+        print_description_list(description_cols, task)
+        
+        # JD: uhh, the api should NOT be returning passwords!!
         task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
           if optionType['fieldLabel'].to_s.downcase == 'script'
-            print cyan,bold,"Script:","\n",reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+            print_h2 "Script"
+            print reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
           else
             print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
           end
@@ -195,18 +199,18 @@ class Morpheus::Cli::Tasks
       end
       json_response = @tasks_interface.task_types()
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        print JSON.pretty_generate(json_response),"\n"
       else
         task_types = json_response['taskTypes']
-        print "\n" ,cyan, bold, "Morpheus Task Types\n","==================", reset, "\n\n"
+        print_h1 "Morpheus Task Types"
         if task_types.nil? || task_types.empty?
-          puts yellow,"No task types currently exist on this appliance. This could be a seed issue.",reset
+          print yellow,"No task types currently exist on this appliance. This could be a seed issue.",reset,"\n"
         else
           print cyan
           tasks_table_data = task_types.collect do |task_type|
             {name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
           end
-          tp tasks_table_data, :id, :name, :code, :description
+          tp tasks_table_data, :id, :name, :code
         end
 
         print reset,"\n"
@@ -248,7 +252,7 @@ class Morpheus::Cli::Tasks
       end
       json_response = @tasks_interface.create(payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
         print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
         list([])
@@ -284,7 +288,7 @@ class Morpheus::Cli::Tasks
       end
       json_response = @tasks_interface.destroy(task['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
         print "\n", cyan, "Task #{task['name']} removed", reset, "\n\n"
       end

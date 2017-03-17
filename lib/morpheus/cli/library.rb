@@ -55,7 +55,7 @@ class Morpheus::Cli::Library
       end
 
       instance_types = json_response['instanceTypes']
-      print "\n" ,cyan, bold, "Morpheus Custom Instance Types\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Custom Instance Types"
       if instance_types.empty?
         puts yellow,"No instance types currently configured.",reset
       else
@@ -103,18 +103,13 @@ class Morpheus::Cli::Library
         print JSON.pretty_generate({instanceType: instance_type}), "\n"
         return
       end
-
-      if instance_type.nil?
-        puts yellow,"No custom instance type found by name #{name}.",reset
-      else
-        print "\n" ,cyan, bold, "Custom Instance Type Details\n","==================", reset, "\n\n"
-        versions = instance_type['versions'].join(', ')
-        print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
-        instance_type['instanceTypeLayouts'].each do |layout|
-          print green, "     - #{layout['name']}\n",reset
-        end
-        print reset,"\n"
+      print_h1 "Custom Instance Type Details"
+      versions = instance_type['versions'].join(', ')
+      print cyan, "=  #{instance_type['name']} (#{instance_type['code']}) - #{versions}\n"
+      instance_type['instanceTypeLayouts'].each do |layout|
+        print green, "     - #{layout['name']}\n",reset
       end
+      print reset,"\n"
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -435,9 +430,9 @@ class Morpheus::Cli::Library
       end
 
       option_types = json_response['optionTypes']
-      print "\n" ,cyan, bold, "Morpheus Option Types\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Option Types"
       if option_types.empty?
-        puts yellow,"No option types currently configured.",reset
+        print cyan,"No option types found.",reset,"\n"
       else
         rows = option_types.collect do |option_type|
           {
@@ -500,16 +495,18 @@ class Morpheus::Cli::Library
         return
       end
 
-      print "\n" ,cyan, bold, "Option Type Details\n","==================", reset, "\n\n"
+      print_h1 "Option Type Details"
       print cyan
-      puts "ID: #{option_type['id']}"
-      puts "Name: #{option_type['name']}"
-      puts "Description: #{option_type['description']}"
-      puts "Field Name: #{option_type['fieldName']}"
-      puts "Type: #{option_type['type'].to_s.capitalize}"
-      puts "Label: #{option_type['fieldLabel']}"
-      puts "Placeholder: #{option_type['placeHolder']}"
-      puts "Default Value: #{option_type['defaultValue']}"
+      print_description_list({
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        "Field Name" => 'fieldName',
+        "Type" => lambda {|it| it['type'].to_s.capitalize },
+        "Label" => 'fieldLabel',
+        "Placeholder" => 'placeHolder',
+        "Default Value" => 'defaultValue'
+      }, option_type)
       print reset,"\n"
 
     rescue RestClient::Exception => e
@@ -668,9 +665,9 @@ class Morpheus::Cli::Library
       end
 
       option_type_lists = json_response['optionTypeLists']
-      print "\n" ,cyan, bold, "Morpheus Option Lists\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Option Lists"
       if option_type_lists.empty?
-        puts yellow,"No option lists currently configured.",reset
+        print cyan,"No option lists found.",reset,"\n"
       else
         rows = option_type_lists.collect do |option_type_list|
           {
@@ -730,33 +727,44 @@ class Morpheus::Cli::Library
         return
       end
 
-      print "\n" ,cyan, bold, "Option List Details\n","==================", reset, "\n\n"
+      print_h1 "Option List Details"
       print cyan
-      puts "ID: #{option_type_list['id']}"
-      puts "Name: #{option_type_list['name']}"
-      puts "Description: #{option_type_list['description']}"
-      puts "Type: #{option_type_list['type'].to_s.capitalize}"
       if option_type_list['type'] == 'manual'
-        print cyan,"Initial Dataset:","\n",reset,bright_black,"#{option_type_list['initialDataset']}","\n",reset
-        print cyan
-      else      
-        puts "Source URL: #{option_type_list['sourceUrl']}"
-        puts "Ignore SSL Errors: #{option_type_list['ignoreSSLErrors'] ? 'yes' : 'no'}"
-        puts "Source Method: #{option_type_list['sourceMethod'].to_s.upcase}"
-        print cyan,"Initial Dataset:","\n",reset,bright_black,"#{option_type_list['initialDataset']}","\n",reset
-        print cyan
-        print cyan,"Translation Script:","\n",reset,bright_black,"#{option_type_list['translationScript']}","\n",reset
-        print cyan
+        print_description_list({
+          "ID" => 'id',
+          "Name" => 'name',
+          "Description" => 'description',
+          "Type" => lambda {|it| it['type'].to_s.capitalize },
+        }, option_type_list)
+        print_h2 "Initial Dataset"
+        print bright_black,"  #{option_type_list['initialDataset']}","\n",reset
+      else
+        print_description_list({
+          "ID" => 'id',
+          "Name" => 'name',
+          "Description" => 'description',
+          "Type" => lambda {|it| it['type'].to_s.capitalize },
+          "Source URL" => 'sourceUrl',
+          "Ignore SSL Errors" => lambda {|it| format_boolean it['ignoreSSLErrors'] },
+          "Source Method" => lambda {|it| it['sourceMethod'].to_s.upcase },
+        }, option_type_list)
+        if !option_type_list['initialDataset'].empty?
+          print_h2 "Initial Dataset"
+          print bright_black,"  #{option_type_list['initialDataset']}","\n",reset
+        end
+        if !option_type_list['translationScript'].empty?
+          print_h2 "Translation Script"
+          print bright_black,"  #{option_type_list['translationScript']}","\n",reset
+        end
       end
-      # print "\n" ,cyan, bold, "List Items\n","==================", reset, "\n\n"
-      print cyan,bold,"List Items: ",reset,"\n"
+
+      print_h2 "List Items"
       if option_type_list['listItems']
         # puts "\tNAME\tVALUE"
         # option_type_list['listItems'].each do |list_item|
         #   puts "\t#{list_item['name']}\t#{list_item['value']}"
         # end
         print cyan
-        print "\n"
         tp option_type_list['listItems'], ['name', 'value']
       else
         puts "No data"

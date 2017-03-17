@@ -8,6 +8,19 @@ module Morpheus::Cli::PrintHelper
     klass.send :include, Term::ANSIColor
   end
 
+  def self.terminal_width
+    @@terminal_width ||= 80
+  end
+
+  def self.terminal_width=(v)
+    if v.nil? || v.to_i == 0
+      @@terminal_width = nil
+    else
+      @@terminal_width = v.to_i
+    end
+    @@terminal_width
+  end
+
   def print_red_alert(msg)
     print "#{red}#{msg}#{reset}\n"
   end
@@ -18,6 +31,44 @@ module Morpheus::Cli::PrintHelper
 
   def print_green_success(msg)
     print "#{green}#{msg}#{reset}\n"
+  end
+
+  # print_h1 prints a header title and optional subtitles
+  # Output:
+  #
+  # title - subtitle1, subtitle2
+  # ==================
+  #
+  def print_h1(title, subtitles=[], color=cyan)
+    #print "\n" ,color, bold, title, (subtitles.empty? ? "" : " - #{subtitles.join(', ')}"), "\n", "==================", reset, "\n\n"
+    subtitles = subtitles.flatten
+    out = ""
+    out << "\n"
+    out << "#{color}#{bold}#{title}#{reset}"
+    if !subtitles.empty?
+      out << "#{color} - #{subtitles.join(', ')}#{reset}"
+    end
+    out << "\n"
+    out << "#{color}#{bold}==================#{reset}"
+    out << "\n\n"
+    out << reset
+    print out
+  end
+
+  def print_h2(title, subtitles=[], color=cyan)
+    #print "\n" ,color, bold, title, (subtitles.empty? ? "" : " - #{subtitles.join(', ')}"), "\n", "---------------------", reset, "\n\n"
+    subtitles = subtitles.flatten
+    out = ""
+    out << "\n"
+    out << "#{color}#{bold}#{title}#{reset}"
+    if !subtitles.empty?
+      out << "#{color} - #{subtitles.join(', ')}#{reset}"
+    end
+    out << "\n"
+    out << "#{color}---------------------#{reset}"
+    out << "\n\n"
+    out << reset
+    print out
   end
 
   def print_errors(response, options={})
@@ -137,7 +188,7 @@ module Morpheus::Cli::PrintHelper
     end
     request_string = "#{http_method.to_s.upcase} #{url}".strip
     payload = opts[:payload]
-    print "\n" ,cyan, bold, "DRY RUN\n","==================", "\n\n", reset
+    print_h1 "DRY RUN"
     print cyan
     print "Request: ", "\n"
     print reset
@@ -184,7 +235,7 @@ module Morpheus::Cli::PrintHelper
     else
       percent = ((used_value.to_f / max_value.to_f) * 100)
     end
-    percent_label = (used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent.round(2)}%".rjust(6, ' ')
+    percent_label = ((used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent.round(2)}%").rjust(6, ' ')
     bar_display = ""
     if percent > 100
       max_bars.times { bars << "|" }
@@ -235,22 +286,235 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_stats_usage(stats, opts={})
+    label_width = opts[:label_width] || 10
+    out = ""
+    if stats.nil? || stats.empty?
+      out << cyan + "No data." +  "\n" + reset
+      print out
+      return
+    end
     opts[:include] ||= [:memory, :storage, :cpu]
     if opts[:include].include?(:memory)
-      print cyan, "Memory:".ljust(10, ' ')  + generate_usage_bar(stats['usedMemory'], stats['maxMemory']) + cyan + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
+      out << cyan + "Memory".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['usedMemory'], stats['maxMemory']) + cyan + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
     end
     if opts[:include].include?(:storage)
-      print cyan, "Storage:".ljust(10, ' ') + generate_usage_bar(stats['usedStorage'], stats['maxStorage']) + cyan + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
+      out << cyan + "Storage".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['usedStorage'], stats['maxStorage']) + cyan + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
     end
     if opts[:include].include?(:cpu)
       cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
-      print cyan, "CPU:".ljust(10, ' ')  + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
+      out << cyan + "CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
+    print out
   end
 
   def print_available_options(option_types)
     option_lines = option_types.collect {|it| "\t-O #{it['fieldContext'] ? it['fieldContext'] + '.' : ''}#{it['fieldName']}=\"value\"" }.join("\n")
     puts "Available Options:\n#{option_lines}\n\n"
+  end
+
+  def dd_dt(label, value, label_width=10, justify="right", do_wrap=true)
+    # JD: uncomment next line to do away with justified labels
+    # label_width, justify = 0, "none"
+    out = ""
+    value = value.to_s
+    if do_wrap && value && Morpheus::Cli::PrintHelper.terminal_width
+      value_width = Morpheus::Cli::PrintHelper.terminal_width - label_width
+      if value_width > 0 && value.to_s.size > value_width
+        wrap_indent = label_width + 1 # plus 1 needs to go away
+        value = wrap(value, value_width, wrap_indent)
+      end
+    end
+    if justify == "right"
+      out << "#{label}:".rjust(label_width, ' ') + " #{value}" 
+    elsif justify == "left"
+      out << "#{label}:".ljust(label_width, ' ') + " #{value}" 
+    else
+      # default is none
+      out << "#{label}:" + " #{value}" 
+    end
+    out
+  end
+
+  # generate_description_list() prints a a two column table containing
+  # the name and value of a list of descriptions
+  # @param columns - [Hash or Array or Hashes] list of column definitions, A column defintion can be a String, Symbol, Hash or Proc
+  # @param data [Object] an object to extract the data from, it is treated like a Hash.
+  # @param opts [OptionParser] the option parser object being constructed
+  # Usage: 
+  # print_description_list([:id, :name, :status], my_instance, {})
+  #
+  def generate_description_list(columns, data, opts={})
+    out = ""
+    #label_width = opts[:label_width] || 10
+    max_label_width = 0
+    justify = opts.key?(:justify) ? opts[:justify] : "right"
+    do_wrap = opts.key?(:wrap) ? !!opts[:wrap] : true
+    rows = []
+    # allow passing a single hash instead of an array of hashes
+    if columns.is_a?(Hash)
+      columns = columns.collect {|k,v| {(k) => v} } 
+    end
+    columns.flatten.each do |column_def|
+      label, value = extract_description_value(column_def, data, opts)
+      if label.size > max_label_width
+        max_label_width = label.size
+      end
+      rows << {label: label, value: value}
+    end
+    label_width = max_label_width + 1 # for a leading space ' ' ..ew
+    value_width = nil
+    if Morpheus::Cli::PrintHelper.terminal_width
+      value_width = Morpheus::Cli::PrintHelper.terminal_width - label_width
+    end
+    rows.each do |row|
+      value = row[:value].to_s
+      if do_wrap
+        if value_width && value_width < value.size
+          wrap_indent = label_width + 1
+          value = wrap(value, value_width, wrap_indent)
+        end
+      end
+      out << dd_dt(row[:label], value, label_width, justify) + "\n"
+    end
+    return out
+  end
+
+  # print_description_list() is an alias for `print generate_description_list()`
+  def print_description_list(columns, data, opts={})
+    print generate_description_list(columns, data, opts)
+  end
+
+  # get_object_value returns a value within a Hash like object
+  # Usage: get_object_value(host, "plan.name")
+  def get_object_value(data, key)
+    value = nil
+    key = key.to_s
+    if key.include?(".")
+      namespaces = key.split(".")
+      value = data
+      namespaces.each do |ns|
+        if value.respond_to?("[]")
+          value = value[ns] # || cur_data[ns.to_sym]
+        else
+          value = nil
+          # break
+        end
+      end
+    else
+      value = data[key] # || data[key.to_sym]
+    end
+    return value
+  end
+
+  def extract_description_value(column_def, data, opts={})
+    # this method shouldn't need options, fix it
+    capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
+    label, value = nil, nil
+    if column_def.is_a?(String)
+      label = column_def
+      # value = data[column_def] || data[column_def.to_sym]
+      value = get_object_value(data, column_def)
+    elsif column_def.is_a?(Symbol)
+      label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
+      # value = data[column_def] || data[column_def.to_s]
+      value = get_object_value(data, column_def)
+    elsif column_def.is_a?(Hash)
+      k, v = column_def.keys[0], column_def.values[0]
+      if v.is_a?(String)
+        label = k
+        value = get_object_value(data, v)
+      elsif v.is_a?(Symbol)
+        label = capitalize_labels ? k.to_s.capitalize : k.to_s
+        value = get_object_value(data, v)
+        # value = data[v] || data[v.to_s]
+      elsif v.is_a?(Hash)
+        if v[:display_name]
+          label = v[:display_name]
+        else
+          label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
+        end
+        if v[:display_method]
+          if v[:display_method].is_a?(Proc)
+            value = v[:display_method].call(data)
+          else
+            value = get_object_value(data, v[:display_method].to_s)
+          end
+        else
+          value = get_object_value(data, v.to_s)
+        end
+      elsif v.is_a?(Proc)
+        label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
+        value = v.call(data)
+      else
+        raise "extract_description_value() invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
+      end
+    else
+      raise "extract_description_value() invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
+    end
+    return label, value
+  end
+
+  def wrap(s, width, indent=0)
+    out = s
+    if s.size > width
+      if indent > 0
+        out = s.gsub(/(.{1,#{width}})(\s+|\Z)/, "#{' ' * indent}\\1\n").strip
+      else
+        out = s.gsub(/(.{1,#{width}})(\s+|\Z)/, "\\1\n")
+      end
+    else
+      return s
+    end
+  end
+
+  def format_boolean(v)
+    !!v ? 'Yes' : 'No'
+  end
+
+  def quote_csv_value(v)
+    '"' + v.to_s.gsub('"', '""') + '"'
+  end
+
+  def as_csv(columns, data, opts={})
+    out = ""
+    include_header = opts[:csv_no_header] ? false : true
+    delim = opts[:csv_delim] || opts[:delim] || ","
+    do_quotes = opts[:csv_quotes] || opts[:quotes]
+    newline = opts[:csv_newline] || opts[:newline] || "\n"
+    # allow passing a single hash instead of an array of hashes
+    if columns.is_a?(Hash)
+      columns = columns.collect {|k,v| {(k) => v} }
+    end
+    columns = columns.flatten.compact
+    data_array = [data].flatten.compact
+    if include_header
+      headers = columns.collect {|column_def| column_def.is_a?(Hash) ? column_def.keys[0].to_s : column_def.to_s }
+      if do_quotes
+        headers = headers.collect {|it| quote_csv_value(it) }
+      end
+      out << headers.join(delim)
+      out << newline
+    end
+    lines = []
+    data_array.each do |obj|
+      if obj
+        cells = []
+        columns.each do |column_def|
+          # this is silly, fix it
+          label, value = extract_description_value(column_def, obj, opts)
+          if do_quotes
+            cells << quote_csv_value(value)
+          else
+            cells << value.to_s
+          end
+        end
+      end
+      line = cells.join(delim)
+      lines << line
+    end
+    out << lines.join(newline)
+    #out << delim
+    out
   end
 
 end

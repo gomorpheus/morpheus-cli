@@ -44,9 +44,9 @@ class Morpheus::Cli::SecurityGroups
         return
       end
       security_groups = json_response['securityGroups']
-      print "\n" ,cyan, bold, "Morpheus Security Groups\n","==================", reset, "\n\n"
+      print_h1 "Morpheus Security Groups"
       if security_groups.empty?
-        puts yellow,"No Security Groups currently configured.",reset
+        print yellow,"No Security Groups currently configured.",reset,"\n"
       else
         active_id = @active_security_group[@appliance_name.to_sym]
         security_groups.each do |security_group|
@@ -57,7 +57,7 @@ class Morpheus::Cli::SecurityGroups
           end
         end
         if active_id
-          print cyan, "\n\n# => - current", reset
+          print cyan, "\n# => - current", reset, "\n"
         end
       end
       print reset,"\n"
@@ -91,14 +91,17 @@ class Morpheus::Cli::SecurityGroups
         return
       end
       security_group = json_response['securityGroup']
-      print "\n" ,cyan, bold, "Morpheus Security Group\n","==================", reset, "\n\n"
-      if security_group.nil?
-        puts yellow,"Security Group not found by id #{args[0]}",reset
-      else
-        print cyan, "=  #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
-      end
-      print reset,"\n\n"
-          rescue RestClient::Exception => e
+      print_h1 "Morpheus Security Group"
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      }
+      print_description_list(description_cols, security_group)
+      print reset,"\n"
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -235,16 +238,17 @@ class Morpheus::Cli::SecurityGroups
   end
 
   def self.security_group_file_path
-    home_dir = Dir.home
-    morpheus_dir = File.join(home_dir,".morpheus")
-    if !Dir.exist?(morpheus_dir)
-      Dir.mkdir(morpheus_dir)
-    end
-    return File.join(morpheus_dir,"securitygroup")
+    File.join(Morpheus::Cli.home_directory,"securitygroup")
   end
 
-  def self.save_security_group(security_group_map)
-    File.open(security_group_file_path, 'w') {|f| f.write security_group_map.to_yaml } #Store
+  def self.save_security_group(new_config)
+    fn = security_group_file_path
+    if !Dir.exists?(File.dirname(fn))
+      FileUtils.mkdir_p(File.dirname(fn))
+    end
+    File.open(fn, 'w') {|f| f.write new_config.to_yaml } #Store
+    FileUtils.chmod(0600, fn)
+    new_config
   end
 
 end

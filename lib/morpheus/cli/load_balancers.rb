@@ -47,9 +47,9 @@ class Morpheus::Cli::LoadBalancers
         print JSON.pretty_generate(json_response)
       else
         lbs = json_response['loadBalancers']
-        print "\n" ,cyan, bold, "Morpheus Load Balancers\n","==================", reset, "\n\n"
+        print_h1 "Morpheus Load Balancers"
         if lbs.empty?
-          puts yellow,"No load balancers currently configured.",reset
+          print cyan,"No load balancers found.",reset,"\n"
         else
           print cyan
           lb_table_data = lbs.collect do |lb|
@@ -186,9 +186,9 @@ class Morpheus::Cli::LoadBalancers
         print JSON.pretty_generate(json_response)
       else
         lb_types = json_response['loadBalancerTypes']
-        print "\n" ,cyan, bold, "Morpheus Load Balancer Types\n","============================", reset, "\n\n"
+        print_h1 "Morpheus Load Balancer Types"
         if lb_types.nil? || lb_types.empty?
-          puts yellow,"No lb types currently exist on this appliance. This could be a seed issue.",reset
+          print yellow,"No lb types currently exist on this appliance. This could be a seed issue.",reset,"\n"
         else
           print cyan
           lb_table_data = lb_types.collect do |lb_type|
