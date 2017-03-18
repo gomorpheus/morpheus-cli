@@ -755,6 +755,66 @@ echo ```
 library list -h
 echo ```
 echo
+echo #### library option-lists
+echo
+echo ```
+library option-lists -h
+echo ```
+echo
+echo #### library option-lists-add
+echo
+echo ```
+library option-lists-add -h
+echo ```
+echo
+echo #### library option-lists-get
+echo
+echo ```
+library option-lists-get -h
+echo ```
+echo
+echo #### library option-lists-remove
+echo
+echo ```
+library option-lists-remove -h
+echo ```
+echo
+echo #### library option-lists-update
+echo
+echo ```
+library option-lists-update -h
+echo ```
+echo
+echo #### library option-types
+echo
+echo ```
+library option-types -h
+echo ```
+echo
+echo #### library option-types-add
+echo
+echo ```
+library option-types-add -h
+echo ```
+echo
+echo #### library option-types-get
+echo
+echo ```
+library option-types-get -h
+echo ```
+echo
+echo #### library option-types-remove
+echo
+echo ```
+library option-types-remove -h
+echo ```
+echo
+echo #### library option-types-update
+echo
+echo ```
+library option-types-update -h
+echo ```
+echo
 echo #### library remove
 echo
 echo ```
