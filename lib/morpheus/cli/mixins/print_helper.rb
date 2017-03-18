@@ -294,15 +294,15 @@ module Morpheus::Cli::PrintHelper
       return
     end
     opts[:include] ||= [:memory, :storage, :cpu]
+    if opts[:include].include?(:cpu)
+      cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
+      out << cyan + "CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
+    end
     if opts[:include].include?(:memory)
       out << cyan + "Memory".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['usedMemory'], stats['maxMemory']) + cyan + Filesize.from("#{stats['usedMemory']} B").pretty.strip.rjust(15, ' ')           + " / " + Filesize.from("#{stats['maxMemory']} B").pretty.strip.ljust(15, ' ')  + "\n"
     end
     if opts[:include].include?(:storage)
       out << cyan + "Storage".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['usedStorage'], stats['maxStorage']) + cyan + Filesize.from("#{stats['usedStorage']} B").pretty.strip.rjust(15, ' ') + " / " + Filesize.from("#{stats['maxStorage']} B").pretty.strip.ljust(15, ' ') + "\n"
-    end
-    if opts[:include].include?(:cpu)
-      cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
-      out << cyan + "CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
     print out
   end
