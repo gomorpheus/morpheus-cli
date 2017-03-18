@@ -83,8 +83,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.create(payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         instance_name = json_response["instance"]["name"]
         print_green_success "Provisioning instance #{instance_name}"
@@ -145,8 +144,7 @@ class Morpheus::Cli::Instances
       json_response = @instances_interface.update(instance["id"], payload)
 
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         print_green_success "Updated instance #{instance['name']}"
         list([])
@@ -179,7 +177,7 @@ class Morpheus::Cli::Instances
     end
     if options[:json]
       mock_json = {status: instance['status'], exit: exit_code}
-      out << JSON.pretty_generate(mock_json)
+      out << as_json(mock_json, options)
       out << "\n"
     elsif !options[:quiet]
       out << cyan
@@ -211,7 +209,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options)
         return
       end
       instance = json_response['instance']
@@ -307,7 +305,7 @@ class Morpheus::Cli::Instances
       logs = @logs_interface.container_logs(container_ids, params)
       output = ""
       if options[:json]
-        output << JSON.pretty_generate(logs)
+        output << as_json(logs, options)
       else
         title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
         subtitles = []
@@ -348,7 +346,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -368,8 +366,11 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
+        if options[:include_fields]
+          json_response = {"instance" => filter_data(json_response["instance"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
       end
       if options[:csv]
         print_instances_csv([json_response['instance']], options)
@@ -447,7 +448,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.backups(instance['id'], params)
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options)
         return
       end
       backups = json_response['backups']
@@ -517,8 +518,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.clone(instance['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         print_green_success "Cloning instance #{instance['name']} to '#{payload['name']}'"
       end
@@ -550,7 +550,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.get_envs(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options)
         return
       end
       print_h1 "Instance Envs: #{instance['name']} (#{instance['instanceType']['name']})"
@@ -599,7 +599,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.create_env(instance['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options)
         return
       end
       if !options[:quiet]
@@ -631,7 +631,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.del_env(instance['id'], args[1])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options)
         return
       end
       if !options[:quiet]
@@ -666,7 +666,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.stop(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        puts as_json(json_response, options)
         print "\n"
       end
       return
@@ -696,8 +696,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.start(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
+        return 0
       end
       return
     rescue RestClient::Exception => e
@@ -729,8 +729,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.restart(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       end
       return
     rescue RestClient::Exception => e
@@ -762,10 +761,9 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.suspend(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -795,10 +793,9 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.eject(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -828,12 +825,11 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.stop(instance['id'],false)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         puts "Stopping service on #{args[0]}"
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -860,12 +856,11 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.start(instance['id'],false)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         puts "Starting service on #{args[0]}"
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -895,8 +890,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.restart(instance['id'],false)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         puts "Restarting service on instance #{args[0]}"
       end
@@ -971,8 +965,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.resize(instance['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
+        return 0
       else
         print_green_success "Resizing instance #{instance['name']}"
         list([])
@@ -1006,12 +1000,12 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.backup(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
+        return 0
       else
         puts "Backup initiated."
+        return 0
       end
-      return
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1028,7 +1022,7 @@ class Morpheus::Cli::Instances
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -1056,8 +1050,13 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.get(params)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        if options[:include_fields]
+          json_response = {
+            "instances" => filter_data(json_response["instances"], options[:include_fields])
+          }
+        end
+        puts as_json(json_response, options)
+        return 0
       elsif options[:csv]
         print_instances_csv(json_response['instances'], options)
         print "\n"
@@ -1121,8 +1120,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.destroy(instance['id'],query_params)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
+        return
       elsif !options[:quiet]
         list([])
       end
@@ -1152,8 +1151,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.firewall_disable(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
+        return
       elsif !options[:quiet]
         security_groups([args[0]])
       end
@@ -1183,8 +1182,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.firewall_enable(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
+        return
       elsif !options[:quiet]
         security_groups([args[0]])
       end
@@ -1214,8 +1213,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.security_groups(instance['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
         return
       end
       securityGroups = json_response['securityGroups']
@@ -1275,8 +1273,7 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.apply_security_groups(instance['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
         return
       end
       if !options[:quiet]
@@ -1333,8 +1330,8 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        print as_json(json_response, options), "\n"
+        return
       else
         puts "Running workflow..."
       end
@@ -1388,12 +1385,11 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.import_snapshot(instance['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
         puts "Snapshot import initiated."
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1471,10 +1467,10 @@ class Morpheus::Cli::Instances
         #"account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "status" => 'status'
       }
-    if opts[:csv_columns] == 'all'
+    if opts[:include_fields] == 'all'
       cols = instances.first ? instances.first.keys : cols
-    elsif opts[:csv_columns].is_a?(Array)
-      cols = opts[:csv_columns]
+    elsif opts[:include_fields].is_a?(Array)
+      cols = opts[:include_fields]
     end
     print as_csv(cols, instances, opts)
   end

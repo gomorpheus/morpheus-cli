@@ -44,7 +44,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -72,8 +72,13 @@ class Morpheus::Cli::Hosts
       json_response = @servers_interface.get(params)
 
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        if options[:include_fields]
+          json_response = {
+            "servers" => filter_data(json_response["servers"], options[:include_fields])
+          }
+        end
+        puts as_json(json_response, options)
+        return 0
       elsif options[:csv]
         print_servers_csv(json_response['servers'], options)
         print "\n"
@@ -109,7 +114,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -129,8 +134,11 @@ class Morpheus::Cli::Hosts
       server = find_host_by_name_or_id(args[0])
       json_response = @servers_interface.get(server['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
+        if options[:include_fields]
+          json_response = {"server" => filter_data(json_response["server"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
       end
       if options[:csv]
         print_servers_csv([json_response['server']], options)
@@ -933,10 +941,10 @@ class Morpheus::Cli::Hosts
       "nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
       "power" => lambda {|it| it['powerState'] },
     }
-    if opts[:csv_columns] == 'all'
+    if opts[:include_fields] == 'all'
       cols = records.first ? records.first.keys : cols
-    elsif opts[:csv_columns].is_a?(Array)
-      cols = opts[:csv_columns]
+    elsif opts[:include_fields].is_a?(Array)
+      cols = opts[:include_fields]
     end
     print as_csv(cols, records, opts)
   end

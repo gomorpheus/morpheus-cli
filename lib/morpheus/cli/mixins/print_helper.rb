@@ -384,28 +384,6 @@ module Morpheus::Cli::PrintHelper
     print generate_description_list(columns, data, opts)
   end
 
-  # get_object_value returns a value within a Hash like object
-  # Usage: get_object_value(host, "plan.name")
-  def get_object_value(data, key)
-    value = nil
-    key = key.to_s
-    if key.include?(".")
-      namespaces = key.split(".")
-      value = data
-      namespaces.each do |ns|
-        if value.respond_to?("[]")
-          value = value[ns] # || cur_data[ns.to_sym]
-        else
-          value = nil
-          # break
-        end
-      end
-    else
-      value = data[key] # || data[key.to_sym]
-    end
-    return value
-  end
-
   def extract_description_value(column_def, data, opts={})
     # this method shouldn't need options, fix it
     capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
@@ -413,19 +391,19 @@ module Morpheus::Cli::PrintHelper
     if column_def.is_a?(String)
       label = column_def
       # value = data[column_def] || data[column_def.to_sym]
-      value = get_object_value(data, column_def)
+      value = get_data_value(data, column_def)
     elsif column_def.is_a?(Symbol)
       label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
       # value = data[column_def] || data[column_def.to_s]
-      value = get_object_value(data, column_def)
+      value = get_data_value(data, column_def)
     elsif column_def.is_a?(Hash)
       k, v = column_def.keys[0], column_def.values[0]
       if v.is_a?(String)
         label = k
-        value = get_object_value(data, v)
+        value = get_data_value(data, v)
       elsif v.is_a?(Symbol)
         label = capitalize_labels ? k.to_s.capitalize : k.to_s
-        value = get_object_value(data, v)
+        value = get_data_value(data, v)
         # value = data[v] || data[v.to_s]
       elsif v.is_a?(Hash)
         if v[:display_name]
@@ -437,10 +415,10 @@ module Morpheus::Cli::PrintHelper
           if v[:display_method].is_a?(Proc)
             value = v[:display_method].call(data)
           else
-            value = get_object_value(data, v[:display_method].to_s)
+            value = get_data_value(data, v[:display_method].to_s)
           end
         else
-          value = get_object_value(data, v.to_s)
+          value = get_data_value(data, v.to_s)
         end
       elsif v.is_a?(Proc)
         label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
@@ -477,10 +455,10 @@ module Morpheus::Cli::PrintHelper
 
   def as_csv(columns, data, opts={})
     out = ""
-    include_header = opts[:csv_no_header] ? false : true
     delim = opts[:csv_delim] || opts[:delim] || ","
-    do_quotes = opts[:csv_quotes] || opts[:quotes]
     newline = opts[:csv_newline] || opts[:newline] || "\n"
+    include_header = opts[:csv_no_header] ? false : true
+    do_quotes = opts[:csv_quotes] || opts[:quotes]
     # allow passing a single hash instead of an array of hashes
     if columns.is_a?(Hash)
       columns = columns.collect {|k,v| {(k) => v} }
@@ -515,6 +493,36 @@ module Morpheus::Cli::PrintHelper
     out << lines.join(newline)
     #out << delim
     out
+  end
+
+  def as_json(data, options={})
+    out = ""
+    if !data
+      return "null" # "No data"
+    end
+    
+    # include_fields = options[:include_fields]
+    # if include_fields
+    #   json_fields_for = options[:json_fields_for] || options[:fields_for] || options[:root_field]
+    #   if json_fields_for && data[json_fields_for]
+    #     data[json_fields_for] = filtered_data(data[json_fields_for], include_fields)
+    #   else
+    #     data = filtered_data(data, include_fields)
+    #   end
+    # end
+    do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : true
+    if do_pretty
+      out << JSON.pretty_generate(data)
+    else
+      out << JSON.fast_generate(data)
+    end
+    #out << "\n"
+    out
+  end
+
+  # @deprecated
+  def generate_pretty_json(data, options={})
+    as_json(data, options)
   end
 
 end

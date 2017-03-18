@@ -217,6 +217,12 @@ module Morpheus
               options[:format] = :json
             end
 
+            opts.on('--json-raw', String, "JSON Output that is not so pretty.") do |val|
+              options[:json] = true
+              options[:format] = :json
+              options[:pretty_json] = false
+            end
+
           when :csv
             opts.on(nil, '--csv', "CSV Output") do
               options[:csv] = true
@@ -224,41 +230,39 @@ module Morpheus
               #options[:csv_delim] = options[:csv_delim] || ","
             end
 
-            opts.on('--csv-delim STRING', String, "Delimiter for --csv") do |val|
+            opts.on('--csv-delim CHAR', String, "Delimiter for CSV Output values. Default: ','") do |val|
               options[:csv] = true
               options[:format] = :csv
+              val = val.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
               options[:csv_delim] = val
             end
 
-            opts.on('--csv-newline STRING', String, "Row delimiter for csv output. Default is \\n") do |val|
+            opts.on('--csv-newline [CHAR]', String, "Delimiter for CSV Output values. Default: '\\n'") do |val|
               options[:csv] = true
               options[:format] = :csv
-              options[:csv_newline] = val
+              if val == "no" || val == "none"
+                options[:csv_newline] = ""
+              else
+                val = val.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
+                options[:csv_newline] = val
+              end
             end
 
-            opts.on(nil, '--csv-quotes', "Quote CSV values for --csv. Default is false.") do |val|
+            opts.on(nil, '--csv-quotes', "Quote values for CSV Output. Default: false") do
               options[:csv] = true
               options[:format] = :csv
-              options[:csv_quotes] = val
+              options[:csv_quotes] = true
             end
 
-            opts.on(nil, '--csv-no-header', "Exclude header for --csv.") do |val|
+            opts.on(nil, '--csv-no-header', "Exclude header for CSV Output.") do
               options[:csv] = true
               options[:format] = :csv
               options[:csv_no_header] = true
             end
 
-            opts.on('--csv-columns COLUMNS', String, "Fields to include in the CSV output.") do |val|
-              if val.empty?
-                raise OptionParser::InvalidArgument.new("--csv-columns must include atleast one column, separate fields with a comma.")
-              end
-              options[:csv] = true
-              options[:format] = :csv
-              if val == "all"
-                options[:csv_columns] = 'all'
-              else
-                options[:csv_columns] = val.to_s.split(/\s?\,+\s?/).select {|it| it && !it.empty? }
-              end
+          when :fields
+            opts.on('--fields x,y,z', Array, "Filter Output to a limited set of fields. Default is all fields.") do |val|
+              options[:include_fields] = val
             end
 
           when :dry_run
