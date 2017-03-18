@@ -201,8 +201,23 @@ class Morpheus::Cli::Instances
       exit 1
     end
     connect(options)
+    ids = args
+    cmd_results = []
+    ids.each do |arg|
+      begin
+        cur_result = _stats(arg, options)
+      rescue SystemExit => err
+        cur_result = err.success? ? 0 : 1
+      end
+      cmd_results << cur_result
+    end
+    failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
+    return failed_cmd ? failed_cmd : 0
+  end
+
+  def _stats(arg, options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
+      instance = find_instance_by_name_or_id(arg)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.get(instance['id'])
         return
@@ -354,16 +369,31 @@ class Morpheus::Cli::Instances
       exit 1
     end
     connect(options)
+    ids = args
+    cmd_results = []
+    ids.each do |arg|
+      begin
+        cur_result = _get(arg, options)
+      rescue SystemExit => err
+        cur_result = err.success? ? 0 : 1
+      end
+      cmd_results << cur_result
+    end
+    failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
+    return failed_cmd ? failed_cmd : 0
+  end
+
+  def _get(arg, options)
     begin
       if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @instances_interface.dry.get(args[0].to_i)
+        if arg.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @instances_interface.dry.get(arg.to_i)
         else
-          print_dry_run @instances_interface.dry.get({name:args[0]})
+          print_dry_run @instances_interface.dry.get({name:arg})
         end
         return
       end
-      instance = find_instance_by_name_or_id(args[0])
+      instance = find_instance_by_name_or_id(arg)
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
         if options[:include_fields]
