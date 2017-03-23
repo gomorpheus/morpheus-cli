@@ -1,4 +1,5 @@
 require 'term/ansicolor'
+require 'morpheus/logging'
 module Morpheus
   module Cli
     class CliRegistry
@@ -39,7 +40,7 @@ module Morpheus
           # support aliases of multiple commands, semicolon delimiter
           # todo: 
           all_commands = found_alias_command.gsub(ALIAS_SPLIT_REGEX, '__ALIAS_SPLIT_REGEX__').split('__ALIAS_SPLIT_REGEX__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-          print "#{dark} #=> executing alias #{alias_name} as #{all_commands.join('; ')}#{reset}\n" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "executing alias #{alias_name} as #{all_commands.join('; ')}" if Morpheus::Logging.debug?
           all_commands.each do |a_command_string|
             alias_args = a_command_string.to_s.split(/\s+/) # or just ' '
             command_name = alias_args.shift

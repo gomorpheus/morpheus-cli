@@ -73,15 +73,13 @@ class Morpheus::Cli::Hosts
 
       if options[:json]
         if options[:include_fields]
-          json_response = {
-            "servers" => filter_data(json_response["servers"], options[:include_fields])
-          }
+          json_response = {"servers" => filter_data(json_response["servers"], options[:include_fields]) }
         end
         puts as_json(json_response, options)
         return 0
       elsif options[:csv]
-        print_servers_csv(json_response['servers'], options)
-        print "\n"
+        puts records_as_csv(json_response['servers'], options)
+        return 0
       else
         servers = json_response['servers']
         title = "Morpheus Hosts"
@@ -156,9 +154,8 @@ class Morpheus::Cli::Hosts
         return 0
       end
       if options[:csv]
-        print_servers_csv([json_response['server']], options)
-        print "\n"
-        return
+        puts records_as_csv([json_response['server']], options)
+        return 0
       end
       server = json_response['server']
       #stats = server['stats'] || json_response['stats'] || {}
@@ -239,11 +236,10 @@ class Morpheus::Cli::Hosts
       stats = json_response['stats'] || {}
       title = "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})"
       print_h1 title
-      print cyan
-      puts dd_dt("Nodes", "#{server['containers'] ? server['containers'].size : ''}", 10)
-      puts dd_dt("Status", format_host_status(server), 10)
-      puts dd_dt("Power", format_server_power_state(server), 10)
-      # print "\n\n"
+      puts cyan + "Power: ".rjust(12) + format_server_power_state(server).to_s
+      puts cyan + "Status: ".rjust(12) + format_host_status(server).to_s
+      puts cyan + "Nodes: ".rjust(12) + (server['containers'] ? server['containers'].size : '').to_s
+      #print_h2 "Host Usage"
       print_stats_usage(stats, {label_width: 10})
 
       print reset, "\n"
@@ -951,32 +947,6 @@ class Morpheus::Cli::Hosts
     print table_color
     tp rows, columns
     print reset
-  end
-
-  def print_servers_csv(records, opts={})
-    # cols = [:id, :name, :type, :cloud, :nodes, :status, :power]
-    cols = {
-      "id" => 'id',
-      "name" => 'name',
-      "description" => 'description',
-      "account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-      #"group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
-      "cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
-      "type" => lambda {|it| it['computeServerType'] ? it['computeServerType']['name'] : 'unmanaged' },
-      "platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
-      "plan.name" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
-      "agentInstalled" => "agentInstalled",
-      "lastAgentUpdate" => "lastAgentUpdate",
-      "status" => lambda {|it| it['status'] },
-      "nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
-      "power" => lambda {|it| it['powerState'] },
-    }
-    if opts[:include_fields] == 'all'
-      cols = records.first ? records.first.keys : cols
-    elsif opts[:include_fields].is_a?(Array)
-      cols = opts[:include_fields]
-    end
-    print as_csv(cols, records, opts)
   end
 
   def format_server_power_state(server, return_color=cyan)

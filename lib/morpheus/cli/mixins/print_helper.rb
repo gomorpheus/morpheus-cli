@@ -1,6 +1,7 @@
 require 'uri'
 require 'term/ansicolor'
 require 'json'
+require 'ostruct'
 
 module Morpheus::Cli::PrintHelper
 
@@ -22,6 +23,8 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_red_alert(msg)
+    # todo: replace most usage of this with raise CommandError.new(msg)
+    # $stderr.print "#{red}#{msg}#{reset}\n"
     print "#{red}#{msg}#{reset}\n"
   end
 
@@ -211,10 +214,61 @@ module Morpheus::Cli::PrintHelper
     print reset
   end
 
-  def print_results_pagination(json_response)
-    if json_response && json_response["meta"]
-      print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n", reset
+  def print_results_pagination(json_response, options={})
+    # print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n", reset
+    print format_results_pagination(json_response, options)
+  end
+
+  def format_results_pagination(json_response, options={})
+    # no output for strange, empty data
+    if json_response.nil? || json_response.empty?
+      return ""
     end
+    
+    # options = OpenStruct.new(options) # laff, let's do this instead
+    color = options.key?(:color) ? options[:color] : cyan
+    label = options[:label]
+    n_label = options[:n_label]
+    # label = n_label if !label && n_label
+    message = options[:message] || "Viewing %{start_index}-%{end_index} of %{total} %{label}"
+    blank_message = options[:blank_message] || nil # "No %{label} found"
+
+    # support lazy passing of common json_response {"meta": {"size": {25}, "total": 56} }
+    # otherwise use the root values given
+    meta = OpenStruct.new(json_response)
+    if meta.meta
+      meta = OpenStruct.new(meta.meta)
+    end
+    offset, size, total = meta.offset.to_i, meta.size.to_i, meta.total.to_i
+    #objects = meta.objects || options[:objects_key] ? json_response[options[:objects_key]] : nil
+    #objects ||= meta.instances || meta.servers || meta.users || meta.roles
+    #size = objects.size if objects && size == 0
+    if total == 0
+      total = size
+    end
+    if total != 1
+      label = n_label || label
+    end
+    out_str = ""
+    string_key_values = {start_index: offset + 1, end_index: offset + size, total: total, size: size, offset: offset, label: label}
+    if size > 0
+      if message
+        out_str << message % string_key_values
+      end
+    else
+      if blank_message
+        out_str << blank_message % string_key_values
+      else
+        #out << "No records"
+      end
+    end
+    out = ""
+    out << "\n"
+    out << color if color
+    out << out_str.strip
+    out << reset if color
+    out << "\n"
+    out
   end
 
   def required_blue_prompt
@@ -312,7 +366,7 @@ module Morpheus::Cli::PrintHelper
     puts "Available Options:\n#{option_lines}\n\n"
   end
 
-  def dd_dt(label, value, label_width=10, justify="right", do_wrap=true)
+  def format_dt_dd(label, value, label_width=10, justify="right", do_wrap=true)
     # JD: uncomment next line to do away with justified labels
     # label_width, justify = 0, "none"
     out = ""
@@ -335,27 +389,199 @@ module Morpheus::Cli::PrintHelper
     out
   end
 
-  # generate_description_list() prints a a two column table containing
+  # truncate_string truncates a string and appends the suffix "..."
+  # @param value [String] the string to pad
+  # @param width [Integer] the length to truncate to
+  # @param pad_char [String] the character to pad with. Default is ' '
+  def truncate_string(value, width, suffix="...")
+    value = value.to_s
+    # JD: hack alerty.. this sux, but it's a best effort to preserve values containing ascii coloring codes
+    #     it stops working when there are words separated by ascii codes, eg. two diff colors
+    #     plus this is probably pretty slow...
+    uncolored_value = Term::ANSIColor.coloring? ? Term::ANSIColor.uncolored(value.to_s) : value.to_s
+    if uncolored_value != value
+      trimmed_value = nil
+      if uncolored_value.size > width
+        if suffix
+          trimmed_value = uncolored_value[0..width-(suffix.size+1)] + suffix
+        else
+          trimmed_value = uncolored_value[0..width-1]
+        end
+        return value.gsub(uncolored_value, trimmed_value)
+      else
+        return value
+      end
+    else
+      if value.size > width
+        if suffix
+          return value[0..width-(suffix.size+1)] + suffix
+        else
+          return value[0..width-1]
+        end
+      else
+        return value
+      end
+    end
+  end
+
+  # justified returns a left, center, or right aligned string. 
+  # @param value [String] the string to pad
+  # @param width [Integer] the length to truncate to
+  # @param pad_char [String] the character to pad with. Default is ' '
+  # @return [String]
+  def justify_string(value, width, justify="left", pad_char=" ")
+    # JD: hack alert! this sux, but it's a best effort to preserve values containing ascii coloring codes
+    value = value.to_s
+    uncolored_value = Term::ANSIColor.coloring? ? Term::ANSIColor.uncolored(value.to_s) : value.to_s
+    if value.size != uncolored_value.size
+      width = width + (value.size - uncolored_value.size)
+    end
+    if justify == "right"
+      return "#{value}".rjust(width, pad_char)
+    elsif justify == "center"
+      return "#{value}".center(width, pad_char)
+    else
+      return "#{value}".ljust(width, pad_char)
+    end
+  end
+
+  def format_table_cell(value, width, justify="left", pad_char=" ", suffix="...")
+    #puts "format_table_cell(#{value}, #{width}, #{justify}, #{pad_char.inspect})"
+    cell = value.to_s
+    cell = truncate_string(cell, width, suffix)
+    cell = justify_string(cell, width, justify, pad_char)
+    cell
+  end
+
+  # as_pretty_table generates a table with aligned columns and truncated values.
+  # This can be used in place of TablePrint.tp()
+  # @param data [Array] A list of objects to extract the data from.
+  # @param columns - [Array of Objects] list of column definitions, A column definition can be a String, Symbol, or Hash
+  # @return [String]
+  # Usage: puts as_pretty_table(my_objects, [:id, :name])
+  #        puts as_pretty_table(my_objects, ["id", "name", {"plan" => "plan.name" }], {color: white})
+  #
+  def as_pretty_table(data, columns, options={})
+    data = [data].flatten
+    columns = build_column_definitions(columns)
+
+    table_color = options[:color] || cyan
+    cell_delim = options[:delim] || " | "
+
+    header_row = []
+    
+    columns.each do |column_def|
+      header_row << column_def.label
+    end
+
+    # generate rows matrix data for the specified columns
+    rows = []
+    data.each do |row_data|
+      row = []
+      columns.each do |column_def|
+        # r << column_def.display_method.respond_to?(:call) ? column_def.display_method.call(row_data) : get_object_value(row_data, column_def.display_method)
+        value = column_def.display_method.call(row_data)        
+        row << value
+      end
+      rows << row
+    end
+
+    # all rows (pre-formatted)
+    data_matrix = [header_row] + rows
+  
+    # determine column meta info i.e. width    
+    columns.each_with_index do |column_def, column_index|
+      # column_def.meta = {
+      #   max_value_size: (header_row + rows).max {|row| row[column_index] ? row[column_index].to_s.size : 0 }.size
+      # }
+      if column_def.fixed_width
+        column_def.width = column_def.fixed_width.to_i
+      else
+        max_value_size = 0
+        data_matrix.each do |row|
+          v = row[column_index].to_s
+          v_size = Term::ANSIColor.coloring? ? Term::ANSIColor.uncolored(v).size : v.size
+          if v_size > max_value_size
+            max_value_size = v_size
+          end
+        end
+
+        max_width = (column_def.max_width.to_i > 0) ? column_def.max_width.to_i : nil
+        min_width = (column_def.min_width.to_i > 0) ? column_def.min_width.to_i : nil
+        if min_width && max_value_size < min_width
+          column_def.width = min_width
+        elsif max_width && max_value_size > max_width
+          column_def.width = max_width
+        else
+          # expand / contract to size of the value by default
+          column_def.width = max_value_size
+        end
+        #puts "DEBUG: #{column_index} column_def.width:  #{column_def.width}"
+      end
+    end
+
+    # format header row
+    header_cells = []
+    columns.each_with_index do |column_def, column_index|
+      value = header_row[column_index] # column_def.label
+      header_cells << format_table_cell(value, column_def.width, column_def.justify)
+    end
+    
+    # format header spacer row
+    h_line = header_cells.collect {|cell| ("-" * cell.size) }.join(cell_delim.gsub(" ", "-"))
+    
+    # format data rows
+    formatted_rows = []
+    rows.each_with_index do |row, row_index|
+      formatted_row = []
+      row.each_with_index do |value, column_index|
+        column_def = columns[column_index]
+        formatted_row << format_table_cell(value, column_def.width, column_def.justify)
+      end
+      formatted_rows << formatted_row
+    end
+    
+    
+
+    table_str = ""
+    table_str << header_cells.join(cell_delim) + "\n"
+    table_str << h_line + "\n"
+    formatted_rows.each do |row|
+      table_str << row.join(cell_delim) + "\n"
+    end
+
+    out = ""
+    out << table_color if table_color
+    out << table_str
+    out << reset if table_color
+    out
+  end
+
+
+  # as_description_list() prints a a two column table containing
   # the name and value of a list of descriptions
   # @param columns - [Hash or Array or Hashes] list of column definitions, A column defintion can be a String, Symbol, Hash or Proc
-  # @param data [Object] an object to extract the data from, it is treated like a Hash.
-  # @param opts [OptionParser] the option parser object being constructed
+  # @param obj [Object] an object to extract the data from, it is treated like a Hash.
+  # @param opts [Map] rendering options for label :justify, :wrap
   # Usage: 
   # print_description_list([:id, :name, :status], my_instance, {})
   #
-  def generate_description_list(columns, data, opts={})
-    out = ""
+  def as_description_list(obj, columns, opts={})
+    
+    columns = build_column_definitions(columns)
+    
     #label_width = opts[:label_width] || 10
     max_label_width = 0
     justify = opts.key?(:justify) ? opts[:justify] : "right"
     do_wrap = opts.key?(:wrap) ? !!opts[:wrap] : true
+    
     rows = []
-    # allow passing a single hash instead of an array of hashes
-    if columns.is_a?(Hash)
-      columns = columns.collect {|k,v| {(k) => v} } 
-    end
+    
     columns.flatten.each do |column_def|
-      label, value = extract_description_value(column_def, data, opts)
+      # label, value = extract_label_and_value(column_def, obj, opts)
+      label = column_def.label
+      # value = get_object_value(obj, column_def.display_method)
+      value = column_def.display_method.call(obj)
       if label.size > max_label_width
         max_label_width = label.size
       end
@@ -366,6 +592,8 @@ module Morpheus::Cli::PrintHelper
     if Morpheus::Cli::PrintHelper.terminal_width
       value_width = Morpheus::Cli::PrintHelper.terminal_width - label_width
     end
+
+    out = ""
     rows.each do |row|
       value = row[:value].to_s
       if do_wrap
@@ -374,36 +602,126 @@ module Morpheus::Cli::PrintHelper
           value = wrap(value, value_width, wrap_indent)
         end
       end
-      out << dd_dt(row[:label], value, label_width, justify) + "\n"
+      out << format_dt_dd(row[:label], value, label_width, justify) + "\n"
     end
     return out
   end
 
   # print_description_list() is an alias for `print generate_description_list()`
-  def print_description_list(columns, data, opts={})
-    print generate_description_list(columns, data, opts)
+  def print_description_list(columns, obj, opts={})
+    # raise "oh no.. replace with as_description_list()"
+    print as_description_list(obj, columns, opts)
   end
 
-  def extract_description_value(column_def, data, opts={})
+  # build_column_definitions constructs an Array of column definitions (OpenStruct)
+  # Each column is defined by a label (String), and a display_method (Proc)
+  #
+  # @columns [Array] list of definitions. A column definition can be a String, Symbol, Proc or Hash
+  # @returns [Array of OpenStruct] list of column definitions (OpenStruct) like:
+  #      [{label: "ID", display_method: 'id'}, {label: "Name", display_method: Proc}]
+  # Usage:
+  #   build_column_definitions(:id, :name)
+  #   build_column_definitions({"Object Id" => 'id'}, :name)
+  #   build_column_definitions({"ID" => 'id'}, "name", "plan.name", {status: lambda {|data| data['status'].upcase } })
+  #
+  def build_column_definitions(*columns)
+    # allow passing a single hash instead of an array of hashes
+    if columns.size == 1 && columns[0].is_a?(Hash)
+      columns = columns[0].collect {|k,v| {(k) => v} }
+    else
+      columns = columns.flatten.compact
+    end
+    results = []
+    columns.each do |col|
+      if col.is_a?(String)
+        k = col
+        v = col
+        build_column_definitions([{(k) => v}]).each do |r|
+          results << r
+        end
+      elsif col.is_a?(Symbol)
+        k = col.to_s.upcase #.capitalize
+        v = col.to_s
+        build_column_definitions([{(k) => v}]).each do |r|
+          results << r
+        end
+      elsif col.is_a?(Hash)
+        column_def = OpenStruct.new
+        k, v = col.keys[0], col.values[0]
+        if v.is_a?(String)
+          column_def.label = k
+          column_def.display_method = lambda {|data| get_object_value(data, v) }
+        elsif v.is_a?(Symbol)
+          column_def.label = k.to_s.upcase #.capitalize
+          column_def.display_method = lambda {|data| get_object_value(data, v) }
+        elsif v.is_a?(Proc)
+          column_def.label = k.to_s
+          column_def.display_method = v
+        elsif v.is_a?(Hash)
+          if v[:display_name] || v[:label]
+            column_def.label = v[:display_name] || v[:label]
+          else
+            column_def.label = k.to_s
+          end
+          if v[:display_method]
+            if v[:display_method].is_a?(Proc)
+              column_def.display_method = v[:display_method]
+            else
+              # assume v[:display_method] is a String, Symbol
+              column_def.display_method = lambda {|data| get_object_value(data, v[:display_method]) }
+            end
+          else
+            # assume v is a String, Symbol
+            column_def.display_method = lambda {|data| get_object_value(data, v) }
+          end
+          
+          column_def.justify = col[:justify]
+          column_def.max_width = col[:max_width]
+          column_def.min_width = col[:min_width]
+        else
+          raise "invalid column definition value (#{v.class}) #{v.inspect}. Should be a String, Symbol, Proc or Hash"
+        end        
+
+        # column_def.label = determined above
+        # column_def.value = determined above
+        # column_def.justify ||= "left"
+        # column_def.max_width ||= 30
+        # column_def.min_width ||= nil
+
+        results << column_def
+
+      else
+        raise "invalid column definition (#{column_def.class}) #{column_def.inspect}. Should be a String, Symbol or Hash"
+      end
+      
+    end
+
+    return results
+  end
+
+  # @return [Array] [0] is a String representing the column label and Object 
+  def extract_label_and_value(column_def, data, opts={})
     # this method shouldn't need options, fix it
+    # probably some recursive
+    # this works right now, but it's pretty slow and hacky
     capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
     label, value = nil, nil
     if column_def.is_a?(String)
       label = column_def
       # value = data[column_def] || data[column_def.to_sym]
-      value = get_data_value(data, column_def)
+      value = get_object_value(data, column_def)
     elsif column_def.is_a?(Symbol)
       label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
       # value = data[column_def] || data[column_def.to_s]
-      value = get_data_value(data, column_def)
+      value = get_object_value(data, column_def)
     elsif column_def.is_a?(Hash)
       k, v = column_def.keys[0], column_def.values[0]
       if v.is_a?(String)
         label = k
-        value = get_data_value(data, v)
+        value = get_object_value(data, v)
       elsif v.is_a?(Symbol)
         label = capitalize_labels ? k.to_s.capitalize : k.to_s
-        value = get_data_value(data, v)
+        value = get_object_value(data, v)
         # value = data[v] || data[v.to_s]
       elsif v.is_a?(Hash)
         if v[:display_name]
@@ -415,19 +733,19 @@ module Morpheus::Cli::PrintHelper
           if v[:display_method].is_a?(Proc)
             value = v[:display_method].call(data)
           else
-            value = get_data_value(data, v[:display_method].to_s)
+            value = get_object_value(data, v[:display_method].to_s)
           end
         else
-          value = get_data_value(data, v.to_s)
+          value = get_object_value(data, v.to_s)
         end
       elsif v.is_a?(Proc)
         label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
         value = v.call(data)
       else
-        raise "extract_description_value() invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
+        raise "invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
       end
     else
-      raise "extract_description_value() invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
+      raise "invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
     end
     return label, value
   end
@@ -453,13 +771,14 @@ module Morpheus::Cli::PrintHelper
     '"' + v.to_s.gsub('"', '""') + '"'
   end
 
-  def as_csv(columns, data, opts={})
+  def as_csv(data, columns, opts={})
     out = ""
     delim = opts[:csv_delim] || opts[:delim] || ","
     newline = opts[:csv_newline] || opts[:newline] || "\n"
     include_header = opts[:csv_no_header] ? false : true
     do_quotes = opts[:csv_quotes] || opts[:quotes]
     # allow passing a single hash instead of an array of hashes
+    # todo: stop doing this, always pass an array!
     if columns.is_a?(Hash)
       columns = columns.collect {|k,v| {(k) => v} }
     end
@@ -478,8 +797,8 @@ module Morpheus::Cli::PrintHelper
       if obj
         cells = []
         columns.each do |column_def|
-          # this is silly, fix it
-          label, value = extract_description_value(column_def, obj, opts)
+          # label, value = extract_label_and_value(column_def, obj, opts)
+          value = get_object_value(obj, column_def)
           if do_quotes
             cells << quote_csv_value(value)
           else
@@ -492,6 +811,29 @@ module Morpheus::Cli::PrintHelper
     end
     out << lines.join(newline)
     #out << delim
+    out
+  end
+
+  def records_as_csv(records, opts={}, default_columns=nil)
+    out = ""
+    if !records
+      #raise "records_as_csv expects records as an Array of objects to render"
+      return out
+    end
+    cols = []
+    all_fields = records.first ? records.first.keys : []
+    if opts[:include_fields]
+      if opts[:include_fields] == 'all' || opts[:include_fields].include?('all')
+        cols = all_fields
+      else
+        cols = opts[:include_fields]
+      end
+    elsif default_columns
+      cols = default_columns
+    else
+      cols = all_fields
+    end
+    out << as_csv(records, cols, opts)
     out
   end
 
@@ -520,9 +862,14 @@ module Morpheus::Cli::PrintHelper
     out
   end
 
-  # @deprecated
-  def generate_pretty_json(data, options={})
-    as_json(data, options)
+  def anded_list(items)
+    items = items ? items.clone : []
+    last_item = items.pop
+    if items.empty?
+      return "#{last_item}"
+    else
+      return items.join(", ") + " and #{last_item}"
+    end
   end
 
 end

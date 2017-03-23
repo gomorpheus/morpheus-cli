@@ -26,7 +26,7 @@ class Morpheus::APIClient
       # JD: could return a Request object instead...
       return opts
     end
-    # puts "#{Term::ANSIColor.dark} #=> Morpheus::RestClient.execute(#{opts})#{Term::ANSIColor.reset}" if Morpheus::Logging.debug?
+    # Morpheus::Logging::DarkPrinter.puts "Morpheus::RestClient.execute(#{opts})" if Morpheus::Logging.debug?
     # instead, using ::RestClient.log = STDOUT 
     response = Morpheus::RestClient.execute(opts)
     if parse_json
@@ -156,4 +156,18 @@ class Morpheus::APIClient
     Morpheus::SetupInterface.new(@base_url)
   end
   
+  def monitoring
+    Morpheus::MonitoringInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  # def checks
+  #   # Morpheus::ChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  #   monitoring.checks
+  # end
+
+  # def incidents
+  #   # Morpheus::IncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  #   monitoring.incidents
+  # end
+
 end

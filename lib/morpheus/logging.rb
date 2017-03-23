@@ -1,4 +1,5 @@
 require 'logger'
+require 'term/ansicolor'
 
 # Provides global Logging behavior
 # By default, Morpheus::Logging.logger is set to STDOUT with level INFO
@@ -73,6 +74,91 @@ module Morpheus::Logging
   # whether or not to print stack traces
   def self.print_stacktrace?
     self.debug?
+  end
+
+  # An IO class for printing debugging info
+  # This is used as a proxy for ::RestClient.log printing right now.
+  class DarkPrinter
+    include Term::ANSIColor
+
+    # [IO] to write to
+    attr_accessor :io
+
+    # [String] ansi color code for output. Default is dark
+    attr_accessor :color
+
+    # DarkPrinter with io STDOUT
+    def self.instance
+      @instance ||= self.new(STDOUT, nil, true)
+    end
+
+    def self.print(*messages)
+      instance.print(*messages)
+    end
+
+    def self.puts(*messages)
+      instance.puts(*messages)
+    end
+
+    def self.<<(*messages)
+      instance.<<(*messages)
+    end
+
+    def initialize(io, color=nil, is_dark=true)
+      @io = io # || $stdout
+      @color = color # || cyan
+      @is_dark = is_dark
+    end
+
+    # mask well known secrets
+    def scrub_message(msg)
+      if msg.is_a?(String)
+        msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
+        msg.gsub!(/Authorization\:\s?Bearer [^"]+/, 'Authorization"=>"Bearer ************')
+        msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
+        msg.gsub!(/password\=\"[^"]+/, 'password="************')
+      end
+      msg
+    end
+
+    def print_with_color(&block)
+      if Term::ANSIColor.coloring?
+        @io.print Term::ANSIColor.reset
+        @io.print @color if @color
+        @io.print Term::ANSIColor.dark if @is_dark
+      end
+      yield
+      if Term::ANSIColor.coloring?
+        @io.print Term::ANSIColor.reset
+      end
+    end
+
+    def print(*messages)
+      if @io
+        messages = messages.flatten.collect {|it| scrub_message(it) }
+        print_with_color do 
+          messages.each do |msg|
+            @io.print msg
+          end
+        end
+      end
+    end
+
+    def puts(*messages)
+      if @io
+        messages = messages.flatten.collect {|it| scrub_message(it) }
+        print_with_color do 
+          messages.each do |msg|
+            @io.puts msg
+          end
+        end
+      end
+    end
+
+    def <<(*messages)
+      print(*messages)
+    end
+
   end
 
 end

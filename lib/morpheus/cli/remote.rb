@@ -9,7 +9,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :add, :remove, :use, :unuse, {:current => :print_current}, :setup
+  register_subcommands :list, :add, :get, :remove, :use, :unuse, {:current => :print_current}, :setup
   set_default_subcommand :list
 
   def initialize()
@@ -17,11 +17,12 @@ class Morpheus::Cli::Remote
   end
 
   def handle(args)
-    if args.count == 0
-      list(args)
-    else
-      handle_subcommand(args)
-    end
+    # if args.count == 0
+    #   list(args)
+    # else
+    #   handle_subcommand(args)
+    # end
+    handle_subcommand(args)
   end
 
   def list(args)
@@ -29,14 +30,12 @@ class Morpheus::Cli::Remote
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
-      opts.footer = "This outputs a list of the remote appliances.\n" + 
-                    "It also displays the current active appliance.\n" + 
-                    "The shortcut `remote` can be used instead of `remote list`."
+      opts.footer = "This outputs a list of the configured remote appliances."
     end
     optparse.parse!(args)
     @appliances = ::Morpheus::Cli::Remote.appliances
-    if @appliances == nil || @appliances.empty?
-      print yellow,"No remote appliances configured, see `remote add`",reset,"\n"
+    if @appliances.empty?
+      raise_command_error "You have no appliances configured. See the `remote add` command."
     else
       rows = @appliances.collect do |app_name, v|
         {
@@ -54,7 +53,7 @@ class Morpheus::Cli::Remote
           print cyan, "\n# => Currently using #{@appliance_name}\n", reset
         #end
       else
-        print "\n# => No active remote appliance, see `remote use`\n", reset
+        print "\n# => No current active appliance, see `remote use`\n", reset
       end
       print "\n" # meh
     end
@@ -90,10 +89,15 @@ class Morpheus::Cli::Remote
     end
     
     new_appliance_name = args[0].to_sym
+    if new_appliance_name == :current
+      print red, "The specified appliance name is invalid: '#{args[0]}'", reset, "\n"
+      #puts optparse
+      exit 1
+    end
     url = args[1]
     if url !~ /^https?\:\/\//
       print red, "The specified appliance url is invalid: '#{args[1]}'", reset, "\n"
-      puts optparse
+      #puts optparse
       exit 1
     end
     # maybe a ping here would be cool
@@ -143,6 +147,41 @@ class Morpheus::Cli::Remote
     end
 
     return true
+  end
+
+  def get(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.footer = "View details about a remote appliance."
+      build_common_options(opts, options, [:auto_confirm])
+    end
+    optparse.parse!(args)
+    if args.empty?
+      puts optparse
+      exit 1
+    end
+    @appliances = ::Morpheus::Cli::Remote.appliances
+    appliance_name = args[0].to_sym
+    appliance = @appliances[appliance_name]
+    if appliance == nil
+      print red, "Remote appliance not found by the name '#{args[0]}'", reset, "\n"
+    else
+      print_h1 "Morpheus Appliance"
+
+      puts as_description_list(appliance, [
+        {"Name" => lambda {|i| appliance_name } },
+        {"Url" => :host},
+        {"Version" => :buildVersion},
+        # {"Active" => :active},
+      ])
+
+      is_active = !!appliance[:active]
+      if is_active
+        puts "\n => This is the active appliance."
+      end
+      print reset,"\n"
+    end
   end
 
   def remove(args)
@@ -408,9 +447,6 @@ class Morpheus::Cli::Remote
     # it is structured like :appliance_name => {:host => "htt[://api.gomorpheus.com", :active => true}
     # not named @@appliances to avoid confusion with the instance variable . This is also a command class...
     @@appliance_config = nil 
-    #@@current_appliance = nil
-
-
 
     def appliances
       self.appliance_config
@@ -457,7 +493,7 @@ class Morpheus::Cli::Remote
     def load_appliance_file
       fn = appliances_file_path
       if File.exist? fn
-        print "#{dark} #=> loading appliances file #{fn}#{reset}\n" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "loading appliances file #{fn}" if Morpheus::Logging.debug?
         return YAML.load_file(fn)
       else
         return {}

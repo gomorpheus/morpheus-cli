@@ -6,6 +6,7 @@ require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
+require 'morpheus/logging'
 
 # setup environment variables
 Morpheus::Cli.home_directory = ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
@@ -43,6 +44,7 @@ end
 # all commands should be registered commands or aliases
 if (args.count == 0) || !(Morpheus::Cli::CliRegistry.has_command?(args[0]) || Morpheus::Cli::CliRegistry.has_alias?(args[0]))
   # just for printing help. todo: start using this. maybe in class Cli::MainCommand
+  # maybe OptionParser's recover() instance method will do the trick
   optparse = Morpheus::Cli::OptionParser.new do|opts|
     opts.banner = "Options:" # hack alert
     opts.on('-v','--version', "Print the version.") do
@@ -57,7 +59,7 @@ if (args.count == 0) || !(Morpheus::Cli::CliRegistry.has_command?(args[0]) || Mo
     end
     opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-      ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+      ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
     end
     opts.on( '-h', '--help', "Prints this help" ) do
       puts opts

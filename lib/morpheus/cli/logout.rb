@@ -32,16 +32,19 @@ class Morpheus::Cli::Logout
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      build_common_options(opts, options, [:remote]) # todo: support :remote too perhaps
+      build_common_options(opts, options, [:remote])
     end
     optparse.parse!(args)
-    connect(options)
+    # connect(options)
+    # establish @appliance_name, @appliance_url, 
+    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true}))
 
     begin
       if !@appliance_name
         print yellow,"Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`#{reset}\n"
         return
       end
+      # if !@access_token
       creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
       if !creds
         print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}\n",reset

@@ -1,6 +1,7 @@
 require 'optparse'
-require 'morpheus/cli/cli_command'
 require 'json'
+require 'morpheus/logging'
+require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::LogLevelCommand
   include Morpheus::Cli::CliCommand
@@ -34,13 +35,13 @@ EOT
     end
     if ["debug", "0"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-      ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+      ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
     elsif ["info", "1"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
-      ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+      ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
     elsif args[0].to_i < 6
       Morpheus::Logging.set_log_level(args[0].to_i)
-      ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+      ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
     else
       puts optparse
       return false

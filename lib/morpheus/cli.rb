@@ -1,4 +1,5 @@
 require "morpheus/cli/version"
+require 'morpheus/cli/command_error'
 require "morpheus/rest_client"
 require 'morpheus/formatters'
 require 'morpheus/logging'
@@ -39,6 +40,8 @@ module Morpheus
       # utilites
       require 'morpheus/cli/cli_registry.rb'
       require 'morpheus/cli/dot_file.rb'
+      require 'morpheus/cli/command_error'
+
       load 'morpheus/cli/cli_command.rb'
       load 'morpheus/cli/option_types.rb'
       load 'morpheus/cli/credentials.rb'
@@ -81,6 +84,17 @@ module Morpheus
       load 'morpheus/cli/library.rb'
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
+      # todo: combine checks, incidents, apps, and goups under monitoring?
+      # `monitoring apps|groups` still needed, 
+      # maybe they should go under the apps and groups commands instead?
+      # load 'morpheus/cli/monitoring_command.rb'
+      load 'morpheus/cli/monitoring_incidents_command.rb'
+      load 'morpheus/cli/monitoring_checks_command.rb'
+      load 'morpheus/cli/monitoring_contacts_command.rb'
+      load 'morpheus/cli/monitoring_groups_command.rb'
+      load 'morpheus/cli/monitoring_apps_command.rb'
+
+      load 'morpheus/cli/curl_command.rb'
       # Your new commands goes here...
 
     end

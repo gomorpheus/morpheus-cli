@@ -448,7 +448,8 @@ class Morpheus::Cli::Groups
     if group
       print cyan,group['name'].to_s,"\n",reset
     else
-      print dark,"No active group. See `groups use`","\n",reset
+      print yellow,"No active group. See `groups use`","\n",reset
+      return false
     end
   end
 
@@ -546,7 +547,7 @@ public
     def load_group_file
       fn = groups_file_path
       if File.exist? fn
-        print "#{dark} #=> loading groups file #{fn}#{reset}\n" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "loading groups file #{fn}" if Morpheus::Logging.debug?
         return YAML.load_file(fn)
       else
         {}

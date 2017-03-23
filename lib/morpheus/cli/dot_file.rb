@@ -7,9 +7,6 @@ require 'term/ansicolor'
 class Morpheus::Cli::DotFile
   include Term::ANSIColor
 
-  DEFAULT_EXEC_PROC = lambda {|args|
-
-  }
   EXPORTED_ALIASES_HEADER = "# exported aliases"
 
   # the path of the profile source file
@@ -44,7 +41,7 @@ class Morpheus::Cli::DotFile
     if !File.exists?(@filename)
       print "#{Term::ANSIColor.red}source file not found: #{@filename}#{Term::ANSIColor.reset}\n" # if Morpheus::Logging.debug?
     else
-      print "#{dark} #=> executing source file #{@filename}#{reset}\n" if Morpheus::Logging.debug?
+      Morpheus::Logging::DarkPrinter.puts "executing source file #{@filename}" if Morpheus::Logging.debug?
     end
     file_contents ||= File.read(@filename)
     lines = file_contents.split("\n")

@@ -22,7 +22,8 @@ class Morpheus::Cli::Whoami
   end
 
   def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+    #@api_client = establish_remote_appliance_connection(opts)
+    @api_client = establish_remote_appliance_connection(opts.merge({:no_prompt => true, :skip_verify_access_token => true}))
     @groups_interface = @api_client.groups
     @active_group_id = Morpheus::Cli::Groups.active_group
   end
@@ -53,12 +54,29 @@ class Morpheus::Cli::Whoami
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
       end
-      build_common_options(opts, options, [:json, :remote, :dry_run]) # todo: support :remote too
+      opts.on('-t','--token', "Print the current access token only") do
+        options[:access_token_only] = true
+      end
+      build_common_options(opts, options, [:json, :remote, :dry_run])
     end
     optparse.parse!(args)
     # todo: check to see if they have credentials instead of just trying to connect (and prompting)
     connect(options)
     begin
+      
+      if !@appliance_name
+        # never gets here..
+        #raise_command_error "Please specify a Morpheus Appliance with -r or see the command `remote use`"
+        print yellow,"Please specify a Morpheus Appliance with -r or see the command `remote use`#{reset}\n"
+        return
+      end
+      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+      if !creds
+        print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+        print yellow,"Use the 'login' command.",reset,"\n"
+        return 0
+      end
+
       json_response = load_whoami()
       active_group = nil
       begin
@@ -68,17 +86,25 @@ class Morpheus::Cli::Whoami
           print red,"Unable to determine active group: #{err}\n",reset
         end
       end
+
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         user = @current_user
         if !user
-          puts yellow,"No active session. Please login",reset
+          print yellow,"\n","No active session. Please login",reset,"\n"
           exit 1
         end
 
-        # todo: impersonate command and show that info here
+        if options[:access_token_only]
+          if !@access_token
+            print yellow,"\n","No access token. Please login",reset,"\n"
+            return 1
+          end
+          print cyan,@access_token.to_s,reset,"\n"
+          return 0
+        end
 
         print_h1 "Current User"
         print cyan
@@ -148,6 +174,5 @@ class Morpheus::Cli::Whoami
       exit 1
     end
   end
-
 
 end

@@ -70,7 +70,7 @@ class Morpheus::Cli::Shell
       end
       opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-        ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+        ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       end
       opts.on( '-h', '--help', "Prints this help" ) do
         puts opts
@@ -195,7 +195,7 @@ class Morpheus::Cli::Shell
           print "failed to reload #{__FILE__}. oh well"
           # print err
         end
-        print dark," #=> shell has been reloaded",reset,"\n"  if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "shell has been reloaded" if Morpheus::Logging.debug?
         return 0
       elsif input == '!!'
         cmd_number = @history.keys[-1]
@@ -275,7 +275,7 @@ class Morpheus::Cli::Shell
 
       if @return_to_log_level
         Morpheus::Logging.set_log_level(@return_to_log_level)
-        ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+        ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
         @return_to_log_level = nil
       end
 

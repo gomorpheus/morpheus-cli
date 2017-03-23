@@ -1,3 +1,4 @@
+require 'morpheus/logging'
 require 'morpheus/cli/option_parser'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/mixins/print_helper'
@@ -30,6 +31,19 @@ module Morpheus
       # whether to prompt or not, this is true by default.
       def interactive?
         @no_prompt != true
+      end
+
+      def raise_command_error(msg)
+        raise Morpheus::Cli::CommandError.new(msg)
+      end
+
+      # parse_id_list splits returns the given id_list with its values split on a comma
+      #               your id values cannot contain a comma, atm...
+      # @param id_list [String or Array of Strings]
+      # @param delim [String] Default is a comma and any surrounding white space.
+      # @return array of values
+      def parse_id_list(id_list, delim=/\s*\,\s*/)
+        [id_list].flatten.collect {|it| it ? it.to_s.split(delim) : nil }.flatten.compact
       end
 
       # Appends Array of OptionType definitions to an OptionParser instance
@@ -105,7 +119,7 @@ module Morpheus
       # @return opts
       def build_common_options(opts, options, includes=[])
         #opts.separator ""
-        opts.separator "Common options:"
+        # opts.separator "Common options:"
         includes = includes.clone
         while (option_key = includes.shift) do
           case option_key.to_sym
@@ -154,7 +168,7 @@ module Morpheus
             end
 
             opts.on( '-o', '--offset OFFSET', "Offset Results" ) do |offset|
-              options[:offset] = offset.to_i
+              options[:offset] = offset.to_i.abs
             end
 
             opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
@@ -169,6 +183,16 @@ module Morpheus
               options[:direction] = "desc"
             end
 
+          when :last_updated
+            # opts.on("--last-updated TIME", Time, "Filter by gte last updated") do |time|
+            opts.on("--last-updated TIME", String, "Filter by Last Updated (gte)") do |time|
+              begin
+                options[:lastUpdated] = parse_time(time)
+              rescue => e
+                raise OptionParser::InvalidArgument.new "Failed to parse time '#{time}'. Error: #{e}"
+              end
+            end
+
           when :remote
 
             # this is the only option now... 
@@ -179,6 +203,7 @@ module Morpheus
 
             # todo: also require this for talking to plain old HTTP
             opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+              options[:insecure] = true
               Morpheus::RestClient.enable_ssl_verification = false
             end
 
@@ -237,7 +262,7 @@ module Morpheus
               options[:csv_delim] = val
             end
 
-            opts.on('--csv-newline [CHAR]', String, "Delimiter for CSV Output values. Default: '\\n'") do |val|
+            opts.on('--csv-newline [CHAR]', String, "Delimiter for CSV Output rows. Default: '\\n'") do |val|
               options[:csv] = true
               options[:format] = :csv
               if val == "no" || val == "none"
@@ -290,7 +315,7 @@ module Morpheus
         opts.on('-V','--debug', "Print extra output for debugging. ") do
           options[:debug] = true
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-          ::RestClient.log = Morpheus::Logging.debug? ? STDOUT : nil
+          ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
           # perhaps...
           # create a new logger instance just for this command instance
           # this way we don't elevate the global level for subsequent commands in a shell
@@ -387,6 +412,22 @@ module Morpheus
         raise "#{self} has not defined handle()!"
       end
 
+      # executes block with each argument in the list
+      # @returns [0|1] 0 if they were all successful, else 1
+      def run_command_for_each_arg(args, &block)
+        cmd_results = []
+        args.each do |arg|
+          begin
+            cur_result = yield arg
+          rescue SystemExit => err
+            cur_result = err.success? ? 0 : 1
+          end
+          cmd_results << cur_result
+        end
+        failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
+        return failed_cmd ? failed_cmd : 0
+      end
+
       # This supports the simple remote option eg. `instances add --remote "qa"`
       # It will establish a connection to the pre-configured appliance named "qa"
       # The calling command can populate @appliances and/or @appliance_name
@@ -399,38 +440,34 @@ module Morpheus
         if !@appliance_name
           @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
         end
-
+        if @appliances.empty?
+          raise_command_error "You have no appliances configured. See the `remote add` command."
+        end
         # todo: support old way of accepting --username and --password on the command line
         # it's probably better not to do that tho, just so it stays out of history files
 
         # use a specific remote appliance by name
         if options[:remote]
           @appliance_name = options[:remote].to_sym rescue nil
-          if !@appliances
-            print_red_alert "You have no appliances configured. See the `remote add` command."
-            exit 1
-          end
+
           found_appliance = @appliances[@appliance_name.to_sym]
           if !found_appliance
-            print_red_alert "You have no appliance named '#{@appliance_name}' configured. See the `remote add` command."
-            exit 1
+            raise_command_error "You have no appliance named '#{@appliance_name}' configured. See the `remote add` command."
           end
           @appliance = found_appliance
           @appliance_name = @appliance_name
           @appliance_url = @appliance[:host]
-          if options[:debug]
-            print dark,"# => Using remote appliance [#{@appliance_name}] #{@appliance_url}",reset,"\n" if !options[:quiet]
-          end
+          Morpheus::Logging::DarkPrinter.puts "Using remote appliance [#{@appliance_name}] #{@appliance_url}" if options[:debug]
         else
           #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
         end
 
         if !@appliance_name
-          print_red_alert "You must specify a remote appliance with --remote, or see the `remote use` command."
-          exit 1
+          raise_command_error "Please specify a remote appliance with -r or see the command `remote use`"
         end
 
-        puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
+        Morpheus::Logging::DarkPrinter.puts "establishing connection to [#{@appliance_name}] #{@appliance_url}" if options[:debug]
+        #puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
 
         # ok, get some credentials.
         # this prompts for username, password  without options[:no_prompt]
@@ -456,8 +493,7 @@ module Morpheus
 
       def verify_access_token!
         if @access_token.empty?
-          print_red_alert "Invalid Credentials. Unable to acquire access token. Please verify your credentials and try again."
-          exit 1
+          raise_command_error "Unable to acquire access token. Please verify your credentials and try again."
         end
         true
       end

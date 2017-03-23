@@ -231,12 +231,9 @@ class Morpheus::Cli::Instances
       stats = json_response['stats'] || {}
       title = "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})"
       print_h1 title
-      print cyan
+      puts cyan + "Status: ".rjust(12) + format_instance_status(instance).to_s
+      puts cyan + "Nodes: ".rjust(12) + (instance['containers'] ? instance['containers'].count : '').to_s
       # print "\n"
-      puts dd_dt("Status", format_instance_status(instance))
-      puts dd_dt("Nodes", instance['containers'] ? instance['containers'].count : 0)
-      #puts dd_dt("Connection", format_instance_connection_string(instance))
-      #print "\n\n"
       #print_h2 "Instance Usage"
       print_stats_usage(stats)
       print reset, "\n"
@@ -403,9 +400,8 @@ class Morpheus::Cli::Instances
         return 0
       end
       if options[:csv]
-        print_instances_csv([json_response['instance']], options)
-        print "\n"
-        return
+        puts records_as_csv([json_response['instance']], options)
+        return 0
       end
       instance = json_response['instance']
       stats = json_response['stats'] || {}
@@ -428,21 +424,6 @@ class Morpheus::Cli::Instances
         "Status" => lambda {|it| format_instance_status(it) }
       }
       print_description_list(description_cols, instance)
-
-      # puts dd_dt("ID", "#{instance['id']}")
-      # puts dd_dt("Name", "#{instance['name']}")
-      # if !instance['description'].empty?
-      #   puts dd_dt("Description", "#{instance['description']}")
-      # end
-      # puts dd_dt("Group", "#{instance['group'] ? instance['group']['name'] : ''}")
-      # puts dd_dt("Cloud", "#{instance['cloud'] ? instance['cloud']['name'] : ''}")
-      # puts dd_dt("Type", "#{instance['instanceType']['name']}")
-      # puts dd_dt("Plan", "#{instance['plan'] ? instance['plan']['name'] : ''}")
-      # puts dd_dt("Environment", "#{instance['instanceContext']}")
-      # puts dd_dt("Nodes", "#{instance['containers'] ? instance['containers'].count : 0}")
-      # puts dd_dt("Connection", "#{format_instance_connection_string(instance)}")
-      # #puts "Account", "#{instance['account'] ? instance['account']['name'] : ''}")
-      # puts dd_dt("Status", "#{format_instance_status(instance)}")
 
       if (stats)
         print_h2 "Instance Usage"
@@ -1081,15 +1062,12 @@ class Morpheus::Cli::Instances
       json_response = @instances_interface.get(params)
       if options[:json]
         if options[:include_fields]
-          json_response = {
-            "instances" => filter_data(json_response["instances"], options[:include_fields])
-          }
+          json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
         end
         puts as_json(json_response, options)
         return 0
       elsif options[:csv]
-        print_instances_csv(json_response['instances'], options)
-        print "\n"
+        puts records_as_csv(json_response['instances'], options)
       else
         instances = json_response['instances']
 
@@ -1479,30 +1457,6 @@ class Morpheus::Cli::Instances
     print table_color
     tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
     print reset
-  end
-
-  def print_instances_csv(instances, opts={})
-    # cols = [:id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status]
-    cols = {
-        "id" => 'id',
-        "name" => 'name',
-        "description" => 'description',
-        "group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
-        "cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
-        "type" => lambda {|it| it['instanceType']['name'] },
-        "plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
-        "environment" => 'instanceContext',
-        "nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
-        "connection" => lambda {|it| format_instance_connection_string(it) },
-        #"account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        "status" => 'status'
-      }
-    if opts[:include_fields] == 'all'
-      cols = instances.first ? instances.first.keys : cols
-    elsif opts[:include_fields].is_a?(Array)
-      cols = opts[:include_fields]
-    end
-    print as_csv(cols, instances, opts)
   end
 
   def format_instance_status(instance, return_color=cyan)

@@ -102,7 +102,7 @@ module Morpheus
       def clear_saved_credentials(appliance_name)
         @@saved_credentials_map = load_credentials_file || {}
         @@saved_credentials_map.delete(appliance_name)
-        print "#{dark} #=> updating credentials file #{credentials_file_path}#{reset}\n"  if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "updating credentials file #{credentials_file_path}" if Morpheus::Logging.debug?
         File.open(credentials_file_path, 'w') {|f| f.write @@saved_credentials_map.to_yaml } #Store
       end
 
@@ -125,7 +125,7 @@ module Morpheus
       def load_credentials_file
         fn = credentials_file_path
         if File.exist? fn
-          print "#{dark} #=> loading credentials file #{fn}#{reset}\n" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "loading credentials file #{fn}" if Morpheus::Logging.debug?
           return YAML.load_file(fn)
         else
           return nil
@@ -149,7 +149,7 @@ module Morpheus
           if !Dir.exists?(File.dirname(fn))
             FileUtils.mkdir_p(File.dirname(fn))
           end
-          print "#{dark} #=> adding credentials to #{fn}#{reset}\n" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "adding credentials for #{app_name} to #{fn}" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)
         rescue => e
