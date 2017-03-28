@@ -4,9 +4,55 @@ module Morpheus
   module Cli
     class CliRegistry
 
+      class BadAlias < StandardError
+      end
+
       def initialize
         @commands = {} # this is command => Class that includes ::CliCommand
         @aliases = {} # this is alias => String full input string
+      end
+
+      def flush
+        @commands = {}
+        @aliases = {}
+      end
+      
+      def all
+        @commands.reject {|cmd, klass| klass.hidden_command }
+      end
+
+      def get(cmd_name)
+        @commands[cmd_name.to_sym]
+      end
+
+      def add(cmd_name, klass)
+        @commands[cmd_name.to_sym] = klass
+      end
+
+      def remove(cmd_name)
+        @commands.delete(cmd_name.to_sym)
+      end
+
+      def all_aliases
+        @aliases
+      end
+
+      def get_alias(alias_name)
+        @aliases[alias_name.to_sym]
+      end
+
+      def add_alias(alias_name, command_string)
+        #return @commands[alias_name.to_sym]
+        if self.class.has_command?(alias_name)
+          raise BadAlias.new "alias name '#{alias_name}' is invalid. That is the name of a morpheus command."
+        elsif alias_name.to_s.downcase.strip == command_string.to_s.downcase.strip
+          raise BadAlias.new "alias #{alias_name}=#{command_string} is invalid..."
+        end
+        @aliases[alias_name.to_sym] = command_string
+      end
+
+      def remove_alias(alias_name)
+        @aliases.delete(alias_name.to_sym)
       end
 
       class << self
@@ -120,45 +166,6 @@ module Morpheus
           return alias_name, command_string
         end
 
-
-      end
-
-      def all
-        @commands.reject {|cmd, klass| klass.hidden_command }
-      end
-
-      def get(cmd_name)
-        @commands[cmd_name.to_sym]
-      end
-
-      def add(cmd_name, klass)
-        @commands[cmd_name.to_sym] = klass
-      end
-
-      def remove(cmd_name)
-        @commands.delete(cmd_name.to_sym)
-      end
-
-      def all_aliases
-        @aliases
-      end
-
-      def get_alias(alias_name)
-        @aliases[alias_name.to_sym]
-      end
-
-      def add_alias(alias_name, command_string)
-        #return @commands[alias_name.to_sym]
-        if self.class.has_command?(alias_name)
-          raise "alias name '#{alias_name}' is invalid. That is the name of a morpheus command."
-        elsif alias_name.to_s.downcase.strip == command_string.to_s.downcase.strip
-          raise "alias #{alias_name}=#{command_string} is invalid..."
-        end
-        @aliases[alias_name.to_sym] = command_string
-      end
-
-      def remove_alias(alias_name)
-        @aliases.delete(alias_name.to_sym)
       end
 
     end

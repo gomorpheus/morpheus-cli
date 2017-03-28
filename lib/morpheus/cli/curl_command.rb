@@ -4,7 +4,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::CurlCommand
   include Morpheus::Cli::CliCommand
-  set_command_name :'curl'
+  set_command_name :curl
   set_command_hidden
 
   def handle(args)
@@ -15,10 +15,8 @@ class Morpheus::Cli::CurlCommand
     # puts "curl_args is : #{curl_args}"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = "Usage: curl [path] -- [*args]"
+      opts.banner = "Usage: morpheus curl [path] -- [*args]"
       build_common_options(opts, options, [:remote])
-      build_common_options(opts, options, [:remote])
-
       opts.footer = <<-EOT
 This invokes the `curl` command with url "appliance_url/api/$0
 and includes the authorization header -H "Authorization: Bearer access_token"

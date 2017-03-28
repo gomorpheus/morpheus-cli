@@ -334,7 +334,7 @@ class Morpheus::Cli::MonitorContactsCommand
       already_open = contact['status'] == 'open'
       if already_open
         print bold,yellow,"contact #{contact['id']} is already open",reset,"\n"
-        return 1
+        return false
       end
       if options[:dry_run]
         print_dry_run @monitoring_interface.contacts.dry.reopen(contact['id'])

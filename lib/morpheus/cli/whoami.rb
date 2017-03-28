@@ -34,9 +34,13 @@ class Morpheus::Cli::Whoami
 
   def show(args)
     options = {}
+    username_only = false
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+      opts.on( '-n', '--name', "Print only your username." ) do
+        username_only = true
+      end
+      opts.on('-f','--feature-access', "Display Feature Access") do
         options[:include_feature_access] = true
       end
       # opts.on(nil,'--group-access', "Display Group Access") do
@@ -48,12 +52,12 @@ class Morpheus::Cli::Whoami
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
       #   options[:include_instance_type_access] = true
       # end
-      opts.on(nil,'--all-access', "Display All Access Lists") do
-        options[:include_feature_access] = true
-        options[:include_group_access] = true
-        options[:include_cloud_access] = true
-        options[:include_instance_type_access] = true
-      end
+      # opts.on('-a','--all-access', "Display All Access Lists") do
+      #   options[:include_feature_access] = true
+      #   options[:include_group_access] = true
+      #   options[:include_cloud_access] = true
+      #   options[:include_instance_type_access] = true
+      # end
       opts.on('-t','--token', "Print the current access token only") do
         options[:access_token_only] = true
       end
@@ -100,9 +104,14 @@ class Morpheus::Cli::Whoami
         if options[:access_token_only]
           if !@access_token
             print yellow,"\n","No access token. Please login",reset,"\n"
-            return 1
+            return false
           end
           print cyan,@access_token.to_s,reset,"\n"
+          return 0
+        end
+
+        if username_only
+          print cyan,user['username'].to_s,reset,"\n"
           return 0
         end
 
@@ -157,9 +166,18 @@ class Morpheus::Cli::Whoami
           # }, active_group)
           print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
         else
-          print "\n"
+          print "\n", reset
           print "No active group. See `groups use`\n",reset
         end
+
+        # save pertinent session info to the appliance
+        now = Time.now.to_i
+        app_map = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+        app_map[:username] = user['username']
+        app_map[:authenticated] = true
+        app_map[:status] = 'ready'
+        app_map[:last_success_at] = now
+        ::Morpheus::Cli::Remote.save_remote(@appliance_name, app_map)
 
         print reset,"\n"
       end

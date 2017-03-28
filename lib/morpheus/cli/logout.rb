@@ -32,7 +32,7 @@ class Morpheus::Cli::Logout
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = usage
-      build_common_options(opts, options, [:remote])
+      build_common_options(opts, options, [:remote, :quiet])
     end
     optparse.parse!(args)
     # connect(options)
@@ -41,22 +41,33 @@ class Morpheus::Cli::Logout
 
     begin
       if !@appliance_name
-        print yellow,"Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`#{reset}\n"
-        return
+        $stderr.print Morpheus::Terminal.angry_prompt
+        $stderr.puts "Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`"
+        return 1
       end
-      # if !@access_token
-      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-      if !creds
-        print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}\n",reset
-        return 0
+      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
+      token = creds.saved_credentials
+      if !token
+        if !options[:quiet]
+          puts "You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}"
+        end
       else
+        # todo: need to tell the server to delete the token too..
+        # delete token from credentials file
+        # note: this also handles updating appliance session info
         Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).logout()
-        print cyan,"Goodbye\n",reset
+        if !options[:quiet]
+          puts "#{cyan}Logged out of #{@appliance_name}. Goodbye.#{reset}"
+        end
       end
-
+      # recalculate shell prompt after this change
+      if Morpheus::Cli::Shell.instance
+        Morpheus::Cli::Shell.instance.reinitialize()
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      return 1
+      return false
     end
 
   end

@@ -424,10 +424,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on("--comment STRING", String, "Set comment") do |val|
+      opts.on("-c", "--comment STRING", String, "Comment on this incident") do |val|
         params['comment'] = val == 'null' ? nil : val
       end
-      opts.on("--resolution STRING", String, "Set resolution") do |val|
+      opts.on("--resolution STRING", String, "Description of the resolution to this incident") do |val|
         params['resolution'] = val == 'null' ? nil : val
       end
       opts.on("--status STATUS", String, "Set status (open or closed)") do |val|
@@ -456,7 +456,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on("--inUptime BOOL", String, "Set 'In Availability'") do |val|
         params['inUptime'] = ['true','on'].include?(val.to_s.strip)
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -470,7 +470,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
       if params['status'] == 'closed'
         unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to close the incident '#{incident['id']}'?", options)
-          return 1
+          return false
         end
       end
 
@@ -511,8 +511,11 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id list]")
       # this one is a bit weird.. it's a way to toggle incident.inUptime
-      opts.on("--enabled BOOL", String, "Quarantine can be removed by unquarantine an incident") do |val|
-        params['enabled'] = val
+      # opts.on("--enabled BOOL", String, "Quarantine can be removed with --enabled false") do |val|
+      #   params['enabled'] = ['on','true'].include?(val.to_s.downcase)
+      # end
+      opts.on("-d", "--disabled", "Disable Quarantine instead") do
+        params['enabled'] = false
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet])
     end
@@ -629,7 +632,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       already_open = incident['status'] == 'open'
       if already_open
         print bold,yellow,"Incident #{incident['id']} is already open",reset,"\n"
-        return 1
+        return false
       end
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.reopen(incident['id'])

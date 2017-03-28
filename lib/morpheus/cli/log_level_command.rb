@@ -36,6 +36,7 @@ EOT
     if ["debug", "0"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
       ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
+      Morpheus::Logging::DarkPrinter.puts "debug enabled"
     elsif ["info", "1"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
       ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil

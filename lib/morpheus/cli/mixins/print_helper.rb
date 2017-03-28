@@ -633,35 +633,41 @@ module Morpheus::Cli::PrintHelper
     end
     results = []
     columns.each do |col|
+      # determine label
       if col.is_a?(String)
         k = col
         v = col
         build_column_definitions([{(k) => v}]).each do |r|
-          results << r
+          results << r if r
         end
       elsif col.is_a?(Symbol)
         k = col.to_s.upcase #.capitalize
         v = col.to_s
         build_column_definitions([{(k) => v}]).each do |r|
-          results << r
+          results << r if r
         end
       elsif col.is_a?(Hash)
         column_def = OpenStruct.new
         k, v = col.keys[0], col.values[0]
-        if v.is_a?(String)
+        if k.is_a?(String)
           column_def.label = k
+        elsif k.is_a?(Symbol)
+          column_def.label = k
+        else
+          column_def.label = k.to_s
+          # raise "invalid column definition label (#{k.class}) #{k.inspect}. Should be a String or Symbol."
+        end
+
+        # determine display_method
+        if v.is_a?(String)
           column_def.display_method = lambda {|data| get_object_value(data, v) }
         elsif v.is_a?(Symbol)
-          column_def.label = k.to_s.upcase #.capitalize
           column_def.display_method = lambda {|data| get_object_value(data, v) }
         elsif v.is_a?(Proc)
-          column_def.label = k.to_s
           column_def.display_method = v
-        elsif v.is_a?(Hash)
+        elsif v.is_a?(Hash) || v.is_a?(OStruct)
           if v[:display_name] || v[:label]
             column_def.label = v[:display_name] || v[:label]
-          else
-            column_def.label = k.to_s
           end
           if v[:display_method]
             if v[:display_method].is_a?(Proc)
@@ -671,24 +677,37 @@ module Morpheus::Cli::PrintHelper
               column_def.display_method = lambda {|data| get_object_value(data, v[:display_method]) }
             end
           else
-            # assume v is a String, Symbol
-            column_def.display_method = lambda {|data| get_object_value(data, v) }
+            # the default behavior is to use the key (undoctored) to find the data
+            # column_def.display_method = k
+            column_def.display_method = lambda {|data| get_object_value(data, k) }
           end
           
-          column_def.justify = col[:justify]
-          column_def.max_width = col[:max_width]
-          column_def.min_width = col[:min_width]
+          # other column rendering options
+          column_def.justify = v[:justify]
+          if v[:max_width]
+            column_def.max_width = v[:max_width]
+          end
+          if v[:min_width]
+            column_def.min_width = v[:min_width]
+          end
+          # tp uses width to behave like max_width
+          if v[:width]
+            column_def.width = v[:width]
+            column_def.max_width = v[:width]
+          end
+          column_def.wrap = v[:wrap].nil? ? true :  v[:wrap] # only utlized in as_description_list() right now
+          
         else
           raise "invalid column definition value (#{v.class}) #{v.inspect}. Should be a String, Symbol, Proc or Hash"
         end        
 
-        # column_def.label = determined above
-        # column_def.value = determined above
-        # column_def.justify ||= "left"
-        # column_def.max_width ||= 30
-        # column_def.min_width ||= nil
+        # only upcase label for symbols, this is silly anyway, 
+        # just pass the exact label (key) that you want printed..
+        if column_def.label.is_a?(Symbol)
+          column_def.label = column_def.label.to_s.upcase
+        end
 
-        results << column_def
+        results << column_def        
 
       else
         raise "invalid column definition (#{column_def.class}) #{column_def.inspect}. Should be a String, Symbol or Hash"
@@ -699,56 +718,56 @@ module Morpheus::Cli::PrintHelper
     return results
   end
 
-  # @return [Array] [0] is a String representing the column label and Object 
-  def extract_label_and_value(column_def, data, opts={})
-    # this method shouldn't need options, fix it
-    # probably some recursive
-    # this works right now, but it's pretty slow and hacky
-    capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
-    label, value = nil, nil
-    if column_def.is_a?(String)
-      label = column_def
-      # value = data[column_def] || data[column_def.to_sym]
-      value = get_object_value(data, column_def)
-    elsif column_def.is_a?(Symbol)
-      label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
-      # value = data[column_def] || data[column_def.to_s]
-      value = get_object_value(data, column_def)
-    elsif column_def.is_a?(Hash)
-      k, v = column_def.keys[0], column_def.values[0]
-      if v.is_a?(String)
-        label = k
-        value = get_object_value(data, v)
-      elsif v.is_a?(Symbol)
-        label = capitalize_labels ? k.to_s.capitalize : k.to_s
-        value = get_object_value(data, v)
-        # value = data[v] || data[v.to_s]
-      elsif v.is_a?(Hash)
-        if v[:display_name]
-          label = v[:display_name]
-        else
-          label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
-        end
-        if v[:display_method]
-          if v[:display_method].is_a?(Proc)
-            value = v[:display_method].call(data)
-          else
-            value = get_object_value(data, v[:display_method].to_s)
-          end
-        else
-          value = get_object_value(data, v.to_s)
-        end
-      elsif v.is_a?(Proc)
-        label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
-        value = v.call(data)
-      else
-        raise "invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
-      end
-    else
-      raise "invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
-    end
-    return label, value
-  end
+  # # @return [Array] [0] is a String representing the column label and Object 
+  # def extract_label_and_value(column_def, data, opts={})
+  #   # this method shouldn't need options, fix it
+  #   # probably some recursive
+  #   # this works right now, but it's pretty slow and hacky
+  #   capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
+  #   label, value = nil, nil
+  #   if column_def.is_a?(String)
+  #     label = column_def
+  #     # value = data[column_def] || data[column_def.to_sym]
+  #     value = get_object_value(data, column_def)
+  #   elsif column_def.is_a?(Symbol)
+  #     label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
+  #     # value = data[column_def] || data[column_def.to_s]
+  #     value = get_object_value(data, column_def)
+  #   elsif column_def.is_a?(Hash)
+  #     k, v = column_def.keys[0], column_def.values[0]
+  #     if v.is_a?(String)
+  #       label = k
+  #       value = get_object_value(data, v)
+  #     elsif v.is_a?(Symbol)
+  #       label = capitalize_labels ? k.to_s.capitalize : k.to_s
+  #       value = get_object_value(data, v)
+  #       # value = data[v] || data[v.to_s]
+  #     elsif v.is_a?(Hash)
+  #       if v[:display_name]
+  #         label = v[:display_name]
+  #       else
+  #         label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
+  #       end
+  #       if v[:display_method]
+  #         if v[:display_method].is_a?(Proc)
+  #           value = v[:display_method].call(data)
+  #         else
+  #           value = get_object_value(data, v[:display_method].to_s)
+  #         end
+  #       else
+  #         value = get_object_value(data, v.to_s)
+  #       end
+  #     elsif v.is_a?(Proc)
+  #       label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
+  #       value = v.call(data)
+  #     else
+  #       raise "invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
+  #     end
+  #   else
+  #     raise "invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
+  #   end
+  #   return label, value
+  # end
 
   def wrap(s, width, indent=0)
     out = s

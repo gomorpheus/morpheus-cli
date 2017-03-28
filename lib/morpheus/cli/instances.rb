@@ -202,17 +202,10 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     ids = args
-    cmd_results = []
-    ids.each do |arg|
-      begin
-        cur_result = _stats(arg, options)
-      rescue SystemExit => err
-        cur_result = err.success? ? 0 : 1
-      end
-      cmd_results << cur_result
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _stats(arg, options)
     end
-    failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
-    return failed_cmd ? failed_cmd : 0
   end
 
   def _stats(arg, options)
@@ -366,18 +359,10 @@ class Morpheus::Cli::Instances
       exit 1
     end
     connect(options)
-    ids = args
-    cmd_results = []
-    ids.each do |arg|
-      begin
-        cur_result = _get(arg, options)
-      rescue SystemExit => err
-        cur_result = err.success? ? 0 : 1
-      end
-      cmd_results << cur_result
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
     end
-    failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
-    return failed_cmd ? failed_cmd : 0
   end
 
   def _get(arg, options)

@@ -66,15 +66,16 @@ def format_dt_as_param(dt)
   format_dt(dt, {format: "%Y-%m-%d %X"})
 end
 
-def format_duration(start_time, end_time, format="human")
+def format_duration(start_time, end_time=nil, format="human")
   if !start_time
     return ""
   end
-  if end_time.nil? || end_time.empty?
+  start_time = parse_time(start_time)
+  if end_time
+    end_time = parse_time(end_time)
+  else
     end_time = Time.now
   end
-  start_time = parse_time(start_time)
-  end_time = parse_time(end_time)
   seconds = (end_time - start_time).abs
   format_duration_seconds(seconds, format)
 end
@@ -189,7 +190,13 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
       # allow extracting dot pathed fields, just like get_object_value
       my_data = {}
       include_fields.each do |field|
-        # field = field.to_s
+        if field.nil?
+          next
+        end
+        field = field.to_s
+        if field.empty?
+          next
+        end
         if field.include?(".")
           # could do this instead...
           # namespaces = field.split(".")
@@ -207,7 +214,7 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
           namespaces.each_with_index do |ns, index|
             if index != namespaces.length - 1
               if cur_data
-                cur_data = cur_data[ns]
+                cur_data = cur_data[ns] || cur_data[ns.to_sym]
               else
                 cur_data = nil
               end
@@ -215,14 +222,14 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
               cur_filtered_data = cur_filtered_data[ns]
             else
               if cur_data.respond_to?("[]")
-                cur_filtered_data[ns] = cur_data[ns]
+                cur_filtered_data[ns] = cur_data[ns] || cur_data[ns.to_sym]
               else
                 cur_filtered_data[ns] = nil
               end
             end
           end
         else
-          my_data[field] = data[field]
+          my_data[field] = data[field] || data[field.to_sym]
         end
       end
       return my_data

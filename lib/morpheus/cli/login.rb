@@ -49,7 +49,7 @@ class Morpheus::Cli::Login
         @appliance_name, @appliance_url = nil, nil
       end
       if !@appliance_name
-        print_red_alert "You have no appliance named '#{options[:remote]}' configured. See the `remote add` command."
+        print_red_alert "You have no appliance named '#{options[:remote]}' configured. See the `remote list` command."
         return false
       end
     else
@@ -70,11 +70,25 @@ class Morpheus::Cli::Login
       options[:remote_username] = username if username
       options[:remote_password] = password if password
       #options[:remote_url] = true # will skip credentials save
-      Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
+      login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
+
+      # check to see if we got credentials, or just look at login_result above...
+      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials() # .load_saved_credentials(true)
+
+      # recalculate shell prompt after this change
+      if Morpheus::Cli::Shell.instance
+        Morpheus::Cli::Shell.instance.reinitialize()
+      end
+
+      if creds
+        return 0 # ,  nil
+      else
+        return 1 # , "Login failed"
+      end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
 
   end

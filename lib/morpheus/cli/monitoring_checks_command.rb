@@ -6,7 +6,7 @@ class Morpheus::Cli::MonitoringChecksCommand
   include Morpheus::Cli::MonitoringHelper
 
   set_command_name :checks # :'monitoring-checks'
-  register_subcommands :list, :get, :add, :update, :remove, :quarantine, :history #, :statistics
+  register_subcommands :list, :get, :update, :remove, :quarantine, :history #, :statistics
   set_default_subcommand :list
   
   def initialize()
@@ -227,20 +227,20 @@ class Morpheus::Cli::MonitoringChecksCommand
     end
     connect(options)
     begin
-      incident = find_check_by_name_or_id(args[0])
-      # return false if incident.nil?
+      check = find_check_by_name_or_id(args[0])
+      # return false if check.nil?
       
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-      # JD: lastUpdated 500ing, incidents don't have that property ? =o  Fix it!
+      # JD: lastUpdated 500ing, checks don't have that property ? =o  Fix it!
 
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.history(incident['id'], params)
+        print_dry_run @monitoring_interface.checks.dry.history(check['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.checks.history(incident['id'], params)
+      json_response = @monitoring_interface.checks.history(check['id'], params)
       if options[:json]
         if options[:include_fields]
           json_response = {"history" => filter_data(json_response["history"], options[:include_fields]) }
@@ -253,7 +253,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         return 0
       end
       history_items = json_response['history']
-      title = "Check History: #{incident['id']}: #{incident['displayName'] || incident['name']}"
+      title = "Check History: #{check['id']}: #{check['displayName'] || check['name']}"
       subtitles = []
       if params[:phrase]
         subtitles << "Search: #{params[:phrase]}".strip
@@ -277,38 +277,6 @@ class Morpheus::Cli::MonitoringChecksCommand
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on("--comment STRING", String, "Set comment") do |val|
-        params['comment'] = val
-      end
-      opts.on("--resolution STRING", String, "Set resolution") do |val|
-        params['resolution'] = val
-      end
-      opts.on("--status STATUS", String, "Set status (open or closed)") do |val|
-        params['status'] = val
-      end
-      opts.on("--severity STATUS", String, "Set severity (critical, warning or info)") do |val|
-        params['resolution'] = val
-      end
-      opts.on("--name STRING", String, "Set name (subject)") do |val|
-        params['name'] = val
-      end
-      opts.on("--startDate TIME", String, "Set start time") do |val|
-        begin
-          params['startDate'] = parse_time(val).utc.iso8601
-        rescue => e
-          raise OptionParser::InvalidArgument.new "Failed to parse --startDate '#{val}'. Error: #{e}"
-        end
-      end
-      opts.on("--endDate TIME", String, "Set end time") do |val|
-        begin
-          params['endDate'] = parse_time(val).utc.iso8601
-        rescue => e
-          raise OptionParser::InvalidArgument.new "Failed to parse --endDate '#{val}'. Error: #{e}"
-        end
-      end
-      opts.on("--inUptime BOOL", String, "Set 'In Availability'") do |val|
-        params['inUptime'] = ['true','on'].include?(val.to_s.strip)
-      end
       build_common_options(opts, options, [:json, :dry_run, :quiet])
     end
     optparse.parse!(args)
@@ -319,7 +287,7 @@ class Morpheus::Cli::MonitoringChecksCommand
     connect(options)
 
     begin
-      incident = find_check_by_name_or_id(args[0])
+      check = find_check_by_name_or_id(args[0])
 
       if params.empty?
         print_red_alert "Specify atleast one option to update"
@@ -328,21 +296,21 @@ class Morpheus::Cli::MonitoringChecksCommand
       end
 
       payload = {
-        'incident' => {id: incident["id"]}
+        'check' => {id: check["id"]}
       }
-      payload['incident'].merge!(params)
+      payload['check'].merge!(params)
 
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.update(incident["id"], payload)
+        print_dry_run @monitoring_interface.checks.dry.update(check["id"], payload)
         return
       end
 
-      json_response = @monitoring_interface.checks.update(incident["id"], payload)
+      json_response = @monitoring_interface.checks.update(check["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success "Updated incident #{incident['id']}"
-        _get(incident['id'], {})
+        print_green_success "Updated check #{check['id']}"
+        _get(check['id'], {})
       end
 
     rescue RestClient::Exception => e
@@ -358,8 +326,11 @@ class Morpheus::Cli::MonitoringChecksCommand
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id list]")
       # this one is a bit weird.. it's a way to toggle incident.inUptime
-      opts.on("--enabled BOOL", String, "Quarantine can be removed by unquarantine an incident") do |val|
-        params['enabled'] = val
+      # opts.on("--enabled BOOL", String, "Quarantine can be removed with --enabled false") do |val|
+      #   params['enabled'] = ['on','true'].include?(val.to_s.downcase)
+      # end
+      opts.on("-d", "--disabled", "Disable Quarantine instead") do
+        params['enabled'] = false
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet])
     end
@@ -371,7 +342,7 @@ class Morpheus::Cli::MonitoringChecksCommand
     connect(options)
 
     begin
-      incident = find_check_by_name_or_id(args[0])
+      check = find_check_by_name_or_id(args[0])
 
       if params.empty?
         print_red_alert "Specify atleast one option to update"
@@ -380,22 +351,22 @@ class Morpheus::Cli::MonitoringChecksCommand
       end
 
       # payload = {
-      #   'incident' => {id: incident["id"]}
+      #   'check' => {id: check["id"]}
       # }
-      # payload['incident'].merge!(params)
+      # payload['check'].merge!(check)
       payload = params
 
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.update(incident["id"], payload)
+        print_dry_run @monitoring_interface.checks.dry.update(check["id"], payload)
         return
       end
 
-      json_response = @monitoring_interface.checks.update(incident["id"], payload)
+      json_response = @monitoring_interface.checks.update(check["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success "Quarantined incident #{incident['id']}"
-        _get(incident['id'], {})
+        print_green_success "Quarantined check #{check['id']}"
+        _get(check['id'], {})
       end
 
     rescue RestClient::Exception => e
@@ -404,97 +375,50 @@ class Morpheus::Cli::MonitoringChecksCommand
     end
   end
 
-  def close(args)
+  def remove(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet])
     end
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 1
+      return 127
     end
     connect(options)
-    id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to close #{id_list.size == 1 ? 'incident' : 'incidents'} #{anded_list(id_list)}?", options)
-      exit 1
-    end
-    return run_command_for_each_arg(id_list) do |arg|
-      _close(arg, options)
-    end
-  end
-
-  def _close(id, options)
 
     begin
-      incident = find_check_by_name_or_id(id)
-      already_closed = incident['status'] == 'closed'
+      check = find_check_by_name_or_id(args[0])
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete check '#{check['name']}'?", options)
+        return false
+      end
+
+      # payload = {
+      #   'check' => {id: check["id"]}
+      # }
+      # payload['check'].merge!(check)
+      payload = params
+
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.close(incident['id'])
+        print_dry_run @monitoring_interface.checks.dry.destroy(check["id"])
         return
       end
-      json_response = @monitoring_interface.checks.close(incident['id'])
+
+      json_response = @monitoring_interface.checks.destroy(check["id"])
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success json_response["msg"] || "Check #{incident['id']} is now closed"
-        # _get(incident['id'] {})
+        print_green_success "Deleted check #{check['id']}"
       end
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
-  def reopen(args)
-    options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    connect(options)
-    id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to reopen #{id_list.size == 1 ? 'incident' : 'incidents'} #{anded_list(id_list)}?", options)
-      exit 1
-    end
-    return run_command_for_each_arg(id_list) do |arg|
-      _reopen(arg, options)
-    end
-  end
-
-  def _reopen(id, options)
-
-    begin
-      incident = find_check_by_name_or_id(id)
-      already_open = incident['status'] == 'open'
-      if already_open
-        print bold,yellow,"Check #{incident['id']} is already open",reset,"\n"
-        return 1
-      end
-      if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.reopen(incident['id'])
-        return
-      end
-      json_response = @monitoring_interface.checks.reopen(incident['id'])
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        print_green_success json_response["msg"] || "Check #{incident['id']} is now open"
-        # _get(incident['id'] {})
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
 
   private
 

@@ -12,20 +12,22 @@ class Morpheus::SetupInterface < Morpheus::APIClient
     @base_url = base_url
   end
 
-  def get(options={})
-    url = "#{@base_url}/api/setup"
-    # headers = {:params => {}, authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    headers = {:params => {}, 'Content-Type' => 'application/json' }
-    headers[:params].merge!(options)
-    execute(method: :get, url: url, headers: headers)
+  def check(params={}, timeout=5)
+    url = "#{@base_url}/api/setup/check"
+    headers = {:params => params, 'Content-Type' => 'application/json' }
+    execute(method: :get, url: url, headers: headers, timeout: timeout)
   end
 
-  def init(options={})
+  def get(params={}, timeout=30)
+    url = "#{@base_url}/api/setup"
+    headers = {:params => params, 'Content-Type' => 'application/json' }
+    execute(method: :get, url: url, headers: headers, timeout: timeout)
+  end
+
+  def init(payload={}, timeout=60)
     url = "#{@base_url}/api/setup/init"
-    # headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     headers = { 'Content-Type' => 'application/json' }
-    payload = options
-    execute(method: :post, url: url, timeout: 30, headers: headers, payload: payload.to_json)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json, timeout: timeout)
   end
 
 end

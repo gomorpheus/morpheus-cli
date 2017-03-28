@@ -5,6 +5,7 @@ require 'morpheus/cli/mixins/print_helper'
 require 'morpheus/cli/credentials'
 require 'morpheus/api/api_client'
 require 'morpheus/cli/remote'
+require 'morpheus/terminal'
 
 module Morpheus
   module Cli
@@ -202,7 +203,7 @@ module Morpheus
             end
 
             # todo: also require this for talking to plain old HTTP
-            opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+            opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
               options[:insecure] = true
               Morpheus::RestClient.enable_ssl_verification = false
             end
@@ -296,7 +297,7 @@ module Morpheus
             end
 
           when :quiet
-            opts.on('-q','--quiet', "No Output, when successful") do
+            opts.on('-q','--quiet', "No Output, do not print to stdout") do
               options[:quiet] = true
             end
 
@@ -391,15 +392,21 @@ module Morpheus
         subcommand_name = args[0]
         if args[0] == "-h" || args[0] == "--help" || args[0] == "help"
           print_usage
-          exit
+          exit 0
         end
         if subcommand_aliases[subcommand_name]
           subcommand_name = subcommand_aliases[subcommand_name]
         end
         cmd_method = subcommands[subcommand_name]
         if subcommand_name && !cmd_method
-          unknown_cmd = "#{self.command_name} #{subcommand_name}".strip
-          print_red_alert "Unrecognized Command '#{unknown_cmd}'"
+          #full_cmd = "morpheus #{self.command_name}"
+          #unknown_cmd = "#{self.command_name} #{subcommand_name}".strip
+          #print_red_alert "Unrecognized Command '#{unknown_cmd}'"
+          my_help_command = "morpheus #{self.command_name} --help"
+          # if Morpheus::Shell.instance
+          $stderr.puts "#{Morpheus::Terminal.angry_prompt}'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
+          # print_usage
+          exit 127
         end
         if !cmd_method
           print_usage
@@ -457,6 +464,13 @@ module Morpheus
           @appliance = found_appliance
           @appliance_name = @appliance_name
           @appliance_url = @appliance[:host]
+          # gotta always toggle this for now
+          # should return to the previous value tho..
+          if @appliance[:insecure]
+            Morpheus::RestClient.enable_ssl_verification = false
+          else
+            # Morpheus::RestClient.enable_ssl_verification = true
+          end
           Morpheus::Logging::DarkPrinter.puts "Using remote appliance [#{@appliance_name}] #{@appliance_url}" if options[:debug]
         else
           #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance

@@ -8,7 +8,7 @@ require 'logger'
 require 'fileutils'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/error_handler'
-
+require 'morpheus/terminal'
 
 class Morpheus::Cli::Shell
   include Morpheus::Cli::CliCommand
@@ -16,20 +16,61 @@ class Morpheus::Cli::Shell
   @@instance = nil
 
   def self.instance
-    @@instance ||= self.new
+    @@instance ||= reload_instance
   end
 
+  def self.reload_instance
+    @@instance = self.new
+  end
+
+  attr_accessor :prompt #, :angry_prompt
+
   def initialize()
-    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    @@instance = self
+    reinitialize()
+  end
+
+  def reinitialize()
+    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    @current_remote = ::Morpheus::Cli::Remote.load_active_remote()
+    if @current_remote
+      @appliance_name, @appliance_url = @current_remote[:name], @current_remote[:host]
+      @current_username = @current_remote[:username] || '(anonymous)'
+    else
+      @appliance_name, @appliance_url = nil, nil
+      @current_username = nil
+    end
     #connect()
     #raise "one shell only" if @@instance
     @@instance = self
+    recalculate_prompt()
     recalculate_auto_complete_commands()
   end
 
   # def connect(opts)
   #   @api_client = establish_remote_appliance_connection(opts)
   # end
+
+  def recalculate_prompt()
+    # custom prompts.. this is overkill and perhaps a silly thing..
+    # Example usage:
+    # MORPHEUS_PS1="[%remote] %cyan %username morph> " morpheus shell --debug
+    prompt_str = Morpheus::Terminal.prompt.to_s #.dup
+    var_map = {
+      '%cyan' => cyan, '%magenta' => magenta, '%reset' => reset, '%dark' => dark,
+      '%remote' => @appliance_name.to_s, '%username' => @current_username.to_s, 
+      '%remote_url' => @appliance_url.to_s
+    }
+    var_map.each do |var_key, var_value|
+      prompt_str.gsub!(var_key.to_s, var_value.to_s)
+    end
+    # cleanup empty brackets caused by var value
+    prompt_str = prompt_str.gsub("[]", "").gsub("<>", "").gsub("{}", "")
+    prompt_str = prompt_str.strip
+    prompt_str = "#{prompt_str}#{reset} "
+    @prompt = prompt_str
+    @prompt
+  end
 
   def recalculate_auto_complete_commands
     @morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
@@ -92,13 +133,17 @@ class Morpheus::Cli::Shell
       end
     end
 
+    reinitialize()
+    # recalculate_prompt()
+    # recalculate_auto_complete_commands()
+
     exit = false
     while !exit do
       Readline.completion_append_character = " "
       Readline.completion_proc = @auto_complete
       Readline.basic_word_break_characters = ""
       #Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
-      input = Readline.readline("#{cyan}morpheus> #{reset}", true).to_s
+      input = Readline.readline(@prompt, true).to_s
       input = input.strip
 
       execute_commands(input)
@@ -107,6 +152,7 @@ class Morpheus::Cli::Shell
   end
 
   def execute_commands(input)
+    # input = input.to_s.sub(/^morpheus\s+/, "") # meh
     # split the command on unquoted semicolons.
     # so you can run multiple commands at once! eg hosts list; instances list
     # all_commands = input.gsub(/(\;)(?=(?:[^"]|"[^"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
@@ -154,6 +200,21 @@ class Morpheus::Cli::Shell
         puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
         #print "\n"
         return 0
+      elsif input =~ /^sleep/
+        sleep_sec = input.sub("sleep ", "").to_f
+        if (!(sleep_sec > 0))
+          # raise_command_error "sleep requires the argument [seconds]. eg. sleep 3.14"
+          $stderr.puts  "sleep requires argument [seconds]. eg. sleep 3.14"
+          return false
+        end
+        log_history_command(input)
+        Morpheus::Logging::DarkPrinter.puts "sleeping for #{sleep_sec}s ... zzzZzzzZ" if Morpheus::Logging.debug?
+        begin
+          sleep(sleep_sec)
+        rescue Interrupt
+          Morpheus::Logging::DarkPrinter.puts "\nInterrupt. waking up from sleep early"
+        end
+        return 0
       elsif input =~ /^history/
         n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
         n_commands = n_commands.empty? ? 25 : n_commands.to_i
@@ -177,24 +238,66 @@ class Morpheus::Cli::Shell
         @history_logger = load_history_logger
         puts "history cleared!"
         return 0
+      elsif input == "edit rc"
+        fn = Morpheus::Cli::DotFile.morpheusrc_filename
+        editor = ENV['EDITOR'] # || 'nano'
+        if !editor
+          puts "You have no EDITOR defined. Use 'export EDITOR=emacs'"
+          #puts "Trying nano..."
+          #editor = "nano"
+        end
+        system("which #{editor} > /dev/null 2>&1")
+        has_editor = $?.success?
+        if has_editor
+          puts "opening #{fn} for editing with #{editor} ..."
+          `#{editor} #{fn}`
+          puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
+        else
+          $stderr.puts Morpheus::Terminal.angry_prompt
+          $stderr.puts "The defined EDITOR '#{editor}' was not found on your system."
+        end
+        return 0 # $?
+      elsif input == "edit profile"
+        fn = Morpheus::Cli::DotFile.morpheus_profile_filename
+        editor = ENV['EDITOR'] # || 'nano'
+        if !editor
+          puts "You have no EDITOR defined. Use 'export EDITOR=emacs'."
+          #puts "Trying nano..."
+          #editor = "nano"
+        end
+        system("which #{editor} > /dev/null 2>&1")
+        has_editor = $?.success?
+        if has_editor
+          puts "opening #{fn} for editing with #{editor} ..."
+          `#{editor} #{fn}`
+          puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
+        else
+          $stderr.puts Morpheus::Terminal.angry_prompt
+          $stderr.puts "The defined EDITOR '#{editor}' was not found on your system."
+        end
+        return 0 # $?
       elsif input == 'reload' || input == 'reload!'
+        # raise RestartShellPlease
         #log_history_command(input)
         # could just fork instead?
+        # clear registry
+        Morpheus::Cli::CliRegistry.instance.flush
+        # reload code
         Morpheus::Cli.load!
-        # initialize()
-        # gotta reload appliance, groups, credentials
-        @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-        recalculate_auto_complete_commands()
-        # execute startup script
-        # if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
-        #   Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
-        # end
-        begin
-          load __FILE__
-        rescue => err
-          print "failed to reload #{__FILE__}. oh well"
-          # print err
+
+        # raise RestartShellPlease
+
+        # execute startup scripts
+        if File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
+          Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename).execute()
         end
+        if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+          Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
+        end
+        
+        # recalculate shell environment
+        reinitialize()
+
         Morpheus::Logging::DarkPrinter.puts "shell has been reloaded" if Morpheus::Logging.debug?
         return 0
       elsif input == '!!'
@@ -202,7 +305,7 @@ class Morpheus::Cli::Shell
         input = @history[cmd_number]
         if !input
           puts "There is no previous command"
-          return 1
+          return false
         end
         execute_commands(input)
       elsif input =~ /^\!.+/
@@ -247,16 +350,16 @@ class Morpheus::Cli::Shell
 
       begin
         argv = Shellwords.shellsplit(input)
-
-
-        if Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
+        cmd_name = argv[0]
+        cmd_args = argv[1..-1]
+        if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
-          Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
+          Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
         else
-          print_red_alert "Unrecognized Command '#{argv[0]}'."
-          puts "Try 'help' to see a list of available commands."
+          $stderr.puts "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a known command. See 'help'."
+          # print_red_alert "Unrecognized Command '#{argv[0]}'."
+          # puts "Try 'help' to see a list of available commands."
           @history_logger.warn "Unrecognized Command #{argv[0]}" if @history_logger
-          #puts optparse
         end
         # rescue ArgumentError
         #   puts "Argument Syntax Error..."

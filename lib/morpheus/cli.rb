@@ -94,8 +94,12 @@ module Morpheus
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
 
+      # nice to have commands
       load 'morpheus/cli/curl_command.rb'
-      # Your new commands goes here...
+      load 'morpheus/cli/man_command.rb' # please implement me
+
+
+      # Your new commands go here...
 
     end
 
