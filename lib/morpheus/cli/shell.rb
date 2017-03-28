@@ -55,21 +55,21 @@ class Morpheus::Cli::Shell
     # custom prompts.. this is overkill and perhaps a silly thing..
     # Example usage:
     # MORPHEUS_PS1="[%remote] %cyan %username morph> " morpheus shell --debug
-    prompt_str = Morpheus::Terminal.instance.prompt.to_s #.dup
+    @prompt = Morpheus::Terminal.instance.prompt.to_s #.dup
     var_map = {
       '%cyan' => cyan, '%magenta' => magenta, '%reset' => reset, '%dark' => dark,
       '%remote' => @appliance_name.to_s, '%username' => @current_username.to_s, 
       '%remote_url' => @appliance_url.to_s
     }
+    @calculated_prompt = @prompt.to_s.dup
     var_map.each do |var_key, var_value|
-      prompt_str.gsub!(var_key.to_s, var_value.to_s)
+      @calculated_prompt.gsub!(var_key.to_s, var_value.to_s)
     end
     # cleanup empty brackets caused by var value
-    prompt_str = prompt_str.gsub("[]", "").gsub("<>", "").gsub("{}", "")
-    prompt_str = prompt_str.strip
-    prompt_str = "#{prompt_str}#{reset} "
-    @prompt = prompt_str
-    @prompt
+    @calculated_prompt = @calculated_prompt.gsub("[]", "").gsub("<>", "").gsub("{}", "")
+    @calculated_prompt = @calculated_prompt.strip
+    @calculated_prompt = "#{@calculated_prompt}#{reset} "
+    @calculated_prompt
   end
 
   def recalculate_auto_complete_commands
@@ -143,7 +143,7 @@ class Morpheus::Cli::Shell
       Readline.completion_proc = @auto_complete
       Readline.basic_word_break_characters = ""
       #Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
-      input = Readline.readline(@prompt, true).to_s
+      input = Readline.readline(@calculated_prompt, true).to_s
       input = input.strip
 
       execute_commands(input)

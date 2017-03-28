@@ -29,9 +29,13 @@ class Morpheus::Cli::Remote
 
   def list(args)
     options = {}
+    show_all_activity = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :csv, :fields])
+      opts.on("-a",'--all', "Show all activity for each appliance") do
+        show_all_activity = true
+      end
       opts.footer = <<-EOT
 This outputs a list of the configured remote appliances. It also indicates
 the current appliance. The current appliance is where morpheus will send 
@@ -77,7 +81,7 @@ EOT
         {:status => lambda {|it| format_appliance_status(it, cyan) } },
         :username,
         # {:session => {display_method: lambda {|it| get_appliance_session_blurbs(it).join('  ') }, max_width: 24} }
-        {:activity => {display_method: lambda {|it| get_appliance_session_blurbs(it).first } } }
+        {:activity => {display_method: lambda {|it| show_all_activity ? get_appliance_session_blurbs(it).join("\t") : get_appliance_session_blurbs(it).first } } }
       ]
       print as_pretty_table(appliances, columns, options)
       print reset
@@ -567,7 +571,8 @@ EOT
     
     if appliance[:active] == true
       if !options[:quiet]
-        puts "Already using remote #{appliance_name}"
+        print cyan
+        puts "Still using remote #{appliance_name}"
       end
       return true
     end
@@ -882,9 +887,9 @@ EOT
         end
       end
 
-      # if app_map[:last_success_at]
-      #   blurbs << "Last success at #{format_local_dt(app_map[:last_success_at])}"
-      # end
+      if app_map[:last_success_at]
+        blurbs << "Last success at #{format_local_dt(app_map[:last_success_at])}"
+      end
 
     else
       

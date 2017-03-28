@@ -12,17 +12,44 @@ require 'morpheus/cli'
 module Morpheus
   
   # Terminal is a class for executing morpheus commands
+  # The default IO is STDIN, STDOUT, STDERR
+  # The default home directory is $HOME/.morpheus
   #
-  # ==== Example
+  # ==== Example Usage
   #
   #    morph = Morpheus::Terminal.new
   #    exit_code, err = morph.execute("instances list -m 10")
   #    assert exit_code == 0
   #    assert err == nil
   #
+  #    morph = Morpheus::Terminal.new(STDIN, File.new("/tmp/morph.log", "w+"))
+  #    morph.execute("hosts get 23")
+  #
+  #    morph = Morpheus::Terminal.new(STDIN, File.new("/tmp/host23.json", "w"))
+  #    morph.execute("hosts get 23 --json")
+  #    puts File.read("/tmp/host23.json")
+  #
   class Terminal
     
     # todo: this can be combined with Cli::Shell
+
+    class Blackhole # < IO
+      def do_nothing
+        return nil
+      end
+      def print(*mgs)
+        do_nothing
+      end
+      def puts(*mgs)
+        do_nothing
+      end
+      def <<(*mgs)
+        do_nothing
+      end
+      def write(*mgs)
+        do_nothing
+      end
+    end
 
     # DEFAULT_TERMINAL_WIDTH = 80
     
@@ -57,10 +84,19 @@ module Morpheus
     # the global Morpheus::Terminal instance
     # This should go away, but it needed for now...
     def self.instance
-      @morphterm ||= self.new()
+      @morphterm
+    end
+
+    # the global Morpheus::Terminal instance
+    # This should go away, but it needed for now...
+    def self.new(*args)
+      obj = super(*args)
+      @morphterm = obj
+      obj
     end
 
     attr_accessor :prompt #, :angry_prompt
+    attr_reader :stdin, :stdout, :stderr, :homedir
 
 
     # @param stdin  [IO] Default is STDIN
@@ -78,9 +114,10 @@ module Morpheus
     
       
       # establish IO
-      @stdin, @stdout, @stderr = stdin, stdout, stderr
-      # hijack kernal puts? laff, remove later
-      # $stdin, $stdout, $stderr = stdin, stdout, stderr
+      # @stdin, @stdout, @stderr = stdin, stdout, stderr
+      set_stdin(stdin)
+      set_stdout(stdout)
+      set_stderr(stderr)
       
       # establish home directory
       @homedir = homedir || ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
@@ -115,6 +152,33 @@ module Morpheus
       else
         return nil
       end
+    end
+
+    def set_stdin(io)
+      # if io.nil? || io == 'blackhole' || io == '/dev/null'
+      #   @stdout = Morpheus::Terminal::Blackhole.new
+      # else
+      #   @stdout = io
+      # end
+      @stdin = io
+    end
+
+    def set_stdout(io)
+      if io.nil? || io == 'blackhole' || io == '/dev/null'
+        @stdout = Morpheus::Terminal::Blackhole.new
+      else
+        @stdout = io
+      end
+      @stdout
+    end
+
+    def set_stderr(io)
+      if io.nil? || io == 'blackhole' || io == '/dev/null'
+        @stderr = Morpheus::Terminal::Blackhole.new
+      else
+        @stderr = io
+      end
+      @stderr
     end
 
     # def coloring=(v)
@@ -300,7 +364,7 @@ module Morpheus
         err = e
       end
 
-      return exit_code
+      return exit_code, err
 
     end
 

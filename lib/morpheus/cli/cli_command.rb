@@ -38,6 +38,30 @@ module Morpheus
         @my_terminal = t
       end
 
+
+      def print(*msgs)
+        #puts "my_terminal.stdout is : #{self.my_terminal.stdout}"
+        my_terminal.stdout.print(*msgs)
+      end
+
+      def puts(*msgs)
+        #STDOUT.puts "my_terminal.stdout is : #{self.my_terminal.stdout}"
+        my_terminal.stdout.puts(*msgs)
+      end
+
+      def print_error(*msgs)
+        my_terminal.stdout.print(*msgs)
+      end
+
+      def puts_error(*msgs)
+        my_terminal.stderr.puts(*msgs)
+      end
+
+      # todo: use terminal.stdin
+      # def readline(*msgs)
+      #   @my_terminal.readline(*msgs)
+      # end
+
       # disabled prompting for this command
       def noninteractive()
         @no_prompt = true
