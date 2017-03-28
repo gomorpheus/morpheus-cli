@@ -40,12 +40,10 @@ module Morpheus
 
 
       def print(*msgs)
-        #puts "my_terminal.stdout is : #{self.my_terminal.stdout}"
         my_terminal.stdout.print(*msgs)
       end
 
       def puts(*msgs)
-        #STDOUT.puts "my_terminal.stdout is : #{self.my_terminal.stdout}"
         my_terminal.stdout.puts(*msgs)
       end
 
@@ -443,7 +441,9 @@ module Morpheus
           #print_red_alert "Unrecognized Command '#{unknown_cmd}'"
           my_help_command = "morpheus #{self.command_name} --help"
           # if Morpheus::Shell.instance
-          $stderr.puts "#{Morpheus::Terminal.angry_prompt}'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
+          raise_command_error "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
+          # print_error Morpheus::Terminal.angry_prompt
+          # puts_error "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
           # print_usage
           exit 127
         end

@@ -11,20 +11,25 @@ class Morpheus::Cli::ManCommand
   def handle(args)
     options = {}
     regenerate = false
-    editor = "less"
+    editor, open_as_link = "less", false
+    #editor, open_as_link = nil, true
     goto_wiki = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus man"
       opts.on('-w','--wiki', "Open the morpheus-cli wiki instead of the local man page") do
         goto_wiki = true
       end
+      opts.on('-e','--editor EDITOR', "Specify program to open manual with. Default is '#{editor}'.") do |val|
+        editor = val
+        open_as_link = false
+      end
       opts.on('-g','--generate', "Regenerate the manual file") do
         regenerate = true
       end
-      opts.on('-e','--editor EDITOR', "Specify text editor to open with. Default is 'less'.") do |val|
-        editor = val
+      opts.on('-q','--quiet', "Do not open manual, for use with the -g option.") do
+        options[:quiet] = true
       end
-      #build_common_options(opts, options, [])
+      #build_common_options(opts, options, [:quiet])
       # disable ANSI coloring
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         Term::ANSIColor::coloring = false
@@ -40,8 +45,7 @@ class Morpheus::Cli::ManCommand
       end
       opts.footer = <<-EOT
 Open the morpheus manual located at #{Morpheus::Cli::ManCommand.man_file_path}
-Alternatively,
-This command can also be used to regenerate the manul, with the -g switch
+The -g switch be used to regenerate the file.
 EOT
     end
     optparse.parse!(args)
@@ -58,29 +62,59 @@ EOT
       return 0, nil
     end
 
-    manpage = Morpheus::Cli::ManCommand.man_file_path
-    if regenerate || !File.exists?(manpage)
-      puts "generating manual #{manpage} ..."
+    fn = Morpheus::Cli::ManCommand.man_file_path
+    if regenerate || !File.exists?(fn)
+      #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug?
       Morpheus::Cli::ManCommand.generate_manual()
     end
     
-    if !command_available?(editor)
-      $stderr.puts "#{red}The editor command '#{editor}' is not available on your system.#{reset}"
-      return false
+    if options[:quiet]
+      return 0, nil
     end
     
-    Morpheus::Logging::DarkPrinter.puts "opening manual #{manpage}" if Morpheus::Logging.debug?
-    # todo: WINDOWS?
-    # manpage_txt = File.read(manpage)
-    # IO.popen("less", "w") { |f| f.puts manpage_txt }
-    system("#{editor} #{manpage}")
+    Morpheus::Logging::DarkPrinter.puts "opening manual file #{fn}" if Morpheus::Logging.debug?
+    
+    
+    if open_as_link # not used atm
+      link = "file://#{fn}"
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        system "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        system "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        system "xdg-open #{link}"
+      end
+      return 0, nil
+    else
+      if editor
+        if !system_command_available?(editor)
+          raise_command_error "The editor program '#{editor}' is not available on your system."
+          # puts_error "#{red}The editor program '#{editor}' is not available on your system.#{reset}"
+          # return 1
+        end        
+        system("#{editor} #{fn}")
+      else
+        raise_command_error "Tell me how to open the manual file #{fn}. Try -e emacs or run export EDITOR=emacs"
+        return 1
+      end
+    end
 
     return 0, nil
   end
 
-  def command_available?(cmd)
+  # determine if system command is available
+  # uses *nix's `which` command.
+  # Prevents using dangerous commands rm,mv,passwd
+  # todo: support for Windows and PowerShell
+  def system_command_available?(cmd)
     has_it = false
     begin
+      cmd = cmd.strip
+      if cmd.include?(';') || 
+          cmd =~ /^rm/  || cmd.strip =~ /^mv/ || cmd.strip =~ /^passwd/ || 
+          cmd.include?("/rm")  || cmd.include?("/mv") || cmd.include?("/passwd")
+        raise_command_error "The specified system command '#{cmd}' is invalid."
+      end
       system("which #{cmd} > /dev/null 2>&1")
       has_it = $?.success?
     rescue => e
@@ -110,9 +144,9 @@ EOT
     if !Dir.exists?(File.dirname(fn))
       FileUtils.mkdir_p(File.dirname(fn))
     end
-    Morpheus::Logging::DarkPrinter.puts "saving manual to #{fn}" if Morpheus::Logging.debug?
-    # File.open(fn, 'w') {|f| f.write content.to_s } #Store
-    File.open(fn, 'w') {|f| "" } #Store
+    Morpheus::Logging::DarkPrinter.puts "generating manual #{fn}" if Morpheus::Logging.debug?
+
+    File.open(fn, 'w') {|f| f.write("") } # clear file
     FileUtils.chmod(0600, fn)
 
     manpage = File.new(fn, 'w')
@@ -179,7 +213,7 @@ EOT
 ENDTEXT
       
       terminal = Morpheus::Terminal.new($stdin, $stdout)
-      STDOUT.puts "generating help with `morpheus --help`"
+      Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus --help`" if Morpheus::Logging.debug?
 
       $stdout.print "\n"
       $stdout.print "## morpheus\n"
@@ -192,7 +226,7 @@ ENDTEXT
       Morpheus::Cli::CliRegistry.all.keys.sort.each do |cmd|
         cmd_klass = Morpheus::Cli::CliRegistry.instance.get(cmd)
         cmd_instance = cmd_klass.new
-        STDOUT.puts "generating help with `morpheus #{cmd} --help`"
+        Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} --help`" if Morpheus::Logging.debug?
         #help_cmd = "morpheus #{cmd} --help"
         #help_output = `#{help_cmd}`
         $stdout.print "\n"
@@ -208,7 +242,7 @@ ENDTEXT
         subcommands = cmd_klass.subcommands
         if subcommands && subcommands.size > 0
           subcommands.sort.each do |subcommand, subcommand_method|
-            STDOUT.puts "generating help with `morpheus #{cmd} #{subcommand} --help`"
+            Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug?
             $stdout.print "\n"
             $stdout.print "#### morpheus #{cmd} #{subcommand}\n"
             $stdout.print "\n"

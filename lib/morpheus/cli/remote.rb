@@ -32,10 +32,10 @@ class Morpheus::Cli::Remote
     show_all_activity = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :csv, :fields])
-      opts.on("-a",'--all', "Show all activity for each appliance") do
+      opts.on("-a",'--all', "Show all the appliance activity details") do
         show_all_activity = true
       end
+      build_common_options(opts, options, [:json, :csv, :fields])
       opts.footer = <<-EOT
 This outputs a list of the configured remote appliances. It also indicates
 the current appliance. The current appliance is where morpheus will send 
@@ -132,9 +132,9 @@ EOT
     end
     optparse.parse!(args)
     if args.count < 2
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} get expects 2 arguments: [name] [url]."
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} add expects 2 arguments: [name] [url]"
+      puts_error optparse
       return 1
     end
 
@@ -183,8 +183,7 @@ EOT
 
     if !options[:quiet]
       # print_green_success "Added remote #{new_appliance_name}"
-      print cyan
-      puts "Added remote #{new_appliance_name}"
+      print_green_success "Added remote #{new_appliance_name}"
     end
 
     # hit check api and store version and other info
@@ -193,7 +192,10 @@ EOT
       puts "Inspecting remote appliance url: #{appliance[:host]} ..."
     end
     appliance = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name)
-
+    if !options[:quiet]
+      print cyan
+      puts "Status is: #{format_appliance_status(appliance)}"
+    end
     # puts "refreshed appliance #{appliance.inspect}"
     # determine command exit_code and err
     exit_code = (appliance[:status] == 'ready' || appliance[:status] == 'fresh') ? 0 : 1
@@ -224,8 +226,21 @@ EOT
     # maybe remote use should do the login prompting eh?
     # if appliance[:active] && appliance[:status] == 'ready'
     if appliance[:status] == 'ready'
+      print reset
       if ::Morpheus::Cli::OptionTypes::confirm("Would you like to login now?", options.merge({default: true}))
         login_result = ::Morpheus::Cli::Login.new.handle(["--remote", appliance[:name].to_s])
+        keep_trying = true
+        while keep_trying do
+          if ::Morpheus::Cli::OptionTypes::confirm("Login was unsuccessful. Would you like to try again?", options.merge({default: true}))
+            login_result = ::Morpheus::Cli::Login.new.handle(["--remote", appliance[:name].to_s])
+            if login_result == 0
+              keep_trying = false
+            end
+          else
+            keep_trying = false
+          end
+        end
+
       end
     else
       #puts "Status is #{format_appliance_status(appliance)}"
@@ -263,12 +278,9 @@ EOT
       # id_list = ::Morpheus::Cli::Remote.appliances.keys # sort ?
       return _check_all_appliances()
     elsif args.count < 1
-      # puts optparse
-      # exit 1
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} update expects argument [name]."
-      # $stderr.puts "Missing [name] argument."
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} update expects argument [name] or option --all"
+      puts_error optparse
       return 1
     else
       id_list = parse_id_list(args)
@@ -373,9 +385,9 @@ EOT
     optparse.parse!(args)
     puts "args is #{args.inspect}"
     if args.count != 1
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} update expects argument [name]."
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} update expects argument [name]."
+      puts_error optparse
       return 1
     end
 
@@ -388,9 +400,9 @@ EOT
     # params[:url] = args[1] if args[1]
     
     if params.empty?
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts "Specify atleast one option to update"
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error "Specify atleast one option to update"
+      puts_error optparse
       return 1
     end
     
@@ -422,9 +434,9 @@ EOT
     end
     optparse.parse!(args)
     if args.count < 1
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} get expects argument [name]."
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} get expects argument [name]."
+      puts_error optparse
       return 1
     end
     #connect(options)
@@ -527,7 +539,7 @@ EOT
     if !appliance
       raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
     end
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete '#{appliance_name}' from your list of remotes?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete '#{appliance_name}' from your list of remote appliances?", options)
       return 9, "aborted command" # new exit code for aborting confirmation
     end
 
@@ -572,7 +584,7 @@ EOT
     if appliance[:active] == true
       if !options[:quiet]
         print cyan
-        puts "Still using remote #{appliance_name}"
+        puts "Using remote #{appliance_name} (still)"
       end
       return true
     end
@@ -586,7 +598,7 @@ EOT
     end
 
     if !options[:quiet]
-      puts "#{cyan}Switched to remote #{appliance_name}#{reset}"
+      puts "#{cyan}Using remote #{appliance_name}#{reset}"
     end
     return true
   end

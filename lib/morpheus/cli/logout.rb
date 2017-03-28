@@ -41,8 +41,8 @@ class Morpheus::Cli::Logout
 
     begin
       if !@appliance_name
-        $stderr.print Morpheus::Terminal.angry_prompt
-        $stderr.puts "Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`"
+        print_error Morpheus::Terminal.angry_prompt
+        puts_error "Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`"
         return 1
       end
       creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
