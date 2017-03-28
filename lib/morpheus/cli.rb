@@ -96,6 +96,7 @@ module Morpheus
 
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
+      load 'morpheus/cli/set_prompt_command.rb'
       load 'morpheus/cli/man_command.rb' # please implement me
 
 

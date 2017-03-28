@@ -55,7 +55,7 @@ class Morpheus::Cli::Shell
     # custom prompts.. this is overkill and perhaps a silly thing..
     # Example usage:
     # MORPHEUS_PS1="[%remote] %cyan %username morph> " morpheus shell --debug
-    prompt_str = Morpheus::Terminal.prompt.to_s #.dup
+    prompt_str = Morpheus::Terminal.instance.prompt.to_s #.dup
     var_map = {
       '%cyan' => cyan, '%magenta' => magenta, '%reset' => reset, '%dark' => dark,
       '%remote' => @appliance_name.to_s, '%username' => @current_username.to_s, 

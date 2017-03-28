@@ -89,8 +89,8 @@ EOT
         print "\n# => No current remote appliance, see `remote use`\n", reset
       end
       print reset, "\n"
-      return 0, nil
     end
+    return 0, nil
   end
 
   def add(args)

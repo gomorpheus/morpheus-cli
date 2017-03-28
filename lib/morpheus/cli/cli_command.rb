@@ -23,6 +23,21 @@ module Morpheus
       # this setting makes it easy for the called to disable prompting
       attr_reader :no_prompt
 
+      # @returns the Terminal this command is being executed inside of
+      def my_terminal
+        @my_terminal ||= Morpheus::Terminal.new
+      end
+
+      # set the terminal this is running this command.
+      # @param term [MorpheusTerminal] the terminal this command is assigned to
+      # @returns the Terminal this command is being executed inside of
+      def my_terminal=(term)
+        if !t.is_a?(Morpheus::Terminal)
+          raise "CliCommand #{self.class} terminal= expects object of type Terminal and instead got a #{t.class}"
+        end
+        @my_terminal = t
+      end
+
       # disabled prompting for this command
       def noninteractive()
         @no_prompt = true

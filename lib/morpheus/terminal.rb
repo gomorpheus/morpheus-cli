@@ -31,12 +31,19 @@ module Morpheus
     end
 
     def self.prompt
-      if ENV['MORPHEUS_PS1']
-        return ENV['MORPHEUS_PS1'].to_s.dup
-      else
-        #ENV['MORPHEUS_PS1'] = "#{Term::ANSIColor.cyan}morpheus> #{Term::ANSIColor.reset}"
-        "#{Term::ANSIColor.cyan}morpheus>#{Term::ANSIColor.reset} "
+      if @prompt.nil?
+        if ENV['MORPHEUS_PS1']
+          @prompt = ENV['MORPHEUS_PS1'].to_s.dup
+        else
+          #ENV['MORPHEUS_PS1'] = "#{Term::ANSIColor.cyan}morpheus> #{Term::ANSIColor.reset}"
+          @prompt = "#{Term::ANSIColor.cyan}morpheus>#{Term::ANSIColor.reset} "
+        end
       end
+      @prompt
+    end
+
+    def self.prompt=(v)
+      @prompt = v
     end
 
     def self.angry_prompt
@@ -47,10 +54,11 @@ module Morpheus
       #export MORPHEUS_PS1='\[\e[1;32m\]\u@\h:\w${text}$\[\e[m\] '
     end
 
-    # todo: perhaps this is needed too
-    # def self.instance
-    #   @morphterm ||= self.new()
-    # end
+    # the global Morpheus::Terminal instance
+    # This should go away, but it needed for now...
+    def self.instance
+      @morphterm ||= self.new()
+    end
 
     attr_accessor :prompt #, :angry_prompt
 
