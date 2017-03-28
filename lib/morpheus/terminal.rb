@@ -84,7 +84,11 @@ module Morpheus
       # @coloring = Term::ANSIColor::coloring?
 
       # startup script
-      @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+      if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+        @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+      else
+        @profile_dot_file = nil
+      end
       
       # the string to prompt for input with
       @prompt ||= Morpheus::Terminal.prompt
