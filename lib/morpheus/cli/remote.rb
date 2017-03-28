@@ -44,9 +44,9 @@ EOT
     end
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
     appliances = ::Morpheus::Cli::Remote.load_all_remotes({})
-    if appliances.empty?
-      raise_command_error "You have no appliances configured. See the `remote add` command."
-    end
+    # if appliances.empty?
+    #   raise_command_error "You have no appliances configured. See the `remote add` command."
+    # end
     
     if options[:json]
       json_response = {"appliances" => appliances} # mock payload
@@ -62,29 +62,35 @@ EOT
     end
 
     print_h1 "Morpheus Appliances"
-    print cyan
-    #tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
-    columns = [
-      {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
-      {:name => {:width => 16} }, 
-      {:host => {:width => 40} },
-      {:version => lambda {|it| it[:build_version] } },
-      {:status => lambda {|it| format_appliance_status(it, cyan) } },
-      :username,
-      # {:session => {display_method: lambda {|it| get_appliance_session_blurbs(it).join('  ') }, max_width: 24} }
-      {:activity => {display_method: lambda {|it| get_appliance_session_blurbs(it).first } } }
-    ]
-    print as_pretty_table(appliances, columns, options)
-    print reset
-    if @appliance_name
-      #unless appliances.keys.size == 1
-        print cyan, "\n# => Currently using #{@appliance_name}\n", reset
-      #end
+    if appliances.empty?
+      print yellow
+      puts "You have no appliances configured. See the `remote add` command."
+      print reset, "\n"
     else
-      print "\n# => No current remote appliance, see `remote use`\n", reset
+      print cyan
+      #tp rows, {:active => {:display_name => ""}}, {:name => {:width => 16}}, {:host => {:width => 40}}
+      columns = [
+        {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
+        {:name => {:width => 16} }, 
+        {:host => {:width => 40} },
+        {:version => lambda {|it| it[:build_version] } },
+        {:status => lambda {|it| format_appliance_status(it, cyan) } },
+        :username,
+        # {:session => {display_method: lambda {|it| get_appliance_session_blurbs(it).join('  ') }, max_width: 24} }
+        {:activity => {display_method: lambda {|it| get_appliance_session_blurbs(it).first } } }
+      ]
+      print as_pretty_table(appliances, columns, options)
+      print reset
+      if @appliance_name
+        #unless appliances.keys.size == 1
+          print cyan, "\n# => Currently using #{@appliance_name}\n", reset
+        #end
+      else
+        print "\n# => No current remote appliance, see `remote use`\n", reset
+      end
+      print reset, "\n"
+      return 0, nil
     end
-    print reset, "\n"
-    return 0, nil
   end
 
   def add(args)
@@ -129,7 +135,12 @@ EOT
     end
 
     # load current appliances
-    @appliances = ::Morpheus::Cli::Remote.appliances
+    appliances = ::Morpheus::Cli::Remote.appliances
+
+    # always use the first one
+    if appliances.empty?
+      new_appliance_map[:active] = true
+    end
 
     # validate options
     # construct new appliance map
@@ -141,7 +152,7 @@ EOT
       raise_command_error "The specified appliance name is invalid: '#{args[0]}'"
     end
     # unique name
-    if @appliances[new_appliance_name] != nil
+    if appliances[new_appliance_name] != nil
       raise_command_error "Remote appliance already configured with the name '#{args[0]}'"
     end
     new_appliance_map[:name] = new_appliance_name
