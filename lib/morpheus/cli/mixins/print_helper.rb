@@ -617,7 +617,7 @@ module Morpheus::Cli::PrintHelper
   # Each column is defined by a label (String), and a display_method (Proc)
   #
   # @columns [Array] list of definitions. A column definition can be a String, Symbol, Proc or Hash
-  # @returns [Array of OpenStruct] list of column definitions (OpenStruct) like:
+  # @return [Array of OpenStruct] list of column definitions (OpenStruct) like:
   #      [{label: "ID", display_method: 'id'}, {label: "Name", display_method: Proc}]
   # Usage:
   #   build_column_definitions(:id, :name)

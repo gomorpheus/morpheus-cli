@@ -23,14 +23,14 @@ module Morpheus
       # this setting makes it easy for the called to disable prompting
       attr_reader :no_prompt
 
-      # @returns the Terminal this command is being executed inside of
+      # @return [Morpheus::Terminal] the terminal this command is being executed inside of
       def my_terminal
-        @my_terminal ||= Morpheus::Terminal.new
+        @my_terminal ||= Morpheus::Terminal.instance
       end
 
       # set the terminal this is running this command.
       # @param term [MorpheusTerminal] the terminal this command is assigned to
-      # @returns the Terminal this command is being executed inside of
+      # @return the Terminal this command is being executed inside of
       def my_terminal=(term)
         if !t.is_a?(Morpheus::Terminal)
           raise "CliCommand #{self.class} terminal= expects object of type Terminal and instead got a #{t.class}"
@@ -435,7 +435,7 @@ module Morpheus
       end
 
       # executes block with each argument in the list
-      # @returns [0|1] 0 if they were all successful, else 1
+      # @return [0|1] 0 if they were all successful, else 1
       def run_command_for_each_arg(args, &block)
         cmd_results = []
         args.each do |arg|

@@ -23,7 +23,7 @@ It allows you to set the shell prompt.
 This can be used as alternative to setting the MORPHEUS_PS1 environment variable
 
 Examples: 
-    set-prompt "morph> "
+    set-prompt "morpheus $ "
     set-prompt "%cyanmorpheus> "
     set-prompt "[%magenta%remote%reset] %cyan%username morpheus> "
 
@@ -40,10 +40,9 @@ EOT
       return false
     end
     
-    Morpheus::Terminal.instance.prompt = args[0]
-    #Morpheus::Shell.instance.prompt = args[0]
-    Morpheus::Shell.instance.recalculate_prompt()
-    
+    self.my_terminal.prompt = args[0]
+    # Morpheus::Terminal.instance.prompt = args[0]
+    Morpheus::Cli::Shell.instance.recalculate_prompt()
 
     return true
   end
