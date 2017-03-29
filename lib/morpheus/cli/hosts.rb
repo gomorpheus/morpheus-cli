@@ -78,6 +78,13 @@ class Morpheus::Cli::Hosts
         puts as_json(json_response, options)
         return 0
       elsif options[:csv]
+        # merge stats to be nice here..
+        if json_response['servers']
+          all_stats = json_response['stats'] || {}
+          json_response['servers'].each do |it|
+            it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
+          end
+        end
         puts records_as_csv(json_response['servers'], options)
         return 0
       else
@@ -95,9 +102,47 @@ class Morpheus::Cli::Hosts
         end
         print_h1 title, subtitles
         if servers.empty?
-          puts yellow,"No hosts found.",reset
+          print yellow,"No hosts found.",reset,"\n"
         else
-          print_servers_table(servers)
+          # print_servers_table(servers)
+          # server returns stats in a separate key stats => {"id" => {} }
+          # the id is a string right now..for some reason..
+          all_stats = json_response['stats'] || {} 
+          servers.each do |it|
+            if !it['stats']
+              found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+              it['stats'] = found_stats # || {}
+            end
+          end
+
+          rows = servers.collect {|server| 
+            stats = server['stats']
+            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            row = {
+              id: server['id'],
+              name: server['name'],
+              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+              cloud: server['zone'] ? server['zone']['name'] : '',
+              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+              nodes: server['containers'] ? server['containers'].size : '',
+              status: format_host_status(server, cyan),
+              power: format_server_power_state(server, cyan),
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+            }
+            row
+          }
+          columns = [:id, :name, :type, :cloud, :nodes, :status, :power, :cpu, :memory, :storage]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -323,7 +368,7 @@ class Morpheus::Cli::Hosts
     else
       print_h1 "Morpheus Server Types - Cloud: #{zone['name']}"
       if cloud_server_types.nil? || cloud_server_types.empty?
-        puts yellow,"No server types found for the selected cloud.",reset
+        print yellow,"No server types found for the selected cloud",reset,"\n"
       else
         cloud_server_types.each do |server_type|
           print cyan, "[#{server_type['code']}]".ljust(20), " - ", "#{server_type['name']}", "\n"
@@ -440,7 +485,7 @@ class Morpheus::Cli::Hosts
           payload[:networkInterfaces] = network_interfaces
         end
       rescue RestClient::Exception => e
-        print_yellow_warning "Unable to load network options. Proceeding..."
+        print yellow,"Unable to load network options. Proceeding...",reset,"\n"
         print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end
@@ -660,7 +705,7 @@ class Morpheus::Cli::Hosts
       #       payload[:networkInterfaces] = network_interfaces
       #     end
       #   rescue RestClient::Exception => e
-      #     print_yellow_warning "Unable to load network options. Proceeding..."
+      #     print yellow,"Unable to load network options. Proceeding...",reset,"\n"
       #     print_rest_exception(e, options) if Morpheus::Logging.debug?
       #   end
       # end
@@ -914,25 +959,6 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def print_servers_table(servers, opts={})
-    table_color = opts[:color] || cyan
-    rows = servers.collect do |server|
-      {
-        id: server['id'],
-        name: server['name'],
-        platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-        cloud: server['zone'] ? server['zone']['name'] : '',
-        type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
-        nodes: server['containers'] ? server['containers'].size : '',
-        status: format_host_status(server, table_color),
-        power: format_server_power_state(server, table_color)
-      }
-    end
-    columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-    print table_color
-    tp rows, columns
-    print reset
-  end
 
   def format_server_power_state(server, return_color=cyan)
     out = ""

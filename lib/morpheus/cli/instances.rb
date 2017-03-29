@@ -1052,6 +1052,13 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
         return 0
       elsif options[:csv]
+        # merge stats to be nice here..
+        if json_response['instances']
+          all_stats = json_response['stats'] || {}
+          json_response['instances'].each do |it|
+            it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
+          end
+        end
         puts records_as_csv(json_response['instances'], options)
       else
         instances = json_response['instances']
@@ -1071,7 +1078,47 @@ class Morpheus::Cli::Instances
         if instances.empty?
           print yellow,"No instances found.",reset,"\n"
         else
-          print_instances_table(instances)
+          # print_instances_table(instances)
+          # server returns stats in a separate key stats => {"id" => {} }
+          # the id is a string right now..for some reason..
+          all_stats = json_response['stats'] || {} 
+          instances.each do |it|
+            if !it['stats']
+              found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+              it['stats'] = found_stats # || {}
+            end
+          end
+
+          rows = instances.collect {|instance| 
+            stats = instance['stats']
+            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            row = {
+              id: instance['id'],
+              name: instance['name'],
+              connection: format_instance_connection_string(instance),
+              environment: instance['instanceContext'],
+              nodes: instance['containers'].count,
+              status: format_instance_status(instance, cyan),
+              type: instance['instanceType']['name'],
+              group: !instance['group'].nil? ? instance['group']['name'] : nil,
+              cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil,
+              version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+            }
+            row
+          }
+          columns = [:id, :name, :group, :cloud, :type, :version, :environment, :nodes, {:connection => {max_width: 20}}, :status, :cpu, :memory, :storage]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -1424,25 +1471,25 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def print_instances_table(instances, opts={})
-    table_color = opts[:color] || cyan
-    rows = instances.collect {|instance| 
-      {
-        id: instance['id'],
-        name: instance['name'],
-        connection: format_instance_connection_string(instance),
-        environment: instance['instanceContext'],
-        nodes: instance['containers'].count,
-        status: format_instance_status(instance, table_color),
-        type: instance['instanceType']['name'],
-        group: !instance['group'].nil? ? instance['group']['name'] : nil,
-        cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
-      }
-    }
-    print table_color
-    tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
-    print reset
-  end
+  # def print_instances_table(instances, opts={})
+  #   table_color = opts[:color] || cyan
+  #   rows = instances.collect {|instance| 
+  #     {
+  #       id: instance['id'],
+  #       name: instance['name'],
+  #       connection: format_instance_connection_string(instance),
+  #       environment: instance['instanceContext'],
+  #       nodes: instance['containers'].count,
+  #       status: format_instance_status(instance, table_color),
+  #       type: instance['instanceType']['name'],
+  #       group: !instance['group'].nil? ? instance['group']['name'] : nil,
+  #       cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
+  #     }
+  #   }
+  #   print table_color
+  #   tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
+  #   print reset
+  # end
 
   def format_instance_status(instance, return_color=cyan)
     out = ""
