@@ -10,6 +10,8 @@ require 'morpheus/terminal'
 module Morpheus
   module Cli
     # Module to be included by every CLI command so that commands get registered
+    # This mixin defines a print and puts method, and delegates
+    # todo: use delegate
     module CliCommand
 
       def self.included(klass)
@@ -39,6 +41,13 @@ module Morpheus
       end
 
 
+      # delegate :print, to: :my_terminal
+      # delegate :puts, to: :my_terminal
+      # or . . . bum  bum bummm
+      # a paradigm shift away from include and use module functions instead.
+      # module_function :print, puts
+      # delegate :puts, to: :my_terminal
+      
       def print(*msgs)
         my_terminal.stdout.print(*msgs)
       end
@@ -48,7 +57,7 @@ module Morpheus
       end
 
       def print_error(*msgs)
-        my_terminal.stdout.print(*msgs)
+        my_terminal.stderr.print(*msgs)
       end
 
       def puts_error(*msgs)
@@ -57,14 +66,15 @@ module Morpheus
 
       # todo: use terminal.stdin
       # def readline(*msgs)
-      #   @my_terminal.readline(*msgs)
+      #   @my_terminal.stdin.readline(*msgs)
       # end
 
+      # todo: maybe...
       # disabled prompting for this command
-      def noninteractive()
-        @no_prompt = true
-        self
-      end
+      # def noninteractive()
+      #   @no_prompt = true
+      #   self
+      # end
 
       # whether to prompt or not, this is true by default.
       def interactive?
@@ -243,6 +253,10 @@ module Morpheus
             opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
               options[:insecure] = true
               Morpheus::RestClient.enable_ssl_verification = false
+            end
+
+            opts.on( '-T', '--token ACCESS_TOKEN', "Access Token for api requests. While authenticated to a remote, the current saved credentials are used." ) do |remote|
+              options[:remote_token] = remote
             end
 
             # skipping the rest of this for now..
@@ -480,47 +494,51 @@ module Morpheus
       # Otherwise, the current active appliance is used...
       # This returns a new instance of Morpheus::APIClient (and sets @access_token, and @appliance)
       # Your command should be ready to make api requests after this.
-      # todo: probably don't exit here, just return nil or raise
       def establish_remote_appliance_connection(options)
-        @appliances ||= ::Morpheus::Cli::Remote.appliances
-        if !@appliance_name
-          @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+        # todo: probably refactor and don't rely on this method to set these instance vars
+        @appliance_name, @appliance_url, @access_token = nil, nil, nil
+        @api_client = nil
+
+        appliance = nil # @appliance..why not? laff
+        if options[:remote]
+          appliance = ::Morpheus::Cli::Remote.load_remote(options[:remote])
+          if !appliance
+            if ::Morpheus::Cli::Remote.appliances.empty?
+              raise_command_error "You have no appliances configured. See the `remote add` command."
+            else
+              raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
+            end
+          end
+        else
+          appliance = ::Morpheus::Cli::Remote.load_active_remote()
+          if !appliance
+            if ::Morpheus::Cli::Remote.appliances.empty?
+              raise_command_error "You have no appliances configured. See the `remote add` command."
+            else
+              raise_command_error "No current appliance, see `remote use`."
+            end
+          end
         end
-        if @appliances.empty?
-          raise_command_error "You have no appliances configured. See the `remote add` command."
-        end
+        @appliance_name = appliance[:name]
+        @appliance_url = appliance[:host] || appliance[:url] # it's :host in the YAML..heh
+
         # todo: support old way of accepting --username and --password on the command line
         # it's probably better not to do that tho, just so it stays out of history files
+        
 
-        # use a specific remote appliance by name
-        if options[:remote]
-          @appliance_name = options[:remote].to_sym rescue nil
-
-          found_appliance = @appliances[@appliance_name.to_sym]
-          if !found_appliance
-            raise_command_error "You have no appliance named '#{@appliance_name}' configured. See the `remote add` command."
-          end
-          @appliance = found_appliance
-          @appliance_name = @appliance_name
-          @appliance_url = @appliance[:host]
-          # gotta always toggle this for now
-          # should return to the previous value tho..
-          if @appliance[:insecure]
-            Morpheus::RestClient.enable_ssl_verification = false
-          else
-            # Morpheus::RestClient.enable_ssl_verification = true
-          end
-          Morpheus::Logging::DarkPrinter.puts "Using remote appliance [#{@appliance_name}] #{@appliance_url}" if options[:debug]
-        else
-          #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-        end
-
-        if !@appliance_name
-          raise_command_error "Please specify a remote appliance with -r or see the command `remote use`"
-        end
+        # if !@appliance_name && !@appliance_url
+        #   raise_command_error "Please specify a remote appliance with -r or see the command `remote use`"
+        # end
 
         Morpheus::Logging::DarkPrinter.puts "establishing connection to [#{@appliance_name}] #{@appliance_url}" if options[:debug]
         #puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
+
+        
+        # punt.. and just allow passing an access token instead for now..
+        # this skips saving to the appliances file and all that..
+        if options[:token]
+          @access_token = options[:token]
+        end
 
         # ok, get some credentials.
         # this prompts for username, password  without options[:no_prompt]

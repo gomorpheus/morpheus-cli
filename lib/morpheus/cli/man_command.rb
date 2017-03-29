@@ -7,19 +7,21 @@ class Morpheus::Cli::ManCommand
   set_command_name :man
   set_command_hidden
 
+  # this should be read only anyway...
+  @@default_editor = "less" # ENV['EDITOR']
   
   def handle(args)
     options = {}
     regenerate = false
-    editor, open_as_link = "less", false
-    #editor, open_as_link = nil, true
+    editor = @@default_editor
+    open_as_link = false # true please
     goto_wiki = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus man"
       opts.on('-w','--wiki', "Open the morpheus-cli wiki instead of the local man page") do
         goto_wiki = true
       end
-      opts.on('-e','--editor EDITOR', "Specify program to open manual with. Default is '#{editor}'.") do |val|
+      opts.on('-e','--editor EDITOR', "Specify which program to open the manual with. Default is '#{editor}'.") do |val|
         editor = val
         open_as_link = false
       end

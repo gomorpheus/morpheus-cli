@@ -34,9 +34,9 @@ EOT
     optparse.parse!(args)
 
     if args.count != 1
-      $stderr.puts Morpheus::Terminal.angry_prompt
-      $stderr.puts "too many arguments"
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error "too many arguments"
+      puts_error optparse
       return false
     end
     

@@ -10,6 +10,7 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/error_handler'
 require 'morpheus/terminal'
 
+#class Morpheus::Cli::Shell < Morpheus::Terminal
 class Morpheus::Cli::Shell
   include Morpheus::Cli::CliCommand
 
@@ -55,7 +56,9 @@ class Morpheus::Cli::Shell
     # custom prompts.. this is overkill and perhaps a silly thing..
     # Example usage:
     # MORPHEUS_PS1="[%remote] %cyan %username morph> " morpheus shell --debug
-    @prompt = Morpheus::Terminal.instance.prompt.to_s #.dup
+    #@prompt = Morpheus::Terminal.instance.prompt.to_s #.dup
+    @prompt = my_terminal.prompt
+
     var_map = {
       '%cyan' => cyan, '%magenta' => magenta, '%reset' => reset, '%dark' => dark,
       '%remote' => @appliance_name.to_s, '%username' => @current_username.to_s, 
@@ -151,6 +154,13 @@ class Morpheus::Cli::Shell
     
   end
 
+  # same as Terminal instance
+  def execute(input)
+    # args = Shellwords.shellsplit(input)
+    #cmd = args.shift
+    execute_commands(input)
+  end
+
   def execute_commands(input)
     # input = input.to_s.sub(/^morpheus\s+/, "") # meh
     # split the command on unquoted semicolons.
@@ -204,7 +214,7 @@ class Morpheus::Cli::Shell
         sleep_sec = input.sub("sleep ", "").to_f
         if (!(sleep_sec > 0))
           # raise_command_error "sleep requires the argument [seconds]. eg. sleep 3.14"
-          $stderr.puts  "sleep requires argument [seconds]. eg. sleep 3.14"
+          puts_error  "sleep requires argument [seconds]. eg. sleep 3.14"
           return false
         end
         log_history_command(input)
@@ -253,8 +263,8 @@ class Morpheus::Cli::Shell
           `#{editor} #{fn}`
           puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
         else
-          $stderr.puts Morpheus::Terminal.angry_prompt
-          $stderr.puts "The defined EDITOR '#{editor}' was not found on your system."
+          puts_error2 Morpheus::Terminal.angry_prompt
+          puts_error "The defined EDITOR '#{editor}' was not found on your system."
         end
         return 0 # $?
       elsif input == "edit profile"
@@ -272,8 +282,8 @@ class Morpheus::Cli::Shell
           `#{editor} #{fn}`
           puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
         else
-          $stderr.puts Morpheus::Terminal.angry_prompt
-          $stderr.puts "The defined EDITOR '#{editor}' was not found on your system."
+          puts_error Morpheus::Terminal.angry_prompt
+          puts_error "The defined EDITOR '#{editor}' was not found on your system."
         end
         return 0 # $?
       elsif input == 'reload' || input == 'reload!'
@@ -356,10 +366,11 @@ class Morpheus::Cli::Shell
           #log_history_command(input)
           Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
         else
-          $stderr.puts "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a known command. See 'help'."
+          # puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a known command. See 'help'."
+          puts_error "morpheus: '#{cmd_name}' is not a known command. See 'help'."
           # print_red_alert "Unrecognized Command '#{argv[0]}'."
           # puts "Try 'help' to see a list of available commands."
-          @history_logger.warn "Unrecognized Command #{argv[0]}" if @history_logger
+          @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
         end
         # rescue ArgumentError
         #   puts "Argument Syntax Error..."
@@ -372,7 +383,7 @@ class Morpheus::Cli::Shell
         # print "\n"
       rescue => e
         @history_logger.error "#{e.message}" if @history_logger
-        Morpheus::Cli::ErrorHandler.new.handle_error(e)
+        Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
         # exit 1
       end
 

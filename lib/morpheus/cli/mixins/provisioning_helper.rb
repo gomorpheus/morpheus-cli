@@ -275,7 +275,7 @@ module Morpheus::Cli::ProvisioningHelper
           payload['networkInterfaces'] = network_interfaces
         end
       rescue RestClient::Exception => e
-        print_yellow_warning "Unable to load network options. Proceeding..."
+        print yellow,"Unable to load network options. Proceeding...",reset,"\n"
         print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end

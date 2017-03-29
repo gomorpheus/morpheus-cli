@@ -22,9 +22,9 @@ class Morpheus::Cli::DotFile
   end
 
   attr_reader :filename
-  attr_reader :file_contents
-  attr_reader :commands
-  attr_reader :cmd_results
+  # attr_reader :file_contents
+  # attr_reader :commands
+  # attr_reader :cmd_results
 
   def initialize(fn)
     @filename = fn
@@ -43,7 +43,7 @@ class Morpheus::Cli::DotFile
     else
       Morpheus::Logging::DarkPrinter.puts "executing source file #{@filename}" if Morpheus::Logging.debug?
     end
-    file_contents ||= File.read(@filename)
+    file_contents = File.read(@filename)
     lines = file_contents.split("\n")
     cmd_results = []
     line_num = 0

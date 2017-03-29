@@ -22,16 +22,13 @@ module Morpheus::Cli::PrintHelper
     @@terminal_width
   end
 
+  # puts red message to stderr
   def print_red_alert(msg)
-    # todo: replace most usage of this with raise CommandError.new(msg)
-    # $stderr.print "#{red}#{msg}#{reset}\n"
-    print "#{red}#{msg}#{reset}\n"
+    #print "#{red}#{msg}#{reset}\n"
+    puts_error "#{red}#{msg}#{reset}"
   end
 
-  def print_yellow_warning(msg)
-    print "#{yellow}#{msg}#{reset}\n"
-  end
-
+  # puts green message to stdout
   def print_green_success(msg)
     print "#{green}#{msg}#{reset}\n"
   end
@@ -74,110 +71,14 @@ module Morpheus::Cli::PrintHelper
     print out
   end
 
-  def print_errors(response, options={})
-    begin
-      if options[:json]
-        print red
-        print JSON.pretty_generate(response)
-        print reset, "\n"
-      else
-        if !response['success']
-          print red,bold
-          if response['msg']
-            puts response['msg']
-          end
-          if response['errors']
-            response['errors'].each do |key, value|
-              print "* #{key}: #{value}\n"
-            end
-          end
-          print reset
-        else
-          # this should not really happen
-          print cyan,bold, "\nSuccess!"
-        end
-      end
-    ensure
-      print reset
-    end
-  end
-
+  # @deprecated, use ErrorHandler.print_rest_exception()
   def print_rest_exception(e, options={})
-    if e.response
-      if options[:debug]
-        begin
-          print_rest_exception_request_and_response(e)
-        ensure
-          print reset
-        end
-        return
-      end
-      if e.response.code == 400
-        response = JSON.parse(e.response.to_s)
-        print_errors(response, options)
-      else
-        print_red_alert "Error Communicating with the Appliance. #{e}"
-        if options[:json] || options[:debug]
-          begin
-            response = JSON.parse(e.response.to_s)
-            print red
-            print JSON.pretty_generate(response)
-            print reset, "\n"
-          rescue TypeError, JSON::ParserError => ex
-            print_red_alert "Failed to parse JSON response: #{ex}"
-            print red
-            print response.to_s
-            print reset, "\n"
-          ensure
-            print reset
-          end
-        end
-      end
+    # ugh, time to clean this stuff up
+    if respond_to?(:my_terminal)
+      Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).print_rest_exception(e, options)
     else
-      print_red_alert "Error Communicating with the Appliance. #{e}"
+      Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
     end
-  end
-
-  def print_rest_request(req)
-    # JD: IOError when accessing payload... we should probably just be printing at the time the request is made..
-    #out = []
-    #out << "#{req.method} #{req.url.inspect}"
-    #out << req.payload.short_inspect if req.payload
-    # payload = req.instance_variable_get("@payload")
-    # out << payload if payload
-    #out << req.processed_headers.to_a.sort.map { |(k, v)| [k.inspect, v.inspect].join("=>") }.join(", ")
-    #print out.join(', ') + "\n"
-    print "Request:"
-    print "\n"
-    print "#{req.method.to_s.upcase} #{req.url.inspect}"
-    print "\n"
-  end
-
-  def print_rest_response(res)
-    # size = @raw_response ? File.size(@tf.path) : (res.body.nil? ? 0 : res.body.size)
-    size = (res.body.nil? ? 0 : res.body.size)
-    print "Response:"
-    print "\n"
-    display_size = Filesize.from("#{size} B").pretty rescue size
-    print "HTTP #{res.net_http_res.code} - #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{display_size}"
-    print "\n"
-    begin
-      print JSON.pretty_generate(JSON.parse(res.body))
-    rescue
-      print res.body.to_s
-    end
-    print "\n"
-  end
-
-  def print_rest_exception_request_and_response(e)
-    print_red_alert "Error Communicating with the Appliance. (#{e.response.code}) #{e}"
-    response = e.response
-    request = response.instance_variable_get("@request")
-    print red
-    print_rest_request(request)
-    print "\n"
-    print_rest_response(response)
-    print reset
   end
 
   def print_dry_run(opts)
@@ -578,7 +479,6 @@ module Morpheus::Cli::PrintHelper
     rows = []
     
     columns.flatten.each do |column_def|
-      # label, value = extract_label_and_value(column_def, obj, opts)
       label = column_def.label
       # value = get_object_value(obj, column_def.display_method)
       value = column_def.display_method.call(obj)
@@ -718,57 +618,6 @@ module Morpheus::Cli::PrintHelper
     return results
   end
 
-  # # @return [Array] [0] is a String representing the column label and Object 
-  # def extract_label_and_value(column_def, data, opts={})
-  #   # this method shouldn't need options, fix it
-  #   # probably some recursive
-  #   # this works right now, but it's pretty slow and hacky
-  #   capitalize_labels = opts.key?(:capitalize_labels) ? !!opts[:capitalize_labels] : true
-  #   label, value = nil, nil
-  #   if column_def.is_a?(String)
-  #     label = column_def
-  #     # value = data[column_def] || data[column_def.to_sym]
-  #     value = get_object_value(data, column_def)
-  #   elsif column_def.is_a?(Symbol)
-  #     label = capitalize_labels ? column_def.to_s.capitalize : column_def.to_s
-  #     # value = data[column_def] || data[column_def.to_s]
-  #     value = get_object_value(data, column_def)
-  #   elsif column_def.is_a?(Hash)
-  #     k, v = column_def.keys[0], column_def.values[0]
-  #     if v.is_a?(String)
-  #       label = k
-  #       value = get_object_value(data, v)
-  #     elsif v.is_a?(Symbol)
-  #       label = capitalize_labels ? k.to_s.capitalize : k.to_s
-  #       value = get_object_value(data, v)
-  #       # value = data[v] || data[v.to_s]
-  #     elsif v.is_a?(Hash)
-  #       if v[:display_name]
-  #         label = v[:display_name]
-  #       else
-  #         label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
-  #       end
-  #       if v[:display_method]
-  #         if v[:display_method].is_a?(Proc)
-  #           value = v[:display_method].call(data)
-  #         else
-  #           value = get_object_value(data, v[:display_method].to_s)
-  #         end
-  #       else
-  #         value = get_object_value(data, v.to_s)
-  #       end
-  #     elsif v.is_a?(Proc)
-  #       label = (capitalize_labels && k.is_a?(Symbol)) ? k.to_s.capitalize : k.to_s
-  #       value = v.call(data)
-  #     else
-  #       raise "invalid column value #{v.class} #{v.inspect}. Should be a String, Symbol, Hash or Proc"
-  #     end
-  #   else
-  #     raise "invalid column #{column_def.class} #{column_def.inspect}. Should be a String, Symbol or Hash"
-  #   end
-  #   return label, value
-  # end
-
   def wrap(s, width, indent=0)
     out = s
     if s.size > width
@@ -816,7 +665,6 @@ module Morpheus::Cli::PrintHelper
       if obj
         cells = []
         columns.each do |column_def|
-          # label, value = extract_label_and_value(column_def, obj, opts)
           value = get_object_value(obj, column_def)
           if do_quotes
             cells << quote_csv_value(value)

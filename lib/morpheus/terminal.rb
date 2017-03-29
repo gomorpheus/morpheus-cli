@@ -34,21 +34,16 @@ module Morpheus
     # todo: this can be combined with Cli::Shell
 
     class Blackhole # < IO
-      def do_nothing
+      def accrete_data(*mgs)
+        # Singularity.push(*msgs)
         return nil
       end
-      def print(*mgs)
-        do_nothing
-      end
-      def puts(*mgs)
-        do_nothing
-      end
-      def <<(*mgs)
-        do_nothing
-      end
-      def write(*mgs)
-        do_nothing
-      end
+      alias :print :accrete_data
+      alias :puts :accrete_data
+      alias :'<<' :accrete_data
+      alias :write :accrete_data
+      alias :write :accrete_data
+      # alias :gets :do_nothing
     end
 
     # DEFAULT_TERMINAL_WIDTH = 80
@@ -60,7 +55,7 @@ module Morpheus
     def self.prompt
       if @prompt.nil?
         if ENV['MORPHEUS_PS1']
-          @prompt = ENV['MORPHEUS_PS1'].to_s.dup
+          @prompt = ENV['MORPHEUS_PS1'].dup
         else
           #ENV['MORPHEUS_PS1'] = "#{Term::ANSIColor.cyan}morpheus> #{Term::ANSIColor.reset}"
           @prompt = "#{Term::ANSIColor.cyan}morpheus>#{Term::ANSIColor.reset} "
@@ -87,8 +82,7 @@ module Morpheus
       @morphterm
     end
 
-    # the global Morpheus::Terminal instance
-    # This should go away, but it needed for now...
+    # hack alert! This should go away, but it needed for now...
     def self.new(*args)
       obj = super(*args)
       @morphterm = obj
@@ -313,7 +307,6 @@ module Morpheus
         args.delete_if {|it| it == '--noprofile' }
       end
 
-      execute_profile_script
       if @profile_dot_file && !@profile_dot_file_has_run
         if !noprofile && File.exists?(@profile_dot_file.filename)
           execute_profile_script()
@@ -360,7 +353,7 @@ module Morpheus
           exit_code = result #.to_i
         end
       rescue => e
-        exit_code = Morpheus::Cli::ErrorHandler.new.handle_error(e)
+        exit_code = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
         err = e
       end
 

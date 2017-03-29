@@ -107,7 +107,7 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       banner = subcommand_usage("[name] [url]")
       banner_args = <<-EOT
-    [name]                           The name for your appliance. eg. 'qa'
+    [name]                           The name for your appliance. eg. mymorph
     [url]                            The url of your appliance eg. https://morpheus.mycompany.com
 EOT
       opts.banner = banner + "\n" + banner_args
@@ -127,8 +127,13 @@ EOT
         params[:insecure] = true
       end
       build_common_options(opts, options, [:quiet])
-      opts.footer = "This will add a new remote appliance to your configuration.\n" + 
-                    "If it's the first one, it will be made the current remote appliance."
+      opts.footer = <<-EOT
+This will add a new remote appliance to your morpheus client configuration.
+If the new remote is your one and only, --use is automatically applied and 
+it will be made the current remote appliance.
+This command will prompt you to login and/or setup a fresh appliance.
+Prompting can be skipped with use of the --quiet option.
+EOT
     end
     optparse.parse!(args)
     if args.count < 2
@@ -527,12 +532,11 @@ EOT
     end
     optparse.parse!(args)
     if args.count < 1
-      # todo: maybe a Morpheus::CommandArgError.new("Missing [name] argument.", optparse)
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} remove requires argument [name]."
-      # $stderr.puts "Missing [name] argument."
-      $stderr.print optparse
-      return 2, nil # CommandError.new("morpheus requires a command")
+      #raise_command_error "#{command_name} remove requires argument [name].", optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} remove requires argument [name]."
+      puts_error optparse
+      return 1, nil
     end
     appliance_name = args[0].to_sym
     appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
@@ -570,9 +574,9 @@ EOT
     end
     optparse.parse!(args)
     if args.count < 1
-      $stderr.print Morpheus::Terminal.angry_prompt
-      $stderr.puts  "#{command_name} use expects argument [name]."
-      $stderr.puts optparse
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} use expects argument [name]."
+      puts_error optparse
       return 1
     end
     appliance_name = args[0].to_sym
@@ -1005,6 +1009,7 @@ EOT
       if self.appliances.empty? || app_name.nil?
         return nil
       end
+      result = nil
       app_map = self.appliances[app_name.to_sym]
       if app_map
         result = app_map
@@ -1177,18 +1182,10 @@ EOT
       rescue Errno::ECONNREFUSED => err
         app_map[:status] = 'net-error'
         app_map[:last_check][:error] = err.message
-        # $stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
-        # $stderr.puts "#{red}#{err.message}#{reset}"
-        # $stderr.puts "Try -h for help with this command."
       rescue OpenSSL::SSL::SSLError => err
         app_map[:status] = 'ssl-error'
         app_map[:last_check][:error] = err.message
-        # $stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
-        # $stderr.puts "#{red}#{err.message}#{reset}"
       rescue RestClient::Exception => err
-        # $stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
-        # $stderr.puts "#{red}#{err.message}#{reset}"
-        # print_rest_exception(err, options)
         app_map[:status] = 'http-error'
         app_map[:http_status] = err.response ? err.response.code : nil
         app_map[:last_check][:error] = err.message
