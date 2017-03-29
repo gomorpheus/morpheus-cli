@@ -260,7 +260,7 @@ class Morpheus::Cli::Shell
         has_editor = $?.success?
         if has_editor
           puts "opening #{fn} for editing with #{editor} ..."
-          `#{editor} #{fn}`
+          system("#{editor} #{fn}")
           puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
         else
           puts_error2 Morpheus::Terminal.angry_prompt
