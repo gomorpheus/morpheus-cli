@@ -408,6 +408,10 @@ module Morpheus
         end
       end
 
+      def my_help_command
+        "morpheus #{command_name} --help"
+      end
+
       def subcommand_usage(*extra)
         calling_method = caller[0][/`([^']*)'/, 1].to_s.sub('block in ', '')
         subcommand_name = subcommands.key(calling_method)
@@ -419,14 +423,22 @@ module Morpheus
         "Usage: morpheus #{command_name} #{subcommand_name} #{extra.join(' ')}".squeeze(' ').strip
       end
 
-      def print_usage()
-        puts usage
+      # a string to describe the usage of your command
+      # this is what the --help option
+      # feel free to override this in your commands
+      def full_command_usage
+        out = ""
+        out << usage.to_s.strip if usage
+        out << "\n"
         if !subcommands.empty?
-          puts "Commands:"
+          out << "Commands:"
+          out << "\n"
           subcommands.sort.each {|cmd, method|
-            puts "\t#{cmd.to_s}"
+            out << "\t#{cmd.to_s}\n"
           }
         end
+        # out << "\n"
+        out
       end
 
       # a default handler
@@ -441,29 +453,27 @@ module Morpheus
         #   return self.send(default_subcommand, args || [])
         # end
         subcommand_name = args[0]
+        if args.empty?
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error "[command] argument is required"
+          puts full_command_usage
+          exit 127
+        end
         if args[0] == "-h" || args[0] == "--help" || args[0] == "help"
-          print_usage
-          exit 0
+          puts full_command_usage
+          return 0
         end
         if subcommand_aliases[subcommand_name]
           subcommand_name = subcommand_aliases[subcommand_name]
         end
         cmd_method = subcommands[subcommand_name]
-        if subcommand_name && !cmd_method
-          #full_cmd = "morpheus #{self.command_name}"
-          #unknown_cmd = "#{self.command_name} #{subcommand_name}".strip
-          #print_red_alert "Unrecognized Command '#{unknown_cmd}'"
-          my_help_command = "morpheus #{self.command_name} --help"
-          # if Morpheus::Shell.instance
-          raise_command_error "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
-          # print_error Morpheus::Terminal.angry_prompt
-          # puts_error "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'."
-          # print_usage
-          exit 127
-        end
         if !cmd_method
-          print_usage
-          exit 127
+          error_message = "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'"
+          # error_message << "\n" + optparse.to_s
+          #raise_command_error error_message
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error error_message
+          return 127
         end
         self.send(cmd_method, args[1..-1])
       end

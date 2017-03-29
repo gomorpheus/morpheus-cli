@@ -320,7 +320,7 @@ module Morpheus
 
       # not enough arguments?
       if args.count == 0
-        @stderr.puts "#{@angry_prompt}Missing [command] argument."
+        @stderr.puts "#{@angry_prompt}[command] argument is required."
         #@stderr.puts "No command given, here's some help:"
         @stderr.print usage
         return 2, nil # CommandError.new("morpheus requires a command")
