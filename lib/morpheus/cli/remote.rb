@@ -835,18 +835,18 @@ EOT
     status_str = status_str.empty? ? "unknown" : status_str.to_s.downcase
     out = ""
     if status_str == "new"
-      out << "#{cyan}#{status_str}#{return_color}"
+      out << "#{cyan}#{status_str.upcase}#{return_color}"
     elsif status_str == "ready"
-      out << "#{green}#{status_str}#{return_color}"
+      out << "#{green}#{status_str.upcase}#{return_color}"
     elsif status_str == "unreachable"
-      out << "#{red}#{status_str}#{return_color}"
+      out << "#{red}#{status_str.upcase}#{return_color}"
     elsif status_str.include?("error")
-      out << "#{red}#{status_str}#{return_color}"
+      out << "#{red}#{status_str.upcase}#{return_color}"
     # elsif status_str == "unknown"
     #   out << "#{yellow}#{status_str}#{return_color}"
     elsif status_str == "fresh" 
       # cold appliance, needs setup
-      out << "#{magenta}#{status_str}#{return_color}"
+      out << "#{magenta}#{status_str.upcase}#{return_color}"
     else
       # dunno
       out << "#{status_str}"
