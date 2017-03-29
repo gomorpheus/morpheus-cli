@@ -528,7 +528,7 @@ class Morpheus::Cli::VirtualImages
     if image_type_code == 'ami'
       tmp_option_types << {'fieldName' => 'externalId', 'fieldLabel' => 'AMI id', 'type' => 'text', 'required' => false, 'displayOrder' => 10}
       tmp_option_types << {'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => true, 'displayOrder' => 10}
-    elsif image_type_code == 'vmware'
+    elsif image_type_code == 'vmware' || image_type_code == 'vmdk'
       tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'OVF File', 'type' => 'file', 'required' => true, 'displayOrder' => 10}
       tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageDescriptorFile', 'fieldLabel' => 'VMDK File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
     elsif image_type_code == 'pxe'
