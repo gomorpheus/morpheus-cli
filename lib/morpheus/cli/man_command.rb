@@ -221,7 +221,7 @@ ENDTEXT
       $stdout.print "## morpheus\n"
       $stdout.print "\n"
       $stdout.print "```\n"
-      exit_code, err = terminal.execute(["--help"])
+      exit_code, err = terminal.execute("--help")
       $stdout.print "```\n"
       $stdout.print "\n"
       # output help for every unhidden command

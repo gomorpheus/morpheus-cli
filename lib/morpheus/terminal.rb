@@ -264,16 +264,16 @@ module Morpheus
 
 # protected
 
-    def execute(args)
+    def execute(input)
       exit_code = 0
       err = nil
-      #args = Shellwords.shellsplit(input)
-      if args.is_a? String
-        args = args.dup
-      elsif args.is_a?(Array)
-        args = args.dup
+      args = nil
+      if input.is_a? String
+        args = Shellwords.shellsplit(input)
+      elsif input.is_a?(Array)
+        args = input.dup
       else
-        raise "terminal execute() expects a string or an array of arguments and insteaad got (#{args.class}) #{args}"
+        raise "terminal execute() expects a String to be split or an Array of String arguments and instead got (#{args.class}) #{args}"
       end
 
       # include Term::ANSIColor # tempting
