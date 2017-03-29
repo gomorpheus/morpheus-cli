@@ -264,13 +264,18 @@ module Morpheus
 
 # protected
 
-    def execute(input)
+    def execute(args)
       exit_code = 0
       err = nil
-      args = Shellwords.split(input)
-      # clone arguments
-      # args = ARGV.dup
-      
+      #args = Shellwords.shellsplit(input)
+      if args.is_a? String
+        args = args.dup
+      elsif args.is_a?(Array)
+        args = args.dup
+      else
+        raise "terminal execute() expects a string or an array of arguments and insteaad got (#{args.class}) #{args}"
+      end
+
       # include Term::ANSIColor # tempting
 
       # short circuit version switch

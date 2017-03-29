@@ -2,6 +2,6 @@
 require 'morpheus/terminal'
 
 terminal = Morpheus::Terminal.new
-exit_code, err = terminal.execute(ARGV.join(' '))
+exit_code, err = terminal.execute(ARGV)
 # raise err unless err.nil?
 exit exit_code
