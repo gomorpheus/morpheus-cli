@@ -64,7 +64,7 @@ class Morpheus::Cli::Whoami
       #   options[:include_cloud_access] = true
       #   options[:include_instance_type_access] = true
       # end
-      opts.on('-t','--token', "Print your access token only") do
+      opts.on('-t','--token-only', "Print your access token only") do
         access_token_only = true
       end
       build_common_options(opts, options, [:json, :remote, :dry_run])
