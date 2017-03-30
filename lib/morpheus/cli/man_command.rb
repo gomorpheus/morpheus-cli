@@ -271,9 +271,41 @@ Morpheus has only one environment variable that it uses.
 
 The **MORPHEUS_CLI_HOME** variable is where morpheus CLI stores its configuration files.
 This can be set to allow a single system user to maintain many different configurations
-Only the default value will be automatically created if the directory does not yet exist.
-The default value is **$HOME/.morpheus**
+If the directory does not exist, morpheus will attempt to create it.
 
+The default home directory is **$HOME/.morpheus**
+
+To see how this works, run the following:
+
+```shell
+MORPHEUS_CLI_HOME=~/.morpheus_test morpheus shell
+```
+
+Now, in your new morpheus shell, you can see that it is a fresh environment.
+There are no remote appliances configured.
+
+```shell
+morpheus> remote list
+
+Morpheus Appliances
+==================
+
+You have no appliances configured. See the `remote add` command.
+
+```
+
+You can use this to create isolated environments (sandboxes), within which to execute your morpheus commands.
+
+```shell
+export MORPHEUS_CLI_HOME=~/morpheus_test
+morpheus remote add myremote https://testmorpheusappliance.mycompany.com --insecure
+morpheus instances list
+```
+
+Morpheus saves the remote appliance information, including api access tokens, 
+to the $MORPHEUS_HOME_DIRECTORY. These files are saved with file permissions **6000**.
+So, only one system user should be allowed to execute morpheus with that home directory.
+See [Configuration](#Configuration) for more information on the files morpheus reads and writes.
 
 ## CONFIGURATION
 
