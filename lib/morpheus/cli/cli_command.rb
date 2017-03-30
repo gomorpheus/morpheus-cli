@@ -300,6 +300,12 @@ module Morpheus
               options[:pretty_json] = false
             end
 
+          when :yaml
+            opts.on(nil, '--yaml', "YAML Output") do
+              options[:yaml] = true
+              options[:format] = :yaml
+            end
+
           when :csv
             opts.on(nil, '--csv', "CSV Output") do
               options[:csv] = true
@@ -468,11 +474,8 @@ module Morpheus
         end
         cmd_method = subcommands[subcommand_name]
         if !cmd_method
-          error_message = "'#{subcommand_name}' is not a known command of 'morpheus #{self.command_name}'. See '#{my_help_command}'"
-          # error_message << "\n" + optparse.to_s
-          #raise_command_error error_message
           print_error Morpheus::Terminal.angry_prompt
-          puts_error error_message
+          puts_error "'#{subcommand_name}' is not a morpheus #{self.command_name} command. See '#{my_help_command}'"
           return 127
         end
         self.send(cmd_method, args[1..-1])

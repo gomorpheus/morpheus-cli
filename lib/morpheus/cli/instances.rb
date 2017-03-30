@@ -193,7 +193,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -213,12 +213,18 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(arg)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.get(instance['id'])
-        return
+        return 0
       end
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
         puts as_json(json_response, options)
-        return
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"stats" => filter_data(json_response["stats"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       end
       instance = json_response['instance']
       stats = json_response['stats'] || {}
@@ -351,7 +357,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -383,7 +389,14 @@ class Morpheus::Cli::Instances
         end
         puts as_json(json_response, options)
         return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"instance" => filter_data(json_response["instance"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       end
+
       if options[:csv]
         puts records_as_csv([json_response['instance']], options)
         return 0
@@ -1018,7 +1031,7 @@ class Morpheus::Cli::Instances
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -1050,6 +1063,12 @@ class Morpheus::Cli::Instances
           json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
         end
         puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
         return 0
       elsif options[:csv]
         # merge stats to be nice here..

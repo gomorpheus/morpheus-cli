@@ -333,7 +333,7 @@ module Morpheus
       # all commands should be registered commands or aliases
       if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
         @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not a morpheus command. See 'morpheus --help'."
-        #@stderr.print usage
+        #@stderr.puts usage
         return 127, nil
       end
 

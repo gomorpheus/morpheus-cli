@@ -1,6 +1,7 @@
 require 'uri'
 require 'term/ansicolor'
 require 'json'
+require 'yaml'
 require 'ostruct'
 
 module Morpheus::Cli::PrintHelper
@@ -738,6 +739,21 @@ module Morpheus::Cli::PrintHelper
     else
       return items.join(", ") + " and #{last_item}"
     end
+  end
+
+  def as_yaml(data, options={})
+    out = ""
+    if !data
+      return "null" # "No data"
+    end
+    begin
+      out << data.to_yaml
+    rescue => err
+      puts "failed to render YAML from data: #{data.inspect}"
+      puts err.message
+    end
+    #out << "\n"
+    out
   end
 
 end

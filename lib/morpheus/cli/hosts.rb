@@ -44,7 +44,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:list, :json, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -76,6 +76,12 @@ class Morpheus::Cli::Hosts
           json_response = {"servers" => filter_data(json_response["servers"], options[:include_fields]) }
         end
         puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"servers" => filter_data(json_response["servers"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
         return 0
       elsif options[:csv]
         # merge stats to be nice here..
@@ -157,7 +163,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -188,6 +194,12 @@ class Morpheus::Cli::Hosts
           json_response = {"server" => filter_data(json_response["server"], options[:include_fields]) }
         end
         puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"server" => filter_data(json_response["server"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
         return 0
       end
       if options[:csv]
@@ -230,7 +242,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -259,7 +271,16 @@ class Morpheus::Cli::Hosts
       json_response = @servers_interface.get(server['id'])
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
-        return
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"stats" => filter_data(json_response["stats"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response['stats']], options)
+        return 0
       end
       server = json_response['server']
       #stats = server['stats'] || json_response['stats'] || {}
@@ -273,7 +294,7 @@ class Morpheus::Cli::Hosts
       print_stats_usage(stats, {label_width: 10})
 
       print reset, "\n"
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

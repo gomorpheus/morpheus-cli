@@ -366,10 +366,7 @@ class Morpheus::Cli::Shell
           #log_history_command(input)
           Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
         else
-          # puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a known command. See 'help'."
-          puts_error "morpheus: '#{cmd_name}' is not a known command. See 'help'."
-          # print_red_alert "Unrecognized Command '#{argv[0]}'."
-          # puts "Try 'help' to see a list of available commands."
+          puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a morpheus command. Use 'help' to see the list of available commands."
           @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
         end
         # rescue ArgumentError
