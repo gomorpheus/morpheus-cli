@@ -24,8 +24,9 @@ module Morpheus::Cli::PrintHelper
 
   # puts red message to stderr
   def print_red_alert(msg)
-    #print "#{red}#{msg}#{reset}\n"
-    puts_error "#{red}#{msg}#{reset}"
+    #$stderr.print "#{red}#{msg}#{reset}\n"
+    print "#{red}#{msg}#{reset}\n"
+    #puts_error "#{red}#{msg}#{reset}"
   end
 
   # puts green message to stdout
