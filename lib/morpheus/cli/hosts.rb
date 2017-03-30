@@ -44,6 +44,43 @@ class Morpheus::Cli::Hosts
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
+      opts.on( '-M', '--managed', "Show only Managed Servers" ) do |val|
+        params[:managed] = true
+      end
+      opts.on( '-U', '--unmanaged', "Show only Unmanaged Servers" ) do |val|
+        params[:managed] = false
+      end
+      opts.on( '-t', '--type TYPE', "Show only Certain Server Types" ) do |val|
+        params[:serverType] = val
+      end
+      opts.on( '-p', '--power STATE', "Filter by Power Status" ) do |val|
+        params[:powerState] = val
+      end
+      opts.on( '-i', '--ip IPADDRESS', "Filter by IP Address" ) do |val|
+        params[:ip] = val
+      end
+      opts.on( '', '--vm', "Show only virtual machines" ) do |val|
+        params[:vm] = true
+      end
+      opts.on( '', '--hypervisor', "Show only VM Hypervisors" ) do |val|
+        params[:vmHypervisor] = true
+      end
+      opts.on( '', '--container', "Show only Container Hypervisors" ) do |val|
+        params[:containerHypervisor] = true
+      end
+      opts.on( '', '--baremetal', "Show only Baremetal Servers" ) do |val|
+        params[:bareMetalHost] = true
+      end
+      opts.on( '', '--status STATUS', "Filter by Status" ) do |val|
+        params[:status] = val
+      end
+
+      opts.on( '', '--agent', "Show only Servers with the agent installed" ) do |val|
+        params[:agentInstalled] = true
+      end
+      opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
+        params[:agentInstalled] = false
+      end
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -115,14 +152,20 @@ class Morpheus::Cli::Hosts
           # the id is a string right now..for some reason..
           all_stats = json_response['stats'] || {} 
           servers.each do |it|
+            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
             if !it['stats']
-              found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
               it['stats'] = found_stats # || {}
+            else
+              it['stats'] = found_stats.merge!(it['stats'])
             end
           end
 
           rows = servers.collect {|server| 
             stats = server['stats']
+            
+            if !stats['maxMemory']
+              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+            end
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
