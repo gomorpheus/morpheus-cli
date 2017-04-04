@@ -141,7 +141,12 @@ class Morpheus::Cli::Hosts
             }
             row
           }
-          columns = [:id, :name, :type, :cloud, :nodes, :status, :power, :cpu, :memory, :storage]
+          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+          term_width = current_terminal_width()
+          puts "term_width is #{term_width}"
+          if term_width > 170
+            columns += [:cpu, :memory, :storage]
+          end
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
