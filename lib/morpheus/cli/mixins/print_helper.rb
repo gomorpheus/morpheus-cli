@@ -3,6 +3,7 @@ require 'term/ansicolor'
 require 'json'
 require 'yaml'
 require 'ostruct'
+require 'io/console'
 
 module Morpheus::Cli::PrintHelper
 
@@ -21,6 +22,10 @@ module Morpheus::Cli::PrintHelper
       @@terminal_width = v.to_i
     end
     @@terminal_width
+  end
+
+  def current_terminal_width
+    return IO.console.winsize[1] rescue 0
   end
 
   # puts red message to stderr
