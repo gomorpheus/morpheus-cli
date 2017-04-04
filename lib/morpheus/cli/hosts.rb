@@ -143,7 +143,6 @@ class Morpheus::Cli::Hosts
           }
           columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
           term_width = current_terminal_width()
-          puts "term_width is #{term_width}"
           if term_width > 170
             columns += [:cpu, :memory, :storage]
           end
