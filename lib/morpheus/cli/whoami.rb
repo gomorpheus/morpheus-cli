@@ -202,13 +202,18 @@ class Morpheus::Cli::Whoami
         end
 
         # save pertinent session info to the appliance
-        now = Time.now.to_i
-        app_map = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
-        app_map[:username] = user['username']
-        app_map[:authenticated] = true
-        app_map[:status] = 'ready'
-        app_map[:last_success_at] = now
-        ::Morpheus::Cli::Remote.save_remote(@appliance_name, app_map)
+        begin
+          now = Time.now.to_i
+          app_map = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+          app_map[:username] = user['username']
+          app_map[:authenticated] = true
+          app_map[:status] = 'ready'
+          app_map[:build_version] = @appliance_build_verison if @appliance_build_verison
+          app_map[:last_success_at] = now
+          ::Morpheus::Cli::Remote.save_remote(@appliance_name, app_map)
+        rescue => err
+          puts "failed to save remote appliance info"
+        end
 
         print reset,"\n"
       end
