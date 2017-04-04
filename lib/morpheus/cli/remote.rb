@@ -1142,14 +1142,13 @@ EOT
       # todo: this insecure flag needs to applied everywhere now tho..
       Morpheus::RestClient.enable_ssl_verification = app_map[:insecure].to_s == 'true'
       # Morpheus::RestClient.enable_http = app_map[:insecure].to_s == 'true'
-
+      setup_interface = Morpheus::SetupInterface.new(app_url)
       begin
         now = Time.now.to_i
         app_map[:last_check] = {}
         app_map[:last_check][:success] = false
         app_map[:last_check][:timestamp] = Time.now.to_i
         # todo: move /api/setup/check to /api/version or /api/server-info
-        setup_interface = Morpheus::SetupInterface.new(app_url)
         check_json_response = setup_interface.check()
         # puts "REMOTE CHECK RESPONSE:"
         # puts JSON.pretty_generate(check_json_response), "\n"
@@ -1177,7 +1176,7 @@ EOT
       rescue RestClient::Exceptions::Timeout => err
         # print_rest_exception(e, options)
         # exit 1
-        app_map[:status] = 'http-error'
+        app_map[:status] = 'http-timeout'
         app_map[:last_check][:http_status] = nil
       rescue Errno::ECONNREFUSED => err
         app_map[:status] = 'net-error'
@@ -1189,6 +1188,22 @@ EOT
         app_map[:status] = 'http-error'
         app_map[:http_status] = err.response ? err.response.code : nil
         app_map[:last_check][:error] = err.message
+        # fallback to /ping for older appliance versions (pre 2.10.5)
+        begin
+          Morpheus::Logging::DarkPrinter.puts "falling back to remote check via /ping ..." if Morpheus::Logging.debug?
+          setup_interface.ping()
+          app_map[:last_check][:ping_fallback] = true
+          app_map[:last_check][:http_status] = 200
+          app_map[:last_check][:success] = true
+          app_map[:last_check][:ping_fallback] = true
+          app_map[:build_version] = "" # unknown until whoami is executed..
+          app_map[:status] = 'ready'
+          # consider bumping this after every successful api command
+          app_map[:last_success_at] = Time.now.to_i
+          app_map.delete(:error)
+        rescue => ping_err
+          Morpheus::Logging::DarkPrinter.puts "/ping failed too: #{ping_err.message} ..." if Morpheus::Logging.debug?
+        end
       rescue => err
         # should save before raising atleast..sheesh
         raise err
