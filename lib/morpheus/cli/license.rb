@@ -77,7 +77,7 @@ class Morpheus::Cli::License
         key = args[0]
       else
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
-        instance_name = v_prompt['licenseKey'] || ''
+        key = v_prompt['licenseKey'] || ''
       end
       if options[:dry_run]
         print_dry_run @license_interface.dry.apply(key)
