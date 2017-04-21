@@ -229,6 +229,15 @@ module Morpheus::Cli::ProvisioningHelper
       }
     }
 
+    # allow arbitrary -O values passed by the user (config and instance namespace only)
+    if options[:options] && options[:options]['config'].is_a?(Hash)
+      payload['config'] ||= {}
+      payload['config'].deep_merge!(options[:options]['config'])
+    end
+    if options[:options] && options[:options]['instance'].is_a?(Hash)
+      payload['instance'].deep_merge!(options[:options]['instance'])
+    end
+
     # Description
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
     payload['instance']['description'] = v_prompt['description'] if !v_prompt['description'].empty?
