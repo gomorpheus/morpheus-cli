@@ -103,6 +103,34 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def available_actions(id)
+    url, params = "", {}
+    if id.is_a?(Array)
+      url = "#{@base_url}/api/instances/actions"
+      params = {ids: id}
+    else
+      url = "#{@base_url}/api/instances/#{id}/actions"
+      params = {}
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def action(id, action_code, payload={})
+    url, params = "", {}
+    if id.is_a?(Array)
+      url = "#{@base_url}/api/instances/action"
+      params = {ids: id, code: action_code}
+    else
+      url = "#{@base_url}/api/instances/#{id}/action"
+      params = {code: action_code}
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def volumes(id)
     url = "#{@base_url}/api/instances/#{id}/volumes"
     headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -185,6 +213,41 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/instances/service-plans"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def containers(instance_id, params={})
+    url = "#{@base_url}/api/instances/#{instance_id}/containers"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def threshold(id, params={})
+    url = "#{@base_url}/api/instances/#{id}/threshold"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def update_threshold(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/threshold"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def update_load_balancer(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/load-balancer"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def remove_load_balancer(id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/load-balancer"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

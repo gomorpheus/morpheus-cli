@@ -304,6 +304,11 @@ module Morpheus::Cli::ProvisioningHelper
       payload.deep_merge!(provision_payload)
     end
 
+    ## Advanced Options
+
+    # scale factor
+
+
     # prompt for environment variables
     evars = prompt_evars(options)
     if !evars.empty?
@@ -779,162 +784,162 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
 
-      # This recreates the behavior of multi_networks.js
-      # This is used by both `instances add` and `hosts add`
-      # returns array of networkInterfaces based on provision type and cloud settings
-      def prompt_network_interfaces(zone_id, provision_type_id, options={})
-        #puts "Configure Networks:"
-        no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-        network_interfaces = []
+  # This recreates the behavior of multi_networks.js
+  # This is used by both `instances add` and `hosts add`
+  # returns array of networkInterfaces based on provision type and cloud settings
+  def prompt_network_interfaces(zone_id, provision_type_id, options={})
+    #puts "Configure Networks:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    network_interfaces = []
 
-        zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type_id})
-        # puts "zoneNetworkOptions JSON"
-        # puts JSON.pretty_generate(zone_network_options_json)
-        zone_network_data = zone_network_options_json['data'] || {}
-        networks = zone_network_data['networks']
-        network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
-        enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
-        has_networks = zone_network_data["hasNetworks"] == true
-        max_networks = zone_network_data["maxNetworks"] ? zone_network_data["maxNetworks"].to_i : nil
+    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type_id})
+    # puts "zoneNetworkOptions JSON"
+    # puts JSON.pretty_generate(zone_network_options_json)
+    zone_network_data = zone_network_options_json['data'] || {}
+    networks = zone_network_data['networks']
+    network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
+    enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
+    has_networks = zone_network_data["hasNetworks"] == true
+    max_networks = zone_network_data["maxNetworks"] ? zone_network_data["maxNetworks"].to_i : nil
 
-        # skip unless provision type supports networks
-        if !has_networks
-          return nil
-        end
+    # skip unless provision type supports networks
+    if !has_networks
+      return nil
+    end
 
-        # no networks available, shouldn't happen
-        if networks.empty?
-          return network_interfaces
-        end
+    # no networks available, shouldn't happen
+    if networks.empty?
+      return network_interfaces
+    end
 
-        network_options = []
-        networks.each do |opt|
-          if !opt.nil?
-            network_options << {'name' => opt['name'], 'value' => opt['id']}
-          end
-        end
+    network_options = []
+    networks.each do |opt|
+      if !opt.nil?
+        network_options << {'name' => opt['name'], 'value' => opt['id']}
+      end
+    end
 
-        network_interface_type_options = []
-        network_interface_types.each do |opt|
-          if !opt.nil?
-            network_interface_type_options << {'name' => opt['name'], 'value' => opt['id']}
-          end
-        end
+    network_interface_type_options = []
+    network_interface_types.each do |opt|
+      if !opt.nil?
+        network_interface_type_options << {'name' => opt['name'], 'value' => opt['id']}
+      end
+    end
 
 
-        interface_index = 1
-        add_another_interface = true
-        while add_another_interface do
-            # if !no_prompt
-            #   if interface_index == 1
-            #     puts "Configure Network Interface"
-            #   else
-            #     puts "Configure Network Interface #{interface_index}"
-            #   end
-            # end
+    interface_index = 1
+    add_another_interface = true
+    while add_another_interface do
+      # if !no_prompt
+      #   if interface_index == 1
+      #     puts "Configure Network Interface"
+      #   else
+      #     puts "Configure Network Interface #{interface_index}"
+      #   end
+      # end
 
-            field_context = interface_index == 1 ? "networkInterface" : "networkInterface#{interface_index}"
-            network_interface = {}
+      field_context = interface_index == 1 ? "networkInterface" : "networkInterface#{interface_index}"
+      network_interface = {}
 
-            # choose network
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
-            network_interface['network'] = {}
-            network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_i
-            selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
+      # choose network
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
+      network_interface['network'] = {}
+      network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_i
+      selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
 
-            if !selected_network
-              print_red_alert "Network not found by id #{network_interface['network']['id']}!"
-              exit 1
-            end
+      if !selected_network
+        print_red_alert "Network not found by id #{network_interface['network']['id']}!"
+        exit 1
+      end
 
-            # choose network interface type
-            if enable_network_type_selection && !network_interface_type_options.empty?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => network_interface['networkInterfaceTypeId']}], options[:options])
-              network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId'].to_i
-            end
+      # choose network interface type
+      if enable_network_type_selection && !network_interface_type_options.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => network_interface['networkInterfaceTypeId']}], options[:options])
+        network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId'].to_i
+      end
 
-            # choose IP unless network has a pool configured
-            if selected_network['pool']
-              puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
-            elsif selected_network['dhcpServer']
-              puts "IP Address: Using DHCP" if !no_prompt
-            else
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
-              network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
-            end
-            network_interfaces << network_interface
-            interface_index += 1
-            has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
-            add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
-            if max_networks && network_interfaces.size >= max_networks
-              add_another_interface = false
-            end
+      # choose IP unless network has a pool configured
+      if selected_network['pool']
+        puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
+      elsif selected_network['dhcpServer']
+        puts "IP Address: Using DHCP" if !no_prompt
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
+        network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
+      end
+      network_interfaces << network_interface
+      interface_index += 1
+      has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
+      add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
+      if max_networks && network_interfaces.size >= max_networks
+        add_another_interface = false
+      end
 
-          end
+    end
 
-          return network_interfaces
+    return network_interfaces
 
-        end
+  end
 
-        # Prompts user for environment variables for new instance
-        # returns array of evar objects {id: null, name: "VAR", value: "somevalue"}
-        def prompt_evars(options={})
-          #puts "Configure Environment Variables:"
-          no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-          evars = []
-          evar_index = 0
-          has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
-          add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an environment variable?", {default: false}))
-          while add_another_evar do
-              field_context = "evar#{evar_index}"
-              evar = {}
-              evar['id'] = nil
-              evar_label = evar_index == 0 ? "ENV" : "ENV [#{evar_index+1}]"
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{evar_label} Name", 'required' => true, 'description' => 'Environment Variable Name.', 'defaultValue' => evar['name']}], options[:options])
-              evar['name'] = v_prompt[field_context]['name']
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{evar_label} Value", 'required' => true, 'description' => 'Environment Variable Value', 'defaultValue' => evar['value']}], options[:options])
-              evar['value'] = v_prompt[field_context]['value']
-              evars << evar
-              evar_index += 1
-              has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
-              add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another environment variable?", {default: false}))
-            end
+  # Prompts user for environment variables for new instance
+  # returns array of evar objects {id: null, name: "VAR", value: "somevalue"}
+  def prompt_evars(options={})
+    #puts "Configure Environment Variables:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    evars = []
+    evar_index = 0
+    has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
+    add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an environment variable?", {default: false}))
+    while add_another_evar do
+      field_context = "evar#{evar_index}"
+      evar = {}
+      evar['id'] = nil
+      evar_label = evar_index == 0 ? "ENV" : "ENV [#{evar_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{evar_label} Name", 'required' => true, 'description' => 'Environment Variable Name.', 'defaultValue' => evar['name']}], options[:options])
+      evar['name'] = v_prompt[field_context]['name']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{evar_label} Value", 'required' => true, 'description' => 'Environment Variable Value', 'defaultValue' => evar['value']}], options[:options])
+      evar['value'] = v_prompt[field_context]['value']
+      evars << evar
+      evar_index += 1
+      has_another_evar = options[:options] && options[:options]["evar#{evar_index}"]
+      add_another_evar = has_another_evar || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another environment variable?", {default: false}))
+    end
 
-            return evars
-          end
+    return evars
+  end
 
-          # reject old volume option types
-          # these will eventually get removed from the associated optionTypes
-          def reject_volume_option_types(option_types)
-            option_types.reject {|opt|
-              ['osDiskSize', 'osDiskType',
-               'diskSize', 'diskType',
-               'datastoreId', 'storagePodId'
-               ].include?(opt['fieldName'])
-            }
-          end
+  # reject old volume option types
+  # these will eventually get removed from the associated optionTypes
+  def reject_volume_option_types(option_types)
+    option_types.reject {|opt|
+      ['osDiskSize', 'osDiskType',
+       'diskSize', 'diskType',
+       'datastoreId', 'storagePodId'
+       ].include?(opt['fieldName'])
+    }
+  end
 
-          # reject old networking option types
-          # these will eventually get removed from the associated optionTypes
-          def reject_networking_option_types(option_types)
-            option_types.reject {|opt|
-              ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
-               'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers',
-               'subnetId'
-               ].include?(opt['fieldName'])
-            }
-          end
+  # reject old networking option types
+  # these will eventually get removed from the associated optionTypes
+  def reject_networking_option_types(option_types)
+    option_types.reject {|opt|
+      ['networkId', 'networkType', 'ipAddress', 'netmask', 'gateway', 'nameservers',
+       'vmwareNetworkType', 'vmwareIpAddress', 'vmwareNetmask', 'vmwareGateway', 'vmwareNameservers',
+       'subnetId'
+       ].include?(opt['fieldName'])
+    }
+  end
 
-          # reject old option types that now come from the selected service plan
-          # these will eventually get removed from the associated optionTypes
-          def reject_service_plan_option_types(option_types)
-            option_types.reject {|opt|
-              ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
-            }
-          end
+  # reject old option types that now come from the selected service plan
+  # these will eventually get removed from the associated optionTypes
+  def reject_service_plan_option_types(option_types)
+    option_types.reject {|opt|
+      ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
+    }
+  end
 
-          def instance_context_options
-            [{'name' => 'Dev', 'value' => 'dev'}, {'name' => 'Test', 'value' => 'qa'}, {'name' => 'Staging', 'value' => 'staging'}, {'name' => 'Production', 'value' => 'production'}]
-          end
+  def instance_context_options
+    [{'name' => 'Dev', 'value' => 'dev'}, {'name' => 'Test', 'value' => 'qa'}, {'name' => 'Staging', 'value' => 'staging'}, {'name' => 'Production', 'value' => 'production'}]
+  end
 
-        end
+end

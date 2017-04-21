@@ -69,6 +69,7 @@ module Morpheus
       load 'morpheus/cli/workflows.rb'
       load 'morpheus/cli/deployments.rb'
       load 'morpheus/cli/instances.rb'
+      load 'morpheus/cli/containers_command.rb'
       load 'morpheus/cli/apps.rb'
       load 'morpheus/cli/app_templates.rb'
       load 'morpheus/cli/deploys.rb'
