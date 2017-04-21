@@ -46,7 +46,7 @@ class Morpheus::Cli::Logout
         return 1
       end
       creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
-      token = creds.saved_credentials
+      token = creds.load_saved_credentials
       if !token
         if !options[:quiet]
           puts "You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}"

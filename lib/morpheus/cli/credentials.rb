@@ -14,7 +14,7 @@ module Morpheus
       @@appliance_credentials_map = nil
 
       def initialize(appliance_name, appliance_url)
-        @appliance_name = appliance_name
+        @appliance_name = appliance_name ? appliance_name.to_sym : nil
         @appliance_url = appliance_url
       end
       
@@ -148,20 +148,10 @@ module Morpheus
       end
 
       def load_saved_credentials(reload=false)
-        if saved_credentials && !reload
-          return saved_credentials
+        if reload || !defined?(@@appliance_credentials_map) || @@appliance_credentials_map.nil?
+          @@appliance_credentials_map = load_credentials_file || {}
         end
-        #Morpheus::Logging::DarkPrinter.puts "loading credentials for #{appliance_name}" if Morpheus::Logging.debug?
-        @@appliance_credentials_map = load_credentials_file || {}
         return @@appliance_credentials_map[@appliance_name]
-      end
-
-      # Provides the current credential information, simply :appliance_name => "access_token"
-      def saved_credentials
-        if !defined?(@@appliance_credentials_map)
-          @@appliance_credentials_map = load_credentials_file
-        end
-        return @@appliance_credentials_map ? @@appliance_credentials_map[@appliance_name.to_sym] : nil
       end
 
       def load_credentials_file
@@ -194,6 +184,7 @@ module Morpheus
           Morpheus::Logging::DarkPrinter.puts "adding credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)
+          @@appliance_credentials_map = credential_map
         rescue => e
           puts "failed to save #{fn}. #{e}"  if Morpheus::Logging.debug?
         end

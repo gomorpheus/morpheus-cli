@@ -58,7 +58,7 @@ module Morpheus
             if cur_namespace.key?(option_type['fieldName'])
               value = cur_namespace[option_type['fieldName']]
               if option_type['type'] == 'number'
-                value = value.to_i
+                value = value.to_s.include?('.') ? value.to_f : value.to_i
               elsif option_type['type'] == 'select'
                 # this should just fall down through below, with the extra params no_prompt, use_value
                 value = select_prompt(option_type, api_client, api_params, true, value)
@@ -70,7 +70,7 @@ module Morpheus
             if value_found == false && options.key?(option_type['fieldName'])
               value = options[option_type['fieldName']]
               if option_type['type'] == 'number'
-                value = value.to_i
+                value = value.to_s.include?('.') ? value.to_f : value.to_i
               end
               value_found = true
             end
@@ -81,7 +81,7 @@ module Morpheus
           no_prompt = no_prompt || options[:no_prompt]
           if no_prompt
             if !value_found
-              if option_type['defaultValue']
+              if option_type['defaultValue'] != nil
                 value = option_type['defaultValue']
                 value_found = true
               end
@@ -196,7 +196,8 @@ module Morpheus
         while !value_found do
           print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
-          value = input.empty? ? option_type['defaultValue'] : input.to_i
+          value = input.empty? ? option_type['defaultValue'] : input
+          value = value.to_s.include?('.') ? value.to_f : value.to_i
           if input == '?'
             help_prompt(option_type)
           elsif !value.nil? || option_type['required'] != true
@@ -280,22 +281,38 @@ module Morpheus
         return value
       end
 
+      # this is a funky one, the user is prompted for yes/no
+      # but the return value is 'on','off',nil
+      # todo: maybe make this easier to use, and have the api's be flexible too..
+      # @param option_type [Hash] option type object with type,fieldName,fieldLabel,etc..
+      # @return 'on', 'off' or nil
       def self.checkbox_prompt(option_type)
         value_found = false
         value = nil
+        has_default = option_type['defaultValue'] != nil
+        default_yes = has_default ? ['on', 'true', 'yes', '1'].include?(option_type['defaultValue'].to_s.downcase) : false
         while !value_found do
-          print "#{option_type['fieldLabel']} (yes/no) [#{option_type['defaultValue'] == 'on' ? 'yes' : 'no'}]: "
+          print "#{option_type['fieldLabel']} (yes/no)#{has_default ? ' ['+(default_yes ? 'yes' : 'no')+']' : ''}: "
           input = $stdin.gets.chomp!
-          if input.downcase == 'yes'
-            value = 'on'
-          elsif input.downcase == 'no'
-            value = 'off'
-          else
-            value = option_type['defaultValue']
-          end
           if input == '?'
             help_prompt(option_type)
-          elsif !value.nil? || option_type['required'] != true
+            next
+          end
+          if input.downcase == 'yes'
+            value_found = true
+            value = 'on'
+          elsif input.downcase == 'no'
+            value_found = true
+            value = 'off'
+          elsif input == '' && has_default
+            value_found = true
+            value = default_yes ? 'on' : 'off'
+          end
+          if value.nil? && option_type['required']
+            puts "Invalid Option... Please try again."
+            next
+          end
+          if value.nil? && !option_type['required']
             value_found = true
           end
         end

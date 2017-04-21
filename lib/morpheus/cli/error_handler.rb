@@ -50,6 +50,11 @@ class Morpheus::Cli::ErrorHandler
       @stderr.puts "#{red}#{err.message}#{reset}"
     when RestClient::Exception
       print_rest_exception(err, options)
+      # no stacktrace for now...
+      return exit_code
+      # if !options[:debug]
+      #   return exit_code
+      # end
     else
       @stderr.puts "#{red}Unexpected Error#{reset}"
     end
@@ -85,6 +90,10 @@ class Morpheus::Cli::ErrorHandler
 
   def print_rest_exception(err, options)
     e = err
+    # heh
+    if Morpheus::Logging.debug? && options[:debug].nil?
+      options[:debug] = true
+    end
     if err.response
       if options[:debug]
         begin

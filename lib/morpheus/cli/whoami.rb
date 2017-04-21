@@ -217,15 +217,16 @@ class Morpheus::Cli::Whoami
 
         print reset,"\n"
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      if e.response && e.response.code == 401
-        puts "It looks like you need to login to the remote appliance [#{@appliance_name}] #{@appliance_url}"
-        if Morpheus::Cli::OptionTypes.confirm("Would you like to login now?")
-          return Morpheus::Cli::Login.new.login([])
-        end
-      end
-      exit 1
+      # if e.response && e.response.code == 401
+      #   puts "It looks like you need to login to the remote appliance [#{@appliance_name}] #{@appliance_url}"
+      #   if Morpheus::Cli::OptionTypes.confirm("Would you like to login now?")
+      #     return Morpheus::Cli::Login.new.login([])
+      #   end
+      # end
+      return 1
     end
   end
 

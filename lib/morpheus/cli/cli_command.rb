@@ -128,7 +128,8 @@ module Morpheus
 
           description = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' Default: '+option_type['defaultValue'].to_s : ''}"
           if option_type['description']
-            description << "\n                                     #{option_type['description']}"
+            # description << "\n                                     #{option_type['description']}"
+            description << " - #{option_type['description']}"
           end
           if option_type['helpBlock']
             description << "\n                                     #{option_type['helpBlock']}"
@@ -141,7 +142,18 @@ module Morpheus
           #   description = "(Required) #{description}"
           # end
           
-          opts.on("--#{full_field_name} VALUE", String, description) do |val|
+          value_label = "VALUE"
+          if option_type['placeHolder']
+            value_label = option_type['placeHolder']
+          elsif option_type['type'] == 'checkbox'
+            value_label = 'on|off' # or.. true|false
+          elsif option_type['type'] == 'number'
+            value_label = 'NUMBER'
+          # elsif option_type['type'] == 'select'
+          #   value_label = 'SELECT'
+          # elsif option['type'] == 'select'
+          end
+          opts.on("--#{full_field_name} #{value_label}", String, description) do |val|
             cur_namespace = custom_options
             field_namespace.each do |ns|
               next if ns.empty?
@@ -519,7 +531,7 @@ module Morpheus
             if ::Morpheus::Cli::Remote.appliances.empty?
               raise_command_error "You have no appliances configured. See the `remote add` command."
             else
-              raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
+              raise_command_error "Remote appliance not found by the name '#{options[:remote]}'"
             end
           end
         else

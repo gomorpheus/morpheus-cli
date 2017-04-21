@@ -64,6 +64,10 @@ class Morpheus::APIClient
     Morpheus::InstancesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def containers
+    Morpheus::ContainersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def instance_types
     Morpheus::InstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
