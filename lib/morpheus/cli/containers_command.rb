@@ -13,7 +13,7 @@ class Morpheus::Cli::ContainersCommand
 
   set_command_name :containers
 
-  register_subcommands :get, :stop, :start, :restart, :suspend, :reject, :action, :actions
+  register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
