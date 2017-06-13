@@ -482,7 +482,7 @@ module Morpheus::Cli::PrintHelper
     max_label_width = 0
     justify = opts.key?(:justify) ? opts[:justify] : "right"
     do_wrap = opts.key?(:wrap) ? !!opts[:wrap] : true
-    
+    color = opts.key?(:color) ? opts[:color] : cyan
     rows = []
     
     columns.flatten.each do |column_def|
@@ -501,6 +501,7 @@ module Morpheus::Cli::PrintHelper
     end
 
     out = ""
+    out << color if color
     rows.each do |row|
       value = row[:value].to_s
       if do_wrap
@@ -511,6 +512,7 @@ module Morpheus::Cli::PrintHelper
       end
       out << format_dt_dd(row[:label], value, label_width, justify) + "\n"
     end
+    out << reset if color
     return out
   end
 

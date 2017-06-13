@@ -1,4 +1,4 @@
-require 'rest_client'
+require 'rest-client'
 
 module Morpheus
   # A wrapper around rest_client so we can more easily deal with passing options (like turning on/off SSL verification)

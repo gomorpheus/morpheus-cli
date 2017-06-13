@@ -3,13 +3,14 @@ require 'uri'
 require 'rest-client'
 
 class Morpheus::APIClient
-  def initialize(access_token, refresh_token=nil,expires_in = nil, base_url=nil) 
+  def initialize(access_token, refresh_token=nil,expires_in = nil, base_url=nil, verify_ssl=true) 
     @access_token = access_token
     @refresh_token = refresh_token
     @base_url = base_url
     if expires_in != nil
       @expires_at = DateTime.now + expires_in.seconds
     end
+    set_ssl_verification_enabled(verify_ssl)
   end
 
   def dry_run(val=true)
@@ -21,7 +22,23 @@ class Morpheus::APIClient
     dry_run(true)
   end
 
+  def ssl_verification_enabled?
+    @verify_ssl
+  end
+
+  def set_ssl_verification_enabled(val)
+    @verify_ssl = !!val
+  end
+
   def execute(opts, parse_json=true)
+    # @verify_ssl is not used atm
+    # todo: finish this and use it instead of the global variable RestClient.ssl_verification_enabled?
+    # gotta clean up all APIClient subclasses new() methods to support this
+    # the CliCommand subclasses should be changed to @users_interface = @api_client.users
+    # also.. Credentials.new()
+    if @verify_ssl == false
+      opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
+    end
     if @dry_run
       # JD: could return a Request object instead...
       return opts

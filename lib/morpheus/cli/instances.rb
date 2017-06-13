@@ -171,7 +171,8 @@ class Morpheus::Cli::Instances
   def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[type] [name]")
+      # opts.banner = subcommand_usage("[type] [name]")
+      opts.banner = subcommand_usage("[name] -c CLOUD -t TYPE")
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -187,32 +188,73 @@ class Morpheus::Cli::Instances
       opts.on("--layout-size NUMBER", Integer, "Apply a multiply factor of containers/vms within the instance") do |val|
         options[:layout_size] = val.to_i
       end
+      opts.on("--workflow ID", String, "Automation: Workflow ID") do |val|
+        options[:workflow_id] = val.to_i
+      end
+      # opts.on('-L', "--lb", "Enable Load Balancer") do
+      #   options[:enable_load_balancer] = true
+      # end
+      opts.on("--shutdown-days NUMBER", Integer, "Automation: Shutdown Days") do |val|
+        options[:expire_days] = val.to_i
+      end
+      opts.on("--expire-days NUMBER", Integer, "Automation: Expiration Days") do |val|
+        options[:expire_days] = val.to_i
+      end
+      opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off") do |val|
+        options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
 
     optparse.parse!(args)
     connect(options)
 
-    # support old format of `instance add TYPE NAME`
+    # this is the old format of `instance add TYPE NAME`
+    # JD: it seems confusing, let's deprecate and go with `instances add [NAME] -t TYPE`
     if args[0]
       options[:instance_type_code] = args[0]
     end
     if args[1]
       options[:instance_name] = args[1]
     end
+
+    # if args.count > 1
+    #   print_error Morpheus::Terminal.angry_prompt
+    #   puts_error  "#{command_name} add has just 1 (optional) argument: NAME.  Got #{args.count} arguments: #{args.join(', ')}\n#{optparse}"
+    #   return 1
+    # end
+    # if args[0]
+    #   options[:instance_name] = args[0]
+    # end
+
     # use active group by default
     options[:group] ||= @active_group_id
 
     options[:name_required] = true
     begin
-
+      # this provisioning helper method handles all (most) of the parsing and prompting
+      # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
       payload = prompt_new_instance(options)
+      
+      # other stuff
       payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
       payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+      payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
+      payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
+      payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
+      if options[:workflow_id]
+        payload['taskSetId'] = options[:workflow_id]
+      end
+      if options[:enable_load_balancer]
+        lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
+        payload.deep_merge!(lb_payload)
+      end
+
       if options[:dry_run]
         print_dry_run @instances_interface.dry.create(payload)
-        return
+        return 0
       end
+
       json_response = @instances_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
@@ -221,9 +263,10 @@ class Morpheus::Cli::Instances
         print_green_success "Provisioning instance #{instance_name}"
         #list([])
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -598,6 +641,20 @@ class Morpheus::Cli::Instances
       }
       print_description_list(description_cols, instance)
 
+      if instance['statusMessage']
+        print_h2 "Status Message"
+        if instance['status'] == 'failed'
+          print red, instance['statusMessage'], reset
+        else
+          print instance['statusMessage']
+        end
+        print "\n"
+      end
+      if instance['errorMessage']
+        print_h2 "Error Message"
+        print red, instance['errorMessage'], reset
+        print "\n"
+      end
       if stats
         print_h2 "Instance Usage"
         print_stats_usage(stats)
@@ -650,15 +707,16 @@ class Morpheus::Cli::Instances
       if current_instance_lb
         print_h2 "Load Balancer"
         print cyan
+        # this api response is going to change again.. port is no longer returned atm.
         description_cols = {
           "LB ID" => lambda {|it| it['loadBalancer']['id'] },
           "Name" => lambda {|it| it['loadBalancer']['name'] },
           "Type" => lambda {|it| it['loadBalancer']['type'] ? it['loadBalancer']['type']['name'] : '' },
           "Host Name" => lambda {|it| it['loadBalancer']['host'] }, # instance.hostName ?
-          "Port" => lambda {|it| it['port']['port'] },
-          "Protocol" => lambda {|it| it['port']['proxyProtocol'] },
-          "SSL Enabled" => lambda {|it| format_boolean it['port']['sslEnabled'] },
-          "Cert" => lambda {|it| it['port']['sslCert'] ? it['port']['sslCert']['name'] : 'N/A' } # api needs to return this too..
+          "Port" => lambda {|it| it['port'] ? it['port']['port'] : '' },
+          "Protocol" => lambda {|it| it['port'] ? it['port']['proxyProtocol'] : '' },
+          "SSL Enabled" => lambda {|it| it['port'] ? format_boolean(it['port']['sslEnabled']) : '' },
+          "Cert" => lambda {|it| (it['port'] && it['port']['sslCert']) ? it['port']['sslCert']['name'] : '' }
         }
         print_description_list(description_cols, current_instance_lb)
         print "\n", reset
@@ -2054,20 +2112,20 @@ class Morpheus::Cli::Instances
       }
 
       cur_host_name = instance['hostName']
-      #host_name = params = Morpheus::Cli::OptionTypes.prompt([{fieldName:'hostName'}], options[:options], @api_client, {})
+      #host_name = params = Morpheus::Cli::OptionTypes.prompt([{'fieldName'=>'hostName', 'label'=>'Host Name', 'defaultValue'=>cur_host_name}], options[:options], @api_client, {})
       payload['instance']['hostName'] = instance['hostName']
 
-      payload['loadBalancerId'] = 9999
+      #payload['loadBalancerId'] = params['loadBalancerId']
 
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the load balancer for instance '#{instance['name']}'?", options)
         return 9, "aborted command"
       end
       
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_threshold(instance['id'], payload)
+        print_dry_run @instances_interface.dry.update_load_balancer(instance['id'], payload)
         return
       end
-      json_response = @instances_interface.update_threshold(instance['id'], payload)
+      json_response = @instances_interface.update_load_balancer(instance['id'], payload)
       if options[:json]
         puts as_json(json_response, options)
       else

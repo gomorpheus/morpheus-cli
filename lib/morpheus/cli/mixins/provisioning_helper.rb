@@ -324,6 +324,12 @@ module Morpheus::Cli::ProvisioningHelper
       payload['evars'] = evars
     end
 
+    # prompt for metadata variables
+    metadata = prompt_metadata(options)
+    if !metadata.empty?
+      payload['metadata'] = metadata
+    end
+
     return payload
   end
 
@@ -915,6 +921,73 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     return evars
+  end
+
+  # Prompts user for environment variables for new instance
+  # returns array of metadata objects {id: null, name: "MYTAG", value: "myvalue"}
+  def prompt_metadata(options={})
+    #puts "Configure Environment Variables:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    metadata_array = []
+    metadata_index = 0
+    has_another_metadata = options[:options] && options[:options]["metadata#{metadata_index}"]
+    add_another_metadata = has_another_metadata || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a metadata tag?", {default: false}))
+    while add_another_metadata do
+      field_context = "metadata#{metadata_index}"
+      metadata = {}
+      metadata['id'] = nil
+      metadata_label = metadata_index == 0 ? "Metadata Tag" : "Metadata Tag [#{metadata_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{metadata_label} Name", 'required' => true, 'description' => 'Metadata Tag Name.', 'defaultValue' => metadata['name']}], options[:options])
+      # todo: metadata.type ?
+      metadata['name'] = v_prompt[field_context]['name']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{metadata_label} Value", 'required' => true, 'description' => 'Metadata Tag Value', 'defaultValue' => metadata['value']}], options[:options])
+      metadata['value'] = v_prompt[field_context]['value']
+      metadata_array << metadata
+      metadata_index += 1
+      has_another_metadata = options[:options] && options[:options]["metadata#{metadata_index}"]
+      add_another_metadata = has_another_metadata || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another metadata tag?", {default: false}))
+    end
+
+    return metadata_array
+  end
+
+  # Prompts user for load balancer settings
+  # returns Hash of parameters like {loadBalancerId: "-1", etc}
+  def prompt_instance_load_balancer(instance, default_lb_id, options)
+    #puts "Configure Environment Variables:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    payload = {}
+    api_params = {}
+    if instance['id']
+      api_params['instanceId'] = instance['id']
+    end
+    if instance['zone']
+      api_params['zoneId'] = instance['zone']['id']
+    elsif instance['cloud']
+      api_params['zoneId'] = instance['cloud']['id']
+    end
+    if instance['group']
+      api_params['siteId'] = instance['group']['id']
+    elsif instance['site']
+      api_params['siteId'] = instance['site']['id']
+    end
+    if instance['plan']
+      api_params['planId'] = instance['plan']['id']
+    end
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'loadBalancerId', 'type' => 'select', 'fieldLabel' => "Load Balancer", 'optionSource' => 'loadBalancers', 'required' => true, 'description' => 'Select Load Balancer for instance', 'defaultValue' => default_lb_id || ''}], options[:options], api_client, api_params)
+    lb_id = v_prompt['loadBalancerId']
+    payload['loadBalancerId'] = lb_id
+
+    # todo: finish implmenting this
+
+    # loadBalancerId
+    # loadBalancerProxyProtocol
+    # loadBalancerName
+    # loadBalancerDescription
+    # loadBalancerSslCert
+    # loadBalancerScheme
+    
+    return payload
   end
 
   # reject old volume option types
