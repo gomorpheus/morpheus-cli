@@ -93,13 +93,18 @@ class Morpheus::Cli::InstanceTypes
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
-        return
+        return 0
       end
 
       instance_types = json_response['instanceTypes']
-      print_h1 "Morpheus Instance Types"
+      title = "Morpheus Instance Types"
+      subtitles = []
+      if params[:phrase]
+        subtitles << "Search: #{params[:phrase]}".strip
+      end
+      print_h1 title, subtitles
       if instance_types.empty?
-        puts yellow,"No instance types currently configured.",reset
+        print yellow,"No instance types found.",reset,"\n"
       else
         instance_types.each do |instance_type|
           versions = instance_type['versions'].join(', ')
@@ -113,12 +118,12 @@ class Morpheus::Cli::InstanceTypes
           # end
           #print JSON.pretty_generate(instance_type['instanceTypeLayouts'].first), "\n"
         end
-
       end
       print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 end
