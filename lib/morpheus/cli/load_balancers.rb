@@ -29,7 +29,7 @@ class Morpheus::Cli::LoadBalancers
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -44,24 +44,41 @@ class Morpheus::Cli::LoadBalancers
       end
       json_response = @load_balancers_interface.get(params)
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        if options[:include_fields]
+          json_response = {"loadBalancers" => filter_data(json_response["loadBalancers"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["loadBalancers"], options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"loadBalancers" => filter_data(json_response["loadBalancers"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       else
         lbs = json_response['loadBalancers']
         print_h1 "Morpheus Load Balancers"
         if lbs.empty?
-          print cyan,"No load balancers found.",reset,"\n"
+          print yellow,"No load balancers found.",reset,"\n"
         else
-          print cyan
-          lb_table_data = lbs.collect do |lb|
-            {name: lb['name'], id: lb['id'], type: lb['type']['name']}
-          end
-          tp lb_table_data, :id, :name, :type
+          columns = [
+            {"ID" => 'id'},
+            {"Name" => 'name'},
+            {"Type" => lambda {|it| it['type'] ? it['type']['name'] : '' } },
+            {"Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
+            {"Host" => lambda {|it| it['host'] } },
+          ]
+          print as_pretty_table(lbs, columns, options)
         end
         print reset,"\n"
+        return 0
       end
-                rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -69,7 +86,7 @@ class Morpheus::Cli::LoadBalancers
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -89,15 +106,62 @@ class Morpheus::Cli::LoadBalancers
       end
       lb = find_lb_by_name_or_id(lb_name)
       exit 1 if lb.nil?
+      # refetch
+      json_response = @load_balancers_interface.get(lb['id'])
       lb_type = load_balancer_type_for_name_or_id(lb['type']['code'])
+      #puts "LB TYPE: #{lb_type}"
       if options[:json]
         puts JSON.pretty_generate({loadBalancer: lb})
+        if options[:include_fields]
+          json_response = {"loadBalancer" => filter_data(json_response["loadBalancer"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["loadBalancer"], options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"loadBalancer" => filter_data(json_response["loadBalancer"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       else
-        print "\n", cyan, "Lb #{lb['name']} - #{lb['type']['name']}\n\n"
-        # lb_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-        # 	puts "  #{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")
-        # end
-        print reset,"\n\n"
+        print_h1 "Load Balancer Details"
+        description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Description" => 'description',
+          "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+          "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
+          "Visibility" => 'visibility',
+          "IP" => 'ip',
+          "Host" => 'host',
+          "Port" => 'port',
+          "Username" => 'username',
+          # "SSL Enabled" => lambda {|it| format_boolean it['sslEnabled'] },
+          # "SSL Cert" => lambda {|it| it['sslCert'] ? it['sslCert']['name'] : '' },
+          # "SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        }
+        print_description_list(description_cols, lb)
+
+
+        if lb['ports'] && lb['ports'].size > 0
+          print_h2 "LB Ports"
+          columns = [
+            {"ID" => 'id'},
+            {"Name" => 'name'},
+            #{"Description" => 'description'},
+            {"Port" => lambda {|it| it['port'] } },
+            {"Protocol" => lambda {|it| it['proxyProtocol'] } },
+            {"SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" } },
+          ]
+          print as_pretty_table(lb['ports'], columns, options)
+        end
+        print reset,"\n"
+        return 0
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
