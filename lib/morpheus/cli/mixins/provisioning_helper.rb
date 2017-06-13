@@ -859,8 +859,8 @@ module Morpheus::Cli::ProvisioningHelper
       # choose network
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
       network_interface['network'] = {}
-      network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_i
-      selected_network = networks.find {|it| it["id"] == network_interface['network']['id'] }
+      network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_s
+      selected_network = networks.find {|it| it["id"].to_s == network_interface['network']['id'] }
 
       if !selected_network
         print_red_alert "Network not found by id #{network_interface['network']['id']}!"
