@@ -277,7 +277,7 @@ class Morpheus::Cli::Groups
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Added cloud #{cloud["id"]} to group #{group['name']}"
+        print_green_success "Added cloud #{cloud["name"]} to group #{group['name']}"
         #list([])
         get([group["id"]])
       end
