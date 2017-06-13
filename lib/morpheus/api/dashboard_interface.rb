@@ -20,7 +20,7 @@ class Morpheus::DashboardInterface < Morpheus::APIClient
   end
 
   def recent_activity(account_id=nil, options={})
-    url = "#{@base_url}/api/dashboard/recentActivity"
+    url = "#{@base_url}/api/dashboard/recent-activity"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
     headers[:params]['accountId'] = account_id if account_id
