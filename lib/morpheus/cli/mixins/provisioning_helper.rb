@@ -812,6 +812,10 @@ module Morpheus::Cli::ProvisioningHelper
     # puts JSON.pretty_generate(zone_network_options_json)
     zone_network_data = zone_network_options_json['data'] || {}
     networks = zone_network_data['networks']
+    network_groups = zone_network_data['networkGroups']
+    if network_groups
+      networks = network_groups + networks
+    end
     network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
     enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
     has_networks = zone_network_data["hasNetworks"] == true
@@ -874,7 +878,9 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       # choose IP unless network has a pool configured
-      if selected_network['pool']
+      if selected_network['id'].to_s.include?('networkGroup')
+        puts "IP Address: Using network group." if !no_prompt
+      elsif selected_network['pool']
         puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
       elsif selected_network['dhcpServer']
         puts "IP Address: Using DHCP" if !no_prompt
