@@ -551,13 +551,15 @@ module Morpheus
         # this should just be an attribute of the api client
         # for now, this fixes the issue where passing --insecure or --remote
         # would then apply to all subsequent commands...
-        if options[:insecure]
-          Morpheus::RestClient.enable_ssl_verification = false
-        else
-          if appliance[:insecure] && Morpheus::RestClient.ssl_verification_enabled?
+        if !Morpheus::Cli::Shell.insecure
+          if options[:insecure]
             Morpheus::RestClient.enable_ssl_verification = false
-          elsif !appliance[:insecure] && !Morpheus::RestClient.ssl_verification_enabled?
-            Morpheus::RestClient.enable_ssl_verification = true
+          else
+            if appliance[:insecure] && Morpheus::RestClient.ssl_verification_enabled?
+              Morpheus::RestClient.enable_ssl_verification = false
+            elsif !appliance[:insecure] && !Morpheus::RestClient.ssl_verification_enabled?
+              Morpheus::RestClient.enable_ssl_verification = true
+            end
           end
         end
 

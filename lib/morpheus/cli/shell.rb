@@ -24,6 +24,10 @@ class Morpheus::Cli::Shell
     @@instance = self.new
   end
 
+  def self.insecure
+    !!(defined?(@@insecure) && @@insecure == true)
+  end
+
   attr_accessor :prompt #, :angry_prompt
 
   def initialize()
@@ -107,6 +111,7 @@ class Morpheus::Cli::Shell
         @norc = true
       end
       opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
+        @@insecure = true
         Morpheus::RestClient.enable_ssl_verification = false
       end
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
