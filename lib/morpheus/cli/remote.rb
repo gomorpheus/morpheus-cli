@@ -1140,7 +1140,9 @@ EOT
       end
 
       # todo: this insecure flag needs to applied everywhere now tho..
-      Morpheus::RestClient.enable_ssl_verification = app_map[:insecure].to_s == 'true'
+      if app_map[:insecure]
+        Morpheus::RestClient.enable_ssl_verification = false
+      end
       # Morpheus::RestClient.enable_http = app_map[:insecure].to_s == 'true'
       setup_interface = Morpheus::SetupInterface.new(app_url)
       begin
