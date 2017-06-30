@@ -878,16 +878,22 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       # choose IP unless network has a pool configured
+      ip_required = true
       if selected_network['id'].to_s.include?('networkGroup')
-        puts "IP Address: Using network group." if !no_prompt
+        #puts "IP Address: Using network group." if !no_prompt
+        ip_required = false
       elsif selected_network['pool']
-        puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
+        #puts "IP Address: Using pool '#{selected_network['pool']['name']}'" if !no_prompt
+        ip_required = false
       elsif selected_network['dhcpServer']
-        puts "IP Address: Using DHCP" if !no_prompt
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => true, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
+        #puts "IP Address: Using DHCP" if !no_prompt
+        ip_required = false
+      end
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'ipAddress', 'type' => 'text', 'fieldLabel' => "IP Address", 'required' => ip_required, 'description' => 'Enter an IP for this network interface. x.x.x.x', 'defaultValue' => network_interface['ipAddress']}], options[:options])
+      if v_prompt[field_context] && !v_prompt[field_context]['ipAddress'].to_s.empty?
         network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
       end
+
       network_interfaces << network_interface
       interface_index += 1
       has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
