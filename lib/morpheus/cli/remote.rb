@@ -683,6 +683,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:options, :json, :dry_run])
+      opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
+        options[:insecure] = true
+        Morpheus::RestClient.enable_ssl_verification = false
+      end
       opts.footer = "This can be used to initialize a new appliance.\n" + 
                     "You will be prompted to create the master account.\n" + 
                     "This is only available on a new, freshly installed, remote appliance."
