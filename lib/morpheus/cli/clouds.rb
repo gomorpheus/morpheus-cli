@@ -633,6 +633,8 @@ class Morpheus::Cli::Clouds
       out << "#{white}UNKNOWN#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'syncing'
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
     else
       out << "#{red}#{status_string ? status_string.upcase : 'N/A'}#{cloud['statusMessage'] ? "#{return_color} - #{cloud['statusMessage']}" : ''}#{return_color}"
     end
