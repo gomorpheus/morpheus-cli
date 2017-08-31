@@ -82,14 +82,13 @@ class Morpheus::Cli::VirtualImages
         if images.empty?
           print yellow,"No virtual images found.",reset,"\n"
         else
-          rows = images.collect do |image|
+          print cyan
+          image_table_data = images.collect do |image|
             image_type = virtual_image_type_for_name_or_code(image['imageType'])
             image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
             {name: image['name'], id: image['id'], type: image_type_display, source: image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}"), storage: !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default', size: image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}"}
           end
-          columns = [:id, :name, :type, :storage, :size, :source]
-          print cyan
-          print as_pretty_table(rows, columns, options)
+          tp image_table_data, :id, :name, :type, :storage, :size, :source
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -275,6 +274,7 @@ class Morpheus::Cli::VirtualImages
     # 	exit 1
     # end
 
+    # 
     if image_name
       options[:options] ||= {}
       options[:options]['name'] ||= image_name
@@ -291,13 +291,13 @@ class Morpheus::Cli::VirtualImages
     end
 
     begin
-      my_option_types = add_virtual_image_option_types(image_type)
+            my_option_types = add_virtual_image_option_types(image_type)
       params = Morpheus::Cli::OptionTypes.prompt(add_virtual_image_option_types(image_type), options[:options], @api_client, options[:params])
       virtual_image_payload = {}.merge(params)
       virtual_image_files = virtual_image_payload.delete('virtualImageFiles')
       virtual_image_payload['imageType'] = image_type['code']
       storage_provider_id = virtual_image_payload.delete('storageProviderId')
-      if !storage_provider_id.to_s.empty?
+      if !storage_provider_id.empty?
         virtual_image_payload['storageProvider'] = {id: storage_provider_id}
       end
       payload = {virtualImage: virtual_image_payload}

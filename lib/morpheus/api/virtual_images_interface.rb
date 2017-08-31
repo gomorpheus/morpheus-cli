@@ -51,23 +51,13 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
-  # multipart file upload
-  # def upload(id, image_file)
-  #   url = "#{@base_url}/api/virtual-images/#{id}/upload"
-  #   headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
-  #   payload = {}
-  #   payload[:file] = image_file
-  #   payload[:multipart] = true
-  #   execute(method: :post, url: url, headers: headers, payload: payload)
-  # end
-
-  # no multipart
-  def upload(id, image_file, filename=nil)
-    filename = filename || File.basename(image_file)
+  # NOT json, multipart file upload
+  def upload(id, image_file)
     url = "#{@base_url}/api/virtual-images/#{id}/upload"
-    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
-    headers[:params][:filename] = filename
-    payload = image_file
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
+    payload = {}
+    payload[:file] = image_file
+    payload[:multipart] = true
     execute(method: :post, url: url, headers: headers, payload: payload)
   end
 
