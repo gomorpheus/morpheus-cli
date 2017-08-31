@@ -478,10 +478,11 @@ class Morpheus::Cli::Roles
     name = args[0]
     permission_code = args[1]
     access_value = args[2].to_s.downcase
-    if !['full', 'read', 'custom', 'none'].include?(access_value)
-      puts optparse
-      exit 1
-    end
+
+    # if !['full_decrypted','full', 'read', 'custom', 'none'].include?(access_value)
+    #   puts optparse
+    #   exit 1
+    # end
 
     connect(options)
     begin
