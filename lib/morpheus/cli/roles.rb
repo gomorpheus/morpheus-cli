@@ -463,10 +463,10 @@ class Morpheus::Cli::Roles
   end
 
   def update_feature_access(args)
-    usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|none]"
+    usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|user|yes|no|none]"
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [code] [full|read|none]")
+      opts.banner = subcommand_usage("[name] [code] [full|read|user|yes|no|none]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
