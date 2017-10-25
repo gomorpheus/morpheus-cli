@@ -55,6 +55,8 @@ class Morpheus::Cli::ErrorHandler
       # if !options[:debug]
       #   return exit_code
       # end
+    when ArgumentError
+      @stderr.puts "#{red}Argument Error: #{err.message}#{reset}"
     else
       @stderr.puts "#{red}Unexpected Error#{reset}"
     end

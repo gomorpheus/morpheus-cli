@@ -29,7 +29,7 @@ module Morpheus
     def self.load!()
       # load interfaces
       require 'morpheus/api/api_client.rb'
-      Dir[File.dirname(__FILE__)  + "/api/*.rb"].each {|file| load file }
+      Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
 
       # load mixins
       Dir[File.dirname(__FILE__)  + "/cli/mixins/*.rb"].each {|file| load file }
@@ -94,6 +94,14 @@ module Morpheus
       load 'morpheus/cli/monitoring_contacts_command.rb'
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
+
+      # maybe scope all of these to image-builder or something
+      load 'morpheus/cli/image_builder_command.rb'
+      # load 'morpheus/cli/image_builds_command.rb'
+      load 'morpheus/cli/preseed_scripts_command.rb'
+      load 'morpheus/cli/boot_scripts_command.rb'
+
+      load 'morpheus/cli/archives_command.rb'
 
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'

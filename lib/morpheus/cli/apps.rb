@@ -36,11 +36,17 @@ class Morpheus::Cli::Apps
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :dry_run])
+      opts.footer = "List apps."
     end
     optparse.parse!(args)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} list expects 0 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
     connect(options)
     begin
       params = {}
@@ -87,51 +93,113 @@ class Morpheus::Cli::Apps
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
-      
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_app_option_types(false))
-      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
-        options[:group] = val
+      # opts.on( '-t', '--template ID', "App Template ID. The app template to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances." ) do |val|
+      #   options['template'] = val
+      # end
+      # opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+      #   options[:group] = val
+      # end
+      # opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID." ) do |val|
+      #   options[:cloud] = val
+      # end
+      opts.on('--config JSON', String, "App Config JSON") do |val|
+        options['config'] = JSON.parse(val.to_s)
+      end
+      opts.on('--config-yaml YAML', String, "App Config YAML") do |val|
+        options['config'] = YAML.load(val.to_s)
+      end
+      opts.on('--config-file FILE', String, "App Config from a local JSON or YAML file") do |val|
+        options['configFile'] = val.to_s
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      opts.footer = "Create a new app.\n" +
+                    "[name] is required. This is the name of the new app. It may also be passed as --name or inside your config."
     end
     optparse.parse!(args)
+    if args.count > 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
     connect(options)
     begin
       options[:options] ||= {}
-      # use the -g GROUP or active group by default
-      options[:options]['group'] ||= options[:group] || @active_group_id
-      # support [name] as first argument still
-      if args[0]
+      if args[0] && !options[:options]['name']
         options[:options]['name'] = args[0]
       end
+      # options[:options]['template'] ||= options['template']
+      if options[:group] # || @active_group_id
+        options[:options]['group'] ||= options[:group] # || @active_group_id
+      end
 
-      payload = {
-        'app' => {}
-      }
-      params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
-      group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
-      payload['app'].merge!(params)
-      payload['app']['group'] = {id: group['id']}
+      payload = {}
+      config_payload = {}
+      if options['config']
+        config_payload = options['config']
+        payload = config_payload
+      elsif options['configFile']
+        config_file = File.expand_path(options['configFile'])
+        if !File.exists?(config_file) || !File.file?(config_file)
+          print_red_alert "File not found: #{config_file}"
+          return false
+        end
+        if config_file =~ /\.ya?ml\Z/
+          config_payload = YAML.load_file(config_file)
+        else
+          config_payload = JSON.parse(File.read(config_file))
+        end
+        payload = config_payload
+      else
+        # prompt for Name, Description, Group, Environment
+        payload = {}
+        params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
+        params = params.deep_compact! # remove nulls and blank strings
+        group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
+        return if group.nil?
+        payload.merge!(params)
+        payload['group'] = {id: group['id'], name: group['name']}
+      end
 
-      # todo: allow adding instances with creation..
+      # allow creating a blank app by default
+      # sux having go merge this into user passed config/configFile
+      # but it's better than making them know to enter it.
+      if !payload['id']
+        payload['id'] = 'existing'
+        payload['templateName'] = 'Existing Instances'
+      else
+        # maybe validate template id
+        # app_template = find_app_template_by_id(payload['id'])
+      end
 
       if options[:dry_run]
         print_dry_run @apps_interface.dry.create(payload)
         return
       end
+
       json_response = @apps_interface.create(payload)
+
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        puts as_json(json_response, options)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Added app #{payload['app']['name']}"
-        list([])
-        # details_options = [payload['app']['name']]
-        # details(details_options)
+        app = json_response["app"]
+        print_green_success "Added app #{app['name']}"
+        # add existing instances to blank app now?
+        if !options[:no_prompt] && !payload['tiers']
+          if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add an instance now?", options.merge({default: false}))
+            add_instance([app['id']])
+            while ::Morpheus::Cli::OptionTypes::confirm("Add another instance?", options.merge({default: false})) do
+              add_instance([app['id']])
+            end
+          end
+        end
+        # print details
+        get([app['id']])
       end
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -140,14 +208,17 @@ class Morpheus::Cli::Apps
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
+      opts.footer = "Get details about an app.\n" +
+                    "[app] is required. This is the name or id of an app."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} get expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
     begin
@@ -225,15 +296,18 @@ class Morpheus::Cli::Apps
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
       build_option_type_options(opts, options, update_app_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run])
+      opts.footer = "Update an app.\n" +
+                    "[app] is required. This is the name or id of an app."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} update expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
 
@@ -253,7 +327,7 @@ class Morpheus::Cli::Apps
       end
 
       #puts "parsed params is : #{params.inspect}"
-      app_keys = ['name', 'description']
+      app_keys = ['name', 'description', 'environment']
       params = params.select {|k,v| app_keys.include?(k) }
       payload['app'].merge!(params)
 
@@ -282,14 +356,19 @@ class Morpheus::Cli::Apps
 
   def add_instance(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [instance] [tier]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [instance] [tier]")
       build_common_options(opts, options, [:options, :json, :dry_run])
+      opts.footer = "Add an existing instance to an app.\n" +
+                    "[app] is required. This is the name or id of an app." + "\n" +
+                    "[instance] is required. This is the name or id of an instance." + "\n" +
+                    "[tier] is required. This is the name of the tier."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count < 1 || args.count > 3
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} add-instance expects 1-3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     # optional [tier] and [instance] arguments
     if args[1] && args[1] !~ /\A\-/
@@ -331,11 +410,9 @@ class Morpheus::Cli::Apps
         print "\n"
       else
         print_green_success "Added instance #{instance['name']} to app #{app['name']}"
-        list([])
-        # details_options = [app['name']]
-        # details(details_options)
+        #get(app['id'])
       end
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -344,27 +421,46 @@ class Morpheus::Cli::Apps
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    query_params = {keepBackups: 'off', force: 'off'}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [-fB]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
+      end
+      opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
+        query_params[:keepBackups] = 'on'
+      end
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove instances. Default is on.") do |val|
+        query_params[:removeInstances] = val
+      end
+      opts.on('--remove-volumes [on|off]', ['on','off'], "Remove Volumes. Default is on. Applies to certain types only.") do |val|
+        query_params[:removeVolumes] = val
+      end
+      opts.on('--releaseEIPs', ['on','off'], "Release EIPs. Default is false. Applies to Amazon only.") do |val|
+        query_params[:releaseEIPs] = val
+      end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :auto_confirm])
+      opts.footer = "Delete an app.\n" +
+                    "[app] is required. This is the name or id of an app."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} remove expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
 
     begin
       app = find_app_by_name_or_id(args[0])
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the app '#{app['name']}'?", options)
-        exit 1
+        return 9
       end
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.destroy(app['id'])
+        print_dry_run @apps_interface.dry.destroy(app['id'], query_params)
         return
       end
-      json_response = @apps_interface.destroy(app['id'])
+      json_response = @apps_interface.destroy(app['id'], query_params)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -380,14 +476,18 @@ class Morpheus::Cli::Apps
 
   def remove_instance(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [instance]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [instance]")
       build_common_options(opts, options, [:options, :json, :dry_run])
+      opts.footer = "Remove an instance from an app.\n" +
+                    "[app] is required. This is the name or id of an app." + "\n" +
+                    "[instance] is required. This is the name or id of an instance."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count < 1 || args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} remove-instance expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     # optional [tier] and [instance] arguments
     if args[1] && args[1] !~ /\A\-/
@@ -432,14 +532,17 @@ class Morpheus::Cli::Apps
 
   def logs(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:list, :json, :dry_run])
+      opts.footer = "List logs for an app.\n" +
+                    "[app] is required. This is the name or id of an app."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count !=1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} logs expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
     begin
@@ -454,15 +557,23 @@ class Morpheus::Cli::Apps
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(containers, params)
         return
       end
       logs = @logs_interface.container_logs(containers, params)
       if options[:json]
-        print JSON.pretty_generate(logs)
-        print "\n"
+        puts as_json(logs, options)
+        return 0
       else
+        title = "App Logs: #{app['name']}"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
+        end
+        # todo: startMs, endMs, sorts insteaad of sort..etc
+        print_h1 title, subtitles
         logs['data'].reverse.each do |log_entry|
           log_level = ''
           case log_entry['level']
@@ -477,9 +588,10 @@ class Morpheus::Cli::Apps
           when 'FATAL'
             log_level = "#{red}#{bold}FATAL#{reset}"
           end
-          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}"
+          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
         end
         print reset,"\n"
+        return 0
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -490,14 +602,15 @@ class Morpheus::Cli::Apps
 =begin
   def stop(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} stop expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
     begin
@@ -516,14 +629,15 @@ class Morpheus::Cli::Apps
 
   def start(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} start expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
     begin
@@ -542,14 +656,15 @@ class Morpheus::Cli::Apps
 
   def restart(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} restart expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
     begin
@@ -569,14 +684,15 @@ class Morpheus::Cli::Apps
 
   def firewall_disable(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} firewall-disable expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
 
@@ -596,14 +712,15 @@ class Morpheus::Cli::Apps
 
   def firewall_enable(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} firewall-enable expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
 
@@ -623,14 +740,15 @@ class Morpheus::Cli::Apps
 
   def security_groups(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} security-groups expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     connect(options)
 
@@ -646,7 +764,7 @@ class Morpheus::Cli::Apps
       print cyan
       print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
       if securityGroups.empty?
-        print yellow,"\n","No security groups currently applied.",reset,"\n"
+        print cyan,"\n","No security groups currently applied.",reset,"\n"
       else
         print "\n"
         securityGroups.each do |securityGroup|
@@ -664,8 +782,8 @@ class Morpheus::Cli::Apps
   def apply_security_groups(args)
     options = {}
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [--clear] [-s]")
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [--clear] [-s]")
       opts.on( '-c', '--clear', "Clear all security groups" ) do
         options[:securityGroupIds] = []
         clear_or_secgroups_specified = true
@@ -681,13 +799,15 @@ class Morpheus::Cli::Apps
       build_common_options(opts, options, [:json, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} apply-security-groups expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
     end
     if !clear_or_secgroups_specified
-      puts optparse
-      exit 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} apply-security-groups requires either --clear or --secgroups\n#{optparse}"
+      return 1
     end
 
     connect(options)
@@ -710,15 +830,17 @@ class Morpheus::Cli::Apps
 
   def add_app_option_types(connected=true)
     [
+      {'fieldName' => 'template', 'fieldLabel' => 'Template', 'type' => 'select', 'selectOptions' => (connected ? get_available_app_templates() : []), 'required' => true, 'defaultValue' => 'existing', 'description' => "The app template to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
+      {'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'text', 'required' => false},
     ]
   end
 
   def update_app_option_types(connected=true)
     list = add_app_option_types(connected)
-    list = list.reject {|it| ["group"].include? it['fieldName'] }
+    list = list.reject {|it| ["template", "group"].include? it['fieldName'] }
     list.each {|it| it['required'] = false }
     list
   end
@@ -750,11 +872,16 @@ class Morpheus::Cli::Apps
   end
 
   def print_apps_table(apps, opts={})
-    output = ""
+    
     table_color = opts[:color] || cyan
     rows = apps.collect do |app|
       instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
       containers_str = (app['containerCount'].to_i == 1) ? "1 Container" : "#{app['containerCount']} Containers"
+      stats = app['stats']
+      # app_stats = app['appStats']
+      cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage'] || stats['cpuUsagePeak']).to_f, 100, {max_bars: 10})
+      memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+      storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
       {
         id: app['id'],
         name: app['name'],
@@ -762,11 +889,14 @@ class Morpheus::Cli::Apps
         containers: containers_str,
         account: app['account'] ? app['account']['name'] : nil,
         status: format_app_status(app, table_color),
+        cpu: cpu_usage_str + cyan,
+        memory: memory_usage_str + table_color,
+        storage: storage_usage_str + table_color
         #dateCreated: format_local_dt(app['dateCreated'])
       }
     end
-    print table_color
-    tp rows, [
+
+    columns = [
       :id,
       :name,
       :instances,
@@ -775,6 +905,20 @@ class Morpheus::Cli::Apps
       :status,
       #{:dateCreated => {:display_name => "Date Created"} }
     ]
+    term_width = current_terminal_width()
+    if term_width > 120
+      columns += [
+        {:cpu => {:display_name => "MAX CPU"} },
+        :memory,
+        :storage
+      ]
+    end
+    # custom pretty table columns ...
+    # if options[:include_fields]
+    #   columns = options[:include_fields]
+    # end
+    # print cyan
+    print as_pretty_table(rows, columns, opts) #{color: table_color}
     print reset
   end
 
@@ -795,4 +939,36 @@ class Morpheus::Cli::Apps
     end
     out
   end
+
+  def get_available_app_templates(refresh=false)
+    if !@available_app_templates || refresh
+      results = @options_interface.options_for_source('appTemplates',{})
+      @available_app_templates = results['data'].collect {|it|
+        {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+      }
+      default_option = {"id" => "existing", "name" => "Existing Instances", "value" => "existing"}
+      @available_app_templates.unshift(default_option)
+    end
+    #puts "get_available_app_templates() rtn: #{@available_app_templates.inspect}"
+    return @available_app_templates
+  end
+
+  def get_available_environments(refresh=false)
+    if !@available_environments || refresh
+      # results = @options_interface.options_for_source('environments',{})
+      # @available_environments = results['data'].collect {|it|
+      #   {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+      # }
+      # todo: api call
+      @available_environments = [
+        {'name' => 'Dev', 'value' => 'Dev'},
+        {'name' => 'Test', 'value' => 'Test'},
+        {'name' => 'Staging', 'value' => 'Staging'},
+        {'name' => 'Production', 'value' => 'Production'}
+      ]
+    end
+    #puts "get_available_environments() rtn: #{@available_environments.inspect}"
+    return @available_environments
+  end
+
 end

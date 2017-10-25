@@ -222,6 +222,14 @@ module Morpheus
               options[:options][:no_prompt] = true
             end
 
+          when :noprompt
+            opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|
+              options[:no_prompt] = true
+              # ew, stored in here for now because options[:options] is what is passed into OptionTypes.prompt() everywhere!
+              options[:options] ||= {}
+              options[:options][:no_prompt] = true
+            end
+
           when :list
             opts.on( '-m', '--max MAX', "Max Results" ) do |max|
               options[:max] = max.to_i
@@ -343,7 +351,7 @@ module Morpheus
               end
             end
 
-            opts.on(nil, '--csv-quotes', "Quote values for CSV Output. Default: false") do
+            opts.on(nil, '--csv-quotes', "Wrap CSV values with \". Default: false") do
               options[:csv] = true
               options[:format] = :csv
               options[:csv_quotes] = true

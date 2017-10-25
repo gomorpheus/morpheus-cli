@@ -194,7 +194,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           value = value.to_s.include?('.') ? value.to_f : value.to_i
@@ -233,7 +233,7 @@ module Morpheus
           else
             print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
             print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-            display_select_options(select_options)
+            display_select_options(opt, select_options)
             print "\n"
             exit 1
           end
@@ -247,7 +247,7 @@ module Morpheus
             if option_type['required']
               print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-              display_select_options(select_options)
+              display_select_options(option_type, select_options)
               print "\n"
               exit 1
             else
@@ -258,8 +258,20 @@ module Morpheus
         while !value_found do
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
-          Readline.completion_proc = proc {|s| select_options.clone.collect{|opt| opt['name']}.grep(/^#{Regexp.escape(s)}/)}
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
+          Readline.completion_proc = proc {|s| 
+            matches = []
+            available_options = (select_options || [])
+            available_options.each{|option| 
+              if option['name'] && option['name'] =~ /^#{Regexp.escape(s)}/
+                matches << option['name']
+              # elsif option['id'] && option['id'].to_s =~ /^#{Regexp.escape(s)}/
+              elsif option['value'] && option['value'].to_s == s
+                matches << option['name']
+              end
+            }
+            matches
+          }
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
           input = input.chomp.strip
           if input.empty?
             value = option_type['defaultValue']
@@ -273,7 +285,7 @@ module Morpheus
           end
           if input == '?'
             help_prompt(option_type)
-            display_select_options(select_options)
+            display_select_options(option_type, select_options)
           elsif !value.nil? || option_type['required'] != true
             value_found = true
           end
@@ -323,7 +335,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           if input == '?'
@@ -340,7 +352,7 @@ module Morpheus
         value = nil
         while !value_found do
           if value.nil?
-            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''} [Type 'EOF' to stop input]: \n"
+            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)} [Type 'EOF' to stop input]: \n"
           end
           input = $stdin.gets.chomp!
           # value = input.empty? ? option_type['defaultValue'] : input
@@ -361,12 +373,15 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.noecho(&:gets).chomp!
           value = input
           print "\n"
           if input == '?'
             help_prompt(option_type)
+          elsif input == "" && option_type['defaultValue'] != nil
+            value = option_type['defaultValue'].to_s
+            value_found = true
           elsif !value.empty? || option_type['required'] != true
             value_found = true
           end
@@ -378,11 +393,11 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
           Readline.completion_proc = proc {|s| Readline::FILENAME_COMPLETION_PROC.call(s) }
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
           input = input.chomp.strip
           #input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input.to_s
@@ -409,7 +424,14 @@ module Morpheus
       end
 
       def self.help_prompt(option_type)
-        print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+        full_field_name = option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''
+        full_field_name << option_type['fieldName'].to_s
+        # an attempt at prompting help for natural options without the -O switch
+        if option_type[:fmt] == :natural
+          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [--#{full_field_name}=] ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+        else
+          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{full_field_name}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+        end
       end
 
 
@@ -417,8 +439,9 @@ module Morpheus
         api_client.options.options_for_source(source,params)['data']
       end
 
-      def self.display_select_options(select_options = [])
-        puts "\nOptions"
+      def self.display_select_options(opt, select_options = [])
+        header = opt['fieldLabel'] ? "#{opt['fieldLabel']} Options" : "Options"
+        puts "\n#{header}"
         puts "==============="
         select_options.each do |option|
           puts " * #{option['name']} [#{option['value']}]"
@@ -438,6 +461,14 @@ module Morpheus
         puts self.format_option_types_help(option_types)
       end
 
+      def self.optional_label(option_type)
+        # removing this for now, for the sake of providing less to look at
+        if option_type[:fmt] == :natural # || true
+          return ""
+        else
+          return option_type['required'] ? '' : ' (optional)'
+        end
+      end
     end
   end
 end

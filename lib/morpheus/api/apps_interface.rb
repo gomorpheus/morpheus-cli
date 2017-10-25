@@ -23,6 +23,24 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def validate(options)
+    # url = "#{@base_url}/api/apps/validate-instance"
+    url = "#{@base_url}/api/apps/validate"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def validate_instance(options)
+    # url = "#{@base_url}/api/apps/validate-instance"
+    url = "#{@base_url}/api/apps/validate-instance"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def create(options)
     url = "#{@base_url}/api/apps"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -55,9 +73,10 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def destroy(id)
+  def destroy(id, params={})
     url = "#{@base_url}/api/apps/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers[:params] = params
     opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end

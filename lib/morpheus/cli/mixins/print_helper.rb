@@ -24,6 +24,11 @@ module Morpheus::Cli::PrintHelper
     @@terminal_width
   end
 
+  # for consistancy, maybe..
+  unless defined?(ALL_LABELS_UPCASE)
+    ALL_LABELS_UPCASE = false
+  end
+
   def current_terminal_width
     return IO.console.winsize[1] rescue 0
   end
@@ -88,7 +93,7 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def print_dry_run(opts)
+  def print_dry_run(opts, command_string=nil)
     http_method = opts[:method]
     url = opts[:url]
     params = opts[:params]
@@ -99,7 +104,11 @@ module Morpheus::Cli::PrintHelper
     end
     request_string = "#{http_method.to_s.upcase} #{url}".strip
     payload = opts[:payload]
-    print_h1 "DRY RUN"
+    if command_string
+      print_h1 "DRY RUN > #{command_string}"
+    else
+      print_h1 "DRY RUN"
+    end
     print cyan
     print "Request: ", "\n"
     print reset
@@ -187,7 +196,7 @@ module Morpheus::Cli::PrintHelper
   # shows cyan, yellow, red progress bar where 50% looks like [|||||     ]
   # todo: render units used / available here too maybe
   def generate_usage_bar(used_value, max_value, opts={})
-    rainbow = opts[:rainbow] != false
+    opts[:bar_color] ||= :rainbow # :rainbow, :solid, or a color eg. cyan
     max_bars = opts[:max_bars] || 50
     out = ""
     bars = []
@@ -207,7 +216,7 @@ module Morpheus::Cli::PrintHelper
       n_bars.times { bars << "|" }
     end
 
-    if rainbow
+    if opts[:bar_color] == :rainbow
       rainbow_bar = ""
       cur_rainbow_color = white
       bars.each_with_index {|bar, i|
@@ -234,13 +243,17 @@ module Morpheus::Cli::PrintHelper
       rainbow_bar << reset
       bar_display = white + "[" + rainbow_bar + white + "]" + " #{cur_rainbow_color}#{percent_label}#{reset}"
       out << bar_display
-    else
+    elsif opts[:bar_color] == :solid
       bar_color = cyan
       if percent > 80
         bar_color = red
       elsif percent > 50
         bar_color = yellow
       end
+      bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
+      out << bar_display
+    else
+      bar_color = opts[:bar_color] || cyan
       bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
       out << bar_display
     end
@@ -487,6 +500,7 @@ module Morpheus::Cli::PrintHelper
     
     columns.flatten.each do |column_def|
       label = column_def.label
+      label = label.upcase if ALL_LABELS_UPCASE
       # value = get_object_value(obj, column_def.display_method)
       value = column_def.display_method.call(obj)
       if label.size > max_label_width

@@ -69,7 +69,7 @@ module Morpheus
     end
 
     def self.angry_prompt
-      "#{Term::ANSIColor.red}morpheus: #{Term::ANSIColor.reset}"
+      "#{Term::ANSIColor.red}morpheus:#{Term::ANSIColor.reset} "
     end
 
     def self.custom_prompt

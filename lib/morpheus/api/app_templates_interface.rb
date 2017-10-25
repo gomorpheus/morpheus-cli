@@ -36,6 +36,31 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def save_image(id, options)
+    url = "#{@base_url}/api/app-templates/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
+
+  # multipart image upload
+  def save_image(id, image_file, params={})
+    url = "#{@base_url}/api/app-templates/#{id}/image"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}"}
+    payload = {}
+    payload[:templateImage] = image_file
+    payload[:multipart] = true
+    execute(method: :post, url: url, headers: headers, payload: payload)
+  end
+
+  def duplicate(id, options)
+    url = "#{@base_url}/api/app-templates/#{id}/duplicate"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def destroy(id)
     url = "#{@base_url}/api/app-templates/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -49,10 +74,12 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list_types(options={})
-    url = "#{@base_url}/api/app-templates/types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    execute(method: :get, url: url, headers: headers)
-  end
-  end
+  # unused, prefer /options/instanceTypes
+  # def list_types(options={})
+  #   url = "#{@base_url}/api/app-templates/types"
+  #   headers = { params: {}, authorization: "Bearer #{@access_token}" }
+  #   headers[:params].merge!(options)
+  #   execute(method: :get, url: url, headers: headers)
+  # end
+
+end
