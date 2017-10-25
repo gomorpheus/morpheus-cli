@@ -456,7 +456,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope console to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      # build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:remote])
     end
     optparse.parse!(args)
     if args.count < 1

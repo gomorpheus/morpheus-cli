@@ -152,11 +152,12 @@ EOT
     FileUtils.chmod(0600, fn)
 
     manpage = File.new(fn, 'w')
-    previous_stdout = $stdout
-    $stdout = manpage
+    # previous_stdout = $stdout
+    # previous_stdout = STDOUT
+    # $stdout = manpage
     begin
 
-      $stdout.print <<-ENDTEXT
+      manpage.print <<-ENDTEXT
 ## NAME
 
     morpheus - the command line interface for interacting with the Morpheus Data appliance
@@ -214,16 +215,16 @@ EOT
     The available commands and their options are also documented below.
 ENDTEXT
       
-      terminal = Morpheus::Terminal.new($stdin, $stdout)
+      terminal = Morpheus::Terminal.new($stdin, manpage)
       Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus --help`" if Morpheus::Logging.debug?
 
-      $stdout.print "\n"
-      $stdout.print "## morpheus\n"
-      $stdout.print "\n"
-      $stdout.print "```\n"
+      manpage.print "\n"
+      manpage.print "## morpheus\n"
+      manpage.print "\n"
+      manpage.print "```\n"
       exit_code, err = terminal.execute("--help")
-      $stdout.print "```\n"
-      $stdout.print "\n"
+      manpage.print "```\n"
+      manpage.print "\n"
       # output help for every unhidden command
       Morpheus::Cli::CliRegistry.all.keys.sort.each do |cmd|
         cmd_klass = Morpheus::Cli::CliRegistry.instance.get(cmd)
@@ -231,37 +232,37 @@ ENDTEXT
         Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} --help`" if Morpheus::Logging.debug?
         #help_cmd = "morpheus #{cmd} --help"
         #help_output = `#{help_cmd}`
-        $stdout.print "\n"
-        $stdout.print "### morpheus #{cmd}\n"
-        $stdout.print "\n"
-        $stdout.print "```\n"
+        manpage.print "\n"
+        manpage.print "### morpheus #{cmd}\n"
+        manpage.print "\n"
+        manpage.print "```\n"
         begin
           cmd_instance.handle(["--help"])
         rescue SystemExit => err
           raise err unless err.success?
         end
-        $stdout.print "```\n"
+        manpage.print "```\n"
         subcommands = cmd_klass.subcommands
         if subcommands && subcommands.size > 0
           subcommands.sort.each do |subcommand, subcommand_method|
             Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug?
-            $stdout.print "\n"
-            $stdout.print "#### morpheus #{cmd} #{subcommand}\n"
-            $stdout.print "\n"
-            $stdout.print "```\n"
+            manpage.print "\n"
+            manpage.print "#### morpheus #{cmd} #{subcommand}\n"
+            manpage.print "\n"
+            manpage.print "```\n"
             begin
               cmd_instance.handle([subcommand, "--help"])
             rescue SystemExit => err
               raise err unless err.success?
             end
-            $stdout.print "```\n"
-            # $stdout.print "\n"
+            manpage.print "```\n"
+            # manpage.print "\n"
           end
         end
-        $stdout.print "\n"
+        manpage.print "\n"
       end
 
-      $stdout.print <<-ENDTEXT
+      manpage.print <<-ENDTEXT
 
 ## ENVIRONMENT VARIABLES
 
@@ -379,7 +380,9 @@ ENDTEXT
 
     ensure
       manpage.close if manpage
-      $stdout = previous_stdout if previous_stdout
+      # $stdout = previous_stdout if previous_stdout
+      # this is needed to re-establish instance with STDOUT, STDIN
+      terminal = Morpheus::Terminal.new()
     end
 
     return true
