@@ -265,7 +265,7 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['layout'] = {'id' => layout['id']}
 
     # prompt for service plan
-    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
     service_plans = service_plans_json["plans"]
     service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
