@@ -594,7 +594,7 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def _get(arg, options)
+  def _get(arg, options={})
     begin
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
