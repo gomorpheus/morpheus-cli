@@ -94,7 +94,7 @@ module Morpheus
       load 'morpheus/cli/monitoring_contacts_command.rb'
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
-
+      load 'morpheus/cli/policies_command.rb'
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
       load 'morpheus/cli/set_prompt_command.rb'

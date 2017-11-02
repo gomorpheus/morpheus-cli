@@ -191,4 +191,16 @@ class Morpheus::APIClient
   #   monitoring.incidents
   # end
 
+  def policies
+    Morpheus::PoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def group_policies
+    Morpheus::GroupPoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def cloud_policies
+    Morpheus::CloudPoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
 end
