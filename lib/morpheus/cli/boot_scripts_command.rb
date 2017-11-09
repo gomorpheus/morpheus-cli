@@ -148,7 +148,7 @@ class Morpheus::Cli::BootScriptsCommand
   def add(args)
     options = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[boot-script]")
+      opts.banner = subcommand_usage("[fileName]")
       build_option_type_options(opts, options, add_boot_script_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
     end
@@ -313,16 +313,6 @@ class Morpheus::Cli::BootScriptsCommand
       print_rest_exception(e, options)
       return 1
     end
-  end
-
-  def list_executions(args)
-    puts "todo: implement me"
-    return 0
-  end
-
-  def delete_execution(args)
-    puts "todo: implement me"
-    return 0
   end
 
   private
