@@ -292,7 +292,7 @@ class Morpheus::Cli::Instances
         instance_id = json_response["instance"]["id"]
         instance_name = json_response["instance"]["name"]
         print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
-        _get([instance_id])
+        get([instance_id])
         #list([])
       end
       return 0
