@@ -388,7 +388,6 @@ EOT
       opts.footer = "This can be used to update remote appliance settings.\n"
     end
     optparse.parse!(args)
-    puts "args is #{args.inspect}"
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} update expects argument [name]."
