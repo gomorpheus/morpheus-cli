@@ -218,11 +218,13 @@ module Morpheus::Cli::ProvisioningHelper
 
     payload = {
       'zoneId' => cloud_id,
+      # 'siteId' => siteId,
       'instance' => {
         'name' => instance_name,
         'site' => {
           'id' => group_id
         },
+        'type' => instance_type_code,
         'instanceType' => {
           'code' => instance_type_code
         }
@@ -263,7 +265,7 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['layout'] = {'id' => layout['id']}
 
     # prompt for service plan
-    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
     service_plans = service_plans_json["plans"]
     service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
@@ -289,29 +291,27 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    
+    # build option types
+    option_type_list = []
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(layout['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-      payload.deep_merge!(type_payload)
-    elsif !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
-      type_payload = Morpheus::Cli::OptionTypes.prompt(instance_type['optionTypes'],options[:options],@api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-      payload.deep_merge!(type_payload)
+      option_type_list += layout['optionTypes']
     end
-    
+    if !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
+      option_type_list += instance_type['optionTypes']
+    end
     if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
-      instance_type_option_types = layout['provisionType']['optionTypes']
-      # remove volume options if volumes were configured
-      if !payload['volumes'].empty?
-        instance_type_option_types = reject_volume_option_types(instance_type_option_types)
-      end
-      # remove networkId option if networks were configured above
-      if !payload['networkInterfaces'].empty?
-        instance_type_option_types = reject_networking_option_types(instance_type_option_types)
-      end
-      #print "#{dark} #=> gathering instance type option types for layout provision type...#{reset}\n" if Morpheus::Logging.debug?
-      provision_payload = Morpheus::Cli::OptionTypes.prompt(instance_type_option_types,options[:options],api_client,{groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
-      payload.deep_merge!(provision_payload)
+      option_type_list += layout['provisionType']['optionTypes']
     end
+    if !payload['volumes'].empty?
+      option_type_list = reject_volume_option_types(option_type_list)
+    end
+    # remove networkId option if networks were configured above
+    if !payload['networkInterfaces'].empty?
+      option_type_list = reject_networking_option_types(option_type_list)
+    end
+
+    instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    payload.deep_merge!(instance_config_payload)
 
     ## Advanced Options
 

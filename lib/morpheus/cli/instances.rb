@@ -28,6 +28,7 @@ class Morpheus::Cli::Instances
     @tasks_interface = @api_client.tasks
     @instance_types_interface = @api_client.instance_types
     @clouds_interface = @api_client.clouds
+    @servers_interface = @api_client.servers
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_group
@@ -47,6 +48,9 @@ class Morpheus::Cli::Instances
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
+      opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
+        options[:host] = val
+      end
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -63,6 +67,11 @@ class Morpheus::Cli::Instances
       cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
       if cloud
         params['zoneId'] = cloud['id']
+      end
+
+      host = options[:host] ? find_host_by_name_or_id(options[:host]) : options[:host]
+      if host
+        params['serverId'] = host['id']
       end
 
       [:phrase, :offset, :max, :sort, :direction].each do |k|
@@ -105,6 +114,9 @@ class Morpheus::Cli::Instances
         end
         if cloud
           subtitles << "Cloud: #{cloud['name']}".strip
+        end
+        if host
+          subtitles << "Host: #{host['name']}".strip
         end
         if params[:phrase]
           subtitles << "Search: #{params[:phrase]}".strip
@@ -203,51 +215,69 @@ class Morpheus::Cli::Instances
       opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off") do |val|
         options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.on('--config JSON', String, "Instance Config JSON. This skips prompting and the above options are ignored.") do |val|
+        options['config'] = JSON.parse(val.to_s)
+      end
+      opts.on('--config-yaml YAML', String, "Instance Config YAML. This skips prompting and the above options are ignored.") do |val|
+        options['config'] = YAML.load(val.to_s)
+      end
+      opts.on('--config-file FILE', String, "Instance Config from a local JSON or YAML file. This skips prompting and the above options are ignored.") do |val|
+        options['configFile'] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote, :quiet])
     end
 
     optparse.parse!(args)
     connect(options)
 
-    # this is the old format of `instance add TYPE NAME`
-    # JD: it seems confusing, let's deprecate and go with `instances add [NAME] -t TYPE`
+    if args.count > 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} add has just 1 (optional) argument: [name].  Got #{args.count} arguments: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
     if args[0]
-      options[:instance_type_code] = args[0]
+      options[:instance_name] = args[0]
     end
-    if args[1]
-      options[:instance_name] = args[1]
-    end
-
-    # if args.count > 1
-    #   print_error Morpheus::Terminal.angry_prompt
-    #   puts_error  "#{command_name} add has just 1 (optional) argument: NAME.  Got #{args.count} arguments: #{args.join(', ')}\n#{optparse}"
-    #   return 1
-    # end
-    # if args[0]
-    #   options[:instance_name] = args[0]
-    # end
 
     # use active group by default
     options[:group] ||= @active_group_id
 
     options[:name_required] = true
     begin
-      # this provisioning helper method handles all (most) of the parsing and prompting
-      # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
-      payload = prompt_new_instance(options)
-      
-      # other stuff
-      payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
-      payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
-      payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
-      payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
-      payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
-      if options[:workflow_id]
-        payload['taskSetId'] = options[:workflow_id]
-      end
-      if options[:enable_load_balancer]
-        lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
-        payload.deep_merge!(lb_payload)
+      payload = nil
+      if options['config']
+        payload = options['config']
+      elsif options['configFile']
+        config_file = File.expand_path(options['configFile'])
+        if !File.exists?(config_file) || !File.file?(config_file)
+          print_red_alert "File not found: #{config_file}"
+          return false
+        end
+        config_payload = {}
+        if config_file =~ /\.ya?ml\Z/
+          config_payload = YAML.load_file(config_file)
+        else
+          config_payload = JSON.parse(File.read(config_file))
+        end
+        payload = config_payload
+      else
+        # prompt for all the instance configuration options
+        # this provisioning helper method handles all (most) of the parsing and prompting
+        # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
+        payload = prompt_new_instance(options)
+        # other stuff
+        payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+        payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+        payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
+        payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
+        payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
+        if options[:workflow_id]
+          payload['taskSetId'] = options[:workflow_id]
+        end
+        if options[:enable_load_balancer]
+          lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
+          payload.deep_merge!(lb_payload)
+        end
       end
 
       if options[:dry_run]
@@ -258,9 +288,11 @@ class Morpheus::Cli::Instances
       json_response = @instances_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
-      else
+      elsif !options[:quiet]
+        instance_id = json_response["instance"]["id"]
         instance_name = json_response["instance"]["name"]
-        print_green_success "Provisioning instance #{instance_name}"
+        print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
+        get([instance_id])
         #list([])
       end
       return 0
@@ -424,7 +456,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope console to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      # build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -481,17 +513,14 @@ class Morpheus::Cli::Instances
       end
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @logs_interface.dry.server_logs([server['id']], params)
-        return
-      end
-      if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(container_ids, params)
         return
       end
       logs = @logs_interface.container_logs(container_ids, params)
       output = ""
       if options[:json]
-        output << as_json(logs, options)
+        puts as_json(logs, options)
+        return 0
       else
         title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
         subtitles = []
@@ -501,7 +530,7 @@ class Morpheus::Cli::Instances
         # todo: startMs, endMs, sorts insteaad of sort..etc
         print_h1 title, subtitles
         if logs['data'].empty?
-          output << "#{cyan}No logs found.#{reset}\n"
+          puts "#{cyan}No logs found.#{reset}"
         else
           logs['data'].reverse.each do |log_entry|
             log_level = ''
@@ -517,10 +546,11 @@ class Morpheus::Cli::Instances
             when 'FATAL'
               log_level = "#{red}#{bold}FATAL#{reset}"
             end
-            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
+            puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
           end
+          print output, reset, "\n"
+          return 0
         end
-        print output, reset, "\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -564,7 +594,7 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def _get(arg, options)
+  def _get(arg, options={})
     begin
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
@@ -1486,7 +1516,7 @@ class Morpheus::Cli::Instances
       puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
 
       # prompt for service plan
-      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id})
+      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
@@ -1572,11 +1602,17 @@ class Morpheus::Cli::Instances
     query_params = {keepBackups: 'off', force: 'off'}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [-fB]")
-      opts.on( '-f', '--force', "Force Remove" ) do
+      opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'
       end
       opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
+      end
+      opts.on('--remove-volumes [on|off]', ['on','off'], "Remove Volumes. Default is on. Applies to certain types only.") do |val|
+        query_params[:removeVolumes] = val
+      end
+      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is false. Applies to Amazon only.") do |val|
+        query_params[:releaseEIPs] = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 
@@ -2210,6 +2246,39 @@ private
     end
     return zone
   end
+  def find_host_by_id(id)
+    begin
+      json_response = @servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Host not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_host_by_name(name)
+    results = @servers_interface.get({name: name})
+    if results['servers'].empty?
+      print_red_alert "Host not found by name #{name}"
+      exit 1
+    elsif results['servers'].size > 1
+      print_red_alert "Multiple hosts exist with the name #{name}. Try using id instead"
+      exit 1
+    end
+    return results['servers'][0]
+  end
+
+  def find_host_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_host_by_id(val)
+    else
+      return find_host_by_name(val)
+    end
+  end
 
   def find_workflow_by_name(name)
     task_set_results = @task_sets_interface.get(name)
@@ -2246,10 +2315,12 @@ private
     status_string = instance['status'].to_s
     if status_string == 'running'
       out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
     elsif status_string == 'stopped' or status_string == 'failed'
       out << "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'unknown'
-      out << "#{white}#{status_string.upcase}#{return_color}"
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
     else
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end

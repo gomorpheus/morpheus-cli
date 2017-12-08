@@ -39,4 +39,26 @@ class Hash
 
     self
   end
+
+  def deep_compact!
+    self.each_pair do |k, v|
+      if v.is_a?(Hash)
+        self[k].deep_compact!
+      elsif v.is_a?(Array)
+        self[k].each do |it|
+          if it.is_a?(Hash)
+            it.deep_compact!
+          elsif self[k] == nil || self[k] == ''
+            # meh, preserve 'empty' array elements
+          end
+        end
+      else
+        if self[k] == nil || self[k] == ''
+          self.delete(k)
+        end
+      end
+    end
+    self
+  end
+
 end

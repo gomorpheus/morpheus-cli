@@ -29,7 +29,7 @@ module Morpheus
     def self.load!()
       # load interfaces
       require 'morpheus/api/api_client.rb'
-      Dir[File.dirname(__FILE__)  + "/api/*.rb"].each {|file| load file }
+      Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
 
       # load mixins
       Dir[File.dirname(__FILE__)  + "/cli/mixins/*.rb"].each {|file| load file }
@@ -102,6 +102,11 @@ module Morpheus
       load 'morpheus/cli/network_pool_servers_command.rb'
       load 'morpheus/cli/network_domains_command.rb'
       load 'morpheus/cli/network_proxies_command.rb'
+      load 'morpheus/cli/image_builder_command.rb'
+      load 'morpheus/cli/preseed_scripts_command.rb'
+      load 'morpheus/cli/boot_scripts_command.rb'
+      load 'morpheus/cli/archives_command.rb'
+
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
       load 'morpheus/cli/set_prompt_command.rb'

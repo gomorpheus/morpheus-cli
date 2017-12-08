@@ -1,4 +1,5 @@
 require 'time'
+require 'filesize'
 
 DEFAULT_TIME_FORMAT = "%x %I:%M %p %Z"
 
@@ -240,4 +241,36 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
   else
     return data # .clone
   end
+end
+
+def format_bytes(bytes)
+  out = ""
+  if bytes
+    if bytes < 1024
+      out = "#{bytes.to_i} B"
+    else
+      out = Filesize.from("#{bytes} B").pretty.strip
+    end
+  end
+  return out
+end
+
+# returns bytes in an abbreviated format
+# eg. 3.1K instead of 3.10 KiB
+def format_bytes_short(bytes)
+  out = format_bytes(bytes)
+  if out.include?(" ")
+    val, units = out.split(" ")
+    val = val.to_f
+    # round to 0 or 1 decimal point
+    if val % 1 == 0
+      val = val.round(0).to_s
+    else
+      val = val.round(1).to_s
+    end
+    # K instead of KiB
+    units = units[0].chr
+    out = "#{val}#{units}"
+  end
+  return out
 end

@@ -68,15 +68,14 @@ class Morpheus::Cli::AliasCommand
       exit 1
     end
     alias_definition = args[0]
-    alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(alias_definition)
 
-    if alias_name.empty? || command_string.empty?
-      print_red_alert "invalid alias syntax: #{alias_definition}"
-      return false
-    else
-      # config[:aliases] ||= []
-      # config[:aliases] << {name: alias_name, command: command_string}
+      
       begin
+        alias_name, command_string = Morpheus::Cli::CliRegistry.parse_alias_definition(alias_definition)
+        if alias_name.empty? || command_string.empty?
+          print_red_alert "invalid alias syntax: #{alias_definition}"
+          return false
+        end
         Morpheus::Cli::CliRegistry.instance.add_alias(alias_name, command_string)
         #print "registered alias #{alias_name}", "\n"
         if do_export
@@ -84,12 +83,14 @@ class Morpheus::Cli::AliasCommand
           morpheus_profile = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
           morpheus_profile.export_aliases({(alias_name) => command_string})
         end
+      rescue Morpheus::Cli::CliRegistry::BadAlias => err
+        print_red_alert "#{err.message}"
+        return false
       rescue => err
-        raise err
+        # raise err  
         print_red_alert "#{err.message}"
         return false
       end
-    end
 
     if Morpheus::Cli::Shell.instance
       Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()

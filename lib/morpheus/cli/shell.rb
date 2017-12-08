@@ -215,6 +215,9 @@ class Morpheus::Cli::Shell
         puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
         #print "\n"
         return 0
+      elsif input =~ /^\s*#/
+        Morpheus::Logging::DarkPrinter.puts "comment ignored" if Morpheus::Logging.debug?
+        return 0
       elsif input =~ /^sleep/
         sleep_sec = input.sub("sleep ", "").to_f
         if (!(sleep_sec > 0))
@@ -374,8 +377,6 @@ class Morpheus::Cli::Shell
           puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a morpheus command. Use 'help' to see the list of available commands."
           @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
         end
-        # rescue ArgumentError
-        #   puts "Argument Syntax Error..."
       rescue Interrupt
         # nothing to do
         @history_logger.warn "shell interrupt" if @history_logger

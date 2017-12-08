@@ -230,4 +230,29 @@ class Morpheus::APIClient
   def network_proxies
     Morpheus::NetworkProxiesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
+
+  def archive_buckets
+    Morpheus::ArchiveBucketsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def archive_files
+    Morpheus::ArchiveFilesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def image_builder
+    Morpheus::ImageBuilderInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  # def image_builds
+  #   Morpheus::ImageBuildsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  # end
+
+  # def preseed_scripts
+  #   Morpheus::PreseedScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  # end
+
+  # def boot_scripts
+  #   Morpheus::BootScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  # end
+
 end
