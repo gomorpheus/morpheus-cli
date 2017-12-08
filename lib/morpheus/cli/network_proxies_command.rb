@@ -154,8 +154,6 @@ class Morpheus::Cli::NetworkProxiesCommand
         "Proxy Password" => lambda {|it| it['proxyPassword'] }, # masked
         "Proxy Domain" => lambda {|it| it['proxyDomain'] },
         "Proxy Workstation" => lambda {|it| it['proxyWorkstation'] },
-        "Proxy Host" => lambda {|it| it['proxyHost'] },
-        "Proxy Host" => lambda {|it| it['proxyHost'] },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
       }
