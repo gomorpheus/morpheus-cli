@@ -350,7 +350,7 @@ class Morpheus::Cli::PoliciesCommand
         payload['policy']['description'] = options['description']
       else
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'description' => 'Description of policy.'}], options)
-        policy_type_id = v_prompt['type']
+        payload['policy']['description'] = v_prompt['description']
       end
 
       # Enabled

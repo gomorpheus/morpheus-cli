@@ -203,4 +203,31 @@ class Morpheus::APIClient
     Morpheus::CloudPoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def networks
+    Morpheus::NetworksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_groups
+    Morpheus::NetworkGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_pools
+    Morpheus::NetworkPoolsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_services
+    Morpheus::NetworkServicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_pool_servers
+    Morpheus::NetworkPoolServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_domains
+    Morpheus::NetworkDomainsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def network_proxies
+    Morpheus::NetworkProxiesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
 end

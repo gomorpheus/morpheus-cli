@@ -1,3 +1,5 @@
+require 'yaml'
+require 'json'
 require 'morpheus/logging'
 require 'morpheus/cli/option_parser'
 require 'morpheus/cli/cli_registry'
@@ -222,6 +224,38 @@ module Morpheus
               options[:options][:no_prompt] = true
             end
 
+          when :payload
+            opts.on('--payload JSON', String, "Payload JSON, skip all prompting") do |val|
+              begin
+                options[:payload] = JSON.parse(val.to_s)
+              rescue => ex
+                raise ::OptionParser::InvalidOption.new("Failed to parse payload as JSON. Error: #{ex.message}")
+              end
+            end
+            opts.on('--payload-yaml YAML', String, "Payload YAML, skip all prompting") do |val|
+              begin
+                options[:payload] = YAML.load(val.to_s)
+              rescue => ex
+                raise ::OptionParser::InvalidOption.new("Failed to parse payload as YAML. Error: #{ex.message}")
+              end
+            end
+            opts.on('--payload-file FILE', String, "Payload from a local JSON or YAML file, skip all prompting") do |val|
+              options[:payload_file] = val.to_s
+              begin
+                payload_file = File.expand_path(options[:payload_file])
+                if !File.exists?(payload_file) || !File.file?(payload_file)
+                  raise ::OptionParser::InvalidOption.new("File not found: #{payload_file}")
+                  #return false
+                end
+                if payload_file =~ /\.ya?ml\Z/
+                  option[:payload] = YAML.load_file(payload_file)
+                else
+                  option[:payload] = JSON.parse(File.read(payload_file))
+                end
+              rescue => ex
+                raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
+              end
+            end
           when :list
             opts.on( '-m', '--max MAX', "Max Results" ) do |max|
               options[:max] = max.to_i

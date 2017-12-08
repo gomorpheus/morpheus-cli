@@ -95,6 +95,13 @@ module Morpheus
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
       load 'morpheus/cli/policies_command.rb'
+      load 'morpheus/cli/networks_command.rb'
+      load 'morpheus/cli/network_groups_command.rb'
+      load 'morpheus/cli/network_pools_command.rb'
+      load 'morpheus/cli/network_services_command.rb'
+      load 'morpheus/cli/network_pool_servers_command.rb'
+      load 'morpheus/cli/network_domains_command.rb'
+      load 'morpheus/cli/network_proxies_command.rb'
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
       load 'morpheus/cli/set_prompt_command.rb'
