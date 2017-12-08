@@ -215,16 +215,7 @@ class Morpheus::Cli::Instances
       opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off") do |val|
         options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
       end
-      opts.on('--config JSON', String, "Instance Config JSON. This skips prompting and the above options are ignored.") do |val|
-        options['config'] = JSON.parse(val.to_s)
-      end
-      opts.on('--config-yaml YAML', String, "Instance Config YAML. This skips prompting and the above options are ignored.") do |val|
-        options['config'] = YAML.load(val.to_s)
-      end
-      opts.on('--config-file FILE', String, "Instance Config from a local JSON or YAML file. This skips prompting and the above options are ignored.") do |val|
-        options['configFile'] = val.to_s
-      end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
     end
 
     optparse.parse!(args)
@@ -245,21 +236,8 @@ class Morpheus::Cli::Instances
     options[:name_required] = true
     begin
       payload = nil
-      if options['config']
-        payload = options['config']
-      elsif options['configFile']
-        config_file = File.expand_path(options['configFile'])
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "File not found: #{config_file}"
-          return false
-        end
-        config_payload = {}
-        if config_file =~ /\.ya?ml\Z/
-          config_payload = YAML.load_file(config_file)
-        else
-          config_payload = JSON.parse(File.read(config_file))
-        end
-        payload = config_payload
+      if options[:payload]
+        payload = options[:payload]
       else
         # prompt for all the instance configuration options
         # this provisioning helper method handles all (most) of the parsing and prompting
