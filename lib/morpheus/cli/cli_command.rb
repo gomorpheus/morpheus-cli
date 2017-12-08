@@ -256,9 +256,9 @@ module Morpheus
                   #return false
                 end
                 if payload_file =~ /\.ya?ml\Z/
-                  option[:payload] = YAML.load_file(payload_file)
+                  options[:payload] = YAML.load_file(payload_file)
                 else
-                  option[:payload] = JSON.parse(File.read(payload_file))
+                  options[:payload] = JSON.parse(File.read(payload_file))
                 end
               rescue => ex
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
