@@ -560,12 +560,13 @@ class Morpheus::Cli::ArchivesCommand
         end
 
         if options[:dry_run]
-          print_h1 "DRY RUN"
+          # print_h1 "DRY RUN"
           print "\n",cyan, bold, "Uploading #{upload_file_list.size} Files...", reset, "\n"
           upload_file_list.each do |obj|
             file, destination = obj[:file], obj[:destination]
-            #print_dry_run @archive_buckets_interface.dry.upload_file(bucket_id, file, destination)
-            print cyan,bold, "  - Uploading #{file} to #{bucket_id}:#{destination}", reset, "\n"
+            #print cyan,bold, "  - Uploading #{file} to #{bucket_id}:#{destination} DRY RUN", reset, "\n"
+            print_dry_run @archive_buckets_interface.dry.upload_file(bucket_id, file, destination)
+            print "\n"
           end
           return 0
         end
@@ -621,9 +622,10 @@ class Morpheus::Cli::ArchivesCommand
         end
 
         if options[:dry_run]
-          print_h1 "DRY RUN"
-          #print_dry_run @archive_buckets_interface.dry.upload_file(bucket_id, file, destination)
-          print cyan,bold, "  - Uploading #{file} to #{bucket_id}:#{destination} SKIPPED", reset, "\n"
+          #print cyan,bold, "  - Uploading #{file} to #{bucket_id}:#{destination} DRY RUN", reset, "\n"
+          # print_h1 "DRY RUN"
+          print_dry_run @archive_buckets_interface.dry.upload_file(bucket_id, file, destination)
+          print "\n"
           return 0
         end
       

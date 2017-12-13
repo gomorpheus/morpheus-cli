@@ -123,9 +123,25 @@ module Morpheus::Cli::PrintHelper
         end
       end
       print "\n"
-      print "JSON: ", "\n"
-      print reset
-      print JSON.pretty_generate(payload)
+      if opts[:headers] && opts[:headers]['Content-Type'] == 'application/json'
+        print "JSON: ", "\n"
+        print reset
+        print JSON.pretty_generate(payload)
+      else
+        print "Content-Type: #{opts[:headers]['Content-Type']}", "\n"
+        #print "BODY: ", "\n"
+        print reset
+        if payload.is_a?(File)
+          # pretty_size = Filesize.from("#{payload.size} B").pretty.strip
+          pretty_size = "#{payload.size} B"
+          # print "File: #{payload.path} (#{payload.size} bytes)"
+          print "File: #{payload.path} (#{pretty_size})"
+        elsif payload.is_a?(String)
+          print payload
+        else
+          print payload.inspect
+        end
+      end
     end
     print "\n"
     print reset
