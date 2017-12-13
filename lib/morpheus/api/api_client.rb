@@ -243,16 +243,8 @@ class Morpheus::APIClient
     Morpheus::ImageBuilderInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
-  # def image_builds
-  #   Morpheus::ImageBuildsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
-  # end
-
-  # def preseed_scripts
-  #   Morpheus::PreseedScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
-  # end
-
-  # def boot_scripts
-  #   Morpheus::BootScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
-  # end
+  def storage_providers
+    Morpheus::StorageProvidersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
 
 end

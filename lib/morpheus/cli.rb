@@ -106,6 +106,7 @@ module Morpheus
       load 'morpheus/cli/preseed_scripts_command.rb'
       load 'morpheus/cli/boot_scripts_command.rb'
       load 'morpheus/cli/archives_command.rb'
+      load 'morpheus/cli/storage_providers_command.rb'
 
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
