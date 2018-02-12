@@ -21,4 +21,11 @@ class Morpheus::LicenseInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def decode(key)
+    url = "#{@base_url}/api/license/decode"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = {license: key}
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
 end
