@@ -49,12 +49,12 @@ EOT
       curl_args.unshift "--inescure"
     end
 
-    creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-    if !creds
-      print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-      print yellow,"Use the 'login' command.",reset,"\n"
-      return 0
-    end
+    # @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+    # if !@access_token
+    #   print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+    #   print yellow,"Use the 'login' command.",reset,"\n"
+    #   return 0
+    # end
 
     if !@appliance_url
       raise "Unable to determine remote appliance url"
@@ -67,7 +67,9 @@ EOT
     api_path = args[0].sub(/^\//, "")
     url = "#{base_url}/#{api_path}"
     curl_cmd = "curl \"#{url}\""
-    curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
+    if @access_token
+      curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
+    end
     if !curl_args.empty?
       curl_cmd << " " + curl_args.join(' ')
     end
