@@ -11,6 +11,7 @@ class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
   register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :'passwd' => :change_password
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -32,9 +33,10 @@ class Morpheus::Cli::Users
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:account, :list, :json, :dry_run])
+      build_common_options(opts, options, [:account, :list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      opts.footer = "List users."
     end
     optparse.parse!(args)
     connect(options)
@@ -53,10 +55,18 @@ class Morpheus::Cli::Users
       end
       json_response = @users_interface.list(account_id, params)
       users = json_response['users']
-
+      if options[:include_fields]
+        json_response = {"users" => filter_data(users, options[:include_fields]) }
+      end
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(users, options)
+        return 0
       else
         title = "Morpheus Users"
         subtitles = []
@@ -83,9 +93,9 @@ class Morpheus::Cli::Users
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username]")
-      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+      opts.on('-f','--feature-access', "Display Feature Access") do |val|
         options[:include_feature_access] = true
       end
       # opts.on(nil,'--group-access', "Display Group Access") do
@@ -103,7 +113,9 @@ class Morpheus::Cli::Users
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
       end
-      build_common_options(opts, options, [:account, :json, :dry_run])
+      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a user." + "\n" +
+                    "[username] is required. This is the username or id of a user."
     end
     optparse.parse!(args)
 
@@ -131,23 +143,31 @@ class Morpheus::Cli::Users
       #       there may be response data outside of user that needs to be displayed
       user = find_user_by_username_or_id(account_id, args[0])
       exit 1 if user.nil?
+      
+      json_response =  {'user' => user}
+      # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
 
-      # meh, this should just always be returned with GET /api/users/:id
-      user_feature_permissions_json = nil
-      user_feature_permissions = nil
-      if options[:include_feature_access]
-        user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
-        user_feature_permissions = user_feature_permissions_json['featurePermissions']
+      if options[:include_fields]
+        json_response = {'user' => filter_data(user, options[:include_fields]) }
       end
-
       if options[:json]
-        print JSON.pretty_generate({user:user})
-        print "\n"
-        if (user_feature_permissions_json)
-          print JSON.pretty_generate(user_feature_permissions_json)
-          print "\n"
-        end
+        puts as_json(json_response, options)
+        puts as_json(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options)
+        puts as_yaml(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([user], options)
+        return 0
       else
+        user_feature_permissions_json = nil
+        user_feature_permissions = nil
+        if options[:include_feature_access]
+          user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+          user_feature_permissions = user_feature_permissions_json['featurePermissions']
+        end
         print_h1 "User Details"
         print cyan
         description_cols = {
@@ -197,10 +217,10 @@ class Morpheus::Cli::Users
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_option_type_options(opts, options, add_user_option_types)
-      build_common_options(opts, options, [:account, :options, :json, :dry_run])
+      build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
     end
     optparse.parse!(args)
 
@@ -229,28 +249,33 @@ class Morpheus::Cli::Users
         user_payload['roles'] = roles.collect {|r| {id: r['id']} }
       end
 
-      payload = {user: user_payload}
-
-      if options[:dry_run]
-        print_dry_run @users_interface.dry.create(account_id, payload)
-        return
-      end
-      json_response = @users_interface.create(account_id, payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
       else
-        if account
-          print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
-        else
-          print_green_success "Added user #{user_payload['username']}"
-        end
+        payload = {'user' => user_payload}
 
-        details_options = [user_payload["username"]]
-        if account
-          details_options.push "--account-id", account['id'].to_s
+        if options[:dry_run]
+          print_dry_run @users_interface.dry.create(account_id, payload)
+          return
         end
-        get(details_options)
+        json_response = @users_interface.create(account_id, payload)
+        if options[:json]
+          print JSON.pretty_generate(json_response)
+          print "\n"
+        else
+          if account
+            print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
+          else
+            print_green_success "Added user #{user_payload['username']}"
+          end
+
+          details_options = [user_payload["username"]]
+          if account
+            details_options.push "--account-id", account['id'].to_s
+          end
+          get(details_options)
+        end
       end
 
     rescue RestClient::Exception => e
@@ -261,15 +286,14 @@ class Morpheus::Cli::Users
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username] [options]")
       build_option_type_options(opts, options, update_user_option_types)
-      build_common_options(opts, options, [:account, :options, :json, :dry_run])
+      build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
     end
     optparse.parse!(args)
 
     if args.count < 1
-      print_red_alert "Specify atleast one option to update"
       puts optparse
       exit 1
     end
@@ -283,44 +307,53 @@ class Morpheus::Cli::Users
       user = find_user_by_username_or_id(account_id, args[0])
       exit 1 if user.nil?
 
-      #params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
-      params = options[:options] || {}
-      if params.empty?
-        puts optparse
-        exit 1
-      end
-      roles = prompt_user_roles(account_id, user['id'], options.merge(no_prompt: true))
-      if !roles.empty?
-        params['roles'] = roles.collect {|r| {id: r['id']} }
-      end
-      if params.empty?
-        puts optparse.banner
-        puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
-        exit 1
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        #params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
+        params = options[:options] || {}
+        if params.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          exit 1
+        end
+        roles = prompt_user_roles(account_id, user['id'], options.merge(no_prompt: true))
+        if !roles.empty?
+          params['roles'] = roles.collect {|r| {id: r['id']} }
+        end
+        if params.empty?
+          puts optparse.banner
+          puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
+          exit 1
+        end
+
+        #puts "parsed params is : #{params.inspect}"
+        user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits', 'roles']
+        user_payload = params.select {|k,v| user_keys.include?(k) }
+        if !user_payload['instanceLimits']
+          user_payload['instanceLimits'] = {}
+          user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+          user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+          user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+        end
+
+        payload = {'user' => user_payload}
       end
 
-      #puts "parsed params is : #{params.inspect}"
-      user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits', 'roles']
-      user_payload = params.select {|k,v| user_keys.include?(k) }
-      if !user_payload['instanceLimits']
-        user_payload['instanceLimits'] = {}
-        user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-        user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-        user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
-      end
-
-      payload = {user: user_payload}
-      json_response = @users_interface.update(account_id, user['id'], payload)
       if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return
       end
+      json_response = @users_interface.update(account_id, user['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Updated user #{user_payload['username']}"
+        username = user['username']
+        username = payload['user']['username'] if payload['user'] && payload['user']['username']
+        print_green_success "Updated user #{username}"
         details_options = [user_payload["username"] || user['username']]
         if account
           details_options.push "--account-id", account['id'].to_s
@@ -334,10 +367,79 @@ class Morpheus::Cli::Users
     end
   end
 
-  def remove(args)
-    usage = "Usage: morpheus users remove [username]"
+  def change_password(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    new_password = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[username] [options]")
+      opts.on('--password VALUE', String, "New password") do |val|
+        new_password = val
+      end
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      # print_error Morpheus::Terminal.angry_prompt
+      # puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
+      puts optparse
+      exit 1
+    end
+
+    connect(options)
+    begin
+
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+
+      user = find_user_by_username_or_id(account_id, args[0])
+      exit 1 if user.nil?
+
+      if new_password.nil?
+        
+        password_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'password', 'fieldLabel' => 'New Password', 'type' => 'password', 'required' => true}], options[:options], @api_client)
+        new_password = password_prompt['password']
+
+        confirm_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true}], options[:options], @api_client)
+        confirm_password = confirm_prompt['passwordConfirmation']
+        if confirm_password != new_password
+          print_red_alert "Confirm password did not match."
+          return 1
+        end
+      end
+
+      if new_password.nil? || new_password.empty?
+        print_red_alert "A new password is required"
+        return 1
+      end
+
+      payload = {
+        'user' => {
+          'password' => new_password, 
+          'passwordConfirmation' => new_password
+        } 
+      }
+      json_response = @users_interface.update(account_id, user['id'], payload)
+      if options[:dry_run]
+        print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
+        return
+      end
+
+      if options[:json]
+        puts JSON.pretty_generate(json_response)
+      else
+        print_green_success "Updated user #{user['username']} password"
+      end
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
     end
