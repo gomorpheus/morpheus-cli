@@ -170,15 +170,15 @@ class Morpheus::Cli::License
 
   def format_product_tier(license)
     product_tier = license['productTier'] || 'capacity'
-    if product_tier = 'capacity'
+    if product_tier == 'capacity'
       'Capacity'
-    elsif product_tier = 'essentials'
+    elsif product_tier == 'essentials'
       'Essentials'
-    elsif product_tier = 'pro'
+    elsif product_tier == 'pro'
       'Pro'
-    elsif product_tier = 'enterprise'
+    elsif product_tier == 'enterprise'
       'Enterprise'
-    elsif product_tier = 'msp'
+    elsif product_tier == 'msp'
       'Service Provider'
     else
       product_tier.to_s.capitalize
