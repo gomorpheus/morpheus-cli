@@ -230,53 +230,54 @@ class Morpheus::Cli::Users
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
-      # remove role option_type, it is just for help display, the role prompt is separate down below
-      prompt_option_types = add_user_option_types().reject {|it| ['role'].include?(it['fieldName']) }
-      params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
-
-      #puts "parsed params is : #{params.inspect}"
-      user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
-      user_payload = params.select {|k,v| user_keys.include?(k) }
-      if !user_payload['instanceLimits']
-        user_payload['instanceLimits'] = {}
-        user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-        user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-        user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
-      end
-
-      roles = prompt_user_roles(account_id, nil, options)
-      if !roles.empty?
-        user_payload['roles'] = roles.collect {|r| {id: r['id']} }
-      end
-
       payload = nil
       if options[:payload]
         payload = options[:payload]
       else
+        # remove role option_type, it is just for help display, the role prompt is separate down below
+        prompt_option_types = add_user_option_types().reject {|it| 'role' == it['fieldName'] }
+        params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
+
+        #puts "parsed params is : #{params.inspect}"
+        user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
+        user_payload = params.select {|k,v| user_keys.include?(k) }
+        if !user_payload['instanceLimits']
+          user_payload['instanceLimits'] = {}
+          user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+          user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+          user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+        end
+        # prompt for roles
+        roles = prompt_user_roles(account_id, nil, options)
+        if !roles.empty?
+          user_payload['roles'] = roles.collect {|r| {id: r['id']} }
+        end      
         payload = {'user' => user_payload}
-
-        if options[:dry_run]
-          print_dry_run @users_interface.dry.create(account_id, payload)
-          return
-        end
-        json_response = @users_interface.create(account_id, payload)
-        if options[:json]
-          print JSON.pretty_generate(json_response)
-          print "\n"
-        else
-          if account
-            print_green_success "Added user #{user_payload['username']} to account #{account['name']}"
-          else
-            print_green_success "Added user #{user_payload['username']}"
-          end
-
-          details_options = [user_payload["username"]]
-          if account
-            details_options.push "--account-id", account['id'].to_s
-          end
-          get(details_options)
-        end
       end
+
+      if options[:dry_run]
+        print_dry_run @users_interface.dry.create(account_id, payload)
+        return
+      end
+      json_response = @users_interface.create(account_id, payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+      username = "" # json_response['user']['username']
+      username = payload['user']['username'] if payload['user'] && payload['user']['username']
+      if account
+        print_green_success "Added user #{username} to account #{account['name']}"
+      else
+        print_green_success "Added user #{username}"
+      end
+      details_options = [username]
+      if account
+        details_options.push "--account-id", account['id'].to_s
+      end
+      get(details_options)
+    end
+      
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -351,10 +352,10 @@ class Morpheus::Cli::Users
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        username = user['username']
+        username = user['username'] # json_response['user']['username']
         username = payload['user']['username'] if payload['user'] && payload['user']['username']
         print_green_success "Updated user #{username}"
-        details_options = [user_payload["username"] || user['username']]
+        details_options = [username]
         if account
           details_options.push "--account-id", account['id'].to_s
         end
@@ -428,7 +429,7 @@ class Morpheus::Cli::Users
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "Updated user #{user['username']} password"
+        print_green_success "Updated password for user #{user['username']}"
       end
 
     rescue RestClient::Exception => e
