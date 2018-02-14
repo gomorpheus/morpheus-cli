@@ -151,7 +151,7 @@ class Morpheus::Cli::Roles
         print cyan
         description_cols = {
           "ID" => 'id',
-          "Name" => 'name',
+          "Name" => 'authority',
           "Description" => 'description',
           "Scope" => lambda {|it| it['scope'] },
           "Type" => lambda {|it| format_role_type(it) },
