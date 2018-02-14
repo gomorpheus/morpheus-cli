@@ -87,7 +87,7 @@ class Morpheus::Cli::Users
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -121,7 +121,7 @@ class Morpheus::Cli::Users
 
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
 
     connect(options)
@@ -142,7 +142,7 @@ class Morpheus::Cli::Users
       # todo: users_response = @users_interface.list(account_id, {name: name})
       #       there may be response data outside of user that needs to be displayed
       user = find_user_by_username_or_id(account_id, args[0])
-      exit 1 if user.nil?
+      return 1 if user.nil?
       
       json_response =  {'user' => user}
       # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
@@ -211,12 +211,13 @@ class Morpheus::Cli::Users
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
   def add(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_option_type_options(opts, options, add_user_option_types)
@@ -234,25 +235,26 @@ class Morpheus::Cli::Users
       if options[:payload]
         payload = options[:payload]
       else
+        # merge -O options into normally parsed options
+        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         # remove role option_type, it is just for help display, the role prompt is separate down below
         prompt_option_types = add_user_option_types().reject {|it| 'role' == it['fieldName'] }
-        params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
-
-        #puts "parsed params is : #{params.inspect}"
-        user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'passwordConfirmation', 'instanceLimits']
-        user_payload = params.select {|k,v| user_keys.include?(k) }
-        if !user_payload['instanceLimits']
-          user_payload['instanceLimits'] = {}
-          user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-          user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-          user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
+        params.deep_merge!(v_prompt)
+        if params['instanceLimits']
+          params['instanceLimits']['maxStorage'] = params['instanceLimits']['maxStorage'].to_i if params['instanceLimits']['maxStorage'].to_s.strip != ''
+          params['instanceLimits']['maxMemory'] = params['instanceLimits']['maxMemory'].to_i if params['instanceLimits']['maxMemory'].to_s.strip != ''
+          params['instanceLimits']['maxCpu'] = params['instanceLimits']['maxCpu'].to_i if params['instanceLimits']['maxCpu'].to_s.strip != ''
         end
         # prompt for roles
-        roles = prompt_user_roles(account_id, nil, options)
+        selected_roles = []
+        selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
+        selected_roles += params.delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['roles']
+        roles = prompt_user_roles(account_id, nil, selected_roles, options)
         if !roles.empty?
-          user_payload['roles'] = roles.collect {|r| {id: r['id']} }
+          params['roles'] = roles.collect {|r| {id: r['id']} }
         end      
-        payload = {'user' => user_payload}
+        payload = {'user' => params}
       end
 
       if options[:dry_run]
@@ -281,12 +283,13 @@ class Morpheus::Cli::Users
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
   def update(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username] [options]")
       build_option_type_options(opts, options, update_user_option_types)
@@ -296,7 +299,7 @@ class Morpheus::Cli::Users
 
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
 
     connect(options)
@@ -306,40 +309,43 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
 
       user = find_user_by_username_or_id(account_id, args[0])
-      exit 1 if user.nil?
+      return 1 if user.nil?
 
       payload = nil
       if options[:payload]
         payload = options[:payload]
       else
         #params = Morpheus::Cli::OptionTypes.prompt(update_user_option_types, options[:options], @api_client, options[:params])
-        params = options[:options] || {}
-        if params.empty?
-          print_red_alert "Specify atleast one option to update"
-          puts optparse
-          exit 1
-        end
-        roles = prompt_user_roles(account_id, user['id'], options.merge(no_prompt: true))
+        # merge -O options into normally parsed options
+        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # if params.empty?
+        #   print_red_alert "Specify atleast one option to update"
+        #   puts optparse
+        #   return 1
+        # end
+        # prompt_option_types = update_user_option_types().reject {|it| 'role' == it['fieldName'] }
+        # params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, params, @api_client)
+        selected_roles = []
+        selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
+        selected_roles += params.delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['roles']
+        roles = prompt_user_roles(account_id, user['id'], selected_roles, options.merge(no_prompt: true))
         if !roles.empty?
           params['roles'] = roles.collect {|r| {id: r['id']} }
         end
         if params.empty?
           puts optparse.banner
           puts Morpheus::Cli::OptionTypes.display_option_types_help(update_user_option_types)
-          exit 1
+          return 1
         end
 
         #puts "parsed params is : #{params.inspect}"
-        user_keys = ['username', 'firstName', 'lastName', 'email', 'password', 'instanceLimits', 'roles']
-        user_payload = params.select {|k,v| user_keys.include?(k) }
-        if !user_payload['instanceLimits']
-          user_payload['instanceLimits'] = {}
-          user_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-          user_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-          user_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+        if params['instanceLimits']
+          params['instanceLimits']['maxStorage'] = params['instanceLimits']['maxStorage'].to_i if params['instanceLimits']['maxStorage'].to_s.strip != ''
+          params['instanceLimits']['maxMemory'] = params['instanceLimits']['maxMemory'].to_i if params['instanceLimits']['maxMemory'].to_s.strip != ''
+          params['instanceLimits']['maxCpu'] = params['instanceLimits']['maxCpu'].to_i if params['instanceLimits']['maxCpu'].to_s.strip != ''
         end
 
-        payload = {'user' => user_payload}
+        payload = {'user' => params}
       end
 
       if options[:dry_run]
@@ -364,7 +370,7 @@ class Morpheus::Cli::Users
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -384,7 +390,7 @@ class Morpheus::Cli::Users
       # print_error Morpheus::Terminal.angry_prompt
       # puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
       puts optparse
-      exit 1
+      return 1
     end
 
     connect(options)
@@ -394,7 +400,7 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
 
       user = find_user_by_username_or_id(account_id, args[0])
-      exit 1 if user.nil?
+      return 1 if user.nil?
 
       if new_password.nil?
         
@@ -434,7 +440,7 @@ class Morpheus::Cli::Users
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -448,7 +454,7 @@ class Morpheus::Cli::Users
 
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
 
     connect(options)
@@ -458,7 +464,7 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
 
       user = find_user_by_username_or_id(account_id, args[0])
-      exit 1 if user.nil?
+      return 1 if user.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
         exit
       end
@@ -477,7 +483,7 @@ class Morpheus::Cli::Users
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -491,9 +497,9 @@ class Morpheus::Cli::Users
       {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'displayOrder' => 4},
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 7},
-      {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
-      {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
     ]
   end
@@ -506,9 +512,9 @@ class Morpheus::Cli::Users
       {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => false, 'displayOrder' => 6},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => false, 'displayOrder' => 7},
-      {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
-      {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
+      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
     ]
   end
@@ -517,36 +523,33 @@ class Morpheus::Cli::Users
   # options['role'] can be passed as comma separated role names
   # if so, it will be used instead of prompting
   # returns array of role objects
-  def prompt_user_roles(account_id, user_id, options={})
-
-    passed_role_string = nil
-    if options['role'] || (options[:options] && (options[:options]['role'] || options[:options]['roles']))
-      passed_role_string = options['role'] || (options[:options] && (options[:options]['role'] || options[:options]['roles']))
-    end
+  def prompt_user_roles(account_id, user_id, selected_roles=[], options={})
     passed_role_names = []
-    if !passed_role_string.empty?
-      passed_role_names = passed_role_string.split(',').uniq.compact.collect {|r| r.strip}
+    if !selected_roles.empty?
+      if selected_roles.is_a?(String)
+        passed_role_names = selected_roles.split(',').uniq.compact.collect {|r| r.strip}
+      else
+        passed_role_names = selected_roles
+      end
     end
 
     available_roles = @users_interface.available_roles(account_id, user_id)['roles']
 
     if available_roles.empty?
       print_red_alert "No available roles found."
-      exit 1
+      return 1
     end
     role_options = available_roles.collect {|role|
       {'name' => role['authority'], 'value' => role['id']}
     }
 
-    # found_roles = []
     roles = []
 
     if !passed_role_names.empty?
       invalid_role_names = []
       passed_role_names.each do |role_name|
-        found_role = available_roles.find {|ar| ar['authority'] == role_name}
+        found_role = available_roles.find {|ar| ar['authority'] == role_name || ar['id'] == role_name.to_i}
         if found_role
-          # found_roles << found_role
           roles << found_role
         else
           invalid_role_names << role_name
