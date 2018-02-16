@@ -55,16 +55,22 @@ class Morpheus::Cli::DotFile
       
       # print "#{dark} #=> executing source file line #{line_num}: #{line}#{reset}\n" if Morpheus::Logging.debug?
 
-      # todo: allow semicolons inside arguments too..
-      command_list = line.strip.split(';').compact
+      # allow semicolons inside arguments too..
+      #command_list = line.strip.split(';').compact
+      command_list = line.split(/(;)(?=(?:[^"']|["|'][^"']*")*$)/).reject {|it| it.to_s.strip.empty? || it.to_s.strip == ";" }
       command_list.each do |input|
         input = input.strip
         if input.empty?
           next
         end
-        argv = Shellwords.shellsplit(input)
-
-        if Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
+        argv = nil
+        begin
+          argv = Shellwords.shellsplit(input)
+        rescue => err
+          cmd_result = false
+          puts "#{red} Unparsable source file: #{@filename} line: #{line_num} '#{input}' #{reset} - #{err}"
+        end
+        if argv[0] && Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
           #log_history_command(input)
           cmd_result = nil
           begin

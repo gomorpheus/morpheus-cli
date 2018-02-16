@@ -75,6 +75,8 @@ class Morpheus::Cli::Login
       # check to see if we got credentials, or just look at login_result above...
       creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials() # .load_saved_credentials(true)
 
+      # recalcuate echo vars
+      Morpheus::Cli::Echo.recalculate_variable_map()
       # recalculate shell prompt after this change
       if Morpheus::Cli::Shell.instance
         Morpheus::Cli::Shell.instance.reinitialize()

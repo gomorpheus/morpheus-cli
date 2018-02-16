@@ -60,6 +60,8 @@ class Morpheus::Cli::Logout
           puts "#{cyan}Logged out of #{@appliance_name}. Goodbye.#{reset}"
         end
       end
+      # recalcuate echo vars
+      Morpheus::Cli::Echo.recalculate_variable_map()
       # recalculate shell prompt after this change
       if Morpheus::Cli::Shell.instance
         Morpheus::Cli::Shell.instance.reinitialize()

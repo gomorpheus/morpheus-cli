@@ -43,6 +43,7 @@ EOT
     self.my_terminal.prompt = args[0]
     # Morpheus::Terminal.instance.prompt = args[0]
     Morpheus::Cli::Shell.instance.recalculate_prompt()
+    # Morpheus::Cli::Echo.recalculate_variable_map()
 
     return true
   end

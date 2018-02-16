@@ -555,6 +555,8 @@ EOT
     end
     print_green_success "Deleted remote #{appliance_name}"
     list([])
+    # recalcuate echo vars
+    Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
     if Morpheus::Cli::Shell.instance
       Morpheus::Cli::Shell.instance.reinitialize()
@@ -595,6 +597,8 @@ EOT
     appliance[:active] = true
     appliance = ::Morpheus::Cli::Remote.save_remote(appliance_name, appliance)
     
+    # recalcuate echo vars
+    Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
     if Morpheus::Cli::Shell.instance
       Morpheus::Cli::Shell.instance.reinitialize()
@@ -623,6 +627,8 @@ EOT
     end
     Morpheus::Cli::Remote.clear_active_appliance()
     puts "You are no longer using the appliance #{@appliance_name}"
+    # recalcuate echo vars
+    Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
     if Morpheus::Cli::Shell.instance
       Morpheus::Cli::Shell.instance.reinitialize()

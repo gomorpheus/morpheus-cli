@@ -63,14 +63,15 @@ class Morpheus::Cli::Shell
     #@prompt = Morpheus::Terminal.instance.prompt.to_s #.dup
     @prompt = my_terminal.prompt
 
-    var_map = {
-      '%cyan' => cyan, '%magenta' => magenta, '%reset' => reset, '%dark' => dark,
-      '%remote' => @appliance_name.to_s, '%username' => @current_username.to_s, 
-      '%remote_url' => @appliance_url.to_s
-    }
+    variable_map = Morpheus::Cli::Echo.variable_map
+    # variable_map = {
+    #   '%cyan' => cyan, '%magenta' => magenta, '%red' => red, '%mgreen' => green, '%yellow' => yellow, '%dark' => dark, '%reset' => reset,
+    #   '%remote' => @appliance_name.to_s, '%remote_url' => @appliance_url.to_s, 
+    #   '%username' => @current_username.to_s
+    # }
     @calculated_prompt = @prompt.to_s.dup
-    var_map.each do |var_key, var_value|
-      @calculated_prompt.gsub!(var_key.to_s, var_value.to_s)
+    variable_map.each do |k, v|
+      @calculated_prompt.gsub!(k.to_s, v.to_s)
     end
     # cleanup empty brackets caused by var value
     @calculated_prompt = @calculated_prompt.gsub("[]", "").gsub("<>", "").gsub("{}", "")
