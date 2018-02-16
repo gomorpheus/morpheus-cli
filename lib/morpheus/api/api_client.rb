@@ -182,12 +182,12 @@ class Morpheus::APIClient
   end
 
   # def checks
-  #   # Morpheus::ChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  #   # Morpheus::MonitoringChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   #   monitoring.checks
   # end
 
   # def incidents
-  #   # Morpheus::IncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  #   # Morpheus::MonitoringIncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   #   monitoring.incidents
   # end
 

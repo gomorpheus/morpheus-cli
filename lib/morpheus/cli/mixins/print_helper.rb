@@ -753,9 +753,9 @@ module Morpheus::Cli::PrintHelper
     # if include_fields
     #   json_fields_for = options[:json_fields_for] || options[:fields_for] || options[:root_field]
     #   if json_fields_for && data[json_fields_for]
-    #     data[json_fields_for] = filtered_data(data[json_fields_for], include_fields)
+    #     data[json_fields_for] = filter_data(data[json_fields_for], include_fields)
     #   else
-    #     data = filtered_data(data, include_fields)
+    #     data = filter_data(data, include_fields)
     #   end
     # end
     do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : true
@@ -783,6 +783,9 @@ module Morpheus::Cli::PrintHelper
     if !data
       return "null" # "No data"
     end
+    # if opts[:include_fields]
+    #   data = filter_data(data, opts[:include_fields])
+    # end
     begin
       out << data.to_yaml
     rescue => err

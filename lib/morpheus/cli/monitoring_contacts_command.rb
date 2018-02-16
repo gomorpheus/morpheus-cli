@@ -8,11 +8,11 @@ require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
 
-class Morpheus::Cli::MonitorContactsCommand
+class Morpheus::Cli::MonitoringContactsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::MonitoringHelper
 
-  set_command_name :'monitoring-contacts'
+  set_command_name :'monitor-contacts'
 
   register_subcommands :list, :get, :add, :update, :remove
   

@@ -1,6 +1,6 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::IncidentsInterface < Morpheus::APIClient
+class Morpheus::MonitoringIncidentsInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
     @access_token = access_token
     @refresh_token = refresh_token
@@ -46,10 +46,10 @@ class Morpheus::IncidentsInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def destroy(id)
+  def destroy(id, payload={})
     url = "#{@base_url}/api/monitoring/incidents/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, headers: headers}
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
@@ -90,11 +90,11 @@ class Morpheus::IncidentsInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def events(id)
+  def events(id, params={})
     # JD: maybe switch to this instead /api/monitoring/incidents/#{id}/events instead?
     # url = "#{@base_url}/api/monitoring/incidents/#{id}/events"
     url = "#{@base_url}/api/monitoring/incident-events/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end

@@ -1,6 +1,6 @@
 require 'morpheus/api/api_client'
-require 'morpheus/api/checks_interface'
-require 'morpheus/api/incidents_interface'
+require 'morpheus/api/monitoring_checks_interface'
+require 'morpheus/api/monitoring_incidents_interface'
 require 'morpheus/api/monitoring_contacts_interface'
 require 'morpheus/api/monitoring_groups_interface'
 require 'morpheus/api/monitoring_apps_interface'
@@ -14,11 +14,11 @@ class Morpheus::MonitoringInterface < Morpheus::APIClient
   end
 
   def checks
-    Morpheus::ChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
   def incidents
-    Morpheus::IncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringIncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
   def contacts

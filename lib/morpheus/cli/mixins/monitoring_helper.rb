@@ -206,62 +206,73 @@ module Morpheus::Cli::MonitoringHelper
 
   # Checks
 
-  def format_monitoring_check_status(check, return_color=cyan)
-    #<morph:statusIcon unknown="${!check.lastRunDate}" muted="${!check.createIncident}" failure="${check.lastCheckStatus == 'error'}" health="${check.health}" class="pull-left"/>
+  def format_monitoring_check_status(check, include_msg=false, return_color=cyan)
     out = ""
-    muted = !check['createIncident']
-    status_string = check['lastCheckStatus'].to_s
+    unknown = check['lastRunDate'].nil?
     failure = check['lastCheckStatus'] == 'error'
-    health = check['health'] # todo: examine at this too?
-    if failure
-      out << "#{red}#{status_string.capitalize}#{return_color}"
+    health = check['health']
+    muted = check['createIncident'] == false
+    status_string = check['lastCheckStatus'].to_s # null for groups, ignore?
+
+    if unknown
+      out << "#{white}UNKNOWN#{return_color}"
+    elsif failure || health == 0
+      if include_msg && check['lastError']
+        out << "#{red}ERROR - #{check['lastError']}#{return_color}"
+      else
+        out << "#{red}ERROR#{return_color}"
+      end
+    elsif health.to_i >= 10
+      out << "#{green}HEALTHY#{return_color}"
     else
-      out << "#{cyan}#{status_string.capitalize}#{return_color}"
+      out << "#{yellow}WARNING#{return_color}"
     end
     if muted
-      out << "(muted)"
+      out << " (MUTED)"
     end
     out
   end
 
   def format_monitoring_check_last_metric(check)
-    #<td class="last-metric-col">${check.lastMetric} ${check.lastMetric ? checkTypes.find{ type -> type.id == check.checkTypeId}?.metricName : ''}</td>
-    out = ""
-    out << "#{check['lastMetric']} "
-    # todo:
-    out.strip
+    if check['lastMetric']
+      metric_name = check['checkType'] ? check['checkType']['metricName'] : nil
+      if metric_name
+        "#{check['lastMetric']} #{metric_name}"
+      else
+        "#{check['lastMetric']}"
+      end
+    else
+      "N/A" 
+    end
   end
 
   def format_monitoring_check_type(check)
-    #<td class="check-type-col"><div class="check-type-icon ${morph.checkTypeCode(id:check.checkTypeId, checkTypes:checkTypes)}"></div></td>
-    # return get_object_value(check, 'checkType.name') # this works too
     out = ""
-    if check && check['checkType'] && check['checkType']['name']
-      out << check['checkType']['name']
-    elsif check['checkTypeId']
-      out << check['checkTypeId'].to_s
-    elsif !check.empty?
-      out << check.to_s
+    if check['checkType']
+      if check['checkType']['code'] == 'mixedCheck' || check['checkType']['code'] == 'mixed'
+        out = check['checkType']["name"] || "Mixed"
+      else
+        out = check['checkType']["name"] || ""
+      end
     end
-    out.strip! + "WEEEEEE"
+    out
   end
 
-  def print_checks_table(incidents, opts={})
+  def print_checks_table(checks, opts={})
     columns = [
       {"ID" => lambda {|check| check['id'] } },
       {"STATUS" => lambda {|check| format_monitoring_check_status(check) } },
       {"NAME" => lambda {|check| check['name'] } },
-      {"TIME" => lambda {|check| format_local_dt(check['lastRunDate']) } },
+      {"TIME" => lambda {|check| check['lastRunDate'] ? format_local_dt(check['lastRunDate']) : "N/A" } },
       {"AVAILABILITY" => {display_method: lambda {|check| check['availability'] ? "#{check['availability'].to_f.round(3).to_s}%" : "N/A"} }, justify: "center" },
       {"RESPONSE TIME" => {display_method: lambda {|check| check['lastTimer'] ? "#{check['lastTimer']}ms" : "N/A" } }, justify: "center" },
-      {"LAST METRIC" => {display_method: lambda {|check| check['lastMetric'] ? "#{check['lastMetric']}" : "N/A" } }, justify: "center" },
-      {"TYPE" => 'checkType.name'},
-      
+      {"LAST METRIC" => {display_method: lambda {|check| format_monitoring_check_last_metric(check) } }, justify: "center" },
+      {"TYPE" => lambda {|check| format_monitoring_check_type(check) } },
     ]
     if opts[:include_fields]
       columns = opts[:include_fields]
     end
-    print as_pretty_table(incidents, columns, opts)
+    print as_pretty_table(checks, columns, opts)
   end
 
   def print_check_history_table(history_items, opts={})
@@ -372,7 +383,7 @@ module Morpheus::Cli::MonitoringHelper
 
   def find_check_group_by_name(name)
     json_results = monitoring_interface.groups.list({name: name})
-    groups = json_results["groups"]
+    groups = json_results["checkGroups"]
     if groups.empty?
       print_red_alert "Check Group not found by name #{name}"
       exit 1 # return nil
@@ -388,20 +399,37 @@ module Morpheus::Cli::MonitoringHelper
     end
   end
 
+  def print_check_groups_table(check_groups, opts={})
+    columns = [
+      {"ID" => lambda {|check| check['id'] } },
+      {"STATUS" => lambda {|check| format_monitoring_check_status(check) } },
+      {"NAME" => lambda {|check| check['name'] } },
+      {"TIME" => lambda {|check| check['lastRunDate'] ? format_local_dt(check['lastRunDate']) : "N/A" } },
+      {"AVAILABILITY" => {display_method: lambda {|check| check['availability'] ? "#{check['availability'].to_f.round(3).to_s}%" : "N/A"} }, justify: "center" },
+      {"RESPONSE TIME" => {display_method: lambda {|check| check['lastTimer'] ? "#{check['lastTimer']}ms" : "N/A" } }, justify: "center" },
+      # {"LAST METRIC" => {display_method: lambda {|check| format_monitoring_check_last_metric(check) } }, justify: "center" },
+      {"TYPE" => lambda {|check| format_monitoring_check_type(check) } },
+    ]
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(check_groups, columns, opts)
+  end
+
   # Monitoring apps
 
-  def find_app_by_name_or_id(val)
+  def find_monitoring_app_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_app_by_id(val)
+      return find_monitoring_app_by_id(val)
     else
-      return find_app_by_name(val)
+      return find_monitoring_app_by_name(val)
     end
   end
 
-  def find_app_by_id(id)
+  def find_monitoring_app_by_id(id)
     begin
       json_response = monitoring_interface.apps.get(id.to_i)
-      return json_response['app']
+      return json_response["monitorApp"] || json_response["app"]
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Monitor App not found by id #{id}"
@@ -412,9 +440,9 @@ module Morpheus::Cli::MonitoringHelper
     end
   end
 
-  def find_app_by_name(name)
+  def find_monitoring_app_by_name(name)
     json_results = monitoring_interface.apps.list({name: name})
-    apps = json_results["apps"]
+    apps = json_results["monitorApps"] || json_results["apps"]
     if apps.empty?
       print_red_alert "Monitor App not found by name #{name}"
       exit 1 # return nil
@@ -430,5 +458,37 @@ module Morpheus::Cli::MonitoringHelper
     end
   end
 
+  def print_monitoring_apps_table(apps, opts={})
+    columns = [
+      {"ID" => lambda {|app| app['id'] } },
+      {"STATUS" => lambda {|app| format_monitoring_check_status(app) } },
+      {"NAME" => lambda {|app| app['name'] } },
+      # {"DESCRIPTION" => lambda {|app| app['description'] } },
+      {"TIME" => lambda {|app| app['lastRunDate'] ? format_local_dt(app['lastRunDate']) : "N/A" } },
+      {"AVAILABILITY" => {display_method: lambda {|app| app['availability'] ? "#{app['availability'].to_f.round(3).to_s}%" : "N/A"} }, justify: "center" },
+      {"RESPONSE TIME" => {display_method: lambda {|app| app['lastTimer'] ? "#{app['lastTimer']}ms" : "N/A" } }, justify: "center" },
+      #{"LAST METRIC" => {display_method: lambda {|app| app['lastMetric'] ? "#{app['lastMetric']}" : "N/A" } }, justify: "center" },
+      {"CHECKS" => lambda {|app| 
+        checks = app['checks']
+        checks_str = ""
+        if checks && checks.size > 0
+          checks_str = "#{checks.size} #{checks.size == 1 ? 'check' : 'checks'}"
+          # checks_str << " [#{checks.join(', ')}]"
+        end
+        check_groups = app['checkGroups']
+        check_groups_str = ""
+        if check_groups && check_groups.size > 0
+          check_groups_str = "#{check_groups.size} #{check_groups.size == 1 ? 'group' : 'groups'}"
+          # check_groups_str << " [#{check_groups.join(', ')}]"
+        end
+        [checks_str, check_groups_str].reject {|s| s.empty? }.join(", ")
+      } },
+      
+    ]
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(apps, columns, opts)
+  end
 
 end

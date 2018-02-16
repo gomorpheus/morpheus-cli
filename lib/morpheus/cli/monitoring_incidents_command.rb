@@ -5,14 +5,9 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::MonitoringHelper
 
-  set_command_name :incidents  # :'monitoring-incidents'
-  register_subcommands :list, :stats, :get, :history, :notifications, :update, :close, :reopen, :quarantine
-  set_default_subcommand :list
+  set_command_name :'monitor-incidents'
+  register_subcommands :list, :stats, :get, :history, :notifications, :update, :close, :reopen, :mute, :unmute
   
-  def initialize()
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
-
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
@@ -33,7 +28,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -41,27 +36,26 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-      # JD: lastUpdated 500ing, incidents don't have that property ? =o  Fix it!
-
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.list(params)
         return
       end
-
       json_response = @monitoring_interface.incidents.list(params)
+      if options[:include_fields]
+        json_response = {"incidents" => filter_data(json_response["incidents"], options[:include_fields]) }
+      end
       if options[:json]
-        if options[:include_fields]
-          json_response = {"incidents" => filter_data(json_response["incidents"], options[:include_fields]) }
-        end
         puts as_json(json_response, options)
         return 0
-      end
-      if options[:csv]
+      elsif options[:yaml]
+        puts as_yaml(json_response, options)
+        return 0
+      elsif options[:csv]
         puts records_as_csv(json_response['incidents'], options)
         return 0
       end
       incidents = json_response['incidents']
-      title = "Morpheus Incidents"
+      title = "Morpheus Monitoring Incidents"
       subtitles = []
       # if group
       #   subtitles << "Group: #{group['name']}".strip
@@ -104,7 +98,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on( '-o', '--offset OFFSET', "Offset open incidents results for pagination." ) do |offset|
         options[:offset] = offset.to_i.abs
       end
-      build_common_options(opts, options, [:json, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -186,7 +180,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on(nil,'--notifications', "Display Incident Notifications") do |val|
         options[:show_notifications] = true
       end
-      build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -211,14 +205,17 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       json_response = @monitoring_interface.incidents.get(incident['id'])
       incident = json_response['incident']
       
+      if options[:include_fields]
+        json_response = {"incident" => filter_data(json_response["incident"], options[:include_fields]) }
+      end
       if options[:json]
-        if options[:include_fields]
-          json_response = {"incident" => filter_data(json_response["incident"], options[:include_fields]) }
-        end
         puts as_json(json_response, options)
         return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options)
+        return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['incident']], options)
+        puts records_as_csv(json_response['incident'], options)
         return 0
       end
 
@@ -232,6 +229,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         "End" => lambda {|it| format_local_dt(it['endDate']) },
         "Duration" => lambda {|it| format_duration(it['startDate'], it['endDate']) },
         "Status" => lambda {|it| format_monitoring_issue_status(it) },
+        "Muted" => lambda {|it| it['inUptime'] ? 'No' : 'Yes' },
         "Visibility" => 'visibility',
         "Last Check" => lambda {|it| format_local_dt(it['lastCheckTime']) },
         "Last Error" => lambda {|it| it['lastError'] },
@@ -302,13 +300,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id] [options]")
-      # opts.on('--status LIST', Array, "Filter by status. open, closed") do |list|
-      #   params['status'] = list
-      # end
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -366,7 +361,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id] [options]")
-      build_common_options(opts, options, [:list, :json, :csv, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :csv, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -505,55 +500,92 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   end
 
 
-  def quarantine(args)
+  def mute(args)
     options = {}
     params = {'enabled' => true}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[id list]")
-      # this one is a bit weird.. it's a way to toggle incident.inUptime
-      # opts.on("--enabled BOOL", String, "Quarantine can be removed with --enabled false") do |val|
-      #   params['enabled'] = ['on','true'].include?(val.to_s.downcase)
-      # end
-      opts.on("-d", "--disabled", "Disable Quarantine instead") do
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      opts.on(nil, "--disable", "Disable mute state instead, the same as unmute") do
         params['enabled'] = false
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Mute an incident." + "\n" +
+                    "[id] is required. This is the id of an incident."
     end
     optparse.parse!(args)
-    if args.count < 1
+    if args.count != 1
       puts optparse
+      return 1
+    end
+    connect(options)
+    begin
+      incident = find_incident_by_id(args[0])
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
+      end
+      if options[:dry_run]
+        print_dry_run @monitoring_interface.incidents.dry.quarantine(incident["id"], payload)
+        return 0
+      end
+      json_response = @monitoring_interface.incidents.quarantine(incident["id"], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        if params['enabled']
+          print_green_success "Muted incident #{incident['id']}"
+        else
+          print_green_success "Unmuted incident #{incident['id']}"
+        end
+        _get(incident['id'], {})
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  def unmute(args)
+    options = {}
+    params = {'enabled' => false}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Unmute an incident." + "\n" +
+                    "[id] is required. This is the id of an incident."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts optparse
+      return 1
     end
     connect(options)
 
     begin
       incident = find_incident_by_id(args[0])
-
-      if params.empty?
-        print_red_alert "Specify atleast one option to update"
-        puts optparse
-        exit 1
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
       end
-
-      # payload = {
-      #   'incident' => {id: incident["id"]}
-      # }
-      # payload['incident'].merge!(params)
-      payload = params
-
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.update(incident["id"], payload)
-        return
+        print_dry_run @monitoring_interface.incidents.dry.quarantine(incident["id"], payload)
+        return 0
       end
-
-      json_response = @monitoring_interface.incidents.update(incident["id"], payload)
+      json_response = @monitoring_interface.incidents.quarantine(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success "Quarantined incident #{incident['id']}"
+        print_green_success "Unmuted incident #{incident['id']}"
         _get(incident['id'], {})
       end
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
