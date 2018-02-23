@@ -141,6 +141,10 @@ class Morpheus::APIClient
     Morpheus::UsersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def user_groups
+    Morpheus::UserGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def logs
     Morpheus::LogsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end

@@ -79,6 +79,7 @@ module Morpheus
       load 'morpheus/cli/security_group_rules.rb'
       load 'morpheus/cli/accounts.rb'
       load 'morpheus/cli/users.rb'
+      load 'morpheus/cli/user_groups_command.rb'
       load 'morpheus/cli/roles.rb'
       load 'morpheus/cli/key_pairs.rb'
       load 'morpheus/cli/virtual_images.rb'
