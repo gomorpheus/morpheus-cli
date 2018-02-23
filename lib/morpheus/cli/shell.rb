@@ -238,10 +238,18 @@ class Morpheus::Cli::Shell
         n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
         n_commands = n_commands.empty? ? 25 : n_commands.to_i
         cmd_numbers = @history.keys.last(n_commands)
-        puts "Last #{cmd_numbers.size} commands"
+        if cmd_numbers.size == 1
+          puts "Last command"
+        else
+          puts "Last #{cmd_numbers.size} commands"
+        end
         cmd_numbers.each do |cmd_number|
           cmd = @history[cmd_number]
           puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
+        end
+        last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
+        if input != last_cmd # no consecutive
+          log_history_command(input)
         end
         return 0
       elsif input == 'clear'
