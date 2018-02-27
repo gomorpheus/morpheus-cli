@@ -9,8 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["David Estes", "Bob Whiton", "Jeremy Michael Crosbie", "James Dickson"]
   spec.email         = ["davydotcom@gmail.com"]
   spec.summary       = "Provides CLI Interface to the Morpheus Public/Private Cloud Appliance"
-  spec.description   = "Morpheus allows one to manage docker containers and deploy applications on the CLI"
-  spec.homepage      = "http://www.morpheusdata.com"
+  spec.description   = "Infrastructure agnostic cloud application management & orchestration CLI for Morpheus. Easily manage and orchestrate VMS on private or public infrastructure and containerized architectures."
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
