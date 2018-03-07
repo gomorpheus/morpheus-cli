@@ -59,6 +59,7 @@ module Morpheus
       load 'morpheus/cli/logout.rb'
       load 'morpheus/cli/whoami.rb'
       load 'morpheus/cli/dashboard_command.rb'
+      load 'morpheus/cli/power_scheduling_command.rb'
       load 'morpheus/cli/recent_activity_command.rb'
       load 'morpheus/cli/groups.rb'
       load 'morpheus/cli/clouds.rb'
