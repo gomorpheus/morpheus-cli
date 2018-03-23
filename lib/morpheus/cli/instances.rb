@@ -256,6 +256,20 @@ class Morpheus::Cli::Instances
           lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
           payload.deep_merge!(lb_payload)
         end
+        # clean payload of empty objects 
+        # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
+        if payload['instance'].is_a?(Hash)
+          payload['instance'].keys.each do |k|
+            v = payload['instance'][k]
+            payload['instance'].delete(k) if v.is_a?(Hash) && v.empty?
+          end
+        end
+        if payload['config'].is_a?(Hash)
+          payload['config'].keys.each do |k|
+            v = payload['config'][k]
+            payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
+          end
+        end
       end
 
       if options[:dry_run]
