@@ -108,15 +108,29 @@ class Morpheus::Cli::KeyPairs
         print_description_list({
           "ID" => 'id',
           "Name" => 'name',
+          "Fingerprint" => 'fingerprint',
           "MD5" => 'md5',
+          # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
           # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
           #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }, key_pair)
+
+        print_h2 "Public Key"
+        print cyan
+        puts "#{key_pair['publicKey']}"
+        
+        if key_pair['hasPrivateKey']
+          # print_h2 "Private Key"
+          # print cyan
+          # puts "(hidden)"
+        else
+          # print_h2 "Private Key"
+          print cyan, "\n"
+          puts "This is only a public key.  It does not include a private key."
+        end
+
         print reset,"\n"
-
-        # todo: show public key
-
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -180,16 +194,20 @@ class Morpheus::Cli::KeyPairs
 
       params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
 
-      if !params['publicKey']
-        print_red_alert "publicKey is required"
-        exit 1
-      elsif !params['privateKey']
-        print_red_alert "privateKey is required"
-        exit 1
+      if !params['publicKey'] && params['privateKey']
+        print_red_alert "publicKey or privateKey is required"
+        return 1
       end
+      # if !params['publicKey']
+      #   print_red_alert "publicKey is required"
+      #   exit 1
+      # elsif !params['privateKey']
+      #   print_red_alert "privateKey is required"
+      #   exit 1
+      # end
       #params['name'] = args[0]
 
-      key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey'].include?(k) }
+      key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey', 'passphrase'].include?(k) }
       payload = {keyPair: key_pair_payload}
       if options[:dry_run]
         print_dry_run @key_pairs_interface.dry.create(account_id, payload)
@@ -201,6 +219,7 @@ class Morpheus::Cli::KeyPairs
         print "\n"
       else
         print_green_success "Key Pair #{key_pair_payload['name']} added"
+        get([json_response['keyPair']['id']])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -212,6 +231,7 @@ class Morpheus::Cli::KeyPairs
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
+      build_option_type_options(opts, options, update_key_pair_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run])
     end
     optparse.parse!(args)
@@ -252,6 +272,7 @@ class Morpheus::Cli::KeyPairs
         print "\n"
       else
         print_green_success "Key Pair #{key_pair_payload['name'] || key_pair['name']} updated"
+        get([json_response['keyPair']['id']])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -347,6 +368,7 @@ class Morpheus::Cli::KeyPairs
       {
         id: key_pair['id'],
         name: key_pair['name'],
+        fingerprint: key_pair['fingerprint'],
         md5: key_pair['md5'],
         dateCreated: format_local_dt(key_pair['dateCreated'])
       }
@@ -355,7 +377,8 @@ class Morpheus::Cli::KeyPairs
     tp rows, [
       :id,
       :name,
-      :md5,
+      {:fingerprint => {:width => 47} },
+      # {:md5 => {:width => 32} },
       {:dateCreated => {:display_name => "Date Created"} }
     ]
     print reset
@@ -365,8 +388,9 @@ class Morpheus::Cli::KeyPairs
   def add_key_pair_option_types
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'publicKey', 'fieldLabel' => 'Public Key', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
-      {'fieldName' => 'privateKey', 'fieldLabel' => 'Private Key', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
+      {'fieldName' => 'publicKey', 'fieldLabel' => 'Public Key', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'privateKey', 'fieldLabel' => 'Private Key', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
+      {'fieldName' => 'passphrase', 'fieldLabel' => 'Passphrase', 'type' => 'password', 'required' => false, 'displayOrder' => 4},
     ]
   end
 
