@@ -194,7 +194,7 @@ class Morpheus::Cli::KeyPairs
 
       params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
 
-      if !params['publicKey'] && params['privateKey']
+      if params['publicKey'].to_s.empty? && params['privateKey'].to_s.empty?
         print_red_alert "publicKey or privateKey is required"
         return 1
       end
