@@ -1075,9 +1075,13 @@ class Morpheus::Cli::Instances
   end
 
   def stop(args)
+    params = {'server' => true, 'muteMonitoring' => false}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1092,10 +1096,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.stop(instance['id'])
+        print_dry_run @instances_interface.dry.stop(instance['id'], params)
         return
       end
-      json_response = @instances_interface.stop(instance['id'])
+      json_response = @instances_interface.stop(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1109,6 +1113,7 @@ class Morpheus::Cli::Instances
   end
 
   def start(args)
+    params = {'server' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -1123,10 +1128,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.start(instance['id'])
+        print_dry_run @instances_interface.dry.start(instance['id'], params)
         return 0
       end
-      json_response = @instances_interface.start(instance['id'])
+      json_response = @instances_interface.start(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
         return 0
@@ -1141,6 +1146,7 @@ class Morpheus::Cli::Instances
   end
 
   def restart(args)
+    params = {'server' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -1158,10 +1164,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.restart(instance['id'])
+        print_dry_run @instances_interface.dry.restart(instance['id'], params)
         return 0
       end
-      json_response = @instances_interface.restart(instance['id'])
+      json_response = @instances_interface.restart(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1175,9 +1181,13 @@ class Morpheus::Cli::Instances
   end
 
   def suspend(args)
+    params = {'server' => true, 'muteMonitoring' => false}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1192,10 +1202,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.suspend(instance['id'])
+        print_dry_run @instances_interface.dry.suspend(instance['id'], params)
         return
       end
-      json_response = @instances_interface.suspend(instance['id'])
+      json_response = @instances_interface.suspend(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       end
@@ -1207,9 +1217,13 @@ class Morpheus::Cli::Instances
   end
 
   def eject(args)
+    params = {'server' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      # opts.on('--server [on|off]', String, "Eject server. Default is on") do |val|
+      #   params['server'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      # end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1224,10 +1238,10 @@ class Morpheus::Cli::Instances
       #   exit 1
       # end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.eject(instance['id'])
+        print_dry_run @instances_interface.dry.eject(instance['id'], params)
         return
       end
-      json_response = @instances_interface.eject(instance['id'])
+      json_response = @instances_interface.eject(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       end
@@ -1239,9 +1253,13 @@ class Morpheus::Cli::Instances
   end
 
   def stop_service(args)
+    params = {'server' => false, 'muteMonitoring' => false}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1256,10 +1274,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.stop(instance['id'],false)
+        print_dry_run @instances_interface.dry.stop(instance['id'], params)
         return 0
       end
-      json_response = @instances_interface.stop(instance['id'],false)
+      json_response = @instances_interface.stop(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1273,6 +1291,7 @@ class Morpheus::Cli::Instances
   end
 
   def start_service(args)
+    params = {'server' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -1287,10 +1306,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.start(instance['id'], false)
+        print_dry_run @instances_interface.dry.start(instance['id'], params)
         return 0
       end
-      json_response = @instances_interface.start(instance['id'],false)
+      json_response = @instances_interface.start(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1303,6 +1322,7 @@ class Morpheus::Cli::Instances
   end
 
   def restart_service(args)
+    params = {'server' => false}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -1320,10 +1340,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.restart(instance['id'],false)
+        print_dry_run @instances_interface.dry.restart(instance['id'], params)
         return 0
       end
-      json_response = @instances_interface.restart(instance['id'],false)
+      json_response = @instances_interface.restart(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]

@@ -68,37 +68,37 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def stop(id,server=true)
+  def stop(id, params={})
     url = "#{@base_url}/api/instances/#{id}/stop"
-    headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
-  def start(id,server=true)
+  def start(id, params={})
     url = "#{@base_url}/api/instances/#{id}/start"
-    headers = { :params => {:server => server}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
-  def restart(id,server=true)
+  def restart(id, params={})
     url = "#{@base_url}/api/instances/#{id}/restart"
-    headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
-  def suspend(id,server=true)
+  def suspend(id, params={})
     url = "#{@base_url}/api/instances/#{id}/suspend"
-    headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
-  def eject(id,server=true)
+  def eject(id, params={})
     url = "#{@base_url}/api/instances/#{id}/eject"
-    headers = { :params => {:server => server},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
