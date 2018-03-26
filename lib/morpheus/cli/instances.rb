@@ -1174,7 +1174,7 @@ class Morpheus::Cli::Instances
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print green, "Stopping instance #{instance['name']}", reset, "\n"
+        print green, "Restarting instance #{instance['name']}", reset, "\n"
       end
       return 0
     rescue RestClient::Exception => e
