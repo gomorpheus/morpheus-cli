@@ -212,7 +212,7 @@ class Morpheus::Cli::Instances
       opts.on("--expire-days NUMBER", Integer, "Automation: Expiration Days") do |val|
         options[:expire_days] = val.to_i
       end
-      opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off") do |val|
+      opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off.") do |val|
         options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
@@ -1079,7 +1079,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
@@ -1146,10 +1146,13 @@ class Morpheus::Cli::Instances
   end
 
   def restart(args)
-    params = {'server' => true}
+    params = {'server' => true, 'muteMonitoring' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1185,7 +1188,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
@@ -1221,9 +1224,6 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      # opts.on('--server [on|off]', String, "Eject server. Default is on") do |val|
-      #   params['server'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
-      # end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1257,7 +1257,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off") do |val|
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
@@ -1322,10 +1322,13 @@ class Morpheus::Cli::Instances
   end
 
   def restart_service(args)
-    params = {'server' => false}
+    params = {'server' => false, 'muteMonitoring' => true}
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
