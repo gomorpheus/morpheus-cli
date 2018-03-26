@@ -119,7 +119,14 @@ class Morpheus::Cli::Clouds
       end
       json_response = @clouds_interface.get(cloud['id'])
       cloud = json_response['zone']
-      server_counts = json_response['serverCounts']
+      cloud_stats = cloud['stats']
+      # serverCounts moved to zone.stats.serverCounts
+      server_counts = nil
+      if cloud_stats
+        server_counts = cloud_stats['serverCounts']
+      else
+        server_counts = json_response['serverCounts'] # legacy
+      end
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
         return
