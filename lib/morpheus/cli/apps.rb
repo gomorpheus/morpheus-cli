@@ -157,6 +157,9 @@ class Morpheus::Cli::Apps
         payload = {}
         params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
         params = params.deep_compact! # remove nulls and blank strings
+        if params['template']
+          params['id'] = params.delete('template')
+        end
         group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
         return if group.nil?
         payload.merge!(params)
