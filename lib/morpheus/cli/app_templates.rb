@@ -47,7 +47,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List app templates."
     end
     optparse.parse!(args)
@@ -61,26 +61,40 @@ class Morpheus::Cli::AppTemplates
         print_dry_run @app_templates_interface.dry.list(params)
         return
       end
+
       json_response = @app_templates_interface.list(params)
       app_templates = json_response['appTemplates']
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        title = "Morpheus App Templates"
-        subtitles = []
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
-        print_h1 title, subtitles
-        if app_templates.empty?
-          print cyan,"No app templates found.",reset,"\n"
-        else
-          print_app_templates_table(app_templates)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+
+      if options[:include_fields]
+        json_response = {"appTemplates" => filter_data(json_response["appTemplates"], options[:include_fields]) }
       end
+      if options[:json]
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['appTemplates'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options)
+        return 0
+      end
+
+      
+      title = "Morpheus App Templates"
+      subtitles = []
+      if params[:phrase]
+        subtitles << "Search: #{params[:phrase]}".strip
+      end
+      print_h1 title, subtitles
+      if app_templates.empty?
+        print cyan,"No app templates found.",reset,"\n"
+      else
+        print_app_templates_table(app_templates, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -180,7 +194,7 @@ class Morpheus::Cli::AppTemplates
         options['configFile'] = val.to_s
       end
       build_option_type_options(opts, options, add_app_template_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Create a new app template.\n" + 
                     "[name] is optional and can be passed as --name or inside the config instead."
                     "[--config] or [--config-file] can be used to define the app template."
@@ -267,7 +281,7 @@ class Morpheus::Cli::AppTemplates
         options['configFile'] = val.to_s
       end
       build_option_type_options(opts, options, update_app_template_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update an app template.\n" + 
                     "[template] is required. This is the name or id of an app template.\n" +
                     "[options] Available options include --name and --description. This will update only the specified values.\n" +
@@ -412,7 +426,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[template] [new name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Duplicate an app template." + "\n" +
                     "[template] is required. This is the name or id of an app template." + "\n" +
                     "[new name] is required. This is the name for the clone."
@@ -461,7 +475,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[template]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete an app template." + "\n" +
                     "[template] is required. This is the name or id of an app template."
     end
@@ -788,7 +802,7 @@ class Morpheus::Cli::AppTemplates
       # opts.on( nil, '--index NUMBER', "The index of the instance to remove, starting with 0." ) do |val|
       #   instance_index = val.to_i
       # end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Update an app template, removing a specified instance config." + "\n" +
                     "[template] is required. This is the name or id of an app template." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
@@ -971,7 +985,7 @@ class Morpheus::Cli::AppTemplates
       # opts.on('--index NUMBER', Number, "Identify Instance by index within tier, starting with 0." ) do |val|
       #   instance_index = val.to_i
       # end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     
@@ -1333,7 +1347,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[template] [tier]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -1400,7 +1414,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[template] [Tier1] [Tier2]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -1498,7 +1512,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[template] [Tier1] [Tier2]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -1588,7 +1602,7 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -1735,10 +1749,9 @@ class Morpheus::Cli::AppTemplates
       :category,
       {:tiers_summary => {:display_name => "TIERS", :max_width => tiers_col_width} }
     ]
-    # # custom pretty table columns ...
-    # if options[:include_fields]
-    #   columns = options[:include_fields]
-    # end
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
     print table_color
     print as_pretty_table(rows, columns, opts)
     print reset
@@ -1751,6 +1764,7 @@ class Morpheus::Cli::AppTemplates
   end
 
   def format_app_template_tiers_summary(app_template)
+    # don't use colors here, or cell truncation will not work
     str = ""
     if app_template["config"] && app_template["config"]["tiers"]
       tier_descriptions = app_template["config"]["tiers"].collect do |tier_name, tier_config|
@@ -1763,9 +1777,9 @@ class Morpheus::Cli::AppTemplates
               # instance_blurbs << instance_config["instance"]["type"]
               instance_name = instance_config["instance"]["name"] || ""
               instance_type_code = instance_config["instance"]["type"]
-              instances_str = "#{green}#{instance_type_code}#{cyan}"
+              instances_str = "#{instance_type_code}"
               if instance_name.to_s != ""
-                instances_str << "#{green} - #{instance_name}#{cyan}"
+                instances_str << " - #{instance_name}"
               end
               begin
                 config_list = parse_scoped_instance_configs(instance_config)
@@ -1791,9 +1805,9 @@ class Morpheus::Cli::AppTemplates
           end
         end
         if instance_blurbs.size > 0
-          tier_name + ": #{instance_blurbs.join(', ')}" + cyan
+          tier_name + ": #{instance_blurbs.join(', ')}"
         else
-          tier_name + ": (empty)" + cyan
+          tier_name + ": (empty)"
         end
       end
       str += tier_descriptions.compact.join(", ")
@@ -1834,7 +1848,7 @@ class Morpheus::Cli::AppTemplates
             end
             instance_bullet = ""
             # instance_bullet += "#{green}     - #{bold}#{instance_type_code}#{reset}"
-            instance_bullet += "     #{green}#{bold}#{instance_type_code}#{reset}"
+            instance_bullet += "#{green}#{bold}#{instance_type_code}#{reset}"
             if instance_name.to_s != ""
               instance_bullet += "#{green} - #{instance_name}#{reset}"
             end
@@ -1846,9 +1860,9 @@ class Morpheus::Cli::AppTemplates
               if config_list.size > 0
                 print "\n"
                 if config_list.size == 1
-                  puts "     Config:"
+                  puts "  Config:"
                 else
-                  puts "     Configs (#{config_list.size}):"
+                  puts "  Configs (#{config_list.size}):"
                 end
                 config_list.each do |config_obj| 
                   # puts "     = #{config_obj[:scope].inspect}"
@@ -1869,10 +1883,10 @@ class Morpheus::Cli::AppTemplates
                   #   config_items << {label: "Plan", value: scoped_instance_config['plan']['code']}
                   # end
                   config_description = config_items.collect {|item| "#{item[:label]}: #{item[:value]}"}.join(", ")
-                  puts "     * #{config_description}"
+                  puts "  * #{config_description}"
                 end
               else
-                print white,"     Instance has no configs, see `app-templates add-instance-config \"#{app_template['name']}\" \"#{tier_name}\" \"#{instance_type_code}\"`",reset,"\n"
+                print white,"  Instance has no configs, see `app-templates add-instance-config \"#{app_template['name']}\" \"#{tier_name}\" \"#{instance_type_code}\"`",reset,"\n"
               end
             rescue => err
               #puts_error "Failed to parse instance scoped instance configs for app template #{app_template['id']} #{app_template['name']} Exception: #{err.class} #{err.message}"
@@ -1885,10 +1899,10 @@ class Morpheus::Cli::AppTemplates
           
           print cyan
           if tier_config['bootOrder']
-            puts "  Boot Order: #{tier_config['bootOrder']}"
+            puts "Boot Order: #{tier_config['bootOrder']}"
           end
           if tier_config['linkedTiers'] && !tier_config['linkedTiers'].empty?
-            puts "  Connected Tiers: #{tier_config['linkedTiers'].join(', ')}"
+            puts "Connected Tiers: #{tier_config['linkedTiers'].join(', ')}"
           end  
           
         else
