@@ -188,7 +188,7 @@ class Morpheus::Cli::Apps
         app = json_response["app"]
         print_green_success "Added app #{app['name']}"
         # add existing instances to blank app now?
-        if !options[:no_prompt] && !payload['tiers']
+        if !options[:no_prompt] && !payload['tiers'] && payload['id'] == 'existing'
           if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add an instance now?", options.merge({default: false}))
             add_instance([app['id']])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another instance?", options.merge({default: false})) do
