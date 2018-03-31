@@ -92,6 +92,7 @@ class Morpheus::Cli::Apps
   end
 
   def add(args)
+    template_id = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
@@ -157,24 +158,28 @@ class Morpheus::Cli::Apps
         payload = {}
         params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
         params = params.deep_compact! # remove nulls and blank strings
-        if params['template']
-          params['id'] = params.delete('template')
+        template_id = params.delete('template')
+        if template_id.to_s.empty? || template_id == 'existing'
+          # new API parameter
+          payload['templateId'] = 'existing'
+          # API versions before 3.3.1 expect both of these instead of templateId
+          payload['id'] = 'existing'
+          payload['templateName'] = 'Existing Instances'
+        else
+          found_app_template = get_available_app_templates.find {|it| it['id'].to_s == template_id.to_s }
+          if found_app_template.nil?
+            print_red_alert "App Template not found by id #{template_id}"
+            return 1
+          end
+          payload['templateId'] = found_app_template['id']
+          # API versions before 3.3.1 expect both of these instead of templateId
+          payload['id'] = found_app_template['id']
+          payload['templateName'] = found_app_template['name']
         end
         group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
         return if group.nil?
         payload.merge!(params)
         payload['group'] = {id: group['id'], name: group['name']}
-      end
-
-      # allow creating a blank app by default
-      # sux having go merge this into user passed config/configFile
-      # but it's better than making them know to enter it.
-      if !payload['id']
-        payload['id'] = 'existing'
-        payload['templateName'] = 'Existing Instances'
-      else
-        # maybe validate template id
-        # app_template = find_app_template_by_id(payload['id'])
       end
 
       if options[:dry_run]
