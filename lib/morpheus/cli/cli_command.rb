@@ -628,16 +628,19 @@ module Morpheus
         # this prompts for username, password  without options[:no_prompt]
         # used saved credentials please
         @api_credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
-        @access_token = @api_credentials.load_saved_credentials()
-        if @access_token.to_s.empty?
-          unless options[:no_prompt]
-            @access_token = @api_credentials.request_credentials(options)
+        if options[:remote_token]
+          @access_token = options[:remote_token]
+        else
+          @access_token = @api_credentials.load_saved_credentials()
+          if @access_token.to_s.empty?
+            unless options[:no_prompt]
+              @access_token = @api_credentials.request_credentials(options)
+            end
           end
-        end
-
-        # bail if we got nothing still
-        unless options[:skip_verify_access_token]
-          verify_access_token!
+          # bail if we got nothing still
+          unless options[:skip_verify_access_token]
+            verify_access_token!
+          end
         end
 
         # ok, connect to the appliance.. actually this just instantiates an ApiClient
