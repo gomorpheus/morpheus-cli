@@ -77,7 +77,7 @@ class Morpheus::Cli::NetworkServicesCommand
           row = {
             id: network_service['id'],
             name: network_service['name'],
-            type: network_service['type'] ? network_service['type']['name'] : '',
+            type: network_service['typeName'] || network_service['type'],
           }
           row
         }
