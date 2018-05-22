@@ -50,7 +50,7 @@ class Morpheus::Cli::Echo
     end
     # print out 
     print cyan + out + reset
-    return true
+    return 0
   end
 
 end

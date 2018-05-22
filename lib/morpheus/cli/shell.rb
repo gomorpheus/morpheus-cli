@@ -497,7 +497,11 @@ class Morpheus::Cli::Shell
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
         @return_to_log_level = nil
       end
-
+      
+      # commands should be a number or nil (treated as 0)
+      if cmd_result == true
+        cmd_result = 0
+      end
       return cmd_result
     end
 
