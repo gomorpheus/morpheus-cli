@@ -49,6 +49,7 @@ module Morpheus
       # shell scripting commands
       load 'morpheus/cli/source_command.rb'
       load 'morpheus/cli/echo_command.rb'
+      load 'morpheus/cli/sleep_command.rb'
       load 'morpheus/cli/coloring_command.rb'
       load 'morpheus/cli/log_level_command.rb'
       load 'morpheus/cli/ssl_verification_command.rb'
@@ -81,10 +82,20 @@ module Morpheus
       load 'morpheus/cli/accounts.rb'
       load 'morpheus/cli/users.rb'
       load 'morpheus/cli/user_groups_command.rb'
+      load 'morpheus/cli/user_sources_command.rb'
       load 'morpheus/cli/roles.rb'
       load 'morpheus/cli/key_pairs.rb'
       load 'morpheus/cli/virtual_images.rb'
-      load 'morpheus/cli/library.rb'
+      # load 'morpheus/cli/library.rb' # gone until we collapse these again
+      load 'morpheus/cli/library_instance_types_command.rb'
+      load 'morpheus/cli/library_layouts_command.rb'
+      load 'morpheus/cli/library_upgrades_command.rb'
+      load 'morpheus/cli/library_container_types_command.rb'
+      load 'morpheus/cli/library_container_scripts_command.rb'
+      load 'morpheus/cli/library_container_templates_command.rb'
+      load 'morpheus/cli/library_option_types_command.rb'
+      load 'morpheus/cli/library_option_lists_command.rb'
+
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'
       # todo: combine checks, incidents, apps, and goups under monitoring?

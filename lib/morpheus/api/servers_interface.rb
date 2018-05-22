@@ -22,6 +22,10 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list(options={})
+    get(options)
+  end
+
   def create(options)
     url = "#{@base_url}/api/servers"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

@@ -118,7 +118,7 @@ class Morpheus::Cli::Shell
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         Term::ANSIColor::coloring = false
       end
-      opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+      opts.on('-V','--debug', "Print extra output for debugging.") do |json|
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       end
@@ -219,21 +219,22 @@ class Morpheus::Cli::Shell
       elsif input =~ /^\s*#/
         Morpheus::Logging::DarkPrinter.puts "comment ignored" if Morpheus::Logging.debug?
         return 0
-      elsif input =~ /^sleep/
-        sleep_sec = input.sub("sleep ", "").to_f
-        if (!(sleep_sec > 0))
-          # raise_command_error "sleep requires the argument [seconds]. eg. sleep 3.14"
-          puts_error  "sleep requires argument [seconds]. eg. sleep 3.14"
-          return false
-        end
-        log_history_command(input)
-        Morpheus::Logging::DarkPrinter.puts "sleeping for #{sleep_sec}s ... zzzZzzzZ" if Morpheus::Logging.debug?
-        begin
-          sleep(sleep_sec)
-        rescue Interrupt
-          Morpheus::Logging::DarkPrinter.puts "\nInterrupt. waking up from sleep early"
-        end
-        return 0
+      # this is a full blown command now
+      # elsif input =~ /^sleep/
+      #   sleep_sec = input.sub("sleep ", "").to_f
+      #   if (!(sleep_sec > 0))
+      #     # raise_command_error "sleep requires the argument [seconds]. eg. sleep 3.14"
+      #     puts_error  "sleep requires argument [seconds]. eg. sleep 3.14"
+      #     return false
+      #   end
+      #   log_history_command(input)
+      #   Morpheus::Logging::DarkPrinter.puts "sleeping for #{sleep_sec}s ... zzzZzzzZ" if Morpheus::Logging.debug?
+      #   begin
+      #     sleep(sleep_sec)
+      #   rescue Interrupt
+      #     Morpheus::Logging::DarkPrinter.puts "\nInterrupt. waking up from sleep early"
+      #   end
+      #   return 0
       elsif input =~ /^history/
         n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
         n_commands = n_commands.empty? ? 25 : n_commands.to_i

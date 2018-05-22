@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :count, :get, :add, :update, :remove
   register_subcommands :'passwd' => :change_password
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -35,7 +35,7 @@ class Morpheus::Cli::Users
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:account, :list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:account, :list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
       opts.footer = "List users."
     end
     optparse.parse!(args)
@@ -88,6 +88,37 @@ class Morpheus::Cli::Users
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
+    end
+  end
+
+  def count(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[options]")
+      build_common_options(opts, options, [:account, :query, :remote, :dry_run])
+      opts.footer = "Get the number of users."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      params = {}
+      params.merge!(parse_list_options(options))
+      if options[:dry_run]
+        print_dry_run @users_interface.dry.list(account_id, params)
+        return
+      end
+      json_response = @users_interface.list(account_id, params)
+      # print number only
+      if json_response['meta'] && json_response['meta']['total']
+        print cyan, json_response['meta']['total'], reset, "\n"
+      else
+        print yellow, "unknown", reset, "\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
     end
   end
 

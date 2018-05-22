@@ -58,7 +58,7 @@ module Morpheus::Cli::PrintHelper
     out << "\n"
     out << "#{color}#{bold}#{title}#{reset}"
     if !subtitles.empty?
-      out << "#{color} - #{subtitles.join(', ')}#{reset}"
+      out << "#{color} | #{subtitles.join(', ')}#{reset}"
     end
     out << "\n"
     out << "#{color}#{bold}==================#{reset}"

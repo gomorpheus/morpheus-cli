@@ -37,7 +37,7 @@ class Morpheus::Cli::VersionCommand
       puts(banner)
       puts("  Client Version: #{client_version}")
       puts("****************************************")
-      print reset,"\n"
+      print reset
     end
   end
 end

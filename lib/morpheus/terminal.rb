@@ -208,7 +208,7 @@ module Morpheus
           @coloring = false
           Term::ANSIColor::coloring = false
         end
-        opts.on('-V','--debug', "Print extra output for debugging. ") do |json|
+        opts.on('-V','--debug', "Print extra output for debugging.") do |json|
           @terminal_log_level = Morpheus::Logging::Logger::DEBUG
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil

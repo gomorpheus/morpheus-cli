@@ -23,6 +23,10 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list(options={})
+    get(options)
+  end
+
   def get_envs(id, options=nil)
     url = "#{@base_url}/api/instances/#{id}/envs"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }

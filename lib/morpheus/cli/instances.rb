@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :get, :add, :update, :remove, :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :add, :update, :remove, :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -40,7 +40,7 @@ class Morpheus::Cli::Instances
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -51,7 +51,8 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List instances."
     end
     optparse.parse!(args)
     connect(options)
@@ -74,15 +75,13 @@ class Morpheus::Cli::Instances
         params['serverId'] = host['id']
       end
 
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
         return
       end
-      json_response = @instances_interface.get(params)
+      json_response = @instances_interface.list(params)
       if options[:json]
         if options[:include_fields]
           json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
@@ -118,9 +117,7 @@ class Morpheus::Cli::Instances
         if host
           subtitles << "Host: #{host['name']}".strip
         end
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if instances.empty?
           print yellow,"No instances found.",reset,"\n"
@@ -173,6 +170,35 @@ class Morpheus::Cli::Instances
           print_results_pagination(json_response)
         end
         print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def count(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[options]")
+      build_common_options(opts, options, [:query, :remote, :dry_run])
+      opts.footer = "Get the number of instances."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params = {}
+      params.merge!(parse_list_options(options))
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.list(params)
+        return
+      end
+      json_response = @instances_interface.list(params)
+      # print number only
+      if json_response['meta'] && json_response['meta']['total']
+        print cyan, json_response['meta']['total'], reset, "\n"
+      else
+        print yellow, "unknown", reset, "\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -485,7 +511,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      build_common_options(opts, options, [:list, :json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :csv, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -500,9 +526,7 @@ class Morpheus::Cli::Instances
         container_ids = [options[:node_id]]
       end
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(container_ids, params)
@@ -2276,7 +2300,7 @@ private
   end
 
   def find_host_by_name(name)
-    results = @servers_interface.get({name: name})
+    results = @servers_interface.list({name: name})
     if results['servers'].empty?
       print_red_alert "Host not found by name #{name}"
       exit 1

@@ -286,6 +286,41 @@ module Morpheus
               options[:direction] = "desc"
             end
 
+            # arbitrary query parameters in the format -Q "category=web&phrase=nginx"
+            # opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'phrase=foobar&category=web'" ) do |val|
+            #   options[:query_filters_raw] = val
+            #   options[:query_filters] = {}
+            #   # todo: smarter parsing
+            #   val.split('&').each do |filter| 
+            #     k, v = filter.split('=')
+            #     # allow "woot:true instead of woot=true"
+            #     if (k.include?(":") && v == nil)
+            #       k, v = k.split(":")
+            #     end
+            #     if (!k.to_s.empty?)
+            #       options[:query_filters][k.to_s.strip] = v.to_s.strip
+            #     end
+            #   end
+            # end
+
+          when :query, :query_filters
+            # arbitrary query parameters in the format -Q "category=web&phrase=nginx"
+            opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'phrase=foobar&category=web'" ) do |val|
+              options[:query_filters_raw] = val
+              options[:query_filters] = {}
+              # todo: smarter parsing
+              val.split('&').each do |filter| 
+                k, v = filter.split('=')
+                # allow "woot:true instead of woot=true"
+                if (k.include?(":") && v == nil)
+                  k, v = k.split(":")
+                end
+                if (!k.to_s.empty?)
+                  options[:query_filters][k.to_s.strip] = v.to_s.strip
+                end
+              end
+            end
+
           when :last_updated
             # opts.on("--last-updated TIME", Time, "Filter by gte last updated") do |time|
             opts.on("--last-updated TIME", String, "Filter by Last Updated (gte)") do |time|
@@ -425,7 +460,7 @@ module Morpheus
           Term::ANSIColor::coloring = false
         end
 
-        opts.on('-V','--debug', "Print extra output for debugging. ") do
+        opts.on('-V','--debug', "Print extra output for debugging.") do
           options[:debug] = true
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
@@ -654,6 +689,51 @@ module Morpheus
           raise_command_error "Unable to acquire access token. Please verify your credentials and try again."
         end
         true
+      end
+
+      # parse the parameters provided by the common :list options
+      # returns Hash of params the format {"phrase": => "foobar", "max": 100}
+      def parse_list_options(options={})
+        list_params = {}
+        [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
+          if options.key?(k)
+            list_params[k.to_s] = options[k]
+          elsif options.key?(k.to_s)
+            list_params[k.to_s] = options[k.to_s]
+          end
+        end
+        # arbitrary filters
+        if options[:query_filters]
+          options[:query_filters].each do |k, v|
+            if k
+              list_params[k] = v
+            end
+          end
+        end
+        return list_params
+      end
+
+      # parse the subtitles provided by the common :list options
+      # returns Array of subtitles as strings in the format ["Phrase: blah", "Max: 100"]
+      def parse_list_subtitles(options={})
+        subtitles = []
+        list_params = {}
+        [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
+          if options.key?(k)
+            subtitles << "#{k.to_s}: #{options[k]}"
+          elsif options.key?(k.to_s)
+            subtitles << "#{k.to_s}: #{options[k.to_s]}"
+          end
+        end
+        # arbitrary filters
+        if options[:query_filters]
+          formatted_filters = options[:query_filters].collect {|k,v| "#{k.to_s}=#{v}" }.join('&')
+          subtitles << "Query: #{formatted_filters}"
+          # options[:query_filters].each do |k, v|
+          #   subtitles << "#{k.to_s}: #{v}"
+          # end
+        end
+        return subtitles
       end
 
       module ClassMethods

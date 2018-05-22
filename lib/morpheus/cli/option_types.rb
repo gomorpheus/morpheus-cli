@@ -233,7 +233,12 @@ module Morpheus
           else
             print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
             print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-            display_select_options(opt, select_options)
+            if select_options && select_options.size > 10
+              display_select_options(option_type, select_options.first(10))
+              puts " (#{select_options.size-1} more)"
+            else
+              display_select_options(option_type, select_options)
+            end
             print "\n"
             exit 1
           end
@@ -247,7 +252,12 @@ module Morpheus
             if option_type['required']
               print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-              display_select_options(option_type, select_options)
+              if select_options && select_options.size > 10
+                display_select_options(option_type, select_options.first(10))
+                puts " (#{select_options.size-1} more)"
+              else
+                display_select_options(option_type, select_options)
+              end
               print "\n"
               exit 1
             else

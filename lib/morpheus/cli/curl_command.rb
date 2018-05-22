@@ -21,7 +21,7 @@ class Morpheus::Cli::CurlCommand
 This invokes the `curl` command with url "appliance_url/api/$0
 and includes the authorization header -H "Authorization: Bearer access_token"
 Arguments for the curl command should be passed after ' -- '
-Example: morpheus curl "/api/servers/1" -- -XGET -sV
+Example: morpheus curl "/api/servers/1" -- -XGET -sv
 
 EOT
     end

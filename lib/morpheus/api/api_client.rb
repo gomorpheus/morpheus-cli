@@ -145,6 +145,10 @@ class Morpheus::APIClient
     Morpheus::UserGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def user_sources
+    Morpheus::UserSourcesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def logs
     Morpheus::LogsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
@@ -253,6 +257,30 @@ class Morpheus::APIClient
 
   def storage_providers
     Morpheus::StorageProvidersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_instance_types
+    Morpheus::LibraryInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_layouts
+    Morpheus::LibraryLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_container_upgrades
+    Morpheus::LibraryContainerUpgradesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_container_types
+    Morpheus::LibraryContainerTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_container_scripts
+    Morpheus::LibraryContainerScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def library_container_templates
+    Morpheus::LibraryContainerTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
 end

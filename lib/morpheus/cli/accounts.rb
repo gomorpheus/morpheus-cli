@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Accounts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :count, :get, :add, :update, :remove
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -31,17 +31,16 @@ class Morpheus::Cli::Accounts
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :remote, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :remote, :dry_run])
+      opts.footer = "List accounts."
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.list(params)
         return
@@ -54,9 +53,7 @@ class Morpheus::Cli::Accounts
       else
         title = "Morpheus Accounts"
         subtitles = []
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if accounts.empty?
           puts yellow,"No accounts found.",reset
@@ -65,6 +62,35 @@ class Morpheus::Cli::Accounts
           print_results_pagination(json_response)
         end
         print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def count(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[options]")
+      build_common_options(opts, options, [:query, :remote, :dry_run])
+      opts.footer = "Get the number of accounts."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params = {}
+      params.merge!(parse_list_options(options))
+      if options[:dry_run]
+        print_dry_run @accounts_interface.dry.list(params)
+        return
+      end
+      json_response = @accounts_interface.list(params)
+      # print number only
+      if json_response['meta'] && json_response['meta']['total']
+        print cyan, json_response['meta']['total'], reset, "\n"
+      else
+        print yellow, "unknown", reset, "\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-  register_subcommands :list, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
+  register_subcommands :list, :count, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -36,7 +36,7 @@ class Morpheus::Cli::Hosts
   def list(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -81,7 +81,8 @@ class Morpheus::Cli::Hosts
       opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
         params[:agentInstalled] = false
       end
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List hosts."
     end
     optparse.parse!(args)
     connect(options)
@@ -98,15 +99,13 @@ class Morpheus::Cli::Hosts
         params['zoneId'] = cloud['id']
       end
 
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.get(params)
+        print_dry_run @servers_interface.dry.list(params)
         return
       end
-      json_response = @servers_interface.get(params)
+      json_response = @servers_interface.list(params)
 
       if options[:json]
         if options[:include_fields]
@@ -140,9 +139,7 @@ class Morpheus::Cli::Hosts
         if cloud
           subtitles << "Cloud: #{cloud['name']}".strip
         end
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if servers.empty?
           print yellow,"No hosts found.",reset,"\n"
@@ -206,6 +203,35 @@ class Morpheus::Cli::Hosts
     end
   end
 
+  def count(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[options]")
+      build_common_options(opts, options, [:query, :remote, :dry_run])
+      opts.footer = "Get the number of hosts."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params = {}
+      params.merge!(parse_list_options(options))
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.list(params)
+        return
+      end
+      json_response = @servers_interface.list(params)
+      # print number only
+      if json_response['meta'] && json_response['meta']['total']
+        print cyan, json_response['meta']['total'], reset, "\n"
+      else
+        print yellow, "unknown", reset, "\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def get(args)
     options = {}
     optparse = OptionParser.new do|opts|
@@ -230,7 +256,7 @@ class Morpheus::Cli::Hosts
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @servers_interface.dry.get(arg.to_i)
         else
-          print_dry_run @servers_interface.dry.get({name: arg})
+          print_dry_run @servers_interface.dry.list({name: arg})
         end
         return
       end
@@ -310,7 +336,7 @@ class Morpheus::Cli::Hosts
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @servers_interface.dry.get(arg.to_i)
         else
-          print_dry_run @servers_interface.dry.get({name: arg})
+          print_dry_run @servers_interface.dry.list({name: arg})
         end
         return
       end
@@ -970,7 +996,7 @@ class Morpheus::Cli::Hosts
   end
 
   def find_host_by_name(name)
-    results = @servers_interface.get({name: name})
+    results = @servers_interface.list({name: name})
     if results['servers'].empty?
       print_red_alert "Server not found by name #{name}"
       exit 1

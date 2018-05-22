@@ -797,7 +797,7 @@ class Morpheus::Cli::PowerSchedulingCommand
   end
 
   def find_server_by_name(name)
-    servers = @servers_interface.get({name: name.to_s})['servers']
+    servers = @servers_interface.list({name: name.to_s})['servers']
     if servers.empty?
       print_red_alert "Host not found by name #{name}"
       return nil

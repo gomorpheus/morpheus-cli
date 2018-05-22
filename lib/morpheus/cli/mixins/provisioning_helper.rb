@@ -117,24 +117,63 @@ module Morpheus::Cli::ProvisioningHelper
       return find_cloud_by_name_for_provisioning(group_id, val)
     end
   end
-  def find_instance_type_by_code(code)
-    results = instance_types_interface.get({code: code})
-    if results['instanceTypes'].empty?
-      print_red_alert "Instance Type not found by code #{code}"
-      # return nil
-      exit 1
+
+  def find_instance_type_by_id(id)
+    begin
+      json_response = instance_types_interface.get(id.to_i)
+      return json_response['instanceType']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Instance Type not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
     end
-    return results['instanceTypes'][0]
+  end
+
+  def find_instance_type_by_code(code)
+    results = instance_types_interface.list({code: code})
+    instance_types = results['instanceTypes']
+    if instance_types.empty?
+      print_red_alert "Instance Type not found by code #{code}"
+      return nil
+    end
+    if instance_types.size() > 1
+      print as_pretty_table(instance_types, [:id,:name,:code], {color:red})
+      print_red_alert "Try using ID instead"
+      return nil
+    end
+    # return instance_types[0]
+    # fetch by ID to get full details
+    # could also use ?details-true with search
+    return find_instance_type_by_id(instance_types[0]['id'])
   end
 
   def find_instance_type_by_name(name)
-    results = instance_types_interface.get({name: name})
-    if results['instanceTypes'].empty?
+    results = instance_types_interface.list({name: name})
+    instance_types = results['instanceTypes']
+    if instance_types.empty?
       print_red_alert "Instance Type not found by name #{name}"
-      # return nil
-      exit 1
+      return nil
     end
-    return results['instanceTypes'][0]
+    if instance_types.size() > 1
+      print as_pretty_table(instance_types, [:id,:name,:code], {color:red})
+      print_red_alert "Try using ID instead"
+      return nil
+    end
+    # return instance_types[0]
+    # fetch by ID to get full details
+    # could also use ?details-true with search
+    return find_instance_type_by_id(instance_types[0]['id'])
+  end
+
+  def find_instance_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_instance_type_by_id(val)
+    else
+      return find_instance_type_by_name(val)
+    end
   end
 
   def find_instance_by_name_or_id(val)
@@ -205,6 +244,7 @@ module Morpheus::Cli::ProvisioningHelper
       instance_type_code = instance_type_prompt['type']
     end
     instance_type = find_instance_type_by_code(instance_type_code)
+    exit 1 if !instance_type
 
     # Instance Name
 
@@ -269,7 +309,12 @@ module Morpheus::Cli::ProvisioningHelper
     service_plans = service_plans_json["plans"]
     service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
     plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
-    service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
+    plan_id = plan_prompt['servicePlan']
+    service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
+    if !service_plan
+      print_red_alert "Plan not found by id #{plan_id}"
+      exit 1
+    end
     payload['instance']['plan'] = {'id' => service_plan["id"]}
 
     # prompt for volumes
