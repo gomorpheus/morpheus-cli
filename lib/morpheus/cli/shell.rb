@@ -174,12 +174,102 @@ class Morpheus::Cli::Shell
     # all_commands = input.gsub(/(\;)(?=(?:[^"]|"[^"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
     all_commands = input.gsub(/(\;)(?=(?:[^"']|"[^'"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
     #puts "executing #{all_commands.size} commands: #{all_commands}"
+    final_command_result = nil
     all_commands.each do |cmd|
-      execute_command(cmd)
+      flow = parse_commands_and_operators(cmd)
+      if flow.size > 1
+        last_command_result = nil
+        if ['&&','||', '|'].include?(flow.first)
+          puts_error "invalid command format, begins with an operator: #{cmd}"
+          return 9
+        elsif ['&&','||', '|'].include?(flow.last)
+          puts_error "invalid command format, ends with an operator: #{cmd}"
+          return 9
+        # elsif ['&&','||', '|'].include?(flow.last)
+        #   puts_error "invalid command format, consecutive operators: #{cmd}"
+        else
+          #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
+          previous_command = nil
+          previous_command_result = nil
+          current_operator = nil
+          still_executing = true
+          flow.each do |flow_cmd|
+            if still_executing
+              if flow_cmd == '&&'
+                # AND operator
+                current_operator = flow_cmd
+                if previous_command_result.to_i != 0
+                  still_executing = false
+                end
+              elsif flow_cmd == '||' # or with previous command
+                current_operator = flow_cmd
+                if previous_command_result.to_i == 0
+                  still_executing = false
+                end
+              elsif flow_cmd == '|' # or with previous command
+                puts_error "The PIPE (|) operator is not yet supported =["
+                previous_command_result = nil
+                still_executing = false
+                # or just continue?
+              else # it's a command, not an operator
+                current_operator = nil
+                previous_command_result = execute_command(flow_cmd)
+              end
+              previous_command = flow_cmd
+            else
+              #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
+            end 
+            # previous_command = flow_cmd
+          end
+          final_command_result = previous_command_result
+        end
+      else
+        # just one command, this else is not needed tho
+        final_command_result = execute_command(cmd)
+      end
     end
     # skip logging of exit and !cmd
     unless input.strip.empty? || (["exit", "history"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
       log_history_command(input.strip)
+    end
+    return final_command_result
+  end
+
+  # returns Array of strings like [command1, operator, command2, operator, command3]
+  # eg. ["instances get 555", "||", "echo '%redInstance 555 is missing!'"]
+  def parse_commands_and_operators(input)
+    cmd = input
+    cmd_flow = []
+    begin
+      and_regex = /\s+\&\&\s+/
+      or_regex = /\s+\|\|\s+/
+      pipe_regex = /\s+\|\s+/
+      still_parsing = true
+      while still_parsing
+        and_index = cmd.index(and_regex)
+        or_index = cmd.index(or_regex)
+        pipe_index = cmd.index(pipe_regex)
+        if and_index # && (or_index == nil || or_index > and_index) && (pipe_index == nil || pipe_index > and_index)
+          cmd_flow << cmd[0..and_index-1]
+          cmd_flow << "&&"
+          cmd = cmd[and_index..-1].sub(and_regex, '')
+        elsif or_index && (and_index == nil || and_index > or_index) && (pipe_index == nil || pipe_index > or_index)
+          cmd_flow << cmd[0..or_index-1]
+          cmd_flow << "||"
+          cmd = cmd[or_index..-1].sub(or_regex, '')
+        elsif pipe_index && (and_index == nil || and_index > pipe_index) && (or_index == nil || or_index > pipe_index)
+          cmd_flow << cmd[0..pipe_index-1]
+          cmd_flow << "|"
+          cmd = cmd[pipe_index..-1].sub(pipe_regex, '')
+        else
+          cmd_flow << cmd
+          still_parsing = false
+        end
+      end
+      return cmd_flow
+    rescue => ex
+      puts_error "error parsing command flow: #{ex.message}"
+      return [input]
     end
   end
 
@@ -375,28 +465,30 @@ class Morpheus::Cli::Shell
         log_history_command(input)
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
-
+      cmd_result = nil
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
         cmd_args = argv[1..-1]
         if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
-          Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
+          cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
         else
           puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a morpheus command. Use 'help' to see the list of available commands."
           @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
+          cmd_result = -1
         end
       rescue Interrupt
         # nothing to do
         @history_logger.warn "shell interrupt" if @history_logger
         print "\nInterrupt. aborting command '#{input}'\n"
-      rescue SystemExit
+      rescue SystemExit => cmdexit
         # nothing to do
         # print "\n"
+        cmd_result = cmdexit.status
       rescue => e
         @history_logger.error "#{e.message}" if @history_logger
-        Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
+        cmd_result = Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
         # exit 1
       end
 
@@ -406,6 +498,7 @@ class Morpheus::Cli::Shell
         @return_to_log_level = nil
       end
 
+      return cmd_result
     end
 
   end
