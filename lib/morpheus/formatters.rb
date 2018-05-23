@@ -198,39 +198,49 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
         if field.empty?
           next
         end
+
+        # supports "field as Label"
+        field_key = field.strip
+        field_label = field_key
+
+        if field.index(/\s+as\s+/)
+          field_key, field_label = field.split(/\s+as\s+/)
+          if !field_label
+            field_label = field_key
+          end
+        end
+
         if field.include?(".")
-          # could do this instead...
-          # namespaces = field.split(".")
-          # cur_data = data
-          # namespaces.each
-          #   if index != namespaces.length - 1
-          #     cur_data[ns] ||= {}
-          #   else
-          #     cur_data[ns] = get_object_value(new_data, field)
-          #   end
-          # end
-          namespaces = field.split(".")
-          cur_data = data
-          cur_filtered_data = my_data
-          namespaces.each_with_index do |ns, index|
-            if index != namespaces.length - 1
-              if cur_data
-                cur_data = cur_data[ns] || cur_data[ns.to_sym]
+          #if field.index(/\s+as\s+/)
+          if field_label != field_key
+            # collapse to a value
+            my_data[field_label] = get_object_value(data, field_key)
+          else
+            # keep the full object structure
+            namespaces = field.split(".")
+            cur_data = data
+            cur_filtered_data = my_data
+            namespaces.each_with_index do |ns, index|
+              if index != namespaces.length - 1
+                if cur_data
+                  cur_data = cur_data[ns] || cur_data[ns.to_sym]
+                else
+                  cur_data = nil
+                end
+                cur_filtered_data[ns] ||= {}
+                cur_filtered_data = cur_filtered_data[ns]
               else
-                cur_data = nil
-              end
-              cur_filtered_data[ns] ||= {}
-              cur_filtered_data = cur_filtered_data[ns]
-            else
-              if cur_data.respond_to?("[]")
-                cur_filtered_data[ns] = cur_data[ns] || cur_data[ns.to_sym]
-              else
-                cur_filtered_data[ns] = nil
+                if cur_data.respond_to?("[]")
+                  cur_filtered_data[ns] = cur_data[ns] || cur_data[ns.to_sym]
+                else
+                  cur_filtered_data[ns] = nil
+                end
               end
             end
           end
         else
-          my_data[field] = data[field] || data[field.to_sym]
+          #my_data[field] = data[field] || data[field.to_sym]
+          my_data[field_label] = data[field_key] || data[field_key.to_sym]
         end
       end
       return my_data

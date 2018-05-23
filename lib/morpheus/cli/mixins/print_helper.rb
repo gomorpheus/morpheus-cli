@@ -574,8 +574,15 @@ module Morpheus::Cli::PrintHelper
     columns.each do |col|
       # determine label
       if col.is_a?(String)
-        k = col
-        v = col
+        # supports "field as Label"
+        field_key, field_label = col.split(/\s+as\s+/)
+        if field_key && field_label
+          k = field_label.strip
+          v = field_key.strip
+        else
+          k = col.strip
+          v = col.strip
+        end
         build_column_definitions([{(k) => v}]).each do |r|
           results << r if r
         end
@@ -684,15 +691,13 @@ module Morpheus::Cli::PrintHelper
     newline = opts[:csv_newline] || opts[:newline] || "\n"
     include_header = opts[:csv_no_header] ? false : true
     do_quotes = opts[:csv_quotes] || opts[:quotes]
-    # allow passing a single hash instead of an array of hashes
-    # todo: stop doing this, always pass an array!
-    if columns.is_a?(Hash)
-      columns = columns.collect {|k,v| {(k) => v} }
-    end
-    columns = columns.flatten.compact
+
+    column_defs = build_column_definitions(columns)
+    #columns = columns.flatten.compact
     data_array = [data].flatten.compact
+
     if include_header
-      headers = columns.collect {|column_def| column_def.is_a?(Hash) ? column_def.keys[0].to_s : column_def.to_s }
+      headers = column_defs.collect {|column_def| column_def.label }
       if do_quotes
         headers = headers.collect {|it| quote_csv_value(it) }
       end
@@ -703,8 +708,10 @@ module Morpheus::Cli::PrintHelper
     data_array.each do |obj|
       if obj
         cells = []
-        columns.each do |column_def|
-          value = get_object_value(obj, column_def)
+        column_defs.each do |column_def|
+          label = column_def.label
+          value = column_def.display_method.call(obj)
+          # value = get_object_value(obj, column_def)
           if do_quotes
             cells << quote_csv_value(value)
           else
@@ -718,6 +725,7 @@ module Morpheus::Cli::PrintHelper
     out << lines.join(newline)
     #out << delim
     out
+
   end
 
   def records_as_csv(records, opts={}, default_columns=nil)
@@ -748,16 +756,7 @@ module Morpheus::Cli::PrintHelper
     if !data
       return "null" # "No data"
     end
-    
-    # include_fields = options[:include_fields]
-    # if include_fields
-    #   json_fields_for = options[:json_fields_for] || options[:fields_for] || options[:root_field]
-    #   if json_fields_for && data[json_fields_for]
-    #     data[json_fields_for] = filter_data(data[json_fields_for], include_fields)
-    #   else
-    #     data = filter_data(data, include_fields)
-    #   end
-    # end
+
     do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : true
     if do_pretty
       out << JSON.pretty_generate(data)
