@@ -164,6 +164,12 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
+      opts.on('--fileName VALUE', String, "File Name") do |val|
+        params['fileName'] = val
+      end
+      opts.on('--filePath VALUE', String, "File Path") do |val|
+        params['filePath'] = val
+      end
       # opts.on('--code VALUE', String, "Code") do |val|
       #   params['code'] = val
       # end
@@ -179,6 +185,28 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
       #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
       # end
+      opts.on('--template TEXT', String, "Contents of the template.") do |val|
+        params['template'] = val
+      end
+      opts.on('--file FILE', "File containing the template. This can be used instead --template" ) do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['template'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+        if !params['fileName']
+          params['fileName'] = File.basename(full_filename)
+        end
+        # if !params['filePath']
+        #   params['filePath'] = File.dirname(full_filename)
+        # end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new file template." + "\n" +
                     "[name] is required and can be passed as --name instead."
@@ -233,6 +261,12 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
+      opts.on('--fileName VALUE', String, "File Name") do |val|
+        params['fileName'] = val
+      end
+      opts.on('--filePath VALUE', String, "File Path") do |val|
+        params['filePath'] = val
+      end
       # opts.on('--code VALUE', String, "Code") do |val|
       #   params['code'] = val
       # end
@@ -246,6 +280,18 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
       #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
       # end
+      opts.on('--template TEXT', String, "Contents of the template.") do |val|
+        params['template'] = val
+      end
+      opts.on('--file FILE', "File containing the template. This can be used instead --template" ) do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['template'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update a file template." + "\n" +
                     "[name] is required. This is the name or id of a file template."

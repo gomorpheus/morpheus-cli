@@ -265,18 +265,6 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
           print_red_alert "File not found: #{full_filename}"
           exit 1
         end
-        # use the filename as the name by default.
-        if !params['name']
-          params['name'] = File.basename(full_filename)
-        end
-      end
-      opts.on('--file FILE', "File containing the script. This can be used instead --script" ) do |filename|
-        if File.exists?(File.expand_path(filename))
-          params['script'] = File.read(File.expand_path(filename))
-        else
-          print_red_alert "File not found: #{filename}"
-          exit 1
-        end
       end
       # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
       #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
