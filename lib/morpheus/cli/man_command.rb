@@ -111,13 +111,8 @@ EOT
   def system_command_available?(cmd)
     has_it = false
     begin
-      cmd = cmd.strip
-      if cmd.include?(';') || 
-          cmd =~ /^rm/  || cmd.strip =~ /^mv/ || cmd.strip =~ /^passwd/ || 
-          cmd.include?("/rm")  || cmd.include?("/mv") || cmd.include?("/passwd")
-        raise_command_error "The specified system command '#{cmd}' is invalid."
-      end
-      system("which #{cmd} > /dev/null 2>&1")
+      cmd = cmd.strip.gsub("'",'')
+      system("which '#{cmd}' > /dev/null 2>&1")
       has_it = $?.success?
     rescue => e
       raise e

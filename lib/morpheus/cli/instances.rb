@@ -208,7 +208,7 @@ class Morpheus::Cli::Instances
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       # opts.banner = subcommand_usage("[type] [name]")
       opts.banner = subcommand_usage("[name] -c CLOUD -t TYPE")
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
@@ -323,7 +323,7 @@ class Morpheus::Cli::Instances
   def update(args)
     usage = "Usage: morpheus instances update [name] [options]"
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -384,7 +384,7 @@ class Morpheus::Cli::Instances
   def status_check(args)
     out = ""
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:quiet, :json, :remote]) # no :dry_run, just do it man
     end
@@ -416,7 +416,7 @@ class Morpheus::Cli::Instances
 
   def stats(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -469,7 +469,7 @@ class Morpheus::Cli::Instances
 
   def console(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-n', '--node NODE_ID', "Scope console to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
@@ -506,7 +506,7 @@ class Morpheus::Cli::Instances
 
   def logs(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
@@ -576,7 +576,7 @@ class Morpheus::Cli::Instances
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( nil, '--containers', "Display Instance Containers" ) do
         options[:include_containers] = true
@@ -788,7 +788,7 @@ class Morpheus::Cli::Instances
 
   def list_containers(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -883,7 +883,7 @@ class Morpheus::Cli::Instances
 
   def backups(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
@@ -927,7 +927,7 @@ class Morpheus::Cli::Instances
 
   def clone(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -g GROUP")
       build_option_type_options(opts, options, clone_instance_option_types(false))
       opts.on( '-g', '--group GROUP', "Group Name or ID for the new instance" ) do |val|
@@ -987,7 +987,7 @@ class Morpheus::Cli::Instances
 
   def envs(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -1028,7 +1028,7 @@ class Morpheus::Cli::Instances
   def setenv(args)
     options = {}
 
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] VAR VALUE [-e]")
       opts.on( '-e', "Exportable" ) do |exportable|
         options[:export] = exportable
@@ -1068,7 +1068,7 @@ class Morpheus::Cli::Instances
 
   def delenv(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] VAR")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -1101,7 +1101,7 @@ class Morpheus::Cli::Instances
   def stop(args)
     params = {'server' => true, 'muteMonitoring' => false}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -1139,7 +1139,7 @@ class Morpheus::Cli::Instances
   def start(args)
     params = {'server' => true}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -1172,7 +1172,7 @@ class Morpheus::Cli::Instances
   def restart(args)
     params = {'server' => true, 'muteMonitoring' => true}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -1210,7 +1210,7 @@ class Morpheus::Cli::Instances
   def suspend(args)
     params = {'server' => true, 'muteMonitoring' => false}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -1246,7 +1246,7 @@ class Morpheus::Cli::Instances
   def eject(args)
     params = {'server' => true}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
@@ -1279,7 +1279,7 @@ class Morpheus::Cli::Instances
   def stop_service(args)
     params = {'server' => false, 'muteMonitoring' => false}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -1317,7 +1317,7 @@ class Morpheus::Cli::Instances
   def start_service(args)
     params = {'server' => true}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:quiet, :json, :dry_run, :remote])
     end
@@ -1348,7 +1348,7 @@ class Morpheus::Cli::Instances
   def restart_service(args)
     params = {'server' => false, 'muteMonitoring' => true}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -1527,7 +1527,7 @@ class Morpheus::Cli::Instances
 
   def resize(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -1603,7 +1603,7 @@ class Morpheus::Cli::Instances
 
   def backup(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
@@ -1639,7 +1639,7 @@ class Morpheus::Cli::Instances
   def remove(args)
     options = {}
     query_params = {keepBackups: 'off', force: 'off'}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [-fB]")
       opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'
@@ -1687,7 +1687,7 @@ class Morpheus::Cli::Instances
 
   def firewall_disable(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
@@ -1718,7 +1718,7 @@ class Morpheus::Cli::Instances
 
   def firewall_enable(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
@@ -1749,7 +1749,7 @@ class Morpheus::Cli::Instances
 
   def security_groups(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -1796,7 +1796,7 @@ class Morpheus::Cli::Instances
     options = {}
     security_group_ids = nil
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [-S] [-c]")
       opts.on( '-S', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
         security_group_ids = secgroups.split(",")
@@ -1842,7 +1842,7 @@ class Morpheus::Cli::Instances
 
   def run_workflow(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [workflow] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -1898,7 +1898,7 @@ class Morpheus::Cli::Instances
   def import_snapshot(args)
     options = {}
     storage_provider_id = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on("--storage-provider ID", String, "Optional storage provider") do |val|
         storage_provider_id = val

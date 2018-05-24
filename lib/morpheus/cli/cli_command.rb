@@ -389,6 +389,8 @@ module Morpheus
               options[:format] = :json
               options[:pretty_json] = false
             end
+            
+            opts.add_hidden_option('json-raw') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :yaml
             opts.on(nil, '--yaml', "YAML Output") do
@@ -477,6 +479,7 @@ module Morpheus
           puts opts
           exit
         end
+
         opts
       end
 

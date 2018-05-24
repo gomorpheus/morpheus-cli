@@ -90,16 +90,15 @@ module Morpheus
     end
 
     attr_accessor :prompt #, :angry_prompt
-    attr_reader :stdin, :stdout, :stderr, :homedir
+    attr_reader :stdin, :stdout, :stderr, :home_directory
 
 
+    # Create a new instance of Morpheus::Terminal
     # @param stdin  [IO] Default is STDIN
     # @param stdout [IO] Default is STDOUT
     # @param stderr [IO] Default is STDERR
     # @param [IO] stderr
     # @stderr = stderr
-    # @homedir = homedir
-    # instead, setup global stuff for now...
     def initialize(stdin=STDIN,stdout=STDOUT, stderr=STDERR, homedir=nil)
       # todo: establish config context for executing commands, 
     #       so you can run them in parallel within the same process
@@ -114,8 +113,8 @@ module Morpheus
       set_stderr(stderr)
       
       # establish home directory
-      @homedir = homedir || ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
-      Morpheus::Cli.home_directory = @homedir
+      use_homedir = homedir || ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
+      set_home_directory(use_homedir)
       
       # use colors by default
       set_coloring(STDOUT.isatty)
@@ -173,6 +172,20 @@ module Morpheus
         @stderr = io
       end
       @stderr
+    end
+
+    def set_home_directory(homedir)
+      full_homedir = File.expand_path(homedir)
+      # if !Dir.exists?(full_homedir)
+      #   print_red_alert "Directory not found: #{full_homedir}"
+      #   exit 1
+      # end
+      @home_directory = full_homedir
+      
+      # todo: deprecate this
+      Morpheus::Cli.home_directory = full_homedir
+
+      @home_directory
     end
 
     # def coloring=(v)

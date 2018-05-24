@@ -16,6 +16,10 @@ class Morpheus::Cli::Shell
 
   @@instance = nil
 
+  def self.has_instance?
+    defined?(@@instance) && @@instance
+  end
+
   def self.instance
     @@instance ||= reload_instance
   end
@@ -108,12 +112,55 @@ class Morpheus::Cli::Shell
     usage = "Usage: morpheus #{command_name}"
     optparse = OptionParser.new do|opts|
       opts.banner = usage
+      # change to a temporary home directory, delete it afterwards.
+      opts.on('-e','--exec COMMAND', "Execute the provided morpheus commands and exit.") do |val|
+        @execute_mode = true
+        @execute_mode_command = val
+      end
       opts.on('--norc','--norc', "Do not read and execute the personal initialization script .morpheusrc") do
         @norc = true
       end
       opts.on('-I','--insecure', "Allow for insecure HTTPS communication i.e. bad SSL certificate") do |val|
         @@insecure = true
         Morpheus::RestClient.enable_ssl_verification = false
+      end
+       opts.on('-Z','--incognito', "Incognito mode. Use a temporary shell, no saved credentials and no history.") do
+        @incognito_mode = true
+        #@norc = true # perhaps?
+        tmpdir = ENV['MORPHEUS_CLI_TMPDIR'] || ENV['TMPDIR'] || ENV['TMP']
+        if !tmpdir
+          puts_error "Temporary directory not found. Use environment variable MORPHEUS_CLI_TMPDIR or TMPDIR or TMP"
+        end
+        @original_home_directory = my_terminal.home_directory
+        @temporary_home_directory = File.join(tmpdir, "morpheus-temp-shell-#{rand().to_s[2..7]}")
+        # change to a temporary home directory
+        Morpheus::Logging::DarkPrinter.puts "incognito mode" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "temporary home directory is #{@temporary_home_directory}" if Morpheus::Logging.debug?
+        my_terminal.set_home_directory(@temporary_home_directory)
+        # wow..this already has cached list of Remote.appliances
+        # this is kinda nice though..keep it for now, 
+        #Morpheus::Cli::Remote.load_appliance_file
+        
+        Morpheus::Cli::Remote.appliances.each do |app_name, app|
+          #app[:username] = "(anonymous)"
+          #app[:status] = "fresh"
+          app[:authenticated] = false
+          app.delete(:username)
+          app.delete(:last_login_at)
+          app.delete(:last_logout_at)
+          app.delete(:last_success_at)
+          app.delete(:last_check)
+          app.delete(:username)
+          app.delete(:error)
+          #app[:error] = "ho ho ho"
+        end
+        
+        # Morpheus::Cli::Remote.save_appliances(new_remote_config)
+
+        # Morpheus::Cli::Remote.clear_active_appliance
+        # Morpheus::Cli::Credentials.clear_saved_credentials(@appliance_name)
+        # Morpheus::Cli::Credentials.load_saved_credentials
+        # Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
       end
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         Term::ANSIColor::coloring = false
@@ -146,18 +193,63 @@ class Morpheus::Cli::Shell
     # recalculate_prompt()
     # recalculate_auto_complete_commands()
 
-    exit = false
-    while !exit do
-      Readline.completion_append_character = " "
-      Readline.completion_proc = @auto_complete
-      Readline.basic_word_break_characters = ""
-      #Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
-      input = Readline.readline(@calculated_prompt, true).to_s
-      input = input.strip
+    result = nil
+    if @execute_mode_command
+      # execute a single command and exit
+      result = execute_commands(@execute_mode_command)
+    else
+      # interactive prompt
+      result = 0
+      @exit_now_please = false
+      while !@exit_now_please do
+        Readline.completion_append_character = " "
+        Readline.completion_proc = @auto_complete
+        Readline.basic_word_break_characters = ""
+        #Readline.basic_word_break_characters = "\t\n\"\‘`@$><=;|&{( "
+        input = Readline.readline(@calculated_prompt, true).to_s
+        input = input.strip
 
-      execute_commands(input)
+        result = execute_commands(input)
+      end
     end
     
+    # incognito mode, cover our tracks
+    if @temporary_home_directory
+      if @temporary_home_directory.include?("morpheus-temp-shell")
+        begin
+          FileUtils.remove_dir(@temporary_home_directory, true)
+          Morpheus::Logging::DarkPrinter.puts "cleaning up temporary home directory #{@temporary_home_directory}" if Morpheus::Logging.debug?
+        rescue
+        end
+      end
+      @temporary_home_directory = nil
+      if @original_home_directory
+        my_terminal.set_home_directory(@original_home_directory)
+      end
+      @original_home_directory = nil
+    end
+
+    return result
+  end
+
+  # return exitstatus integer for a given command result
+  #todo: clean up CliCommand return values, handle a few diff types for now
+  def parse_result_exitstatus(result)
+    exit_code, err = 0, nil
+    if result.is_a?(Array) # exit_code, err
+      exit_code = result[0].to_i
+      err = result[1]
+    elsif result == nil || result == true || result == 0
+      exit_code = 0
+    elsif result == false
+      exit_code = 1
+    # elsif result.is_a?(Integer)
+    #   exit_code = result.to_i
+    else
+      exit_code = result.to_i
+    end
+    # return exit_code, err
+    return exit_code
   end
 
   # same as Terminal instance
@@ -198,12 +290,12 @@ class Morpheus::Cli::Shell
               if flow_cmd == '&&'
                 # AND operator
                 current_operator = flow_cmd
-                if previous_command_result.to_i != 0
+                if parse_result_exitstatus(previous_command_result) != 0
                   still_executing = false
                 end
               elsif flow_cmd == '||' # or with previous command
                 current_operator = flow_cmd
-                if previous_command_result.to_i == 0
+                if parse_result_exitstatus(previous_command_result) == 0
                   still_executing = false
                 end
               elsif flow_cmd == '|' # or with previous command
@@ -282,7 +374,9 @@ class Morpheus::Cli::Shell
       if input == 'exit'
         #print cyan,"Goodbye\n",reset
         @history_logger.info "exit" if @history_logger
-        exit 0
+        @exit_now_please = true
+        return 0
+        #exit 0
       elsif input == 'help'
 
         #print_h1 "Morpheus Shell Help", [], white
@@ -356,44 +450,44 @@ class Morpheus::Cli::Shell
         @history_logger = load_history_logger
         puts "history cleared!"
         return 0
-      elsif input == "edit rc"
-        fn = Morpheus::Cli::DotFile.morpheusrc_filename
-        editor = ENV['EDITOR'] # || 'nano'
-        if !editor
-          puts "You have no EDITOR defined. Use 'export EDITOR=emacs'"
-          #puts "Trying nano..."
-          #editor = "nano"
-        end
-        system("which #{editor} > /dev/null 2>&1")
-        has_editor = $?.success?
-        if has_editor
-          puts "opening #{fn} for editing with #{editor} ..."
-          system("#{editor} #{fn}")
-          puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
-        else
-          puts_error2 Morpheus::Terminal.angry_prompt
-          puts_error "The defined EDITOR '#{editor}' was not found on your system."
-        end
-        return 0 # $?
-      elsif input == "edit profile"
-        fn = Morpheus::Cli::DotFile.morpheus_profile_filename
-        editor = ENV['EDITOR'] # || 'nano'
-        if !editor
-          puts "You have no EDITOR defined. Use 'export EDITOR=emacs'."
-          #puts "Trying nano..."
-          #editor = "nano"
-        end
-        system("which #{editor} > /dev/null 2>&1")
-        has_editor = $?.success?
-        if has_editor
-          puts "opening #{fn} for editing with #{editor} ..."
-          `#{editor} #{fn}`
-          puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
-        else
-          puts_error Morpheus::Terminal.angry_prompt
-          puts_error "The defined EDITOR '#{editor}' was not found on your system."
-        end
-        return 0 # $?
+      # elsif input == "edit rc"
+      #   fn = Morpheus::Cli::DotFile.morpheusrc_filename
+      #   editor = ENV['EDITOR'] # || 'nano'
+      #   if !editor
+      #     puts "You have no EDITOR defined. Use 'export EDITOR=emacs'"
+      #     #puts "Trying nano..."
+      #     #editor = "nano"
+      #   end
+      #   system("which #{editor} > /dev/null 2>&1")
+      #   has_editor = $?.success?
+      #   if has_editor
+      #     puts "opening #{fn} for editing with #{editor} ..."
+      #     system("#{editor} #{fn}")
+      #     puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
+      #   else
+      #     puts_error2 Morpheus::Terminal.angry_prompt
+      #     puts_error "The defined EDITOR '#{editor}' was not found on your system."
+      #   end
+      #   return 0 # $?
+      # elsif input == "edit profile"
+      #   fn = Morpheus::Cli::DotFile.morpheus_profile_filename
+      #   editor = ENV['EDITOR'] # || 'nano'
+      #   if !editor
+      #     puts "You have no EDITOR defined. Use 'export EDITOR=emacs'."
+      #     #puts "Trying nano..."
+      #     #editor = "nano"
+      #   end
+      #   system("which #{editor} > /dev/null 2>&1")
+      #   has_editor = $?.success?
+      #   if has_editor
+      #     puts "opening #{fn} for editing with #{editor} ..."
+      #     `#{editor} #{fn}`
+      #     puts "Use 'reload' to re-execute your startup script #{File.basename(fn)}"
+      #   else
+      #     puts_error Morpheus::Terminal.angry_prompt
+      #     puts_error "The defined EDITOR '#{editor}' was not found on your system."
+      #   end
+      #   return 0 # $?
       elsif input == 'reload' || input == 'reload!'
         # raise RestartShellPlease
         #log_history_command(input)
@@ -497,7 +591,7 @@ class Morpheus::Cli::Shell
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
         @return_to_log_level = nil
       end
-      
+
       # commands should be a number or nil (treated as 0)
       if cmd_result == true
         cmd_result = 0

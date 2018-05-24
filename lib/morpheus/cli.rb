@@ -53,6 +53,8 @@ module Morpheus
       load 'morpheus/cli/coloring_command.rb'
       load 'morpheus/cli/log_level_command.rb'
       load 'morpheus/cli/ssl_verification_command.rb'
+      load 'morpheus/cli/edit_profile_command.rb'
+      load 'morpheus/cli/edit_rc_command.rb'
 
       # all the known commands
       load 'morpheus/cli/remote.rb'

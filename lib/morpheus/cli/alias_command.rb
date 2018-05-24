@@ -92,7 +92,7 @@ class Morpheus::Cli::AliasCommand
         return false
       end
 
-    if Morpheus::Cli::Shell.instance
+    if Morpheus::Cli::Shell.has_instance?
       Morpheus::Cli::Shell.instance.recalculate_auto_complete_commands()
     end
 

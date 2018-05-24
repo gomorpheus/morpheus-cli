@@ -558,7 +558,7 @@ EOT
     # recalcuate echo vars
     Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.instance
+    if Morpheus::Cli::Shell.has_instance?
       Morpheus::Cli::Shell.instance.reinitialize()
     end
     return 0, nil
@@ -600,7 +600,7 @@ EOT
     # recalcuate echo vars
     Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.instance
+    if Morpheus::Cli::Shell.has_instance?
       Morpheus::Cli::Shell.instance.reinitialize()
     end
 
@@ -630,7 +630,7 @@ EOT
     # recalcuate echo vars
     Morpheus::Cli::Echo.recalculate_variable_map()
     # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.instance
+    if Morpheus::Cli::Shell.has_instance?
       Morpheus::Cli::Shell.instance.reinitialize()
     end
     return true
