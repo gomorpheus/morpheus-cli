@@ -208,6 +208,7 @@ class Morpheus::Cli::Instances
 
   def add(args)
     options = {}
+    options[:create_user] = true
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       # opts.banner = subcommand_usage("[type] [name]")
       opts.banner = subcommand_usage("[name] -c CLOUD -t TYPE")
@@ -219,6 +220,9 @@ class Morpheus::Cli::Instances
       end
       opts.on( '-t', '--type CODE', "Instance Type" ) do |val|
         options[:instance_type_code] = val
+      end
+      opts.on( '--name NAME', "Instance Name" ) do |val|
+        options[:instance_name] = val
       end
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
@@ -232,6 +236,12 @@ class Morpheus::Cli::Instances
       # opts.on('-L', "--lb", "Enable Load Balancer") do
       #   options[:enable_load_balancer] = true
       # end
+      opts.on("--create-user on|off", String, "User Config: Create Your User. Default is on") do |val|
+        options[:create_user] = !['false','off','0'].include?(val.to_s)
+      end
+      opts.on("--user-group USERGROUP", String, "User Config: User Group") do |val|
+        options[:user_group_id] = val
+      end
       opts.on("--shutdown-days NUMBER", Integer, "Automation: Shutdown Days") do |val|
         options[:expire_days] = val.to_i
       end
@@ -242,6 +252,9 @@ class Morpheus::Cli::Instances
         options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      opts.footer = "Create a new instance." + "\n" +
+                    "[name] is required. This is the new instance name." + "\n" +
+                    "The available options vary by --type."
     end
 
     optparse.parse!(args)
@@ -264,24 +277,13 @@ class Morpheus::Cli::Instances
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
         # prompt for all the instance configuration options
         # this provisioning helper method handles all (most) of the parsing and prompting
         # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
         payload = prompt_new_instance(options)
-        # other stuff
-        payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
-        payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
-        payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
-        payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
-        payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
-        if options[:workflow_id]
-          payload['taskSetId'] = options[:workflow_id]
-        end
-        if options[:enable_load_balancer]
-          lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
-          payload.deep_merge!(lb_payload)
-        end
         # clean payload of empty objects 
         # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
         if payload['instance'].is_a?(Hash)
@@ -296,6 +298,29 @@ class Morpheus::Cli::Instances
             payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
           end
         end
+      end
+
+      if options[:instance_name]
+        payload['instance'] ||= payload['instance']
+        payload['instance']['name'] = options[:instance_name]
+      end
+      payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+      payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+      payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
+      payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
+      payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
+      if options.key?(:create_user)
+        payload['config']['createUser'] = options[:create_user]
+      end
+      if options[:user_group_id]
+        payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
+      end
+      if options[:workflow_id]
+        payload['taskSetId'] = options[:workflow_id]
+      end
+      if options[:enable_load_balancer]
+        lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
+        payload.deep_merge!(lb_payload)
       end
 
       if options[:dry_run]
