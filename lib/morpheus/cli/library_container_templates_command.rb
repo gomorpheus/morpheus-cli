@@ -188,7 +188,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--template TEXT', String, "Contents of the template.") do |val|
         params['template'] = val
       end
-      opts.on('--file FILE', "File containing the template. This can be used instead --template" ) do |filename|
+      opts.on('--file FILE', "File containing the template. This can be used instead of --template" ) do |filename|
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           params['template'] = File.read(full_filename)
@@ -283,7 +283,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--template TEXT', String, "Contents of the template.") do |val|
         params['template'] = val
       end
-      opts.on('--file FILE', "File containing the template. This can be used instead --template" ) do |filename|
+      opts.on('--file FILE', "File containing the template. This can be used instead of --template" ) do |filename|
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           params['template'] = File.read(full_filename)

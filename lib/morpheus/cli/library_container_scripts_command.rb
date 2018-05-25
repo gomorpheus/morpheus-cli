@@ -151,7 +151,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
 
   def add(args)
     options = {}
-    params = {'scriptType' => 'bash', 'scriptPhase' => 'postProvision'}
+    params = {'scriptType' => 'bash', 'scriptPhase' => 'provision'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -160,7 +160,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--type [bash|powershell]', String, "Script Type. Default is 'bash'") do |val|
         params['scriptType'] = val
       end
-      opts.on('--phase [start|stop|postProvision]', String, "Script Phase. Default is 'postProvision'") do |val|
+      opts.on('--phase [provision|start|stop]', String, "Script Phase. Default is 'provision'") do |val|
         params['scriptPhase'] = val
       end
       opts.on('--category VALUE', String, "Category") do |val|
@@ -169,7 +169,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--script TEXT', String, "Contents of the script.") do |val|
         params['script'] = val
       end
-      opts.on('--file FILE', "File containing the script. This can be used instead --script" ) do |filename|
+      opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           params['script'] = File.read(full_filename)
@@ -257,7 +257,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--script TEXT', String, "Contents of the script.") do |val|
         params['script'] = val
       end
-      opts.on('--file FILE', "File containing the script. This can be used instead --script" ) do |filename|
+      opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           params['script'] = File.read(full_filename)

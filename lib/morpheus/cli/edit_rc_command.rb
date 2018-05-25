@@ -10,7 +10,7 @@ class Morpheus::Cli::EditRcCommand
 
   def handle(args)
     options = {}
-    editor = ENV['EDITOR'] || 'nano'
+    editor = nil
     filename = Morpheus::Cli::DotFile.morpheusrc_filename
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name}"
@@ -22,6 +22,20 @@ class Morpheus::Cli::EditRcCommand
     end
     optparse.parse!(args)
     
+
+    if !editor
+      editor = ENV['EDITOR']
+    end
+
+    # try something...
+    if !editor
+      if Morpheus::Cli.windows?
+        editor = "notepad"
+      else
+        editor = "nano"
+      end
+    end
+
     if !editor
       print_error Morpheus::Terminal.angry_prompt
       puts_error "You have not defined an EDITOR."

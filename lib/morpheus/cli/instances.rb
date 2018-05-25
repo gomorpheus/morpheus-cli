@@ -1867,7 +1867,8 @@ class Morpheus::Cli::Instances
         end
       end
     end
-    params = options[:options] || {}
+    params = {}
+    params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
     if params.empty? && !editable_options.empty?
       puts optparse
@@ -1887,8 +1888,9 @@ class Morpheus::Cli::Instances
         print as_json(json_response, options), "\n"
         return
       else
-        puts "Running workflow..."
+        print_green_success "Running workflow #{workflow['name']} on instance #{instance['name']} ..."
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

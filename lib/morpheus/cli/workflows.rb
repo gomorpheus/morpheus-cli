@@ -31,29 +31,40 @@ class Morpheus::Cli::Workflows
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.get(params)
         return
       end
       json_response = @task_sets_interface.get(params)
+      task_sets = json_response['taskSets']
+      # print result and return output
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        if options[:include_fields]
+          json_response = {"taskSets" => filter_data(json_response["taskSets"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['taskSets'], options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"taskSets" => filter_data(json_response["taskSets"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       else
         task_sets = json_response['taskSets']
         title = "Morpheus Workflows"
         subtitles = []
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if task_sets.empty?
           print cyan,"No workflows found.",reset,"\n"
@@ -77,7 +88,7 @@ class Morpheus::Cli::Workflows
       opts.on("--tasks x,y,z", Array, "List of tasks to run in order") do |list|
         options[:task_names] = list
       end
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1 || options[:task_names].empty?
@@ -101,7 +112,9 @@ class Morpheus::Cli::Workflows
       if options[:json]
         print JSON.pretty_generate(json_response)
       else
-        print "\n", cyan, "Workflow #{json_response['taskSet']['name']} created successfully", reset, "\n\n"
+        workflow = json_response['taskSet']
+        print "\n", cyan, "Workflow #{workflow['name']} created successfully", reset, "\n\n"
+        get([workflow['id']])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -111,17 +124,24 @@ class Morpheus::Cli::Workflows
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[task]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[workflow]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
-    workflow_name = args[0]
     connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+  
+  def _get(id, options)
+    workflow_name = id
     begin
       if options[:dry_run]
         if workflow_name.to_s =~ /\A\d{1,}\Z/
@@ -134,13 +154,22 @@ class Morpheus::Cli::Workflows
       workflow = find_workflow_by_name_or_id(workflow_name)
       exit 1 if workflow.nil?
       # refetch it..
-      json_response = @task_sets_interface.get(workflow['id'])
+      json_response = {'taskSet' => workflow}
+      unless workflow_name.to_s =~ /\A\d{1,}\Z/
+        json_response = @task_sets_interface.get(workflow['id'])
+      end
       workflow = json_response['taskSet']
-
       if options[:json]
-        #puts JSON.pretty_generate(workflow)
-        puts JSON.pretty_generate(json_response)
-        print "\n"
+        json_response = {"taskSet" => filter_data(json_response["taskSet"], options[:include_fields]) } if options[:include_fields]
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        json_response = {"taskSet" => filter_data(json_response["taskSet"], options[:include_fields]) } if options[:include_fields]
+        puts as_yaml(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response['taskSet']], options)
+        return 0
       else
         # tasks = []
         # (workflow['tasks'] || []).each do |task_name|
@@ -153,19 +182,31 @@ class Morpheus::Cli::Workflows
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
-          #"Description" => 'description',
+          "Description" => 'description',
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }
         print_description_list(description_cols, workflow)
 
         #task_names = tasks.collect {|it| it['name'] }
-        print_h2 "Tasks"
+        print_h2 "Workflow Tasks"
         if tasks.empty?
           print yellow,"No tasks in this workflow.",reset,"\n"
         else
           print cyan
-          tasks.each_with_index do |taskSetTask, index|
-            puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
-          end
+          # tasks.each_with_index do |taskSetTask, index|
+          #   puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
+          # end
+          task_set_task_columns = [
+            # this is the ID needed for the config options, by name would be nicer
+            {"ID" => lambda {|it| it['id'] } }, 
+            {"TASK ID" => lambda {|it| it['task']['id'] } },
+            {"NAME" => lambda {|it| it['task']['name'] } },
+            {"TYPE" => lambda {|it| it['task']['taskType'] ? it['task']['taskType']['name'] : '' } },
+            {"PHASE" => lambda {|it| it['taskPhase'] } }, # not returned yet?
+          ]
+          print cyan
+          puts as_pretty_table(tasks, task_set_task_columns)
         end
         print reset,"\n"
       end
@@ -337,26 +378,19 @@ class Morpheus::Cli::Workflows
   end
 
   def print_workflows_table(workflows, opts={})
-    table_color = opts[:color] || cyan
-    rows = workflows.collect do |workflow|
-      task_names = []
-      workflow['taskSetTasks'].sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }.each do |taskSetTask|
-        task_names << taskSetTask['task']['name']
-      end
-      {
-        id: workflow['id'],
-        name: workflow['name'],
-        tasks: task_names.join(', '),
-        dateCreated: format_local_dt(workflow['dateCreated'])
-      }
-    end
-    print table_color
-    tp rows, [
-      :id,
-      :name,
-      :tasks
+    columns = [
+      {"ID" => lambda {|workflow| workflow['id'] } },
+      {"NAME" => lambda {|workflow| workflow['name'] } },
+      {"TASKS" => lambda {|workflow| 
+        (workflow['taskSetTasks'] || []).sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }.collect { |taskSetTask|
+          taskSetTask['task']['name']
+        }.join(', ')
+       } },
+      {"DATE CREATED" => lambda {|workflow| format_local_dt(workflow['dateCreated']) } },
     ]
-    print reset
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(workflows, columns, opts)
   end
-
 end

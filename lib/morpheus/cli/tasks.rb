@@ -27,33 +27,45 @@ class Morpheus::Cli::Tasks
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.get(params)
         return
       end
       json_response = @tasks_interface.get(params)
+      # print result and return output
       if options[:json]
-        print JSON.pretty_generate(json_response)
+        if options[:include_fields]
+          json_response = {"tasks" => filter_data(json_response["tasks"], options[:include_fields]) }
+        end
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['tasks'], options)
+        return 0
+      elsif options[:yaml]
+        if options[:include_fields]
+          json_response = {"tasks" => filter_data(json_response["tasks"], options[:include_fields]) }
+        end
+        puts as_yaml(json_response, options)
+        return 0
       else
+        title = "Morpheus Tasks"
+        subtitles = []
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles
         tasks = json_response['tasks']
-        print_h1 "Morpheus Tasks"
         if tasks.empty?
-          puts cyan,"No tasks found.",reset,"\n"
+          print cyan,"No tasks found.",reset,"\n"
         else
           print cyan
-          tasks_table_data = tasks.collect do |task|
-            {name: task['name'], id: task['id'], type: task['taskType']['name']}
-          end
-          tp tasks_table_data, :id, :name, :type
+          print_tasks_table(tasks, options)
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -66,17 +78,24 @@ class Morpheus::Cli::Tasks
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[task]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[workflow]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
-    task_name = args[0]
     connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+  
+  def _get(id, options)
+    task_name = id
     begin
       if options[:dry_run]
         if task_name.to_s =~ /\A\d{1,}\Z/
@@ -88,11 +107,25 @@ class Morpheus::Cli::Tasks
       end
       task = find_task_by_name_or_id(task_name)
       exit 1 if task.nil?
-      task_type = find_task_type_by_name(task['taskType']['name'])
+      # refetch it
+      json_response = {'task' => task}
+      unless task_name.to_s =~ /\A\d{1,}\Z/
+        json_response = @tasks_interface.get(task['id'])
+      end
       if options[:json]
-        puts JSON.pretty_generate({task:task})
-        print "\n"
+        json_response = {"task" => filter_data(json_response["task"], options[:include_fields]) } if options[:include_fields]
+        puts as_json(json_response, options)
+        return 0
+      elsif options[:yaml]
+        json_response = {"task" => filter_data(json_response["task"], options[:include_fields]) } if options[:include_fields]
+        puts as_yaml(json_response, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response['task']], options)
+        return 0
       else
+        # load task type to know which options to display
+        task_type = task['taskType'] ? find_task_type_by_name(task['taskType']['name']) : nil
         #print "\n", cyan, "Task #{task['name']} - #{task['taskType']['name']}\n\n"
         print_h1 "Task Details"
         print cyan
@@ -104,15 +137,20 @@ class Morpheus::Cli::Tasks
         print_description_list(description_cols, task)
         
         # JD: uhh, the api should NOT be returning passwords!!
-        task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-          if optionType['fieldLabel'].to_s.downcase == 'script'
-            print_h2 "Script"
-            print reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
-          else
-            print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
+        if task_type
+          task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
+            if optionType['fieldLabel'].to_s.downcase == 'script'
+              print_h2 "Script"
+              print reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+            else
+              print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
+            end
           end
+        else
+          print yellow,"Task type not found.",reset,"\n"
         end
         print reset,"\n"
+        return 0
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -222,40 +260,75 @@ class Morpheus::Cli::Tasks
   end
 
   def add(args)
+    params = {}
     options = {}
+    task_name = nil
     task_type_name = nil
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] -t TASK_TYPE")
       opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
         task_type_name = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
+      opts.on('--name NAME', String, "Task Name" ) do |val|
+        task_name = val
+      end
+      opts.on('--file FILE', "File containing the script. This can be used instead of --O taskOptions.script" ) do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          options[:options] ||= {}
+          options[:options]['taskOptions'] ||= {}
+          options[:options]['taskOptions']['script'] = File.read(full_filename)
+          # params['script'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          options[:options] ||= {}
+          options[:options]['taskOptions'] ||= {}
+          options[:options]['taskOptions']['script'] = File.read(full_filename)
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    task_name = args[0]
-    if args.count < 1 || task_type_name.nil?
+    if args[0]
+      task_name = args[0]
+    end
+
+    if task_name.nil? || task_type_name.nil?
       puts optparse
       exit 1
     end
     connect(options)
     begin
-      task_type = find_task_type_by_name(task_type_name)
-      if task_type.nil?
-        puts "Task Type not found!"
-        exit 1
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        # construct payload
+        task_type = find_task_type_by_name(task_type_name)
+        if task_type.nil?
+          puts "Task Type not found by id '#{task_type_name}'!"
+          return 1
+        end
+        input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
+        payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
       end
-      input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
-      payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.create(payload)
         return
       end
       json_response = @tasks_interface.create(payload)
+      task = json_response['task']
       if options[:json]
         print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
-        print "\n", cyan, "Task #{json_response['task']['name']} created successfully", reset, "\n\n"
-        list([])
+        task = json_response['task']
+        print "\n", cyan, "Task #{task['name']} created successfully", reset, "\n\n"
+        get([task['id']])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -358,4 +431,19 @@ class Morpheus::Cli::Tasks
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 0}
     ] + task_type['optionTypes']
   end
+
+  def print_tasks_table(tasks, opts={})
+    columns = [
+      {"ID" => lambda {|it| it['id'] } },
+      {"NAME" => lambda {|it| it['name'] } },
+      {"TYPE" => lambda {|it| it['taskType']['name'] ? it['taskType']['name'] : it['type'] } },
+      # {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+      # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
+    ]
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(tasks, columns, opts)
+  end
+
 end

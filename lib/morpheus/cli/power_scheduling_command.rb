@@ -113,7 +113,9 @@ class Morpheus::Cli::PowerSchedulingCommand
   end
 
   def _get(id, options)
-
+    options ||= {}
+    options[:max_servers] ||= 10
+    options[:max_instances] ||= 10
     begin
       schedule = find_schedule_by_name_or_id(id)
       if schedule.nil?
@@ -168,23 +170,20 @@ class Morpheus::Cli::PowerSchedulingCommand
         # print cyan,"No instances",reset,"\n"
       else
         print_h2 "Instances (#{instances.size})"
-        print as_pretty_table(instances.first(options[:max_instances]), [:id, :name])
-        if instances.size > options[:max_instances]
-          print_results_pagination({'meta'=>{'total'=>instances.size,'size'=>options[:max_instances]}}, {:label => "instance in schedule", :n_label => "instances in schedule"})
-          #print cyan, "(and #{instances.size - options[:max_instances]} more...)\n"
-        end
+        instance_rows = instances.first(options[:max_instances])
+        print as_pretty_table(instance_rows, [:id, :name])
+        print_results_pagination({'meta'=>{'total'=>instances.size,'size'=>instance_rows.size,'max'=>options[:max_servers],'offset'=>0}}, {:label => "instance in schedule", :n_label => "instances in schedule"})
       end
 
       ## Hosts
       if servers.size == 0
         # print cyan,"No hosts",reset,"\n"
       else
+        options[:max_servers] ||= 10
         print_h2 "Hosts (#{servers.size})"
-        print as_pretty_table(servers.first(options[:max_servers]), [:id, :name])
-        if servers.size > options[:max_servers]
-          print_results_pagination({'meta'=>{'total'=>servers.size,'size'=>options[:max_servers]}}, {:label => "host in schedule", :n_label => "hosts in schedule"})
-          #print cyan, "(and #{servers.size - options[:max_servers]} more...)\n"
-        end
+        server_rows = servers.first(options[:max_servers])
+        print as_pretty_table(server_rows, [:id, :name])
+        print_results_pagination({'meta'=>{'total'=>servers.size,'size'=>server_rows.size,'max'=>options[:max_servers],'offset'=>0}}, {:label => "host in schedule", :n_label => "hosts in schedule"})
       end
 
       print reset,"\n"
@@ -226,7 +225,7 @@ class Morpheus::Cli::PowerSchedulingCommand
         end
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-        options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
+        params['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new power schedule." + "\n" +
@@ -305,7 +304,7 @@ class Morpheus::Cli::PowerSchedulingCommand
         end
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-        options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
+        params['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update a power schedule." + "\n" +

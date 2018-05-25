@@ -25,6 +25,20 @@ module Morpheus
       end
     end
 
+    def self.windows?
+      if defined?(@@is_windows)
+        return @@is_windows
+      end
+      @@is_windows = false
+      begin
+        require 'rbconfig'
+        @@is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/)
+      rescue => ex
+        # $stderr.puts "unable to determine if this is a Windows machine."
+      end
+      return @@is_windows
+    end
+
     # load all the well known commands and utilties they need
     def self.load!()
       # load interfaces
