@@ -177,8 +177,15 @@ class Morpheus::Cli::Clouds
         server_counts = json_response['serverCounts'] # legacy
       end
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
+        puts as_json(json_response, options, 'zone')
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, 'zone')
+        return 0
+      end
+      if options[:csv]
+        puts records_as_csv([json_response['zone']], options)
+        return 0
       end
       cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       print_h1 "Cloud Details"
