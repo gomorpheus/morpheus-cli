@@ -298,9 +298,9 @@ module Morpheus::Cli::PrintHelper
     print out
   end
 
-  def print_available_options(option_types)
+  def format_available_options(option_types)
     option_lines = option_types.collect {|it| "\t-O #{it['fieldContext'] ? it['fieldContext'] + '.' : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-    puts "Available Options:\n#{option_lines}\n\n"
+    return "Available Options:\n#{option_lines}\n\n"
   end
 
   def format_dt_dd(label, value, label_width=10, justify="right", do_wrap=true)
@@ -685,12 +685,12 @@ module Morpheus::Cli::PrintHelper
     '"' + v.to_s.gsub('"', '""') + '"'
   end
 
-  def as_csv(data, columns, opts={})
+  def as_csv(data, columns, options={})
     out = ""
-    delim = opts[:csv_delim] || opts[:delim] || ","
-    newline = opts[:csv_newline] || opts[:newline] || "\n"
-    include_header = opts[:csv_no_header] ? false : true
-    do_quotes = opts[:csv_quotes] || opts[:quotes]
+    delim = options[:csv_delim] || options[:delim] || ","
+    newline = options[:csv_newline] || options[:newline] || "\n"
+    include_header = options[:csv_no_header] ? false : true
+    do_quotes = options[:csv_quotes] || options[:quotes]
 
     column_defs = build_column_definitions(columns)
     #columns = columns.flatten.compact
@@ -728,7 +728,7 @@ module Morpheus::Cli::PrintHelper
 
   end
 
-  def records_as_csv(records, opts={}, default_columns=nil)
+  def records_as_csv(records, options={}, default_columns=nil)
     out = ""
     if !records
       #raise "records_as_csv expects records as an Array of objects to render"
@@ -736,25 +736,33 @@ module Morpheus::Cli::PrintHelper
     end
     cols = []
     all_fields = records.first ? records.first.keys : []
-    if opts[:include_fields]
-      if opts[:include_fields] == 'all' || opts[:include_fields].include?('all')
+    if options[:include_fields]
+      if options[:include_fields] == 'all' || options[:include_fields].include?('all')
         cols = all_fields
       else
-        cols = opts[:include_fields]
+        cols = options[:include_fields]
       end
     elsif default_columns
       cols = default_columns
     else
       cols = all_fields
     end
-    out << as_csv(records, cols, opts)
+    out << as_csv(records, cols, options)
     out
   end
 
-  def as_json(data, options={})
+  def as_json(data, options={}, object_key=nil)
     out = ""
     if !data
       return "null" # "No data"
+    end
+
+    if options[:include_fields]
+      if object_key
+        data[object_key] = filter_data(data[object_key], options[:include_fields])
+      else
+        data = filter_data(data, options[:include_fields])
+      end
     end
 
     do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : true
@@ -762,6 +770,28 @@ module Morpheus::Cli::PrintHelper
       out << JSON.pretty_generate(data)
     else
       out << JSON.fast_generate(data)
+    end
+    #out << "\n"
+    out
+  end
+
+  def as_yaml(data, options={}, object_key=nil)
+    out = ""
+    if !data
+      return "null" # "No data"
+    end
+    if options[:include_fields]
+      if object_key
+        data[object_key] = filter_data(data[object_key], options[:include_fields])
+      else
+        data = filter_data(data, options[:include_fields])
+      end
+    end
+    begin
+      out << data.to_yaml
+    rescue => err
+      puts "failed to render YAML from data: #{data.inspect}"
+      puts err.message
     end
     #out << "\n"
     out
@@ -775,24 +805,6 @@ module Morpheus::Cli::PrintHelper
     else
       return items.join(", ") + " and #{last_item}"
     end
-  end
-
-  def as_yaml(data, options={})
-    out = ""
-    if !data
-      return "null" # "No data"
-    end
-    # if opts[:include_fields]
-    #   data = filter_data(data, opts[:include_fields])
-    # end
-    begin
-      out << data.to_yaml
-    rescue => err
-      puts "failed to render YAML from data: #{data.inspect}"
-      puts err.message
-    end
-    #out << "\n"
-    out
   end
 
 end
