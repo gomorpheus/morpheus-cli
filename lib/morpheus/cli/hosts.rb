@@ -925,54 +925,80 @@ class Morpheus::Cli::Hosts
   end
 
   def run_workflow(args)
+    params = {}
     options = {}
-    optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("run-workflow", "[name]", "[workflow]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [workflow] [options]")
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
+    if args.count != 2
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 2 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
     end
     connect(options)
+
     host = find_host_by_name_or_id(args[0])
+    return 1 if host.nil?
     workflow = find_workflow_by_name(args[1])
-    task_types = @tasks_interface.task_types()
-    editable_options = []
-    workflow['taskSetTasks'].sort{|a,b| a['taskOrder'] <=> b['taskOrder']}.each do |task_set_task|
-      task_type_id = task_set_task['task']['taskType']['id']
-      task_type = task_types['taskTypes'].find{ |current_task_type| current_task_type['id'] == task_type_id}
-      task_opts = task_type['optionTypes'].select { |otype| otype['editable']}
-      if !task_opts.nil? && !task_opts.empty?
-        editable_options += task_opts.collect do |task_opt|
-          new_task_opt = task_opt.clone
-          new_task_opt['fieldContext'] = "#{task_set_task['id']}.#{new_task_opt['fieldContext']}"
+    return 1 if workflow.nil?
+
+    # support -O options as arbitrary params
+    old_option_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+    params.deep_merge!(old_option_options) unless old_option_options.empty?
+
+    # the payload format is unusual
+    # payload example: {"taskSet": {taskSetId": {"taskSetTaskId": {"customOptions": {"dbVersion":"5.6"}}}}}
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+    else
+      payload = {}
+      # i guess you must pass an option if there are editable options
+      # any option, heh
+      task_types = @tasks_interface.task_types()
+      editable_options = []
+      workflow['taskSetTasks'].sort{|a,b| a['taskOrder'] <=> b['taskOrder']}.each do |task_set_task|
+        task_type_id = task_set_task['task']['taskType']['id']
+        task_type = task_types['taskTypes'].find{ |current_task_type| current_task_type['id'] == task_type_id}
+        task_opts = task_type['optionTypes'].select { |otype| otype['editable']}
+        if !task_opts.nil? && !task_opts.empty?
+          editable_options += task_opts.collect do |task_opt|
+            new_task_opt = task_opt.clone
+            new_task_opt['fieldContext'] = "#{task_set_task['id']}.#{new_task_opt['fieldContext']}"
+          end
         end
       end
-    end
-    params = options[:options] || {}
+      if params.empty? && !editable_options.empty?
+        puts optparse
+        option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+        puts "\nAvailable Options:\n#{option_lines}\n\n"
+        return 1
+      end
 
-    if params.empty? && !editable_options.empty?
-      puts optparse
-      option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-      puts "\nAvailable Options:\n#{option_lines}\n\n"
-      exit 1
     end
 
-    workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
+    if !params.empty?
+      payload['taskSet'] ||= {}
+      payload['taskSet']["#{workflow['id']}"] ||= {}
+      payload['taskSet']["#{workflow['id']}"].deep_merge!(params)
+    end
+
     begin
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.workflow(host['id'],workflow['id'], workflow_payload)
+        print_dry_run @servers_interface.dry.workflow(host['id'],workflow['id'], payload)
         return
       end
-      json_response = @servers_interface.workflow(host['id'],workflow['id'], workflow_payload)
+      json_response = @servers_interface.workflow(host['id'],workflow['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        puts "Workflow #{workflow['name']} is running..."
+        print as_json(json_response, options), "\n"
+        return
+      elsif options[:quiet]
+        return 0
+      else
+        print_green_success "Running workflow #{workflow['name']} on host #{host['name']} ..."
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
