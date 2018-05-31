@@ -1872,9 +1872,9 @@ class Morpheus::Cli::Instances
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts "\n#{optparse}\n\n"
-      exit 1
+    if args.count != 2
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 2 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
     end
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
