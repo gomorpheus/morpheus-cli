@@ -278,10 +278,12 @@ module Morpheus
 # protected
 
     def execute(input)
+      Morpheus::Logging::DarkPrinter.puts "Terminal input: (#{input.class}) #{input}"
       exit_code = 0
       err = nil
       args = nil
       if input.is_a? String
+        Morpheus::Logging::DarkPrinter.puts  "Terminal Shellwords.shellsplit(): #{input}"
         args = Shellwords.shellsplit(input)
       elsif input.is_a?(Array)
         args = input.dup

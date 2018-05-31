@@ -53,6 +53,7 @@ module Morpheus
 
       # utilites
       require 'morpheus/cli/cli_registry.rb'
+      require 'morpheus/cli/expression_parser.rb'
       require 'morpheus/cli/dot_file.rb'
       require 'morpheus/cli/command_error'
 
@@ -60,6 +61,9 @@ module Morpheus
       load 'morpheus/cli/option_types.rb'
       load 'morpheus/cli/credentials.rb'
       
+      # all standard commands
+      Dir[File.dirname(__FILE__)  + "/cli/commands/standard/**/*.rb"].each {|file| load file }
+
       # shell scripting commands
       load 'morpheus/cli/source_command.rb'
       load 'morpheus/cli/echo_command.rb'

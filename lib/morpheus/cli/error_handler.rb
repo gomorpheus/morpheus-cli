@@ -5,6 +5,7 @@ require 'rest_client'
 require 'net/https'
 require 'morpheus/logging'
 require 'morpheus/cli/command_error'
+require 'morpheus/cli/expression_parser'
 
 class Morpheus::Cli::ErrorHandler
   include Term::ANSIColor
@@ -35,6 +36,11 @@ class Morpheus::Cli::ErrorHandler
       puts_angry_error err.message
       do_print_stacktrace = false
       # @stderr.puts "Try -h for help with this command."
+    when Morpheus::Cli::ExpressionParser::InvalidExpression
+      # @stderr.puts "#{red}#{err.message}#{reset}"
+      puts_angry_error err.message
+      do_print_stacktrace = false
+      exit_code = 99
     when SocketError
       @stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
       @stderr.puts "#{red}#{err.message}#{reset}"

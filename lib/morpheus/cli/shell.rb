@@ -8,6 +8,7 @@ require 'logger'
 require 'fileutils'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/error_handler'
+require 'morpheus/cli/expression_parser'
 require 'morpheus/terminal'
 
 #class Morpheus::Cli::Shell < Morpheus::Terminal
@@ -196,7 +197,7 @@ class Morpheus::Cli::Shell
     result = nil
     if @execute_mode_command
       # execute a single command and exit
-      result = execute_commands(@execute_mode_command)
+      result = execute(@execute_mode_command)
     else
       # interactive prompt
       result = 0
@@ -209,7 +210,7 @@ class Morpheus::Cli::Shell
         input = Readline.readline(@calculated_prompt, true).to_s
         input = input.strip
 
-        result = execute_commands(input)
+        result = execute(input)
       end
     end
     
@@ -256,117 +257,84 @@ class Morpheus::Cli::Shell
   def execute(input)
     # args = Shellwords.shellsplit(input)
     #cmd = args.shift
-    execute_commands(input)
-  end
-
-  def execute_commands(input)
-    # input = input.to_s.sub(/^morpheus\s+/, "") # meh
-    # split the command on unquoted semicolons.
-    # so you can run multiple commands at once! eg hosts list; instances list
-    # all_commands = input.gsub(/(\;)(?=(?:[^"]|"[^"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-    all_commands = input.gsub(/(\;)(?=(?:[^"']|"[^'"]*")*$)/, '__CMDDELIM__').split('__CMDDELIM__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-    #puts "executing #{all_commands.size} commands: #{all_commands}"
-    final_command_result = nil
-    all_commands.each do |cmd|
-      flow = parse_commands_and_operators(cmd)
-      if flow.size > 1
-        last_command_result = nil
-        if ['&&','||', '|'].include?(flow.first)
-          puts_error "invalid command format, begins with an operator: #{cmd}"
-          return 9
-        elsif ['&&','||', '|'].include?(flow.last)
-          puts_error "invalid command format, ends with an operator: #{cmd}"
-          return 9
-        # elsif ['&&','||', '|'].include?(flow.last)
-        #   puts_error "invalid command format, consecutive operators: #{cmd}"
-        else
-          #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
-          previous_command = nil
-          previous_command_result = nil
-          current_operator = nil
-          still_executing = true
-          flow.each do |flow_cmd|
-            if still_executing
-              if flow_cmd == '&&'
-                # AND operator
-                current_operator = flow_cmd
-                if parse_result_exitstatus(previous_command_result) != 0
-                  still_executing = false
-                end
-              elsif flow_cmd == '||' # or with previous command
-                current_operator = flow_cmd
-                if parse_result_exitstatus(previous_command_result) == 0
-                  still_executing = false
-                end
-              elsif flow_cmd == '|' # or with previous command
-                puts_error "The PIPE (|) operator is not yet supported =["
-                previous_command_result = nil
-                still_executing = false
-                # or just continue?
-              else # it's a command, not an operator
-                current_operator = nil
-                previous_command_result = execute_command(flow_cmd)
-              end
-              previous_command = flow_cmd
-            else
-              #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
-            end 
-            # previous_command = flow_cmd
-          end
-          final_command_result = previous_command_result
-        end
-      else
-        # just one command, this else is not needed tho
-        final_command_result = execute_command(cmd)
-      end
-    end
+    #execute_commands(input)
+    result = execute_commands_as_expression(input)
     # skip logging of exit and !cmd
     unless input.strip.empty? || (["exit", "history"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
       log_history_command(input.strip)
     end
+    return result
+  end
+
+  def execute_commands_as_expression(input)
+    flow = input
+    if input.is_a?(String)
+      begin
+        flow = Morpheus::Cli::ExpressionParser.parse(input)
+      rescue Morpheus::Cli::ExpressionParser::InvalidExpression => e
+        @history_logger.error "#{e.message}" if @history_logger
+        return Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
+      end
+    end
+    final_command_result = nil
+    if flow.size == 0
+      # no input eh?
+    else
+      last_command_result = nil
+      if ['&&','||', '|'].include?(flow.first)
+        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, begins with an operator: #{input}"
+        return 99
+      elsif ['&&','||', '|'].include?(flow.last)
+        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, ends with an operator: #{input}"
+        return 99
+      # elsif ['&&','||', '|'].include?(flow.last)
+      #   puts_error "invalid command format, consecutive operators: #{cmd}"
+      else
+        #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
+        previous_command = nil
+        previous_command_result = nil
+        current_operator = nil
+        still_executing = true
+        flow.each do |flow_cmd|
+          if still_executing
+            if flow_cmd == '&&'
+              # AND operator
+              current_operator = flow_cmd
+              if parse_result_exitstatus(previous_command_result) != 0
+                still_executing = false
+              end
+            elsif flow_cmd == '||' # or with previous command
+              current_operator = flow_cmd
+              if parse_result_exitstatus(previous_command_result) == 0
+                still_executing = false
+              end
+            elsif flow_cmd == '|' # or with previous command
+              puts_error "The PIPE (|) operator is not yet supported =["
+              previous_command_result = nil
+              still_executing = false
+              # or just continue?
+            elsif flow_cmd.is_a?(Array)
+              # this is a subexpression, execute it as such
+              current_operator = nil
+              previous_command_result = execute_commands_as_expression(flow_cmd)
+            else # it's a command, not an operator
+              current_operator = nil
+              previous_command_result = execute_command(flow_cmd)
+            end
+            previous_command = flow_cmd
+          else
+            #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
+          end
+          # previous_command = flow_cmd
+        end
+        final_command_result = previous_command_result
+      end
+    end
     return final_command_result
   end
 
-  # returns Array of strings like [command1, operator, command2, operator, command3]
-  # eg. ["instances get 555", "||", "echo '%redInstance 555 is missing!'"]
-  def parse_commands_and_operators(input)
-    cmd = input
-    cmd_flow = []
-    begin
-      and_regex = /\s+\&\&\s+/
-      or_regex = /\s+\|\|\s+/
-      pipe_regex = /\s+\|\s+/
-      still_parsing = true
-      while still_parsing
-        and_index = cmd.index(and_regex)
-        or_index = cmd.index(or_regex)
-        pipe_index = cmd.index(pipe_regex)
-        if and_index # && (or_index == nil || or_index > and_index) && (pipe_index == nil || pipe_index > and_index)
-          cmd_flow << cmd[0..and_index-1]
-          cmd_flow << "&&"
-          cmd = cmd[and_index..-1].sub(and_regex, '')
-        elsif or_index && (and_index == nil || and_index > or_index) && (pipe_index == nil || pipe_index > or_index)
-          cmd_flow << cmd[0..or_index-1]
-          cmd_flow << "||"
-          cmd = cmd[or_index..-1].sub(or_regex, '')
-        elsif pipe_index && (and_index == nil || and_index > pipe_index) && (or_index == nil || or_index > pipe_index)
-          cmd_flow << cmd[0..pipe_index-1]
-          cmd_flow << "|"
-          cmd = cmd[pipe_index..-1].sub(pipe_regex, '')
-        else
-          cmd_flow << cmd
-          still_parsing = false
-        end
-      end
-      return cmd_flow
-    rescue => ex
-      puts_error "error parsing command flow: #{ex.message}"
-      return [input]
-    end
-  end
-
   def execute_command(input)
-    #puts "shell execute_command(#{input})"
+    #Morpheus::Logging::DarkPrinter.puts "Shell command: #{input}"
     input = input.to_s.strip
 
     if !input.empty?
@@ -519,7 +487,7 @@ class Morpheus::Cli::Shell
           puts "There is no previous command"
           return false
         end
-        execute_commands(input)
+        return execute(input)
       elsif input =~ /^\!.+/
         cmd_number = input.sub("!", "").to_i
         if cmd_number != 0
@@ -533,7 +501,7 @@ class Morpheus::Cli::Shell
           # remove this from readline, and replace it with the old command
           Readline::HISTORY.pop
           Readline::HISTORY << old_input
-          return execute_commands(old_input)
+          return execute(old_input)
         end
 
       elsif input == "insecure"
