@@ -283,4 +283,8 @@ class Morpheus::APIClient
     Morpheus::LibraryContainerTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def library_packages
+    Morpheus::LibraryPackagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
 end
