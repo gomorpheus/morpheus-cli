@@ -1,6 +1,4 @@
-require 'io/console'
-require 'optparse'
-require 'filesize'
+require 'fileutils'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/library_helper'
 
@@ -29,7 +27,7 @@ class Morpheus::Cli::LibraryPackagesCommand
     handle_subcommand(args)
   end
 
-  # generate a new .mlp file
+  # generate a new .morpkg file
   def download(args)
     full_command_string = "#{command_name} download #{args.join(' ')}".strip
     options = {}
@@ -38,9 +36,14 @@ class Morpheus::Cli::LibraryPackagesCommand
     outfile = nil
     do_overwrite = false
     do_mkdir = false
+    unzip_and_open = false
+    open_prog = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[filename] --instance-types x,y,z")
-      opts.on('--instance-types LIST', String, "List of instance type codes to export") do |val|
+      opts.banner = subcommand_usage("[instance-type]")
+      opts.on('--file FILE', String, "Destination filepath for the downloaded .morpkg file.") do |val|
+        outfile = val
+      end
+      opts.on('--instance-types LIST', String, "Can be used to export multiple instance types in a single package.") do |val|
         instance_type_codes = []
         val.split(',').collect do |it|
           if !it.strip.empty?
@@ -66,13 +69,18 @@ class Morpheus::Cli::LibraryPackagesCommand
         do_overwrite = true
         do_mkdir = true
       end
+      opts.on( '--open PROG', String, "Unzip the package and open the expanded directory with the specified program." ) do |val|
+        unzip_and_open = true
+        open_prog = val.to_s
+      end
       build_common_options(opts, options, [:dry_run, :quiet])
-      opts.footer = "Download one or many instance types as a morpheus library package (.mlp) file.\n" + 
-                    "[filename] is required. This is the local path for the downloaded .mlp file." +
-                    "--instance-types is required. This is a list of instance type codes."
+      opts.footer = "Download one or many instance types as a morpheus library package (.morpkg) file.\n" + 
+                    "[instance-type] is required. This is the instance type code." +
+                    "--instance-types can bv. This is a list of instance type codes."
     end
     optparse.parse!(args)
-    if args.count < 1 || args.count > 1
+
+    if args.count != 1 && !instance_type_codes && !params['all']
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} download expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
       return 1
@@ -81,33 +89,30 @@ class Morpheus::Cli::LibraryPackagesCommand
     begin
       # construct payload
       if !params['all']
-        if !instance_type_codes
-          puts_error "#{Morpheus::Terminal.angry_prompt}option --instance-types is required.\n#{optparse}"
-          return 1
+        if args[0] && !instance_type_codes
+          instance_type_codes = [args[0]]
         end
         params['instanceType'] = instance_type_codes
       end
-
       # determine outfile
-      outfile = args[0]
-      # if !outfile
-      #   # use a default location
-      #   do_mkdir = true
-      #   if instance_type_codes.size == 1
-      #     outfile = File.join(Morpheus::Cli.home_directory, "tmp", "packages",  + "#{instance_type_codes[0]}.mlp")
-      #   else
-      #     outfile = File.join(Morpheus::Cli.home_directory, "tmp", "packages",  "download.mlp")
-      #   end
-      # end
+      if !outfile
+        # use a default location
+        do_mkdir = true
+        if instance_type_codes && instance_type_codes.size == 1
+          outfile = File.join(Morpheus::Cli.home_directory, "tmp", "morpheus-packages", "#{instance_type_codes[0]}.morpkg")
+        else
+          outfile = File.join(Morpheus::Cli.home_directory, "tmp", "morpheus-packages", "download.morpkg")
+        end
+      end
       outfile = File.expand_path(outfile)
       if Dir.exists?(outfile)
-        puts_error "#{Morpheus::Terminal.angry_prompt}[filename] is invalid. It is the name of an existing directory: #{outfile}"
+        puts_error "#{Morpheus::Terminal.angry_prompt}--file is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
-      # always a .mlp
-      # if outfile[-4..-1] != ".mlp"
-      #   outfile << ".mlp"
-      # end
+      # always a .morpkg
+      if outfile[-7..-1] != ".morpkg"
+        outfile << ".morpkg"
+      end
       destination_dir = File.dirname(outfile)
       if !Dir.exists?(destination_dir)
         if do_mkdir
@@ -147,6 +152,18 @@ class Morpheus::Cli::LibraryPackagesCommand
         if !options[:quiet]
           print green + "SUCCESS" + reset + "\n"
         end
+
+        if unzip_and_open
+          package_dir = File.join(File.dirname(outfile), File.basename(outfile).sub(/\.morpkg\Z/, ''))
+          if File.exists?(package_dir)
+            print cyan,"Deleting existing directory #{package_dir}",reset,"\n"
+            FileUtils.rm_rf(package_dir)
+          end
+          print cyan,"Unzipping to #{package_dir}",reset,"\n"
+          system("unzip '#{outfile}' -d '#{package_dir}' > /dev/null 2>&1")
+          system("#{open_prog} '#{package_dir}'")
+        end
+
         return 0
       else
         if !options[:quiet]
