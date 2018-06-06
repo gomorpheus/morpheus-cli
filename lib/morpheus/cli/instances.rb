@@ -83,16 +83,12 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.list(params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_json(json_response, options, "instances")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"instances" => filter_data(json_response["instances"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_yaml(json_response, options, "instances")
         return 0
       elsif options[:csv]
         # merge stats to be nice here..
@@ -467,13 +463,10 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "stats")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"stats" => filter_data(json_response["stats"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "stats")
         return 0
       end
       instance = json_response['instance']
@@ -648,16 +641,12 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(arg)
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
-        if options[:include_fields]
-          json_response = {"instance" => filter_data(json_response["instance"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_json(json_response, options, "instance")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"instance" => filter_data(json_response["instance"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_yaml(json_response, options, "instance")
         return 0
       end
 
@@ -839,16 +828,10 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.containers(instance['id'])
       if options[:json]
-        if options[:include_fields]
-          json_response = {"containers" => filter_data(json_response["containers"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containers")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"containers" => filter_data(json_response["containers"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containers")
         return 0
       end
 
@@ -2006,14 +1989,11 @@ class Morpheus::Cli::Instances
       return 0
     end
     json_response = @instances_interface.threshold(instance['id'])
-    if options[:include_fields]
-      json_response = {"instanceThreshold" => filter_data(json_response["instanceThreshold"], options[:include_fields]) }
-    end
     if options[:json]
-      puts as_json(json_response, options)
+      puts as_json(json_response, options, "instanceThreshold")
       return 0
     elsif options[:yaml]
-      puts as_yaml(json_response, options)
+      puts as_yaml(json_response, options, "instanceThreshold")
       return 0
     elsif options[:csv]
       puts records_as_csv([json_response['instanceThreshold']], options)

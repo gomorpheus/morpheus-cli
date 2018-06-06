@@ -108,16 +108,12 @@ class Morpheus::Cli::Hosts
       json_response = @servers_interface.list(params)
 
       if options[:json]
-        if options[:include_fields]
-          json_response = {"servers" => filter_data(json_response["servers"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_json(json_response, options, "servers")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"servers" => filter_data(json_response["servers"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_yaml(json_response, options, "servers")
         return 0
       elsif options[:csv]
         # merge stats to be nice here..
@@ -263,16 +259,12 @@ class Morpheus::Cli::Hosts
       server = find_host_by_name_or_id(arg)
       json_response = @servers_interface.get(server['id'])
       if options[:json]
-        if options[:include_fields]
-          json_response = {"server" => filter_data(json_response["server"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_json(json_response, options, "server")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"server" => filter_data(json_response["server"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        json_response.delete('stats') if options[:include_fields]
+        puts as_yaml(json_response, options, "server")
         return 0
       end
       if options[:csv]
@@ -343,13 +335,10 @@ class Morpheus::Cli::Hosts
       server = find_host_by_name_or_id(arg)
       json_response = @servers_interface.get(server['id'])
       if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
+        puts as_json(json_response, options, "stats")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"stats" => filter_data(json_response["stats"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "stats")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['stats']], options)
