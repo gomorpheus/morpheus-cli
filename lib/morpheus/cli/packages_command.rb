@@ -101,10 +101,10 @@ class Morpheus::Cli::LibraryPackagesCommand
       params.merge!(parse_list_options(options))
 
       if options[:dry_run]
-        print_dry_run @packages_interface.dry.list(params)
+        print_dry_run @packages_interface.dry.search(params)
         return
       end
-      json_response = @packages_interface.list(params)
+      json_response = @packages_interface.search(params)
       if options[:json]
         puts as_json(json_response, options, "packages")
         return 0
