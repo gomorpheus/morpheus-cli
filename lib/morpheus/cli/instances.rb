@@ -155,7 +155,7 @@ class Morpheus::Cli::Instances
             }
             row
           }
-          columns = [:id, :name, :group, :cloud, :type, :version, :environment, :nodes, {:connection => {max_width: 30}}, :status]
+          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, :type, :version, :environment, :nodes, {:connection => {:max_width => 30}}, :status]
           term_width = current_terminal_width()
           if term_width > 190
             columns += [:cpu, :memory, :storage]
