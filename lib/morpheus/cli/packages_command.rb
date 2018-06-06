@@ -63,13 +63,12 @@ class Morpheus::Cli::LibraryPackagesCommand
         else
           rows = installed_packages.collect {|package|
             {
-              id: package['id'],
               name: package['name'],
+              version: package['version'],
               description: package['description'],
-              version: package['version']
             }
           }
-          columns = [:id, :name, :version]
+          columns = [:name, {:description => {:max_width => 50}}]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
@@ -124,13 +123,12 @@ class Morpheus::Cli::LibraryPackagesCommand
         else
           rows = available_packages.collect {|package|
             {
-              id: package['id'],
               name: package['name'],
-              description: package['description'],
-              version: package['version']
+              version: package['version'],
+              description: package['description']
             }
           }
-          columns = [:id, :name, :version]
+          columns = [:name, {:description => {:max_width => 50}}]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
