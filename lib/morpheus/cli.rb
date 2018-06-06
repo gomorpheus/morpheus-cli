@@ -115,7 +115,7 @@ module Morpheus
       load 'morpheus/cli/library_container_templates_command.rb'
       load 'morpheus/cli/library_option_types_command.rb'
       load 'morpheus/cli/library_option_lists_command.rb'
-      load 'morpheus/cli/library_packages_command.rb'
+      load 'morpheus/cli/packages_command.rb'
 
       load 'morpheus/cli/version_command.rb'
       load 'morpheus/cli/alias_command.rb'

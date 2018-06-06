@@ -6,9 +6,8 @@ class Morpheus::Cli::LibraryPackagesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LibraryHelper
 
-  set_command_name :'library-packages'
-  register_subcommands :download
-  # register_subcommands :upload
+  set_command_name :'packages'
+  register_subcommands :list, :get, :install, :update, :remove, :export
 
   # hide until this is released
   set_command_hidden
@@ -19,17 +18,36 @@ class Morpheus::Cli::LibraryPackagesCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @library_packages_interface = @api_client.library_packages
-    @library_instance_types_interface = @api_client.library_instance_types
+    @packages_interface = @api_client.packages
   end
 
   def handle(args)
     handle_subcommand(args)
   end
 
+  def list(args)
+    raise "not yet implemented"
+  end
+
+  def get(args)
+    raise "not yet implemented"
+  end
+
+  def install(args)
+    raise "not yet implemented"
+  end
+
+  def update(args)
+    raise "not yet implemented"
+  end
+
+  def remove(args)
+    raise "not yet implemented"
+  end
+
   # generate a new .morpkg file
-  def download(args)
-    full_command_string = "#{command_name} download #{args.join(' ')}".strip
+  def export(args)
+    full_command_string = "#{command_name} export #{args.join(' ')}".strip
     options = {}
     params = {}
     instance_type_codes = nil
@@ -69,12 +87,23 @@ class Morpheus::Cli::LibraryPackagesCommand
         do_overwrite = true
         do_mkdir = true
       end
-      opts.on( '--open PROG', String, "Unzip the package and open the expanded directory with the specified program." ) do |val|
+      opts.on( '--open [PROG]', String, "Unzip the package and open the expanded directory with the specified program." ) do |val|
         unzip_and_open = true
-        open_prog = val.to_s
+        if val.to_s.empty?
+          open_prog = val.to_s
+        else
+          open_prog = val.to_s
+        end
+        if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+          open_prog = "start"
+        elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+          open_prog = "open"
+        elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+          open_prog = "xdg-open"
+        end
       end
       build_common_options(opts, options, [:dry_run, :quiet])
-      opts.footer = "Download one or many instance types as a morpheus library package (.morpkg) file.\n" + 
+      opts.footer = "Export one or many instance types as a morpheus library package (.morpkg) file.\n" + 
                     "[instance-type] is required. This is the instance type code." +
                     "--instance-types can bv. This is a list of instance type codes."
     end
@@ -82,7 +111,7 @@ class Morpheus::Cli::LibraryPackagesCommand
 
     if args.count != 1 && !instance_type_codes && !params['all']
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} download expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} export expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -137,14 +166,14 @@ class Morpheus::Cli::LibraryPackagesCommand
       end
 
       if options[:dry_run]
-        print_dry_run @library_packages_interface.dry.download(params, outfile), full_command_string
+        print_dry_run @packages_interface.dry.export(params, outfile), full_command_string
         return 1
       end
       if !options[:quiet]
         print cyan + "Downloading morpheus package file #{outfile} ... "
       end
 
-      http_response, bad_body = @library_packages_interface.download(params, outfile)
+      http_response, bad_body = @packages_interface.export(params, outfile)
 
       # FileUtils.chmod(0600, outfile)
       success = http_response.code.to_i == 200
@@ -189,12 +218,6 @@ class Morpheus::Cli::LibraryPackagesCommand
       return 1
     end
   end
-
-
-  def upload
-    raise "not yet implemented"
-  end
-
 
   private
 
