@@ -7,7 +7,8 @@ class Morpheus::Cli::LibraryPackagesCommand
   include Morpheus::Cli::LibraryHelper
 
   set_command_name :'packages'
-  register_subcommands :list, :get, :install, :update, :remove, :export
+  # register_subcommands :list, :get, :install, :update, :remove, :export
+  register_subcommands :export
 
   # hide until this is released
   set_command_hidden
