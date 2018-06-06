@@ -8,7 +8,7 @@ class Morpheus::Cli::LibraryPackagesCommand
 
   set_command_name :'packages'
   # register_subcommands :list, :get, :install, :update, :remove, :export
-  register_subcommands :export
+  register_subcommands :list, :search, :export
 
   # hide until this is released
   set_command_hidden
@@ -27,7 +27,125 @@ class Morpheus::Cli::LibraryPackagesCommand
   end
 
   def list(args)
-    raise "not yet implemented"
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List installed packages."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params.merge!(parse_list_options(options))
+
+      if options[:dry_run]
+        print_dry_run @packages_interface.dry.list(params)
+        return
+      end
+      json_response = @packages_interface.list(params)
+      if options[:json]
+        puts as_json(json_response, options, "packages")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "packages")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["packages"], options)
+      else
+        installed_packages = json_response["packages"]
+        title = "Installed Packages"
+        subtitles = []
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles
+        if installed_packages.empty?
+          print yellow,"No marketplace packages found.",reset,"\n"
+        else
+          rows = installed_packages.collect {|package|
+            {
+              id: package['id'],
+              name: package['name'],
+              description: package['description'],
+              version: package['version']
+            }
+          }
+          columns = [:id, :name, :version]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
+          print_results_pagination(json_response)
+        end
+        print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def search(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List available packages."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params.merge!(parse_list_options(options))
+
+      if options[:dry_run]
+        print_dry_run @packages_interface.dry.list(params)
+        return
+      end
+      json_response = @packages_interface.list(params)
+      if options[:json]
+        puts as_json(json_response, options, "packages")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "packages")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["packages"], options)
+      else
+        available_packages = json_response["packages"]
+        title = "Available Packages"
+        subtitles = []
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles
+        if available_packages.empty?
+          print yellow,"No available packages found.",reset,"\n"
+        else
+          rows = available_packages.collect {|package|
+            {
+              id: package['id'],
+              name: package['name'],
+              description: package['description'],
+              version: package['version']
+            }
+          }
+          columns = [:id, :name, :version]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
+          print_results_pagination(json_response)
+        end
+        print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 
   def get(args)
