@@ -120,14 +120,11 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       option_type = find_option_type_by_name_or_id(id)
       exit 1 if option_type.nil?
 
-      if options[:include_fields]
-        json_response = {"optionType" => filter_data(json_response["optionType"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "optionType")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "optionType")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['optionType']], options)

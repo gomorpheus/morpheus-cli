@@ -44,14 +44,11 @@ class Morpheus::Cli::MonitoringChecksCommand
         return
       end
       json_response = @monitoring_interface.checks.list(params)
-      if options[:include_fields]
-        json_response = {"checks" => filter_data(json_response["checks"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "checks")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "checks")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['checks'], options)
@@ -118,14 +115,11 @@ class Morpheus::Cli::MonitoringChecksCommand
       end
       json_response = @monitoring_interface.checks.get(check['id'])
       check = json_response['check']
-      if options[:include_fields]
-        json_response = {'check' => filter_data(check, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, 'check')
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, 'check')
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['check']], options)
@@ -248,7 +242,7 @@ class Morpheus::Cli::MonitoringChecksCommand
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -272,10 +266,10 @@ class Morpheus::Cli::MonitoringChecksCommand
 
       json_response = @monitoring_interface.checks.history(check['id'], params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"history" => filter_data(json_response["history"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "history")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "history")
         return 0
       end
       if options[:csv]
@@ -601,28 +595,14 @@ class Morpheus::Cli::MonitoringChecksCommand
       end
 
       json_response = @monitoring_interface.checks.list_check_types(params)
-      if options[:include_fields]
-        json_response = {"checkTypes" => filter_data(json_response["checkTypes"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['monitorApps'], options)
+        puts as_json(json_response, options, "checkTypes")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "checkTypes")
         return 0
-      end
-      if options[:json]
-        if options[:include_fields]
-          json_response = {"checkTypes" => filter_data(json_response["checkTypes"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
-        return 0
-      end
-      if options[:csv]
-        puts records_as_csv(json_response['checkTypes'], options)
+      elsif options[:csv]
+        puts records_as_csv(json_response["checkTypes"], options)
         return 0
       end
       check_types = json_response['checkTypes']

@@ -70,17 +70,14 @@ class Morpheus::Cli::UserSourcesCommand
       end
 
       json_response = @user_sources_interface.list(account_id, params)
-      if options[:include_fields]
-        json_response = {"userSources" => filter_data(json_response["userSources"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userSources")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['userSources'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userSources")
         return 0
       end
       user_sources = json_response['userSources']
@@ -155,14 +152,11 @@ class Morpheus::Cli::UserSourcesCommand
       end
       
       #user_source = json_response['userSource']
-      if options[:include_fields]
-        json_response = {"userSource" => filter_data(json_response["userSource"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userSource")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userSource")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['userSource']], options)
@@ -695,17 +689,14 @@ class Morpheus::Cli::UserSourcesCommand
       end
 
       json_response = @user_sources_interface.list_types(params)
-      if options[:include_fields]
-        json_response = {"userSourceTypes" => filter_data(json_response["userSourceTypes"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userSourceTypes")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['userSourceTypes'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userSourceTypes")
         return 0
       end
       user_source_types = json_response['userSourceTypes']
@@ -764,15 +755,12 @@ class Morpheus::Cli::UserSourcesCommand
         return
       end
       json_response = @user_sources_interface.get_type(user_source_type_id, params)
-      user_source_type = json_response['userSourceType']
-      if options[:include_fields]
-        json_response = {"userSource" => filter_data(user_source_type, options[:include_fields]) }
-      end
+      user_source_type = json_response["userSourceType"]
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userSourceType")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userSourceType")
         return 0
       elsif options[:csv]
         puts records_as_csv([user_source_type], options)

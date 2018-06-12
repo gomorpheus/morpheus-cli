@@ -36,41 +36,26 @@ class Morpheus::Cli::PowerSchedulingCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
-
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @power_scheduling_interface.dry.list(params)
         return
       end
-
       json_response = @power_scheduling_interface.list(params)
-      if options[:include_fields]
-        json_response = {"powerScheduleTypes" => filter_data(json_response["powerScheduleTypes"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "powerScheduleTypes")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['powerScheduleTypes'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "powerScheduleTypes")
         return 0
       end
       schedules = json_response['powerScheduleTypes']
       title = "Morpheus Power Schedules"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if schedules.empty?
         print cyan,"No power schedules found.",reset,"\n"
@@ -129,14 +114,11 @@ class Morpheus::Cli::PowerSchedulingCommand
       schedule = json_response['powerScheduleType']
       instances = json_response['instances'] || []
       servers = json_response['servers'] || []
-      if options[:include_fields]
-        json_response = {"powerScheduleType" => filter_data(json_response["powerScheduleType"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "powerScheduleType")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "powerScheduleType")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['schedule']], options)

@@ -64,9 +64,7 @@ class Morpheus::Cli::PoliciesCommand
       elsif options[:cloud]
         cloud = find_cloud_by_name_or_id(options[:cloud])
       end
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.list(group['id'], params)
@@ -87,14 +85,11 @@ class Morpheus::Cli::PoliciesCommand
         json_response = @policies_interface.list(params)
       end
       policies = json_response["policies"]
-      if options[:include_fields]
-        json_response = {"policies" => filter_data(policies, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "policies")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "policies")
         return 0
       elsif options[:csv]
         puts records_as_csv(policies, options)
@@ -111,9 +106,7 @@ class Morpheus::Cli::PoliciesCommand
       if params[:global]
         subtitles << "(Global)".strip
       end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if policies.empty?
         print cyan,"No policies found.",reset,"\n"
@@ -191,14 +184,11 @@ class Morpheus::Cli::PoliciesCommand
       json_response = {'policy' => policy}  # skip redundant request
       # json_response = @policies_interface.get(policy['id'])
       policy = json_response['policy']
-      if options[:include_fields]
-        json_response = {'policy' => filter_data(policy, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "policy")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "policy")
         return 0
       elsif options[:csv]
         puts records_as_csv([policy], options)

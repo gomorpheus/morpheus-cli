@@ -44,35 +44,35 @@ class Morpheus::Cli::RecentActivityCommand
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
       params = {}
-      [:phrase, :offset, :max, :sort, :direction, :start, :end].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @dashboard_interface.dry.recent_activity(account_id, params)
         return
       end
       json_response = @dashboard_interface.recent_activity(account_id, params)
-      if options[:json]
-        if options[:include_fields]
-          json_response = {"activity" => filter_data(json_response["activity"], options[:include_fields]) }
-        end
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return 0
-      end
-      if options[:csv]
-        puts records_as_csv(json_response["activity"], options)
-        return 0
-      end
-      if options[:yaml]
-        if options[:include_fields]
-          json_response = {"activity" => filter_data(json_response["activity"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
-        return 0
-      end
 
-      print_h1 "Recent Activity"
+      if options[:json]
+        puts as_json(json_response, options, "activity")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "activity")
+        return 0
+      elsif options[:csv]
+        # strip date lines
+        json_response['activity'] = json_response['activity'].reject {|it| it.keys.size == 1 && it.keys[0] == 'date' }
+        puts records_as_csv(json_response['activity'], options)
+        return 0
+      end
+      title = "Recent Activity"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      if options[:start]
+        subtitles << "Start: #{options[:start]}"
+      end
+      if options[:end]
+        subtitles << "End: #{options[:end]}"
+      end
+      print_h1 title, subtitles
       print cyan
       items = json_response["activity"]
       if items.empty?

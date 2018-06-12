@@ -33,39 +33,26 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.list(params)
         return
       end
       json_response = @monitoring_interface.incidents.list(params)
-      if options[:include_fields]
-        json_response = {"incidents" => filter_data(json_response["incidents"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_json(json_response, options, "incidents")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['incidents'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "incidents")
         return 0
       end
       incidents = json_response['incidents']
       title = "Morpheus Monitoring Incidents"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if incidents.empty?
         print cyan,"No incidents found.",reset,"\n"
@@ -104,25 +91,23 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.stats(params)
         return
       end
       json_response = @monitoring_interface.incidents.stats(params)
       if options[:json]
-        if options[:include_fields]
-          json_response.merge!({"openIncidents" => filter_data(json_response["openIncidents"], options[:include_fields])})
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "openIncidents")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['openIncidents'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "openIncidents")
         return 0
       end
-      # if options[:csv]
-      #   puts records_as_csv(json_response['openIncidents'], options)
-      #   return 0
-      # end
+      
       open_incidents = json_response['openIncidents']
       open_incidents_count = json_response['openIncidentCount']
       stats = json_response['incidentStats']
@@ -205,17 +190,14 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       json_response = @monitoring_interface.incidents.get(incident['id'])
       incident = json_response['incident']
       
-      if options[:include_fields]
-        json_response = {"incident" => filter_data(json_response["incident"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_json(json_response, options, "incident")
         return 0
       elsif options[:csv]
-        puts records_as_csv(json_response['incident'], options)
+        puts records_as_csv([json_response['incident']], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "incident")
         return 0
       end
 
@@ -303,7 +285,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :last_updated, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -313,12 +295,9 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     connect(options)
     begin
       incident = find_incident_by_id(args[0])
-      # return false if incident.nil?
+      return 1 if incident.nil?
       
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
-      # JD: lastUpdated 500ing, incidents don't have that property ? =o  Fix it!
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.history(incident['id'], params)
@@ -327,22 +306,19 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
       json_response = @monitoring_interface.incidents.history(incident['id'], params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"history" => filter_data(json_response["history"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "history")
         return 0
-      end
-      if options[:csv]
+      elsif options[:csv]
         puts records_as_csv(json_response['history'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "history")
         return 0
       end
       history_items = json_response['history']
       title = "Incident History: #{incident['id']}: #{incident['displayName'] || incident['name']}"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if history_items.empty?
         print cyan,"No history found.",reset,"\n"
@@ -361,7 +337,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id] [options]")
-      build_common_options(opts, options, [:list, :json, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -373,9 +349,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       incident = find_incident_by_id(args[0])
       # return false if incident.nil?
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       
       if options[:dry_run]
         print_dry_run @monitoring_interface.incidents.dry.notifications(incident['id'], params)
@@ -384,22 +358,19 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
       json_response = @monitoring_interface.incidents.notifications(incident['id'], params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"notifications" => filter_data(json_response["notifications"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "notifications")
         return 0
-      end
-      if options[:csv]
+      elsif options[:csv]
         puts records_as_csv(json_response['notifications'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "notifications")
         return 0
       end
       notification_items = json_response['notifications']
       title = "Incident Notifications: #{incident['id']}: #{incident['displayName'] || incident['name']}"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if notification_items.empty?
         print cyan,"No notifications found.",reset,"\n"

@@ -41,23 +41,18 @@ class Morpheus::Cli::NetworkPoolServersCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @network_pool_servers_interface.dry.list(params)
         return
       end
       json_response = @network_pool_servers_interface.list(params)
       network_pool_servers = json_response["networkPoolServers"]
-      if options[:include_fields]
-        json_response = {"networkPoolServers" => filter_data(network_pool_servers, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkPoolServers")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkPoolServers")
         return 0
       elsif options[:csv]
         puts records_as_csv(network_pool_servers, options)
@@ -65,9 +60,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
       end
       title = "Morpheus Network Pool Servers"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if network_pool_servers.empty?
         print cyan,"No network pool servers found.",reset,"\n"
@@ -128,14 +121,11 @@ class Morpheus::Cli::NetworkPoolServersCommand
       json_response = {'networkPoolServer' => network_pool_server}  # skip redundant request
       # json_response = @network_pool_servers_interface.get(network_pool_server['id'])
       network_pool_server = json_response['networkPoolServer']
-      if options[:include_fields]
-        json_response = {'networkPoolServer' => filter_data(network_pool_server, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, 'networkPoolServer')
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, 'networkPoolServer')
         return 0
       elsif options[:csv]
         puts records_as_csv([network_pool_server], options)

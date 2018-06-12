@@ -60,18 +60,15 @@ class Morpheus::Cli::InstanceTypes
       # do it
       json_response = @instance_types_interface.list(params)
       instance_types = json_response['instanceTypes']
-      if options[:include_fields]
-        json_response = {"instanceTypes" => filter_data(json_response["instanceTypes"], options[:include_fields]) }
-      end
       # print result and return output
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "instanceTypes")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['instanceTypes'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "instanceTypes")
         return 0
       end
       instance_types = json_response['instanceTypes']
@@ -134,14 +131,11 @@ class Morpheus::Cli::InstanceTypes
         instance_type = json_response['instanceType']
       end
 
-      if options[:include_fields]
-        json_response = {"instanceType" => filter_data(json_response["instanceType"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "instanceType")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "instanceType")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['instanceType']], options)

@@ -41,19 +41,15 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       end
       # do it
       json_response = @container_scripts_interface.list(params)
-      container_scripts = json_response['containerScripts']
-      if options[:include_fields]
-        json_response = {"containerScripts" => filter_data(json_response["containerScripts"], options[:include_fields]) }
-      end
       # print result and return output
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerScripts")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['containerScripts'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerScripts")
         return 0
       end
       container_scripts = json_response['containerScripts']
@@ -107,17 +103,14 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       container_script = json_response['containerScript']
       instances = json_response['instances'] || []
       servers = json_response['servers'] || []
-      if options[:include_fields]
-        json_response = {"containerScript" => filter_data(json_response["containerScript"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerScript")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerScript")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['containerScript']], options)
+        puts records_as_csv([json_response["containerScript"]], options)
         return 0
       end
 

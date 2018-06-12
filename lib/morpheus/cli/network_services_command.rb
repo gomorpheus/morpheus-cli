@@ -42,23 +42,18 @@ class Morpheus::Cli::NetworkServicesCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @network_services_interface.dry.list(params)
         return
       end
       json_response = @network_services_interface.list(params)
       network_services = json_response["networkServices"]
-      if options[:include_fields]
-        json_response = {"networkServices" => filter_data(network_services, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkServices")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkServices")
         return 0
       elsif options[:csv]
         puts records_as_csv(network_services, options)
@@ -66,9 +61,7 @@ class Morpheus::Cli::NetworkServicesCommand
       end
       title = "Morpheus Network Services"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if network_services.empty?
         print cyan,"No network services found.",reset,"\n"

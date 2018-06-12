@@ -65,19 +65,16 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       end
       # do it
       json_response = @library_container_types_interface.list(layout_id, params)
-      if options[:include_fields]
-        json_response = {"containerTypes" => filter_data(json_response["containerTypes"], options[:include_fields]) }
-      end
       # print and/or return result
       # return 0 if options[:quiet]
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerTypes")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['containerTypes'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerTypes")
         return 0
       end
       container_types = json_response['containerTypes']
@@ -140,14 +137,11 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       #json_response = @library_container_types_interface.get(layout_id, container_type['id'])
       json_response = {'containerType' => container_type}
       #container_type = json_response['containerType']
-      if options[:include_fields]
-        json_response = {"containerType" => filter_data(json_response["containerType"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerType")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerType")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['containerType']], options)

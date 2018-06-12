@@ -42,17 +42,14 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
 
       json_response = @monitoring_interface.apps.list(params)
-      if options[:include_fields]
-        json_response = {"monitorApps" => filter_data(json_response["monitorApps"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "monitorApps")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['monitorApps'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "monitorApps")
         return 0
       end
       monitor_apps = json_response['monitorApps']
@@ -117,14 +114,11 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
       json_response = @monitoring_interface.apps.get(monitor_app['id'])
       monitor_app = json_response['monitorApp']
-      if options[:include_fields]
-        json_response = {"monitorApp" => filter_data(json_response["monitorApp"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "monitorApp")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "monitorApp")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['monitorApp']], options)
@@ -245,10 +239,7 @@ class Morpheus::Cli::MonitoringAppsCommand
 
       json_response = @monitoring_interface.apps.history(monitor_app['id'], params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"history" => filter_data(json_response["history"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "history")
         return 0
       end
       if options[:csv]

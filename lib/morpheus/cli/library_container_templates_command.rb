@@ -38,17 +38,14 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       end
 
       json_response = @container_templates_interface.list(params)
-      if options[:include_fields]
-        json_response = {"containerTemplates" => filter_data(json_response["containerTemplates"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerTemplates")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['containerTemplates'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerTemplates")
         return 0
       end
       container_templates = json_response['containerTemplates']
@@ -111,14 +108,11 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       container_template = json_response['containerTemplate']
       instances = json_response['instances'] || []
       servers = json_response['servers'] || []
-      if options[:include_fields]
-        json_response = {"containerTemplate" => filter_data(json_response["containerTemplate"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "containerTemplate")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "containerTemplate")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['containerTemplate']], options)

@@ -41,23 +41,18 @@ class Morpheus::Cli::StorageProvidersCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.list(params)
         return
       end
       json_response = @storage_providers_interface.list(params)
       storage_providers = json_response["storageProviders"]
-      if options[:include_fields]
-        json_response = {"storageProviders" => filter_data(storage_providers, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "storageProviders")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "storageProviders")
         return 0
       elsif options[:csv]
         puts records_as_csv(storage_providers, options)
@@ -65,9 +60,7 @@ class Morpheus::Cli::StorageProvidersCommand
       end
       title = "Morpheus Storage Providers"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if storage_providers.empty?
         print cyan,"No storage providers found.",reset,"\n"
@@ -131,14 +124,11 @@ class Morpheus::Cli::StorageProvidersCommand
       json_response = {'storageProvider' => storage_provider}  # skip redundant request
       # json_response = @storage_providers_interface.get(storage_provider['id'])
       storage_provider = json_response['storageProvider']
-      if options[:include_fields]
-        json_response = {'storageProvider' => filter_data(storage_provider, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "storageProvider")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "storageProvider")
         return 0
       elsif options[:csv]
         puts records_as_csv([storage_provider], options)

@@ -35,7 +35,7 @@ class Morpheus::Cli::Remote
       opts.on("-a",'--all', "Show all the appliance activity details") do
         show_all_activity = true
       end
-      build_common_options(opts, options, [:json, :csv, :fields])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields])
       opts.footer = <<-EOT
 This outputs a list of the configured remote appliances. It also indicates
 the current appliance. The current appliance is where morpheus will send 
@@ -52,15 +52,14 @@ EOT
     #   raise_command_error "You have no appliances configured. See the `remote add` command."
     # end
     
+    json_response = {"appliances" => appliances}
     if options[:json]
-      json_response = {"appliances" => appliances} # mock payload
-      if options[:include_fields]
-        json_response = {"appliances" => filter_data(appliances, options[:include_fields]) }
-      end
-      puts as_json(json_response, options)
+      puts as_json(json_response, options, "appliances")
       return 0
-    end
-    if options[:csv]
+    elsif options[:yaml]
+      puts as_yaml(json_response, options, "appliances")
+      return 0
+    elsif options[:csv]
       puts records_as_csv(appliances, options)
       return 0
     end

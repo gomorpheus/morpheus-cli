@@ -65,17 +65,14 @@ class Morpheus::Cli::AppTemplates
       json_response = @app_templates_interface.list(params)
       app_templates = json_response['appTemplates']
 
-      if options[:include_fields]
-        json_response = {"appTemplates" => filter_data(json_response["appTemplates"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "appTemplates")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['appTemplates'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "appTemplates")
         return 0
       end
 
@@ -151,19 +148,12 @@ class Morpheus::Cli::AppTemplates
       end
 
       if options[:json]
-        if options[:include_fields]
-          json_response = {"appTemplate" => filter_data(json_response["appTemplate"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "appTemplate")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"appTemplate" => filter_data(json_response["appTemplate"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "appTemplate")
         return 0
-      end
-      if options[:csv]
+      elsif options[:csv]
         puts records_as_csv([json_response['appTemplate']], options)
         return 0
       end

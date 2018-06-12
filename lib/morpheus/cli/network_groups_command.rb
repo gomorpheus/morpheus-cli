@@ -41,23 +41,18 @@ class Morpheus::Cli::NetworkGroupsCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @network_groups_interface.dry.list(params)
         return
       end
       json_response = @network_groups_interface.list(params)
       network_groups = json_response["networkGroups"]
-      if options[:include_fields]
-        json_response = {"networkGroups" => filter_data(network_groups, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkGroups")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkGroups")
         return 0
       elsif options[:csv]
         puts records_as_csv(network_groups, options)
@@ -65,9 +60,7 @@ class Morpheus::Cli::NetworkGroupsCommand
       end
       title = "Morpheus Network Groups"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if network_groups.empty?
         print cyan,"No network groups found.",reset,"\n"
@@ -130,14 +123,11 @@ class Morpheus::Cli::NetworkGroupsCommand
       json_response = {'networkGroup' => network_group}  # skip redundant request
       # json_response = @network_groups_interface.get(network_group['id'])
       network_group = json_response['networkGroup']
-      if options[:include_fields]
-        json_response = {'networkGroup' => filter_data(network_group, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkGroup")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkGroup")
         return 0
       elsif options[:csv]
         puts records_as_csv([network_group], options)

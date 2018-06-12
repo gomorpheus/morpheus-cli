@@ -46,23 +46,18 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
 
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @users_interface.dry.list(account_id, params)
         return
       end
       json_response = @users_interface.list(account_id, params)
       users = json_response['users']
-      if options[:include_fields]
-        json_response = {"users" => filter_data(users, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "users")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "users")
         return 0
       elsif options[:csv]
         puts records_as_csv(users, options)
@@ -73,9 +68,7 @@ class Morpheus::Cli::Users
         if account
           subtitles << "Account: #{account['name']}".strip
         end
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if users.empty?
           puts yellow,"No users found.",reset
@@ -177,16 +170,12 @@ class Morpheus::Cli::Users
       
       json_response =  {'user' => user}
       # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
-
-      if options[:include_fields]
-        json_response = {'user' => filter_data(user, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "user")
         puts as_json(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "user")
         puts as_yaml(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:csv]

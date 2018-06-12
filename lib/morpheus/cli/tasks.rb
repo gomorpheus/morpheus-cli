@@ -41,19 +41,13 @@ class Morpheus::Cli::Tasks
       json_response = @tasks_interface.get(params)
       # print result and return output
       if options[:json]
-        if options[:include_fields]
-          json_response = {"tasks" => filter_data(json_response["tasks"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "tasks")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['tasks'], options)
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"tasks" => filter_data(json_response["tasks"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "tasks")
         return 0
       else
         title = "Morpheus Tasks"
@@ -113,12 +107,10 @@ class Morpheus::Cli::Tasks
         json_response = @tasks_interface.get(task['id'])
       end
       if options[:json]
-        json_response = {"task" => filter_data(json_response["task"], options[:include_fields]) } if options[:include_fields]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "task")
         return 0
       elsif options[:yaml]
-        json_response = {"task" => filter_data(json_response["task"], options[:include_fields]) } if options[:include_fields]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "task")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['task']], options)

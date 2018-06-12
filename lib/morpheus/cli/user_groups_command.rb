@@ -31,41 +31,26 @@ class Morpheus::Cli::UserGroupsCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
-
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.list(nil, params)
         return
       end
-
       json_response = @user_groups_interface.list(nil, params)
-      if options[:include_fields]
-        json_response = {"userGroups" => filter_data(json_response["userGroups"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userGroups")
         return 0
       elsif options[:csv]
-        puts records_as_csv(json_response['userGroups'], options)
+        puts records_as_csv(json_response["userGroups"], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userGroups")
         return 0
       end
       user_groups = json_response['userGroups']
       title = "Morpheus User Groups"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if user_groups.empty?
         print cyan,"No user groups found.",reset,"\n"
@@ -113,14 +98,11 @@ class Morpheus::Cli::UserGroupsCommand
       json_response = @user_groups_interface.get(nil, user_group['id'])
       user_group = json_response['userGroup']
       users = user_group['users'] || []
-      if options[:include_fields]
-        json_response = {"userGroup" => filter_data(json_response["userGroup"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "userGroup")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "userGroup")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['userGroup']], options)

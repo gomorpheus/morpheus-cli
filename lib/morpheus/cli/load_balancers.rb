@@ -44,19 +44,13 @@ class Morpheus::Cli::LoadBalancers
       end
       json_response = @load_balancers_interface.get(params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"loadBalancers" => filter_data(json_response["loadBalancers"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "loadBalancers")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response["loadBalancers"], options)
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"loadBalancers" => filter_data(json_response["loadBalancers"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "loadBalancers")
         return 0
       else
         lbs = json_response['loadBalancers']
@@ -112,19 +106,13 @@ class Morpheus::Cli::LoadBalancers
       #puts "LB TYPE: #{lb_type}"
       if options[:json]
         puts JSON.pretty_generate({loadBalancer: lb})
-        if options[:include_fields]
-          json_response = {"loadBalancer" => filter_data(json_response["loadBalancer"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "loadBalancer")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response["loadBalancer"], options)
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"loadBalancer" => filter_data(json_response["loadBalancer"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "loadBalancer")
         return 0
       else
         print_h1 "Load Balancer Details"

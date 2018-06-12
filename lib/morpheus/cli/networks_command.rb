@@ -44,23 +44,18 @@ class Morpheus::Cli::NetworksCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @networks_interface.dry.list(params)
         return
       end
       json_response = @networks_interface.list(params)
       networks = json_response["networks"]
-      if options[:include_fields]
-        json_response = {"networks" => filter_data(networks, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networks")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networks")
         return 0
       elsif options[:csv]
         puts records_as_csv(networks, options)
@@ -68,9 +63,7 @@ class Morpheus::Cli::NetworksCommand
       end
       title = "Morpheus Networks"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if networks.empty?
         print cyan,"No networks found.",reset,"\n"
@@ -135,14 +128,11 @@ class Morpheus::Cli::NetworksCommand
       json_response = {'network' => network}  # skip redundant request
       # json_response = @networks_interface.get(network['id'])
       network = json_response['network']
-      if options[:include_fields]
-        json_response = {'network' => filter_data(network, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "network")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "network")
         return 0
       elsif options[:csv]
         puts records_as_csv([network], options)

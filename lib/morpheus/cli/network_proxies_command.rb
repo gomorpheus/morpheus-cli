@@ -41,23 +41,18 @@ class Morpheus::Cli::NetworkProxiesCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @network_proxies_interface.dry.list(params)
         return
       end
       json_response = @network_proxies_interface.list(params)
       network_proxies = json_response["networkProxies"]
-      if options[:include_fields]
-        json_response = {"networkProxies" => filter_data(network_proxies, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkProxies")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkProxies")
         return 0
       elsif options[:csv]
         puts records_as_csv(network_proxies, options)
@@ -65,9 +60,7 @@ class Morpheus::Cli::NetworkProxiesCommand
       end
       title = "Morpheus Network Proxies"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if network_proxies.empty?
         print cyan,"No network proxies found.",reset,"\n"
@@ -130,14 +123,11 @@ class Morpheus::Cli::NetworkProxiesCommand
       json_response = {'networkProxy' => network_proxy}  # skip redundant request
       # json_response = @network_proxies_interface.get(network_proxy['id'])
       network_proxy = json_response['networkProxy']
-      if options[:include_fields]
-        json_response = {'networkProxy' => filter_data(network_proxy, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkProxy")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkProxy")
         return 0
       elsif options[:csv]
         puts records_as_csv([network_proxy], options)

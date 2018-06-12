@@ -46,19 +46,13 @@ class Morpheus::Cli::Workflows
       task_sets = json_response['taskSets']
       # print result and return output
       if options[:json]
-        if options[:include_fields]
-          json_response = {"taskSets" => filter_data(json_response["taskSets"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "taskSets")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['taskSets'], options)
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"taskSets" => filter_data(json_response["taskSets"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "taskSets")
         return 0
       else
         task_sets = json_response['taskSets']
@@ -160,12 +154,10 @@ class Morpheus::Cli::Workflows
       end
       workflow = json_response['taskSet']
       if options[:json]
-        json_response = {"taskSet" => filter_data(json_response["taskSet"], options[:include_fields]) } if options[:include_fields]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "taskSet")
         return 0
       elsif options[:yaml]
-        json_response = {"taskSet" => filter_data(json_response["taskSet"], options[:include_fields]) } if options[:include_fields]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "taskSet")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['taskSet']], options)

@@ -75,17 +75,14 @@ class Morpheus::Cli::LibraryUpgradesCommand
       end
 
       json_response = @library_container_upgrades_interface.list(instance_type_id, params)
-      if options[:include_fields]
-        json_response = {"upgrades" => filter_data(json_response["upgrades"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "upgrades")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['upgrades'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "upgrades")
         return 0
       end
       upgrades = json_response['upgrades']
@@ -151,14 +148,11 @@ class Morpheus::Cli::LibraryUpgradesCommand
       #json_response = @library_container_upgrades_interface.get(instance_type_id, upgrade['id'])
       json_response = {'upgrade' => upgrade}
       #upgrade = json_response['upgrade']
-      if options[:include_fields]
-        json_response = {"upgrade" => filter_data(json_response["upgrade"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "upgrade")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "upgrade")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['upgrade']], options)

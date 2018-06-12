@@ -70,17 +70,14 @@ class Morpheus::Cli::LibraryLayoutsCommand
       end
 
       json_response = @library_layouts_interface.list(instance_type_id, params)
-      if options[:include_fields]
-        json_response = {"instanceTypeLayouts" => filter_data(json_response["instanceTypeLayouts"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "instanceTypeLayouts")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['instanceTypeLayouts'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "instanceTypeLayouts")
         return 0
       end
       layouts = json_response['instanceTypeLayouts']
@@ -142,14 +139,11 @@ class Morpheus::Cli::LibraryLayoutsCommand
       #json_response = @library_layouts_interface.get(instance_type_id, layout['id'])
       json_response = {'instanceTypeLayout' => layout}
       #layout = json_response['instanceTypeLayout']
-      if options[:include_fields]
-        json_response = {"instanceTypeLayout" => filter_data(json_response["instanceTypeLayout"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "instanceTypeLayout")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "instanceTypeLayout")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['instanceTypeLayout']], options)

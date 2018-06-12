@@ -31,9 +31,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      # construct payload
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
         print_dry_run @monitoring_interface.groups.dry.list(params)
@@ -41,31 +40,21 @@ class Morpheus::Cli::MonitoringGroupsCommand
       end
 
       json_response = @monitoring_interface.groups.list(params)
-      if options[:include_fields]
-        json_response = {"checkGroups" => filter_data(json_response["checkGroups"], options[:include_fields]) }
-      end
+
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "checkGroups")
         return 0
       elsif options[:csv]
         puts records_as_csv(json_response['checkGroups'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "checkGroups")
         return 0
       end
       check_groups = json_response['checkGroups']
       title = "Morpheus Monitoring Check Groups"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if check_groups.empty?
         print cyan,"No check groups found.",reset,"\n"
@@ -116,14 +105,11 @@ class Morpheus::Cli::MonitoringGroupsCommand
       end
       json_response = @monitoring_interface.groups.get(check_group['id'])
       check_group = json_response['checkGroup']
-      if options[:include_fields]
-        json_response = {"checkGroup" => filter_data(json_response["checkGroup"], options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "checkGroup")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "checkGroup")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['checkGroup']], options)
@@ -227,10 +213,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
       check_group = find_check_group_by_name_or_id(args[0])
       return 1 if check_group.nil?
       
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
-      # JD: lastUpdated 500ing, checks don't have that property ? =o  Fix it!
+      # construct payload
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
         print_dry_run @monitoring_interface.groups.dry.history(check_group['id'], params)
@@ -239,22 +223,19 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
       json_response = @monitoring_interface.groups.history(check_group['id'], params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"history" => filter_data(json_response["history"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "history")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["history"], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "history")
         return 0
       end
-      if options[:csv]
-        puts records_as_csv(json_response['history'], options)
-        return 0
-      end
-      history_items = json_response['history']
-      title = "Check Group History: #{check_group['id']}: #{check_group['displayName'] || check_group['name']}"
+      history_items = json_response["history"]
+      title = "Check Group History - [#{check_group['id']}] #{check_group['displayName'] || check_group['name']}"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if history_items.empty?
         print cyan,"No history found.",reset,"\n"

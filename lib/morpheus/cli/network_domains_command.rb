@@ -41,23 +41,18 @@ class Morpheus::Cli::NetworkDomainsCommand
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @network_domains_interface.dry.list(params)
         return
       end
       json_response = @network_domains_interface.list(params)
       network_domains = json_response["networkDomains"]
-      if options[:include_fields]
-        json_response = {"networkDomains" => filter_data(network_domains, options[:include_fields]) }
-      end
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "networkDomains")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "networkDomains")
         return 0
       elsif options[:csv]
         puts records_as_csv(network_domains, options)
@@ -65,9 +60,7 @@ class Morpheus::Cli::NetworkDomainsCommand
       end
       title = "Morpheus Network Domains"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if network_domains.empty?
         print cyan,"No network domains found.",reset,"\n"
@@ -132,14 +125,12 @@ class Morpheus::Cli::NetworkDomainsCommand
       json_response = {'networkDomain' => network_domain}  # skip redundant request
       # json_response = @network_domains_interface.get(network_domain['id'])
       network_domain = json_response['networkDomain']
-      if options[:include_fields]
-        json_response = {'networkDomain' => filter_data(network_domain, options[:include_fields]) }
-      end
+      
       if options[:json]
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, 'networkDomain')
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, 'networkDomain')
         return 0
       elsif options[:csv]
         puts records_as_csv([network_domain], options)

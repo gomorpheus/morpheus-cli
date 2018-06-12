@@ -34,7 +34,7 @@ class Morpheus::Cli::MonitoringContactsCommand
     params = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :csv, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
@@ -51,10 +51,11 @@ class Morpheus::Cli::MonitoringContactsCommand
 
       json_response = @monitoring_interface.contacts.list(params)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"contacts" => filter_data(json_response["contacts"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "contacts")
+        return 0
+      end
+      if options[:yaml]
+        puts as_json(json_response, options, "contacts")
         return 0
       end
       if options[:csv]

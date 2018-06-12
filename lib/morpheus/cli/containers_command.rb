@@ -56,16 +56,10 @@ class Morpheus::Cli::ContainersCommand
       #return 1 if container.nil?
       json_response = @containers_interface.get(arg.to_i)
       if options[:json]
-        if options[:include_fields]
-          json_response = {"container" => filter_data(json_response["container"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "container")
         return 0
       elsif options[:yaml]
-        if options[:include_fields]
-          json_response = {"container" => filter_data(json_response["container"], options[:include_fields]) }
-        end
-        puts as_yaml(json_response, options)
+        puts as_yaml(json_response, options, "container")
         return 0
       end
 
