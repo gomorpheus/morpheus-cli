@@ -59,16 +59,17 @@ class Morpheus::Cli::LibraryPackagesCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if installed_packages.empty?
-          print yellow,"No marketplace packages found.",reset,"\n"
+          print cyan,"No installed packages found",reset,"\n"
         else
           rows = installed_packages.collect {|package|
             {
+              code: package['code'],
               name: package['name'],
               version: package['version'],
               description: package['description'],
             }
           }
-          columns = [:name, {:description => {:max_width => 50}}]
+          columns = [:code, :name, {:description => {:max_width => 50}}]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
@@ -92,7 +93,7 @@ class Morpheus::Cli::LibraryPackagesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List available packages."
+      opts.footer = "Search the marketplace for available packages."
     end
     optparse.parse!(args)
     connect(options)
@@ -119,16 +120,17 @@ class Morpheus::Cli::LibraryPackagesCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if available_packages.empty?
-          print yellow,"No available packages found.",reset,"\n"
+          print cyan,"No packages found",reset,"\n"
         else
           rows = available_packages.collect {|package|
             {
+              code: package['code'],
               name: package['name'],
               version: package['version'],
               description: package['description']
             }
           }
-          columns = [:name, {:description => {:max_width => 50}}]
+          columns = [:code, :name, {:description => {:max_width => 50}}]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
@@ -178,7 +180,22 @@ class Morpheus::Cli::LibraryPackagesCommand
       opts.on('--file FILE', String, "Destination filepath for the downloaded .morpkg file.") do |val|
         outfile = val
       end
-      opts.on('--instance-types LIST', String, "Can be used to export multiple instance types in a single package.") do |val|
+      opts.on('--package-version VALUE', String, "Version number for package.") do |val|
+        params['version'] = val
+      end
+      opts.on('--organization NAME', String, "Organization for package.") do |val|
+        params['organization'] = val
+      end
+      opts.on('--code VALUE', String, "Code for package. Default comes from instance type.") do |val|
+        params['code'] = val
+      end
+      opts.on('--name VALUE', String, "Name for package. Default comes from the instance type name") do |val|
+        params['name'] = val
+      end
+      opts.on('--description VALUE', String, "Description of package.") do |val|
+        params['description'] = val
+      end
+      opts.on('--instance-types LIST', String, "Can be used to export multiple instance types as a single package.") do |val|
         instance_type_codes = []
         val.split(',').collect do |it|
           if !it.strip.empty?
@@ -206,20 +223,19 @@ class Morpheus::Cli::LibraryPackagesCommand
       end
       opts.on( '--open [PROG]', String, "Unzip the package and open the expanded directory with the specified program." ) do |val|
         unzip_and_open = true
-        if val.to_s.empty?
+        if !val.to_s.empty?
           open_prog = val.to_s
         else
-          open_prog = val.to_s
-        end
-        if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-          open_prog = "start"
-        elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-          open_prog = "open"
-        elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-          open_prog = "xdg-open"
+          if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+            open_prog = "start"
+          elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+            open_prog = "open"
+          elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+            open_prog = "xdg-open"
+          end
         end
       end
-      build_common_options(opts, options, [:dry_run, :quiet])
+      build_common_options(opts, options, [:options, :dry_run, :quiet])
       opts.footer = "Export one or many instance types as a morpheus library package (.morpkg) file.\n" + 
                     "[instance-type] is required. This is the instance type code." +
                     "--instance-types can bv. This is a list of instance type codes."
@@ -281,6 +297,9 @@ class Morpheus::Cli::LibraryPackagesCommand
           return 1
         end
       end
+
+      # merge -O options into normally parsed options
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
       if options[:dry_run]
         print_dry_run @packages_interface.dry.export(params, outfile), full_command_string
