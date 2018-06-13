@@ -53,12 +53,10 @@ class Morpheus::Cli::MonitoringContactsCommand
       if options[:json]
         puts as_json(json_response, options, "contacts")
         return 0
-      end
-      if options[:yaml]
+      elsif options[:yaml]
         puts as_json(json_response, options, "contacts")
         return 0
-      end
-      if options[:csv]
+      elsif options[:csv]
         puts records_as_csv(json_response['contacts'], options)
         return 0
       end
@@ -118,10 +116,10 @@ class Morpheus::Cli::MonitoringContactsCommand
       contact = json_response['contact']
       
       if options[:json]
-        if options[:include_fields]
-          json_response = {"contact" => filter_data(json_response["contact"], options[:include_fields]) }
-        end
-        puts as_json(json_response, options)
+        puts as_json(json_response, options, "contact")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "contact")
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['contact']], options)
