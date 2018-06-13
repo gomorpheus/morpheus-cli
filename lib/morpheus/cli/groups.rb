@@ -54,7 +54,7 @@ class Morpheus::Cli::Groups
       groups = json_response['groups']
       print_h1 "Morpheus Groups"
       if groups.empty?
-        puts yellow,"No groups currently configured.",reset
+        print yellow,"No groups currently configured.",reset,"\n"
       else
         print_groups_table(groups)
         print_results_pagination(json_response)

@@ -14,6 +14,9 @@ class Morpheus::Cli::Accounts
   alias_subcommand :details, :get
   set_default_subcommand :list
 
+  # account-groups is under this namespace for now
+  register_subcommands :'groups' => :account_groups
+
   def initialize()
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -27,6 +30,10 @@ class Morpheus::Cli::Accounts
 
   def handle(args)
     handle_subcommand(args)
+  end
+
+  def account_groups(args)
+    Morpheus::Cli::AccountGroupsCommand.new.handle(args)
   end
 
   def list(args)

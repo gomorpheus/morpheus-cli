@@ -69,6 +69,10 @@ class Morpheus::APIClient
     Morpheus::GroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def account_groups
+    Morpheus::AccountGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def clouds
     Morpheus::CloudsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
