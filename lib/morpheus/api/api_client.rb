@@ -73,6 +73,10 @@ class Morpheus::APIClient
     Morpheus::CloudsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def cloud_datastores
+    Morpheus::CloudDatastoresInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def servers
     Morpheus::ServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
