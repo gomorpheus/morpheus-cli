@@ -68,14 +68,14 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = filename
     payload = image_file
-    execute(method: :post, url: url, headers: headers, payload: payload)
+    execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
   end
 
   def upload_by_url(id, file_url)
     url = "#{@base_url}/api/virtual-images/#{id}/upload"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:url] = file_url
-    execute(method: :post, url: url, headers: headers)
+    execute(method: :post, url: url, headers: headers, timeout: 36000)
   end
 
   def destroy_file(id, filename)
