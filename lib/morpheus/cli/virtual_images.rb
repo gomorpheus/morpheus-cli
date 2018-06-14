@@ -29,7 +29,7 @@ class Morpheus::Cli::VirtualImages
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on( '-t', '--type IMAGE_TYPE', "Image Type" ) do |val|
         options[:imageType] = val.downcase
@@ -43,15 +43,14 @@ class Morpheus::Cli::VirtualImages
       opts.on('--system', "System Images" ) do
         options[:filterType] = 'System'
       end
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List virtual images."
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       if options[:imageType]
         params[:imageType] = options[:imageType]
       end
@@ -63,38 +62,50 @@ class Morpheus::Cli::VirtualImages
         return
       end
       json_response = @virtual_images_interface.get(params)
+
       if options[:json]
-        print JSON.pretty_generate(json_response)
-      else
-        images = json_response['virtualImages']
-        title = "Morpheus Virtual Images"
-        subtitles = []
-        if options[:imageType]
-          subtitles << "Image Type: #{options[:imageType]}".strip
-        end
-        if options[:filterType]
-          subtitles << "Image Type: #{options[:filterType]}".strip
-        end
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
-        print_h1 title, subtitles
-        if images.empty?
-          print yellow,"No virtual images found.",reset,"\n"
-        else
-          rows = images.collect do |image|
-            image_type = virtual_image_type_for_name_or_code(image['imageType'])
-            image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
-            {name: image['name'], id: image['id'], type: image_type_display, source: image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}"), storage: !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default', size: image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}"}
-          end
-          columns = [:id, :name, :type, :storage, :size, :source]
-          print cyan
-          print as_pretty_table(rows, columns, options)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+        puts as_json(json_response, options, "virtualImages")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "virtualImages")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response["virtualImages"], options)
+        return 0
       end
-                rescue RestClient::Exception => e
+
+      
+      images = json_response['virtualImages']
+      title = "Morpheus Virtual Images"
+      subtitles = []
+      if options[:imageType]
+        subtitles << "Image Type: #{options[:imageType]}".strip
+      end
+      if options[:filterType]
+        subtitles << "Image Type: #{options[:filterType]}".strip
+      end
+      if params[:phrase]
+        subtitles << "Search: #{params[:phrase]}".strip
+      end
+      print_h1 title, subtitles
+      if images.empty?
+        print yellow,"No virtual images found.",reset,"\n"
+      else
+        rows = images.collect do |image|
+          image_type = virtual_image_type_for_name_or_code(image['imageType'])
+          image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
+          {name: image['name'], id: image['id'], type: image_type_display, source: image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}"), storage: !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default', size: image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}"}
+        end
+        columns = [:id, :name, :type, :storage, :size, :source]
+        columns = options[:include_fields] if options[:include_fields]
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      
+      return 0
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
@@ -102,9 +113,15 @@ class Morpheus::Cli::VirtualImages
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    show_details = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--details', "Show more details." ) do
+        show_details = true
+      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Get details about a virtual image." + "\n" +
+                    "[name] is required. This is the name or id of a virtual image."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -140,17 +157,45 @@ class Morpheus::Cli::VirtualImages
           "ID" => 'id',
           "Name" => 'name',
           "Type" => lambda {|it| image_type_display },
+          "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
+          "Size" => lambda {|it| image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}" },
+          "Source" => lambda {|it| image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}") }, 
           # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }
+        advanced_description_cols = {
+          "OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" },
+          "Min Memory" => lambda {|it| it['minRam'].to_i != 0 ? Filesize.from("#{it['minRam']} B").pretty : "" },
+          "Cloud Init?" => lambda {|it| format_boolean it['osType'] },
+          "Install Agent?" => lambda {|it| format_boolean it['osType'] },
+          "SSH Username" => lambda {|it| it['sshUsername'] },
+          "SSH Password" => lambda {|it| it['sshPassword'] },
+          "User Data" => lambda {|it| it['userData'] },
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Auto Join Domain?" => lambda {|it| format_boolean it['isAutoJoinDomain'] },
+          "VirtIO Drivers Loaded?" => lambda {|it| format_boolean it['virtioSupported'] },
+          "VM Tools Installed?" => lambda {|it| format_boolean it['vmToolsInstalled'] },
+          "Force Guest Customization?" => lambda {|it| format_boolean it['isForceCustomization'] },
+          "Trial Version" => lambda {|it| format_boolean it['trialVersion'] },
+          "Sysprep Enabled?" => lambda {|it| format_boolean it['isSysprep'] },
+        }
+        if show_details
+          description_cols.merge!(advanced_description_cols)
+        end
         print_description_list(description_cols, image)
 
         if image_files
-          print_h2 "Files"
-          image_files.each {|image_file|
-            pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
-            print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
-          }
+          print_h2 "Files (#{image_files.size})"
+          # image_files.each {|image_file|
+          #   pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
+          #   print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
+          # }
+          image_file_rows = image_files.collect do |image_file|
+            
+            {filename: image_file['name'], size: Filesize.from("#{image_file['size']} B").pretty}
+          end
+          print cyan
+          print as_pretty_table(image_file_rows, [:filename, :size])
         end
         print reset,"\n"
       end
@@ -164,10 +209,13 @@ class Morpheus::Cli::VirtualImages
   def update(args)
     image_name = args[0]
     options = {}
+    params = {}
     account_name = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a virtual image." + "\n" +
+                    "[name] is required. This is the name or id of a virtual image."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -176,24 +224,28 @@ class Morpheus::Cli::VirtualImages
     end
 
     connect(options)
-        begin
-
+    begin
       image = find_virtual_image_by_name_or_id(image_name)
       return 1 if image.nil?
 
-      params = options[:options] || {}
-
-      if params.empty?
-        puts optparse
-        option_lines = update_virtual_image_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        exit 1
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['virtualImage'] ||= {}
+          payload['virtualImage'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        params = options[:options] || {}
+        if params.empty?
+          puts optparse
+          option_lines = update_virtual_image_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+          puts "\nAvailable Options:\n#{option_lines}\n\n"
+          exit 1
+        end
+        payload = {'virtualImage' => params}
       end
-
-      image_payload = {id: image['id']}
-      image_payload.merge(params)
-      # JD: what can be updated?
-      payload = {virtualImage: image_payload}
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.update(image['id'], payload)
         return
@@ -205,7 +257,7 @@ class Morpheus::Cli::VirtualImages
           exit 1
         end
       else
-        print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
+        print "\n", cyan, "Virtual Image #{image['name']} updated", reset, "\n\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -215,7 +267,7 @@ class Morpheus::Cli::VirtualImages
 
   def virtual_image_types(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -254,16 +306,21 @@ class Morpheus::Cli::VirtualImages
   def add(args)
     image_type_name = nil
     file_url = nil
+    file_name = nil
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t TYPE")
       opts.on( '-t', '--type TYPE', "Virtual Image Type" ) do |val|
         image_type_name = val
+      end
+      opts.on( '--filename NAME', "Image File Name. Specify a name for the uploaded file." ) do |val|
+        file_name = val
       end
       opts.on( '-U', '--url URL', "Image File URL. This can be used instead of uploading local files." ) do |val|
         file_url = val
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.footer = "Create a virtual image."
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -304,6 +361,7 @@ class Morpheus::Cli::VirtualImages
       #   end
       # end
       params = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, options[:params])
+      params.deep_compact!
       virtual_image_payload = {}.merge(params)
       virtual_image_files = virtual_image_payload.delete('virtualImageFiles')
       virtual_image_payload['imageType'] = image_type['code']
@@ -316,10 +374,10 @@ class Morpheus::Cli::VirtualImages
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.create(payload)
         if file_url
-          print_dry_run @virtual_images_interface.dry.upload_by_url(":id", file_url)
+          print_dry_run @virtual_images_interface.dry.upload_by_url(":id", file_url, file_name)
         elsif virtual_image_files && !virtual_image_files.empty?
-          virtual_image_files.each do |key, filename|
-            print_dry_run @virtual_images_interface.dry.upload(":id", "(Contents of file #{filename})")
+          virtual_image_files.each do |key, filepath|
+            print_dry_run @virtual_images_interface.dry.upload(":id", "(Contents of file #{filepath})")
           end
         end
         return
@@ -339,17 +397,17 @@ class Morpheus::Cli::VirtualImages
         unless options[:quiet]
           print cyan, "Uploading file by url #{file_url} ...", reset, "\n"
         end
-        upload_json_response = @virtual_images_interface.upload_by_url(virtual_image['id'], file_url)
+        upload_json_response = @virtual_images_interface.upload_by_url(virtual_image['id'], file_url, file_name)
         if options[:json]
           print JSON.pretty_generate(upload_json_response)
         end
       elsif virtual_image_files && !virtual_image_files.empty?
-        virtual_image_files.each do |key, filename|
+        virtual_image_files.each do |key, filepath|
           unless options[:quiet]
-            print cyan, "Uploading file (#{key}) #{filename} ...", reset, "\n"
+            print cyan, "Uploading file (#{key}) #{filepath} ...", reset, "\n"
           end
-          image_file = File.new(filename, 'rb')
-          upload_json_response = @virtual_images_interface.upload(virtual_image['id'], image_file)
+          image_file = File.new(filepath, 'rb')
+          upload_json_response = @virtual_images_interface.upload(virtual_image['id'], image_file, file_name)
           if options[:json]
             print JSON.pretty_generate(upload_json_response)
           end
@@ -369,19 +427,25 @@ class Morpheus::Cli::VirtualImages
   end
 
   def add_file(args)
-    image_type_name = nil
     file_url = nil
+    file_name = nil
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [filepath]")
+      opts.on('--filename FILENAME', String, "Filename for uploaded file. Derived from [filepath] by default." ) do |val|
+        file_name = val
+      end
       opts.on( '-U', '--url URL', "Image File URL. This can be used instead of [filepath]" ) do |val|
         file_url = val
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Upload a virtual image file." + "\n" +
+                    "[name] is required. This is the name or id of a virtual image." + "\n" +
+                    "[filepath] or --url is required. This is location of the virtual image file."
     end
     optparse.parse!(args)
     image_name = args[0]
-    filename = nil
+    filepath = nil
     if file_url
       if args.count < 1
         puts optparse
@@ -392,7 +456,7 @@ class Morpheus::Cli::VirtualImages
         puts optparse
         exit 1
       end
-      filename = args[1]
+      filepath = args[1]
     end
 
     connect(options)
@@ -402,13 +466,13 @@ class Morpheus::Cli::VirtualImages
       return 1 if image.nil?
       if file_url
         if options[:dry_run]
-          print_dry_run @virtual_images_interface.dry.upload_by_url(image['id'], file_url)
+          print_dry_run @virtual_images_interface.dry.upload_by_url(image['id'], file_url, file_name)
           return
         end
         unless options[:quiet]
           print cyan, "Uploading file by url #{file_url} ...", reset, "\n"
         end
-        json_response = @virtual_images_interface.upload_by_url(image['id'], file_url)
+        json_response = @virtual_images_interface.upload_by_url(image['id'], file_url, file_name)
         if options[:json]
           print JSON.pretty_generate(json_response)
         elsif !options[:quiet]
@@ -416,15 +480,15 @@ class Morpheus::Cli::VirtualImages
           get([image['id']])
         end
       else
-        image_file = File.new(filename, 'rb')
+        image_file = File.new(filepath, 'rb')
         if options[:dry_run]
-          print_dry_run @virtual_images_interface.dry.upload(image['id'], image_file)
+          print_dry_run @virtual_images_interface.dry.upload(image['id'], image_file, file_name)
           return
         end
         unless options[:quiet]
-          print cyan, "Uploading file #{filename} ...", reset, "\n"
+          print cyan, "Uploading file #{filepath} ...", reset, "\n"
         end
-        json_response = @virtual_images_interface.upload(image['id'], image_file)
+        json_response = @virtual_images_interface.upload(image['id'], image_file, file_name)
         if options[:json]
           print JSON.pretty_generate(json_response)
         elsif !options[:quiet]
@@ -441,7 +505,7 @@ class Morpheus::Cli::VirtualImages
 
   def remove_file(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [filename]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
@@ -477,7 +541,7 @@ class Morpheus::Cli::VirtualImages
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
@@ -555,13 +619,14 @@ class Morpheus::Cli::VirtualImages
     return get_available_virtual_image_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
   end
 
-  def add_virtual_image_option_types(image_type, include_file_selection=true)
-    image_type_code = image_type['code']
+  def add_virtual_image_option_types(image_type = nil, include_file_selection=true)
+    
     # todo: make api provide virtualImageType and its optionTypes.
     tmp_option_types = [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       #{'fieldName' => 'imageType', 'fieldLabel' => 'Image Type', 'type' => 'select', 'optionSource' => 'virtualImageTypes', 'required' => true, 'description' => 'Select Virtual Image Type.', 'displayOrder' => 2},
       {'fieldName' => 'osType', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => false, 'description' => 'Select OS Type.', 'displayOrder' => 3},
+      {'fieldName' => 'minRam', 'fieldLabel' => 'Minimum Memory (MB)', 'type' => 'number', 'required' => false, 'description' => 'Minimum Memory (MB)', 'displayOrder' => 4},
       {'fieldName' => 'isCloudInit', 'fieldLabel' => 'Cloud Init Enabled?', 'type' => 'checkbox', 'required' => false, 'description' => 'Cloud Init Enabled?', 'displayOrder' => 4},
       {'fieldName' => 'installAgent', 'fieldLabel' => 'Install Agent?', 'type' => 'checkbox', 'required' => false, 'description' => 'Cloud Init Enabled?', 'displayOrder' => 4},
       {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => false, 'description' => 'Enter an SSH Username', 'displayOrder' => 5},
@@ -569,36 +634,44 @@ class Morpheus::Cli::VirtualImages
       {'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Storage Provider', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider.', 'displayOrder' => 7},
       {'fieldName' => 'userData', 'fieldLabel' => 'Cloud-Init User Data', 'type' => 'textarea', 'required' => false, 'displayOrder' => 10},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 40},
-      {'fieldName' => 'isAutoJoinDomain', 'fieldLabel' => 'Auto Join Domain?', 'type' => 'checkbox', 'required' => false, 'description' => 'Cloud Init Enabled?', 'category' => 'advanced', 'displayOrder' => 40},
-      {'fieldName' => 'virtioSupported', 'fieldLabel' => 'VirtIO Drivers Loaded?', 'type' => 'checkbox', 'defaultValue' => 'on', 'required' => false, 'description' => 'VirtIO Drivers Loaded?',  'category' => 'advanced', 'displayOrder' => 40}
+      {'fieldName' => 'isAutoJoinDomain', 'fieldLabel' => 'Auto Join Domain?', 'type' => 'checkbox', 'required' => false, 'description' => 'Auto Join Domain?', 'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'virtioSupported', 'fieldLabel' => 'VirtIO Drivers Loaded?', 'type' => 'checkbox', 'defaultValue' => 'on', 'required' => false, 'description' => 'VirtIO Drivers Loaded?',  'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'vmToolsInstalled', 'fieldLabel' => 'VM Tools Installed?', 'type' => 'checkbox', 'defaultValue' => 'on', 'required' => false, 'description' => 'VM Tools Installed?',  'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'isForceCustomization', 'fieldLabel' => 'Force Guest Customization?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Force Guest Customization?',  'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'trialVersion', 'fieldLabel' => 'Trial Version', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Trial Version',  'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'isSysprep', 'fieldLabel' => 'Sysprep Enabled?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Sysprep Enabled?',  'category' => 'advanced', 'displayOrder' => 40}      
     ]
 
-    if image_type_code == 'ami'
-      tmp_option_types << {'fieldName' => 'externalId', 'fieldLabel' => 'AMI id', 'type' => 'text', 'required' => false, 'displayOrder' => 10}
-      if include_file_selection
-        tmp_option_types << {'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
-      end
-    elsif image_type_code == 'vmware' || image_type_code == 'vmdk'
-      if include_file_selection
-        tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'OVF File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
-        tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageDescriptorFile', 'fieldLabel' => 'VMDK File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
-      end
-    elsif image_type_code == 'pxe'
-      tmp_option_types << {'fieldName' => 'config.menu', 'fieldLabel' => 'Menu', 'type' => 'text', 'required' => false, 'displayOrder' => 10}
-      tmp_option_types << {'fieldName' => 'imagePath', 'fieldLabel' => 'Image Path', 'type' => 'text', 'required' => true, 'displayOrder' => 10}
-      tmp_option_types.reject! {|opt| ['isCloudInit', 'installAgent', 'sshUsername', 'sshPassword'].include?(opt['fieldName'])}
-    else
-      if include_file_selection
-        tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'description' => 'Choose an image file to upload', 'displayOrder' => 10}
+    image_type_code = image_type ? image_type['code'] : nil
+    if image_type_code
+      if image_type_code == 'ami'
+        tmp_option_types << {'fieldName' => 'externalId', 'fieldLabel' => 'AMI id', 'type' => 'text', 'required' => false, 'displayOrder' => 10}
+        if include_file_selection
+          tmp_option_types << {'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
+        end
+      elsif image_type_code == 'vmware' || image_type_code == 'vmdk'
+        if include_file_selection
+          tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'OVF File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
+          tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageDescriptorFile', 'fieldLabel' => 'VMDK File', 'type' => 'file', 'required' => false, 'displayOrder' => 10}
+        end
+      elsif image_type_code == 'pxe'
+        tmp_option_types << {'fieldName' => 'config.menu', 'fieldLabel' => 'Menu', 'type' => 'text', 'required' => false, 'displayOrder' => 10}
+        tmp_option_types << {'fieldName' => 'imagePath', 'fieldLabel' => 'Image Path', 'type' => 'text', 'required' => true, 'displayOrder' => 10}
+        tmp_option_types.reject! {|opt| ['isCloudInit', 'installAgent', 'sshUsername', 'sshPassword'].include?(opt['fieldName'])}
+      else
+        if include_file_selection
+          tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'description' => 'Choose an image file to upload', 'displayOrder' => 10}
+        end
       end
     end
 
     return tmp_option_types
   end
 
-  # JD: what can be updated?
-  def update_virtual_image_option_types
-    []
+  def update_virtual_image_option_types(image_type = nil)
+    list = add_virtual_image_option_types(image_type)
+    list.each {|it| it['required'] = false }
+    list
   end
 
 end

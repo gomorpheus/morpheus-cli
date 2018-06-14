@@ -20,7 +20,6 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   def get(options=nil)
     url = "#{@base_url}/api/virtual-images"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
     if options.is_a?(Hash)
       headers[:params].merge!(options)
     elsif options.is_a?(Numeric)
@@ -31,18 +30,23 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def update(id, options)
+  def list(options=nil)
+    url = "#{@base_url}/api/virtual-images"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers[:params].merge!(options)
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def create(payload)
+    url = "#{@base_url}/api/virtual-images"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def update(id, payload)
     url = "#{@base_url}/api/virtual-images/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
-  end
-
-
-  def create(options)
-    url = "#{@base_url}/api/virtual-images"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-        payload = options
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def destroy(id)
@@ -71,10 +75,11 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
   end
 
-  def upload_by_url(id, file_url)
+  def upload_by_url(id, file_url, filename=nil)
     url = "#{@base_url}/api/virtual-images/#{id}/upload"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:url] = file_url
+    headers[:params][:filename] = filename if filename
     execute(method: :post, url: url, headers: headers, timeout: 36000)
   end
 
