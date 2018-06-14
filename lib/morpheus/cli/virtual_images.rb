@@ -119,7 +119,7 @@ class Morpheus::Cli::VirtualImages
       opts.on('--details', "Show more details." ) do
         show_details = true
       end
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a virtual image." + "\n" +
                     "[name] is required. This is the name or id of a virtual image."
     end
@@ -143,63 +143,72 @@ class Morpheus::Cli::VirtualImages
       return 1 if image.nil?
       # refetch
       json_response = @virtual_images_interface.get(image['id'])
+      if options[:json]
+        puts as_json(json_response, options, "virtualImage")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "virtualImage")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response["virtualImage"]], options)
+        return 0
+      end
+
       image = json_response['virtualImage']
       image_files = json_response['cloudFiles'] || json_response['files']
 
-      if options[:json]
-        puts JSON.pretty_generate(json_response)
-      else
-        image_type = virtual_image_type_for_name_or_code(image['imageType'])
-        image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
-        print_h1 "Virtual Image Details"
-        print cyan
-        description_cols = {
-          "ID" => 'id',
-          "Name" => 'name',
-          "Type" => lambda {|it| image_type_display },
-          "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
-          "Size" => lambda {|it| image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}" },
-          "Source" => lambda {|it| image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}") }, 
-          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-        }
-        advanced_description_cols = {
-          "OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" },
-          "Min Memory" => lambda {|it| it['minRam'].to_i != 0 ? Filesize.from("#{it['minRam']} B").pretty : "" },
-          "Cloud Init?" => lambda {|it| format_boolean it['osType'] },
-          "Install Agent?" => lambda {|it| format_boolean it['osType'] },
-          "SSH Username" => lambda {|it| it['sshUsername'] },
-          "SSH Password" => lambda {|it| it['sshPassword'] },
-          "User Data" => lambda {|it| it['userData'] },
-          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
-          "Tenants" => lambda {|it| format_tenants(it['accounts']) },
-          "Auto Join Domain?" => lambda {|it| format_boolean it['isAutoJoinDomain'] },
-          "VirtIO Drivers Loaded?" => lambda {|it| format_boolean it['virtioSupported'] },
-          "VM Tools Installed?" => lambda {|it| format_boolean it['vmToolsInstalled'] },
-          "Force Guest Customization?" => lambda {|it| format_boolean it['isForceCustomization'] },
-          "Trial Version" => lambda {|it| format_boolean it['trialVersion'] },
-          "Sysprep Enabled?" => lambda {|it| format_boolean it['isSysprep'] },
-        }
-        if show_details
-          description_cols.merge!(advanced_description_cols)
-        end
-        print_description_list(description_cols, image)
 
-        if image_files
-          print_h2 "Files (#{image_files.size})"
-          # image_files.each {|image_file|
-          #   pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
-          #   print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
-          # }
-          image_file_rows = image_files.collect do |image_file|
-            
-            {filename: image_file['name'], size: Filesize.from("#{image_file['size']} B").pretty}
-          end
-          print cyan
-          print as_pretty_table(image_file_rows, [:filename, :size])
-        end
-        print reset,"\n"
+      image_type = virtual_image_type_for_name_or_code(image['imageType'])
+      image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
+      print_h1 "Virtual Image Details"
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Type" => lambda {|it| image_type_display },
+        "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
+        "Size" => lambda {|it| image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}" },
+        "Source" => lambda {|it| image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}") }, 
+        # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+      }
+      advanced_description_cols = {
+        "OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" },
+        "Min Memory" => lambda {|it| it['minRam'].to_i != 0 ? Filesize.from("#{it['minRam']} B").pretty : "" },
+        "Cloud Init?" => lambda {|it| format_boolean it['osType'] },
+        "Install Agent?" => lambda {|it| format_boolean it['osType'] },
+        "SSH Username" => lambda {|it| it['sshUsername'] },
+        "SSH Password" => lambda {|it| it['sshPassword'] },
+        "User Data" => lambda {|it| it['userData'] },
+        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+        "Tenants" => lambda {|it| format_tenants(it['accounts']) },
+        "Auto Join Domain?" => lambda {|it| format_boolean it['isAutoJoinDomain'] },
+        "VirtIO Drivers Loaded?" => lambda {|it| format_boolean it['virtioSupported'] },
+        "VM Tools Installed?" => lambda {|it| format_boolean it['vmToolsInstalled'] },
+        "Force Guest Customization?" => lambda {|it| format_boolean it['isForceCustomization'] },
+        "Trial Version" => lambda {|it| format_boolean it['trialVersion'] },
+        "Sysprep Enabled?" => lambda {|it| format_boolean it['isSysprep'] },
+      }
+      if show_details
+        description_cols.merge!(advanced_description_cols)
       end
+      print_description_list(description_cols, image)
+
+      if image_files
+        print_h2 "Files (#{image_files.size})"
+        # image_files.each {|image_file|
+        #   pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
+        #   print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
+        # }
+        image_file_rows = image_files.collect do |image_file|
+          
+          {filename: image_file['name'], size: Filesize.from("#{image_file['size']} B").pretty}
+        end
+        print cyan
+        print as_pretty_table(image_file_rows, [:filename, :size])
+        # print reset,"\n"
+      end
+      print reset,"\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
