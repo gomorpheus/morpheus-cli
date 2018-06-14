@@ -138,6 +138,7 @@ class Morpheus::Cli::Accounts
         puts "ID: #{account['id']}"
         puts "Name: #{account['name']}"
         puts "Description: #{account['description']}"
+        puts "Subdomain: #{account['subdomain']}" if !account['subdomain'].to_s.empty?
         puts "Currency: #{account['currency']}"
         # puts "# Users: #{account['usersCount']}"
         # puts "# Instances: #{account['instancesCount']}"
