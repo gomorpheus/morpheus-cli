@@ -172,6 +172,7 @@ class Morpheus::Cli::VirtualImages
           "SSH Password" => lambda {|it| it['sshPassword'] },
           "User Data" => lambda {|it| it['userData'] },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| format_tenants(it['accounts']) },
           "Auto Join Domain?" => lambda {|it| format_boolean it['isAutoJoinDomain'] },
           "VirtIO Drivers Loaded?" => lambda {|it| format_boolean it['virtioSupported'] },
           "VM Tools Installed?" => lambda {|it| format_boolean it['vmToolsInstalled'] },
@@ -205,14 +206,19 @@ class Morpheus::Cli::VirtualImages
     end
   end
 
-  # JD: I don't think this has ever worked
   def update(args)
     image_name = args[0]
     options = {}
-    params = {}
-    account_name = nil
+    tenants_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          tenants_list = []
+        else
+          tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a virtual image." + "\n" +
                     "[name] is required. This is the name or id of a virtual image."
@@ -238,11 +244,14 @@ class Morpheus::Cli::VirtualImages
         end
       else
         params = options[:options] || {}
-        if params.empty?
+        if params.empty? && tenants_list.nil?
           puts optparse
           option_lines = update_virtual_image_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
           puts "\nAvailable Options:\n#{option_lines}\n\n"
           exit 1
+        end
+        if tenants_list
+          params['accounts'] = tenants_list
         end
         payload = {'virtualImage' => params}
       end
@@ -307,6 +316,7 @@ class Morpheus::Cli::VirtualImages
     image_type_name = nil
     file_url = nil
     file_name = nil
+    tenants_list = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t TYPE")
@@ -318,6 +328,13 @@ class Morpheus::Cli::VirtualImages
       end
       opts.on( '-U', '--url URL', "Image File URL. This can be used instead of uploading local files." ) do |val|
         file_url = val
+      end
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          tenants_list = []
+        else
+          tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Create a virtual image."
@@ -368,6 +385,9 @@ class Morpheus::Cli::VirtualImages
       storage_provider_id = virtual_image_payload.delete('storageProviderId')
       if !storage_provider_id.to_s.empty?
         virtual_image_payload['storageProvider'] = {id: storage_provider_id}
+      end
+      if tenants_list
+        virtual_image_payload['accounts'] = tenants_list
       end
       payload = {virtualImage: virtual_image_payload}
 
@@ -672,6 +692,17 @@ class Morpheus::Cli::VirtualImages
     list = add_virtual_image_option_types(image_type)
     list.each {|it| it['required'] = false }
     list
+  end
+
+  def format_tenants(accounts)
+    if accounts && accounts.size > 0
+      accounts = accounts.sort {|a,b| a['name'] <=> b['name'] }.uniq {|it| it['id'] }
+      account_ids = accounts.collect {|it| it['id'] }
+      account_names = accounts.collect {|it| it['name'] }
+      "(#{account_ids.join(',')}) #{account_names.join(',')}"
+    else
+      ""
+    end
   end
 
 end

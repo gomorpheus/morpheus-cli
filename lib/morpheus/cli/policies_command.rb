@@ -826,8 +826,9 @@ class Morpheus::Cli::PoliciesCommand
 
   def format_tenants(accounts)
     if accounts && accounts.size > 0
-      account_ids = accounts.collect {|it| it['id'] }.uniq
-      account_names = accounts.collect {|it| it['name'] }.uniq
+      accounts = accounts.sort {|it| it['name'] }.uniq {|it| it['id'] }
+      account_ids = accounts.collect {|it| it['id'] }
+      account_names = accounts.collect {|it| it['name'] }
       "(#{account_ids.join(',')}) #{account_names.join(',')}"
     else
       ""
