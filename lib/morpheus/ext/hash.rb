@@ -61,4 +61,28 @@ class Hash
     self
   end
 
+  # convert recognizable strings to booleans
+  def booleanize!(true_values=['true','on'], false_values=['false','off'])
+    self.each_pair do |k, v|
+      if v.is_a?(Hash)
+        self[k].booleanize!
+      elsif v.is_a?(Array)
+        self[k].each do |it|
+          if it.is_a?(Hash)
+            it.booleanize!
+          elsif self[k] == nil || self[k] == ''
+            # meh, preserve 'empty' array elements
+          end
+        end
+      else
+        if true_values.include?(v)
+          self[k] = true
+        elsif false_values.include?(v)
+          self[k] = false
+        end
+      end
+    end
+    self
+  end
+
 end
