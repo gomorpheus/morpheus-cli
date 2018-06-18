@@ -171,7 +171,14 @@ def get_object_value(data, key)
       end
     end
   else
-    value = data[key] || data[key.to_sym]
+    # value = data.key?(key) ? data[key] : data[key.to_sym]
+    if data.respond_to?("key?")
+      if data.key?(key.to_s)
+        value = data[key.to_s]
+      elsif data.key?(key.to_sym)
+        value = data[key.to_sym]
+      end
+    end
   end
   return value
 end
@@ -222,16 +229,16 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
             cur_filtered_data = my_data
             namespaces.each_with_index do |ns, index|
               if index != namespaces.length - 1
-                if cur_data
-                  cur_data = cur_data[ns] || cur_data[ns.to_sym]
+                if cur_data && cur_data.respond_to?("key?")
+                  cur_data = cur_data.key?(ns) ? cur_data[ns] : cur_data[ns.to_sym]
                 else
                   cur_data = nil
                 end
                 cur_filtered_data[ns] ||= {}
                 cur_filtered_data = cur_filtered_data[ns]
               else
-                if cur_data.respond_to?("[]")
-                  cur_filtered_data[ns] = cur_data[ns] || cur_data[ns.to_sym]
+                if cur_data && cur_data.respond_to?("key?")
+                  cur_filtered_data[ns] = cur_data.key?(ns) ? cur_data[ns] : cur_data[ns.to_sym]
                 else
                   cur_filtered_data[ns] = nil
                 end
@@ -240,7 +247,7 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
           end
         else
           #my_data[field] = data[field] || data[field.to_sym]
-          my_data[field_label] = data[field_key] || data[field_key.to_sym]
+          my_data[field_label] = data.key?(field_key) ? data[field_key] : data[field_key.to_sym]
         end
       end
       return my_data
