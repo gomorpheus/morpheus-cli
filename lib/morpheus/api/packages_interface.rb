@@ -39,6 +39,13 @@ class Morpheus::PackagesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def install_file(package_file, params={})
+    url = "#{@base_url}/api/packages/install-file"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
+    payload = package_file
+    execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
+  end
+
   def update(id, payload)
     url = "#{@base_url}/api/packages/update/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

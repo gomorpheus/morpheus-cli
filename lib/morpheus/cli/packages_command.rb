@@ -173,7 +173,8 @@ class Morpheus::Cli::LibraryPackagesCommand
     outfile = nil
     do_overwrite = false
     do_mkdir = false
-    unzip_and_open = false
+    do_unzip = false
+    do_open = false
     open_prog = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance-type]")
@@ -221,8 +222,12 @@ class Morpheus::Cli::LibraryPackagesCommand
         do_overwrite = true
         do_mkdir = true
       end
+      opts.on( '--unzip', "Unzip the package to a directory with the same name." ) do
+        do_unzip = true
+      end
       opts.on( '--open [PROG]', String, "Unzip the package and open the expanded directory with the specified program." ) do |val|
-        unzip_and_open = true
+        do_unzip = true
+        do_open = true
         if !val.to_s.empty?
           open_prog = val.to_s
         else
@@ -318,7 +323,7 @@ class Morpheus::Cli::LibraryPackagesCommand
           print green + "SUCCESS" + reset + "\n"
         end
 
-        if unzip_and_open
+        if do_unzip
           package_dir = File.join(File.dirname(outfile), File.basename(outfile).sub(/\.morpkg\Z/, ''))
           if File.exists?(package_dir)
             print cyan,"Deleting existing directory #{package_dir}",reset,"\n"
@@ -326,7 +331,9 @@ class Morpheus::Cli::LibraryPackagesCommand
           end
           print cyan,"Unzipping to #{package_dir}",reset,"\n"
           system("unzip '#{outfile}' -d '#{package_dir}' > /dev/null 2>&1")
-          system("#{open_prog} '#{package_dir}'")
+          if do_open
+            system("#{open_prog} '#{package_dir}'")
+          end
         end
 
         return 0
