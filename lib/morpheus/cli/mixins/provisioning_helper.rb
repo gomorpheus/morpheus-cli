@@ -317,6 +317,16 @@ module Morpheus::Cli::ProvisioningHelper
     end
     payload['instance']['plan'] = {'id' => service_plan["id"]}
 
+    # prompt for resource pool
+    has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
+    if has_zone_pools
+      resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client,{groupId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+      if resource_pool_prompt['config'] && resource_pool_prompt['config']['resourcePoolId']
+        payload['config'] ||= {}
+        payload['config']['resourcePoolId'] = resource_pool_prompt['config']['resourcePoolId']
+      end
+    end
+
     # prompt for volumes
     volumes = prompt_volumes(service_plan, options, api_client, {})
     if !volumes.empty?
@@ -353,6 +363,10 @@ module Morpheus::Cli::ProvisioningHelper
     # remove networkId option if networks were configured above
     if !payload['networkInterfaces'].empty?
       option_type_list = reject_networking_option_types(option_type_list)
+    end
+    # remove resourcePoolId if it was configured above
+    if has_zone_pools
+      option_type_list = option_type_list.reject {|opt| ['resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
     end
 
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
