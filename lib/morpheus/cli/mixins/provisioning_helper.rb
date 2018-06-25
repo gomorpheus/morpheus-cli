@@ -366,7 +366,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
     # remove resourcePoolId if it was configured above
     if has_zone_pools
-      option_type_list = option_type_list.reject {|opt| ['resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+      option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
     end
 
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
