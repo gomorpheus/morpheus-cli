@@ -77,27 +77,56 @@ class Morpheus::Cli::Workflows
 
   def add(args)
     options = {}
+    params = {}
+    task_arg_list = nil
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] --tasks x,y,z")
-      opts.on("--tasks x,y,z", Array, "List of tasks to run in order") do |list|
-        options[:task_names] = list
+      opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
+      opts.on("--name NAME", String, "Name for workflow") do |val|
+        params['name'] = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
+      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional, the default is 'provision'.") do |list|
+        task_arg_list = []
+        list.each do |it|
+          task_id, task_phase = it.split(":")
+          task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
+        end
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1 || options[:task_names].empty?
-      puts optparse
-      exit 1
-    end
-    workflow_name = args[0]
+
     connect(options)
     begin
-      tasks = []
-      options[:task_names].each do |task_name|
-        tasks << find_task_by_name_or_id(task_name.to_s.strip)['id']
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        if args[0] && !params['name']
+          params['name'] = args[0]
+        end
+        if (!params['name'] || task_arg_list.nil?)
+          puts optparse
+          return 1
+        end
+        tasks = []
+        if task_arg_list
+          task_arg_list.each do |task_arg|
+            found_task = find_task_by_name_or_id(task_arg[:task_id])
+            return 1 if found_task.nil?
+            row = {'taskId' => found_task['id']}
+            if !task_arg[:task_phase].to_s.strip.empty?
+              row['taskPhase'] = task_arg[:task_phase]
+            end
+            tasks << row
+          end
+        end
+        payload = {'taskSet' => {}}
+        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload['taskSet'].deep_merge!(params)
+        if !tasks.empty?
+          payload['taskSet']['tasks'] = tasks
+        end
       end
-
-      payload = {taskSet: {name: workflow_name, tasks: tasks}}
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.create(payload)
         return
@@ -200,7 +229,7 @@ class Morpheus::Cli::Workflows
           print cyan
           puts as_pretty_table(tasks, task_set_task_columns)
         end
-        print reset,"\n"
+        print reset
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -210,18 +239,24 @@ class Morpheus::Cli::Workflows
 
   def update(args)
     options = {}
+    params = {}
+    task_arg_list = nil
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] --tasks x,y,z")
-      opts.on("--tasks x,y,z", Array, "New list of tasks to run in order") do |list|
-        options[:task_names]= list
+      opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
+      opts.on("--tasks x,y,z", Array, "New list of tasks to run in the format <Task ID>:<Phase>. Phase is optional, the default is 'provision'.") do |list|
+        task_arg_list = []
+        list.each do |it|
+          task_id, task_phase = it.split(":")
+          task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
+        end
       end
       opts.on("--name NAME", String, "New name for workflow") do |val|
-        options[:new_name] = val
+        params['name'] = val
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1 || (options[:new_name].empty? && options[:task_names].empty?)
+    if args.count < 1
       puts optparse
       exit 1
     end
@@ -229,18 +264,29 @@ class Morpheus::Cli::Workflows
     connect(options)
     begin
       workflow = find_workflow_by_name_or_id(workflow_name)
-      payload = {taskSet: {id: workflow['id']} }
-      tasks = []
-      if options[:task_names]
-        options[:task_names].each do |task_name|
-          tasks << find_task_by_name_or_id(task_name)['id']
-        end
-        payload[:taskSet][:tasks] = tasks
+      return 1 if workflow.nil?
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
       else
-        payload[:taskSet][:tasks] = workflow['tasks']
-      end
-      if options[:new_name]
-        payload[:taskSet][:name] = options[:new_name]
+        tasks = []
+        if task_arg_list
+          task_arg_list.each do |task_arg|
+            found_task = find_task_by_name_or_id(task_arg[:task_id])
+            return 1 if found_task.nil?
+            row = {'taskId' => found_task['id']}
+            if !task_arg[:task_phase].to_s.strip.empty?
+              row['taskPhase'] = task_arg[:task_phase]
+            end
+            tasks << row
+          end
+        end
+        payload = {'taskSet' => {}}
+        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload['taskSet'].deep_merge!(params)
+        if !tasks.empty?
+          payload['taskSet']['tasks'] = tasks
+        end
       end
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.update(workflow['id'], payload)
