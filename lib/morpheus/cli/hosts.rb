@@ -568,7 +568,7 @@ class Morpheus::Cli::Hosts
         # prompt for resource pool
         has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
         if has_zone_pools
-          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client,{groupId: group_id, zoneId: cloud_id, cloudId: cloud_id})
+          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client,{groupId: group_id, zoneId: cloud_id, cloudId: cloud_id, planId: service_plan["id"]})
           if resource_pool_prompt['config'] && resource_pool_prompt['config']['resourcePool']
             payload['config'] ||= {}
             payload['config']['resourcePool'] = resource_pool_prompt['config']['resourcePool']
