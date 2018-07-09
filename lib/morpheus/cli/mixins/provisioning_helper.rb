@@ -878,7 +878,7 @@ module Morpheus::Cli::ProvisioningHelper
     network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
     enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
     has_networks = zone_network_data["hasNetworks"] == true
-    max_networks = zone_network_data["maxNetworks"] ? zone_network_data["maxNetworks"].to_i : nil
+    max_networks = (zone_network_data["maxNetworks"].to_i > 0) ? zone_network_data["maxNetworks"].to_i : nil
 
     # skip unless provision type supports networks
     if !has_networks
@@ -955,10 +955,11 @@ module Morpheus::Cli::ProvisioningHelper
 
       network_interfaces << network_interface
       interface_index += 1
-      has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
-      add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
       if max_networks && network_interfaces.size >= max_networks
         add_another_interface = false
+      else
+        has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
+        add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
       end
 
     end
