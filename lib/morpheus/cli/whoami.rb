@@ -98,7 +98,7 @@ class Morpheus::Cli::Whoami
       end
 
 
-      load_whoami()
+      json_response = load_whoami()
       
       user = @current_user # from load_whoami()  meh
 
