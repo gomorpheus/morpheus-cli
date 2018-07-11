@@ -36,6 +36,9 @@ class Morpheus::Cli::Login
       opts.on( '-p', '--password PASSWORD', "Password" ) do |val|
         password = val
       end
+      opts.on( '-T', '--token ACCESS_TOKEN', "Use an existing access token instead of authenticating with a username and password." ) do |val|
+        options[:remote_token] = val
+      end
       build_common_options(opts, options, [:json, :remote, :quiet])
     end
     optparse.parse!(args)
@@ -62,7 +65,7 @@ class Morpheus::Cli::Login
 
     begin
       if options[:quiet]
-        if username.empty? || password.empty?
+        if !options[:remote_token] && (username.empty? || password.empty?)
           print yellow,"You have not specified username and password\n"
           return false
         end

@@ -24,69 +24,101 @@ module Morpheus
         password = nil
         access_token = nil
         skip_save = false
-        # We should return an access Key for Morpheus CLI Here
-        if !opts[:remote_username].nil?
-          username = opts[:remote_username]
-          password = opts[:remote_password]
-          skip_save = opts[:remote_url] ? true : false
-        else
-          access_token = load_saved_credentials
-        end
-        if access_token
-          return access_token
-        end
-        unless opts[:quiet] || opts[:no_prompt]
-          # if username.empty? || password.empty?
-            print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
-          # end
-          if username.empty?
-            print "Username: #{required_blue_prompt} "
-            username = $stdin.gets.chomp!
-          else
-            print "Username: #{required_blue_prompt} #{username}\n"
-          end
-          if password.empty?
-            print "Password: #{required_blue_prompt} "
-            password = STDIN.noecho(&:gets).chomp!
-            print "\n"
-          else
-            print "Password: #{required_blue_prompt} \n"
-          end
-        end
-        if username.empty? || password.empty?
-          print_red_alert "Username and password are required to login."
-          return nil
-        end
-        begin
-          auth_interface = Morpheus::AuthInterface.new(@appliance_url)
-          json_response = auth_interface.login(username, password)
-          if opts[:json]
-            print JSON.pretty_generate(json_response)
-            print reset, "\n"
-          end
-          access_token = json_response['access_token']
-          if access_token && access_token != ""
+        
+        if opts[:remote_token]
+          begin
+            whoami_interface = Morpheus::WhoamiInterface.new(opts[:remote_token], nil, nil, @appliance_url)
+            whoami_response = whoami_interface.get()
+            if opts[:json]
+              print JSON.pretty_generate(whoami_response)
+              print reset, "\n"
+            end
+            access_token = opts[:remote_token]
+            username = whoami_response['user']['username']
             unless skip_save
               save_credentials(@appliance_name, access_token)
             end
-            # return access_token
-          else
-            print_red_alert "Credentials not verified."
-            # return nil
+          rescue ::RestClient::Exception => e
+            #raise e
+            if (e.response && e.response.code == 400)
+              print_red_alert "Token not valid."
+              if opts[:json]
+                whoami_response = JSON.parse(e.response.to_s)
+                print JSON.pretty_generate(whoami_response)
+                print reset, "\n"
+              end
+            else
+              #print_rest_exception(e, opts)
+              print_red_alert "Token not valid."
+            end
+            access_token = nil
           end
-        rescue ::RestClient::Exception => e
-          #raise e
-          if (e.response && e.response.code == 400)
-            print_red_alert "Credentials not verified."
+        else
+        
+          if !opts[:remote_username].nil?
+            username = opts[:remote_username]
+            password = opts[:remote_password]
+            skip_save = opts[:remote_url] ? true : false
+          else
+            access_token = load_saved_credentials
+          end
+          if access_token
+            return access_token
+          end
+          unless opts[:quiet] || opts[:no_prompt]
+            # if username.empty? || password.empty?
+              print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+            # end
+            if username.empty?
+              print "Username: #{required_blue_prompt} "
+              username = $stdin.gets.chomp!
+            else
+              print "Username: #{required_blue_prompt} #{username}\n"
+            end
+            if password.empty?
+              print "Password: #{required_blue_prompt} "
+              password = STDIN.noecho(&:gets).chomp!
+              print "\n"
+            else
+              print "Password: #{required_blue_prompt} \n"
+            end
+          end
+          if username.empty? || password.empty?
+            print_red_alert "Username and password are required to login."
+            return nil
+          end
+          begin
+            auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+            json_response = auth_interface.login(username, password)
             if opts[:json]
-              json_response = JSON.parse(e.response.to_s)
               print JSON.pretty_generate(json_response)
               print reset, "\n"
             end
-          else
-            print_rest_exception(e, opts)
+            access_token = json_response['access_token']
+            if access_token && access_token != ""
+              unless skip_save
+                save_credentials(@appliance_name, access_token)
+              end
+              # return access_token
+            else
+              print_red_alert "Credentials not verified."
+              # return nil
+            end
+          rescue ::RestClient::Exception => e
+            #raise e
+            if (e.response && e.response.code == 400)
+              print_red_alert "Credentials not verified."
+              if opts[:json]
+                json_response = JSON.parse(e.response.to_s)
+                print JSON.pretty_generate(json_response)
+                print reset, "\n"
+              end
+            else
+              print_rest_exception(e, opts)
+            end
+            access_token = nil
           end
-          access_token = nil
+
         end
 
 
