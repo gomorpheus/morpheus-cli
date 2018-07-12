@@ -1,5 +1,7 @@
 require 'morpheus/api/api_client'
 require 'http'
+require 'zlib'
+require 'forwardable'
 
 class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -66,20 +68,39 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   #   execute(method: :post, url: url, headers: headers, payload: payload)
   # end
 
+  # wrapper class for input stream so that HTTP doesn't blow up when using it 
+  # ie. calling size() and rewind()
+  class BodyIO
+    extend Forwardable
+
+    def initialize(io)
+      @io = io
+    end
+
+    def size
+      0
+    end
+
+    def rewind
+      nil
+    end
+
+    def_delegators :@io, :read, :readpartial, :write
+    
+  end
+
   # no multipart
-  def upload(id, image_file, filename=nil)
+  def upload(id, image_file, filename=nil, do_gzip=false)
     filename = filename || File.basename(image_file)
     url = "#{@base_url}/api/virtual-images/#{id}/upload"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = filename
     payload = image_file
     #execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
-
-    # todo: execute() should support different :driver values
-    # this is the http.rb way, for streaming IO anyhow..
-    if @dry_run
-      return {method: :post, url: url, headers: headers, payload: payload, timeout: 36000}
-    end
+    
+    # Using http.rb instead of RestClient
+    # todo: execute() should support :driver
+    
     
     http_opts = {}
     if @verify_ssl == false
@@ -88,17 +109,44 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
       http_opts[:ssl_context] = ctx
       # opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
     end
-    if @dry_run
-      # JD: could return a Request object instead...
-      return opts
-    end
-    http_opts[:body] = payload
-    query_params = headers.delete(:params)
-    if query_params
+    
+    start_time = Time.now
+    query_params = headers.delete(:params) || {}
+    if do_gzip
+      # http = http.use(:auto_deflate)
+      headers['Content-Encoding'] = 'gzip'
+      headers['Content-Type'] = 'application/gzip'
+      headers['Content-Length'] = image_file.size
+      #headers['Transfer-Encoding'] = 'Chunked'
+      query_params['extractedContentLength'] = image_file.size
+      if @dry_run
+        return {method: :post, url: url, headers: headers, params: query_params, payload: payload}
+      end
+      http = HTTP.headers(headers)
       http_opts[:params] = query_params
+      
+      rd, wr = IO.pipe
+      Thread.new {
+         gz = Zlib::GzipWriter.new(wr)
+         File.open(payload) do |fp|
+           while chunk = fp.read(10 * 1024 * 1024) do
+             gz.write chunk
+           end
+         end
+         gz.close
+      }
+      http_opts[:body] = BodyIO.new(rd)
+      response = http.post(url, http_opts)
+    else
+      if @dry_run
+        return {method: :post, url: url, headers: headers, params: query_params, payload: payload}
+      end
+      http = HTTP.headers(headers)
+      http_opts[:params] = query_params
+      http_opts[:body] = payload
+      response = http.post(url, http_opts)
     end
-    http = HTTP.headers(headers)
-    response = http.post(url, http_opts)
+    # puts "Took #{Time.now.to_i - start_time.to_i}"
     # return response
     return JSON.parse(response.body.to_s)
   end

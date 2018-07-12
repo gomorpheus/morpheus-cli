@@ -103,7 +103,7 @@ module Morpheus::Cli::PrintHelper
       url = "#{url}?#{query_string}"
     end
     request_string = "#{http_method.to_s.upcase} #{url}".strip
-    payload = opts[:payload]
+    payload = opts[:payload] || opts[:body]
     if command_string
       print_h1 "DRY RUN > #{command_string}"
     else

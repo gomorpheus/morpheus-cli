@@ -458,6 +458,7 @@ class Morpheus::Cli::VirtualImages
   def add_file(args)
     file_url = nil
     file_name = nil
+    do_gzip = false
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [filepath]")
@@ -466,6 +467,9 @@ class Morpheus::Cli::VirtualImages
       end
       opts.on( '-U', '--url URL', "Image File URL. This can be used instead of [filepath]" ) do |val|
         file_url = val
+      end
+      opts.on( nil, '--gzip', "Compress uploaded file" ) do
+        do_gzip = true
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Upload a virtual image file." + "\n" +
@@ -511,13 +515,13 @@ class Morpheus::Cli::VirtualImages
       else
         image_file = File.new(filepath, 'rb')
         if options[:dry_run]
-          print_dry_run @virtual_images_interface.dry.upload(image['id'], image_file, file_name)
+          print_dry_run @virtual_images_interface.dry.upload(image['id'], image_file, file_name, do_gzip)
           return
         end
         unless options[:quiet]
           print cyan, "Uploading file #{filepath} ...", reset, "\n"
         end
-        json_response = @virtual_images_interface.upload(image['id'], image_file, file_name)
+        json_response = @virtual_images_interface.upload(image['id'], image_file, file_name, do_gzip)
         if options[:json]
           print JSON.pretty_generate(json_response)
         elsif !options[:quiet]
