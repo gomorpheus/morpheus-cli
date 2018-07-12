@@ -26,4 +26,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "filesize"
   spec.add_dependency 'mime-types'
   spec.add_dependency "table_print"
+  spec.add_dependency "http"
 end

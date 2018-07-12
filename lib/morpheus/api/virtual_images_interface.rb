@@ -1,4 +1,5 @@
 require 'morpheus/api/api_client'
+require 'http'
 
 class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -72,7 +73,34 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = filename
     payload = image_file
-    execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
+    #execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
+
+    # todo: execute() should support different :driver values
+    # this is the http.rb way, for streaming IO anyhow..
+    if @dry_run
+      return {method: :post, url: url, headers: headers, payload: payload, timeout: 36000}
+    end
+    
+    http_opts = {}
+    if @verify_ssl == false
+      ctx = OpenSSL::SSL::SSLContext.new
+      ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      http_opts[:ssl_context] = ctx
+      # opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
+    end
+    if @dry_run
+      # JD: could return a Request object instead...
+      return opts
+    end
+    http_opts[:body] = payload
+    query_params = headers.delete(:params)
+    if query_params
+      http_opts[:params] = query_params
+    end
+    http = HTTP.headers(headers)
+    response = http.post(url, http_opts)
+    # return response
+    return JSON.parse(response.body.to_s)
   end
 
   def upload_by_url(id, file_url, filename=nil)
