@@ -112,13 +112,17 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     
     start_time = Time.now
     query_params = headers.delete(:params) || {}
+    file_size = image_file.size
+    if File.blockdev?(image_file)
+      file_size = `blockdev --getsz '#{File.absolute_path(image_file)}'`.strip().to_i
+    end
     if do_gzip
       # http = http.use(:auto_deflate)
       headers['Content-Encoding'] = 'gzip'
       headers['Content-Type'] = 'application/gzip'
-      headers['Content-Length'] = image_file.size
+      headers['Content-Length'] = file_size
       #headers['Transfer-Encoding'] = 'Chunked'
-      query_params['extractedContentLength'] = image_file.size
+      query_params['extractedContentLength'] = file_size
       if @dry_run
         return {method: :post, url: url, headers: headers, params: query_params, payload: payload}
       end
@@ -141,6 +145,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
       if @dry_run
         return {method: :post, url: url, headers: headers, params: query_params, payload: payload}
       end
+      headers['Content-Length'] = file_size
       http = HTTP.headers(headers)
       http_opts[:params] = query_params
       http_opts[:body] = payload
