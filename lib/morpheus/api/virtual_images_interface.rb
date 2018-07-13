@@ -103,7 +103,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     
     
     http_opts = {}
-    if @verify_ssl == false
+    if Morpheus::RestClient.ssl_verification_enabled? == false
       ctx = OpenSSL::SSL::SSLContext.new
       ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
       http_opts[:ssl_context] = ctx
