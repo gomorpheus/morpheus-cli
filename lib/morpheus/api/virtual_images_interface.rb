@@ -114,7 +114,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     query_params = headers.delete(:params) || {}
     file_size = image_file.size
     if File.blockdev?(image_file)
-      file_size = `blockdev --getsz '#{File.absolute_path(image_file)}'`.strip().to_i
+      file_size = `blockdev --getsz '#{File.absolute_path(image_file)}'`.strip().to_i * 512
     end
     if do_gzip
       # http = http.use(:auto_deflate)
