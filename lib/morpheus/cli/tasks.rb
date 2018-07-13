@@ -329,11 +329,15 @@ class Morpheus::Cli::Tasks
   end
 
   def remove(args)
+    params = {}
     task_name = args[0]
     options = {}
     optparse = OptionParser.new do|opts|
       opts.banner = subcommand_usage("[task]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.on( '-f', '--force', "Force Delete" ) do
+        params[:force] = true
+      end
     end
     optparse.parse!(args)
     if args.count < 1
@@ -348,10 +352,10 @@ class Morpheus::Cli::Tasks
         exit
       end
       if options[:dry_run]
-        print_dry_run @tasks_interface.dry.destroy(task['id'])
+        print_dry_run @tasks_interface.dry.destroy(task['id'], params)
         return
       end
-      json_response = @tasks_interface.destroy(task['id'])
+      json_response = @tasks_interface.destroy(task['id'], params)
       if options[:json]
         print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]

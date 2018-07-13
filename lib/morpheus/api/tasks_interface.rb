@@ -51,9 +51,9 @@ class Morpheus::TasksInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def destroy(id)
+  def destroy(id, params={})
     url = "#{@base_url}/api/tasks/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :delete, url: url, headers: headers)
   end
 end
