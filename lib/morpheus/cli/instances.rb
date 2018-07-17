@@ -379,8 +379,8 @@ class Morpheus::Cli::Instances
         exit 1
       end
 
-      instance_keys = ['name', 'description', 'instanceContext', 'tags','configId','configRole','configGroup']
-      params = params.select {|k,v| instance_keys.include?(k) }
+      # instance_keys = ['name', 'description', 'instanceContext', 'tags','configId','configRole','configGroup']
+      # params = params.select {|k,v| instance_keys.include?(k) }
       params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
       payload['instance'].merge!(params)
       if options[:dry_run]
