@@ -12,7 +12,17 @@ class Morpheus::Cli::StorageProvidersCommand
   set_command_name :'storage-providers'
 
   register_subcommands :list, :get, :add, :update, :remove
-  
+  # file commands
+  register_subcommands :'list-files' => :list_files
+  register_subcommands :'ls' => :ls
+  #register_subcommands :'file' => :get_file
+  # register_subcommands :'history' => :file_history
+  register_subcommands :'upload' => :upload_file
+  register_subcommands :'download' => :download_file
+  register_subcommands :'read' => :read_file
+  register_subcommands :'remove-file' => :remove_file
+  register_subcommands :'rm' => :remove_file
+
   # set_default_subcommand :list
   
   def initialize()
@@ -39,6 +49,11 @@ class Morpheus::Cli::StorageProvidersCommand
       opts.footer = "List storage providers."
     end
     optparse.parse!(args)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got #{args.count}\n#{optparse}"
+      return 1
+    end
     connect(options)
     begin
       params.merge!(parse_list_options(options))
@@ -465,7 +480,7 @@ class Morpheus::Cli::StorageProvidersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[storage-provider]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a storage provider." + "\n" +
                     "[storage-provider] is required. This is the name or id of a storage provider."
     end
@@ -502,6 +517,686 @@ class Morpheus::Cli::StorageProvidersCommand
       print_rest_exception(e, options)
       return 1
     end
+  end
+
+  def list_files(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[provider:/path]")
+      opts.on('-a', '--all', "Show all files, including subdirectories under the /path.") do
+        params[:fullTree] = true
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run])
+      opts.footer = "List files in a storage provider. \nInclude [/path] to show files under a directory."
+    end
+    optparse.parse!(args)
+    if args.count < 1 || args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} list-files expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    storage_provider_id, search_file_path  = parse_storage_provider_id_and_file_path(args[0], args[1])
+    connect(options)
+    begin
+      storage_provider = find_storage_provider_by_name_or_id(storage_provider_id)
+      return 1 if storage_provider.nil?
+      params.merge!(parse_list_options(options))
+      [:fullTree].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
+      if options[:dry_run]
+        print_dry_run @storage_providers_interface.dry.list_files(storage_provider['id'], search_file_path, params)
+        return
+      end
+      json_response = @storage_providers_interface.list_files(storage_provider['id'], search_file_path, params)
+      storage_files = json_response['storageFiles']
+      # storage_provider = json_response['storageProvider']
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        return
+      end
+      if options[:json]
+        puts as_json(json_response, options, "storageFiles")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "storageFiles")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['storageFiles'], options)
+        return 0
+      end
+      print_h1 "Storage Files", ["#{storage_provider['name']}:#{search_file_path}"]
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        # "Bucket Name" => 'bucketName',
+        #"Path" => lambda {|it| search_file_path }
+      }
+      #print_description_list(description_cols, storage_provider)
+      #print "\n"
+      #print_h2 "Path: #{search_file_path}"
+      # print "Directory: #{search_file_path}"
+      if storage_files && storage_files.size > 0
+        print_storage_files_table(storage_files, {fullTree: params[:fullTree]})
+        #print_results_pagination(json_response, {:label => "file", :n_label => "files"})
+        print reset, "\n"
+        return 0
+      else
+        # puts "No files found for path #{search_file_path}"
+        if search_file_path.empty? || search_file_path == "/"
+          puts "This storage provider has no files."
+          print reset,"\n"
+          return 0
+        else
+          puts "No files found for path #{search_file_path}"
+          print reset,"\n"
+          return 1
+        end
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def ls(args)
+    options = {}
+    params = {}
+    do_one_file_per_line = false
+    do_long_format = false
+    do_human_bytes = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[provider/path]")
+      opts.on('-a', '--all', "Show all files, including subdirectories under the /path.") do
+        params[:fullTree] = true
+        do_one_file_per_line = true
+      end
+      opts.on('-l', '--long', "Lists files in the long format, which contains lots of useful information, e.g. the exact size of the file, the file type, and when it was last modified.") do
+        do_long_format = true
+        do_one_file_per_line
+      end
+      opts.on('-H', '--human', "Humanized file sizes. The default is just the number of bytes.") do
+        do_human_bytes = true
+      end
+      opts.on('-1', '--oneline', "One file per line. The default delimiter is a single space.") do
+        do_one_file_per_line = true
+      end
+      build_common_options(opts, options, [:list, :json, :fields, :dry_run])
+      opts.footer = "Print filenames for a given location.\nPass storage location in the format provider/path."
+    end
+    optparse.parse!(args)
+    if args.count < 1 || args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} ls expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    storage_provider_id, search_file_path  = parse_storage_provider_id_and_file_path(args[0], args[1])
+    connect(options)
+    begin
+      storage_provider = find_storage_provider_by_name_or_id(storage_provider_id)
+      return 1 if storage_provider.nil?
+      params.merge!(parse_list_options(options))
+      [:fullTree].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
+      if options[:dry_run]
+        print_dry_run @storage_providers_interface.dry.list_files(storage_provider['id'], search_file_path, params)
+        return 0
+      end
+      json_response = @storage_providers_interface.list_files(storage_provider['id'], search_file_path, params)
+      if options[:json]
+        puts as_json(json_response, options, "storageFiles")
+        # no files is an error condition for this command
+        if !json_response['storageFiles'] || json_response['storageFiles'].size == 0
+          return 1
+        end
+        return 0
+      end
+      #storage_provider = json_response['storageProvider'] # yep, this is returned too
+      storage_files = json_response['storageFiles']
+      # print_h2 "Directory: #{search_file_path}"
+      # print "Directory: #{search_file_path}"
+      if storage_files && storage_files.size > 0
+        if do_long_format
+          # ls long format
+          # owner groups filesize type filename
+          now = Time.now
+          storage_files.each do |storage_file|
+            # -rw-r--r--    1 jdickson  staff   1361 Oct 23 08:00 voltron_2.10.log
+            file_color = cyan # reset
+            if storage_file['isDirectory']
+              file_color = blue
+            end
+            file_info = []
+            # Number of links
+            # file_info << file["linkCount"].to_i + 1
+            # Owner
+            owner_str = ""
+            if storage_file['owner']
+              owner_str = storage_file['owner']['name']
+            elsif storage_provider['owner']
+              owner_str = storage_provider['owner']['name']
+            else
+              owner_str = "noone"
+            end
+            #file_info << truncate_string(owner_str, 15).ljust(15, " ")
+            # Group (Tenants)
+            groups_str = ""
+            if storage_file['visibility'] == 'public'
+              # this is confusing because of Public URL (isPublic) setting
+              groups_str = "public"
+            else
+              if storage_file['accounts'].instance_of?(Array) && storage_file['accounts'].size > 0
+                # groups_str = storage_file['accounts'].collect {|it| it['name'] }.join(',')
+                groups_str = (storage_file['accounts'].size == 1) ? "#{storage_file['accounts'][0]['name']}" : "#{storage_file['accounts'].size} tenants"
+              elsif storage_provider['accounts'].instance_of?(Array) && storage_provider['accounts'].size > 0
+                # groups_str = storage_provider['accounts'].collect {|it| it['name'] }.join(',')
+                groups_str = (storage_provider['accounts'].size == 1) ? "#{storage_provider['accounts'][0]['name']}" : "#{storage_provider['accounts'].size} tenants"
+              else
+                groups_str = owner_str
+              end
+            end
+            #file_info << truncate_string(groups_str, 15).ljust(15, " ")
+            # File Type
+            content_type = storage_file['contentType'].to_s
+            if storage_file['isDirectory']
+              content_type = "directory"
+            else
+              content_type = storage_file['contentType'].to_s
+            end
+            file_info << content_type.ljust(25, " ")
+            filesize_str = ""
+            if do_human_bytes
+              # filesize_str = format_bytes(storage_file['contentLength'])
+              filesize_str = format_bytes_short(storage_file['contentLength'])
+            else
+              filesize_str = storage_file['contentLength'].to_i.to_s
+            end
+            # file_info << filesize_str.ljust(12, " ")
+            file_info << filesize_str.ljust(7, " ")
+            mtime = ""
+            last_updated = parse_time(storage_file['dateModified'])
+            if last_updated
+              if last_updated.year == now.year
+                mtime = format_local_dt(last_updated, {format: "%b %e %H:%M"})
+              else
+                mtime = format_local_dt(last_updated, {format: "%b %e %Y"})
+              end
+            end
+            file_info << mtime.ljust(12, " ")
+            fn = format_filename(storage_file['name'], {fullTree: params[:fullTree]})
+            file_info << file_color + fn.to_s + cyan
+            print cyan, file_info.join("  "), reset, "\n"
+          end
+        else
+          file_names = storage_files.collect do |storage_file|
+            file_color = cyan # reset
+            if storage_file['isDirectory']
+              file_color = blue
+            end
+            fn = format_filename(storage_file['name'], {fullTree: params[:fullTree]})
+            file_color + fn.to_s + reset
+          end
+          if do_one_file_per_line
+            print file_names.join("\n")
+          else
+            print file_names.join("\t")
+          end
+          print "\n"
+        end
+      else
+        print_error yellow, "No files found for path: #{search_file_path}", reset, "\n"
+        return 1
+      end
+      
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  # def get_file(args)
+  #   todo...
+  # end
+
+  def upload_file(args)
+    options = {}
+    query_params = {}
+    do_recursive = false
+    ignore_regexp = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[local-file] [provider:/path]")
+      # opts.on('--filename FILEPATH', String, "Remote file path for the file or folder being uploaded, this is an alternative to [remote-file-path]." ) do |val|
+      #   options['type'] = val
+      # end
+      opts.on( '-R', '--recursive', "Upload a directory and all of its files. This must be passed if [local-file] is a directory." ) do
+        do_recursive = true
+      end
+      opts.on('--ignore-files PATTERN', String, "Pattern of files to be ignored when uploading a directory." ) do |val|
+        ignore_regexp = /#{Regexp.escape(val)}/
+      end
+      opts.footer = "Upload a local file or folder to a storage provider. " +
+                    "\nThe first argument [local-file] should be the path of a local file or directory." +
+                    "\nThe second argument [provider:/path] should contain the name or id of the provider." +
+                    "\nThe [:/path] component is optional and can be used to specify the destination of the uploaded file or folder." +
+                    "\nThe default destination is the same name as the [local-file], under the root directory '/'. " +
+                    "\nThis will overwrite any existing remote files that match the destination /path."
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+    end
+    optparse.parse!(args)
+    
+    if args.count != 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} upload expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    # validate local file path
+    local_file_path = File.expand_path(args[0].squeeze('/'))
+    if local_file_path == "" || local_file_path == "/" || local_file_path == "."
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} missing argument: [local-file]\n#{optparse}"
+      return 1
+    end
+    if !File.exists?(local_file_path)
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
+      return 1
+    end
+
+    # validate provider:/path
+    storage_provider_id, remote_file_path  = parse_storage_provider_id_and_file_path(args[1], args[2])
+
+    # if local_file_path.include?('../') # || options[:yes]
+    #   raise_command_error "Sorry, you may not use relative paths in your local filepath."
+    # end
+    
+    # validate provider name (or id)
+    if !storage_provider_id
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} missing argument: [provider]\n#{optparse}"
+      return 1
+    end
+    
+    # strip leading slash of remote name
+    # if remote_file_path[0].chr == "/"
+    #   remote_file_path = remote_file_path[1..-1]
+    # end
+
+    if remote_file_path.include?('./') # || options[:yes]
+      raise_command_error "Sorry, you may not use relative paths in your remote filepath."
+    end
+
+    # if !options[:yes]
+    scary_local_paths = ["/", "/root", "C:\\"]
+    if scary_local_paths.include?(local_file_path)
+      unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to upload all the files in local directory '#{local_file_path}' !?")
+        return 9, "aborted command"
+      end
+    end
+    # end
+
+    connect(options)
+    begin
+      storage_provider = find_storage_provider_by_name_or_id(storage_provider_id)
+      return 1 if storage_provider.nil?
+
+      # how many files we dealing with?
+      files_to_upload = []
+      if File.directory?(local_file_path)
+        # upload directory
+        if !do_recursive
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error  "bad argument: '#{local_file_path}' is a directory.  Use -R or --recursive to upload a directory.\n#{optparse}"
+          return 1
+        end
+        found_files = Dir.glob("#{local_file_path}/**/*")
+        # note:  api call for directories is not needed
+        found_files = found_files.select {|file| File.file?(file) }
+        if ignore_regexp
+          found_files = found_files.reject {|it| it =~ ignore_regexp} 
+        end
+        files_to_upload = found_files
+
+        if files_to_upload.size == 0
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error  "bad argument: Local directory '#{local_file_path}' contains 0 files."
+          return 1
+        end
+
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to upload directory #{local_file_path} (#{files_to_upload.size} files) to #{storage_provider['name']}:#{remote_file_path}?")
+          return 9, "aborted command"
+        end
+
+        if !options[:yes]
+          if files_to_upload.size > 100
+            unless Morpheus::Cli::OptionTypes.confirm("Are you REALLY sure you want to upload #{files_to_upload.size} files ?")
+              return 9, "aborted command"
+            end
+          end
+        end
+
+        # local_dirname = File.dirname(local_file_path)
+        # local_basename = File.basename(local_file_path)
+        upload_file_list = []
+        files_to_upload.each do |file|
+          destination = file.sub(local_file_path, (remote_file_path || "")).squeeze('/')
+          upload_file_list << {file: file, destination: destination}
+        end
+
+        if options[:dry_run]
+          # print_h1 "DRY RUN"
+          print "\n",cyan, bold, "Uploading #{upload_file_list.size} Files...", reset, "\n"
+          upload_file_list.each do |obj|
+            file, destination = obj[:file], obj[:destination]
+            #print cyan,bold, "  - Uploading #{file} to #{storage_provider_id}:#{destination} DRY RUN", reset, "\n"
+            print_dry_run @storage_providers_interface.dry.upload_file(storage_provider['id'], file, destination)
+            print "\n"
+          end
+          return 0
+        end
+
+        print "\n",cyan, bold, "Uploading #{upload_file_list.size} Files...", reset, "\n"
+        bad_upload_responses = []
+        upload_file_list.each do |obj|
+          file, destination = obj[:file], obj[:destination]
+          print cyan,bold, "  - Uploading #{file} to #{storage_provider_id}:#{destination}", reset
+          upload_response = @storage_providers_interface.upload_file(storage_provider['id'], file, destination)
+          if upload_response['success']
+            print bold," #{green}SUCCESS#{reset}"
+          else
+            print bold," #{red}ERROR#{reset}"
+            if upload_response['msg']
+              bad_upload_responses << upload_response
+              print " #{upload_response['msg']}#{reset}"
+            end
+          end
+          print "\n"
+        end
+        if bad_upload_responses.size > 0
+          print cyan, bold, "Completed Upload of #{upload_file_list.size} Files. #{red}#{bad_upload_responses.size} Errors!", reset, "\n"
+        else
+          print cyan, bold, "Completed Upload of #{upload_file_list.size} Files!", reset, "\n"
+        end
+
+      else
+
+        # upload file
+        if !File.exists?(local_file_path) && !File.file?(local_file_path)
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
+          return 1
+        end
+
+        # local_dirname = File.dirname(local_file_path)
+        # local_basename = File.basename(local_file_path)
+        
+        file = local_file_path
+        destination = File.basename(file)
+        if remote_file_path[-1].chr == "/"
+          # work like `cp`, and place into the directory
+          destination = remote_file_path + File.basename(file)
+        elsif remote_file_path
+          # renaming file
+          destination = remote_file_path
+        end
+        destination = destination.squeeze('/')
+
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to upload #{local_file_path} to #{storage_provider['name']}:#{destination}?")
+          return 9, "aborted command"
+        end
+
+        if options[:dry_run]
+          #print cyan,bold, "  - Uploading #{file} to #{storage_provider_id}:#{destination} DRY RUN", reset, "\n"
+          # print_h1 "DRY RUN"
+          print_dry_run @storage_providers_interface.dry.upload_file(storage_provider['id'], file, destination)
+          print "\n"
+          return 0
+        end
+      
+        print cyan,bold, "  - Uploading #{file} to #{storage_provider_id}:#{destination}", reset
+        upload_response = @storage_providers_interface.upload_file(storage_provider['id'], file, destination)
+        if upload_response['success']
+          print bold," #{green}Success#{reset}"
+        else
+          print bold," #{red}Error#{reset}"
+          if upload_response['msg']
+            print " #{upload_response['msg']}#{reset}"
+          end
+        end
+        print "\n"
+
+      end
+      #print cyan, bold, "Upload Complete!", reset, "\n"
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def download_file(args)
+    full_command_string = "#{command_name} download #{args.join(' ')}".strip
+    options = {}
+    outfile = nil
+    do_overwrite = false
+    do_mkdir = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[provider:/path] [local-file]")
+      opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
+        do_overwrite = true
+        # do_mkdir = true
+      end
+      opts.on( '-p', '--mkdir', "Create missing directories for [local-file] if they do not exist." ) do
+        do_mkdir = true
+      end
+      build_common_options(opts, options, [:dry_run, :quiet])
+      opts.footer = "Download a file or directory.\n" + 
+                    "[provider:/path] is required. This is the name or id of the provider and /path the file or folder to be downloaded.\n" +
+                    "[local-file] is required. This is the full local filepath for the downloaded file.\n" +
+                    "Directories will be downloaded as a .zip file, so you'll want to specify a [local-file] with a .zip extension."
+    end
+    optparse.parse!(args)
+    if args.count < 2 || args.count > 3
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} download expects 2-3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    storage_provider_id = nil
+    local = nil
+    outfile = nil
+    if args.count == 3
+      storage_provider_id, file_path = parse_storage_provider_id_and_file_path(args[0], args[1])
+      outfile = args[2]
+    else
+      storage_provider_id, file_path = parse_storage_provider_id_and_file_path(args[0])
+      outfile = args[1]
+    end
+    connect(options)
+    begin
+      storage_provider = find_storage_provider_by_name_or_id(storage_provider_id)
+      return 1 if storage_provider.nil?
+
+      file_path = file_path.squeeze('/')
+      outfile = File.expand_path(outfile)
+      if Dir.exists?(outfile)
+        outfile = File.join(outfile, File.basename(file_path))
+      end
+      if Dir.exists?(outfile)
+        print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
+        return 1
+      end
+      destination_dir = File.dirname(outfile)
+      if !Dir.exists?(destination_dir)
+        if do_mkdir
+          print cyan,"Creating local directory #{destination_dir}",reset,"\n"
+          FileUtils.mkdir_p(destination_dir)
+        else
+          print_red_alert "[local-file] is invalid. Directory not found: #{destination_dir}"
+          return 1
+        end
+      end
+      if File.exists?(outfile)
+        if do_overwrite
+          # uhh need to be careful wih the passed filepath here..
+          # don't delete, just overwrite.
+          # File.delete(outfile)
+        else
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error "[local-file] is invalid. File already exists: #{outfile}", "Use -f to overwrite the existing file."
+          # puts_error optparse
+          return 1
+        end
+      end
+      begin
+        if options[:dry_run]
+          print_dry_run @storage_providers_interface.dry.download_file_chunked(storage_provider['id'], file_path, outfile), full_command_string
+          return 0
+        end
+        if !options[:quiet]
+          print cyan + "Downloading archive file #{storage_provider['name']}:#{file_path} to #{outfile} ... "
+        end
+
+        http_response = @storage_providers_interface.download_file_chunked(storage_provider['id'], file_path, outfile)
+
+        # FileUtils.chmod(0600, outfile)
+        success = http_response.code.to_i == 200
+        if success
+          if !options[:quiet]
+            print green + "SUCCESS" + reset + "\n"
+          end
+          return 0
+        else
+          if !options[:quiet]
+            print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
+          end
+          # F it, just remove a bad result
+          if File.exists?(outfile) && File.file?(outfile)
+            Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
+            File.delete(outfile)
+          end
+          if options[:debug]
+            puts_error http_response.inspect
+          end
+          return 1
+        end
+      rescue RestClient::Exception => e
+        # this is not reached
+        if e.response && e.response.code == 404
+          print_red_alert "Storage file not found by path #{file_path}"
+          return nil
+        else
+          raise e
+        end
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+    
+  end
+
+  def read_file(args)
+    full_command_string = "#{command_name} read #{args.join(' ')}".strip
+    options = {}
+    outfile = nil
+    do_overwrite = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[provider:/path]")
+      build_common_options(opts, options, [:dry_run])
+      opts.footer = "Print the contents of a storage file.\n" + 
+                    "[provider:/path] is required. This is the name or id of the provider and /path the file or folder to be downloaded.\n" +
+                    "This confirmation can be skipped with the -y option."
+    end
+    optparse.parse!(args)
+    if args.count < 1 || args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} read expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+    begin
+      storage_provider_id, file_path = parse_storage_provider_id_and_file_path(args[0], args[1])
+      storage_provider = find_storage_provider_by_name_or_id(storage_provider_id)
+      return 1 if storage_provider.nil?
+
+      file_path = file_path.squeeze('/')
+
+      if options[:dry_run]
+        print_dry_run @storage_providers_interface.dry.download_file(storage_provider['id'], file_path), full_command_string
+        return 1
+      end
+      file_response = @storage_providers_interface.download_file(storage_provider['id'], file_path)
+      puts file_response.body.to_s
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+    
+  end
+
+  def remove_file(args)
+    options = {}
+    query_params = {}
+    do_recursive = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[provider:/path]")
+      opts.on( '-R', '--recursive', "Delete a directory and all of its files. This must be passed if specifying a directory." ) do
+        do_recursive = true
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      opts.footer = "Delete a storage file or directory."
+    end
+    optparse.parse!(args)
+    # consider only allowing args.count == 1 here in the format [provider:/path]
+    if args.count < 1 || args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} remove-file expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      return 1
+    end
+    storage_provider_id, file_path  = parse_storage_provider_id_and_file_path(args[0], args[1])
+    connect(options)
+    begin
+      
+      storage_file = find_storage_file_by_bucket_and_path(storage_provider_id, file_path)
+      return 1 if storage_file.nil?
+      if storage_file['isDirectory']
+        if !do_recursive
+          print_error Morpheus::Terminal.angry_prompt
+          puts_error  "bad argument: '#{file_path}' is a directory.  Use -R or --recursive to delete a directory.\n#{optparse}"
+          return 1
+        end
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the directory: #{args[0]}?")
+          return 9, "aborted command"
+        end
+      else
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the file: #{args[0]}?")
+          return 9, "aborted command"
+        end
+      end
+      
+      if options[:dry_run]
+        print_dry_run @storage_files_interface.dry.destroy(storage_file['id'], query_params)
+        return 0
+      end
+      json_response = @storage_files_interface.destroy(storage_file['id'], query_params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Removed file #{args[0]}"
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+
   end
 
   private
@@ -571,6 +1266,77 @@ class Morpheus::Cli::StorageProvidersCommand
 
   def format_storage_provider_type(storage_provider)
     storage_provider['providerType'].to_s.capitalize
+  end
+
+  # parse_storage_provider_id_and_file_path() provides flexible argument formats for provider and path
+  # it looks for [provider:/path] or [provider] [path]
+  # @param delim [String] Default is a comma and any surrounding white space.
+  # @return [Array] 2 elements, provider name (or id) and the file path.
+  #         The default file path is "/".
+  # Examples:
+  #   parse_storage_provider_id_and_file_path("test") == ["test", "/"]
+  #   parse_storage_provider_id_and_file_path("test:/global.cfg") == ["test", "/global.cfg"]
+  #   parse_storage_provider_id_and_file_path("test:/node1/node.cfg") == ["test", "/node1/node.cfg"]
+  #   parse_storage_provider_id_and_file_path("test/node1/node.cfg") == ["test", "/node1/node.cfg"]
+  #   parse_storage_provider_id_and_file_path("test", "node1/node.cfg") == ["test", "/node1/node.cfg"]
+  #
+  def parse_storage_provider_id_and_file_path(*args)
+    if args.size < 1 || args.size > 2
+      return nil, nil
+    end
+    if !args[0]
+      return nil, nil
+    end
+    full_path = args[0].to_s
+    if args[1]
+      if full_path.include?(":")
+        full_path = "#{full_path}/#{args[1]}"
+      else
+        full_path = "#{full_path}:#{args[1]}"
+      end
+    end
+    # ok fine, allow just id/filePath, without a colon.
+    if !full_path.include?(":") && full_path.include?("/")
+      path_elements = full_path.split("/")
+      full_path = path_elements[0] + ":" + path_elements[1..-1].join("/")
+    end
+    uri_elements = full_path.split(":")
+    storage_provider_id = uri_elements[0]
+    file_path = uri_elements[1..-1].join("/") # [1]
+    file_path = "/#{file_path}".squeeze("/")
+    return storage_provider_id, file_path
+  end
+
+  def format_filename(filename, options={})
+    if options[:fullTree]
+      filename.to_s
+    else
+      filename.to_s.split('/').last()
+    end
+  end
+
+  def print_storage_files_table(storage_files, options={})
+    table_color = options[:color] || cyan
+    rows = storage_files.collect do |storage_file|
+      {
+        id: storage_file['id'],
+        name: format_filename(storage_file['name'], options),
+        type: storage_file['isDirectory'] ? 'directory' : (storage_file['contentType']),
+        size: storage_file['isDirectory'] ? '' : format_bytes(storage_file['contentLength']),
+        lastUpdated: format_local_dt(storage_file['dateModified'])
+      }
+    end
+    columns = [
+      # :id,
+      {:name => {:display_name => "File".upcase} },
+      :type,
+      :size,
+      # {:dateCreated => {:display_name => "Date Created"} },
+      {:lastUpdated => {:display_name => "Last Modified".upcase} }
+    ]
+    print table_color
+    print as_pretty_table(rows, columns, options)
+    print reset
   end
 
 end
