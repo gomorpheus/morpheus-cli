@@ -820,7 +820,6 @@ class Morpheus::Cli::ArchivesCommand
                 groups_str = owner_str
               end
             end
-            groups_str = 
             file_info << truncate_string(groups_str, 15).ljust(15, " ")
             # File Type
             content_type = archive_file['contentType'].to_s
@@ -848,7 +847,7 @@ class Morpheus::Cli::ArchivesCommand
                 mtime = format_local_dt(last_updated, {format: "%b %e %Y"})
               end
             end
-            file_info << mtime # .ljust(21, " ")
+            file_info << mtime.ljust(12, " ")
             if params[:fullTree]
               file_info << file_color + archive_file["filePath"].to_s + cyan
             else
@@ -871,7 +870,7 @@ class Morpheus::Cli::ArchivesCommand
           if do_one_file_per_line
             print file_names.join("\n")
           else
-            print file_names.join(" ")
+            print file_names.join("\t")
           end
           print "\n"
         end
@@ -1287,11 +1286,11 @@ class Morpheus::Cli::ArchivesCommand
         if options[:dry_run]
           # print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
           if use_public_url
-            print_dry_run @archive_files_interface.dry.download_file_by_path_chunked(full_file_path, outfile), full_command_string
-          else
             print_dry_run @archive_files_interface.dry.download_public_file_by_path_chunked(full_file_path, outfile), full_command_string
+          else
+            print_dry_run @archive_files_interface.dry.download_file_by_path_chunked(full_file_path, outfile), full_command_string
           end
-          return 1
+          return 0
         end
         if !options[:quiet]
           print cyan + "Downloading archive file #{bucket_id}:#{file_path} to #{outfile} ... "
