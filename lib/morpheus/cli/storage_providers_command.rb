@@ -173,6 +173,7 @@ class Morpheus::Cli::StorageProvidersCommand
   def add(args)
     options = {}
     ip_range_list = nil
+    create_bucket = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--name VALUE', String, "Name for this storage provider") do |val|
@@ -196,6 +197,9 @@ class Morpheus::Cli::StorageProvidersCommand
       opts.on('--copy-to-store [on|off]', String, "Archive Snapshots") do |val|
         options['copyToStore'] = val.to_s == 'on' || val.to_s == 'true'
       end
+      #opts.on('--create-bucket [on|off]', String, "Create Bucket") do |val|
+      #  create_bucket = val.to_s == 'on' || val.to_s == 'true' || val.nil?
+      #end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new storage provider." + "\n" +
                     "[name] is required and can be passed as --name instead."
@@ -259,14 +263,17 @@ class Morpheus::Cli::StorageProvidersCommand
             {'fieldContext' => 'config', 'fieldName' => 'accessKey', 'fieldLabel' => 'Access Key', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldContext' => 'config', 'fieldName' => 'secretKey', 'fieldLabel' => 'Secret Key', 'type' => 'password', 'required' => true, 'description' => ''},
             {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
-            {'fieldContext' => 'config', 'fieldName' => 'endpoint', 'fieldLabel' => 'Endpoint URL', 'type' => 'text', 'required' => false, 'description' => 'Optional endpoint URL if pointing to an object store other than amazon that mimics the Amazon S3 APIs.'},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
+            {'fieldContext' => 'config', 'fieldName' => 'region', 'fieldLabel' => 'Region', 'type' => 'text', 'required' => false, 'description' => 'Optional Amazon region if creating a new bucket.'},
+            {'fieldContext' => 'config', 'fieldName' => 'endpoint', 'fieldLabel' => 'Endpoint URL', 'type' => 'text', 'required' => false, 'description' => 'Optional endpoint URL if pointing to an object store other than amazon that mimics the Amazon S3 APIs.'}
           ]
         elsif storage_provider_type_code == 'azure'
           # print_h2 "Azure Options"
           provider_type_option_types = [
             {'fieldContext' => 'config', 'fieldName' => 'storageAccount', 'fieldLabel' => 'Storage Account', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldContext' => 'config', 'fieldName' => 'storageKey', 'fieldLabel' => 'Storage Key', 'type' => 'password', 'required' => true, 'description' => ''},
-            {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''}
+            {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
           ]
         elsif storage_provider_type_code == 'cifs'
           # print_h2 "CIFS Options"
@@ -296,6 +303,7 @@ class Morpheus::Cli::StorageProvidersCommand
             {'fieldContext' => 'config', 'fieldName' => 'apiKey', 'fieldLabel' => 'API Key', 'type' => 'password', 'required' => true, 'description' => ''},
             {'fieldContext' => 'config', 'fieldName' => 'region', 'fieldLabel' => 'Region', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
             {'fieldContext' => 'config', 'fieldName' => 'identityUrl', 'fieldLabel' => 'Identity URL', 'type' => 'text', 'required' => true, 'description' => ''},
           ]
         elsif storage_provider_type_code == 'rackspace'
@@ -304,6 +312,7 @@ class Morpheus::Cli::StorageProvidersCommand
             {'fieldContext' => 'config', 'fieldName' => 'accessKey', 'fieldLabel' => 'Access Key', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldContext' => 'config', 'fieldName' => 'secretKey', 'fieldLabel' => 'Secret Key', 'type' => 'password', 'required' => true, 'description' => ''},
             {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
             {'fieldContext' => 'config', 'fieldName' => 'endpoint', 'fieldLabel' => 'Endpoint URL', 'type' => 'text', 'required' => true, 'description' => 'Optional endpoint URL if pointing to an object store other than amazon that mimics the Amazon S3 APIs.'},
           ]
         else
@@ -345,7 +354,12 @@ class Morpheus::Cli::StorageProvidersCommand
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultVirtualImageTarget', 'fieldLabel' => 'Default Virtual Image Store', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => 'off'}], options)
           payload['storageProvider']['defaultVirtualImageTarget'] = (v_prompt['defaultVirtualImageTarget'].to_s == 'on') unless v_prompt['defaultVirtualImageTarget'].nil?
         end
-
+        #if create_bucket
+        #  payload['createBucket'] = true
+        #end
+        if payload['storageProvider']['createBucket'] == 'on'
+          payload['storageProvider']['createBucket'] = true
+        end
       end
 
       
@@ -455,6 +469,9 @@ class Morpheus::Cli::StorageProvidersCommand
           payload['storageProvider']['defaultVirtualImageTarget'] = options['defaultVirtualImageTarget']
         end
 
+        if payload['storageProvider']['createBucket'] == 'on'
+          payload['storageProvider']['createBucket'] = true
+        end
       end
 
       if options[:dry_run]
