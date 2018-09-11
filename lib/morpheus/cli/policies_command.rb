@@ -6,10 +6,12 @@ require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
+require 'morpheus/cli/mixins/accounts_helper'
 
 class Morpheus::Cli::PoliciesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::AccountsHelper
 
   set_command_name :policies
 
@@ -31,6 +33,7 @@ class Morpheus::Cli::PoliciesCommand
     @cloud_policies_interface = @api_client.cloud_policies
     @clouds_interface = @api_client.clouds
     @groups_interface = @api_client.groups
+    @users_interface = @api_client.users
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
@@ -49,22 +52,32 @@ class Morpheus::Cli::PoliciesCommand
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
-      opts.on( '-G', '--global', "Exclude policies scoped to a group or cloud" ) do
+      opts.on( '-u', '--user USER', "Username or ID" ) do |val|
+        options[:user] = val
+      end
+      opts.on( '-G', '--global', "Global policies only" ) do
         params[:global] = true
       end
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
       opts.footer = "List policies."
     end
     optparse.parse!(args)
     connect(options)
     begin
-      group, cloud = nil, nil
+      group, cloud, user = nil, nil, nil
       if options[:group]
         group = find_group_by_name_or_id(options[:group])
       elsif options[:cloud]
         cloud = find_cloud_by_name_or_id(options[:cloud])
+      elsif options[:user]
+        user = find_user_by_username_or_id(nil, options[:user])
+        return 1 if user.nil?
       end
       params.merge!(parse_list_options(options))
+      if user
+        params['refType'] = 'User'
+        params['refId'] = user['id']
+      end
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.list(group['id'], params)
@@ -72,6 +85,10 @@ class Morpheus::Cli::PoliciesCommand
           print_dry_run @cloud_policies_interface.dry.list(cloud['id'], params)
         else
           # global
+          if user
+            params['refType'] = 'User'
+            params['refId'] = user['id']
+          end
           print_dry_run @policies_interface.dry.list(params)
         end
         return 0
@@ -103,6 +120,9 @@ class Morpheus::Cli::PoliciesCommand
       if cloud
         subtitles << "Cloud: #{cloud['name']}".strip
       end
+      if user
+        subtitles << "User: #{user['username']}".strip
+      end
       if params[:global]
         subtitles << "(Global)".strip
       end
@@ -129,15 +149,16 @@ class Morpheus::Cli::PoliciesCommand
             #for: ref_str,
             group: policy['site'] ? policy['site']['name'] : '',
             cloud: policy['zone'] ? policy['zone']['name'] : '',
+            user: policy['user'] ? policy['user']['username'] : '',
             tenants: truncate_string(format_tenants(policy['accounts']), 15),
             config: truncate_string(config_str, 50),
             enabled: policy['enabled'] ? 'Yes' : 'No',
           }
           row
         }
-        columns = [:id, :name, :description, :group, :cloud, :tenants, :type, :config, :enabled]
-        if group || cloud
-          columns = [:id, :description, :type, :config]
+        columns = [:id, :name, :description, :group, :cloud, :user, :tenants, :type, :config, :enabled]
+        if group || cloud || user
+          columns = columns - [:group, :cloud, :user]
         end
         if options[:include_fields]
           columns = options[:include_fields]
@@ -203,12 +224,12 @@ class Morpheus::Cli::PoliciesCommand
         "Type" => lambda {|it| it['policyType'] ? it['policyType']['name'] : '' },
         "Group" => lambda {|it| it['site'] ? it['site']['name'] : '' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
-        "Enabled" => lambda {|it| it['enabled'] ? 'Yes' : 'No' },
         # "All Accounts" => lambda {|it| it['allAccounts'] ? 'Yes' : 'No' },
         # "Ref Type" => 'refType',
         # "Ref ID" => 'refId',
         # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
         "Tenants" => lambda {|it| format_tenants(policy["accounts"]) },
+        "Enabled" => lambda {|it| it['enabled'] ? 'Yes' : 'No' }
       }
       print_description_list(description_cols, policy)
       # print reset,"\n"
@@ -234,6 +255,9 @@ class Morpheus::Cli::PoliciesCommand
       end
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID, for scoping the policy to a cloud" ) do |val|
         options[:cloud] = val
+      end
+      opts.on( '-u', '--user USER', "Username or ID, for scoping the policy to a user" ) do |val|
+        options[:user] = val
       end
       opts.on('-t', '--type ID', "Policy Type Name or ID") do |val|
         options['type'] = val
@@ -263,7 +287,7 @@ class Morpheus::Cli::PoliciesCommand
       opts.on('--config-file FILE', String, "Policy Config from a local JSON or YAML file") do |val|
         options['configFile'] = val.to_s
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new policy." + "\n" +
                     "[name] is optional and can be passed as --name instead."
     end
@@ -275,118 +299,134 @@ class Morpheus::Cli::PoliciesCommand
     end
     connect(options)
     begin
-      group, cloud = nil, nil
-      if options[:group]
-        group = find_group_by_name_or_id(options[:group])
-      elsif options[:cloud]
-        cloud = find_cloud_by_name_or_id(options[:cloud])
-      end
-
-      # merge -O options into normally parsed options
-      options.deep_merge!(options[:options]) if options[:options] && options[:options].keys.size > 0
-      
-      # support [name] as first argument
-      if args[0]
-        options['name'] = args[0]
-      end
-
-      # construct payload
-      payload = {
-        'policy' => {
-          'config' => {}
-        }
-      }
-      
-      # prompt for policy options
-
-      # Policy Type
-      # allow user as id, name or code
-      available_policy_types = @policies_interface.list_policy_types({})['policyTypes']
-      if available_policy_types.empty?
-        print_red_alert "No available policy types found!"
-        return 1
-      end
-      policy_types_dropdown = available_policy_types.collect {|it| {'name' => it['name'], 'value' => it['id']} }
-      policy_type_id = nil
-      policy_type = nil
-      if options['type']
-        policy_type_id = options['type']
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Policy Type', 'type' => 'select', 'selectOptions' => policy_types_dropdown, 'required' => true, 'description' => 'Choose a policy type.'}], options[:options])
-        policy_type_id = v_prompt['type']
-      end
-      if !policy_type_id.to_s.empty?
-        policy_type = available_policy_types.find {|it| 
-          it['id'] == policy_type_id.to_i || it['name'] == policy_type_id.to_s || it['code'] == policy_type_id.to_s
-        }
-      end
-      if !policy_type
-        print_red_alert "Policy Type not found by id '#{policy_type_id}'"
-        return 1
-      end
-      # payload['policy']['policyTypeId'] = policy_type['id']
-      payload['policy']['policyType'] = {'id' => policy_type['id']}
-
-      # Name (this is not even used at the moment!)
-      if options['name']
-        payload['policy']['name'] = options['name']
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'description' => 'Name for this policy.'}], options)
-        payload['policy']['name'] = v_prompt['name']
-      end
-
-      # Description (this is not even used at the moment!)
-      if options['description']
-        payload['policy']['description'] = options['description']
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'description' => 'Description of policy.'}], options)
-        payload['policy']['description'] = v_prompt['description']
-      end
-
-      # Enabled
-      if options['enabled']
-        payload['policy']['enabled'] = options['enabled']
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'description' => 'Can be used to disable a policy', 'defaultValue' => true}], options)
-        payload['policy']['enabled'] = v_prompt['enabled']
-      end
-
-      # Tenants
-      if options['accounts']
-        # payload['policy']['accounts'] = options['accounts'].collect {|it| {'id' => it } }
-        payload['policy']['accounts'] = options['accounts']
-      else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'accounts', 'fieldLabel' => 'Tenants', 'type' => 'text', 'required' => false, 'description' => 'Tenant accounts, comma separated list of account IDs'}], options)
-        payload['policy']['accounts'] = v_prompt['accounts']
-      end
-
-      # Config
-      if options['config']
-        payload['policy']['config'] = options['config']
-      elsif options['configFile']
-        config_file = File.expand_path(options['configFile'])
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "File not found: #{config_file}"
-          return false
+        group, cloud, user = nil, nil, nil
+        if options[:group]
+          group = find_group_by_name_or_id(options[:group])
+        elsif options[:cloud]
+          cloud = find_cloud_by_name_or_id(options[:cloud])
+        elsif options[:user]
+          user = find_user_by_username_or_id(nil, options[:user])
+          return 1 if user.nil?
         end
-        if config_file =~ /\.ya?ml\Z/
-          payload['policy']['config'] = YAML.load_file(config_file)
+
+        # merge -O options into normally parsed options
+        options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && options[:options].keys.size > 0
+        
+        # support [name] as first argument
+        if args[0]
+          options['name'] = args[0]
+        end
+
+        # construct payload
+        payload = {
+          'policy' => {
+            'config' => {}
+          }
+        }
+        
+        # prompt for policy options
+
+        # Policy Type
+        # allow user as id, name or code
+        available_policy_types = @policies_interface.list_policy_types({})['policyTypes']
+        if available_policy_types.empty?
+          print_red_alert "No available policy types found!"
+          return 1
+        end
+        policy_types_dropdown = available_policy_types.collect {|it| {'name' => it['name'], 'value' => it['id']} }
+        policy_type_id = nil
+        policy_type = nil
+        if options['type']
+          policy_type_id = options['type']
         else
-          payload['policy']['config'] = JSON.parse(File.read(config_file))
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Policy Type', 'type' => 'select', 'selectOptions' => policy_types_dropdown, 'required' => true, 'description' => 'Choose a policy type.'}], options[:options])
+          policy_type_id = v_prompt['type']
         end
-      else
-        # prompt for policy specific options
-        policy_type_option_types = policy_type['optionTypes']
-        # puts "POLICY OPTION TYPES:\n #{policy_type_option_types.inspect}"
-        if policy_type_option_types
-          config_prompt = Morpheus::Cli::OptionTypes.prompt(policy_type_option_types, options, @api_client)
-          # everything should be under fieldContext:'config'
-          # payload['policy'].deep_merge!(config_prompt)
-          if config_prompt['config']
-            payload['policy']['config'].deep_merge!(config_prompt['config'])
+        if !policy_type_id.to_s.empty?
+          policy_type = available_policy_types.find {|it| 
+            it['id'] == policy_type_id.to_i || it['name'] == policy_type_id.to_s || it['code'] == policy_type_id.to_s
+          }
+        end
+        if !policy_type
+          print_red_alert "Policy Type not found by id '#{policy_type_id}'"
+          return 1
+        end
+        # payload['policy']['policyTypeId'] = policy_type['id']
+        payload['policy']['policyType'] = {'id' => policy_type['id']}
+
+        # Scope
+        if user
+          payload['policy']['refType'] = 'User'
+          payload['policy']['refId'] = user['id']
+        end
+        
+        # Name (this is not even used at the moment!)
+        if options['name']
+          payload['policy']['name'] = options['name']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'description' => 'Name for this policy.'}], options)
+          payload['policy']['name'] = v_prompt['name']
+        end
+
+        # Description (this is not even used at the moment!)
+        if options['description']
+          payload['policy']['description'] = options['description']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'description' => 'Description of policy.'}], options)
+          payload['policy']['description'] = v_prompt['description']
+        end
+
+        # Enabled
+        if options['enabled']
+          payload['policy']['enabled'] = options['enabled']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'description' => 'Can be used to disable a policy', 'defaultValue' => true}], options)
+          payload['policy']['enabled'] = v_prompt['enabled']
+        end
+
+        # Tenants
+        if options['accounts']
+          # payload['policy']['accounts'] = options['accounts'].collect {|it| {'id' => it } }
+          payload['policy']['accounts'] = options['accounts']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'accounts', 'fieldLabel' => 'Tenants', 'type' => 'text', 'required' => false, 'description' => 'Tenant accounts, comma separated list of account IDs'}], options)
+          payload['policy']['accounts'] = v_prompt['accounts']
+        end
+
+        # Config
+        if options['config']
+          payload['policy']['config'] = options['config']
+        elsif options['configFile']
+          config_file = File.expand_path(options['configFile'])
+          if !File.exists?(config_file) || !File.file?(config_file)
+            print_red_alert "File not found: #{config_file}"
+            return false
+          end
+          if config_file =~ /\.ya?ml\Z/
+            payload['policy']['config'] = YAML.load_file(config_file)
+          else
+            payload['policy']['config'] = JSON.parse(File.read(config_file))
           end
         else
-          puts "No options found for policy type! Proceeding without config options..."
+          # prompt for policy specific options
+          policy_type_option_types = policy_type['optionTypes']
+          # puts "POLICY OPTION TYPES:\n #{policy_type_option_types.inspect}"
+          if policy_type_option_types
+            config_prompt = Morpheus::Cli::OptionTypes.prompt(policy_type_option_types, options, @api_client)
+            # everything should be under fieldContext:'config'
+            # payload['policy'].deep_merge!(config_prompt)
+            if config_prompt['config']
+              payload['policy']['config'].deep_merge!(config_prompt['config'])
+            end
+          else
+            puts "No options found for policy type! Proceeding without config options..."
+          end
         end
       end
 

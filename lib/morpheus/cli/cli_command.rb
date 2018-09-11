@@ -318,7 +318,16 @@ module Morpheus
                   k, v = k.split(":")
                 end
                 if (!k.to_s.empty?)
-                  options[:query_filters][k.to_s.strip] = v.to_s.strip
+                  if options[:query_filters].key?(k.to_s.strip)
+                    cur_val = options[:query_filters][k.to_s.strip]
+                    if cur_val.instance_of?(Array)
+                      options[:query_filters][k.to_s.strip] << v.to_s.strip
+                    else
+                      options[:query_filters][k.to_s.strip] = [cur_val, v.to_s.strip]
+                    end
+                  else
+                    options[:query_filters][k.to_s.strip] = v.to_s.strip
+                  end
                 end
               end
             end
