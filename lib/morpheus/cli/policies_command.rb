@@ -180,6 +180,15 @@ class Morpheus::Cli::PoliciesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[policy]")
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
+      opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+        options[:cloud] = val
+      end
+      # opts.on( '-u', '--user USER', "Username or ID" ) do |val|
+      #   options[:user] = val
+      # end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a policy." + "\n" +
                     "[policy] is required. This is the id of a policy."
@@ -192,15 +201,38 @@ class Morpheus::Cli::PoliciesCommand
     end
     connect(options)
     begin
+      group, cloud, user = nil, nil, nil
+      if options[:group]
+        group = find_group_by_name_or_id(options[:group])
+        return 1 if group.nil?
+      elsif options[:cloud]
+        cloud = find_cloud_by_name_or_id(options[:cloud])
+        return 1 if cloud.nil?
+      elsif options[:user]
+        user = find_user_by_username_or_id(nil, options[:user])
+        return 1 if user.nil?
+      end
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @policies_interface.dry.get(args[0].to_i)
+          if group
+            print_dry_run @group_policies_interface.dry.get(group['id'], args[0].to_i)
+          elsif cloud
+            print_dry_run @cloud_policies_interface.dry.get(cloud['id'], args[0].to_i)
+          else
+            print_dry_run @policies_interface.dry.get(args[0].to_i)
+          end
         else
-          print_dry_run @policies_interface.dry.list({name:args[0]})
+          if group
+            print_dry_run @group_policies_interface.dry.list(group['id'], {name:args[0]})
+          elsif cloud
+            print_dry_run @cloud_policies_interface.dry.list(cloud['id'], {name:args[0]})
+          else
+            print_dry_run @policies_interface.dry.list({name:args[0]})
+          end
         end
         return
       end
-      policy = find_policy_by_name_or_id(args[0])
+      policy = find_policy_by_name_or_id(args[0], {cloud:cloud,group:group})
       return 1 if policy.nil?
       json_response = {'policy' => policy}  # skip redundant request
       # json_response = @policies_interface.get(policy['id'])
@@ -365,7 +397,7 @@ class Morpheus::Cli::PoliciesCommand
           payload['policy']['refType'] = 'User'
           payload['policy']['refId'] = user['id']
         end
-        
+
         # Name (this is not even used at the moment!)
         if options['name']
           payload['policy']['name'] = options['name']
@@ -802,17 +834,26 @@ class Morpheus::Cli::PoliciesCommand
 
   private
 
-  def find_policy_by_name_or_id(val)
+  def find_policy_by_name_or_id(val, scope_by={})
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_policy_by_id(val)
+      return find_policy_by_id(val, scope_by)
     else
-      return find_policy_by_name(val)
+      return find_policy_by_name(val, scope_by)
     end
   end
 
-  def find_policy_by_id(id)
+  def find_policy_by_id(id, scope_by={})
     begin
-      json_response = @policies_interface.get(id.to_i)
+      group = scope_by[:group]
+      cloud = scope_by[:cloud]
+      json_response = nil
+      if group
+        json_response = @group_policies_interface.get(group['id'], id.to_i)
+      elsif cloud
+        json_response = @cloud_policies_interface.get(cloud['id'], id.to_i)
+      else
+        json_response = @policies_interface.get(id.to_i)
+      end
       return json_response['policy']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -824,8 +865,17 @@ class Morpheus::Cli::PoliciesCommand
     end
   end
 
-  def find_policy_by_name(name)
-    json_response = @policies_interface.list({name: name.to_s})
+  def find_policy_by_name(name, scope_by={})
+    group = scope_by[:group]
+    cloud = scope_by[:cloud]
+    json_response = nil
+    if group
+      json_response = @group_policies_interface.list(group['id'], {name: name.to_s})
+    elsif cloud
+      json_response = @cloud_policies_interface.list(cloud['id'], {name: name.to_s})
+    else
+      json_response = @policies_interface.list({name: name.to_s})
+    end
     policies = json_response['policies']
     if policies.empty?
       print_red_alert "Policy not found by name #{name}"
