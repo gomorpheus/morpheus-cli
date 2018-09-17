@@ -129,25 +129,37 @@ class Morpheus::Cli::LibraryOptionListsCommand
         # print_h2 "Initial Dataset"
         # print bright_black,"#{option_type_list['initialDataset']}","\n",reset
       else
-        print_description_list({
+        option_list_columns = {
           "ID" => 'id',
           "Name" => 'name',
           "Description" => 'description',
           "Type" => lambda {|it| it['type'].to_s.capitalize },
           "Source URL" => 'sourceUrl',
           "Ignore SSL Errors" => lambda {|it| format_boolean it['ignoreSSLErrors'] },
-          "Source Method" => lambda {|it| it['sourceMethod'].to_s.upcase },
-        }, option_type_list)
+          "Source Method" => lambda {|it| it['sourceMethod'].to_s.upcase }
+        }
+        source_headers = []
+        if option_type_list['config'] && option_type_list['config']['sourceHeaders']
+          source_headers = option_type_list['config']['sourceHeaders'].collect do |header|
+            {name: header['name'], value: header['value'], masked: format_boolean(header['masked'])}
+          end
+          #option_list_columns["Source Headers"] = lambda {|it| source_headers.collect {|it| "#{it[:name]} #{it[:value]}"}.join("\n") }
+        end
+        print_description_list(option_list_columns, option_type_list)
+        if source_headers && !source_headers.empty?
+          print cyan
+          print_h2 "Source Headers"
+          print as_pretty_table(source_headers, [:name, :value, :masked])
+        end
         if !option_type_list['initialDataset'].empty?
           print_h2 "Initial Dataset"
-          print bright_black,"  #{option_type_list['initialDataset']}","\n",reset
+          print bright_black,"#{option_type_list['initialDataset']}","\n",reset
         end
         if !option_type_list['translationScript'].empty?
           print_h2 "Translation Script"
-          print bright_black,"  #{option_type_list['translationScript']}","\n",reset
+          print bright_black,"#{option_type_list['translationScript']}","\n",reset
         end
       end
-
       print_h2 "List Items"
       if option_type_list['listItems']
         # puts "\tNAME\tVALUE"
@@ -181,7 +193,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         # options[:options]['type'] = val
       end
       build_option_type_options(opts, options, new_option_type_list_option_types())
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     
@@ -192,13 +204,31 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
     connect(options)
     begin
-      params = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
-      if params.key?('required')
-        params['required'] = ['on','true'].include?(params['required'].to_s)
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['optionTypeList'] ||= {}
+          payload['optionTypeList'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        params = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
+        params['type'] = list_type
+        if params['type'] == 'rest'
+          # prompt for Source Headers
+          source_headers = prompt_source_headers(options)
+          if !source_headers.empty?
+            params['config'] ||= {}
+            params['config']['sourceHeaders'] = source_headers
+          end
+        end
+        if params.key?('required')
+          params['required'] = ['on','true'].include?(params['required'].to_s)
+        end
+        list_payload = params
+        payload = {'optionTypeList' => list_payload}
       end
-      params['type'] = list_type
-      list_payload = params
-      payload = {'optionTypeList' => list_payload}
       if options[:dry_run]
         print_dry_run @option_type_lists_interface.dry.create(payload)
         return
@@ -227,7 +257,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_option_type_list_option_types())
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -235,20 +265,39 @@ class Morpheus::Cli::LibraryOptionListsCommand
       option_type_list = find_option_type_list_by_name_or_id(args[0])
       exit 1 if option_type_list.nil?
 
-      list_type = option_type_list['type']
-      prompt_options = update_option_type_list_option_types(list_type)
-      #params = options[:options] || {}
-      params = Morpheus::Cli::OptionTypes.no_prompt(prompt_options, options[:options], @api_client, options[:params])
-      if params.empty?
-        print_red_alert "Specify atleast one option to update"
-        puts optparse
-        exit 1
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['optionTypeList'] ||= {}
+          payload['optionTypeList'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        list_type = option_type_list['type']
+        prompt_options = update_option_type_list_option_types(list_type)
+        #params = options[:options] || {}
+        params = Morpheus::Cli::OptionTypes.no_prompt(prompt_options, options[:options], @api_client, options[:params])
+        if list_type == 'rest'
+          # parse Source Headers
+          source_headers = prompt_source_headers(options.merge({no_prompt: true}))
+          if !source_headers.empty?
+            #params['config'] ||= option_type_list['config'] || {}
+            params['config'] ||= {}
+            params['config']['sourceHeaders'] = source_headers
+          end
+        end
+        if params.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          exit 1
+        end
+        if params.key?('required')
+          params['required'] = ['on','true'].include?(params['required'].to_s)
+        end
+        list_payload = params
+        payload = {'optionTypeList' => list_payload}
       end
-      if params.key?('required')
-        params['required'] = ['on','true'].include?(params['required'].to_s)
-      end
-      list_payload = params
-      payload = {optionTypeList: list_payload}
       if options[:dry_run]
         print_dry_run @option_type_lists_interface.dry.update(option_type_list['id'], payload)
         return
@@ -471,6 +520,34 @@ class Morpheus::Cli::LibraryOptionListsCommand
       it.delete('skipSingleOption')
     }
     list
+  end
+
+  # returns array of header objects {name: "Auth", value: "somevalue", masked: false}
+  def prompt_source_headers(options={})
+    #puts "Source Headers:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    source_headers = []
+    source_header_index = 0
+    has_another_source_header = options[:options] && options[:options]["sourceHeader#{source_header_index}"]
+    add_another_source_header = has_another_source_header || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a Source Header?", {default: false}))
+    while add_another_source_header do
+      field_context = "sourceHeader#{source_header_index}"
+      source_header = {}
+      source_header['id'] = nil
+      source_header_label = source_header_index == 0 ? "Header" : "Header [#{source_header_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{source_header_label} Name", 'required' => true, 'description' => 'HTTP Header Name.', 'defaultValue' => source_header['name']}], options[:options])
+      source_header['name'] = v_prompt[field_context]['name']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{source_header_label} Value", 'required' => true, 'description' => 'HTTP Header Value', 'defaultValue' => source_header['value']}], options[:options])
+      source_header['value'] = v_prompt[field_context]['value']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'masked', 'type' => 'checkbox', 'fieldLabel' => "#{source_header_label} Masked", 'required' => true, 'description' => 'Header value is secret and should not be displayed', 'defaultValue' => source_header['masked'] ? 'yes' : 'no'}], options[:options])
+      source_header['masked'] = v_prompt[field_context]['masked'] if !v_prompt[field_context]['masked'].nil?
+      source_headers << source_header
+      source_header_index += 1
+      has_another_source_header = options[:options] && options[:options]["sourceHeader#{source_header_index}"]
+      add_another_source_header = has_another_source_header || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another Source Header?", {default: false}))
+    end
+
+    return source_headers
   end
 
 end
