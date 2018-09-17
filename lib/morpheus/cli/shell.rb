@@ -80,8 +80,8 @@ class Morpheus::Cli::Shell
     end
     # cleanup empty brackets caused by var value
     @calculated_prompt = @calculated_prompt.gsub("[]", "").gsub("<>", "").gsub("{}", "")
-    @calculated_prompt = @calculated_prompt.strip
-    @calculated_prompt = "#{@calculated_prompt}#{reset} "
+    #@calculated_prompt = @calculated_prompt.strip
+    # @calculated_prompt = "#{@calculated_prompt}#{reset} "
     @calculated_prompt
   end
 
@@ -211,6 +211,7 @@ class Morpheus::Cli::Shell
         input = input.strip
 
         result = execute(input)
+        print reset
       end
     end
     

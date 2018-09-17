@@ -27,7 +27,7 @@ Examples:
     set-prompt "%cyanmorpheus> "
     set-prompt "[%magenta%remote%reset] %cyan%username morpheus> "
 
-The default prompt is: "%cyanmorpheus> "
+The default prompt is: "%cyanmorpheus> %reset"
 
 EOT
     end

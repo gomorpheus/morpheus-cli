@@ -11,7 +11,7 @@ class Morpheus::Cli::Echo
   set_command_hidden
 
   unless defined?(DEFAULT_VARIABLE_MAP)
-    DEFAULT_VARIABLE_MAP = {'%cyan' => Term::ANSIColor.cyan, '%magenta' => Term::ANSIColor.magenta, '%red' => Term::ANSIColor.red, '%green' => Term::ANSIColor.green, '%yellow' => Term::ANSIColor.yellow, '%dark' => Term::ANSIColor.dark, '%reset' => Term::ANSIColor.reset}
+    DEFAULT_VARIABLE_MAP = {'%cyan' => Term::ANSIColor.cyan, '%magenta' => Term::ANSIColor.magenta, '%red' => Term::ANSIColor.red, '%green' => Term::ANSIColor.green, '%yellow' => Term::ANSIColor.yellow, '%white' => Term::ANSIColor.white, '%dark' => Term::ANSIColor.dark, '%reset' => Term::ANSIColor.reset}
   end
 
   def self.variable_map

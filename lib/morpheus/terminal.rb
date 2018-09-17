@@ -57,7 +57,7 @@ module Morpheus
         if ENV['MORPHEUS_PS1']
           @prompt = ENV['MORPHEUS_PS1'].dup
         else
-          #ENV['MORPHEUS_PS1'] = "#{Term::ANSIColor.cyan}morpheus> #{Term::ANSIColor.reset}"
+          #ENV['MORPHEUS_PS1'] = "#{Term::ANSIColor.cyan}morpheus>#{Term::ANSIColor.reset} "
           @prompt = "#{Term::ANSIColor.cyan}morpheus>#{Term::ANSIColor.reset} "
         end
       end
