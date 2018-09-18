@@ -295,4 +295,8 @@ class Morpheus::APIClient
     Morpheus::PackagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def cypher
+    Morpheus::CypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+  
 end
