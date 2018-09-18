@@ -198,6 +198,7 @@ class Morpheus::Cli::Clouds
         "Location" => 'location',
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
+        "Enabled" => lambda {|it| format_boolean(it['enabled']) },
         "Status" => lambda {|it| format_cloud_status(it) }
       }
       print_description_list(description_cols, cloud)
