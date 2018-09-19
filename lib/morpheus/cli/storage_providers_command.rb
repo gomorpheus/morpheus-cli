@@ -309,11 +309,11 @@ class Morpheus::Cli::StorageProvidersCommand
         elsif storage_provider_type_code == 'rackspace'
           # print_h2 "Rackspace CDN Options"
           provider_type_option_types = [
-            {'fieldContext' => 'config', 'fieldName' => 'accessKey', 'fieldLabel' => 'Access Key', 'type' => 'text', 'required' => true, 'description' => ''},
-            {'fieldContext' => 'config', 'fieldName' => 'secretKey', 'fieldLabel' => 'Secret Key', 'type' => 'password', 'required' => true, 'description' => ''},
+            {'fieldContext' => 'config', 'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldContext' => 'config', 'fieldName' => 'apiKey', 'fieldLabel' => 'API Key', 'type' => 'password', 'required' => true, 'description' => ''},
+            {'fieldContext' => 'config', 'fieldName' => 'region', 'fieldLabel' => 'Region', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
-            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
-            {'fieldContext' => 'config', 'fieldName' => 'endpoint', 'fieldLabel' => 'Endpoint URL', 'type' => 'text', 'required' => true, 'description' => 'Optional endpoint URL if pointing to an object store other than amazon that mimics the Amazon S3 APIs.'},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'}
           ]
         else
           puts "warning: unrecognized storage provider type: '#{storage_provider_type_code}'"
