@@ -390,7 +390,8 @@ class Morpheus::Cli::PoliciesCommand
           return 1
         end
         # payload['policy']['policyTypeId'] = policy_type['id']
-        payload['policy']['policyType'] = {'id' => policy_type['id']}
+        # payload['policy']['policyType'] = {'id' => policy_type['id']}
+        payload['policy']['policyType'] = {'code' => policy_type['code']}
 
         # Scope
         if user
