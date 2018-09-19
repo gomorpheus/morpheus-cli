@@ -58,7 +58,7 @@ class Morpheus::Cli::PoliciesCommand
       opts.on( '-G', '--global', "Global policies only" ) do
         params[:global] = true
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List policies."
     end
     optparse.parse!(args)
@@ -693,7 +693,7 @@ class Morpheus::Cli::PoliciesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List policy types."
     end
     optparse.parse!(args)
@@ -713,7 +713,14 @@ class Morpheus::Cli::PoliciesCommand
       json_response = @policies_interface.list_policy_types()
       policy_types = json_response['policyTypes']
       if options[:json]
-        puts as_json(json_response)
+        puts as_json(json_response, options, "policyTypes")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "policyTypes")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(policy_types, options)
+        return 0
       else
         print_h1 "Morpheus Policy Types"
         rows = policy_types.collect {|policy_type| 
