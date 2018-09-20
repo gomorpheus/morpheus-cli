@@ -1,6 +1,7 @@
 require 'optparse'
 require 'morpheus/logging'
 require 'morpheus/cli/cli_command'
+require 'json'
 
 class Morpheus::Cli::CurlCommand
   include Morpheus::Cli::CliCommand
@@ -16,6 +17,9 @@ class Morpheus::Cli::CurlCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus curl [path] -- [*args]"
+      opts.on( '-p', '--pretty', "Print result as parsed JSON." ) do
+        options[:pretty] = true
+      end
       build_common_options(opts, options, [:remote])
       opts.footer = <<-EOT
 This invokes the `curl` command with url "appliance_url/api/$0
@@ -87,7 +91,21 @@ EOT
     print reset
     # print result
     curl_output = `#{curl_cmd}`
-    puts curl_output
+    if options[:pretty]
+      output_lines = curl_output.split("\n")
+      last_line = output_lines.pop
+      puts output_lines.join("\n")
+      begin
+        json_data = JSON.parse(last_line)
+        json_string = JSON.pretty_generate(json_data)
+        puts json_string
+      rescue => ex
+        Morpheus::Logging::DarkPrinter.puts "failed to parse curl result as JSON data Error: #{ex.message}" if Morpheus::Logging.debug?
+        puts last_line
+      end
+    else
+      puts curl_output
+    end
     return $?.success?
 
   end
