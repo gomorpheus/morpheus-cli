@@ -258,14 +258,6 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('--storageProvider VALUE', String, "Storage Provider ID") do |val|
         options['storageProvider'] = val.to_s
       end
-      opts.on('--payload JSON', String, "JSON Payload") do |val|
-        options['payload'] = JSON.parse(val.to_s)
-      end
-      opts.on('--payload-file FILE', String, "JSON Payload from a local file") do |val|
-        payload_file = val.to_s
-        options['payload'] = JSON.parse(File.read(payload_file))
-      end
-      
       opts.on('--visibility [private|public]', String, "Visibility determines if read access is restricted to the specified Tenants (Private) or all tenants (Public).") do |val|
         options['visibility'] = val.to_s
       end
@@ -276,14 +268,14 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('--isPublic [on|off]', String, "Enabling Public URL allows files to be downloaded without any authentication.") do |val|
         options['isPublic'] = (val.to_s == 'on' || val.to_s == 'true')
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
       opts.footer = "Create a new archive bucket."
     end
     optparse.parse!(args)
     connect(options)
     begin
       options.merge!(options[:options]) if options[:options] # so -O var= works..
-
+      option_params = options.reject {|k,v| k.is_a?(Symbol) }
       # use the -g GROUP or active group by default
       # options['group'] ||=  @active_group_id
       
@@ -291,10 +283,15 @@ class Morpheus::Cli::ArchivesCommand
       if args[0] && !options['name']
         options['name'] = args[0]
       end
-
-      archive_bucket_payload = prompt_new_archive_bucket(options)
-      return 1 if !archive_bucket_payload
-      payload = {'archiveBucket' => archive_bucket_payload}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'archiveBucket' => option_params}) if !option_params.empty?
+      else
+        archive_bucket_payload = prompt_new_archive_bucket(options)
+        return 1 if !archive_bucket_payload
+        payload = {'archiveBucket' => archive_bucket_payload}
+      end
 
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.create(payload)
@@ -349,7 +346,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('--isPublic [on|off]', String, "Enabling Public URL allows files to be downloaded without any authentication.") do |val|
         options['isPublic'] = (val.to_s == 'on' || val.to_s == 'true')
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
       opts.footer = "Update an existing archive bucket."
     end
     optparse.parse!(args)
@@ -362,9 +359,18 @@ class Morpheus::Cli::ArchivesCommand
     begin
       archive_bucket = find_archive_bucket_by_name_or_id(args[0])
 
-      archive_bucket_payload = prompt_edit_archive_bucket(archive_bucket, options)
-      return 1 if !archive_bucket_payload
-      payload = {'archiveBucket' => archive_bucket_payload}
+      options.merge!(options[:options]) if options[:options] # so -O var= works..
+      option_params = options.reject {|k,v| k.is_a?(Symbol) }
+
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'archiveBucket' => option_params}) if !option_params.empty?
+      else
+        archive_bucket_payload = prompt_edit_archive_bucket(archive_bucket, options)
+        return 1 if !archive_bucket_payload
+        payload = {'archiveBucket' => archive_bucket_payload}
+      end
 
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.update(archive_bucket["id"], payload)

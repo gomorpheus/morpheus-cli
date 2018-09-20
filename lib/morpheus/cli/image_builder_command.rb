@@ -342,7 +342,7 @@ class Morpheus::Cli::ImageBuilderCommand
       opts.on('--keepResults VALUE', String, "Keep only the most recent builds. Older executions will be deleted along with their associated Virtual Images. The value 0 disables this functionality.") do |val|
         options['keepResults'] = val.to_i
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
     end
     optparse.parse!(args)
     if args.count > 1
@@ -351,19 +351,28 @@ class Morpheus::Cli::ImageBuilderCommand
     end
     connect(options)
     begin
-      options.merge!(options[:options]) if options[:options] # so -O var= works..
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support options top of --payload
+        options.merge!(options[:options]) if options[:options] # so -O var= works..
+        option_params = options.reject {|k,v| k.is_a?(Symbol) }
+        payload.deep_merge!({'imageBuild' => option_params}) unless option_params.empty?
+      else
+        options.merge!(options[:options]) if options[:options] # so -O var= works..
 
-      # use the -g GROUP or active group by default
-      # options['group'] ||=  @active_group_id
-      
-      # support first arg as name instead of --name
-      if args[0] && !options['name']
-        options['name'] = args[0]
+        # use the -g GROUP or active group by default
+        # options['group'] ||=  @active_group_id
+        
+        # support first arg as name instead of --name
+        if args[0] && !options['name']
+          options['name'] = args[0]
+        end
+
+        image_build_payload = prompt_new_image_build(options)
+        return 1 if !image_build_payload
+        payload = {'imageBuild' => image_build_payload}
       end
-
-      image_build_payload = prompt_new_image_build(options)
-      return 1 if !image_build_payload
-      payload = {'imageBuild' => image_build_payload}
 
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.create(payload)
@@ -461,7 +470,7 @@ class Morpheus::Cli::ImageBuilderCommand
         # 0 disables it
         # options['deleteOldResults'] = (options['keepResults'] > 0)
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -472,9 +481,20 @@ class Morpheus::Cli::ImageBuilderCommand
     begin
       image_build = find_image_build_by_name_or_id(args[0])
       return 1 if !image_build
-      image_build_payload = prompt_edit_image_build(image_build, options)
-      return 1 if !image_build_payload
-      payload = {imageBuild: image_build_payload}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support options top of --payload
+        options.merge!(options[:options]) if options[:options] # so -O var= works..
+        option_params = options.reject {|k,v| k.is_a?(Symbol) }
+        payload.deep_merge!({'imageBuild' => option_params}) unless option_params.empty?
+      else
+        options.merge!(options[:options]) if options[:options] # so -O var= works..
+        image_build_payload = prompt_edit_image_build(image_build, options)
+        return 1 if !image_build_payload
+        payload = {'imageBuild' => image_build_payload}
+      end
+
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.update(image_build["id"], payload)
         return
