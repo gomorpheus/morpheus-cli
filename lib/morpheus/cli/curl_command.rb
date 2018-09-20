@@ -63,9 +63,15 @@ EOT
     end
 
     # determine curl url
-    base_url = @appliance_url.chomp("/")
-    api_path = args[0].sub(/^\//, "")
-    url = "#{base_url}/#{api_path}"
+    url = nil
+    api_path = args[0].to_s.strip
+    # allow absolute path for the current appliance url only
+    if api_path.match(/^#{Regexp.escape(@appliance_url)}/)
+      url = api_path
+    else
+      api_path = api_path.sub(/^\//, "") # strip leading slash
+      url = "#{@appliance_url.chomp('/')}/#{api_path}"
+    end
     curl_cmd = "curl \"#{url}\""
     if @access_token
       curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
