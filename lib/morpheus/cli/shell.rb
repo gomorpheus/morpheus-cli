@@ -335,6 +335,7 @@ class Morpheus::Cli::Shell
   end
 
   def execute_command(input)
+
     #Morpheus::Logging::DarkPrinter.puts "Shell command: #{input}"
     input = input.to_s.strip
 
@@ -529,6 +530,7 @@ class Morpheus::Cli::Shell
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
       cmd_result = nil
+      @return_to_log_level = Morpheus::Logging.log_level
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
@@ -553,12 +555,12 @@ class Morpheus::Cli::Shell
         @history_logger.error "#{e.message}" if @history_logger
         cmd_result = Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
         # exit 1
-      end
-
-      if @return_to_log_level
-        Morpheus::Logging.set_log_level(@return_to_log_level)
-        ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
-        @return_to_log_level = nil
+      ensure
+        if @return_to_log_level
+          Morpheus::Logging.set_log_level(@return_to_log_level)
+          ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
+          @return_to_log_level = nil
+        end
       end
 
       # commands should be a number or nil (treated as 0)
