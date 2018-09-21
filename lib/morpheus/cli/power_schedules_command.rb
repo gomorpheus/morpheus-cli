@@ -1,6 +1,6 @@
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::PowerSchedulingCommand
+class Morpheus::Cli::PowerSchedulesCommand
   include Morpheus::Cli::CliCommand
   # include Morpheus::Cli::ProvisioningHelper
   set_command_name :'power-schedules'
@@ -13,7 +13,7 @@ class Morpheus::Cli::PowerSchedulingCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @power_scheduling_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).power_scheduling
+    @power_schedules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).power_schedules
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
   end
@@ -34,21 +34,21 @@ class Morpheus::Cli::PowerSchedulingCommand
     begin
       params.merge!(parse_list_options(options))
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.list(params)
+        print_dry_run @power_schedules_interface.dry.list(params)
         return
       end
-      json_response = @power_scheduling_interface.list(params)
+      json_response = @power_schedules_interface.list(params)
       if options[:json]
-        puts as_json(json_response, options, "powerScheduleTypes")
+        puts as_json(json_response, options, "schedules")
         return 0
       elsif options[:csv]
-        puts records_as_csv(json_response['powerScheduleTypes'], options)
+        puts records_as_csv(json_response['schedules'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "powerScheduleTypes")
+        puts as_yaml(json_response, options, "schedules")
         return 0
       end
-      schedules = json_response['powerScheduleTypes']
+      schedules = json_response['schedules']
       title = "Morpheus Power Schedules"
       subtitles = []
       subtitles += parse_list_subtitles(options)
@@ -103,21 +103,21 @@ class Morpheus::Cli::PowerSchedulingCommand
         return 1
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.get(schedule['id'])
+        print_dry_run @power_schedules_interface.dry.get(schedule['id'])
         return
       end
-      json_response = @power_scheduling_interface.get(schedule['id'])
-      schedule = json_response['powerScheduleType']
+      json_response = @power_schedules_interface.get(schedule['id'])
+      schedule = json_response['schedule']
       instances = json_response['instances'] || []
       servers = json_response['servers'] || []
       if options[:json]
-        puts as_json(json_response, options, "powerScheduleType")
+        puts as_json(json_response, options, "schedule")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "powerScheduleType")
+        puts as_yaml(json_response, options, "schedule")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['powerScheduleType']], options)
+        puts records_as_csv([json_response['schedule']], options)
         return 0
       end
 
@@ -232,14 +232,14 @@ class Morpheus::Cli::PowerSchedulingCommand
         payload = {'schedule' => params}
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.create(payload)
+        print_dry_run @power_schedules_interface.dry.create(payload)
         return
       end
-      json_response = @power_scheduling_interface.create(payload)
+      json_response = @power_schedules_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        schedule = json_response['powerScheduleType']
+        schedule = json_response['schedule']
         print_green_success "Added power schedule #{schedule['name']}"
         _get(schedule['id'], {})
       end
@@ -307,13 +307,13 @@ class Morpheus::Cli::PowerSchedulingCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        payload = {'powerScheduleType' => params}
+        payload = {'schedule' => params}
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.update(schedule["id"], payload)
+        print_dry_run @power_schedules_interface.dry.update(schedule["id"], payload)
         return
       end
-      json_response = @power_scheduling_interface.update(schedule["id"], payload)
+      json_response = @power_schedules_interface.update(schedule["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -352,17 +352,17 @@ class Morpheus::Cli::PowerSchedulingCommand
       end
 
       # payload = {
-      #   'powerScheduleType' => {id: schedule["id"]}
+      #   'schedule' => {id: schedule["id"]}
       # }
-      # payload['powerScheduleType'].merge!(schedule)
+      # payload['schedule'].merge!(schedule)
       payload = params
 
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.destroy(schedule["id"])
+        print_dry_run @power_schedules_interface.dry.destroy(schedule["id"])
         return
       end
 
-      json_response = @power_scheduling_interface.destroy(schedule["id"])
+      json_response = @power_schedules_interface.destroy(schedule["id"])
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -412,10 +412,10 @@ class Morpheus::Cli::PowerSchedulingCommand
         payload = {'instances' => instances.collect {|it| it['id'] } }
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.add_instances(schedule["id"], payload)
+        print_dry_run @power_schedules_interface.dry.add_instances(schedule["id"], payload)
         return 0
       end
-      json_response = @power_scheduling_interface.add_instances(schedule["id"], payload)
+      json_response = @power_schedules_interface.add_instances(schedule["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -470,10 +470,10 @@ class Morpheus::Cli::PowerSchedulingCommand
         payload = {'instances' => instances.collect {|it| it['id'] } }
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.remove_instances(schedule["id"], payload)
+        print_dry_run @power_schedules_interface.dry.remove_instances(schedule["id"], payload)
         return 0
       end
-      json_response = @power_scheduling_interface.remove_instances(schedule["id"], payload)
+      json_response = @power_schedules_interface.remove_instances(schedule["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -528,10 +528,10 @@ class Morpheus::Cli::PowerSchedulingCommand
         payload = {'servers' => servers.collect {|it| it['id'] } }
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.add_servers(schedule["id"], payload)
+        print_dry_run @power_schedules_interface.dry.add_servers(schedule["id"], payload)
         return 0
       end
-      json_response = @power_scheduling_interface.add_servers(schedule["id"], payload)
+      json_response = @power_schedules_interface.add_servers(schedule["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -586,10 +586,10 @@ class Morpheus::Cli::PowerSchedulingCommand
         payload = {'servers' => servers.collect {|it| it['id'] } }
       end
       if options[:dry_run]
-        print_dry_run @power_scheduling_interface.dry.remove_servers(schedule["id"], payload)
+        print_dry_run @power_schedules_interface.dry.remove_servers(schedule["id"], payload)
         return 0
       end
-      json_response = @power_scheduling_interface.remove_servers(schedule["id"], payload)
+      json_response = @power_schedules_interface.remove_servers(schedule["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -620,8 +620,8 @@ class Morpheus::Cli::PowerSchedulingCommand
 
   def find_schedule_by_id(id)
     begin
-      json_response = @power_scheduling_interface.get(id.to_i)
-      return json_response['powerScheduleType']
+      json_response = @power_schedules_interface.get(id.to_i)
+      return json_response['schedule']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Power Schedule not found by id #{id}"
@@ -632,7 +632,7 @@ class Morpheus::Cli::PowerSchedulingCommand
   end
 
   def find_schedule_by_name(name)
-    schedules = @power_scheduling_interface.list({name: name.to_s})['powerScheduleTypes']
+    schedules = @power_schedules_interface.list({name: name.to_s})['schedules']
     if schedules.empty?
       print_red_alert "Power Schedule not found by name #{name}"
       return nil
