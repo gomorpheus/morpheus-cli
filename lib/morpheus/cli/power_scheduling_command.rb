@@ -3,11 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::PowerSchedulingCommand
   include Morpheus::Cli::CliCommand
   # include Morpheus::Cli::ProvisioningHelper
-
-  # this is the only type of schedule right now
-  #set_command_name :'schedules'
-  #set_command_name :'scheduling'
-  set_command_name :'power-scheduling'
+  set_command_name :'power-schedules'
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :'add-instances' => :add_instances
@@ -121,7 +117,7 @@ class Morpheus::Cli::PowerSchedulingCommand
         puts as_yaml(json_response, options, "powerScheduleType")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['schedule']], options)
+        puts records_as_csv([json_response['powerScheduleType']], options)
         return 0
       end
 
@@ -243,7 +239,7 @@ class Morpheus::Cli::PowerSchedulingCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        schedule = json_response['schedule']
+        schedule = json_response['powerScheduleType']
         print_green_success "Added power schedule #{schedule['name']}"
         _get(schedule['id'], {})
       end
