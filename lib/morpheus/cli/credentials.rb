@@ -40,16 +40,9 @@ module Morpheus
             end
           rescue ::RestClient::Exception => e
             #raise e
-            if (e.response && e.response.code == 400)
-              print_red_alert "Token not valid."
-              if opts[:json]
-                whoami_response = JSON.parse(e.response.to_s)
-                print JSON.pretty_generate(whoami_response)
-                print reset, "\n"
-              end
-            else
-              #print_rest_exception(e, opts)
-              print_red_alert "Token not valid."
+            print_red_alert "Token not valid."
+            if opts[:debug] || opts[:debug]
+              print_rest_exception(e, opts)
             end
             access_token = nil
           end
