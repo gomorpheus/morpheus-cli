@@ -255,4 +255,11 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def update_notes(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/notes"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
 end

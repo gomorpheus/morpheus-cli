@@ -270,7 +270,7 @@ class Morpheus::Cli::Apps
           if instances.empty?
             puts yellow, "This tier is empty", reset
           else
-            instance_table = instances.collect do |instance|
+            instances_rows = instances.collect do |instance|
               # JD: fix bug here, status is not returned because withStats: false !?
               status_string = instance['status'].to_s
               if status_string == 'running'
@@ -288,7 +288,10 @@ class Morpheus::Cli::Apps
               end
               {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
             end
-            tp instance_table, :id, :name, :cloud, :type, :environment, :nodes, :connection, :status
+            instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
+            print cyan
+            print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status])
+            print reset
           end
         end
       end

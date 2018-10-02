@@ -11,7 +11,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :count, :get, :add, :update, :remove, :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -83,19 +83,19 @@ class Morpheus::Cli::Instances
       end
       json_response = @instances_interface.list(params)
       if options[:json]
-        json_response.delete('stats') if options[:include_fields]
         puts as_json(json_response, options, "instances")
         return 0
       elsif options[:yaml]
-        json_response.delete('stats') if options[:include_fields]
         puts as_yaml(json_response, options, "instances")
         return 0
       elsif options[:csv]
         # merge stats to be nice here..
         if json_response['instances']
           all_stats = json_response['stats'] || {}
-          json_response['instances'].each do |it|
-            it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
+          if all_stats
+            json_response['instances'].each do |it|
+              it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
+            end
           end
         end
         puts records_as_csv(json_response['instances'], options)
@@ -122,10 +122,12 @@ class Morpheus::Cli::Instances
           # server returns stats in a separate key stats => {"id" => {} }
           # the id is a string right now..for some reason..
           all_stats = json_response['stats'] || {} 
-          instances.each do |it|
-            if !it['stats']
-              found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-              it['stats'] = found_stats # || {}
+          if all_stats
+            instances.each do |it|
+              if !it['stats']
+                found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+                it['stats'] = found_stats # || {}
+              end
             end
           end
 
@@ -344,9 +346,35 @@ class Morpheus::Cli::Instances
   def update(args)
     usage = "Usage: morpheus instances update [name] [options]"
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.on('--name VALUE', String, "Name") do |val|
+        params['displayName'] = val
+      end
+      opts.on('--description VALUE', String, "Description") do |val|
+        params['description'] = val
+      end
+      opts.on('--environment VALUE', String, "Environment") do |val|
+        params['instanceContext'] = val
+      end
+      opts.on('--group GROUP', String, "Group Name or ID") do |val|
+        options[:group] = val
+      end
+      opts.on('--metadata LIST', String, "Metadata in the format 'name:value, name:value'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--tags LIST', String, "Tags") do |val|
+        params['tags'] = val
+        # params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq
+      end
+      opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
+        params['powerScheduleType'] = val == "null" ? nil : val
+      end
+      opts.on('--created-by ID', String, "Created By User ID") do |val|
+        params['createdById'] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -356,33 +384,55 @@ class Morpheus::Cli::Instances
     connect(options)
 
     begin
-
       instance = find_instance_by_name_or_id(args[0])
-
-      payload = {
-        'instance' => {id: instance["id"]}
-      }
-
-      update_instance_option_types = [
-        {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this instance'},
-        {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
-        {'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()},
-        {'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}
-      ]
-
-      params = options[:options] || {}
-
-      if params.empty?
-        puts "\n#{usage}\n"
-        option_lines = update_instance_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        exit 1
+      return 1 if instance.nil?
+      new_group = nil
+      if options[:group]
+        new_group = find_group_by_name_or_id_for_provisioning(options[:group])
+        return 1 if new_group.nil?
+        params['site'] = {'id' => new_group['id']}
+      end
+      if options[:metadata]
+        if options[:metadata] == "[]" || options[:metadata] == "null"
+          params['metadata'] = []
+        else
+          # parse string into format name:value, name:value
+          # merge IDs from current metadata
+          # todo: should allow quoted semicolons..
+          metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
+          metadata_list = metadata_list.collect do |it|
+            metadata_pair = it.split(":")
+            row = {}
+            row['name'] = metadata_pair[0].to_s.strip
+            row['value'] = metadata_pair[1].to_s.strip
+            existing_metadata = (instance['metadata'] || []).find { |m| m['name'] == it['name'] }
+            if existing_metadata
+              row['id'] = existing_metadata['id']
+            end
+            row
+          end
+          params['metadata'] = metadata_list
+        end
+      end
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support args and option parameters on top of payload
+        if !params.empty?
+          payload['instance'] ||= {}
+          payload['instance'].deep_merge!(params)
+        end
+      else
+        if params.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          exit 1
+        end
+        payload = {}
+        payload['instance'] = params
       end
 
-      # instance_keys = ['name', 'description', 'instanceContext', 'tags','configId','configRole','configGroup']
-      # params = params.select {|k,v| instance_keys.include?(k) }
-      params['tags'] = params['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if params['tags']
-      payload['instance'].merge!(params)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.update(instance["id"], payload)
         return
@@ -394,8 +444,85 @@ class Morpheus::Cli::Instances
       else
         print_green_success "Updated instance #{instance['name']}"
         #list([])
+        get([instance['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_notes(args)
+    usage = "Usage: morpheus instances update-notes [name] [options]"
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.on('--notes VALUE', String, "Notes content (Markdown)") do |val|
+        params['notes'] = val
+      end
+      opts.on('--file FILE', "File containing the notes content. This can be used instead of --notes") do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['notes'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      opts.on(nil, '--clear', "Clear current notes") do |val|
+        params['notes'] = ""
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      new_group = nil
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support args and option parameters on top of payload
+        if !params.empty?
+          payload['instance'] ||= {}
+          payload['instance'].deep_merge!(params)
+        end
+      else
+        if params['notes'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'notes', 'type' => 'code-editor', 'fieldLabel' => 'Notes', 'required' => true, 'description' => 'Notes (Markdown)'}], options[:options])
+          params['notes'] = v_prompt['notes']
+        end
+        payload = {}
+        payload['instance'] = params
       end
 
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.update_notes(instance["id"], payload)
+        return
+      end
+      json_response = @instances_interface.update_notes(instance["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated notes for instance #{instance['name']}"
+        #list([])
+        get([instance['id']])
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -470,7 +597,7 @@ class Morpheus::Cli::Instances
         return 0
       end
       instance = json_response['instance']
-      stats = json_response['stats'] || {}
+      stats = instance['stats'] || json_response['stats'] || {}
       title = "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})"
       print_h1 title
       puts cyan + "Status: ".rjust(12) + format_instance_status(instance).to_s
@@ -611,9 +738,9 @@ class Morpheus::Cli::Instances
       # opts.on( nil, '--threshold', "Alias for --scaling" ) do
       #   options[:include_scaling] = true
       # end
-      opts.on( nil, '--lb', "Display Load Balancer Details" ) do
-        options[:include_lb] = true
-      end
+      # opts.on( nil, '--lb', "Display Load Balancer Details" ) do
+      #   options[:include_lb] = true
+      # end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -641,11 +768,9 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(arg)
       json_response = @instances_interface.get(instance['id'])
       if options[:json]
-        json_response.delete('stats') if options[:include_fields]
         puts as_json(json_response, options, "instance")
         return 0
       elsif options[:yaml]
-        json_response.delete('stats') if options[:include_fields]
         puts as_yaml(json_response, options, "instance")
         return 0
       end
@@ -655,7 +780,7 @@ class Morpheus::Cli::Instances
         return 0
       end
       instance = json_response['instance']
-      stats = json_response['stats'] || {}
+      stats = instance['stats'] || json_response['stats'] || {}
       # load_balancers = json_response['loadBalancers'] || {}
 
       # containers are fetched via separate api call
@@ -673,14 +798,14 @@ class Morpheus::Cli::Instances
       # loadBalancers is returned via show
       # parse the current api format of loadBalancers.first.lbs.first
       current_instance_lb = nil
-      current_load_balancer_port = nil
-      # if options[:include_lb]
-      #   #load_balancers = @instances_interface.load_balancers(instance['id'])['loadBalancers']
-      # end
-      if json_response['loadBalancers'] && json_response['loadBalancers'][0] && json_response['loadBalancers'][0]['lbs'] && json_response['loadBalancers'][0]['lbs'][0]
+      if instance["currentLoadBalancerInstances"]
+        current_instance_lb = instance['currentLoadBalancerInstances'][0]
+      end
+
+      # support old format
+      if !current_instance_lb && json_response['loadBalancers'] && json_response['loadBalancers'][0] && json_response['loadBalancers'][0]['lbs'] && json_response['loadBalancers'][0]['lbs'][0]
         current_instance_lb = json_response['loadBalancers'][0]['lbs'][0]
         #current_load_balancer = current_instance_lb['loadBalancer']
-        #current_load_balancer_port = current_instance_lb['port']
       end
 
       print_h1 "Instance Details"
@@ -692,8 +817,15 @@ class Morpheus::Cli::Instances
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
         "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
         "Type" => lambda {|it| it['instanceType']['name'] },
+        "Layout" => lambda {|it| it['layout'] ? it['layout']['name'] : '' },
+        "Version" => lambda {|it| it['instanceVersion'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Environment" => 'instanceContext',
+        "Tags" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
+        "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
+        "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
+        "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['username'] || it['createdBy']['id']) : '' },
+        "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
         "Connection" => lambda {|it| format_instance_connection_string(it) },
         #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
@@ -712,14 +844,38 @@ class Morpheus::Cli::Instances
       end
       if instance['errorMessage']
         print_h2 "Error Message"
-        print red, instance['errorMessage'], reset
-        print "\n"
+        print red, instance['errorMessage'], reset, "\n"
+      end
+      if !instance['notes'].to_s.empty?
+        print_h2 "Instance Notes"
+        print cyan, instance['notes'], reset, "\n"
       end
       if stats
         print_h2 "Instance Usage"
         print_stats_usage(stats)
       end
       print reset, "\n"
+
+      # if options[:include_lb]
+      if current_instance_lb
+        print_h2 "Load Balancer"
+        print cyan
+        description_cols = {
+          "LB ID" => lambda {|it| it['loadBalancer']['id'] },
+          "Name" => lambda {|it| it['loadBalancer']['name'] },
+          "Type" => lambda {|it| it['loadBalancer']['type'] ? it['loadBalancer']['type']['name'] : '' },
+          "Host Name" => lambda {|it| it['vipHostname'] || instance['hostName'] },
+          "Port" => lambda {|it| it['vipPort'] },
+          "Protocol" => lambda {|it| it['vipProtocol'] || 'tcp' },
+          "SSL Enabled" => lambda {|it| format_boolean(it['sslEnabled']) },
+          "SSL Cert" => lambda {|it| (it['sslCert']) ? it['sslCert']['name'] : '' },
+          "In" => lambda {|it| instance['currentLoadBalancerContainersIn'] },
+          "Out" => lambda {|it| instance['currentLoadBalancerContainersOutrelo'] }
+        }
+        print_description_list(description_cols, current_instance_lb)
+        print "\n", reset
+      end
+      # end
 
       if options[:include_containers]
         print_h2 "Instance Containers"
@@ -762,26 +918,6 @@ class Morpheus::Cli::Instances
         end
         print reset,"\n"
       end
-
-      # if options[:include_lb]
-      if current_instance_lb
-        print_h2 "Load Balancer"
-        print cyan
-        # this api response is going to change again.. port is no longer returned atm.
-        description_cols = {
-          "LB ID" => lambda {|it| it['loadBalancer']['id'] },
-          "Name" => lambda {|it| it['loadBalancer']['name'] },
-          "Type" => lambda {|it| it['loadBalancer']['type'] ? it['loadBalancer']['type']['name'] : '' },
-          "Host Name" => lambda {|it| it['loadBalancer']['host'] }, # instance.hostName ?
-          "Port" => lambda {|it| it['port'] ? it['port']['port'] : '' },
-          "Protocol" => lambda {|it| it['port'] ? it['port']['proxyProtocol'] : '' },
-          "SSL Enabled" => lambda {|it| it['port'] ? format_boolean(it['port']['sslEnabled']) : '' },
-          "Cert" => lambda {|it| (it['port'] && it['port']['sslCert']) ? it['port']['sslCert']['name'] : '' }
-        }
-        print_description_list(description_cols, current_instance_lb)
-        print "\n", reset
-      end
-      # end
 
       if options[:include_scaling]
         print_h2 "Instance Scaling"
@@ -2170,7 +2306,6 @@ class Morpheus::Cli::Instances
       if json_response['loadBalancers'] && json_response['loadBalancers'][0] && json_response['loadBalancers'][0]['lbs'] && json_response['loadBalancers'][0]['lbs'][0]
         current_instance_lb = json_response['loadBalancers'][0]['lbs'][0]
         #current_load_balancer = current_instance_lb['loadBalancer']
-        #current_load_balancer_port = current_instance_lb['port']
       end
 
       #my_option_types = instance_load_balancer_option_types(instance)
@@ -2365,8 +2500,6 @@ private
       out << "#{cyan}#{status_string.upcase}#{return_color}"
     elsif status_string == 'stopped' or status_string == 'failed'
       out << "#{red}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'unknown'
-      out << "#{yellow}#{status_string.upcase}#{return_color}"
     else
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
@@ -2384,10 +2517,10 @@ private
     status_string = container['status'].to_s
     if status_string == 'running'
       out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
     elsif status_string == 'stopped' or status_string == 'failed'
       out << "#{red}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'unknown'
-      out << "#{white}#{status_string.upcase}#{return_color}"
     else
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
