@@ -86,6 +86,9 @@ class Morpheus::Cli::Login
       end
 
       if creds
+        if !options[:quiet]
+          puts "#{cyan}Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_active_remote()[:username]}"
+        end
         return 0 # ,  nil
       else
         return 1 # , "Login failed"
