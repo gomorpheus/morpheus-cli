@@ -52,21 +52,21 @@ class Morpheus::Cli::Login
         @appliance_name, @appliance_url = nil, nil
       end
       if !@appliance_name
-        print_red_alert "You have no appliance named '#{options[:remote]}' configured. See the `remote list` command."
+        print_error red, "You have no appliance named '#{options[:remote]}' configured. See the `remote list` command.", reset, "\n"
         return false
       end
     else
       @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
       if !@appliance_name
-        print yellow,"Please specify a remote appliance with -r or see the command `remote use`#{reset}\n"
+        print_error yellow, "Please specify a remote appliance with -r or see the command `remote use`", reset, "\n"
         return false
       end
     end
 
     begin
       if options[:quiet]
-        if !options[:remote_token] && (username.empty? || password.empty?)
-          print yellow,"You have not specified username and password\n"
+        if ((!options[:remote_token]) && !(username && password))
+          print_error yellow,"Please specify a username and password, or token.", reset, "\n"
           return false
         end
       end
@@ -87,7 +87,7 @@ class Morpheus::Cli::Login
 
       if creds
         if !options[:quiet]
-          puts "#{cyan}Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_active_remote()[:username]}"
+          print green,"Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_active_remote()[:username]}#{reset}", reset, "\n"
         end
         return 0 # ,  nil
       else
