@@ -109,7 +109,7 @@ class Morpheus::Cli::KeyPairs
           "ID" => 'id',
           "Name" => 'name',
           "Fingerprint" => 'fingerprint',
-          "MD5" => 'md5',
+          #"MD5" => 'md5',
           # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
           # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
