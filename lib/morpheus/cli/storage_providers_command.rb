@@ -9,7 +9,7 @@ class Morpheus::Cli::StorageProvidersCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
 
-  set_command_name :'storage-providers'
+  set_command_name :'storage-buckets'
 
   register_subcommands :list, :get, :add, :update, :remove
   # file commands
@@ -46,7 +46,7 @@ class Morpheus::Cli::StorageProvidersCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
-      opts.footer = "List storage providers."
+      opts.footer = "List storage buckets."
     end
     optparse.parse!(args)
     if args.count != 0
@@ -62,23 +62,23 @@ class Morpheus::Cli::StorageProvidersCommand
         return
       end
       json_response = @storage_providers_interface.list(params)
-      storage_providers = json_response["storageProviders"]
+      storage_providers = json_response["storageBuckets"]
       if options[:json]
-        puts as_json(json_response, options, "storageProviders")
+        puts as_json(json_response, options, "storageBuckets")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "storageProviders")
+        puts as_yaml(json_response, options, "storageBuckets")
         return 0
       elsif options[:csv]
         puts records_as_csv(storage_providers, options)
         return 0
       end
-      title = "Morpheus Storage Providers"
+      title = "Morpheus Storage Buckets"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if storage_providers.empty?
-        print cyan,"No storage providers found.",reset,"\n"
+        print cyan,"No storage buckets found.",reset,"\n"
       else
         rows = storage_providers.collect {|storage_provider| 
           row = {
@@ -100,7 +100,7 @@ class Morpheus::Cli::StorageProvidersCommand
         print cyan
         print as_pretty_table(rows, columns, options)
         print reset
-        print_results_pagination(json_response, {:label => "storage provider", :n_label => "storage providers"})
+        print_results_pagination(json_response, {:label => "storage bucket", :n_label => "storage buckets"})
       end
       print reset,"\n"
       return 0
@@ -113,15 +113,15 @@ class Morpheus::Cli::StorageProvidersCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[storage-provider]")
+      opts.banner = subcommand_usage("[storage-bucket]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a storage provider." + "\n" +
-                    "[storage-provider] is required. This is the name or id of a storage provider."
+      opts.footer = "Get details about a storage bucket." + "\n" +
+                    "[storage-bucket] is required. This is the name or id of a storage bucket."
     end
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} missing argument: [storage-provider]\n#{optparse}"
+      puts_error  "#{command_name} missing argument: [storage-bucket]\n#{optparse}"
       return 1
     end
     connect(options)
@@ -136,20 +136,20 @@ class Morpheus::Cli::StorageProvidersCommand
       end
       storage_provider = find_storage_provider_by_name_or_id(args[0])
       return 1 if storage_provider.nil?
-      json_response = {'storageProvider' => storage_provider}  # skip redundant request
+      json_response = {'storageBucket' => storage_provider}  # skip redundant request
       # json_response = @storage_providers_interface.get(storage_provider['id'])
-      storage_provider = json_response['storageProvider']
+      storage_provider = json_response['storageBucket']
       if options[:json]
-        puts as_json(json_response, options, "storageProvider")
+        puts as_json(json_response, options, "storageBucket")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "storageProvider")
+        puts as_yaml(json_response, options, "storageBucket")
         return 0
       elsif options[:csv]
         puts records_as_csv([storage_provider], options)
         return 0
       end
-      print_h1 "Storage Provider Details"
+      print_h1 "Storage Bucket Details"
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -176,10 +176,10 @@ class Morpheus::Cli::StorageProvidersCommand
     create_bucket = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--name VALUE', String, "Name for this storage provider") do |val|
+      opts.on('--name VALUE', String, "Name for this storage bucket") do |val|
         options['name'] = val
       end
-      opts.on('--type code', String, "Storage Provider Type Code") do |val|
+      opts.on('--type code', String, "Storage Bucket Type Code") do |val|
         options['providerType'] = val
       end
       opts.on('--bucket-name VALUE', String, "Bucket Name") do |val|
@@ -201,7 +201,7 @@ class Morpheus::Cli::StorageProvidersCommand
       #  create_bucket = val.to_s == 'on' || val.to_s == 'true' || val.nil?
       #end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Create a new storage provider." + "\n" +
+      opts.footer = "Create a new storage bucket." + "\n" +
                     "[name] is required and can be passed as --name instead."
     end
     optparse.parse!(args)
@@ -225,35 +225,35 @@ class Morpheus::Cli::StorageProvidersCommand
       if options[:payload]
         payload = options[:payload]
       else
-        # prompt for storage provider options
+        # prompt for storage bucket options
         payload = {
-          'storageProvider' => {
+          'storageBucket' => {
             # 'config' => {}
           }
         }
         
         # allow arbitrary -O options
-        payload['storageProvider'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload['storageBucket'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
         # Name
         if options['name']
-          payload['storageProvider']['name'] = options['name']
+          payload['storageBucket']['name'] = options['name']
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this storage provider.'}], options)
-          payload['storageProvider']['name'] = v_prompt['name']
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this storage bucket.'}], options)
+          payload['storageBucket']['name'] = v_prompt['name']
         end
 
-        # Storage Provider Type
+        # Storage Bucket Type
         storage_provider_type_code = nil
         if options['type']
           storage_provider_type_code = options['type'].to_s
         elsif options['providerType']
           storage_provider_type_code = options['providerType'].to_s
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'providerType', 'fieldLabel' => 'Provider Type', 'type' => 'select', 'selectOptions' => get_storage_provider_types(), 'required' => true, 'description' => 'Choose a storage provider type.'}], options, @api_client, {})
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'providerType', 'fieldLabel' => 'Provider Type', 'type' => 'select', 'selectOptions' => get_storage_provider_types(), 'required' => true, 'description' => 'Choose a storage bucket type.'}], options, @api_client, {})
           storage_provider_type_code = v_prompt['providerType'] unless v_prompt['providerType'].nil?
         end
-        payload['storageProvider']['providerType'] = storage_provider_type_code
+        payload['storageBucket']['providerType'] = storage_provider_type_code
 
         # Provider Type Specific Options
         provider_type_option_types = nil
@@ -316,49 +316,49 @@ class Morpheus::Cli::StorageProvidersCommand
             {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'}
           ]
         else
-          puts "warning: unrecognized storage provider type: '#{storage_provider_type_code}'"
+          puts "warning: unrecognized storage bucket type: '#{storage_provider_type_code}'"
         end
         if provider_type_option_types
           v_prompt = Morpheus::Cli::OptionTypes.prompt(provider_type_option_types, options, @api_client, {})
-          payload['storageProvider'].deep_merge!(v_prompt)
+          payload['storageBucket'].deep_merge!(v_prompt)
         end
 
         # Default Backup Target
         if options['defaultBackupTarget'] != nil
-          payload['storageProvider']['defaultBackupTarget'] = options['defaultBackupTarget']
+          payload['storageBucket']['defaultBackupTarget'] = options['defaultBackupTarget']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultBackupTarget', 'fieldLabel' => 'Default Backup Target', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => 'off'}], options)
-          payload['storageProvider']['defaultBackupTarget'] = (v_prompt['defaultBackupTarget'].to_s == 'on') unless v_prompt['defaultBackupTarget'].nil?
+          payload['storageBucket']['defaultBackupTarget'] = (v_prompt['defaultBackupTarget'].to_s == 'on') unless v_prompt['defaultBackupTarget'].nil?
         end
 
         # Archive Snapshots
         if options['copyToStore'] != nil
-          payload['storageProvider']['copyToStore'] = options['copyToStore']
+          payload['storageBucket']['copyToStore'] = options['copyToStore']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'copyToStore', 'fieldLabel' => 'Archive Snapshots', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => 'on'}], options)
-          payload['storageProvider']['copyToStore'] = (v_prompt['copyToStore'].to_s == 'on') unless v_prompt['copyToStore'].nil?
+          payload['storageBucket']['copyToStore'] = (v_prompt['copyToStore'].to_s == 'on') unless v_prompt['copyToStore'].nil?
         end
 
         # Default Deployment Target
         if options['defaultDeploymentTarget'] != nil
-          payload['storageProvider']['defaultDeploymentTarget'] = options['defaultDeploymentTarget']
+          payload['storageBucket']['defaultDeploymentTarget'] = options['defaultDeploymentTarget']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultDeploymentTarget', 'fieldLabel' => 'Default Deployment Target', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => 'off'}], options)
-          payload['storageProvider']['defaultDeploymentTarget'] = (v_prompt['defaultDeploymentTarget'].to_s == 'on') unless v_prompt['defaultDeploymentTarget'].nil?
+          payload['storageBucket']['defaultDeploymentTarget'] = (v_prompt['defaultDeploymentTarget'].to_s == 'on') unless v_prompt['defaultDeploymentTarget'].nil?
         end
 
         # Default Virtual Image Store
         if options['defaultVirtualImageTarget'] != nil
-          payload['storageProvider']['defaultVirtualImageTarget'] = options['defaultVirtualImageTarget']
+          payload['storageBucket']['defaultVirtualImageTarget'] = options['defaultVirtualImageTarget']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultVirtualImageTarget', 'fieldLabel' => 'Default Virtual Image Store', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => 'off'}], options)
-          payload['storageProvider']['defaultVirtualImageTarget'] = (v_prompt['defaultVirtualImageTarget'].to_s == 'on') unless v_prompt['defaultVirtualImageTarget'].nil?
+          payload['storageBucket']['defaultVirtualImageTarget'] = (v_prompt['defaultVirtualImageTarget'].to_s == 'on') unless v_prompt['defaultVirtualImageTarget'].nil?
         end
         #if create_bucket
         #  payload['createBucket'] = true
         #end
-        if payload['storageProvider']['createBucket'] == 'on'
-          payload['storageProvider']['createBucket'] = true
+        if payload['storageBucket']['createBucket'] == 'on'
+          payload['storageBucket']['createBucket'] = true
         end
       end
 
@@ -372,8 +372,8 @@ class Morpheus::Cli::StorageProvidersCommand
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        storage_provider = json_response['storageProvider']
-        print_green_success "Added storage provider #{storage_provider['name']}"
+        storage_provider = json_response['storageBucket']
+        print_green_success "Added storage bucket #{storage_provider['name']}"
         get([storage_provider['id']])
       end
       return 0
@@ -387,11 +387,11 @@ class Morpheus::Cli::StorageProvidersCommand
     options = {}
     ip_range_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[storage-provider] [options]")
-      opts.on('--name VALUE', String, "Name for this storage provider") do |val|
+      opts.banner = subcommand_usage("[storage-bucket] [options]")
+      opts.on('--name VALUE', String, "Name for this storage bucket") do |val|
         options['name'] = val
       end
-      opts.on('--type code', String, "Storage Provider Type Code") do |val|
+      opts.on('--type code', String, "Storage Bucket Type Code") do |val|
         options['providerType'] = val
       end
       opts.on('--bucket-name VALUE', String, "Bucket Name") do |val|
@@ -410,8 +410,8 @@ class Morpheus::Cli::StorageProvidersCommand
         options['copyToStore'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Update a storage provider." + "\n" +
-                    "[storage-provider] is required. This is the id of a storage provider."
+      opts.footer = "Update a storage bucket." + "\n" +
+                    "[storage-bucket] is required. This is the id of a storage bucket."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -433,44 +433,44 @@ class Morpheus::Cli::StorageProvidersCommand
       if options[:payload]
         payload = options[:payload]
       else
-        # prompt for storage provider options
+        # prompt for storage bucket options
         # preserve previous config settings
         payload = {
-          'storageProvider' => {
+          'storageBucket' => {
             'config' => storage_provider['config']
           }
         }
         
         # allow arbitrary -O options
-        payload['storageProvider'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload['storageBucket'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
         # Name
         if options['name']
-          payload['storageProvider']['name'] = options['name']
+          payload['storageBucket']['name'] = options['name']
         end
 
         # Default Backup Target
         if options['defaultBackupTarget'] != nil
-          payload['storageProvider']['defaultBackupTarget'] = options['defaultBackupTarget']
+          payload['storageBucket']['defaultBackupTarget'] = options['defaultBackupTarget']
         end
 
         # Archive Snapshots
         if options['copyToStore'] != nil
-          payload['storageProvider']['copyToStore'] = options['copyToStore']
+          payload['storageBucket']['copyToStore'] = options['copyToStore']
         end
 
         # Default Deployment Target
         if options['defaultDeploymentTarget'] != nil
-          payload['storageProvider']['defaultDeploymentTarget'] = options['defaultDeploymentTarget']
+          payload['storageBucket']['defaultDeploymentTarget'] = options['defaultDeploymentTarget']
         end
 
         # Default Virtual Image Store
         if options['defaultVirtualImageTarget'] != nil
-          payload['storageProvider']['defaultVirtualImageTarget'] = options['defaultVirtualImageTarget']
+          payload['storageBucket']['defaultVirtualImageTarget'] = options['defaultVirtualImageTarget']
         end
 
-        if payload['storageProvider']['createBucket'] == 'on'
-          payload['storageProvider']['createBucket'] = true
+        if payload['storageBucket']['createBucket'] == 'on'
+          payload['storageBucket']['createBucket'] = true
         end
       end
 
@@ -482,8 +482,8 @@ class Morpheus::Cli::StorageProvidersCommand
       if options[:json]
         puts as_json(json_response)
       else
-        storage_provider = json_response['storageProvider']
-        print_green_success "Updated storage provider #{storage_provider['name']}"
+        storage_provider = json_response['storageBucket']
+        print_green_success "Updated storage bucket #{storage_provider['name']}"
         get([storage_provider['id']])
       end
       return 0
@@ -496,16 +496,16 @@ class Morpheus::Cli::StorageProvidersCommand
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[storage-provider]")
+      opts.banner = subcommand_usage("[storage-bucket]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
-      opts.footer = "Delete a storage provider." + "\n" +
-                    "[storage-provider] is required. This is the name or id of a storage provider."
+      opts.footer = "Delete a storage bucket." + "\n" +
+                    "[storage-bucket] is required. This is the name or id of a storage bucket."
     end
     optparse.parse!(args)
 
     if args.count < 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} missing argument: [storage-provider]\n#{optparse}"
+      puts_error  "#{command_name} missing argument: [storage-bucket]\n#{optparse}"
       return 1
     end
 
@@ -514,7 +514,7 @@ class Morpheus::Cli::StorageProvidersCommand
       storage_provider = find_storage_provider_by_name_or_id(args[0])
       return 1 if storage_provider.nil?
 
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the storage provider: #{storage_provider['name']}?")
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the storage bucket: #{storage_provider['name']}?")
         return 9, "aborted command"
       end
       if options[:dry_run]
@@ -526,7 +526,7 @@ class Morpheus::Cli::StorageProvidersCommand
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Removed storage provider #{storage_provider['name']}"
+        print_green_success "Removed storage bucket #{storage_provider['name']}"
         # list([])
       end
       return 0
@@ -545,7 +545,7 @@ class Morpheus::Cli::StorageProvidersCommand
         params[:fullTree] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run])
-      opts.footer = "List files in a storage provider. \nInclude [/path] to show files under a directory."
+      opts.footer = "List files in a storage bucket. \nInclude [/path] to show files under a directory."
     end
     optparse.parse!(args)
     if args.count < 1 || args.count > 2
@@ -568,7 +568,7 @@ class Morpheus::Cli::StorageProvidersCommand
       end
       json_response = @storage_providers_interface.list_files(storage_provider['id'], search_file_path, params)
       storage_files = json_response['storageFiles']
-      # storage_provider = json_response['storageProvider']
+      # storage_provider = json_response['storageBucket']
       if options[:json]
         print JSON.pretty_generate(json_response)
         return
@@ -603,7 +603,7 @@ class Morpheus::Cli::StorageProvidersCommand
       else
         # puts "No files found for path #{search_file_path}"
         if search_file_path.empty? || search_file_path == "/"
-          puts "This storage provider has no files."
+          puts "This storage bucket has no files."
           print reset,"\n"
           return 0
         else
@@ -625,7 +625,7 @@ class Morpheus::Cli::StorageProvidersCommand
     do_long_format = false
     do_human_bytes = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[provider/path]")
+      opts.banner = subcommand_usage("[bucket/path]")
       opts.on('-a', '--all', "Show all files, including subdirectories under the /path.") do
         params[:fullTree] = true
         do_one_file_per_line = true
@@ -641,7 +641,7 @@ class Morpheus::Cli::StorageProvidersCommand
         do_one_file_per_line = true
       end
       build_common_options(opts, options, [:list, :json, :fields, :dry_run])
-      opts.footer = "Print filenames for a given location.\nPass storage location in the format provider/path."
+      opts.footer = "Print filenames for a given location.\nPass storage location in the format bucket/path."
     end
     optparse.parse!(args)
     if args.count < 1 || args.count > 2
@@ -671,7 +671,7 @@ class Morpheus::Cli::StorageProvidersCommand
         end
         return 0
       end
-      #storage_provider = json_response['storageProvider'] # yep, this is returned too
+      #storage_provider = json_response['storageBucket'] # yep, this is returned too
       storage_files = json_response['storageFiles']
       # print_h2 "Directory: #{search_file_path}"
       # print "Directory: #{search_file_path}"
@@ -795,7 +795,7 @@ class Morpheus::Cli::StorageProvidersCommand
       opts.on('--ignore-files PATTERN', String, "Pattern of files to be ignored when uploading a directory." ) do |val|
         ignore_regexp = /#{Regexp.escape(val)}/
       end
-      opts.footer = "Upload a local file or folder to a storage provider. " +
+      opts.footer = "Upload a local file or folder to a storage bucket. " +
                     "\nThe first argument [local-file] should be the path of a local file or directory." +
                     "\nThe second argument [provider:/path] should contain the name or id of the provider." +
                     "\nThe [:/path] component is optional and can be used to specify the destination of the uploaded file or folder." +
@@ -1242,10 +1242,10 @@ class Morpheus::Cli::StorageProvidersCommand
   def find_storage_provider_by_id(id)
     begin
       json_response = @storage_providers_interface.get(id.to_i)
-      return json_response['storageProvider']
+      return json_response['storageBucket']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Storage Provider not found by id #{id}"
+        print_red_alert "Storage Bucket not found by id #{id}"
         return nil
       else
         raise e
@@ -1255,12 +1255,12 @@ class Morpheus::Cli::StorageProvidersCommand
 
   def find_storage_provider_by_name(name)
     json_response = @storage_providers_interface.list({name: name.to_s})
-    storage_providers = json_response['storageProviders']
+    storage_providers = json_response['storageBuckets']
     if storage_providers.empty?
-      print_red_alert "Storage Provider not found by name #{name}"
+      print_red_alert "Storage Bucket not found by name #{name}"
       return nil
     elsif storage_providers.size > 1
-      print_red_alert "#{storage_providers.size} storage providers found by name #{name}"
+      print_red_alert "#{storage_providers.size} storage buckets found by name #{name}"
       rows = storage_providers.collect do |storage_provider|
         {id: it['id'], name: it['name']}
       end
