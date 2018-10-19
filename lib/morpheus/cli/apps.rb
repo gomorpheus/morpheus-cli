@@ -218,6 +218,16 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
+      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is running.") do |val|
+        if val.to_s.empty?
+          options[:refresh_until_status] = "running"
+        else
+          options[:refresh_until_status] = val.to_s.downcase
+        end
+      end
+      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
+        options[:refresh_interval] = val.to_f
+      end
       build_common_options(opts, options, [:json, :dry_run])
       opts.footer = "Get details about an app.\n" +
                     "[app] is required. This is the name or id of an app."
@@ -298,6 +308,19 @@ class Morpheus::Cli::Apps
       print cyan
 
       print reset,"\n"
+
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = 5
+        end
+        while app['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+          print cyan
+          print "Refreshing until status #{options[:refresh_until_status]} ..."
+          sleep(options[:refresh_interval])
+          get(args)
+        end
+      end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

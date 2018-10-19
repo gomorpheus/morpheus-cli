@@ -31,6 +31,16 @@ class Morpheus::Cli::ContainersCommand
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
+      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is running.") do |val|
+        if val.to_s.empty?
+          options[:refresh_until_status] = "running"
+        else
+          options[:refresh_until_status] = val.to_s.downcase
+        end
+      end
+      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
+        options[:refresh_interval] = val.to_f
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -119,6 +129,19 @@ class Morpheus::Cli::ContainersCommand
       end
 
       print reset, "\n"
+
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = 5
+        end
+        while container['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+          print cyan
+          print "Refreshing until status #{options[:refresh_until_status]} ..."
+          sleep(options[:refresh_interval])
+          _get(arg, options)
+        end
+      end
 
       return 0
     rescue RestClient::Exception => e

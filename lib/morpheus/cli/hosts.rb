@@ -232,6 +232,16 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is provisioned.") do |val|
+        if val.to_s.empty?
+          options[:refresh_until_status] = "provisioned"
+        else
+          options[:refresh_until_status] = val.to_s.downcase
+        end
+      end
+      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
+        options[:refresh_interval] = val.to_f
+      end
       build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -296,6 +306,19 @@ class Morpheus::Cli::Hosts
       print_h2 "Host Usage"
       print_stats_usage(stats)
       print reset, "\n"
+
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = 5
+        end
+        while server['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+          print cyan
+          print "Refreshing until status #{options[:refresh_until_status]} ..."
+          sleep(options[:refresh_interval])
+          _get(arg, options)
+        end
+      end
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

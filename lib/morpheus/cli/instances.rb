@@ -735,6 +735,16 @@ class Morpheus::Cli::Instances
       opts.on( nil, '--scaling', "Display Instance Scaling Settings" ) do
         options[:include_scaling] = true
       end
+      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is running.") do |val|
+        if val.to_s.empty?
+          options[:refresh_until_status] = "running"
+        else
+          options[:refresh_until_status] = val.to_s.downcase
+        end
+      end
+      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
+        options[:refresh_interval] = val.to_f
+      end
       # opts.on( nil, '--threshold', "Alias for --scaling" ) do
       #   options[:include_scaling] = true
       # end
@@ -929,6 +939,20 @@ class Morpheus::Cli::Instances
           print reset,"\n"
         end
       end
+
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = 5
+        end
+        while instance['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+          print cyan
+          print "Refreshing until status #{options[:refresh_until_status]} ..."
+          sleep(options[:refresh_interval])
+          _get(arg, options)
+        end
+      end
+
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
