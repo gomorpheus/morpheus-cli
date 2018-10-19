@@ -166,7 +166,7 @@ class Morpheus::Cli::Apps
           payload['id'] = 'existing'
           payload['templateName'] = 'Existing Instances'
         else
-          found_app_template = get_available_app_templates.find {|it| it['id'].to_s == template_id.to_s }
+          found_app_template = get_available_app_templates.find {|it| it['id'].to_s == template_id.to_s || it['name'].to_s == template_id.to_s }
           if found_app_template.nil?
             print_red_alert "App Template not found by id #{template_id}"
             return 1
