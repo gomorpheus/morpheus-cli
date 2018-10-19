@@ -29,7 +29,7 @@ class Morpheus::Cli::Workflows
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -79,7 +79,7 @@ class Morpheus::Cli::Workflows
     options = {}
     params = {}
     task_arg_list = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "Name for workflow") do |val|
         params['name'] = val
@@ -241,7 +241,7 @@ class Morpheus::Cli::Workflows
     options = {}
     params = {}
     task_arg_list = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--tasks x,y,z", Array, "New list of tasks to run in the format <Task ID>:<Phase>. Phase is optional, the default is 'provision'.") do |list|
         task_arg_list = []
@@ -307,7 +307,7 @@ class Morpheus::Cli::Workflows
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = "Usage: morpheus workflows remove [name]"
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end

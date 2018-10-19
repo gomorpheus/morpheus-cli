@@ -230,7 +230,7 @@ class Morpheus::Cli::Hosts
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
     end
@@ -305,7 +305,7 @@ class Morpheus::Cli::Hosts
 
   def stats(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -365,7 +365,7 @@ class Morpheus::Cli::Hosts
 
   def logs(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
@@ -428,7 +428,7 @@ class Morpheus::Cli::Hosts
 
   def server_types(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cloud]")
       build_common_options(opts, options, [:json, :remote])
     end
@@ -463,7 +463,7 @@ class Morpheus::Cli::Hosts
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cloud]", "[name]")
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -635,7 +635,7 @@ class Morpheus::Cli::Hosts
   def remove(args)
     options = {}
     query_params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
       #   query_params[:removeResources] = 'off'
@@ -689,7 +689,7 @@ class Morpheus::Cli::Hosts
 
   def start(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
@@ -721,7 +721,7 @@ class Morpheus::Cli::Hosts
 
   def stop(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
@@ -753,7 +753,7 @@ class Morpheus::Cli::Hosts
 
   def resize(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
     end
@@ -847,7 +847,7 @@ class Morpheus::Cli::Hosts
 
   def install_agent(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_option_type_options(opts, options, install_agent_option_types(false))
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
@@ -899,7 +899,7 @@ class Morpheus::Cli::Hosts
 
   def upgrade_agent(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end

@@ -32,7 +32,7 @@ class Morpheus::Cli::MonitoringContactsCommand
   def list(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :json, :dry_run])
     end
@@ -82,7 +82,7 @@ class Morpheus::Cli::MonitoringContactsCommand
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       opts.on(nil,'--history', "Display History") do |val|
         options[:show_history] = true
@@ -152,7 +152,7 @@ class Morpheus::Cli::MonitoringContactsCommand
   def add(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on("--name STRING", String, "Contact name") do |val|
         params['name'] = val
@@ -207,7 +207,7 @@ class Morpheus::Cli::MonitoringContactsCommand
   def update(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on("--name STRING", String, "Contact name") do |val|
         params['name'] = val
@@ -266,7 +266,7 @@ class Morpheus::Cli::MonitoringContactsCommand
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
@@ -307,7 +307,7 @@ class Morpheus::Cli::MonitoringContactsCommand
 
   def reopen(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end

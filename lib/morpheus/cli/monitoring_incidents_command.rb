@@ -20,7 +20,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   def list(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--status LIST', Array, "Filter by status. open, closed") do |list|
         params['status'] = list
@@ -72,7 +72,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   # it is not stats about a particular incident
   def stats(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       #opts.on('-j','--json', "JSON Output") do
       opts.on( '-m', '--max MAX', "Max open incidents to display. Default is 25" ) do |max|
@@ -157,7 +157,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       opts.on(nil,'--history', "Display Incident History") do |val|
         options[:show_history] = true
@@ -280,7 +280,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   def history(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
@@ -335,7 +335,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def notifications(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
       build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
     end
@@ -388,7 +388,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   def update(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on("-c", "--comment STRING", String, "Comment on this incident") do |val|
         params['comment'] = val == 'null' ? nil : val
@@ -565,7 +565,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def close(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
@@ -609,7 +609,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def reopen(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end

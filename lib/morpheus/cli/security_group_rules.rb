@@ -31,7 +31,7 @@ Usage: morpheus #{command_name} add-custom-rule SOURCE_CIDR PORT_RANGE PROTOCOL 
 EOT
     options = {}
     security_group_id = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on( '-s', '--secgroup SECGROUP', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id
@@ -90,7 +90,7 @@ EOT
 
     options = {}
     security_group_id = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id
@@ -139,7 +139,7 @@ EOT
   def list(args)
     options = {}
     security_group_id = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -186,7 +186,7 @@ EOT
   def remove(args)
     options = {}
     security_group_id = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id

@@ -14,7 +14,7 @@ class Morpheus::Cli::VersionCommand
 
   def handle(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on('-v','--short', "Print only the client version number") do |val|
         options[:short] = true

@@ -57,7 +57,7 @@ class Morpheus::Cli::ImageBuilderCommand
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :dry_run])
     end
@@ -138,7 +138,7 @@ class Morpheus::Cli::ImageBuilderCommand
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -275,7 +275,7 @@ class Morpheus::Cli::ImageBuilderCommand
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       # build_option_type_options(opts, options, add_image_build_option_types(false))
       opts.on( '-t', '--type TYPE', "Image Build Type" ) do |val|
@@ -397,7 +397,7 @@ class Morpheus::Cli::ImageBuilderCommand
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build] [options]")
       # build_option_type_options(opts, options, update_image_build_option_types(false))
       # cannot update type
@@ -517,7 +517,7 @@ class Morpheus::Cli::ImageBuilderCommand
   def remove(args)
     options = {}
     query_params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
       opts.on( '-K', '--keep-virtual-images', "Preserve associated virtual images" ) do
         query_params['keepVirtualImages'] = 'on'
@@ -566,7 +566,7 @@ class Morpheus::Cli::ImageBuilderCommand
   def run(args)
     options = {}
     query_params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
     end

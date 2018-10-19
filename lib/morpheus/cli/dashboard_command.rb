@@ -26,7 +26,7 @@ class Morpheus::Cli::DashboardCommand
   
   def show(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       build_common_options(opts, options, [:json, :dry_run]) # todo: support :account
     end

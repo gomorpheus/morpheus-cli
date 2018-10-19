@@ -28,7 +28,7 @@ class Morpheus::Cli::Login
   def login(args)
     options = {}
     username, password = nil, nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on( '-u', '--username USERNAME', "Username" ) do |val|
         username = val

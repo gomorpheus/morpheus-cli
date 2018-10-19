@@ -25,7 +25,7 @@ class Morpheus::Cli::Tasks
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -153,7 +153,7 @@ class Morpheus::Cli::Tasks
   def update(args)
     options = {}
     account_name = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[task] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -216,7 +216,7 @@ class Morpheus::Cli::Tasks
 
   def task_types(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -256,7 +256,7 @@ class Morpheus::Cli::Tasks
     options = {}
     task_name = nil
     task_type_name = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t TASK_TYPE")
       opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
         task_type_name = val
@@ -332,7 +332,7 @@ class Morpheus::Cli::Tasks
     params = {}
     task_name = args[0]
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[task]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.on( '-f', '--force', "Force Delete" ) do

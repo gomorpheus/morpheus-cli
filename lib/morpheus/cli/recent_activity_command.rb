@@ -28,7 +28,7 @@ class Morpheus::Cli::RecentActivityCommand
   end
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
         options[:start] = parse_time(val).iso8601

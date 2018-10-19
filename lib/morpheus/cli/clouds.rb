@@ -226,7 +226,7 @@ class Morpheus::Cli::Clouds
   def add(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] --group GROUP --type TYPE")
       opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
         params[:group] = val
@@ -345,7 +345,7 @@ class Morpheus::Cli::Clouds
   def update(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       # opts.on( '-g', '--group GROUP', "Group Name" ) do |val|
       #   params[:group] = val
@@ -415,7 +415,7 @@ class Morpheus::Cli::Clouds
   def remove(args)
     options = {}
     query_params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-f', '--force', "Force Remove" ) do
         query_params[:force] = 'on'
@@ -450,7 +450,7 @@ class Morpheus::Cli::Clouds
   def firewall_disable(args)
     options = {}
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -482,7 +482,7 @@ class Morpheus::Cli::Clouds
   def firewall_enable(args)
     options = {}
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -514,7 +514,7 @@ class Morpheus::Cli::Clouds
   def security_groups(args)
     options = {}
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -560,7 +560,7 @@ class Morpheus::Cli::Clouds
   def apply_security_groups(args)
     options = {}
     clear_or_secgroups_specified = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [-s] [--clear]")
       opts.on( '-c', '--clear', "Clear all security groups" ) do
         options[:securityGroupIds] = []
@@ -600,7 +600,7 @@ class Morpheus::Cli::Clouds
   def list_cloud_types(args)
     options={}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end

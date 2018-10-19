@@ -34,7 +34,7 @@ class Morpheus::Cli::PreseedScriptsCommand
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :dry_run])
     end
@@ -92,7 +92,7 @@ class Morpheus::Cli::PreseedScriptsCommand
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[preseed-script]")
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -146,7 +146,7 @@ class Morpheus::Cli::PreseedScriptsCommand
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[fileName]")
       build_option_type_options(opts, options, add_preseed_script_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
@@ -205,7 +205,7 @@ class Morpheus::Cli::PreseedScriptsCommand
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[preseed-script] [options]")
       build_option_type_options(opts, options, update_preseed_script_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run])
@@ -275,7 +275,7 @@ class Morpheus::Cli::PreseedScriptsCommand
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[preseed-script]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
     end

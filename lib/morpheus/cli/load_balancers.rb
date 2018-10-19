@@ -27,7 +27,7 @@ class Morpheus::Cli::LoadBalancers
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :dry_run, :remote])
     end
@@ -78,7 +78,7 @@ class Morpheus::Cli::LoadBalancers
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
     end
@@ -161,7 +161,7 @@ class Morpheus::Cli::LoadBalancers
     lb_name = args[0]
     options = {}
     account_name = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -222,7 +222,7 @@ class Morpheus::Cli::LoadBalancers
 
   def lb_types(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
@@ -261,7 +261,7 @@ class Morpheus::Cli::LoadBalancers
   def add(args)
     lb_type_name = nil
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t LB_TYPE")
       opts.on( '-t', '--type LB_TYPE', "Load Balancer Type" ) do |val|
         lb_type_name = val
@@ -305,7 +305,7 @@ class Morpheus::Cli::LoadBalancers
   def remove(args)
     lb_name = args[0]
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end

@@ -24,7 +24,7 @@ class Morpheus::Cli::Deployments
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
@@ -64,7 +64,7 @@ class Morpheus::Cli::Deployments
 
   def list_versions(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] versions")
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
@@ -114,7 +114,7 @@ class Morpheus::Cli::Deployments
     deployment_name = args[0]
     options = {}
     account_name = nil
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -169,7 +169,7 @@ class Morpheus::Cli::Deployments
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-d', '--description DESCRIPTION', "Description" ) do |val|
         options[:description] = val
@@ -203,7 +203,7 @@ class Morpheus::Cli::Deployments
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end

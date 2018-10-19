@@ -107,7 +107,7 @@ class Morpheus::Cli::Accounts
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :remote, :dry_run])
     end
@@ -166,7 +166,7 @@ class Morpheus::Cli::Accounts
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_option_type_options(opts, options, add_account_option_types)
       build_common_options(opts, options, [:options, :json, :remote, :dry_run])
@@ -212,7 +212,7 @@ class Morpheus::Cli::Accounts
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_account_option_types)
       build_common_options(opts, options, [:options, :json, :remote, :dry_run])
@@ -274,7 +274,7 @@ class Morpheus::Cli::Accounts
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:auto_confirm, :json, :remote, :dry_run])
     end

@@ -40,7 +40,7 @@ class Morpheus::Cli::Whoami
     options = {}
     username_only = false
     access_token_only = false
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on( '-n', '--name', "Print only your username." ) do
         username_only = true

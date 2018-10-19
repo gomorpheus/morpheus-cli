@@ -25,7 +25,7 @@ class Morpheus::Cli::SecurityGroups
 
   def list(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -69,7 +69,7 @@ class Morpheus::Cli::SecurityGroups
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -110,7 +110,7 @@ class Morpheus::Cli::SecurityGroups
   def add(args)
     params = {:securityGroup => {}}
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on( '-d', '--description Description', "Description of the security group" ) do |description|
         params[:securityGroup][:description] = description
@@ -144,7 +144,7 @@ class Morpheus::Cli::SecurityGroups
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :dry_run])
     end
@@ -180,7 +180,7 @@ class Morpheus::Cli::SecurityGroups
 
   def use(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [--none]")
       opts.on('--none','--none', "Do not use an active group.") do |json|
         options[:unuse] = true

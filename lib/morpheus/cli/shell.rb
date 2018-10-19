@@ -111,7 +111,7 @@ class Morpheus::Cli::Shell
 
   def handle(args)
     usage = "Usage: morpheus #{command_name}"
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       # change to a temporary home directory, delete it afterwards.
       opts.on('-e','--exec COMMAND', "Execute the provided morpheus commands and exit.") do |val|

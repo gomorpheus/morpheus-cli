@@ -26,7 +26,7 @@ class Morpheus::Cli::ContainersCommand
 
   def get(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
@@ -130,7 +130,7 @@ class Morpheus::Cli::ContainersCommand
 
   def stop(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
@@ -169,7 +169,7 @@ class Morpheus::Cli::ContainersCommand
 
   def start(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
@@ -208,7 +208,7 @@ class Morpheus::Cli::ContainersCommand
 
   def restart(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
@@ -247,7 +247,7 @@ class Morpheus::Cli::ContainersCommand
 
   def suspend(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
@@ -286,7 +286,7 @@ class Morpheus::Cli::ContainersCommand
 
   def eject(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id list]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end

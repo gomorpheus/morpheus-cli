@@ -29,7 +29,7 @@ class Morpheus::Cli::KeyPairs
   def list(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:account, :list, :json])
     end
@@ -76,7 +76,7 @@ class Morpheus::Cli::KeyPairs
   def get(args)
     options = {}
     params = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :json])
     end
@@ -140,7 +140,7 @@ class Morpheus::Cli::KeyPairs
 
   def add(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('', '--public-key-file FILENAME', "Public Key File" ) do |filename|
         if File.exists?(File.expand_path(filename))
@@ -229,7 +229,7 @@ class Morpheus::Cli::KeyPairs
 
   def update(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_key_pair_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run])
@@ -282,7 +282,7 @@ class Morpheus::Cli::KeyPairs
 
   def remove(args)
     options = {}
-    optparse = OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
     end
