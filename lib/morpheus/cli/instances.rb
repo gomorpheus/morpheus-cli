@@ -1782,20 +1782,20 @@ class Morpheus::Cli::Instances
 
   def remove(args)
     options = {}
-    query_params = {keepBackups: 'off', force: 'off'}
+    query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [-fB]")
-      opts.on( '-f', '--force', "Force Delete" ) do
-        query_params[:force] = 'on'
-      end
+      opts.banner = subcommand_usage("[name]")
       opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
-      opts.on('--remove-volumes [on|off]', ['on','off'], "Remove Volumes. Default is on. Applies to certain types only.") do |val|
-        query_params[:removeVolumes] = val
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
+        query_params[:preserveVolumes] = val
       end
-      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is false. Applies to Amazon only.") do |val|
+      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
         query_params[:releaseEIPs] = val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
 
@@ -1810,6 +1810,10 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the instance '#{instance['name']}'?", options)
         exit 1
+      end
+      # JD: removeVolumes to maintain the old behavior with pre-3.5.2 appliances, remove me later
+      if query_params[:preserveVolumes].nil?
+        query_params[:removeVolumes] = 'on'
       end
       if options[:dry_run]
         print_dry_run @instances_interface.dry.destroy(instance['id'],query_params)

@@ -432,23 +432,24 @@ class Morpheus::Cli::Apps
 
   def remove(args)
     options = {}
-    query_params = {keepBackups: 'off', force: 'off'}
+    query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[app] [-fB]")
-      opts.on( '-f', '--force', "Force Delete" ) do
-        query_params[:force] = 'on'
+      opts.banner = subcommand_usage("[app]")
+      #JD: UI defaults to on, but perhaps better to be explicate for now.
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove instances. Default is off.") do |val|
+        query_params[:removeInstances] = val
+      end
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
+        query_params[:preserveVolumes] = val
       end
       opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
-      opts.on('--remove-instances [on|off]', ['on','off'], "Remove instances. Default is on.") do |val|
-        query_params[:removeInstances] = val
-      end
-      opts.on('--remove-volumes [on|off]', ['on','off'], "Remove Volumes. Default is on. Applies to certain types only.") do |val|
-        query_params[:removeVolumes] = val
-      end
-      opts.on('--releaseEIPs', ['on','off'], "Release EIPs. Default is false. Applies to Amazon only.") do |val|
+      opts.on('--releaseEIPs', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
         query_params[:releaseEIPs] = val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :auto_confirm])
       opts.footer = "Delete an app.\n" +
@@ -467,6 +468,10 @@ class Morpheus::Cli::Apps
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the app '#{app['name']}'?", options)
         return 9
       end
+      # JD: removeVolumes to maintain the old behavior with pre-3.5.2 appliances, remove me later
+      if query_params[:preserveVolumes].nil?
+        query_params[:removeVolumes] = 'on'
+      end
       if options[:dry_run]
         print_dry_run @apps_interface.dry.destroy(app['id'], query_params)
         return
@@ -477,7 +482,7 @@ class Morpheus::Cli::Apps
         print "\n"
       elsif !options[:quiet]
         print_green_success "Removed app #{app['name']}"
-        list([])
+        #list([])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -530,7 +535,7 @@ class Morpheus::Cli::Apps
         print "\n"
       else
         print_green_success "Removed instance #{instance['name']} from app #{app['name']}"
-        list([])
+        #list([])
         # details_options = [app['name']]
         # details(details_options)
       end
@@ -886,6 +891,7 @@ class Morpheus::Cli::Apps
     
     table_color = opts[:color] || cyan
     rows = apps.collect do |app|
+      tiers_str = format_app_tiers(app)
       instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
       containers_str = (app['containerCount'].to_i == 1) ? "1 Container" : "#{app['containerCount']} Containers"
       stats = app['stats']
@@ -896,6 +902,7 @@ class Morpheus::Cli::Apps
       {
         id: app['id'],
         name: app['name'],
+        tiers: tiers_str,
         instances: instances_str,
         containers: containers_str,
         account: app['account'] ? app['account']['name'] : nil,
@@ -910,6 +917,7 @@ class Morpheus::Cli::Apps
     columns = [
       :id,
       :name,
+      :tiers,
       :instances,
       :containers,
       #:account,
@@ -947,6 +955,23 @@ class Morpheus::Cli::Apps
       out <<  "#{white}#{status_string.upcase}#{return_color}"
     else
       out <<  "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+
+  def format_app_tiers(app)
+    out = ""
+    begin
+      app_tiers = app['appTiers']
+      if app_tiers
+        app_tier_names = app_tiers.collect { |app_tier| app_tier['tier']['name'] }
+        out << app_tier_names.join(", ")
+      end
+      if out.empty?
+        #out = "(Empty)"
+      end
+    rescue => ex
+      Morpheus::Logging::DarkPrinter.puts "A formatting exception occured: #{ex}" if Morpheus::Logging.debug?
     end
     out
   end

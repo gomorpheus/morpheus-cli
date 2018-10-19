@@ -634,26 +634,26 @@ class Morpheus::Cli::Hosts
 
   def remove(args)
     options = {}
-    query_params = {removeResources: 'on', force: 'off'}
+    query_params = {}
     optparse = OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [-fS]")
-      opts.on( '-f', '--force', "Force Delete" ) do
-        query_params[:force] = 'on'
-      end
-      opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
-        query_params[:removeResources] = 'off'
-      end
+      opts.banner = subcommand_usage("[name]")
+      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
+      #   query_params[:removeResources] = 'off'
+      # end
       opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on if server is managed.") do |val|
         query_params[:removeResources] = val
       end
-      opts.on('--remove-volumes [on|off]', ['on','off'], "Remove Volumes. Default is on.") do |val|
-        query_params[:removeVolumes] = val
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
+        query_params[:preserveVolumes] = val
       end
-      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances.") do |val|
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
         query_params[:removeInstances] = val
       end
-      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is true. Amazon only.") do |val|
+      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
         params[:releaseEIPs] = val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
