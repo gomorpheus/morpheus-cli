@@ -530,7 +530,9 @@ class Morpheus::Cli::Shell
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
       cmd_result = nil
-      @return_to_log_level = Morpheus::Logging.log_level
+      unless input =~ /log-level/
+        @return_to_log_level = Morpheus::Logging.log_level
+      end
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
