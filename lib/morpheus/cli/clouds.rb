@@ -640,14 +640,6 @@ class Morpheus::Cli::Clouds
   def print_clouds_table(clouds, opts={})
     table_color = opts[:color] || cyan
     rows = clouds.collect do |cloud|
-      status = nil
-      if cloud['status'] == 'ok'
-        status = "#{green}OK#{table_color}"
-      elsif cloud['status'].nil?
-        status = "#{white}UNKNOWN#{table_color}"
-      else
-        status = "#{red}#{cloud['status'] ? cloud['status'].upcase : 'N/A'}#{cloud['statusMessage'] ? "#{table_color} - #{cloud['statusMessage']}" : ''}#{table_color}"
-      end
       cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       {
         id: cloud['id'],
@@ -656,7 +648,7 @@ class Morpheus::Cli::Clouds
         location: cloud['location'],
         groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
         servers: cloud['serverCount'],
-        status: status
+        status: format_cloud_status(cloud)
       }
     end
     columns = [
@@ -714,7 +706,9 @@ class Morpheus::Cli::Clouds
   def format_cloud_status(cloud, return_color=cyan)
     out = ""
     status_string = cloud['status']
-    if status_string.nil? || status_string.empty? || status_string == "unknown"
+    if cloud['enabled'] == false
+      out << "#{red}DISABLED#{return_color}"
+    elsif status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
