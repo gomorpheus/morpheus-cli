@@ -229,7 +229,7 @@ class Morpheus::Cli::Instances
         options[:layout_size] = val.to_i
       end
       opts.on("--workflow ID", String, "Automation: Workflow ID") do |val|
-        options[:workflow_id] = val.to_i
+        options[:workflow_id] = val
       end
       # opts.on('-L', "--lb", "Enable Load Balancer") do
       #   options[:enable_load_balancer] = true
