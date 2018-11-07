@@ -945,7 +945,7 @@ class Morpheus::Cli::Instances
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
           options[:refresh_interval] = 5
         end
-        while instance['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+        if instance['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
           print cyan
           print "Refreshing until status #{options[:refresh_until_status]} ..."
           sleep(options[:refresh_interval])
