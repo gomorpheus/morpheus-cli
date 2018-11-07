@@ -314,7 +314,11 @@ class Morpheus::Cli::Instances
         payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
       end
       if options[:workflow_id]
-        payload['taskSetId'] = options[:workflow_id]
+        if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
+          payload['taskSetId'] = options[:workflow_id].to_i
+        else
+          payload['taskSetName'] = options[:workflow_id]
+        end
       end
       if options[:enable_load_balancer]
         lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
