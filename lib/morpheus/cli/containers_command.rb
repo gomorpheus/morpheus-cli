@@ -31,7 +31,7 @@ class Morpheus::Cli::ContainersCommand
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
-      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is running.") do |val|
+      opts.on('--refresh [status]', String, "Refresh until status is reached. Default status is running.") do |val|
         if val.to_s.empty?
           options[:refresh_until_status] = "running"
         else
@@ -137,8 +137,10 @@ class Morpheus::Cli::ContainersCommand
         end
         if container['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
           print cyan
-          print "Refreshing until status #{options[:refresh_until_status]} ..."
-          sleep(options[:refresh_interval])
+          print "Status is not #{options[:refresh_until_status]}. Refreshing in #{options[:refresh_interval]} seconds"
+          #sleep(options[:refresh_interval])
+          sleep_with_dots(options[:refresh_interval])
+          print "\n"
           _get(arg, options)
         end
       end

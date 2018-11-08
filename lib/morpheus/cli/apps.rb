@@ -218,7 +218,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      opts.on('--refresh-until [status]', String, "Refresh until status is reached. Default status is running.") do |val|
+      opts.on('--refresh [status]', String, "Refresh until status is reached. Default status is running.") do |val|
         if val.to_s.empty?
           options[:refresh_until_status] = "running"
         else
@@ -316,8 +316,10 @@ class Morpheus::Cli::Apps
         end
         if app['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
           print cyan
-          print "Refreshing until status #{options[:refresh_until_status]} ..."
-          sleep(options[:refresh_interval])
+          print "Status is not #{options[:refresh_until_status]}. Refreshing in #{options[:refresh_interval]} seconds"
+          #sleep(options[:refresh_interval])
+          sleep_with_dots(options[:refresh_interval])
+          print "\n"
           get(args)
         end
       end

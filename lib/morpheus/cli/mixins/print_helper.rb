@@ -807,4 +807,12 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  def sleep_with_dots(sleep_seconds, dots=3, dot_chr=".")
+    dot_interval = (sleep_seconds.to_f / dots.to_i)
+    dots.to_i.times do |dot_index|
+      sleep dot_interval
+      print dot_chr
+    end
+  end
+
 end
