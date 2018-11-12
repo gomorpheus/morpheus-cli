@@ -440,7 +440,7 @@ class Morpheus::Cli::Hosts
             when 'FATAL'
               log_level = "#{red}#{bold}FATAL#{reset}"
             end
-            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message']}\n"
+            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}\n"
           end
         end
       end
