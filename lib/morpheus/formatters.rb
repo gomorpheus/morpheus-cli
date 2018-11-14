@@ -97,6 +97,17 @@ def format_duration_seconds(seconds, format="human")
   out
 end
 
+def format_duration_milliseconds(milliseconds, format="human", ms_threshold=1000)
+  out = ""
+  milliseconds = milliseconds.abs.to_i
+  if ms_threshold && ms_threshold > milliseconds
+    out = "#{milliseconds}ms"
+  else
+    out = format_duration_seconds((milliseconds.to_f / 1000).floor, format)
+  end
+  out
+end
+
 # returns a human readable time duration
 # @param seconds - duration in seconds
 def format_human_duration(seconds)
@@ -127,6 +138,9 @@ def format_human_duration(seconds)
     else
       out << "#{minutes.floor} minutes"
     end
+  elsif seconds > 0 && seconds < 1
+    ms = (seconds.to_f * 1000).to_i
+    out << "#{ms}ms"
   else
     seconds = seconds.floor
     if seconds == 1

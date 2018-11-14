@@ -262,4 +262,25 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def history(id, params={})
+    url = "#{@base_url}/api/instances/#{id}/history"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def history_details(id, process_id, params={})
+    url = "#{@base_url}/api/instances/#{id}/history/#{process_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def history_event_details(id, process_event_id, params={})
+    url = "#{@base_url}/api/instances/#{id}/history/events/#{process_event_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end
