@@ -22,18 +22,24 @@ class Morpheus::Cli::ColoringCommand
       opts.footer = "Enable [on] or Disable [off] ANSI Colors for all output."
     end
     optparse.parse!(args)
-    if args.count != 1
+    if args.count > 1
       puts optparse
       exit 1
     end
-    is_on = ["on","true", "1"].include?(args[0].to_s.strip.downcase)
-    is_off = ["off","false", "0"].include?(args[0].to_s.strip.downcase)
-    if !is_on && !is_off
-      puts optparse
-      exit 1
+    if args.count == 1
+      is_on = ["on","true", "1"].include?(args[0].to_s.strip.downcase)
+      is_off = ["off","false", "0"].include?(args[0].to_s.strip.downcase)
+      if !is_on && !is_off
+        puts optparse
+        exit 1
+      end
+      Term::ANSIColor::coloring = is_on
     end
-    Term::ANSIColor::coloring = is_on
-    return true
+    if Term::ANSIColor::coloring?
+      puts "#{cyan}coloring is #{bold}#{green}on#{reset}"
+    else
+      puts "coloring is off"
+    end
   end
 
 end

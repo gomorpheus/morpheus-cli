@@ -533,6 +533,9 @@ class Morpheus::Cli::Shell
       unless input =~ /log-level/
         @return_to_log_level = Morpheus::Logging.log_level
       end
+      unless input =~ /coloring/
+        @return_to_coloring = Term::ANSIColor::coloring?
+      end
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
@@ -562,6 +565,10 @@ class Morpheus::Cli::Shell
           Morpheus::Logging.set_log_level(@return_to_log_level)
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
           @return_to_log_level = nil
+        end
+        if @return_to_coloring != nil
+          Term::ANSIColor::coloring = @return_to_coloring
+          @return_to_coloring = nil
         end
       end
 
