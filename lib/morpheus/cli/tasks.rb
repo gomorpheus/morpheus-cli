@@ -24,15 +24,18 @@ class Morpheus::Cli::Tasks
   end
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('--types x,y,z', Array, "Filter by task type code(s)") do |val|
+        params['taskTypeCodes'] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = {}
       params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.get(params)
