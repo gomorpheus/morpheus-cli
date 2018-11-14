@@ -3,12 +3,14 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/option_types'
 require 'json'
 
 class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   register_subcommands :list, :count, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
   alias_subcommand :details, :get
@@ -26,6 +28,7 @@ class Morpheus::Cli::Hosts
     @task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
     @servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
+    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
     @active_group_id = Morpheus::Cli::Groups.active_group
   end
 
@@ -38,6 +41,9 @@ class Morpheus::Cli::Hosts
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -87,6 +93,15 @@ class Morpheus::Cli::Hosts
     optparse.parse!(args)
     connect(options)
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          params['accountId'] = account['id']
+        end
+      end
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
       if group
         params['siteId'] = group['id']
