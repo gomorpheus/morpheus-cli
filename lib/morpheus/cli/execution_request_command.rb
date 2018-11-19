@@ -117,7 +117,7 @@ class Morpheus::Cli::ExecutionRequestCommand
       print_h2 "Output"
       puts execution_request['stdOut'].to_s.strip
   
-      print reset, "\n"
+      print reset
 
       return 0
 
