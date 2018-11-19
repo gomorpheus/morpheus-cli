@@ -249,7 +249,7 @@ class Morpheus::Cli::Hosts
       opts.banner = subcommand_usage("[name]")
       opts.on('--refresh [status]', String, "Refresh until status is reached. Default status is provisioned.") do |val|
         if val.to_s.empty?
-          options[:refresh_until_status] = "provisioned"
+          options[:refresh_until_status] = "provisioned,failed"
         else
           options[:refresh_until_status] = val.to_s.downcase
         end
@@ -327,7 +327,8 @@ class Morpheus::Cli::Hosts
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
           options[:refresh_interval] = 5
         end
-        if server['status'].to_s.downcase != options[:refresh_until_status].to_s.downcase
+        statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+        if !statuses.include?(server['status'])
           print cyan
           print "Status is not #{options[:refresh_until_status]}. Refreshing in #{options[:refresh_interval]} seconds"
           #sleep(options[:refresh_interval])
