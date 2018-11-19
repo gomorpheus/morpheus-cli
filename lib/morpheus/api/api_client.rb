@@ -303,4 +303,8 @@ class Morpheus::APIClient
     Morpheus::CypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
   
+  def execution_request
+    Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
 end
