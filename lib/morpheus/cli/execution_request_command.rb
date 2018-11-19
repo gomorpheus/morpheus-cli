@@ -59,7 +59,7 @@ class Morpheus::Cli::ExecutionRequestCommand
         print_dry_run @execution_requests_interface.dry.get(execution_request_id, params)
         return
       end
-      json_response = @execution_requests_interface.dry.get(execution_request_id, params)
+      json_response = @execution_requests_interface.get(execution_request_id, params)
       if options[:json]
         puts as_json(json_response, options, "executionRequest")
         return 0
