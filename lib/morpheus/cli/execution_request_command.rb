@@ -113,15 +113,12 @@ class Morpheus::Cli::ExecutionRequestCommand
         print_h2 "Error"
         puts execution_request['stdErr'].to_s.strip
       end
-
-      print_h2 "Output"
-      puts execution_request['stdOut'].to_s.strip
-  
-      print reset
-
+      if execution_request['stdOut']
+        print_h2 "Output"
+        puts execution_request['stdOut'].to_s.strip
+      end
+      print reset, "\n"
       return 0
-
-    
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
