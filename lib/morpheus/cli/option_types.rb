@@ -368,7 +368,7 @@ module Morpheus
           # value = input.empty? ? option_type['defaultValue'] : input
           if input == '?' && value.nil?
             help_prompt(option_type)
-          elsif (!value.nil? || option_type['required'] != true) && input.chomp == 'EOF'
+          elsif input.chomp == 'EOF'
             value_found = true
           else
             if value.nil?
@@ -377,7 +377,7 @@ module Morpheus
             value << input + "\n"
           end
         end
-        return value
+        return value ? value.strip : value
       end
 
       def self.password_prompt(option_type)
