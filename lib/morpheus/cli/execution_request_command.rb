@@ -141,6 +141,9 @@ class Morpheus::Cli::ExecutionRequestCommand
       opts.on('--container ID', String, "Container ID") do |val|
         params['containerId'] = val
       end
+      opts.on('--request ID', String, "Execution Request ID") do |val|
+        params['requestId'] = val
+      end
       opts.on('--script SCRIPT', "Script to be executed" ) do |val|
         script_content = val
       end
@@ -169,7 +172,7 @@ class Morpheus::Cli::ExecutionRequestCommand
       puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
-    if params['serverId'].nil? && params['instanceId'].nil? && params['containerId'].nil?
+    if params['serverId'].nil? && params['instanceId'].nil? && params['containerId'].nil? && params['requestId'].nil?
       puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: --server or --instance or --container\n#{optparse}"
       return 1
     end
@@ -223,15 +226,6 @@ class Morpheus::Cli::ExecutionRequestCommand
     script_content = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[uid] [options]")
-      opts.on('--server ID', String, "Server ID") do |val|
-        params['serverId'] = val
-      end
-      opts.on('--instance ID', String, "Instance ID") do |val|
-        params['instanceId'] = val
-      end
-      opts.on('--container ID', String, "Container ID") do |val|
-        params['containerId'] = val
-      end
       opts.on('--script SCRIPT', "Script to be executed" ) do |val|
         script_content = val
       end
@@ -249,8 +243,8 @@ class Morpheus::Cli::ExecutionRequestCommand
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Execute request against lease." + "\n" +
-                    "[id] is required. This is the id or an execution request." + "\n" +
+      opts.footer = "Execute request against lease.\n" +
+                    "[uid] is required. This is the unique id of the execution request.\n" +
                     "[script] is required. This is the script that is to be executed."
     end
     optparse.parse!(args)
@@ -268,12 +262,6 @@ class Morpheus::Cli::ExecutionRequestCommand
         payload = options[:payload]
       else
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # could prompt for Server or Container or Instance
-        # prompt for Script
-        # if script_content.nil?
-        #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
-        #   script_content = v_prompt['script']
-        # end
         if script_content
           payload['script'] = script_content
         end
