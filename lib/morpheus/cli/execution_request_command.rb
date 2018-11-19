@@ -83,12 +83,12 @@ class Morpheus::Cli::ExecutionRequestCommand
           print "Execution request has not yet finished. Refreshing every #{options[:refresh_interval]} seconds"
           while execution_request['exitCode'].nil? do
             sleep(options[:refresh_interval])
-            print "."
+            print cyan,".",reset
             json_response = @execution_requests_interface.get(execution_request_id, params)
             execution_request = json_response['executionRequest']
           end
           #sleep_with_dots(options[:refresh_interval])
-          print "\n"
+          print "\n", reset
           # get(raw_args)
         end
       end
@@ -107,7 +107,7 @@ class Morpheus::Cli::ExecutionRequestCommand
         #"Created By" => lambda {|it| it['createdById'] },
         #"Subdomain" => lambda {|it| it['subdomain'] },
       }
-      print_description_list(description_cols, user_source)      
+      print_description_list(description_cols, execution_request)      
 
       if execution_request['stdErr']
         print_h2 "Error"
