@@ -257,7 +257,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     connect(options)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
     execution_request_id = args[0]
@@ -270,11 +270,13 @@ class Morpheus::Cli::ExecutionRequestCommand
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         # could prompt for Server or Container or Instance
         # prompt for Script
-        if script_content.nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
-          script_content = v_prompt['script']
+        # if script_content.nil?
+        #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
+        #   script_content = v_prompt['script']
+        # end
+        if script_content
+          payload['script'] = script_content
         end
-        payload['script'] = script_content
       end
       # dry run?
       if options[:dry_run]
