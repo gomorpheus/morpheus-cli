@@ -183,7 +183,7 @@ class Morpheus::Cli::Whoami
         }
         print_description_list({
           "Name" => 'name',
-          "Url" => 'url',
+          "URL" => 'url',
           "Version" => 'buildVersion'
         }, appliance_data)
 

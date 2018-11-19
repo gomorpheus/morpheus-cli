@@ -75,7 +75,7 @@ EOT
       columns = [
         {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
         {:name => {:width => 16} }, 
-        {:host => {:width => 40} },
+        {:url => {display_method: lambda {|it| it[:host] || it[:url] }, :width => 40 } },
         {:version => lambda {|it| it[:build_version] } },
         {:status => lambda {|it| format_appliance_status(it, cyan) } },
         :username,
@@ -234,6 +234,9 @@ EOT
       if ::Morpheus::Cli::OptionTypes::confirm("Would you like to login now?", options.merge({default: true}))
         login_result = ::Morpheus::Cli::Login.new.handle(["--remote", appliance[:name].to_s])
         keep_trying = true
+        if login_result == 0
+          keep_trying = false
+        end
         while keep_trying do
           if ::Morpheus::Cli::OptionTypes::confirm("Login was unsuccessful. Would you like to try again?", options.merge({default: true}))
             login_result = ::Morpheus::Cli::Login.new.handle(["--remote", appliance[:name].to_s])
@@ -246,6 +249,13 @@ EOT
         end
 
       end
+
+      if !appliance[:active]
+        if ::Morpheus::Cli::OptionTypes::confirm("Would you like to switch to using this remote now?", options.merge({default: true}))
+          use([appliance[:name]])
+        end
+      end
+
     else
       #puts "Status is #{format_appliance_status(appliance)}"
     end
@@ -487,7 +497,7 @@ EOT
       print cyan
       description_cols = {
         "Name" => :name,
-        "Url" => :host,
+        "URL" => :host,
         "Secure" => lambda {|it| format_appliance_secure(it) },
         "Version" => lambda {|it| it[:build_version] ? "#{it[:build_version]}" : 'unknown' },
         "Status" => lambda {|it| format_appliance_status(it, cyan) },
@@ -507,11 +517,10 @@ EOT
       
       if appliance[:active]
         # print cyan
-        print cyan, "\n", " => This is the current appliance.", "\n"
+        print cyan, " => This is the current appliance.", reset, "\n\n"
       end
 
-      print reset, "\n"
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -865,7 +874,8 @@ EOT
   def format_appliance_secure(app_map, return_color=cyan)
     return "" if !app_map
     out = ""
-    is_ssl = app_map[:host].to_s =~ /^https/
+    app_url = (app_map[:host] || app_map[:url]).to_s
+    is_ssl = app_url =~ /^https/
     if !is_ssl
       out << "No (no SSL)"
     else
@@ -960,10 +970,11 @@ EOT
         return nil, nil
       end
       app_name, app_map = self.appliances.find {|k,v| v[:active] == true }
+      app_url = (app_map[:host] || app_map[:url]).to_s
       if app_name
-        return app_name, app_map[:host]
+        return app_name, app_url
       else
-        return app_name, nil
+        return nil, nil
       end
     end
 
@@ -1141,7 +1152,7 @@ EOT
       app_name = app_name.to_sym
       cur_appliances = self.appliances
       app_map = cur_appliances[app_name] || {}
-      app_url = app_map[:host] # || app_map[:url] maybe??
+      app_url = (app_map[:host] || app_map[:url]).to_s
 
       if !app_url
         raise "appliance config is missing url!" # should not need this
