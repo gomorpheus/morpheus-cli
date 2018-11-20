@@ -31,14 +31,24 @@ class Morpheus::UserSettingsInterface < Morpheus::APIClient
   end
 
   # NOT json, multipart file upload
-  def update_avatar(params, avatar_file)
+  def update_avatar(avatar_file, params={})
     url = "#{@base_url}/api/user-settings/avatar"
     headers = { :params => params, :authorization => "Bearer #{@access_token}"}
     payload = {}
-    payload['user'] ||= {}
-    payload['user']['avatar'] = avatar_file
+    #payload['user'] ||= {}
+    #payload['user']['avatar'] = avatar_file
+    payload['user.avatar'] = avatar_file
     payload[:multipart] = true
-    opts = {method: :put, url: url, headers: headers, payload: payload}
+    opts = {method: :post, url: url, headers: headers, payload: payload}
+    execute(opts)
+  end
+
+  def remove_avatar(params={})
+    url = "#{@base_url}/api/user-settings/avatar"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}"}
+    # POST empty payload will do
+    payload = {}
+    opts = {method: :delete, url: url, headers: headers, payload: payload}
     execute(opts)
   end
 
@@ -56,5 +66,11 @@ class Morpheus::UserSettingsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def available_clients(params={})
+    url = "#{@base_url}/api/user-settings/api-clients"
+    headers = { :params => params, authorization: "Bearer #{@access_token}"}
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
 
 end

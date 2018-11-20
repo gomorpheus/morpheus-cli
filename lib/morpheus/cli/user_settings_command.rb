@@ -5,7 +5,7 @@ class Morpheus::Cli::UserSettingsCommand
 
   set_command_name :'user-settings'
 
-  register_subcommands :get, :update, :'regenerate-access-token', :'clear-access-token'
+  register_subcommands :get, :update, :'update-avatar', :'view-avatar', :'regenerate-access-token', :'clear-access-token', :'list-clients'
   
   set_default_subcommand :get
   
@@ -69,11 +69,13 @@ class Morpheus::Cli::UserSettingsCommand
         "First Name" => lambda {|it| it['firstName'] },
         "Last Name" => lambda {|it| it['lastName'] },
         "Email" => lambda {|it| it['email'] },
+        "Avatar" => lambda {|it| it['avatar'] ? it['avatar'].split('/').last : '' },
         "Notifications" => lambda {|it| format_boolean(it['receiveNotifications']) },
         "Linux Username" => lambda {|it| it['linuxUsername'] },
         "Linux Password" => lambda {|it| it['linuxPassword'] },
         "Linux Key Pair" => lambda {|it| it['linuxKeyPairId'] },
         "Windows Username" => lambda {|it| it['windowsUsername'] },
+        "Windows Password" => lambda {|it| it['windowsPassword'] },
       }
       print_description_list(description_cols, user_settings)      
 
@@ -89,7 +91,7 @@ class Morpheus::Cli::UserSettingsCommand
         puts as_pretty_table(access_tokens, cols)
       end
       
-      print reset, "\n"
+      print reset #, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -149,6 +151,137 @@ class Morpheus::Cli::UserSettingsCommand
     end
   end
 
+  def update_avatar(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[file]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Update your avatar profile image.\n" +
+                    "[file] is required. This is the local path of a file to upload [png|jpg|svg]."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    filename = File.expand_path(args[0].to_s)
+    image_file = nil
+    if filename && File.file?(filename)
+      # maybe validate it's an image file? [.png|jpg|svg]
+      image_file = File.new(filename, 'rb')
+    else
+      # print_red_alert "File not found: #{filename}"
+      puts_error "#{Morpheus::Terminal.angry_prompt}File not found: #{filename}"
+      return 1
+    end
+    
+    begin
+      if options[:dry_run]
+        print_dry_run @user_settings_interface.dry.update_avatar(image_file, params)
+        return
+      end
+      json_response = @user_settings_interface.update_avatar(image_file, params)
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+
+      print_green_success "Updated avatar"
+      get([])
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def remove_avatar(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[file]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Remove your avatar profile image."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      if options[:dry_run]
+        print_dry_run @user_settings_interface.dry.remove_avatar(params)
+        return
+      end
+      json_response = @user_settings_interface.remove_avatar(params)
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+
+      print_green_success "Removed avatar"
+      get([])
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def view_avatar(args)
+    raw_args = args
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:remote])
+      opts.footer = "View your avatar profile image.\n" +
+                    "This opens the avatar image url with a web browser."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      
+      json_response = @user_settings_interface.get(params)
+      user_settings = json_response['user'] || json_response['userSettings']
+      
+      if user_settings['avatar']
+        link = user_settings['avatar']
+        if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+          system "start #{link}"
+        elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+          system "open #{link}"
+        elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+          system "xdg-open #{link}"
+        end
+        return 0, nil
+      else
+        print_error red,"No avatar image found.",reset,"\n"
+        return 1
+      end
+      
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
   def regenerate_access_token(args)
     raw_args = args
     options = {}
@@ -188,9 +321,7 @@ class Morpheus::Cli::UserSettingsCommand
         puts as_json(json_response, options)
         return 0
       end
-      
       print_green_success "Regenerated #{params['clientId']} access token: #{new_access_token}"
-
       get([])
       return 0
     rescue RestClient::Exception => e
@@ -240,6 +371,56 @@ class Morpheus::Cli::UserSettingsCommand
         print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
       end
       #get([])
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def list_clients(args)
+    raw_args = args
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List available api clients."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      params.merge!(parse_list_options(options))
+      if options[:dry_run]
+        print_dry_run @user_settings_interface.dry.available_clients(params)
+        return
+      end
+      json_response = @user_settings_interface.available_clients(params)
+      if options[:json]
+        puts as_json(json_response, options, "clients")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "clients")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['clients'], options)
+        return 0
+      end
+
+      clients = json_response['clients'] || json_response['apiClients']
+      print_h1 "Morpheus API Clients"
+      columns = {
+        "Client ID" => lambda {|it| it['clientId'] }
+      }
+      print cyan
+      puts as_pretty_table(clients, columns)
+      print reset #, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
