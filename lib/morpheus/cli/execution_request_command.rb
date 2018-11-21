@@ -79,7 +79,9 @@ class Morpheus::Cli::ExecutionRequestCommand
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
           options[:refresh_interval] = 5
         end
-        if execution_request['exitCode'].nil?
+        if execution_request['exitCode'] || ['complete','failed','expired'].include?(execution_request['status'])
+          # it is finished
+        else
           print cyan
           print "Execution request has not yet finished. Refreshing every #{options[:refresh_interval]} seconds"
           while execution_request['exitCode'].nil? do
