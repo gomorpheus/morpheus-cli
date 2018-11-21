@@ -14,10 +14,12 @@ class Morpheus::Cli::ContainersCommand
   set_command_name :containers
 
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions
+  register_subcommands :exec => :execution_request
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @containers_interface = @api_client.containers
+    @execution_request_interface = @api_client.execution_request
   end
   
   def handle(args)
@@ -494,6 +496,88 @@ class Morpheus::Cli::ContainersCommand
       print green, "Action #{action_display_name} performed on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}", reset, "\n"
     end
     return 0
+  end
+
+  def execution_request(args)
+    options = {}
+    params = {}
+    script_content = nil
+    do_refresh = true
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on('--script SCRIPT', "Script to be executed" ) do |val|
+        script_content = val
+      end
+      opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          script_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh until finished" ) do
+        do_refresh = false
+      end
+      #build_option_type_options(opts, options, add_user_source_option_types())
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Execute an arbitrary command or script on a container." + "\n" +
+                    "[id] is required. This is the id a container." + "\n" +
+                    "[script] is required. This is the script that is to be executed."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    
+    begin
+      container = find_container_by_id(args[0])
+      return 1 if container.nil?
+      params['containerId'] = container['id']
+      # construct payload
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # prompt for Script
+        if script_content.nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
+          script_content = v_prompt['script']
+        end
+        payload['script'] = script_content
+      end
+      # dry run?
+      if options[:dry_run]
+        print_dry_run @execution_request_interface.dry.create(params, payload)
+        return 0
+      end
+      # do it
+      json_response = @execution_request_interface.create(params, payload)
+      # print and return result
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+      execution_request = json_response['executionRequest']
+      print_green_success "Executing request #{execution_request['uniqueId']}"
+      if do_refresh
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId'], "--refresh"])
+      else
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 
 private

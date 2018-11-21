@@ -12,6 +12,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::ProvisioningHelper
 
   register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :exec => :execution_request
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -32,6 +33,7 @@ class Morpheus::Cli::Instances
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_group
+    @execution_request_interface = @api_client.execution_request
   end
   
   def handle(args)
@@ -2746,6 +2748,87 @@ class Morpheus::Cli::Instances
         print reset, "\n"
         return 0
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def execution_request(args)
+    options = {}
+    params = {}
+    script_content = nil
+    do_refresh = true
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on('--script SCRIPT', "Script to be executed" ) do |val|
+        script_content = val
+      end
+      opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          script_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh until finished" ) do
+        do_refresh = false
+      end
+      #build_option_type_options(opts, options, add_user_source_option_types())
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Execute an arbitrary script or command on an instance." + "\n" +
+                    "[id] is required. This is the id or name of an instance." + "\n" +
+                    "[script] is required. This is the script that is to be executed."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      params['instanceId'] = instance['id']
+      # construct payload
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # prompt for Script
+        if script_content.nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
+          script_content = v_prompt['script']
+        end
+        payload['script'] = script_content
+      end
+      # dry run?
+      if options[:dry_run]
+        print_dry_run @execution_request_interface.dry.create(params, payload)
+        return 0
+      end
+      # do it
+      json_response = @execution_request_interface.create(params, payload)
+      # print and return result
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+      execution_request = json_response['executionRequest']
+      print_green_success "Executing request #{execution_request['uniqueId']}"
+      if do_refresh
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId'], "--refresh"])
+      else
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']])
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

@@ -9,7 +9,8 @@ class Morpheus::Cli::ExecutionRequestCommand
 
   set_command_name :'execution-request'
 
-  register_subcommands :get, :execute, :'execute-against-lease' => :execute_against_lease
+  register_subcommands :get, :execute
+  #register_subcommands :'execute-against-lease' => :execute_against_lease
   
   # set_default_subcommand :list
   
@@ -22,7 +23,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     # @instances_interface = @api_client.instances
     # @containers_interface = @api_client.containers
     # @servers_interface = @api_client.servers
-    @execution_requests_interface = @api_client.execution_request
+    @execution_request_interface = @api_client.execution_request
   end
 
   def handle(args)
@@ -56,10 +57,10 @@ class Morpheus::Cli::ExecutionRequestCommand
     begin
       params.merge!(parse_list_options(options))
       if options[:dry_run]
-        print_dry_run @execution_requests_interface.dry.get(execution_request_id, params)
+        print_dry_run @execution_request_interface.dry.get(execution_request_id, params)
         return
       end
-      json_response = @execution_requests_interface.get(execution_request_id, params)
+      json_response = @execution_request_interface.get(execution_request_id, params)
       if options[:json]
         puts as_json(json_response, options, "executionRequest")
         return 0
@@ -84,7 +85,7 @@ class Morpheus::Cli::ExecutionRequestCommand
           while execution_request['exitCode'].nil? do
             sleep(options[:refresh_interval])
             print cyan,".",reset
-            json_response = @execution_requests_interface.get(execution_request_id, params)
+            json_response = @execution_request_interface.get(execution_request_id, params)
             execution_request = json_response['executionRequest']
           end
           #sleep_with_dots(options[:refresh_interval])
@@ -193,11 +194,11 @@ class Morpheus::Cli::ExecutionRequestCommand
       end
       # dry run?
       if options[:dry_run]
-        print_dry_run @execution_requests_interface.dry.create(params, payload)
+        print_dry_run @execution_request_interface.dry.create(params, payload)
         return 0
       end
       # do it
-      json_response = @execution_requests_interface.create(params, payload)
+      json_response = @execution_request_interface.create(params, payload)
       # print and return result
       if options[:quiet]
         return 0
@@ -268,11 +269,11 @@ class Morpheus::Cli::ExecutionRequestCommand
       end
       # dry run?
       if options[:dry_run]
-        print_dry_run @execution_requests_interface.dry.execute_against_lease(execution_request_id, params, payload)
+        print_dry_run @execution_request_interface.dry.execute_against_lease(execution_request_id, params, payload)
         return 0
       end
       # do it
-      json_response = @execution_requests_interface.execute_against_lease(execution_request_id, params, payload)
+      json_response = @execution_request_interface.execute_against_lease(execution_request_id, params, payload)
       # print and return result
       if options[:quiet]
         return 0
