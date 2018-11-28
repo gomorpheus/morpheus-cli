@@ -2965,64 +2965,6 @@ private
     end
   end
 
-  def format_process_status(process, return_color=cyan)
-    out = ""
-    status_string = process['status'].to_s
-    if status_string == 'complete'
-      out << "#{green}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'failed'
-      out << "#{red}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'expired'
-      out << "#{red}#{status_string.upcase}#{return_color}"
-    else
-      out << "#{cyan}#{status_string.upcase}#{return_color}"
-    end
-    out
-  end
-
-  # decolorize, remove newlines and truncate for table cell
-  def format_process_error(process, max_length=50, return_color=cyan)
-    out = ""
-    if process['error']
-      lines = process['error'].split("\n").collect {|line| reset + "#{line.to_s.strip}" }
-      out = lines.join(" ")
-      if max_length
-        out = truncate_string(out, max_length)
-      end
-      out << return_color if return_color
-    end
-    out
-  end
-
-  # decolorize, remove newlines and truncate for table cell
-  def format_process_output(process, max_length=50, return_color=cyan)
-    out = ""
-    if process['output']
-      lines = process['output'].split("\n").collect {|line| reset + "#{line.to_s.strip}" }
-      out = lines.join(" ")
-      if max_length
-        out = truncate_string(out, max_length)
-      end
-      out << return_color if return_color
-    end
-    out
-  end
-
-  # format for either ETA/Duration
-  def format_process_duration(process, time_format="%H:%M:%S")
-    out = ""
-    if process['duration'] && process['duration'] > 0
-      out = format_duration_milliseconds(process['duration'], time_format)
-    elsif process['statusEta'] && process['statusEta'] > 0
-      out = format_duration_milliseconds(process['statusEta'], time_format)
-    elsif process['startDate'] && process['endDate']
-      out = format_duration(process['startDate'], process['endDate'], time_format)
-    else
-      ""
-    end
-    out
-  end
-
   def clone_instance_option_types(connected=true)
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for the new instance'},

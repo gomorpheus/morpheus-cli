@@ -311,4 +311,8 @@ class Morpheus::APIClient
     Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def processes
+    Morpheus::ProcessesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
 end
