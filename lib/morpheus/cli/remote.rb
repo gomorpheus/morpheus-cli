@@ -970,7 +970,7 @@ EOT
         return nil, nil
       end
       app_name, app_map = self.appliances.find {|k,v| v[:active] == true }
-      app_url = (app_map[:host] || app_map[:url]).to_s
+      app_url = app_map ? (app_map[:host] || app_map[:url]).to_s : nil
       if app_name
         return app_name, app_url
       else

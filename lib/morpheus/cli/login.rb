@@ -87,7 +87,7 @@ class Morpheus::Cli::Login
 
       if creds
         if !options[:quiet]
-          print green,"Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_active_remote()[:username]}#{reset}", reset, "\n"
+          print green,"Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_remote(@appliance_name)[:username]}#{reset}", reset, "\n"
         end
         return 0 # ,  nil
       else
