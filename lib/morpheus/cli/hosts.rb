@@ -198,7 +198,7 @@ class Morpheus::Cli::Hosts
           }
           columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
           if multi_tenant
-            columns.insert(1, :tenant)
+            columns.insert(4, :tenant)
           end
           term_width = current_terminal_width()
           if term_width > 170
