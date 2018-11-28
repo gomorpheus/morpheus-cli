@@ -144,6 +144,7 @@ class Morpheus::Cli::Hosts
         return 0
       else
         servers = json_response['servers']
+        multi_tenant = json_response['multiTenant'] == true
         title = "Morpheus Hosts"
         subtitles = []
         if group
@@ -181,6 +182,7 @@ class Morpheus::Cli::Hosts
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
             row = {
               id: server['id'],
+              tenant: server['account'] ? server['account']['name'] : server['accountId'],
               name: server['name'],
               platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
               cloud: server['zone'] ? server['zone']['name'] : '',
@@ -195,6 +197,9 @@ class Morpheus::Cli::Hosts
             row
           }
           columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+          if multi_tenant
+            columns.insert(1, :tenant)
+          end
           term_width = current_terminal_width()
           if term_width > 170
             columns += [:cpu, :memory, :storage]
