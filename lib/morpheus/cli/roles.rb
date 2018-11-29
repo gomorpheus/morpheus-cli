@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Roles
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access'
+  register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -24,6 +24,7 @@ class Morpheus::Cli::Roles
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     #@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @active_group_id = Morpheus::Cli::Groups.active_group
   end
 
@@ -87,23 +88,27 @@ class Morpheus::Cli::Roles
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+      opts.on('-f','--feature-access', "Display Feature Access") do |val|
         options[:include_feature_access] = true
       end
-      opts.on(nil,'--group-access', "Display Group Access") do
+      opts.on('-g','--group-access', "Display Group Access") do
         options[:include_group_access] = true
       end
-      opts.on(nil,'--cloud-access', "Display Cloud Access") do
+      opts.on('-c','--cloud-access', "Display Cloud Access") do
         options[:include_cloud_access] = true
       end
-      opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
+      opts.on('-i','--instance-type-access', "Display Instance Type Access") do
         options[:include_instance_type_access] = true
       end
-      opts.on(nil,'--all-access', "Display All Access Lists") do
+      opts.on('-b','--blueprint-access', "Display Blueprint Access") do
+        options[:include_blueprint_access] = true
+      end
+      opts.on('-a','--all-access', "Display All Access Lists") do
         options[:include_feature_access] = true
         options[:include_group_access] = true
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
+        options[:include_blueprint_access] = true
       end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a role.\n" +
@@ -247,6 +252,25 @@ class Morpheus::Cli::Roles
           tp rows, [:name, :access]
         else
           puts "Use --instance-type-access to list custom access"
+        end
+      end
+
+      blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
+      blueprint_permissions = json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || []
+      print_h2 "Blueprint Access"
+      print cyan
+      puts "Global Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}\n\n"
+      if blueprint_global_access == 'custom'
+        if options[:include_blueprint_access]
+          rows = blueprint_permissions.collect do |it|
+            {
+              name: it['name'],
+              access: get_access_string(it['access']),
+            }
+          end
+          tp rows, [:name, :access]
+        else
+          puts "Use --blueprint-access to list custom access"
         end
       end
 
@@ -962,6 +986,162 @@ class Morpheus::Cli::Roles
           print_green_success "Role #{role['authority']} access updated for all instance types"
         else
           print_green_success "Role #{role['authority']} access updated for instance type #{instance_type['name']}"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_global_blueprint_access(args)
+    usage = "Usage: morpheus roles update-global-blueprint-access [name] [full|custom|none]"
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+
+    if args.count < 2
+      puts optparse
+      exit 1
+    end
+    name = args[0]
+    access_value = args[1].to_s.downcase
+    if !['full', 'custom', 'none'].include?(access_value)
+      puts optparse
+      exit 1
+    end
+
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      exit 1 if role.nil?
+
+      params = {permissionCode: 'AppTemplate', access: access_value}
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_permission(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Role #{role['authority']} global blueprint access updated"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_blueprint_access(args)
+    options = {}
+    blueprint_id = nil
+    access_value = nil
+    do_all = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.on( '--blueprint ID', String, "Blueprint ID or Name" ) do |val|
+        blueprint_id = val
+      end
+      opts.on( nil, '--all', "Update all blueprints at once." ) do
+        do_all = true
+      end
+      opts.on( '--access VALUE', String, "Access value [full|read|none]" ) do |val|
+        access_value = val
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update role access for an blueprint or all blueprints.\n" +
+                    "[name] is required. This is the name or id of a role.\n" + 
+                    "--blueprint or --all is required. This is the name or id of a blueprint.\n" + 
+                    "--access is required. This is the new access value."
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+    name = args[0]
+    # support old usage: [name] [blueprint] [access]
+    blueprint_id ||= args[1]
+    access_value ||= args[2]
+
+    if (!blueprint_id && !do_all) || !access_value
+      puts_error optparse
+      return 1
+    end
+    
+    access_value = access_value.to_s.downcase
+
+    if !['full', 'none'].include?(access_value)
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      return 1 if role.nil?
+
+      role_json = @roles_interface.get(account_id, role['id'])
+      blueprint_global_access = role_json['globalAppTemplateAccess'] || role_json['globalBlueprintAccess']
+      blueprint_permissions = role_json['appTemplatePermissions'] || role_json['blueprintPermissions'] || []
+      if blueprint_global_access != 'custom'
+        print "\n", red, "Global Blueprint Access is currently: #{blueprint_global_access.to_s.capitalize}"
+        print "\n", "You must first set it to Custom via `morpheus roles update-global-blueprint-access \"#{name}\" custom`"
+        print "\n\n", reset
+        return 1
+      end
+
+      # hacky, but support name or code lookup via the list returned in the show payload
+      blueprint = nil
+      if !do_all
+        if blueprint_id.to_s =~ /\A\d{1,}\Z/
+          blueprint = blueprint_permissions.find {|b| b['id'] == blueprint_id.to_i }
+        else
+          blueprint = blueprint_permissions.find {|b| b['name'] == blueprint_id || b['code'] == blueprint_id }
+        end
+        if blueprint.nil?
+          print_red_alert "Blueprint not found: '#{blueprint_id}'"
+          return 1
+        end
+      end
+
+      params = {}
+      if do_all
+        params['allAppTemplates'] = true
+        #params['allBlueprints'] = true
+      else
+        params['appTemplateId'] = blueprint['id']
+        # params['blueprintId'] = blueprint['id']
+      end
+      params['access'] = access_value
+
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_blueprint(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_blueprint(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        if do_all
+          print_green_success "Role #{role['authority']} access updated for all blueprints"
+        else
+          print_green_success "Role #{role['authority']} access updated for blueprint #{blueprint['name']}"
         end
       end
       return 0

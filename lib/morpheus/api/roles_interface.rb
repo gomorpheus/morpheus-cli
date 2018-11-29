@@ -56,6 +56,13 @@ class Morpheus::RolesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def update_blueprint(account_id, id, options)
+    url = build_url(account_id, id) + "/update-blueprint"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def update_group(account_id, id, options)
     url = build_url(account_id, id) + "/update-group"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
