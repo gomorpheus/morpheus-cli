@@ -255,7 +255,7 @@ class Morpheus::Cli::AliasCommand
       out <<  "\n"
       out << reset
       my_aliases.each do |it|
-        out <<  "\t#{cyan}#{it[:name]}#{reset}='#{it[:command_string]}'"
+        out <<  "    #{cyan}#{it[:name]}#{reset}='#{it[:command_string]}'"
         out << "\n"
       end
       out << reset
