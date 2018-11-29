@@ -97,7 +97,7 @@ class Morpheus::Cli::Apps
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_app_option_types(false))
-      # opts.on( '-t', '--template ID', "App Template ID. The app template to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances." ) do |val|
+      # opts.on( '-b', '--blueprint ID', "Blueprint ID. The blueprint to use. The default value is 'existing' which means no blueprint, for creating a blank app and adding existing instances." ) do |val|
       #   options['template'] = val
       # end
       # opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
@@ -158,7 +158,7 @@ class Morpheus::Cli::Apps
         payload = {}
         params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
         params = params.deep_compact! # remove nulls and blank strings
-        template_id = params.delete('template')
+        template_id = params.delete('blueprint')
         if template_id.to_s.empty? || template_id == 'existing'
           # new API parameter
           payload['templateId'] = 'existing'
@@ -166,9 +166,9 @@ class Morpheus::Cli::Apps
           payload['id'] = 'existing'
           payload['templateName'] = 'Existing Instances'
         else
-          found_app_template = get_available_app_templates.find {|it| it['id'].to_s == template_id.to_s || it['name'].to_s == template_id.to_s }
+          found_app_template = get_available_blueprints.find {|it| it['id'].to_s == template_id.to_s || it['name'].to_s == template_id.to_s }
           if found_app_template.nil?
-            print_red_alert "App Template not found by id #{template_id}"
+            print_red_alert "Blueprint not found by id #{template_id}"
             return 1
           end
           payload['templateId'] = found_app_template['id']
@@ -872,7 +872,7 @@ class Morpheus::Cli::Apps
 
   def add_app_option_types(connected=true)
     [
-      {'fieldName' => 'template', 'fieldLabel' => 'Template', 'type' => 'select', 'selectOptions' => (connected ? get_available_app_templates() : []), 'required' => true, 'defaultValue' => 'existing', 'description' => "The app template to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."},
+      {'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprints() : []), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
@@ -882,7 +882,7 @@ class Morpheus::Cli::Apps
 
   def update_app_option_types(connected=true)
     list = add_app_option_types(connected)
-    list = list.reject {|it| ["template", "group"].include? it['fieldName'] }
+    list = list.reject {|it| ["blueprint", "group"].include? it['fieldName'] }
     list.each {|it| it['required'] = false }
     list
   end
@@ -1002,17 +1002,18 @@ class Morpheus::Cli::Apps
     out
   end
 
-  def get_available_app_templates(refresh=false)
-    if !@available_app_templates || refresh
-      results = @options_interface.options_for_source('appTemplates',{})
-      @available_app_templates = results['data'].collect {|it|
+  def get_available_blueprints(refresh=false)
+    if !@available_blueprints || refresh
+      results = @options_interface.options_for_source('appTemplates',{}) # still exists
+      #results = @options_interface.options_for_source('blueprints',{})
+      @available_blueprints = results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }
       default_option = {"id" => "existing", "name" => "Existing Instances", "value" => "existing"}
-      @available_app_templates.unshift(default_option)
+      @available_blueprints.unshift(default_option)
     end
-    #puts "get_available_app_templates() rtn: #{@available_app_templates.inspect}"
-    return @available_app_templates
+    #puts "get_available_blueprints() rtn: #{@available_blueprints.inspect}"
+    return @available_blueprints
   end
 
   def get_available_environments(refresh=false)

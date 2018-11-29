@@ -125,6 +125,10 @@ class Morpheus::APIClient
     Morpheus::AppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def blueprints
+    Morpheus::BlueprintsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def app_templates
     Morpheus::AppTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end

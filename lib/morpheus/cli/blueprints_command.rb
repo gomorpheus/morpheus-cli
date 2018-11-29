@@ -1,16 +1,9 @@
-require 'io/console'
-require 'rest_client'
-require 'optparse'
 require 'morpheus/cli/cli_command'
-require 'morpheus/cli/option_types'
-require 'json'
+require 'morpheus/cli/mixins/provisioning_helper'
 
-# deprecated and replaced with blueprints, hidden for now
-class Morpheus::Cli::AppTemplates
+class Morpheus::Cli::BlueprintsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-
-  set_command_hidden
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :duplicate
@@ -32,7 +25,7 @@ class Morpheus::Cli::AppTemplates
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @app_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).app_templates
+    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
@@ -49,7 +42,7 @@ class Morpheus::Cli::AppTemplates
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List app templates."
+      opts.footer = "List blueprints."
     end
     optparse.parse!(args)
     connect(options)
@@ -59,35 +52,35 @@ class Morpheus::Cli::AppTemplates
         params[k] = options[k] unless options[k].nil?
       end
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.list(params)
+        print_dry_run @blueprints_interface.dry.list(params)
         return
       end
 
-      json_response = @app_templates_interface.list(params)
-      app_templates = json_response['appTemplates']
+      json_response = @blueprints_interface.list(params)
+      blueprints = json_response['blueprints']
 
       if options[:json]
-        puts as_json(json_response, options, "appTemplates")
+        puts as_json(json_response, options, "blueprints")
         return 0
       elsif options[:csv]
-        puts records_as_csv(json_response['appTemplates'], options)
+        puts records_as_csv(json_response['blueprints'], options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "appTemplates")
+        puts as_yaml(json_response, options, "blueprints")
         return 0
       end
 
       
-      title = "Morpheus App Templates"
+      title = "Morpheus Blueprints"
       subtitles = []
       if params[:phrase]
         subtitles << "Search: #{params[:phrase]}".strip
       end
       print_h1 title, subtitles
-      if app_templates.empty?
-        print cyan,"No app templates found.",reset,"\n"
+      if blueprints.empty?
+        print cyan,"No blueprints found.",reset,"\n"
       else
-        print_app_templates_table(app_templates, options)
+        print_blueprints_table(blueprints, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -102,13 +95,13 @@ class Morpheus::Cli::AppTemplates
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template]")
+      opts.banner = subcommand_usage("[id]")
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about an app template.\n" +
-                    "[template] is required. This is the name or id of an app template."
+      opts.footer = "Get details about a blueprint.\n" +
+                    "[id] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -119,49 +112,49 @@ class Morpheus::Cli::AppTemplates
     begin
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @app_templates_interface.dry.get(args[0].to_i)
+          print_dry_run @blueprints_interface.dry.get(args[0].to_i)
         else
-          print_dry_run @app_templates_interface.dry.list({name:args[0]})
+          print_dry_run @blueprints_interface.dry.list({name:args[0]})
         end
         return
       end
-      app_template = find_app_template_by_name_or_id(args[0])
-      exit 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      exit 1 if blueprint.nil?
 
-      json_response = {'appTemplate' => app_template}  # skip redundant request
-      #json_response = @app_templates_interface.get(app_template['id'])
-      app_template = json_response['appTemplate']
+      json_response = {'blueprint' => blueprint}  # skip redundant request
+      #json_response = @blueprints_interface.get(blueprint['id'])
+      blueprint = json_response['blueprint']
 
       if options[:show_config]
         #print_h2 "RAW"
         if options[:json]
           print cyan
-          print "// JSON config for Morpheus App Template: #{app_template['name']}","\n"
+          print "// JSON config for Morpheus Blueprint: #{blueprint['name']}","\n"
           print reset
-          puts as_json(app_template["config"])
+          puts as_json(blueprint["config"])
         else
           print cyan
-          print "# YAML config for Morpheus App Template: #{app_template['name']}","\n"
+          print "# YAML config for Morpheus Blueprint: #{blueprint['name']}","\n"
           print reset
-          puts as_yaml(app_template["config"])
+          puts as_yaml(blueprint["config"])
         end
         return 0
       end
 
       if options[:json]
-        puts as_json(json_response, options, "appTemplate")
+        puts as_json(json_response, options, "blueprint")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "appTemplate")
+        puts as_yaml(json_response, options, "blueprint")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['appTemplate']], options)
+        puts records_as_csv([json_response['blueprint']], options)
         return 0
       end
       
-      print_h1 "App Template Details"
+      print_h1 "Blueprint Details"
       
-      print_app_template_details(app_template)
+      print_blueprint_details(blueprint)
 
       print reset,"\n"
       
@@ -175,20 +168,20 @@ class Morpheus::Cli::AppTemplates
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on('--config JSON', String, "App Template Config JSON") do |val|
+      opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
         options['config'] = JSON.parse(val.to_s)
       end
-      opts.on('--config-yaml YAML', String, "App Template Config YAML") do |val|
+      opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
         options['config'] = YAML.load(val.to_s)
       end
-      opts.on('--config-file FILE', String, "App Template Config from a local JSON or YAML file") do |val|
+      opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
         options['configFile'] = val.to_s
       end
-      build_option_type_options(opts, options, add_app_template_option_types(false))
+      build_option_type_options(opts, options, add_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Create a new app template.\n" + 
+      opts.footer = "Create a new blueprint.\n" + 
                     "[name] is optional and can be passed as --name or inside the config instead."
-                    "[--config] or [--config-file] can be used to define the app template."
+                    "[--config] or [--config-file] can be used to define the blueprint."
     end
     optparse.parse!(args)
     if args.count > 1
@@ -220,34 +213,34 @@ class Morpheus::Cli::AppTemplates
         end
         request_payload = config_payload
       else
-        params = Morpheus::Cli::OptionTypes.prompt(add_app_template_option_types, options[:options], @api_client, options[:params])
-        app_template_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
+        params = Morpheus::Cli::OptionTypes.prompt(add_blueprint_option_types, options[:options], @api_client, options[:params])
+        blueprint_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
         # expects no namespace, just the config
-        request_payload = app_template_payload
+        request_payload = blueprint_payload
       end
 
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.create(request_payload)
+        print_dry_run @blueprints_interface.dry.create(request_payload)
         return
       end
 
-      json_response = @app_templates_interface.create(request_payload)
+      json_response = @blueprints_interface.create(request_payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        app_template = json_response["appTemplate"]
-        print_green_success "Added app template #{app_template['name']}"
+        blueprint = json_response["blueprint"]
+        print_green_success "Added blueprint #{blueprint['name']}"
         if !options[:no_prompt]
           if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a tier now?", options.merge({default: false}))
-            add_tier([app_template['id']])
+            add_tier([blueprint['id']])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another tier?", options.merge({default: false})) do
-              add_tier([app_template['id']])
+              add_tier([blueprint['id']])
             end
           else
             # print details
-            get([app_template['id']])
+            get([blueprint['id']])
           end
         end
       end
@@ -261,22 +254,22 @@ class Morpheus::Cli::AppTemplates
   def update(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [options]")
-      opts.on('--config JSON', String, "App Template Config JSON") do |val|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
         options['config'] = JSON.parse(val.to_s)
       end
-      opts.on('--config-yaml YAML', String, "App Template Config YAML") do |val|
+      opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
         options['config'] = YAML.load(val.to_s)
       end
-      opts.on('--config-file FILE', String, "App Template Config from a local JSON or YAML file") do |val|
+      opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
         options['configFile'] = val.to_s
       end
-      build_option_type_options(opts, options, update_app_template_option_types(false))
+      build_option_type_options(opts, options, update_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Update an app template.\n" + 
-                    "[template] is required. This is the name or id of an app template.\n" +
+      opts.footer = "Update a blueprint.\n" + 
+                    "[id] is required. This is the name or id of a blueprint.\n" +
                     "[options] Available options include --name and --description. This will update only the specified values.\n" +
-                    "[--config] or [--config-file] can be used to replace the entire app template."
+                    "[--config] or [--config-file] can be used to replace the entire blueprint."
     end
     optparse.parse!(args)
 
@@ -289,8 +282,8 @@ class Morpheus::Cli::AppTemplates
 
     begin
 
-      app_template = find_app_template_by_name_or_id(args[0])
-      exit 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      exit 1 if blueprint.nil?
 
       request_payload = nil
       config_payload = {}
@@ -313,7 +306,7 @@ class Morpheus::Cli::AppTemplates
         # update just name,description,category
         # preserve all other attributes of the config..
 
-        #params = Morpheus::Cli::OptionTypes.prompt(update_app_template_option_types, options[:options], @api_client, options[:params])
+        #params = Morpheus::Cli::OptionTypes.prompt(update_blueprint_option_types, options[:options], @api_client, options[:params])
         params = options[:options] || {}
 
         if params.empty?
@@ -324,29 +317,29 @@ class Morpheus::Cli::AppTemplates
         end
 
         #puts "parsed params is : #{params.inspect}"
-        app_template_payload = params.select {|k,v| ['name','description','category'].include?(k) }
+        blueprint_payload = params.select {|k,v| ['name','description','category'].include?(k) }
         # expects no namespace, just the config
         # preserve all other attributes of the config.
-        request_payload = app_template["config"].merge(app_template_payload)
+        request_payload = blueprint["config"].merge(blueprint_payload)
         # todo maybe: put name, description and category at the front.
-        # request_payload = app_template_payload.merge(app_template["config"].merge(app_template_payload))
+        # request_payload = blueprint_payload.merge(blueprint["config"].merge(blueprint_payload))
       end
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
 
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
         unless options[:quiet]
-          app_template = json_response['appTemplate']
-          print_green_success "Updated app template #{app_template['name']}"
-          details_options = [app_template['id']]
+          blueprint = json_response['blueprint']
+          print_green_success "Updated blueprint #{blueprint['name']}"
+          details_options = [blueprint['id']]
           get(details_options)
         end
       end
@@ -362,10 +355,10 @@ class Morpheus::Cli::AppTemplates
     image_type_name = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [file]")
+      opts.banner = subcommand_usage("[id] [file]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
-      opts.footer = "Upload an image file to be used as the icon for an app template.\n" + 
-                    "[template] is required. This is the name or id of an app template.\n" +
+      opts.footer = "Upload an image file to be used as the icon for a blueprint.\n" + 
+                    "[id] is required. This is the name or id of a blueprint.\n" +
                     "[file] is required. This is the local path of a file to upload [png|jpg|svg]."
     end
     optparse.parse!(args)
@@ -374,7 +367,7 @@ class Morpheus::Cli::AppTemplates
       puts_error  "#{command_name} upload-image expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     filename = File.expand_path(args[1].to_s)
     image_file = nil
     if filename && File.file?(filename)
@@ -388,23 +381,23 @@ class Morpheus::Cli::AppTemplates
     end
     connect(options)
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      exit 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      exit 1 if blueprint.nil?
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.save_image(app_template['id'], image_file)
+        print_dry_run @blueprints_interface.dry.save_image(blueprint['id'], image_file)
         return 0
       end
       unless options[:quiet] || options[:json]
         print cyan, "Uploading file #{filename} ...", reset, "\n"
       end
-      json_response = @app_templates_interface.save_image(app_template['id'], image_file)
+      json_response = @blueprints_interface.save_image(blueprint['id'], image_file)
       if options[:json]
         print JSON.pretty_generate(json_response)
       elsif !options[:quiet]
-        app_template = json_response['appTemplate']
-        new_image_url = app_template['image']
-        print cyan, "Updated app template #{app_template['name']} image.\nNew image url is: #{new_image_url}", reset, "\n\n"
-        get([app_template['id']])
+        blueprint = json_response['blueprint']
+        new_image_url = blueprint['image']
+        print cyan, "Updated blueprint #{blueprint['name']} image.\nNew image url is: #{new_image_url}", reset, "\n\n"
+        get([blueprint['id']])
       end
       return 0
     rescue RestClient::Exception => e
@@ -416,10 +409,10 @@ class Morpheus::Cli::AppTemplates
   def duplicate(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [new name]")
+      opts.banner = subcommand_usage("[id] [new name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
-      opts.footer = "Duplicate an app template." + "\n" +
-                    "[template] is required. This is the name or id of an app template." + "\n" +
+      opts.footer = "Duplicate a blueprint." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[new name] is required. This is the name for the clone."
     end
     optparse.parse!(args)
@@ -429,31 +422,31 @@ class Morpheus::Cli::AppTemplates
       exit 1
     end
 
-    request_payload = {"appTemplate" => {}}
+    request_payload = {"blueprint" => {}}
     if args[1]
-      request_payload["appTemplate"]["name"] = args[1]
+      request_payload["blueprint"]["name"] = args[1]
     end
 
     connect(options)
     begin
-      app_template = find_app_template_by_name_or_id(args[0])
-      exit 1 if app_template.nil?
-      # unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to duplicate the app template #{app_template['name']}?")
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      exit 1 if blueprint.nil?
+      # unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to duplicate the blueprint #{blueprint['name']}?")
       #   exit
       # end
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.duplicate(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.duplicate(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.duplicate(app_template['id'], request_payload)
+      json_response = @blueprints_interface.duplicate(blueprint['id'], request_payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        new_app_template = json_response["appTemplate"] || {}
-        print_green_success "Created duplicate app template '#{new_app_template['name']}'"
-        #get([new_app_template["id"]])
+        new_blueprint = json_response["blueprint"] || {}
+        print_green_success "Created duplicate blueprint '#{new_blueprint['name']}'"
+        #get([new_blueprint["id"]])
       end
 
     rescue RestClient::Exception => e
@@ -465,10 +458,10 @@ class Morpheus::Cli::AppTemplates
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template]")
+      opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
-      opts.footer = "Delete an app template." + "\n" +
-                    "[template] is required. This is the name or id of an app template."
+      opts.footer = "Delete a blueprint." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
 
@@ -479,22 +472,22 @@ class Morpheus::Cli::AppTemplates
 
     connect(options)
     begin
-      app_template = find_app_template_by_name_or_id(args[0])
-      exit 1 if app_template.nil?
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the app template #{app_template['name']}?")
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      exit 1 if blueprint.nil?
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the blueprint #{blueprint['name']}?")
         exit
       end
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.destroy(app_template['id'])
+        print_dry_run @blueprints_interface.dry.destroy(blueprint['id'])
         return
       end
-      json_response = @app_templates_interface.destroy(app_template['id'])
+      json_response = @blueprints_interface.destroy(blueprint['id'])
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Removed app template #{app_template['name']}"
+        print_green_success "Removed blueprint #{blueprint['name']}"
       end
 
     rescue RestClient::Exception => e
@@ -506,7 +499,7 @@ class Morpheus::Cli::AppTemplates
   def add_instance(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier] [instance-type]")
+      opts.banner = subcommand_usage("[id] [tier] [instance-type]")
       # opts.on( '-g', '--group GROUP', "Group" ) do |val|
       #   options[:group] = val
       # end
@@ -517,8 +510,8 @@ class Morpheus::Cli::AppTemplates
         options[:instance_name] = val
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update an app template, adding an instance." + "\n" +
-                    "[template] is required. This is the name or id of an app template." + "\n" +
+      opts.footer = "Update a blueprint, adding an instance." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required and will be prompted for. This is the name of the tier." + "\n" +
                     "[instance-type] is required and will be prompted for. This is the type of instance."
     end
@@ -533,14 +526,14 @@ class Morpheus::Cli::AppTemplates
     connect(options)
 
     begin
-      app_template_name = args[0]
+      blueprint_name = args[0]
       tier_name = args[1]
       instance_type_code = args[2]
       # we also need consider when there is multiple instances of the same type in
       # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
 
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
       if !tier_name
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tierName', 'fieldLabel' => 'Tier Name', 'type' => 'text', 'required' => true, 'description' => 'Enter the name of the tier'}], options[:options])
@@ -557,8 +550,8 @@ class Morpheus::Cli::AppTemplates
       tier_config = nil
       instance_config = nil
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
       tiers ||= {}
       # tier identified by name, case sensitive...
       if !tiers[tier_name]
@@ -593,31 +586,31 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return 0
       end
 
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
       elsif !options[:quiet]
-        print_green_success "Instance added to app template #{app_template['name']}"
+        print_green_success "Instance added to blueprint #{blueprint['name']}"
         # prompt for new instance
         if !options[:no_prompt]
           if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a config now?", options.merge({default: true}))
             # todo: this needs to work by index, because you can have multiple instances of the same type
-            add_instance_config([app_template['id'], tier_name, instance_type['code']])
+            add_instance_config([blueprint['id'], tier_name, instance_type['code']])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another config?", options.merge({default: false})) do
-              add_instance_config([app_template['id'], tier_name, instance_type['code']])
+              add_instance_config([blueprint['id'], tier_name, instance_type['code']])
             end
           else
             # print details
-            get([app_template['name']])
+            get([blueprint['name']])
           end
         end
       end
@@ -633,7 +626,7 @@ class Morpheus::Cli::AppTemplates
   def add_instance_config(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier] [instance]")
+      opts.banner = subcommand_usage("[id] [tier] [instance]")
       opts.on( '-g', '--group GROUP', "Group" ) do |val|
         options[:group] = val
       end
@@ -647,8 +640,8 @@ class Morpheus::Cli::AppTemplates
         options[:instance_name] = val
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update an app template, adding an instance config." + "\n" +
-                    "[template] is required. This is the name or id of an app template." + "\n" +
+      opts.footer = "Update a blueprint, adding an instance config." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
                     "[instance] is required. This is the type of instance."
     end
@@ -665,14 +658,14 @@ class Morpheus::Cli::AppTemplates
 
     begin
 
-      app_template_name = args[0]
+      blueprint_name = args[0]
       tier_name = args[1]
       instance_type_code = args[2]
       # we also need consider when there is multiple instances of the same type in
       # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
 
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
       instance_type = find_instance_type_by_code(instance_type_code)
       return 1 if instance_type.nil?
@@ -680,8 +673,8 @@ class Morpheus::Cli::AppTemplates
       tier_config = nil
       instance_config = nil
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
       tiers ||= {}
       # tier identified by name, case sensitive...
       if !tiers[tier_name]
@@ -751,21 +744,21 @@ class Morpheus::Cli::AppTemplates
       current_config['groups'][selected_group['name']]['clouds'][selected_cloud['name']] = instance_config_payload
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return 0
       end
 
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "Instance added to app template #{app_template['name']}"
-        get([app_template['name']])
+        print_green_success "Instance added to blueprint #{blueprint['name']}"
+        get([blueprint['name']])
       end
       return 0
 
@@ -780,7 +773,7 @@ class Morpheus::Cli::AppTemplates
     instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier] [instance] -g GROUP -c CLOUD")
+      opts.banner = subcommand_usage("[id] [tier] [instance] -g GROUP -c CLOUD")
       opts.on( '-g', '--group GROUP', "Group" ) do |val|
         options[:group] = val
       end
@@ -794,8 +787,8 @@ class Morpheus::Cli::AppTemplates
       #   instance_index = val.to_i
       # end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
-      opts.footer = "Update an app template, removing a specified instance config." + "\n" +
-                    "[template] is required. This is the name or id of an app template." + "\n" +
+      opts.footer = "Update a blueprint, removing a specified instance config." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
                     "[instance] is required. This is the type of instance." + "\n" +
                     "The config scope is specified with the -g GROUP, -c CLOUD and -e ENV. The -g and -c options are required."
@@ -824,14 +817,14 @@ class Morpheus::Cli::AppTemplates
 
     begin
 
-      app_template_name = args[0]
+      blueprint_name = args[0]
       tier_name = args[1]
       instance_type_code = args[2]
       # we also need consider when there is multiple instances of the same type in
       # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
 
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
       instance_type = find_instance_type_by_code(instance_type_code)
       return 1 if instance_type.nil?
@@ -839,8 +832,8 @@ class Morpheus::Cli::AppTemplates
       tier_config = nil
       # instance_config = nil
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
       tiers ||= {}
       # tier identified by name, case sensitive...
       if !tiers[tier_name]
@@ -935,20 +928,20 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "Removed instance from app template."
-        get([app_template['id']])
+        print_green_success "Removed instance from blueprint."
+        get([blueprint['id']])
       end
       return 0
 
@@ -972,7 +965,7 @@ class Morpheus::Cli::AppTemplates
     instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier] [instance]")
+      opts.banner = subcommand_usage("[id] [tier] [instance]")
       # opts.on('--index NUMBER', Number, "Identify Instance by index within tier, starting with 0." ) do |val|
       #   instance_index = val.to_i
       # end
@@ -991,7 +984,7 @@ class Morpheus::Cli::AppTemplates
 
     begin
 
-      app_template_name = args[0]
+      blueprint_name = args[0]
       tier_name = args[1]
       instance_identier = args[2]
 
@@ -999,8 +992,8 @@ class Morpheus::Cli::AppTemplates
       # we also need consider when there is multiple instances of the same type in
       # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
 
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
       # instance_type = find_instance_type_by_code(instance_type_code)
       # return 1 if instance_type.nil?
@@ -1008,8 +1001,8 @@ class Morpheus::Cli::AppTemplates
       tier_config = nil
       # instance_config = nil
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
       tiers ||= {}
       # tier identified by name, case sensitive...
       if !tiers[tier_name]
@@ -1057,20 +1050,20 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "Removed instance from app template."
-        get([app_template['id']])
+        print_green_success "Removed instance from blueprint."
+        get([blueprint['id']])
       end
       return 0
 
@@ -1085,7 +1078,7 @@ class Morpheus::Cli::AppTemplates
     boot_order = nil
     linked_tiers = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier]")
+      opts.banner = subcommand_usage("[id] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
         options[:name] = val
       end
@@ -1101,26 +1094,26 @@ class Morpheus::Cli::AppTemplates
 
     if args.count < 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add-tier requires argument: [template]\n#{optparse}"
+      puts_error  "#{command_name} add-tier requires argument: [id]\n#{optparse}"
       # puts optparse
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     tier_name = args[1]
 
     connect(options)
 
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
       
-      app_template["config"] ||= {}
-      app_template["config"]["tiers"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      blueprint["config"]["tiers"] ||= {}
+      tiers = blueprint["config"]["tiers"]
 
       # prompt new tier
       # Name
-      # {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1, 'description' => 'A unique name for the app template.'},
+      # {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1, 'description' => 'A unique name for the blueprint.'},
       #   {'fieldName' => 'bootOrder', 'fieldLabel' => 'Boot Order', 'type' => 'text', 'required' => false, 'displayOrder' => 2, 'description' => 'Boot Order'}
       if !tier_name
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Tier Name', 'type' => 'text', 'required' => true, 'description' => 'Enter the name of the tier'}], options[:options])
@@ -1166,15 +1159,15 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = app_template["config"]
-      # request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = blueprint["config"]
+      # request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1183,16 +1176,16 @@ class Morpheus::Cli::AppTemplates
         # prompt for new instance
         if !options[:no_prompt]
           if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add an instance now?", options.merge({default: true}))
-            add_instance([app_template['id'], tier_name])
+            add_instance([blueprint['id'], tier_name])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another instance now?", options.merge({default: false})) do
-              add_instance([app_template['id'], tier_name])
+              add_instance([blueprint['id'], tier_name])
             end
             # if !add_instance_result
             # end
           end
         end
         # print details
-        get([app_template['name']])
+        get([blueprint['name']])
       end
       return 0
     rescue RestClient::Exception => e
@@ -1207,7 +1200,7 @@ class Morpheus::Cli::AppTemplates
     boot_order = nil
     linked_tiers = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier]")
+      opts.banner = subcommand_usage("[id] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
         new_tier_name = val
       end
@@ -1226,18 +1219,18 @@ class Morpheus::Cli::AppTemplates
       puts_error  "#{command_name} update-tier expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     tier_name = args[1]
 
     connect(options)
 
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
       
-      app_template["config"] ||= {}
-      app_template["config"]["tiers"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      blueprint["config"]["tiers"] ||= {}
+      tiers = blueprint["config"]["tiers"]
       
       if !tiers[tier_name]
         print_red_alert "Tier not found by name #{tier_name}"
@@ -1311,21 +1304,21 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = app_template["config"]
-      # request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = blueprint["config"]
+      # request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
       elsif !options[:quiet]
         print_green_success "Updated tier #{tier_name}"
-        get([app_template['id']])
+        get([blueprint['id']])
       end
       return 0
     rescue RestClient::Exception => e
@@ -1337,7 +1330,7 @@ class Morpheus::Cli::AppTemplates
   def remove_tier(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [tier]")
+      opts.banner = subcommand_usage("[id] [tier]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1347,18 +1340,18 @@ class Morpheus::Cli::AppTemplates
       puts_error  "#{command_name} remove-tier expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     tier_name = args[1]
 
     connect(options)
 
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
-      app_template["config"] ||= {}
-      app_template["config"]["tiers"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      blueprint["config"]["tiers"] ||= {}
+      tiers = blueprint["config"]["tiers"]
 
       if !tiers[tier_name]
         # print_red_alert "Tier not found by name #{tier_name}"
@@ -1375,16 +1368,16 @@ class Morpheus::Cli::AppTemplates
       tiers.delete(tier_name)
       
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = app_template["config"]
-      # request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = blueprint["config"]
+      # request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
 
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
 
       if options[:json]
@@ -1392,7 +1385,7 @@ class Morpheus::Cli::AppTemplates
         print "\n"
       else
         print_green_success "Removed tier #{tier_name}"
-        get([app_template['name']])
+        get([blueprint['name']])
       end
 
     rescue RestClient::Exception => e
@@ -1404,7 +1397,7 @@ class Morpheus::Cli::AppTemplates
   def connect_tiers(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [Tier1] [Tier2]")
+      opts.banner = subcommand_usage("[id] [Tier1] [Tier2]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1415,25 +1408,25 @@ class Morpheus::Cli::AppTemplates
       # puts optparse
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     tier1_name = args[1]
     tier2_name = args[2]
 
     connect(options)
 
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
 
       if !tiers || tiers.keys.size == 0
-        error_msg = "App Template #{app_template['name']} has no tiers."
-        # print_red_alert "App Template #{app_template['name']} has no tiers."
-        # raise_command_error "App Template #{app_template['name']} has no tiers."
+        error_msg = "Blueprint #{blueprint['name']} has no tiers."
+        # print_red_alert "Blueprint #{blueprint['name']} has no tiers."
+        # raise_command_error "Blueprint #{blueprint['name']} has no tiers."
         print_error Morpheus::Terminal.angry_prompt
-        puts_error  "App Template #{app_template['name']} has no tiers."
+        puts_error  "Blueprint #{blueprint['name']} has no tiers."
         return 1
       end
 
@@ -1474,23 +1467,23 @@ class Morpheus::Cli::AppTemplates
       end
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = app_template["config"]
-      # request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = blueprint["config"]
+      # request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Connected 2 tiers for app template #{app_template['name']}"
-        get([app_template['name']])
+        print_green_success "Connected 2 tiers for blueprint #{blueprint['name']}"
+        get([blueprint['name']])
       end
 
     rescue RestClient::Exception => e
@@ -1502,7 +1495,7 @@ class Morpheus::Cli::AppTemplates
   def disconnect_tiers(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[template] [Tier1] [Tier2]")
+      opts.banner = subcommand_usage("[id] [Tier1] [Tier2]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1513,24 +1506,24 @@ class Morpheus::Cli::AppTemplates
       # puts optparse
       return 1
     end
-    app_template_name = args[0]
+    blueprint_name = args[0]
     tier1_name = args[1]
     tier2_name = args[2]
 
     connect(options)
 
     begin
-      app_template = find_app_template_by_name_or_id(app_template_name)
-      return 1 if app_template.nil?
+      blueprint = find_blueprint_by_name_or_id(blueprint_name)
+      return 1 if blueprint.nil?
 
-      app_template["config"] ||= {}
-      tiers = app_template["config"]["tiers"]
+      blueprint["config"] ||= {}
+      tiers = blueprint["config"]["tiers"]
 
       if !tiers || tiers.keys.size == 0
-        # print_red_alert "App Template #{app_template['name']} has no tiers."
-        # raise_command_error "App Template #{app_template['name']} has no tiers."
+        # print_red_alert "Blueprint #{blueprint['name']} has no tiers."
+        # raise_command_error "Blueprint #{blueprint['name']} has no tiers."
         print_error Morpheus::Terminal.angry_prompt
-        puts_error  "App Template #{app_template['name']} has no tiers."
+        puts_error  "Blueprint #{blueprint['name']} has no tiers."
         return 1
       end
 
@@ -1564,23 +1557,23 @@ class Morpheus::Cli::AppTemplates
       tier2["linkedTiers"] = tier2["linkedTiers"].reject {|it| it == tier1_name }
 
       # ok, make api request
-      app_template["config"]["tiers"] = tiers
-      request_payload = app_template["config"]
-      # request_payload = {appTemplate: app_template}
+      blueprint["config"]["tiers"] = tiers
+      request_payload = blueprint["config"]
+      # request_payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.update(app_template['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
         return
       end
-      json_response = @app_templates_interface.update(app_template['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
 
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Connected 2 tiers for app template #{app_template['name']}"
-        get([app_template['name']])
+        print_green_success "Connected 2 tiers for blueprint #{blueprint['name']}"
+        get([blueprint['name']])
       end
 
     rescue RestClient::Exception => e
@@ -1601,10 +1594,10 @@ class Morpheus::Cli::AppTemplates
 
     begin
       if options[:dry_run]
-        print_dry_run @app_templates_interface.dry.list_tiers(params)
+        print_dry_run @blueprints_interface.dry.list_tiers(params)
         return
       end
-      json_response = @app_templates_interface.list_tiers(params)
+      json_response = @blueprints_interface.list_tiers(params)
       tiers = json_response["tiers"] # just a list of names
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1639,7 +1632,7 @@ class Morpheus::Cli::AppTemplates
   private
 
 
-  def add_app_template_option_types(connected=true)
+  def add_blueprint_option_types(connected=true)
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
@@ -1648,46 +1641,46 @@ class Morpheus::Cli::AppTemplates
     ]
   end
 
-  def update_app_template_option_types(connected=true)
-    list = add_app_template_option_types(connected)
+  def update_blueprint_option_types(connected=true)
+    list = add_blueprint_option_types(connected)
     list = list.reject {|it| ["group"].include? it['fieldName'] }
     list.each {|it| it['required'] = false }
     list
   end
 
-  def find_app_template_by_name_or_id(val)
+  def find_blueprint_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_app_template_by_id(val)
+      return find_blueprint_by_id(val)
     else
-      return find_app_template_by_name(val)
+      return find_blueprint_by_name(val)
     end
   end
 
-  def find_app_template_by_id(id)
+  def find_blueprint_by_id(id)
     begin
-      json_response = @app_templates_interface.get(id.to_i)
-      return json_response['appTemplate']
+      json_response = @blueprints_interface.get(id.to_i)
+      return json_response['blueprint']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "App Template not found by id #{id}"
+        print_red_alert "Blueprint not found by id #{id}"
       else
         raise e
       end
     end
   end
 
-  def find_app_template_by_name(name)
-    app_templates = @app_templates_interface.list({name: name.to_s})['appTemplates']
-    if app_templates.empty?
-      print_red_alert "App Template not found by name #{name}"
+  def find_blueprint_by_name(name)
+    blueprints = @blueprints_interface.list({name: name.to_s})['blueprints']
+    if blueprints.empty?
+      print_red_alert "Blueprint not found by name #{name}"
       return nil
-    elsif app_templates.size > 1
-      print_red_alert "#{app_templates.size} app templates by name #{name}"
-      print_app_templates_table(app_templates, {color: red})
+    elsif blueprints.size > 1
+      print_red_alert "#{blueprints.size} blueprints by name #{name}"
+      print_blueprints_table(blueprints, {color: red})
       print reset,"\n"
       return nil
     else
-      return app_templates[0]
+      return blueprints[0]
     end
   end
 
@@ -1711,20 +1704,20 @@ class Morpheus::Cli::AppTemplates
     end
   end
 
-  def print_app_templates_table(app_templates, opts={})
+  def print_blueprints_table(blueprints, opts={})
     table_color = opts[:color] || cyan
-    rows = app_templates.collect do |app_template|
-      #instance_type_names = (app_template['instanceTypes'] || []).collect {|it| it['name'] }.join(', ')
+    rows = blueprints.collect do |blueprint|
+      #instance_type_names = (blueprint['instanceTypes'] || []).collect {|it| it['name'] }.join(', ')
       instance_type_names = []
-      # if app_template['config'] && app_template['config']["tiers"]
-      #   app_template['config']["tiers"]
+      # if blueprint['config'] && blueprint['config']["tiers"]
+      #   blueprint['config']["tiers"]
       # end
       {
-        id: app_template['id'],
-        name: app_template['name'],
-        description: app_template['description'],
-        category: app_template['category'],
-        tiers_summary: format_app_template_tiers_summary(app_template)
+        id: blueprint['id'],
+        name: blueprint['name'],
+        description: blueprint['description'],
+        category: blueprint['category'],
+        tiers_summary: format_blueprint_tiers_summary(blueprint)
       }
     end
 
@@ -1754,11 +1747,11 @@ class Morpheus::Cli::AppTemplates
     id
   end
 
-  def format_app_template_tiers_summary(app_template)
+  def format_blueprint_tiers_summary(blueprint)
     # don't use colors here, or cell truncation will not work
     str = ""
-    if app_template["config"] && app_template["config"]["tiers"]
-      tier_descriptions = app_template["config"]["tiers"].collect do |tier_name, tier_config|
+    if blueprint["config"] && blueprint["config"]["tiers"]
+      tier_descriptions = blueprint["config"]["tiers"].collect do |tier_name, tier_config|
         # maybe do Tier Name (instance, instance2)
         instance_blurbs = []
         if tier_config["instances"]
@@ -1806,7 +1799,7 @@ class Morpheus::Cli::AppTemplates
     str
   end
 
-  def print_app_template_details(app_template)
+  def print_blueprint_details(blueprint)
     print cyan
     description_cols = {
       "ID" => 'id',
@@ -1815,17 +1808,17 @@ class Morpheus::Cli::AppTemplates
       "Category" => 'category',
       #"Image" => lambda {|it| it['config'] ? it['config']['image'] : '' },
     }
-    if app_template["config"] && app_template["config"]["image"]
-      description_cols["Image"] = lambda {|it| app_template["config"]["image"] }
+    if blueprint["config"] && blueprint["config"]["image"]
+      description_cols["Image"] = lambda {|it| blueprint["config"]["image"] }
     # else
       # '/assets/apps/template.png'
     end
-    print_description_list(description_cols, app_template)
+    print_description_list(description_cols, blueprint)
     # print_h2 "Tiers"
-    if app_template["config"] && app_template["config"]["tiers"] && app_template["config"]["tiers"].keys.size != 0
+    if blueprint["config"] && blueprint["config"]["tiers"] && blueprint["config"]["tiers"].keys.size != 0
       print cyan
-      #puts as_yaml(app_template["config"]["tiers"])
-      app_template["config"]["tiers"].each do |tier_name, tier_config|
+      #puts as_yaml(blueprint["config"]["tiers"])
+      blueprint["config"]["tiers"].each do |tier_name, tier_config|
         # print_h2 "Tier: #{tier_name}"
         print_h2 tier_name
         # puts "  Instances:"
@@ -1877,10 +1870,10 @@ class Morpheus::Cli::AppTemplates
                   puts "  * #{config_description}"
                 end
               else
-                print white,"  Instance has no configs, see `app-templates add-instance-config \"#{app_template['name']}\" \"#{tier_name}\" \"#{instance_type_code}\"`",reset,"\n"
+                print white,"  Instance has no configs, see `app-templates add-instance-config \"#{blueprint['name']}\" \"#{tier_name}\" \"#{instance_type_code}\"`",reset,"\n"
               end
             rescue => err
-              #puts_error "Failed to parse instance scoped instance configs for app template #{app_template['id']} #{app_template['name']} Exception: #{err.class} #{err.message}"
+              #puts_error "Failed to parse instance scoped instance configs for blueprint #{blueprint['id']} #{blueprint['name']} Exception: #{err.class} #{err.message}"
             end
             print "\n"
             #puts as_yaml(instance_config)
@@ -1897,7 +1890,7 @@ class Morpheus::Cli::AppTemplates
           end  
           
         else
-          print white,"  Tier is empty, see `app-templates add-instance \"#{app_template['name']}\" \"#{tier_name}\"`",reset,"\n"
+          print white,"  Tier is empty, see `app-templates add-instance \"#{blueprint['name']}\" \"#{tier_name}\"`",reset,"\n"
         end
         # print "\n"
 
@@ -1905,7 +1898,7 @@ class Morpheus::Cli::AppTemplates
       # print "\n"
 
     else
-      print white,"\nTemplate is empty, see `app-templates add-tier \"#{app_template['name']}\"`",reset,"\n"
+      print white,"\nTemplate is empty, see `app-templates add-tier \"#{blueprint['name']}\"`",reset,"\n"
     end
   end
 
@@ -1959,7 +1952,7 @@ class Morpheus::Cli::AppTemplates
   end
 
   def link_tiers(tiers, tier_names)
-    # tiers = app_template["config"]["tiers"]
+    # tiers = blueprint["config"]["tiers"]
     tier_names = [tier_names].flatten.collect {|it| it }.compact.uniq
     if !tiers
       print_red_alert "No tiers found for template"
@@ -1988,7 +1981,7 @@ class Morpheus::Cli::AppTemplates
   end
 
   def unlink_tiers(tiers, tier_names)
-    # tiers = app_template["config"]["tiers"]
+    # tiers = blueprint["config"]["tiers"]
     tier_names = [tier_names].flatten.collect {|it| it }.compact.uniq
     if !tiers
       print_red_alert "No tiers found for template"

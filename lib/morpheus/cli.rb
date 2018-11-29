@@ -96,7 +96,8 @@ module Morpheus
       load 'morpheus/cli/instances.rb'
       load 'morpheus/cli/containers_command.rb'
       load 'morpheus/cli/apps.rb'
-      load 'morpheus/cli/app_templates.rb'
+      load 'morpheus/cli/blueprints_command.rb'
+      load 'morpheus/cli/app_templates.rb' # deprecated
       load 'morpheus/cli/deploys.rb'
       load 'morpheus/cli/license.rb'
       load 'morpheus/cli/instance_types.rb'
