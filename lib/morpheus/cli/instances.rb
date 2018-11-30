@@ -5,11 +5,13 @@ require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
+require 'morpheus/cli/mixins/processes_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::ProcessesHelper
 
   register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   register_subcommands :exec => :execution_request
