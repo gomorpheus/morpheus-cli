@@ -4,7 +4,7 @@ require 'morpheus/cli/mixins/processes_helper'
 class Morpheus::Cli::Processes
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProcessesHelper
-  
+
   set_command_name :'process'
 
   register_subcommands :list, :get, {:'get-event' => :event_details}
@@ -86,7 +86,7 @@ class Morpheus::Cli::Processes
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if json_response['processes'].empty?
-          print "#{cyan}No processes found.#{reset}\n\n"
+          print "#{cyan}No process history found.#{reset}\n\n"
           return 0
         else
           history_records = []

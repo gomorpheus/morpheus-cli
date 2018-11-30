@@ -2519,7 +2519,7 @@ class Morpheus::Cli::Instances
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if json_response['processes'].empty?
-          puts "#{cyan}No history found.#{reset}"
+          print "#{cyan}No process history found.#{reset}\n\n"
         else
           history_records = []
           json_response["processes"].each do |process|
