@@ -6,12 +6,14 @@ require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
+require 'morpheus/cli/mixins/processes_helper'
 
 class Morpheus::Cli::Apps
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::ProcessesHelper
 
-  register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups
+  register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
   alias_subcommand :details, :get
   set_default_subcommand :list
   
@@ -27,6 +29,7 @@ class Morpheus::Cli::Apps
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
+    @processes_interface = @api_client.processes
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
@@ -862,6 +865,153 @@ class Morpheus::Cli::Apps
       end
       @apps_interface.apply_security_groups(app['id'], options)
       security_groups([args[0]])
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def history(args)
+    raw_args = args.dup
+    options = {}
+    #options[:show_output] = true
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      # opts.on( '-n', '--node NODE_ID', "Scope history to specific Container or VM" ) do |node_id|
+      #   options[:node_id] = node_id.to_i
+      # end
+      opts.on( nil, '--events', "Display sub processes (events)." ) do
+        options[:show_events] = true
+      end
+      opts.on( nil, '--output', "Display process output." ) do
+        options[:show_output] = true
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List historical processes for a specific app.\n" + 
+                    "[app] is required. This is the name or id of an app."
+    end
+    optparse.parse!(args)
+
+    if args.count != 1
+      puts optparse
+      return 1
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+
+      instance_ids = []
+      app['appTiers'].each do |app_tier|
+        app_tier['appInstances'].each do |app_instance|
+          instance_ids << app_instance['instance']['id']
+        end
+      end
+      
+      # container_ids = instance['containers']
+      # if options[:node_id] && container_ids.include?(options[:node_id])
+      #   container_ids = [options[:node_id]]
+      # end
+      params = {}
+      params['instanceIds'] = instance_ids
+      params.merge!(parse_list_options(options))
+      # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      if options[:dry_run]
+        print_dry_run @processes_interface.dry.list(params)
+        return
+      end
+      json_response = @processes_interface.list(params)
+      if options[:json]
+        puts as_json(json_response, options, "processes")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "processes")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['processes'], options)
+        return 0
+      else
+
+        title = "App History: #{app['name']}"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
+        end
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles
+        if json_response['processes'].empty?
+          print "#{cyan}No process history found.#{reset}\n\n"
+        else
+          history_records = []
+          json_response["processes"].each do |process|
+            row = {
+              id: process['id'],
+              eventId: nil,
+              uniqueId: process['uniqueId'],
+              name: process['displayName'],
+              description: process['description'],
+              processType: process['processType'] ? (process['processType']['name'] || process['processType']['code']) : process['processTypeName'],
+              createdBy: process['createdBy'] ? (process['createdBy']['displayName'] || process['createdBy']['username']) : '',
+              startDate: format_local_dt(process['startDate']),
+              duration: format_process_duration(process),
+              status: format_process_status(process),
+              error: format_process_error(process),
+              output: format_process_output(process)
+            }
+            history_records << row
+            process_events = process['events'] || process['processEvents']
+            if options[:show_events]
+              if process_events
+                process_events.each do |process_event|
+                  event_row = {
+                    id: process['id'],
+                    eventId: process_event['id'],
+                    uniqueId: process_event['uniqueId'],
+                    name: process_event['displayName'], # blank like the UI
+                    description: process_event['description'],
+                    processType: process_event['processType'] ? (process_event['processType']['name'] || process_event['processType']['code']) : process['processTypeName'],
+                    createdBy: process_event['createdBy'] ? (process_event['createdBy']['displayName'] || process_event['createdBy']['username']) : '',
+                    startDate: format_local_dt(process_event['startDate']),
+                    duration: format_process_duration(process_event),
+                    status: format_process_status(process_event),
+                    error: format_process_error(process_event),
+                    output: format_process_output(process_event)
+                  }
+                  history_records << event_row
+                end
+              else
+                
+              end
+            end
+          end
+          columns = [
+            {:id => {:display_name => "PROCESS ID"} },
+            :name, 
+            :description, 
+            {:processType => {:display_name => "PROCESS TYPE"} },
+            {:createdBy => {:display_name => "CREATED BY"} },
+            {:startDate => {:display_name => "START DATE"} },
+            {:duration => {:display_name => "ETA/DURATION"} },
+            :status, 
+            :error
+          ]
+          if options[:show_events]
+            columns.insert(1, {:eventId => {:display_name => "EVENT ID"} })
+          end
+          if options[:show_output]
+            columns << :output
+          end
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(history_records, columns, options)
+          #print_results_pagination(json_response)
+          print_results_pagination(json_response, {:label => "process", :n_label => "processes"})
+          print reset, "\n"
+          return 0
+        end
+      end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
