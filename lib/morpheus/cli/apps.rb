@@ -876,7 +876,7 @@ class Morpheus::Cli::Apps
     options = {}
     #options[:show_output] = true
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[instance]")
+      opts.banner = subcommand_usage("[app]")
       # opts.on( '-n', '--node NODE_ID', "Scope history to specific Container or VM" ) do |node_id|
       #   options[:node_id] = node_id.to_i
       # end
