@@ -8,6 +8,7 @@ class Morpheus::Cli::BlueprintsCommand
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :duplicate
   register_subcommands :'upload-image' => :upload_image
+  register_subcommands :'update-permissions' => :update_permissions
   register_subcommands :'available-tiers'
   register_subcommands :'add-tier', :'update-tier', :'remove-tier', :'connect-tiers', :'disconnect-tiers'
   register_subcommands :'add-instance'
@@ -155,6 +156,28 @@ class Morpheus::Cli::BlueprintsCommand
       print_h1 "Blueprint Details"
       
       print_blueprint_details(blueprint)
+
+      if blueprint['resourcePermission'].nil?
+        print "\n", "No group access found", "\n"
+      else
+        print_h2 "Group Access"
+        rows = []
+        if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
+          rows.push({"name" => 'All'})
+        end
+        if blueprint['resourcePermission']['sites']
+          blueprint['resourcePermission']['sites'].each do |site|
+            rows.push(site)
+          end
+        end
+        rows = rows.collect do |site|
+          {group: site['name'], default: site['default'] ? 'Yes' : ''}
+        end
+        # columns = [:group, :default]
+        columns = [:group]
+        print cyan
+        print as_pretty_table(rows, columns)
+      end
 
       print reset,"\n"
       
@@ -344,6 +367,109 @@ class Morpheus::Cli::BlueprintsCommand
         end
       end
 
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_permissions(args)
+    group_access_all = nil
+    group_access_list = nil
+    group_defaults_list = nil
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_access_list = []
+        else
+          group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--visibility [private|public]', String, "Visibility") do |val|
+        options['visibility'] = val
+      end
+      build_option_type_options(opts, options, update_blueprint_option_types(false))
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Update a blueprint permissions.\n" + 
+                    "[id] is required. This is the name or id of a blueprint."
+    end
+    optparse.parse!(args)
+
+    if args.count != 1
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+
+    begin
+
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      return 1 if blueprint.nil?
+
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = {
+          'blueprint' => {
+          }
+        }
+        
+        # allow arbitrary -O options
+        payload['blueprint'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        # Group Access
+        if group_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = group_access_all
+        end
+        if group_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Tenants
+        # if options['tenants']
+        #   payload['tenantPermissions'] = {}
+        #   payload['tenantPermissions']['accounts'] = options['tenants']
+        # end
+        
+        # Visibility
+        if options['visibility'] != nil
+          payload['blueprint']['visibility'] = options['visibility']
+        end
+      end
+      
+      if options[:dry_run]
+        print_dry_run @blueprints_interface.dry.update_permissions(blueprint['id'], payload)
+        return
+      end
+
+      json_response = @blueprints_interface.update_permissions(blueprint['id'], payload)
+
+      if options[:json]
+        puts JSON.pretty_generate(json_response)
+      else
+        unless options[:quiet]
+          blueprint = json_response['blueprint']
+          print_green_success "Updated permissions for blueprint #{blueprint['name']}"
+          details_options = [blueprint['id']]
+          get(details_options)
+        end
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1806,13 +1932,9 @@ class Morpheus::Cli::BlueprintsCommand
       "Name" => 'name',
       "Description" => 'description',
       "Category" => 'category',
-      #"Image" => lambda {|it| it['config'] ? it['config']['image'] : '' },
+      "Image" => lambda {|it| it['config'] ? (it['config']['image'] == '/assets/apps/template.png' ? '(default)' : it['config']['image']) : '' },
+      "Visibility" => 'visibility'
     }
-    if blueprint["config"] && blueprint["config"]["image"]
-      description_cols["Image"] = lambda {|it| blueprint["config"]["image"] }
-    # else
-      # '/assets/apps/template.png'
-    end
     print_description_list(description_cols, blueprint)
     # print_h2 "Tiers"
     if blueprint["config"] && blueprint["config"]["tiers"] && blueprint["config"]["tiers"].keys.size != 0

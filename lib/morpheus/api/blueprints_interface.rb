@@ -36,13 +36,12 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def save_image(id, options)
-    url = "#{@base_url}/api/blueprints/#{id}"
+  def update_permissions(id, options)
+    url = "#{@base_url}/api/blueprints/#{id}/update-permissions"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
-    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
-
 
   # multipart image upload
   def save_image(id, image_file, params={})
