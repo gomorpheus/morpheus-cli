@@ -12,7 +12,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
-  register_subcommands :list, :count, :get, :stats, :add, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
+  register_subcommands :list, :count, :get, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
   register_subcommands :exec => :execution_request
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -674,6 +674,74 @@ class Morpheus::Cli::Hosts
         print_green_success "Provisioning Server..." 
         list([])
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.on('--ssh-username VALUE', String, "SSH Username") do |val|
+        params['sshUsername'] = val == "null" ? nil : val
+      end
+      opts.on('--ssh-password VALUE', String, "SSH Password") do |val|
+        params['sshPassword'] = val == "null" ? nil : val
+      end
+      opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
+        params['powerScheduleType'] = val == "null" ? nil : val
+      end
+      # opts.on('--created-by ID', String, "Created By User ID") do |val|
+      #   params['createdById'] = val
+      # end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts optparse
+      return 1
+    end
+    connect(options)
+
+    begin
+      server = find_host_by_name_or_id(args[0])
+      return 1 if server.nil?
+      new_group = nil
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support args and option parameters on top of payload
+        if !params.empty?
+          payload['server'] ||= {}
+          payload['server'].deep_merge!(params)
+        end
+      else
+        if params.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          return 1
+        end
+        payload = {}
+        payload['server'] = params
+      end
+
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.update(server["id"], payload)
+        return
+      end
+      json_response = @servers_interface.update(server["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated host #{server['name']}"
+        get([server['id']])
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
