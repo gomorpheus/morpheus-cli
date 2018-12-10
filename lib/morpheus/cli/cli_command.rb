@@ -763,7 +763,7 @@ module Morpheus
 
         def default_command_name
           class_name = self.name.split('::')[-1]
-          class_name.sub!(/Command$/, '')
+          #class_name.sub!(/Command$/, '')
           Morpheus::Cli::CliRegistry.cli_ize(class_name)
         end
         

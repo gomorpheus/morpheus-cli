@@ -4,7 +4,7 @@ require 'morpheus/cli/mixins/provisioning_helper'
 class Morpheus::Cli::BlueprintsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
-
+  set_command_name :'blueprints'
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :duplicate
   register_subcommands :'upload-image' => :upload_image
