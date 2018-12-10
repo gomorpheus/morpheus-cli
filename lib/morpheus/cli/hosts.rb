@@ -685,6 +685,12 @@ class Morpheus::Cli::Hosts
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--name VALUE', String, "Name") do |val|
+        params['name'] = val == "null" ? nil : val
+      end
+      opts.on('--description VALUE', String, "Description") do |val|
+        params['description'] = val == "null" ? nil : val
+      end
       opts.on('--ssh-username VALUE', String, "SSH Username") do |val|
         params['sshUsername'] = val == "null" ? nil : val
       end
