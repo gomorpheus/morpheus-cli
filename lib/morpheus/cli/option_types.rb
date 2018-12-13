@@ -126,20 +126,10 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              select_api_params = {}.merge(api_params || {})
-              results.each do |k,v|
-                if v.is_a?(Hash)
-                  # grailsify params k.k2, otherwise you'll get bracked param names like k[k2]
-                  v.each {|k2, v2| 
-                    select_api_params["#{k}.#{k2}"] = v2
-                  }
-                else
-                  # could be String/Symbol duplication issues here.
-                  select_api_params.delete(k.to_sym)
-                  select_api_params[k.to_s] = v
-                end
-              end
-            value = select_prompt(option_type,api_client, select_api_params)
+              select_api_params = {}.merge(api_params || {}).merge(results)
+              grails_select_api_params = grails_params(select_api_params)
+              
+            value = select_prompt(option_type,api_client, grails_select_api_params)
           elsif option_type['type'] == 'hidden'
             value = option_type['defaultValue']
             input = value
@@ -155,6 +145,21 @@ module Morpheus
       return results
     end
 
+    def self.grails_params(data, context=nil)
+      params = {}
+      data.each do |k,v|
+        if v.is_a?(Hash)
+          params.merge!(grails_params(v, context ? "#{context}.#{k.to_s}" : k))
+        else
+          if context
+            params["#{context}.#{k.to_s}"] = v
+          else
+            params[k.to_s] = v
+          end
+        end
+      end
+      return params
+    end
 
     def self.radio_prompt(option_type)
       value_found = false
