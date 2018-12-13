@@ -32,18 +32,38 @@ class Morpheus::PackagesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def install(payload)
+  def info(params={})
+    url = "#{@base_url}/api/packages/info"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers[:params].merge!(params)
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def install(params={}, payload={})
     url = "#{@base_url}/api/packages/install"
-    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def install_file(package_file, params={})
+  # def install_file(package_file, params={})
+  #   url = "#{@base_url}/api/packages/install-file"
+  #   headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
+  #   payload = package_file
+  #   execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
+  # end
+
+  def install_file(local_file, params={})
     url = "#{@base_url}/api/packages/install-file"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
-    payload = package_file
-    execute(method: :post, url: url, headers: headers, payload: payload, timeout: 36000)
+    if !local_file.kind_of?(File)
+      local_file = File.new(local_file, 'rb')
+    end
+    payload = local_file
+    headers['Content-Length'] = local_file.size # File.size(local_file)
+    opts = {method: :post, url: url, headers: headers, payload: payload}
+    execute(opts)
   end
 
   def update(id, payload)

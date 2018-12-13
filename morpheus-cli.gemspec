@@ -28,4 +28,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'mime-types'
   spec.add_dependency "table_print"
   spec.add_dependency "http"
+  spec.add_dependency "rubyzip"
 end
