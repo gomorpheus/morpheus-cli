@@ -8,6 +8,8 @@ class Morpheus::Cli::MonitoringChecksCommand
   set_command_name :'monitor-checks'
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :mute, :unmute, :history #, :statistics
+  register_subcommands :'mute-all' => :mute_all
+  register_subcommands :'unmute-all' => :unmute_all
   register_subcommands :'list-types' => :list_types
   
   def connect(opts)
@@ -531,8 +533,95 @@ class Morpheus::Cli::MonitoringChecksCommand
     end
   end
 
+  def mute_all(args)
+    options = {}
+    params = {'enabled' => true}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
+        params['enabled'] = false
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Mute all checks. This prevents the creation new incidents."
+    end
+    optparse.parse!(args)
+    if args.count != 0
+      puts optparse
+      return 1
+    end
+    connect(options)
+    begin
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
+      end
+      if options[:dry_run]
+        print_dry_run @monitoring_interface.checks.dry.quarantine_all(payload)
+        return 0
+      end
+      json_response = @monitoring_interface.checks.quarantine_all(payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        if params['enabled']
+          print_green_success "Muted all checks"
+        else
+          print_green_success "Unmuted all checks"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def unmute_all(args)
+    options = {}
+    params = {'enabled' => false}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Unmute all checks."
+    end
+    optparse.parse!(args)
+    if args.count != 0
+      puts optparse
+      return 1
+    end
+    connect(options)
+
+    begin
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
+      end
+      if options[:dry_run]
+        print_dry_run @monitoring_interface.checks.dry.quarantine_all(payload)
+        return 0
+      end
+      json_response = @monitoring_interface.checks.quarantine_all(payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        print_green_success "Unmuted all checks"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def remove(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
@@ -550,12 +639,6 @@ class Morpheus::Cli::MonitoringChecksCommand
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete check '#{check['name']}'?", options)
         return false
       end
-
-      # payload = {
-      #   'check' => {id: check["id"]}
-      # }
-      # payload['check'].merge!(check)
-      payload = params
 
       if options[:dry_run]
         print_dry_run @monitoring_interface.checks.dry.destroy(check["id"])

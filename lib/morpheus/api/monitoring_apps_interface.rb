@@ -51,6 +51,13 @@ class Morpheus::MonitoringAppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def quarantine_all(payload={})
+    url = "#{@base_url}/api/monitoring/apps/quarantine-all"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def statistics(id, params={})
     url = "#{@base_url}/api/monitoring/apps/#{id}/statistics"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
