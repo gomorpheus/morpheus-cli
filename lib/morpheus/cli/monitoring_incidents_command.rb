@@ -7,7 +7,9 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   set_command_name :'monitor-incidents'
   register_subcommands :list, :stats, :get, :history, :notifications, :update, :close, :reopen, :mute, :unmute
-  
+  register_subcommands :'mute-all' => :mute_all
+  register_subcommands :'unmute-all' => :unmute_all
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
@@ -555,6 +557,94 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       elsif !options[:quiet]
         print_green_success "Unmuted incident #{incident['id']}"
         _get(incident['id'], {})
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def mute_all(args)
+    options = {}
+    params = {'enabled' => true}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
+        params['enabled'] = false
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Mute all open incidents."
+    end
+    optparse.parse!(args)
+    if args.count != 0
+      puts optparse
+      return 1
+    end
+    connect(options)
+    begin
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
+      end
+      if options[:dry_run]
+        print_dry_run @monitoring_interface.incidents.dry.quarantine_all(payload)
+        return 0
+      end
+      json_response = @monitoring_interface.incidents.quarantine_all(payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        num_updated = json_response['updated']
+        if params['enabled']
+          print_green_success "Muted #{num_updated} open incidents"
+        else
+          print_green_success "Unmuted #{num_updated} open incidents"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def unmute_all(args)
+    options = {}
+    params = {'enabled' => false}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Unmute all open incidents."
+    end
+    optparse.parse!(args)
+    if args.count != 0
+      puts optparse
+      return 1
+    end
+    connect(options)
+
+    begin
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = params
+      end
+      if options[:dry_run]
+        print_dry_run @monitoring_interface.incidents.dry.quarantine_all(payload)
+        return 0
+      end
+      json_response = @monitoring_interface.incidents.quarantine_all(payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        num_updated = json_response['updated']
+        print_green_success "Unmuted #{num_updated} open incidents"
       end
       return 0
     rescue RestClient::Exception => e

@@ -566,10 +566,11 @@ class Morpheus::Cli::MonitoringChecksCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
+        num_updated = json_response['updated']
         if params['enabled']
-          print_green_success "Muted all checks"
+          print_green_success "Muted #{num_updated} checks"
         else
-          print_green_success "Unmuted all checks"
+          print_green_success "Unmuted #{num_updated} checks"
         end
       end
       return 0
@@ -610,7 +611,8 @@ class Morpheus::Cli::MonitoringChecksCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success "Unmuted all checks"
+        num_updated = json_response['updated']
+        print_green_success "Unmuted #{num_updated} checks"
       end
       return 0
     rescue RestClient::Exception => e
