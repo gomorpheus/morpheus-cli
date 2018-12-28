@@ -100,7 +100,9 @@ module Morpheus
           rescue ::RestClient::Exception => e
             #raise e
             if (e.response && e.response.code == 400)
-              print_red_alert "Credentials not verified."
+              json_response = JSON.parse(e.response.to_s)
+              error_msg = json_response['error_description'] || "Credentials not verified."
+              print_red_alert error_msg
               if opts[:json]
                 json_response = JSON.parse(e.response.to_s)
                 print JSON.pretty_generate(json_response)
