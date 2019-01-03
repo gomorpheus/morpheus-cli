@@ -148,6 +148,7 @@ module Morpheus
       load 'morpheus/cli/archives_command.rb'
       load 'morpheus/cli/storage_providers_command.rb'
       load 'morpheus/cli/execution_request_command.rb'
+      load 'morpheus/cli/file_copy_request_command.rb'
       load 'morpheus/cli/processes_command.rb'
 
       # nice to have commands

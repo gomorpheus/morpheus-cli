@@ -315,6 +315,10 @@ class Morpheus::APIClient
     Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def file_copy_request
+    Morpheus::FileCopyRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def processes
     Morpheus::ProcessesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
