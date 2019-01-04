@@ -810,7 +810,10 @@ class Morpheus::Cli::Roles
       if !do_all
         group_id = nil
         if !options[:group].nil?
-          group_id = find_group_id_by_name(options[:group])
+          #group_id = find_group_id_by_name(options[:group])
+          group = find_group_by_name(options[:group])
+          return 1 if group.nil?
+          group_id = group['id']
         else
           group_id = @active_group_id
         end
