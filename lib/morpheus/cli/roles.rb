@@ -429,7 +429,7 @@ class Morpheus::Cli::Roles
       end
 
       if params['multitenant'].to_s != ''
-        role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
+        role_payload['multitenant'] = ['on','true'].include?(params['multitenant'].to_s)
       end
       payload = {role: role_payload}
       if options[:dry_run]
