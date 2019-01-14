@@ -161,7 +161,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:url] = file_url
     headers[:params][:filename] = filename if filename
-    execute(method: :post, url: url, headers: headers, timeout: 36000)
+    execute(method: :post, url: url, headers: headers, timeout: 172800)
   end
 
   def destroy_file(id, filename)
