@@ -236,7 +236,7 @@ class Morpheus::Cli::NetworksCommand
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true'
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true'
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
@@ -417,7 +417,13 @@ class Morpheus::Cli::NetworksCommand
         end
       
         # Group Access
-        if group_access_all != nil
+        # Group Access (default is All)
+        if group_access_all.nil?
+          if payload['resourcePermissions'].nil?
+            payload['resourcePermissions'] ||= {}
+            payload['resourcePermissions']['all'] = true
+          end
+        else
           payload['resourcePermissions'] ||= {}
           payload['resourcePermissions']['all'] = group_access_all
         end
@@ -517,7 +523,7 @@ class Morpheus::Cli::NetworksCommand
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true'
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true'
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
