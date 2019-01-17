@@ -2055,12 +2055,12 @@ class Morpheus::Cli::Instances
     params = {}
     params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
-    if params.empty? && !editable_options.empty?
-      puts optparse
-      option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-      puts "\nAvailable Options:\n#{option_lines}\n\n"
-      exit 1
-    end
+    # if params.empty? && !editable_options.empty?
+    #   puts optparse
+    #   option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+    #   puts "\nAvailable Options:\n#{option_lines}\n\n"
+    #   exit 1
+    # end
 
     workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
     begin

@@ -1096,12 +1096,12 @@ class Morpheus::Cli::Hosts
           end
         end
       end
-      if params.empty? && !editable_options.empty?
-        puts optparse
-        option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        return 1
-      end
+      # if params.empty? && !editable_options.empty?
+      #   puts optparse
+      #   option_lines = editable_options.collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
+      #   puts "\nAvailable Options:\n#{option_lines}\n\n"
+      #   return 1
+      # end
 
     end
 
