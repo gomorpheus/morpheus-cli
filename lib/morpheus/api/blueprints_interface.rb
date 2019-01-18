@@ -73,12 +73,11 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  # unused, prefer /options/instanceTypes
-  # def list_types(options={})
-  #   url = "#{@base_url}/api/blueprints/types"
-  #   headers = { params: {}, authorization: "Bearer #{@access_token}" }
-  #   headers[:params].merge!(options)
-  #   execute(method: :get, url: url, headers: headers)
-  # end
+  def list_types(options={})
+    url = "#{@base_url}/api/blueprints/types"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers[:params].merge!(options)
+    execute(method: :get, url: url, headers: headers)
+  end
 
 end

@@ -6,6 +6,7 @@ class Morpheus::Cli::BlueprintsCommand
   include Morpheus::Cli::ProvisioningHelper
   set_command_name :'blueprints'
   register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :'types' => :list_types
   register_subcommands :duplicate
   register_subcommands :'upload-image' => :upload_image
   register_subcommands :'update-permissions' => :update_permissions
@@ -1755,6 +1756,70 @@ class Morpheus::Cli::BlueprintsCommand
 
   end
 
+  def list_types(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List blueprint types."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params = {}
+      [:phrase, :offset, :max, :sort, :direction].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
+      if options[:dry_run]
+        print_dry_run @blueprints_interface.dry.list_types(params)
+        return
+      end
+
+      json_response = @blueprints_interface.list_types(params)
+      blueprint_types = json_response['types']
+
+      if options[:json]
+        puts as_json(json_response, options, "types")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['types'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "types")
+        return 0
+      end
+
+      
+      title = "Morpheus Blueprint Types"
+      subtitles = []
+      if params[:phrase]
+        subtitles << "Search: #{params[:phrase]}".strip
+      end
+      print_h1 title, subtitles
+      if blueprint_types.empty?
+        print cyan,"No blueprint types found.",reset,"\n"
+      else
+        rows = blueprint_types.collect do |blueprint_type|
+          {
+            code: blueprint_type['code'],
+            name: blueprint_type['name']
+          }
+        end
+        columns = [:code, :name]
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        # print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
 
 
@@ -1762,9 +1827,28 @@ class Morpheus::Cli::BlueprintsCommand
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
+      # skip Type for now because other types need to use --config anyhow
+      #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprint_types() : []), 'required' => true, 'defaultValue' => 'morpheus', 'displayOrder' => 3},
+      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
       #{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true}
     ]
+  end
+
+  def get_available_blueprint_types(refresh=false)
+    if !@available_blueprint_types || refresh
+      begin
+        # results = @options_interface.options_for_source('blueprintTypes',{})
+        results = @blueprints_interface.list_types({})
+        @available_blueprint_types = results['types'].collect {|it|
+          {"name" => (it["name"] || it["code"]), "value" => (it["code"] || it["value"])}
+        }
+      rescue RestClient::Exception => e
+        # older version
+        @available_blueprint_types = [{"name" => "Morpheus", "value" => "morpheus"}, {"name" => "Terraform", "value" => "terraform"}, {"name" => "CloudFormation", "value" => "cloudFormation"}, {"name" => "ARM template", "value" => "arm"}]
+      end
+    end
+    #puts "get_available_blueprints() rtn: #{@available_blueprints.inspect}"
+    return @available_blueprint_types
   end
 
   def update_blueprint_option_types(connected=true)
@@ -1842,6 +1926,7 @@ class Morpheus::Cli::BlueprintsCommand
         id: blueprint['id'],
         name: blueprint['name'],
         description: blueprint['description'],
+        type: blueprint['type'].kind_of?(Hash) ? blueprint['type']['name'] : blueprint['type'],
         category: blueprint['category'],
         tiers_summary: format_blueprint_tiers_summary(blueprint)
       }
@@ -1856,6 +1941,7 @@ class Morpheus::Cli::BlueprintsCommand
       :id,
       :name,
       :description,
+      :type,
       :category,
       {:tiers_summary => {:display_name => "TIERS", :max_width => tiers_col_width} }
     ]
@@ -1931,6 +2017,7 @@ class Morpheus::Cli::BlueprintsCommand
       "ID" => 'id',
       "Name" => 'name',
       "Description" => 'description',
+      "Type" => lambda {|it| it['type'].kind_of?(Hash) ? it['type']['name'] : it['type'] },
       "Category" => 'category',
       "Image" => lambda {|it| it['config'] ? (it['config']['image'] == '/assets/apps/template.png' ? '(default)' : it['config']['image']) : '' },
       "Visibility" => 'visibility'
