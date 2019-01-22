@@ -118,6 +118,9 @@ class Morpheus::Cli::Apps
       opts.on('--config-file FILE', String, "App Config from a local JSON or YAML file") do |val|
         options['configFile'] = val.to_s
       end
+      opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
+        options['configDir'] = val.to_s
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
       opts.footer = "Create a new app.\n" +
                     "[name] is required. This is the name of the new app. It may also be passed as --name or inside your config."
@@ -140,7 +143,6 @@ class Morpheus::Cli::Apps
       end
 
       payload = {}
-      config_payload = {}
       if options['config']
         config_payload = options['config']
         payload = config_payload
@@ -156,6 +158,30 @@ class Morpheus::Cli::Apps
           config_payload = JSON.parse(File.read(config_file))
         end
         payload = config_payload
+      elsif options['configDir']
+        config_dir = File.expand_path(options['configDir'])
+        if !Dir.exists?(config_dir) || !File.directory?(config_dir)
+          print_red_alert "Directory not found: #{config_dir}"
+          return false
+        end
+        merged_payload = {}
+        config_files = []
+        config_files += Dir["#{config_dir}/*.json"]
+        config_files += Dir["#{config_dir}/*.yml"]
+        config_files += Dir["#{config_dir}/*.yaml"]
+        if config_files.empty?
+          print_red_alert "No .json/yaml files found in config directory: #{config_dir}"
+          return false
+        end
+        config_files.each do |config_file|
+          if config_file =~ /\.ya?ml\Z/
+            config_payload = YAML.load_file(config_file)
+          else
+            config_payload = JSON.parse(File.read(config_file))
+          end
+          merged_payload.deep_merge!(config_payload)
+        end
+        payload = merged_payload
       else
         # prompt for Name, Description, Group, Environment
         payload = {}
