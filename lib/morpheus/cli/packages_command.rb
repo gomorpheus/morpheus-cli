@@ -8,7 +8,7 @@ class Morpheus::Cli::LibraryPackagesCommand
   include Morpheus::Cli::LibraryHelper
 
   set_command_name :'packages'
-  register_subcommands :list, :search, :get, :install, :update, :remove, :export
+  register_subcommands :list, :search, :get, :install, :update, :remove, :export, :build
   register_subcommands :'install-file' => :install_file
 
   # hide until this is released
