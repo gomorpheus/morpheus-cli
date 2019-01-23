@@ -903,7 +903,7 @@ class Morpheus::Cli::Instances
         if containers.empty?
           print yellow,"No containers found for instance.",reset,"\n"
         else
-
+          containers = containers.sort { |x,y| x['id'] <=> y['id'] }
           rows = containers.collect {|container| 
             stats = container['stats']
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
@@ -1015,7 +1015,7 @@ class Morpheus::Cli::Instances
       
 
       containers = json_response['containers']
-
+      containers = containers.sort { |x,y| x['id'] <=> y['id'] }
       title = "Instance Containers: #{instance['name']} (#{instance['instanceType']['name']})"
       print_h1 title
       if containers.empty?
