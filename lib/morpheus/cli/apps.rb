@@ -110,16 +110,16 @@ class Morpheus::Cli::Apps
       #   options[:cloud] = val
       # end
       opts.on('--config JSON', String, "App Config JSON") do |val|
-        options['config'] = JSON.parse(val.to_s)
+        options[:config] = JSON.parse(val.to_s)
       end
       opts.on('--config-yaml YAML', String, "App Config YAML") do |val|
-        options['config'] = YAML.load(val.to_s)
+        options[:config] = YAML.load(val.to_s)
       end
       opts.on('--config-file FILE', String, "App Config from a local JSON or YAML file") do |val|
-        options['configFile'] = val.to_s
+        options[:config_file] = val.to_s
       end
       opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options['configDir'] = val.to_s
+        options[:config_dir] = val.to_s
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
       opts.footer = "Create a new app.\n" +
@@ -143,11 +143,12 @@ class Morpheus::Cli::Apps
       end
 
       payload = {}
-      if options['config']
-        config_payload = options['config']
+      if options[:config]
+        config_payload = options[:config]
         payload = config_payload
-      elsif options['configFile']
-        config_file = File.expand_path(options['configFile'])
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      elsif options[:config_file]
+        config_file = File.expand_path(options[:config_file])
         if !File.exists?(config_file) || !File.file?(config_file)
           print_red_alert "File not found: #{config_file}"
           return false
@@ -158,8 +159,8 @@ class Morpheus::Cli::Apps
           config_payload = JSON.parse(File.read(config_file))
         end
         payload = config_payload
-      elsif options['configDir']
-        config_dir = File.expand_path(options['configDir'])
+      elsif options[:config_dir]
+        config_dir = File.expand_path(options[:config_dir])
         if !Dir.exists?(config_dir) || !File.directory?(config_dir)
           print_red_alert "Directory not found: #{config_dir}"
           return false
@@ -182,9 +183,11 @@ class Morpheus::Cli::Apps
           merged_payload.deep_merge!(config_payload)
         end
         payload = merged_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
         # prompt for Name, Description, Group, Environment
         payload = {}
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
         params = params.deep_compact! # remove nulls and blank strings
         template_id = params.delete('blueprint')

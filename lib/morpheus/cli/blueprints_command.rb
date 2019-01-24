@@ -193,16 +193,16 @@ class Morpheus::Cli::BlueprintsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
-        options['config'] = JSON.parse(val.to_s)
+        options[:config] = JSON.parse(val.to_s)
       end
       opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
-        options['config'] = YAML.load(val.to_s)
+        options[:config] = YAML.load(val.to_s)
       end
       opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
-        options['configFile'] = val.to_s
+        options[:config_file] = val.to_s
       end
       opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options['configDir'] = val.to_s
+        options[:config_dir] = val.to_s
       end
       build_option_type_options(opts, options, add_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
@@ -222,12 +222,13 @@ class Morpheus::Cli::BlueprintsCommand
     end
     connect(options)
     begin
-      request_payload = nil
-      if options['config']
-        config_payload = options['config']
-        request_payload = config_payload
-      elsif options['configFile']
-        config_file = File.expand_path(options['configFile'])
+      payload = nil
+      if options[:config]
+        config_payload = options[:config]
+        payload = config_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      elsif options[:config_file]
+        config_file = File.expand_path(options[:config_file])
         if !File.exists?(config_file) || !File.file?(config_file)
           print_red_alert "File not found: #{config_file}"
           return false
@@ -237,9 +238,10 @@ class Morpheus::Cli::BlueprintsCommand
         else
           config_payload = JSON.parse(File.read(config_file))
         end
-        request_payload = config_payload
-      elsif options['configDir']
-        config_dir = File.expand_path(options['configDir'])
+        payload = config_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      elsif options[:config_dir]
+        config_dir = File.expand_path(options[:config_dir])
         if !Dir.exists?(config_dir) || !File.directory?(config_dir)
           print_red_alert "Directory not found: #{config_dir}"
           return false
@@ -261,20 +263,24 @@ class Morpheus::Cli::BlueprintsCommand
           end
           merged_payload.deep_merge!(config_payload)
         end
-        request_payload = merged_payload
+        payload = merged_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
+        payload = {}
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         params = Morpheus::Cli::OptionTypes.prompt(add_blueprint_option_types, options[:options], @api_client, options[:params])
-        blueprint_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
+        #blueprint_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
         # expects no namespace, just the config
-        request_payload = blueprint_payload
+        #payload = blueprint_payload
+        payload.deep_merge!(params)
       end
 
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.create(request_payload)
+        print_dry_run @blueprints_interface.dry.create(payload)
         return
       end
 
-      json_response = @blueprints_interface.create(request_payload)
+      json_response = @blueprints_interface.create(payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -283,7 +289,7 @@ class Morpheus::Cli::BlueprintsCommand
         blueprint = json_response["blueprint"]
         print_green_success "Added blueprint #{blueprint['name']}"
         if !options[:no_prompt]
-          prompt_for_tier = options['config'].nil? && options['configFile'].nil? && options['configDir'].nil?
+          prompt_for_tier = options[:config].nil? && options[:config_file].nil? && options[:config_dir].nil?
           if prompt_for_tier && ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a tier now?", options.merge({default: false}))
             add_tier([blueprint['id']])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another tier?", options.merge({default: false})) do
@@ -307,16 +313,16 @@ class Morpheus::Cli::BlueprintsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
       opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
-        options['config'] = JSON.parse(val.to_s)
+        options[:config] = JSON.parse(val.to_s)
       end
       opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
-        options['config'] = YAML.load(val.to_s)
+        options[:config] = YAML.load(val.to_s)
       end
       opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
-        options['configFile'] = val.to_s
+        options[:config_file] = val.to_s
       end
       opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options['configDir'] = val.to_s
+        options[:config_dir] = val.to_s
       end
       build_option_type_options(opts, options, update_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
@@ -339,12 +345,13 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint = find_blueprint_by_name_or_id(args[0])
       exit 1 if blueprint.nil?
 
-      request_payload = nil
-      if options['config']
-        config_payload = options['config']
-        request_payload = config_payload
-      elsif options['configFile']
-        config_file = options['configFile']
+      payload = nil
+      if options[:config]
+        config_payload = options[:config]
+        payload = config_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      elsif options[:config_file]
+        config_file = options[:config_file]
         if !File.exists?(config_file)
           print_red_alert "File not found: #{config_file}"
           return false
@@ -354,9 +361,10 @@ class Morpheus::Cli::BlueprintsCommand
         else
           config_payload = JSON.parse(File.read(config_file))
         end
-        request_payload = config_payload
-      elsif options['configDir']
-        config_dir = File.expand_path(options['configDir'])
+        payload = config_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      elsif options[:config_dir]
+        config_dir = File.expand_path(options[:config_dir])
         if !Dir.exists?(config_dir) || !File.directory?(config_dir)
           print_red_alert "Directory not found: #{config_dir}"
           return false
@@ -378,36 +386,19 @@ class Morpheus::Cli::BlueprintsCommand
           end
           merged_payload.deep_merge!(config_payload)
         end
-        request_payload = merged_payload
+        payload = merged_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
-        # update just name,description,category
-        # preserve all other attributes of the config..
-
-        #params = Morpheus::Cli::OptionTypes.prompt(update_blueprint_option_types, options[:options], @api_client, options[:params])
-        params = options[:options] || {}
-
-        if params.empty?
-          # print_red_alert "Specify atleast one option to update"
-          print_red_alert "Specify atleast one option to update.\nOr use --config or --config-file to replace the entire config."
-          puts optparse
-          exit 1
-        end
-
-        #puts "parsed params is : #{params.inspect}"
-        blueprint_payload = params.select {|k,v| ['name','description','category'].include?(k) }
-        # expects no namespace, just the config
-        # preserve all other attributes of the config.
-        request_payload = blueprint["config"].merge(blueprint_payload)
-        # todo maybe: put name, description and category at the front.
-        # request_payload = blueprint_payload.merge(blueprint["config"].merge(blueprint_payload))
+        payload = blueprint["config"]
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       end
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
 
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -602,9 +593,9 @@ class Morpheus::Cli::BlueprintsCommand
       exit 1
     end
 
-    request_payload = {"blueprint" => {}}
+    payload = {"blueprint" => {}}
     if args[1]
-      request_payload["blueprint"]["name"] = args[1]
+      payload["blueprint"]["name"] = args[1]
     end
 
     connect(options)
@@ -615,10 +606,10 @@ class Morpheus::Cli::BlueprintsCommand
       #   exit
       # end
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.duplicate(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.duplicate(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.duplicate(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.duplicate(blueprint['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -767,14 +758,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = {blueprint: blueprint}
+      payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return 0
       end
 
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -925,14 +916,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = {blueprint: blueprint}
+      payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return 0
       end
 
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1109,13 +1100,13 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = {blueprint: blueprint}
+      payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1231,13 +1222,13 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = {blueprint: blueprint}
+      payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1340,14 +1331,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = blueprint["config"]
-      # request_payload = {blueprint: blueprint}
+      payload = blueprint["config"]
+      # payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1485,14 +1476,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = blueprint["config"]
-      # request_payload = {blueprint: blueprint}
+      payload = blueprint["config"]
+      # payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
       if options[:json]
         puts JSON.pretty_generate(json_response)
@@ -1549,15 +1540,15 @@ class Morpheus::Cli::BlueprintsCommand
       
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = blueprint["config"]
-      # request_payload = {blueprint: blueprint}
+      payload = blueprint["config"]
+      # payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
 
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
 
       if options[:json]
@@ -1648,14 +1639,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = blueprint["config"]
-      # request_payload = {blueprint: blueprint}
+      payload = blueprint["config"]
+      # payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
 
       if options[:json]
@@ -1738,14 +1729,14 @@ class Morpheus::Cli::BlueprintsCommand
 
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
-      request_payload = blueprint["config"]
-      # request_payload = {blueprint: blueprint}
+      payload = blueprint["config"]
+      # payload = {blueprint: blueprint}
       
       if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update(blueprint['id'], request_payload)
+        print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
       end
-      json_response = @blueprints_interface.update(blueprint['id'], request_payload)
+      json_response = @blueprints_interface.update(blueprint['id'], payload)
 
 
       if options[:json]
