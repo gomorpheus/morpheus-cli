@@ -1808,7 +1808,7 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
         return 0
       else
-        puts "Backup initiated."
+        print_green_success "Backup initiated."
         return 0
       end
     rescue RestClient::Exception => e
@@ -2128,7 +2128,7 @@ class Morpheus::Cli::Instances
       if options[:json]
         puts as_json(json_response, options)
       else
-        puts "Snapshot import initiated."
+        print_green_success "Snapshot import initiated."
       end
       return 0
     rescue RestClient::Exception => e
