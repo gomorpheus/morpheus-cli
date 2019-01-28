@@ -1808,8 +1808,21 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
         return 0
       else
-        print_green_success "Backup initiated."
-        return 0
+        bad_results = []
+        if json_response['results']
+          json_response['results'].each do |result_id, result|
+            if result['success'] != true
+              bad_results << result['msg'] || "Failed to create backup for instance #{result_id}"
+            end
+          end
+        end
+        if bad_results.empty?
+          print_green_success "Backup initiated."
+          return 0
+        else
+          print_red_alert bad_results.join("\n")
+          return 1
+        end
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
