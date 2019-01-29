@@ -159,6 +159,7 @@ class Morpheus::Cli::Apps
           config_payload = JSON.parse(File.read(config_file))
         end
         payload = config_payload
+        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       elsif options[:config_dir]
         config_dir = File.expand_path(options[:config_dir])
         if !Dir.exists?(config_dir) || !File.directory?(config_dir)
