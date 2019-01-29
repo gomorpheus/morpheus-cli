@@ -1066,7 +1066,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1086,20 +1086,68 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
         return
       end
-      backups = json_response['backups']
+      
+      if json_response['backups'] && json_response['backups'][0] && json_response['backups'][0]['backupResults']
+        # new format
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
 
-      print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
-      backup_rows = backups.collect {|r| 
-        it = r['backup']
-        {id: it['id'], name: it['name'], dateCreated: format_local_dt(it['dateCreated'])}
-      }
-      print cyan
-      puts as_pretty_table backup_rows, [
-        :id,
-        :name,
-        {:dateCreated => {:display_name => "Date Created"} }
-      ]
-      print reset, "\n"
+
+        backup = json_response['backups'][0]
+
+        description_cols = {
+          "Backup ID" => lambda {|it| it['id'] },
+          "Name" => lambda {|it| it['name'] },
+          "Type" => lambda {|it| it['backupType'] ? (it['backupType']['name'] || it['backupType']['code']) : '' },
+          "Storage" => lambda {|it| it['storageProvider'] ? it['storageProvider']['name'] : '' },
+          "Schedule" => lambda {|it| it['cronDescription'] || it['cronExpression'] }
+        }
+        print_description_list(description_cols, backup)
+
+        backup_results = backup ? backup['backupResults'] : nil
+        backup_rows = backup_results.collect {|it| 
+          status_str = it['status'].to_s.upcase
+          # 'START_REQUESTED' //START_REQUESTED, IN_PROGRESS, CANCEL_REQUESTED, CANCELLED, SUCCEEDED, FAILED
+          if status_str == 'SUCCEEDED'
+            status_str = "#{green}#{status_str.upcase}#{cyan}"
+          elsif status_str == 'FAILED'
+            status_str = "#{red}#{status_str.upcase}#{cyan}"
+          else
+            status_str = "#{cyan}#{status_str.upcase}#{cyan}"
+          end
+          {id: it['id'], startDate: format_local_dt(it['dateCreated']), duration: format_duration_milliseconds(it['durationMillis']), 
+            size: format_bytes(it['sizeInMb'], 'MB'), status: status_str }
+        }
+        print_h1 "Backup Results"
+        print cyan
+        puts as_pretty_table backup_rows, [
+          :id,
+          {:startDate => {:display_name => "Started"} },
+          :duration,
+          :size,
+          :status
+        ]
+        print reset, "\n"
+      elsif json_response['backups'].size == 0
+        # no backup configured
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
+        print "#{yellow}No backups configured#{reset}\n\n"
+      else
+        # old format
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
+        backups = json_response['backups']
+        backup_rows = backups.collect {|r| 
+          it = r['backup']
+          {id: it['id'], name: it['name'], dateCreated: format_local_dt(it['dateCreated'])}
+        }
+        print cyan
+        puts as_pretty_table backup_rows, [
+          :id,
+          :name,
+          {:dateCreated => {:display_name => "Date Created"} }
+        ]
+        print reset, "\n"
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

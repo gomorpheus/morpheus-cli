@@ -274,13 +274,13 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
   end
 end
 
-def format_bytes(bytes)
+def format_bytes(bytes, units="B")
   out = ""
   if bytes
-    if bytes < 1024
+    if bytes < 1024 && units == "B"
       out = "#{bytes.to_i} B"
     else
-      out = Filesize.from("#{bytes} B").pretty.strip
+      out = Filesize.from("#{bytes} #{units}").pretty.strip
     end
   end
   return out
