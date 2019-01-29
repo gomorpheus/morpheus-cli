@@ -216,7 +216,9 @@ module Morpheus
                 custom_options[custom_option_args[0]] = custom_option_args[1]
               end
               # convert "true","on" and "false","off" to true and false
-              custom_options.booleanize!
+              unless options[:skip_booleanize]
+                custom_options.booleanize!
+              end
               options[:options] = custom_options
             end
             opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|

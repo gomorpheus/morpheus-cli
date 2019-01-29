@@ -299,7 +299,7 @@ class Morpheus::Cli::MonitoringChecksCommand
   end
 
   def add(args)
-    options = {}
+    options = {:skip_booleanize => true}
     params = {'inUptime' => true, 'severity' => 'critical'}
     check_type = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -376,7 +376,7 @@ class Morpheus::Cli::MonitoringChecksCommand
   end
 
   def update(args)
-    options = {}
+    options = {:skip_booleanize => true}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
