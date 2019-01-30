@@ -1115,6 +1115,7 @@ class Morpheus::Cli::Apps
       {
         id: app['id'],
         name: app['name'],
+        group: app['group'] ? app['group']['name'] : app['siteId'],
         tiers: tiers_str,
         instances: instances_str,
         containers: containers_str,
@@ -1130,6 +1131,7 @@ class Morpheus::Cli::Apps
     columns = [
       :id,
       :name,
+      :group,
       :tiers,
       :instances,
       :containers,
