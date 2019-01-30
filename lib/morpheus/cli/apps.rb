@@ -290,10 +290,17 @@ class Morpheus::Cli::Apps
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
-        # "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
+        "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : '' },
+        "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Status" => lambda {|it| format_app_status(it) }
       }
+      if app['blueprint'].nil?
+        description_cols.delete("Blueprint")
+      end
+      # if app['description'].nil?
+      #   description_cols.delete("Description")
+      # end
       print_description_list(description_cols, app)
 
       stats = app['stats']
