@@ -209,11 +209,27 @@ module Morpheus
                     nested_options[name_element] = nested_options[name_element] || {}
                     nested_options = nested_options[name_element]
                   else
-                    nested_options[name_element] = custom_option_args[1]
+                    val = custom_option_args[1]
+                    if val.to_s[0] == '{' && val.to_s[-1] == '}'
+                      begin
+                        val = JSON.parse(val)
+                      rescue
+                        Morpheus::Logging::DarkPrinter.puts "Failed to parse option #{option_name_args[0]} as JSON" if Morpheus::Logging.debug?
+                      end
+                    end
+                    nested_options[name_element] = val
                   end
                 end
               else
-                custom_options[custom_option_args[0]] = custom_option_args[1]
+                val = custom_option_args[1]
+                if val.to_s[0] == '{' && val.to_s[-1] == '}'
+                  begin
+                    val = JSON.parse(val)
+                  rescue
+                    Morpheus::Logging::DarkPrinter.puts "Failed to parse option #{option_name_args[0]} as JSON" if Morpheus::Logging.debug?
+                  end
+                end
+                custom_options[custom_option_args[0]] = val
               end
               # convert "true","on" and "false","off" to true and false
               unless options[:skip_booleanize]
