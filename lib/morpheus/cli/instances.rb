@@ -1162,23 +1162,26 @@ class Morpheus::Cli::Instances
       opts.on( '-g', '--group GROUP', "Group Name or ID for the new instance" ) do |val|
         options[:group] = val
       end
+      opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID for the new instance" ) do |val|
+        options[:cloud] = val
+      end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
-    if !options[:group]
-      print_red_alert "GROUP is required."
-      puts optparse
-      exit 1
-    end
+    # if !options[:group]
+    #   print_red_alert "GROUP is required."
+    #   puts optparse
+    #   exit 1
+    # end
     connect(options)
     begin
       options[:options] ||= {}
       # use the -g GROUP or active group by default
-      options[:options]['group'] ||= options[:group] # || @active_group_id # always choose a group for now?
+      options[:options]['group'] ||= options[:group] || @active_group_id
       # support [new-name] 
       # if args[1]
       #   options[:options]['name'] = args[1]
@@ -1191,6 +1194,10 @@ class Morpheus::Cli::Instances
       payload.merge!(params)
       payload['group'] = {id: group['id']}
 
+      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+      if cloud
+        payload['cloud'] = {id: cloud['id']}
+      end
       instance = find_instance_by_name_or_id(args[0])
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance '#{instance['name']}'?", options)
         exit 1
