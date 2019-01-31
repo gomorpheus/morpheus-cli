@@ -250,8 +250,8 @@ class Morpheus::Cli::Instances
       opts.on("--expire-days NUMBER", Integer, "Automation: Expiration Days") do |val|
         options[:expire_days] = val.to_i
       end
-      opts.on("--create-backup on|off", String, "Automation: Create Backups.  Default is off.") do |val|
-        options[:create_backup] = ['on','true','1'].include?(val.to_s.downcase) ? 'on' : 'off'
+      opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
+        options[:create_backup] = ['on','true','1',''].include?(val.to_s.downcase) ? 'on' : 'off'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new instance." + "\n" +
@@ -308,7 +308,7 @@ class Morpheus::Cli::Instances
       end
       payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
       payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
-      payload[:createBackup] = options[:create_backup] ? 'on' : 'off' if options[:create_backup] == true
+      payload[:createBackup] = options[:create_backup] if !options[:create_backup].nil?
       payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
       payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
       if options.key?(:create_user)
