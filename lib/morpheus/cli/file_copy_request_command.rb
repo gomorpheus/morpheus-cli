@@ -37,11 +37,11 @@ class Morpheus::Cli::FileCopyRequestCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[uid]")
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on('--refresh', String, "Refresh until file copy is finished.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is 5 seconds.") do |val|
         options[:refresh_until_finished] = true
-      end
-      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
-        options[:refresh_interval] = val.to_f
+        if !val.to_s.empty?
+          options[:refresh_interval] = val.to_f
+        end
       end
       opts.footer = "Get details about a file copy request." + "\n" +
                     "[uid] is required. This is the unique id of a file copy request."

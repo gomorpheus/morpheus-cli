@@ -33,15 +33,14 @@ class Morpheus::Cli::ContainersCommand
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
-      opts.on('--refresh [status]', String, "Refresh until status is reached. Default status is running.") do |val|
-        if val.to_s.empty?
-          options[:refresh_until_status] = "running,failed"
-        else
-          options[:refresh_until_status] = val.to_s.downcase
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
+        options[:refresh_until_status] ||= "running,failed"
+        if !val.to_s.empty?
+          options[:refresh_interval] = val.to_f
         end
       end
-      opts.on('--refresh-interval seconds', String, "Refresh interval. Default is 5 seconds.") do |val|
-        options[:refresh_interval] = val.to_f
+      opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
+        options[:refresh_until_status] = val.to_s.downcase
       end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
