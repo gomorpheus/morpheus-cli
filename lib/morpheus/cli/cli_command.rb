@@ -214,7 +214,7 @@ module Morpheus
                       begin
                         val = JSON.parse(val)
                       rescue
-                        Morpheus::Logging::DarkPrinter.puts "Failed to parse option #{option_name_args[0]} as JSON" if Morpheus::Logging.debug?
+                        Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
                       end
                     end
                     nested_options[name_element] = val
@@ -226,7 +226,7 @@ module Morpheus
                   begin
                     val = JSON.parse(val)
                   rescue
-                    Morpheus::Logging::DarkPrinter.puts "Failed to parse option #{option_name_args[0]} as JSON" if Morpheus::Logging.debug?
+                    Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
                   end
                 end
                 custom_options[custom_option_args[0]] = val
