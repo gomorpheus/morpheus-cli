@@ -762,16 +762,16 @@ class Morpheus::Cli::Hosts
       #   query_params[:removeResources] = 'off'
       # end
       opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on if server is managed.") do |val|
-        query_params[:removeResources] = val
+        query_params[:removeResources] = val.nil? ? 'on' : val
       end
       opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
-        query_params[:preserveVolumes] = val
+        query_params[:preserveVolumes] = val.nil? ? 'on' : val
       end
       opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
-        query_params[:removeInstances] = val
+        query_params[:removeInstances] = val.nil? ? 'on' : val
       end
       opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
-        params[:releaseEIPs] = val
+        params[:releaseEIPs] = val.nil? ? 'on' : val
       end
       opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'

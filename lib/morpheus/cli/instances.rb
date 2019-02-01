@@ -1893,10 +1893,10 @@ class Morpheus::Cli::Instances
         query_params[:keepBackups] = 'on'
       end
       opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
-        query_params[:preserveVolumes] = val
+        query_params[:preserveVolumes] = val.nil? ? 'on' : val
       end
       opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
-        query_params[:releaseEIPs] = val
+        query_params[:releaseEIPs] = val.nil? ? 'on' : val
       end
       opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'
