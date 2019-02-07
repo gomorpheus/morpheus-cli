@@ -301,9 +301,8 @@ class Morpheus::Cli::Instances
           end
         end
       end
-
+      payload['instance'] ||= {}
       if options[:instance_name]
-        payload['instance'] ||= payload['instance']
         payload['instance']['name'] = options[:instance_name]
       end
       payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
@@ -312,6 +311,7 @@ class Morpheus::Cli::Instances
       payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
       payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
       if options.key?(:create_user)
+        payload['config'] ||= {}
         payload['config']['createUser'] = options[:create_user]
       end
       if options[:user_group_id]
