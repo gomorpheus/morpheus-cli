@@ -211,7 +211,7 @@ module Morpheus::Cli::ProvisioningHelper
   # prompts user for all the configuartion options for a particular instance
   # returns payload of data for a new instance
   def prompt_new_instance(options={})
-
+    print reset # clear colors
     # Group
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -232,8 +232,10 @@ module Morpheus::Cli::ProvisioningHelper
     else
       # print_red_alert "Cloud not specified!"
       # exit 1
-      cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.'}],options[:options],api_client,{groupId: group_id})
+      available_clouds = get_available_clouds(group_id)
+      cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.', 'defaultValue' => options[:default_cloud] ? options[:default_cloud] : nil}],options[:options],api_client,{groupId: group_id})
       cloud_id = cloud_prompt['cloud']
+      cloud = available_clouds.find {|it| it['id'] == cloud_id.to_i || it['name'] == cloud_id.to_s }
     end
     # Instance Type
     instance_type_code = nil
@@ -251,6 +253,8 @@ module Morpheus::Cli::ProvisioningHelper
     instance_name = nil
     if options[:instance_name]
       instance_name = options[:instance_name]
+    elsif options[:options] && options[:options]['name']
+      instance_name = options[:options]['name']
     else
       name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
       instance_name = name_prompt['name'] || ''
@@ -261,6 +265,7 @@ module Morpheus::Cli::ProvisioningHelper
       # 'siteId' => siteId,
       'instance' => {
         'name' => instance_name,
+        'cloud' => cloud['name'],
         'site' => {
           'id' => group_id
         },
@@ -271,13 +276,10 @@ module Morpheus::Cli::ProvisioningHelper
       }
     }
 
-    # allow arbitrary -O values passed by the user (config and instance namespace only)
-    if options[:options] && options[:options]['config'].is_a?(Hash)
-      payload['config'] ||= {}
-      payload['config'].deep_merge!(options[:options]['config'])
-    end
-    if options[:options] && options[:options]['instance'].is_a?(Hash)
-      payload['instance'].deep_merge!(options[:options]['instance'])
+    # allow arbitrary -O values passed by the user
+    if options[:options]
+      arbitrary_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+      payload.deep_merge!(arbitrary_options)
     end
 
     # Description
@@ -294,8 +296,9 @@ module Morpheus::Cli::ProvisioningHelper
 
     # Version and Layout
 
-    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
-    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+    default_layout_value = payload['instance']['layout'] ? payload['instance']['layout']['id'] : nil
+    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     layout_id = layout_prompt['layout']
     layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}
     if !layout
@@ -307,15 +310,24 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for service plan
     service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
     service_plans = service_plans_json["plans"]
-    service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
-    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
+    service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"], 'code' => sp['code']} } # already sorted
+    default_plan = nil
+    if payload['plan']
+      default_plan = payload['plan']
+    elsif payload['instance'] && payload['instance']['plan']
+      default_plan = payload['instance']['plan']
+    end
+    default_plan_value = default_plan.is_a?(Hash) ? default_plan['id'] : default_plan
+    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
     plan_id = plan_prompt['servicePlan']
     service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
     if !service_plan
       print_red_alert "Plan not found by id #{plan_id}"
       exit 1
     end
-    payload['instance']['plan'] = {'id' => service_plan["id"]}
+    #todo: consolidate these, instances api looks for instance.plan.id and apps looks for plan.id
+    payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
+    payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
 
     # prompt for resource pool
     has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
@@ -328,21 +340,25 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # prompt for volumes
-    volumes = prompt_volumes(service_plan, options, api_client, {})
-    if !volumes.empty?
-      payload['volumes'] = volumes
+    if payload['volumes'].nil?
+      volumes = prompt_volumes(service_plan, options, api_client, {})
+      if !volumes.empty?
+        payload['volumes'] = volumes
+      end
     end
 
-    if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
-      # prompt for network interfaces (if supported)
-      begin
-        network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options)
-        if !network_interfaces.empty?
-          payload['networkInterfaces'] = network_interfaces
+    if payload['networkInterfaces'].nil?
+      if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
+        # prompt for network interfaces (if supported)
+        begin
+          network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options)
+          if !network_interfaces.empty?
+            payload['networkInterfaces'] = network_interfaces
+          end
+        rescue RestClient::Exception => e
+          print yellow,"Unable to load network options. Proceeding...",reset,"\n"
+          print_rest_exception(e, options) if Morpheus::Logging.debug?
         end
-      rescue RestClient::Exception => e
-        print yellow,"Unable to load network options. Proceeding...",reset,"\n"
-        print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
     end
 

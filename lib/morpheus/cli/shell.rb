@@ -371,7 +371,7 @@ class Morpheus::Cli::Shell
         #print "\n"
         return 0
       elsif input =~ /^\s*#/
-        Morpheus::Logging::DarkPrinter.puts "comment ignored" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "ignored comment: #{input}" if Morpheus::Logging.debug?
         return 0
       # this is a full blown command now
       # elsif input =~ /^sleep/

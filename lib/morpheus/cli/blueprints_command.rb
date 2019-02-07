@@ -43,16 +43,15 @@ class Morpheus::Cli::BlueprintsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List blueprints."
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
+
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.list(params)
         return
@@ -75,10 +74,9 @@ class Morpheus::Cli::BlueprintsCommand
       
       title = "Morpheus Blueprints"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
+
       if blueprints.empty?
         print cyan,"No blueprints found.",reset,"\n"
       else
@@ -192,20 +190,8 @@ class Morpheus::Cli::BlueprintsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
-        options[:config] = JSON.parse(val.to_s)
-      end
-      opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
-        options[:config] = YAML.load(val.to_s)
-      end
-      opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
-        options[:config_file] = val.to_s
-      end
-      opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options[:config_dir] = val.to_s
-      end
       build_option_type_options(opts, options, add_blueprint_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new blueprint.\n" + 
                     "[name] is optional and can be passed as --name or inside the config instead."
                     "[--config] or [--config-file] can be used to define the blueprint."
@@ -222,50 +208,12 @@ class Morpheus::Cli::BlueprintsCommand
     end
     connect(options)
     begin
-      payload = nil
-      if options[:config]
-        config_payload = options[:config]
-        payload = config_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_file]
-        config_file = File.expand_path(options[:config_file])
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "File not found: #{config_file}"
-          return false
-        end
-        if config_file =~ /\.ya?ml\Z/
-          config_payload = YAML.load_file(config_file)
-        else
-          config_payload = JSON.parse(File.read(config_file))
-        end
-        payload = config_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_dir]
-        config_dir = File.expand_path(options[:config_dir])
-        if !Dir.exists?(config_dir) || !File.directory?(config_dir)
-          print_red_alert "Directory not found: #{config_dir}"
-          return false
-        end
-        merged_payload = {}
-        config_files = []
-        config_files += Dir["#{config_dir}/*.json"]
-        config_files += Dir["#{config_dir}/*.yml"]
-        config_files += Dir["#{config_dir}/*.yaml"]
-        if config_files.empty?
-          print_red_alert "No .json/yaml files found in config directory: #{config_dir}"
-          return false
-        end
-        config_files.each do |config_file|
-          if config_file =~ /\.ya?ml\Z/
-            config_payload = YAML.load_file(config_file)
-          else
-            config_payload = JSON.parse(File.read(config_file))
-          end
-          merged_payload.deep_merge!(config_payload)
-        end
-        payload = merged_payload
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
+        # prompt for payload
         payload = {}
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         params = Morpheus::Cli::OptionTypes.prompt(add_blueprint_option_types, options[:options], @api_client, options[:params])
@@ -289,8 +237,7 @@ class Morpheus::Cli::BlueprintsCommand
         blueprint = json_response["blueprint"]
         print_green_success "Added blueprint #{blueprint['name']}"
         if !options[:no_prompt]
-          prompt_for_tier = options[:config].nil? && options[:config_file].nil? && options[:config_dir].nil?
-          if prompt_for_tier && ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a tier now?", options.merge({default: false}))
+          if options[:payload].nil? && ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a tier now?", options.merge({default: false}))
             add_tier([blueprint['id']])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another tier?", options.merge({default: false})) do
               add_tier([blueprint['id']])

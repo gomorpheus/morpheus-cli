@@ -275,6 +275,15 @@ class Morpheus::Cli::StorageProvidersCommand
             {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
             {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
           ]
+        elsif storage_provider_type_code == 'alibaba'
+          # print_h2 "Alibaba Options"
+          provider_type_option_types = [
+            {'fieldContext' => 'config', 'fieldName' => 'accessKey', 'fieldLabel' => 'Access Key', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldContext' => 'config', 'fieldName' => 'secretKey', 'fieldLabel' => 'Secret Key', 'type' => 'password', 'required' => true, 'description' => ''},
+            {'fieldName' => 'bucketName', 'fieldLabel' => 'Bucket Name', 'type' => 'text', 'required' => true, 'description' => ''},
+            {'fieldName' => 'createBucket', 'fieldLabel' => 'Create Bucket', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Create the bucket if it does not exist.'},
+            {'fieldContext' => 'config', 'fieldName' => 'region', 'fieldLabel' => 'Region', 'type' => 'text', 'required' => false, 'description' => 'Optional Alibaba region if creating a new bucket.'}
+          ]
         elsif storage_provider_type_code == 'cifs'
           # print_h2 "CIFS Options"
           provider_type_option_types = [
@@ -1222,6 +1231,7 @@ class Morpheus::Cli::StorageProvidersCommand
   def get_storage_provider_types()
     [
       {'name' => 'Amazon S3', 'value' => 's3'},
+      {'name' => 'Alibaba', 'value' => 'alibaba'},
       {'name' => 'Azure', 'value' => 'azure'},
       {'name' => 'CIFS', 'value' => 'cifs'},
       {'name' => 'Local Storage', 'value' => 'local'},

@@ -40,6 +40,10 @@ module Morpheus::Cli::ExpressionParser
 
   # parse an expression of morpheus commands into a list of expressions
   def self.parse(input)
+    # the input is a comment
+    if input.to_s =~ /^\s*#/
+      return [input]
+    end
     result = []
     # first, build up a temporary command string
     # swap in well known tokens so we can split it safely

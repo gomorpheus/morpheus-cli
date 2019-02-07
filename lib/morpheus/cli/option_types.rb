@@ -254,7 +254,10 @@ module Morpheus
 
         if no_prompt
           if !value_found
-            if option_type['required']
+            if !select_options.nil? && select_options.count > 1 && option_type['autoPickOption'] == true
+              value_found = true
+              value = select_options[0]['value']
+            elsif option_type['required']
               print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
               if select_options && select_options.size > 10

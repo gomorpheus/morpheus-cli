@@ -270,6 +270,37 @@ module Morpheus
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
               end
             end
+            opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting") do |val|
+              options[:payload_dir] = val.to_s
+              payload_dir = File.expand_path(options[:payload_dir])
+              if !Dir.exists?(payload_dir) || !File.directory?(payload_dir)
+                raise ::OptionParser::InvalidOption.new("Directory not found: #{payload_dir}")
+              end
+              payload = {}
+              begin
+                merged_payload = {}
+                payload_files = []
+                payload_files += Dir["#{payload_dir}/*.json"]
+                payload_files += Dir["#{payload_dir}/*.yml"]
+                payload_files += Dir["#{payload_dir}/*.yaml"]
+                if payload_files.empty?
+                  raise ::OptionParser::InvalidOption.new("No .json/yaml files found in config directory: #{payload_dir}")
+                end
+                payload_files.each do |payload_file|
+                  Morpheus::Logging::DarkPrinter.puts "parsing payload file: #{payload_file}" if Morpheus::Logging.debug?
+                  config_payload = {}
+                  if payload_file =~ /\.ya?ml\Z/
+                    config_payload = YAML.load_file(payload_file)
+                  else
+                    config_payload = JSON.parse(File.read(payload_file))
+                  end
+                  merged_payload.deep_merge!(config_payload)
+                end
+                options[:payload] = merged_payload
+              rescue => ex
+                raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
+              end
+            end
             opts.on('--payload-json JSON', String, "Payload JSON, skip all prompting") do |val|
               begin
                 options[:payload] = JSON.parse(val.to_s)

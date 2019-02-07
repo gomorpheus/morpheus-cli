@@ -14,6 +14,8 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProcessesHelper
 
   register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
+  register_subcommands :stop, :start, :restart
+  #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
   set_default_subcommand :list
   
@@ -24,6 +26,7 @@ class Morpheus::Cli::Apps
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).apps
+    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
@@ -41,21 +44,19 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List apps."
     end
     optparse.parse!(args)
     if args.count != 0
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} list expects 0 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} list expects 0 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
 
       if options[:dry_run]
         print_dry_run @apps_interface.dry.get(params)
@@ -71,15 +72,7 @@ class Morpheus::Cli::Apps
       apps = json_response['apps']
       title = "Morpheus Apps"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if apps.empty?
         print cyan,"No apps found.",reset,"\n"
@@ -97,127 +90,312 @@ class Morpheus::Cli::Apps
   def add(args)
     template_id = nil
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_option_type_options(opts, options, add_app_option_types(false))
-      # opts.on( '-b', '--blueprint ID', "Blueprint ID. The blueprint to use. The default value is 'existing' which means no blueprint, for creating a blank app and adding existing instances." ) do |val|
-      #   options['template'] = val
-      # end
-      # opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
-      #   options[:group] = val
-      # end
-      # opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID." ) do |val|
-      #   options[:cloud] = val
-      # end
-      opts.on('--config JSON', String, "App Config JSON") do |val|
-        options[:config] = JSON.parse(val.to_s)
+      #build_option_type_options(opts, options, add_app_option_types(false))
+      # these come from build_options_types
+      opts.on( '-b', '--blueprint BLUEPRINT', "Blueprint Name or ID. The default value is 'existing' which means no blueprint, for creating a blank app and adding existing instances." ) do |val|
+        options[:blueprint] = val
       end
-      opts.on('--config-yaml YAML', String, "App Config YAML") do |val|
-        options[:config] = YAML.load(val.to_s)
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
       end
-      opts.on('--config-file FILE', String, "App Config from a local JSON or YAML file") do |val|
-        options[:config_file] = val.to_s
+      opts.on( '-c', '--cloud CLOUD', "Default Cloud Name or ID." ) do |val|
+        options[:cloud] = val
       end
-      opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options[:config_dir] = val.to_s
+      opts.on( '--name VALUE', String, "Name" ) do |val|
+        options[:name] = val
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      opts.on( '--description VALUE', String, "Description" ) do |val|
+        options[:description] = val
+      end
+      opts.on( '-e', '--environment VALUE', "Environment Name" ) do |val|
+        options[:environment] = val
+      end
+      # config is being deprecated in favor of the standard --payload options
+      # opts.add_hidden_option(['config', 'config-dir', 'config-file', 'config-yaml'])
+      opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating it.") do
+        options[:validate_only] = true
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? 5 : val.to_f
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :yaml, :dry_run, :quiet])
       opts.footer = "Create a new app.\n" +
                     "[name] is required. This is the name of the new app. It may also be passed as --name or inside your config."
     end
     optparse.parse!(args)
     if args.count > 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
+    end
+    # allow name as first argument
+    if args[0] # && !options[:name]
+      options[:name] = args[0]
     end
     connect(options)
     begin
       options[:options] ||= {}
-      if args[0] && !options[:options]['name']
-        options[:options]['name'] = args[0]
-      end
-      # options[:options]['template'] ||= options['template']
-      if options[:group] # || @active_group_id
-        options[:options]['group'] ||= options[:group] # || @active_group_id
-      end
 
       payload = {}
-      if options[:config]
-        config_payload = options[:config]
-        payload = config_payload
+      if options[:payload]
+        payload = options[:payload]
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_file]
-        config_file = File.expand_path(options[:config_file])
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "File not found: #{config_file}"
-          return false
+        # support some options on top of --payload
+        # Name
+        if options[:name]
+          payload['name'] = options[:name]
         end
-        if config_file =~ /\.ya?ml\Z/
-          config_payload = YAML.load_file(config_file)
-        else
-          config_payload = JSON.parse(File.read(config_file))
+        # Description
+        if options[:description]
+          payload['description'] = options[:description]
         end
-        payload = config_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_dir]
-        config_dir = File.expand_path(options[:config_dir])
-        if !Dir.exists?(config_dir) || !File.directory?(config_dir)
-          print_red_alert "Directory not found: #{config_dir}"
-          return false
+        # Environment
+        if options[:environment]
+          payload['environment'] = options[:environment]
         end
-        merged_payload = {}
-        config_files = []
-        config_files += Dir["#{config_dir}/*.json"]
-        config_files += Dir["#{config_dir}/*.yml"]
-        config_files += Dir["#{config_dir}/*.yaml"]
-        if config_files.empty?
-          print_red_alert "No .json/yaml files found in config directory: #{config_dir}"
-          return false
-        end
-        config_files.each do |config_file|
-          if config_file =~ /\.ya?ml\Z/
-            config_payload = YAML.load_file(config_file)
-          else
-            config_payload = JSON.parse(File.read(config_file))
-          end
-          merged_payload.deep_merge!(config_payload)
-        end
-        payload = merged_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
       else
-        # prompt for Name, Description, Group, Environment
+        # prompt for payload
         payload = {}
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        params = Morpheus::Cli::OptionTypes.prompt(add_app_option_types, options[:options], @api_client, options[:params])
-        params = params.deep_compact! # remove nulls and blank strings
-        template_id = params.delete('blueprint')
+
+        # Blueprint
+        template_id = options[:blueprint]
+        if options[:blueprint]
+          template_id = options[:blueprint]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => get_available_blueprints(), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."}], options[:options])
+          template_id = v_prompt['blueprint']
+        end
         if template_id.to_s.empty? || template_id == 'existing'
-          # new API parameter
+          payload['blueprintId'] = 'existing'
           payload['templateId'] = 'existing'
-          # API versions before 3.3.1 expect both of these instead of templateId
-          payload['id'] = 'existing'
-          payload['templateName'] = 'Existing Instances'
         else
           found_app_template = get_available_blueprints.find {|it| it['id'].to_s == template_id.to_s || it['name'].to_s == template_id.to_s }
           if found_app_template.nil?
-            print_red_alert "Blueprint not found by id #{template_id}"
+            print_red_alert "Blueprint not found by '#{template_id}'"
             return 1
           end
+          payload['blueprintId'] = found_app_template['id']
           payload['templateId'] = found_app_template['id']
-          # API versions before 3.3.1 expect both of these instead of templateId
-          payload['id'] = found_app_template['id']
-          payload['templateName'] = found_app_template['name']
         end
-        group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
-        return if group.nil?
-        payload.merge!(params)
-        payload['group'] = {id: group['id'], name: group['name']}
+
+        # Name
+        if options[:name]
+          payload['name'] = options[:name]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
+          payload['name'] = v_prompt['description']
+        end
+
+        # Description
+        if options[:description]
+          payload['description'] = options[:description]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
+          payload['description'] = v_prompt['description']
+        end
+
+        # Group
+        group_id = nil
+        if options[:group]
+          group_id = options[:group]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true, 'defaultValue' => @active_group_id}], options[:options])
+          group_id = v_prompt['group']
+        end
+        group = find_group_by_name_or_id_for_provisioning(group_id)
+        return 1 if group.nil?
+        payload['group'] = {'id' => group['id'], 'name' => group['name']}
+
+        # Default Cloud
+        cloud_id = nil
+        scoped_available_clouds = get_available_clouds(group['id'])
+        if options[:cloud]
+          cloud_id = options[:cloud]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Default Cloud', 'type' => 'select', 'selectOptions' => scoped_available_clouds}], options[:options])
+          cloud_id = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
+        end
+        if cloud_id
+          cloud = find_cloud_by_name_or_id_for_provisioning(group['id'], cloud_id)
+          #payload['cloud'] = {'id' => cloud['id'], 'name' => cloud['name']}
+        end
+        
+        # Environment
+        if options[:environment]
+          payload['environment'] = options[:environment]
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'text', 'required' => false}], options[:options])
+          payload['environment'] = v_prompt['environment'] unless v_prompt['environment'].to_s.empty?
+        end
+        # payload['appContext'] = payload['environment'] if payload['environment']
+
+
+        if !payload['tiers']
+          if payload['blueprintId'] != 'existing'
+            
+            # fetch the app template
+            blueprint = find_blueprint_by_name_or_id(payload['blueprintId'])
+            return 1 if blueprint.nil?
+            
+            unless options[:quiet]
+              print cyan, "Configuring app with blueprint id: #{blueprint['id']}, name: #{blueprint['name']}, type: #{blueprint['type']}\n"
+            end
+            
+            blueprint_type = blueprint['type'] || 'morpheus'
+            if blueprint_type == 'morpheus'
+              # configure each tier and instance in the blueprint
+              # tiers are a map, heh, sort them by tierIndex
+              tiers = blueprint["config"]["tiers"] ? blueprint["config"]["tiers"] : (blueprint["tiers"] || {})
+              sorted_tiers = tiers.collect {|k,v| [k,v] }.sort {|a,b| a[1]['tierIndex'] <=> b[1]['tierIndex'] }
+              sorted_tiers.each do |tier_obj|
+                tier_name = tier_obj[0]
+                tier_config = tier_obj[1]
+                payload['tiers'] ||= {}
+                payload['tiers'][tier_name] ||= tier_config.clone
+                # remove instances, they will be iterated over and merged back in
+                tier_instances = payload['tiers'][tier_name].delete("instances")
+                # remove other blank stuff
+                if payload['tiers'][tier_name]['linkedTiers'] && payload['tiers'][tier_name]['linkedTiers'].empty?
+                  payload['tiers'][tier_name].delete('linkedTiers')
+                end
+                tier_instance_types = tier_instances ? tier_instances.collect {|it| (it['instance'] && it['instance']['type']) ? it['instance']['type'].to_s : 'unknown'}.compact : []
+                unless options[:quiet]
+                  print cyan, "Configuring Tier: #{tier_name} (#{tier_instance_types.empty? ? 'empty' : tier_instance_types.join(', ')})", "\n"
+                end
+                # todo: also prompt for tier settings here, like linkedTiers: []
+                if tier_instances
+                  tier_instances = tier_config['instances'] || []
+                  tier_instances.each_with_index do |instance_config, instance_index|
+                    instance_type_code = instance_config['type']
+                    if instance_config['instance'] && instance_config['instance']['type']
+                      instance_type_code = instance_config['instance']['type']
+                    end
+                    if instance_type_code.nil?
+                      print_red_alert "Unable to determine instance type for tier: #{tier_name} index: #{instance_index}"
+                      return 1
+                    else
+                      unless options[:quiet]
+                        print cyan, "Configuring Instance: [#{instance_index}] #{instance_type_code}", "\n"
+                      end
+                      # prompt for the cloud for this instance
+                      # the cloud is part of finding the scoped config in the blueprint
+
+                      scoped_instance_config = get_scoped_instance_config(instance_config.clone, payload['environment'], group ? group['name'] : nil, cloud ? cloud['name'] : nil)
+                      # now configure an instance like normal, use the config to fill in options
+                      instance_prompt_options = {}
+                      instance_prompt_options[:group] = group ? group['id'] : nil
+                      instance_prompt_options[:default_cloud] = cloud ? cloud['id'] : nil
+                      instance_prompt_options[:no_prompt] = options[:no_prompt]
+                      instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
+                      instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
+
+                      #instance_prompt_options[:name_required] = true
+                      instance_prompt_options[:instance_type_code] = instance_type_code
+                      
+                      # this provisioning helper method handles all (most) of the parsing and prompting
+                      instance_config_payload = prompt_new_instance(instance_prompt_options)
+                      
+                      # strip all empty string and nil
+                      instance_config_payload.deep_compact!
+                      # use the blueprint config as the base
+                      final_config = scoped_instance_config.clone
+                      # merge the prompted values
+                      final_config.deep_merge!(instance_config_payload)
+                      final_config.delete('environments')
+                      final_config.delete('groups')
+                      final_config.delete('clouds')
+                      # add config to payload
+                      payload['tiers'][tier_name]['instances'] ||= []
+                      payload['tiers'][tier_name]['instances'] << final_config
+                    end
+                  end
+                else
+                  puts yellow, "Tier '#{tier_name}' is empty", reset
+                end
+              end
+            elsif blueprint_type == 'terraform'
+              # prompt for Terraform config
+              # todo
+            elsif blueprint_type == 'arm'
+              # prompt for ARM config
+              # todo
+            elsif blueprint_type == 'cloudFormation'
+              # prompt for cloudFormation config
+              # todo
+            else
+              print yellow, "Unknown template type: #{template_type})", "\n"
+            end
+          end
+        end
       end
 
+            
+      # Validate Only
+      if options[:validate_only] == true
+        # Validate Only Dry run 
+        if options[:dry_run]
+          if options[:json]
+            puts as_json(payload, options)
+          elsif options[:yaml]
+            puts as_yaml(payload, options)
+          else
+            print_dry_run @apps_interface.dry.validate(payload)
+          end
+          return 0
+        end
+        json_response = @apps_interface.validate(payload)
+
+        if options[:json]
+          puts as_json(json_response, options)
+        else
+          if !options[:quiet]
+            if json_response['success'] == true
+              print_green_success "New app '#{payload['name']}' validation passed. #{json_response['msg']}".strip
+            else
+              print_red_alert "New app '#{payload['name']}' validation failed. #{json_response['msg']}".strip
+              if json_response['errors'] && json_response['errors']['instances']
+                json_response['errors']['instances'].each do |error_obj|
+                  tier_name = error_obj['tier']
+                  instance_index = error_obj['index']
+                  instance_errors = error_obj['instanceErrors']
+                  print_error red, "#{tier_name} : #{instance_index}", "\n", reset
+                  if instance_errors
+                    instance_errors.each do |err_key, err_msg|
+                      print_error red, " * #{err_key} : #{err_msg}", "\n", reset
+                    end
+                  end
+                end
+              else
+                # a default way to print errors
+                (json_response['errors'] || []).each do |error_key, error_msg|
+                  print_error " * #{error_key} : #{error_msg}", "\n"
+                end
+              end
+            end
+          end
+        end
+        if json_response['success'] == true
+          return 0
+        else
+          return 1
+        end
+      end
+
+      # Dry Run?
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.create(payload)
-        return
+        if options[:json]
+          puts as_json(payload, options)
+        elsif options[:yaml]
+          puts as_yaml(payload, options)
+        else
+          print_dry_run @apps_interface.dry.create(payload)
+        end
+        return 0
       end
 
       json_response = @apps_interface.create(payload)
@@ -238,7 +416,11 @@ class Morpheus::Cli::Apps
           end
         end
         # print details
-        get([app['id']])
+        if options[:refresh_interval]
+          get([app['id'], '--refresh', options[:refresh_interval].to_s])
+        else
+          get([app['id']])
+        end
       end
       return 0
     rescue RestClient::Exception => e
@@ -260,19 +442,29 @@ class Morpheus::Cli::Apps
       opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
         options[:refresh_until_status] = val.to_s.downcase
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about an app.\n" +
-                    "[app] is required. This is the name or id of an app."
+                    "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
+    if args.count < 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} get expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} get expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
+
     connect(options)
+
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+    
+  end
+
+  def _get(arg, options={})
     begin
-      app = find_app_by_name_or_id(args[0])
+      app = find_app_by_name_or_id(arg)
       if options[:dry_run]
         print_dry_run @apps_interface.dry.get(app['id'])
         return
@@ -280,8 +472,14 @@ class Morpheus::Cli::Apps
       json_response = @apps_interface.get(app['id'])
       app = json_response['app']
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        return
+        puts as_json(json_response, options, "app")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "app")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response['app']], options)
+        return 0
       end
       print_h1 "App Details"
       print cyan
@@ -324,6 +522,8 @@ class Morpheus::Cli::Apps
               status_string = instance['status'].to_s
               if status_string == 'running'
                 status_string = "#{green}#{status_string.upcase}#{cyan}"
+              elsif status_string == 'provisioning'
+                status_string = "#{cyan}#{status_string.upcase}#{cyan}"
               elsif status_string == 'stopped' or status_string == 'failed'
                 status_string = "#{red}#{status_string.upcase}#{cyan}"
               elsif status_string == 'unknown'
@@ -355,12 +555,10 @@ class Morpheus::Cli::Apps
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(app['status'])
-          print cyan
-          print "Status is #{app['status'] || 'unknown'}. Refreshing in #{options[:refresh_interval]} seconds"
-          #sleep(options[:refresh_interval])
+          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
-          get(args)
+          _get(arg, options)
         end
       end
 
@@ -374,38 +572,69 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app] [options]")
-      build_option_type_options(opts, options, update_app_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      #build_option_type_options(opts, options, update_app_option_types(false))
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
+      opts.on( '--name VALUE', String, "Name" ) do |val|
+        options[:name] = val
+      end
+      opts.on( '--description VALUE', String, "Description" ) do |val|
+        options[:description] = val
+      end
+      opts.on( '--environment VALUE', String, "Environment" ) do |val|
+        options[:environment] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run])
       opts.footer = "Update an app.\n" +
                     "[app] is required. This is the name or id of an app."
     end
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} update expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} update expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
 
     begin
       app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
 
-      payload = {
-        'app' => {id: app["id"]}
-      }
-
-      params = options[:options] || {}
-
-      if params.empty?
-        print_red_alert "Specify atleast one option to update"
-        puts optparse
-        exit 1
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = {
+          'app' => {id: app["id"]}
+        }
+        params = options[:options] || {}
+        if options[:name]
+          params['name'] = options[:name]
+        end
+        if options[:description]
+          params['description'] = options[:description]
+        end
+        if options[:environment]
+          # params['environment'] = options[:environment]
+          params['appContext'] = options[:environment]
+        end
+        if options[:group]
+          group = find_group_by_name_or_id_for_provisioning(options[:group])
+          return 1 if group.nil?
+          params['group'] = {'id' => group['id'], 'name' => group['name']}
+        end
+        if params.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          return 1
+        end
+        payload['app'].merge!(params)
+        # api bug requires this to be at the root level as well right now
+        if payload['app'] && payload['app']['group']
+          payload['group'] = payload['app']['group']
+        end
       end
-
-      #puts "parsed params is : #{params.inspect}"
-      app_keys = ['name', 'description', 'environment']
-      params = params.select {|k,v| app_keys.include?(k) }
-      payload['app'].merge!(params)
 
       if options[:dry_run]
         print_dry_run @apps_interface.dry.update(app["id"], payload)
@@ -443,7 +672,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count < 1 || args.count > 3
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add-instance expects 1-3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} add-instance expects 1-3 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     # optional [tier] and [instance] arguments
@@ -523,7 +752,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} remove expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} remove expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -567,7 +796,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count < 1 || args.count > 2
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} remove-instance expects 1-2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} remove-instance expects 1-2 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     # optional [tier] and [instance] arguments
@@ -622,7 +851,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count !=1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} logs expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} logs expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -680,88 +909,137 @@ class Morpheus::Cli::Apps
     end
   end
 
-=begin
   def stop(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Stop an app.\n" +
+                    "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} stop expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+    if args.count < 1
+      puts_error "[id] argument is required"
+      puts_error optparse
       return 1
     end
     connect(options)
-    begin
-      app = find_app_by_name_or_id(args[0])
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.stop(app['id'])
-        return
-      end
-      @apps_interface.stop(app['id'])
-      list([])
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    id_list = parse_id_list(args)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{id_list.size == 1 ? 'app' : 'apps'} #{anded_list(id_list)}?", options)
+      return 9, "aborted command"
     end
+    return run_command_for_each_arg(id_list) do |arg|
+      _stop(arg, options)
+    end
+  end
+
+  def _stop(app_id, options)
+    app = find_app_by_name_or_id(app_id)
+    return 1 if app.nil?
+    tier_records = extract_app_tiers(app)
+    if options[:dry_run]
+      print_h1 "Dry Run"
+    end
+    tier_records.each do |tier_record|
+      tier_record[:instances].each do |instance|
+        stop_cmd = "instances stop #{instance['id']} -y"
+        if options[:dry_run]
+          puts stop_cmd
+        else
+          my_terminal.execute(stop_cmd)
+        end
+      end
+    end
+    return 0
   end
 
   def start(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Start an app.\n" +
+                    "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} start expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+    if args.count < 1
+      puts_error "[id] argument is required"
+      puts_error optparse
       return 1
     end
     connect(options)
-    begin
-      app = find_app_by_name_or_id(args[0])
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.start(app['id'])
-        return
-      end
-      @apps_interface.start(app['id'])
-      list([])
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    id_list = parse_id_list(args)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{id_list.size == 1 ? 'app' : 'apps'} #{anded_list(id_list)}?", options)
+      return 9, "aborted command"
     end
+    return run_command_for_each_arg(id_list) do |arg|
+      _start(arg, options)
+    end
+  end
+
+  def _start(app_id, options)
+    app = find_app_by_name_or_id(app_id)
+    return 1 if app.nil?
+    tier_records = extract_app_tiers(app)
+    if options[:dry_run]
+      print_h1 "Dry Run"
+    end
+    tier_records.each do |tier_record|
+      tier_record[:instances].each do |instance|
+        start_cmd = "instances start #{instance['id']} -y"
+        if options[:dry_run]
+          puts start_cmd
+        else
+          my_terminal.execute(start_cmd)
+        end
+      end
+    end
+    return 0
   end
 
   def restart(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart an app.\n" +
+                    "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} restart expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+    if args.count < 1
+      puts_error "[id] argument is required"
+      puts_error optparse
       return 1
     end
     connect(options)
-    begin
-      app = find_app_by_name_or_id(args[0])
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.restart(app['id'])
-        return
-      end
-      @apps_interface.restart(app['id'])
-      list([])
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    id_list = parse_id_list(args)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart #{id_list.size == 1 ? 'app' : 'apps'} #{anded_list(id_list)}?", options)
+      return 9, "aborted command"
+    end
+    return run_command_for_each_arg(id_list) do |arg|
+      _restart(arg, options)
     end
   end
-=end
+
+  def _restart(app_id, options)
+    app = find_app_by_name_or_id(app_id)
+    return 1 if app.nil?
+    tier_records = extract_app_tiers(app)
+    if options[:dry_run]
+      print_h1 "Dry Run"
+    end
+    tier_records.each do |tier_record|
+      tier_record[:instances].each do |instance|
+        restart_cmd = "instances restart #{instance['id']} -y"
+        if options[:dry_run]
+          puts restart_cmd
+        else
+          my_terminal.execute(restart_cmd)
+        end
+      end
+    end
+    return 0
+  end
 
   def firewall_disable(args)
     options = {}
@@ -772,7 +1050,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} firewall-disable expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} firewall-disable expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -800,7 +1078,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} firewall-enable expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} firewall-enable expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -828,7 +1106,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} security-groups expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} security-groups expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -882,7 +1160,7 @@ class Morpheus::Cli::Apps
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} apply-security-groups expects 1 argument and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} apply-security-groups expects 1 argument and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     if !clear_or_secgroups_specified
@@ -1056,22 +1334,41 @@ class Morpheus::Cli::Apps
 
   private
 
-  def add_app_option_types(connected=true)
-    [
-      {'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprints() : []), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."},
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
-      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
-      {'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'text', 'required' => false},
-    ]
+  def extract_app_tiers(app)
+    tier_rows = []
+    begin
+      app_tiers = app['appTiers'] || []
+      sorted_app_tiers = app_tiers.sort {|a,b| a['bootSequence'] <=> b['bootSequence'] }
+      sorted_app_tiers.each do |app_tier|
+        tier_name = app_tier['tier']['name']
+        boot_sequence = app_tier['bootSequence'] || 0
+        instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
+        row = {tier_name: tier_name, boot_sequence: boot_sequence, instances: instances}
+        tier_rows << row
+      end
+    rescue => ex
+      Morpheus::Logging::DarkPrinter.puts "Error extracting app instances: #{ex}" if Morpheus::Logging.debug?
+    end
+    return tier_rows
   end
 
-  def update_app_option_types(connected=true)
-    list = add_app_option_types(connected)
-    list = list.reject {|it| ["blueprint", "group"].include? it['fieldName'] }
-    list.each {|it| it['required'] = false }
-    list
-  end
+  # def add_app_option_types(connected=true)
+  #   [
+  #     {'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprints() : []), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."},
+  #     {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
+  #     {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
+  #     {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => false},
+  #     {'fieldName' => 'cloud', 'fieldLabel' => 'Default Cloud', 'type' => 'select', 'selectOptions' => [], 'required' => true},
+  #     {'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'text', 'required' => false},
+  #   ]
+  # end
+
+  # def update_app_option_types(connected=true)
+  #   list = add_app_option_types(connected)
+  #   list = list.reject {|it| ["blueprint", "group"].include? it['fieldName'] }
+  #   list.each {|it| it['required'] = false }
+  #   list
+  # end
 
   def find_app_by_id(id)
     app_results = @apps_interface.get(id.to_i)
@@ -1163,6 +1460,8 @@ class Morpheus::Cli::Apps
       out <<  "#{white}EMPTY#{return_color}"
     elsif status_string == 'running'
       out <<  "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      status_string = "#{cyan}#{status_string.upcase}#{cyan}"
     elsif status_string == 'stopped' or status_string == 'failed'
       out <<  "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'unknown'
@@ -1222,4 +1521,79 @@ class Morpheus::Cli::Apps
     return @available_environments
   end
 
+  def find_blueprint_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_blueprint_by_id(val)
+    else
+      return find_blueprint_by_name(val)
+    end
+  end
+
+  def find_blueprint_by_id(id)
+    begin
+      json_response = @blueprints_interface.get(id.to_i)
+      return json_response['blueprint']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Blueprint not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_blueprint_by_name(name)
+    blueprints = @blueprints_interface.list({name: name.to_s})['blueprints']
+    if blueprints.empty?
+      print_red_alert "Blueprint not found by name #{name}"
+      return nil
+    elsif blueprints.size > 1
+      print_red_alert "#{blueprints.size} blueprints by name #{name}"
+      print_blueprints_table(blueprints, {color: red})
+      print reset,"\n"
+      return nil
+    else
+      return blueprints[0]
+    end
+  end
+
+  # lookup scoped instance config in a blueprint
+  # this only finds one right now
+  # def tmplCfg = getConfigMap(appTemplateConfig?.tiers?.getAt(tierName)?.instances?.getAt(index), opts.environment, opts.group, instanceOpts.instance.cloud?: opts?.defaultCloud?.name)
+  def get_scoped_instance_config(instance_config, env_name, group_name, cloud_name)
+      config = instance_config.clone
+      if env_name && config['environments'] && config['environments'][env_name]
+        config = config['environments'][env_name].clone
+      end
+      if group_name && config['groups'] && config['groups'][group_name]
+        config = config['groups'][group_name].clone
+      end
+      if cloud_name && config['clouds'] && config['clouds'][cloud_name]
+        config = config['clouds'][cloud_name].clone
+      end
+      config.delete('environments')
+      config.delete('groups')
+      config.delete('clouds')
+      return config
+  end
+
+  # def getConfigMap(instance, env, group, cloud) {
+  #   def  configMap = instance
+  #   if(env && instance?.environments) {
+  #     def envName = (env instanceof String? env : env?.name)
+  #     configMap = instance?.environments?.getAt(envName) ?: instance
+  #   }
+  #   if(group && configMap?.groups) {
+  #     if (group instanceof String) {
+  #       configMap = configMap?.groups?.getAt(group) ?: configMap
+  #     }
+  #     else {
+  #       configMap = configMap?.groups?.getAt(group?.name) ?: configMap
+  #     }
+  #   }
+  #   if(cloud && configMap?.clouds) {
+  #     return configMap?.clouds?.getAt(cloud) ?: configMap
+  #   }
+  #   return configMap
+  # }
 end

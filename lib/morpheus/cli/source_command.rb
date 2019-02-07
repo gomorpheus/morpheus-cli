@@ -25,6 +25,7 @@ class Morpheus::Cli::SourceCommand
     source_files = args
     source_files.each do |source_file|
       # execute a source script
+      source_file = File.expand_path(source_file)
       if File.exists?(source_file)
         cmd_results = Morpheus::Cli::DotFile.new(source_file).execute()
       else

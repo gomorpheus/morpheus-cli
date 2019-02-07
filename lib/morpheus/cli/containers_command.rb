@@ -139,8 +139,7 @@ class Morpheus::Cli::ContainersCommand
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(container['status'])
           print cyan
-          print "Status is #{container['status'] || 'unknown'}. Refreshing in #{options[:refresh_interval]} seconds"
-          #sleep(options[:refresh_interval])
+          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
           _get(arg, options)
