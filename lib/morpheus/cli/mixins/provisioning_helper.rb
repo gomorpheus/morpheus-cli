@@ -211,7 +211,9 @@ module Morpheus::Cli::ProvisioningHelper
   # prompts user for all the configuartion options for a particular instance
   # returns payload of data for a new instance
   def prompt_new_instance(options={})
+    #puts "prompt_new_instance() #{options}"
     print reset # clear colors
+    options[:options] ||= {}
     # Group
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -249,16 +251,13 @@ module Morpheus::Cli::ProvisioningHelper
     exit 1 if !instance_type
 
     # Instance Name
-
     instance_name = nil
     if options[:instance_name]
-      instance_name = options[:instance_name]
-    elsif options[:options] && options[:options]['name']
-      instance_name = options[:options]['name']
-    else
-      name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
-      instance_name = name_prompt['name'] || ''
+      options[:options]['name'] = options[:instance_name]
     end
+    name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
+    instance_name = name_prompt['name']
+    
 
     payload = {
       'zoneId' => cloud_id,
@@ -283,6 +282,9 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # Description
+    if options[:description]
+      options[:options]['description'] = options[:description]
+    end
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
     payload['instance']['description'] = v_prompt['description'] if !v_prompt['description'].empty?
 
@@ -340,14 +342,14 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # prompt for volumes
-    if payload['volumes'].nil?
+    # if payload['volumes'].nil?
       volumes = prompt_volumes(service_plan, options, api_client, {})
       if !volumes.empty?
         payload['volumes'] = volumes
       end
-    end
+    # end
 
-    if payload['networkInterfaces'].nil?
+    # if payload['networkInterfaces'].nil?
       if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
         # prompt for network interfaces (if supported)
         begin
@@ -360,7 +362,7 @@ module Morpheus::Cli::ProvisioningHelper
           print_rest_exception(e, options) if Morpheus::Logging.debug?
         end
       end
-    end
+    # end
 
     # build option types
     option_type_list = []
@@ -463,6 +465,20 @@ module Morpheus::Cli::ProvisioningHelper
 
     field_context = "rootVolume"
 
+    volume_label = 'root'
+    volume = {
+      'id' => -1,
+      'rootVolume' => true,
+      'name' => volume_label,
+      'size' => plan_size,
+      'sizeId' => nil,
+      'storageType' => nil,
+      'datastoreId' => nil
+    }
+    if options[:options] && options[:options]['volumes'] && options[:options]['volumes'][0]
+      volume = options[:options]['volumes'][0]
+    end
+
     if root_storage_types.empty?
       # this means there's no configuration, just send a single root volume to the server
       storage_type_id = nil
@@ -472,6 +488,7 @@ module Morpheus::Cli::ProvisioningHelper
       storage_type_id = v_prompt[field_context]['storageType']
       storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
     end
+    volume['storageType'] = storage_type_id
 
     # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
     root_custom_size_options = []
@@ -483,38 +500,27 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    volume_label = 'root'
-    volume = {
-      'id' => -1,
-      'rootVolume' => true,
-      'name' => volume_label,
-      'size' => plan_size,
-      'sizeId' => nil,
-      'storageType' => storage_type_id,
-      'datastoreId' => nil
-    }
-
     if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customLabel']
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Root Volume Label', 'required' => true, 'description' => 'Enter a volume label.', 'defaultValue' => volume_label}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Root Volume Label', 'required' => true, 'description' => 'Enter a volume label.', 'defaultValue' => volume['name']}], options[:options])
       volume['name'] = v_prompt[field_context]['name']
     end
     if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customSize']
       if root_custom_size_options.empty?
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => plan_size}], options[:options])
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
         volume['size'] = v_prompt[field_context]['size']
         volume['sizeId'] = nil #volume.delete('sizeId')
       else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.'}], options[:options])
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.', 'defaultValue' => volume['sizeId']}], options[:options])
         volume['sizeId'] = v_prompt[field_context]['sizeId']
         volume['size'] = nil #volume.delete('size')
       end
     else
       # might need different logic here ? =o
-      volume['size'] = plan_size
-      volume['sizeId'] = nil #volume.delete('sizeId')
+      #volume['size'] = plan_size
+      #volume['sizeId'] = nil #volume.delete('sizeId')
     end
     if !datastore_options.empty?
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => volume['datastoreId']}], options[:options])
       volume['datastoreId'] = v_prompt[field_context]['datastoreId']
     end
 
@@ -522,15 +528,30 @@ module Morpheus::Cli::ProvisioningHelper
 
     if plan_info['addVolumes']
       volume_index = 1
-      has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
+      has_another_volume = (options[:options] && options[:options]["dataVolume#{volume_index}"]) || (options[:options] && options[:options]['volumes'] && options[:options]['volumes'][volume_index])
       add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?", {:default => false}))
       while add_another_volume do
           #puts "Configure Data #{volume_index} Volume"
 
           field_context = "dataVolume#{volume_index}"
 
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+          volume_label = (volume_index == 1 ? 'data' : "data #{volume_index}")
+          volume = {
+            #'id' => -1,
+            'rootVolume' => false,
+            'name' => volume_label,
+            'size' => plan_size,
+            'sizeId' => nil,
+            'storageType' => nil,
+            'datastoreId' => nil
+          }
+          if options[:options] && options[:options]['volumes'] && options[:options]['volumes'][volume_index]
+            volume = options[:options]['volumes'][volume_index]
+          end
+
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => volume['storageType']}], options[:options])
           storage_type_id = v_prompt[field_context]['storageType']
+          volume['storageType'] = storage_type_id
           storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
 
           # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
@@ -543,28 +564,17 @@ module Morpheus::Cli::ProvisioningHelper
             end
           end
 
-          volume_label = (volume_index == 1 ? 'data' : "data #{volume_index}")
-          volume = {
-            'id' => -1,
-            'rootVolume' => false,
-            'name' => volume_label,
-            'size' => plan_size,
-            'sizeId' => nil,
-            'storageType' => storage_type_id,
-            'datastoreId' => nil
-          }
-
           if plan_info['customizeVolume'] && storage_type['customLabel']
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "Disk #{volume_index} Volume Label", 'required' => true, 'description' => 'Enter a volume label.', 'defaultValue' => volume_label}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "Disk #{volume_index} Volume Label", 'required' => true, 'description' => 'Enter a volume label.', 'defaultValue' => volume['name']}], options[:options])
             volume['name'] = v_prompt[field_context]['name']
           end
           if plan_info['customizeVolume'] && storage_type['customSize']
             if custom_size_options.empty?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => "Disk #{volume_index} Volume Size (GB)", 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => plan_size}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => "Disk #{volume_index} Volume Size (GB)", 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
               volume['size'] = v_prompt[field_context]['size']
               volume['sizeId'] = nil #volume.delete('sizeId')
             else
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Volume Size", 'selectOptions' => custom_size_options, 'required' => true, 'description' => 'Choose a volume size.'}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Volume Size", 'selectOptions' => custom_size_options, 'required' => true, 'description' => 'Choose a volume size.', 'defaultValue' => volume['sizeId']}], options[:options])
               volume['sizeId'] = v_prompt[field_context]['sizeId']
               volume['size'] = nil #volume.delete('size')
             end
@@ -574,17 +584,19 @@ module Morpheus::Cli::ProvisioningHelper
             volume['sizeId'] = nil #volume.delete('sizeId')
           end
           if !datastore_options.empty?
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => volume['datastoreId']}], options[:options])
             volume['datastoreId'] = v_prompt[field_context]['datastoreId']
           end
 
           volumes << volume
 
-          # todo: should maxDisk check consider the root volume too?
-          if plan_info['maxDisk'] && volume_index >= plan_info['maxDisk']
+          volume_index += 1
+          if options[:options] && options[:options]['volumes'] && options[:options]['volumes'][volume_index]
+            add_another_volume = true
+          elsif plan_info['maxDisk'] && volume_index >= plan_info['maxDisk']
+            # todo: should maxDisk check consider the root volume too?
             add_another_volume = false
           else
-            volume_index += 1
             has_another_volume = options[:options] && options[:options]["dataVolume#{volume_index}"]
             add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another data volume?", {:default => false}))
           end
@@ -920,20 +932,22 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-
-    interface_index = 1
+    interface_index = 0
     add_another_interface = true
     while add_another_interface do
       # if !no_prompt
-      #   if interface_index == 1
+      #   if interface_index == 0
       #     puts "Configure Network Interface"
       #   else
-      #     puts "Configure Network Interface #{interface_index}"
+      #     puts "Configure Network Interface #{interface_index+1}"
       #   end
       # end
 
-      field_context = interface_index == 1 ? "networkInterface" : "networkInterface#{interface_index}"
+      field_context = interface_index == 0 ? "networkInterface" : "networkInterface#{interface_index+1}"
       network_interface = {}
+      if options[:options] && options[:options]['networkInterfaces'] && options[:options]['networkInterfaces'][interface_index]
+        network_interface = options[:options]['networkInterfaces'][interface_index]
+      end
 
       # choose network
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
@@ -971,10 +985,12 @@ module Morpheus::Cli::ProvisioningHelper
 
       network_interfaces << network_interface
       interface_index += 1
-      if max_networks && network_interfaces.size >= max_networks
+      if options[:options] && options[:options]['networkInterfaces'] && options[:options]['networkInterfaces'][interface_index]
+        add_another_interface = true
+      elsif max_networks && network_interfaces.size >= max_networks
         add_another_interface = false
       else
-        has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index}"]
+        has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index+1}"]
         add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
       end
 

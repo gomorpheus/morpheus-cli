@@ -88,7 +88,6 @@ class Morpheus::Cli::Apps
   end
 
   def add(args)
-    template_id = nil
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -111,7 +110,7 @@ class Morpheus::Cli::Apps
         options[:description] = val
       end
       opts.on( '-e', '--environment VALUE', "Environment Name" ) do |val|
-        options[:environment] = val
+        options[:environment] = val.to_s == 'null' ? nil : val
       end
       # config is being deprecated in favor of the standard --payload options
       # opts.add_hidden_option(['config', 'config-dir', 'config-file', 'config-yaml'])
@@ -138,75 +137,70 @@ class Morpheus::Cli::Apps
     connect(options)
     begin
       options[:options] ||= {}
-
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = {}
       if options[:payload]
+        # payload is from parsed json|yaml files or arguments.
         payload = options[:payload]
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # merge -O options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
         # support some options on top of --payload
-        # Name
-        if options[:name]
-          payload['name'] = options[:name]
+        [:name, :description, :environment].each do |k|
+          if options.key?(k)
+            payload[k.to_s] = options[k]
+          end
         end
-        # Description
-        if options[:description]
-          payload['description'] = options[:description]
-        end
-        # Environment
-        if options[:environment]
-          payload['environment'] = options[:environment]
-        end
-
       else
         # prompt for payload
         payload = {}
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # merge -O options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+
+        # this could have some special -O context, like -O tier.Web.0.instance.name
+        # tier_config_options = payload.delete('tier')
 
         # Blueprint
-        template_id = options[:blueprint]
+        blueprint_id = 'existing'
+        blueprint = nil
         if options[:blueprint]
-          template_id = options[:blueprint]
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => get_available_blueprints(), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."}], options[:options])
-          template_id = v_prompt['blueprint']
+          blueprint_id = options[:blueprint]
+          options[:options]['blueprint'] = options[:blueprint]
         end
-        if template_id.to_s.empty? || template_id == 'existing'
-          payload['blueprintId'] = 'existing'
-          payload['templateId'] = 'existing'
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'selectOptions' => get_available_blueprints(), 'required' => true, 'defaultValue' => 'existing', 'description' => "The blueprint to use. The default value is 'existing' which means no template, for creating a blank app and adding existing instances."}], options[:options])
+        blueprint_id = v_prompt['blueprint']
+        
+        if blueprint_id.to_s.empty? || blueprint_id == 'existing'
+          blueprint = {"id" => "existing", "name" => "Existing Instances", "value" => "existing", "type" => "morpheus"}
         else
-          found_app_template = get_available_blueprints.find {|it| it['id'].to_s == template_id.to_s || it['name'].to_s == template_id.to_s }
-          if found_app_template.nil?
-            print_red_alert "Blueprint not found by '#{template_id}'"
+          blueprint = find_blueprint_by_name_or_id(blueprint_id)
+          if blueprint.nil?
+            print_red_alert "Blueprint not found by name or id '#{blueprint_id}'"
             return 1
           end
-          payload['blueprintId'] = found_app_template['id']
-          payload['templateId'] = found_app_template['id']
         end
+        
+        payload['templateId'] = blueprint['id'] # for pre-3.6 api
+        payload['blueprintId'] = blueprint['id']
+        payload['blueprintName'] = blueprint['name'] #for future api plz
 
         # Name
-        if options[:name]
-          payload['name'] = options[:name]
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
-          payload['name'] = v_prompt['description']
-        end
+        options[:options]['name'] = options[:name] if options.key?(:name)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
+        payload['name'] = v_prompt['name']
+        
 
         # Description
-        if options[:description]
-          payload['description'] = options[:description]
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
-          payload['description'] = v_prompt['description']
-        end
+        options[:options]['description'] = options[:description] if options.key?(:description)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
+        payload['description'] = v_prompt['description']
+        
 
         # Group
         group_id = nil
-        if options[:group]
-          group_id = options[:group]
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true, 'defaultValue' => @active_group_id}], options[:options])
-          group_id = v_prompt['group']
-        end
+        options[:options]['group'] = options[:group] if options.key?(:group)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true, 'defaultValue' => @active_group_id}], options[:options])
+        group_id = v_prompt['group']
+        
         group = find_group_by_name_or_id_for_provisioning(group_id)
         return 1 if group.nil?
         payload['group'] = {'id' => group['id'], 'name' => group['name']}
@@ -263,9 +257,15 @@ class Morpheus::Cli::Apps
                 if payload['tiers'][tier_name]['linkedTiers'] && payload['tiers'][tier_name]['linkedTiers'].empty?
                   payload['tiers'][tier_name].delete('linkedTiers')
                 end
+                # remove extra instance options at tierName.index, probabl need a namespace here like tier.TierName.index
+                tier_extra_options = {}
+                if payload[tier_name]
+                  tier_extra_options = payload.delete(tier_name)
+                end
                 tier_instance_types = tier_instances ? tier_instances.collect {|it| (it['instance'] && it['instance']['type']) ? it['instance']['type'].to_s : 'unknown'}.compact : []
                 unless options[:quiet]
-                  print cyan, "Configuring Tier: #{tier_name} (#{tier_instance_types.empty? ? 'empty' : tier_instance_types.join(', ')})", "\n"
+                  # print cyan, "Configuring Tier: #{tier_name} (#{tier_instance_types.empty? ? 'empty' : tier_instance_types.join(', ')})", "\n"
+                  print cyan, "Configuring tier #{tier_name}", "\n"
                 end
                 # todo: also prompt for tier settings here, like linkedTiers: []
                 if tier_instances
@@ -280,19 +280,28 @@ class Morpheus::Cli::Apps
                       return 1
                     else
                       unless options[:quiet]
-                        print cyan, "Configuring Instance: [#{instance_index}] #{instance_type_code}", "\n"
+                        print cyan, "Configuring #{instance_type_code} instance #{tier_name}.#{instance_index}", "\n"
                       end
                       # prompt for the cloud for this instance
                       # the cloud is part of finding the scoped config in the blueprint
 
                       scoped_instance_config = get_scoped_instance_config(instance_config.clone, payload['environment'], group ? group['name'] : nil, cloud ? cloud['name'] : nil)
-                      # now configure an instance like normal, use the config to fill in options
+                      # now configure an instance like normal, use the config as default options with :always_prompt
                       instance_prompt_options = {}
                       instance_prompt_options[:group] = group ? group['id'] : nil
                       instance_prompt_options[:default_cloud] = cloud ? cloud['id'] : nil
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
+                      instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
+                      instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
                       instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
+
+                      # also allow arbritrary options passed as tierName.instanceIndex
+                      instance_extra_options = {}
+                      if tier_extra_options && tier_extra_options[instance_index.to_s]
+                        instance_extra_options = tier_extra_options[instance_index.to_s]
+                      end
+                      instance_prompt_options[:options].deep_merge!(instance_extra_options)
 
                       #instance_prompt_options[:name_required] = true
                       instance_prompt_options[:instance_type_code] = instance_type_code
@@ -1496,7 +1505,7 @@ class Morpheus::Cli::Apps
       @available_blueprints = results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }
-      default_option = {"id" => "existing", "name" => "Existing Instances", "value" => "existing"}
+      default_option = {"id" => "existing", "name" => "Existing Instances", "value" => "existing", "type" => "morpheus"}
       @available_blueprints.unshift(default_option)
     end
     #puts "get_available_blueprints() rtn: #{@available_blueprints.inspect}"
@@ -1548,8 +1557,11 @@ class Morpheus::Cli::Apps
       print_red_alert "Blueprint not found by name #{name}"
       return nil
     elsif blueprints.size > 1
-      print_red_alert "#{blueprints.size} blueprints by name #{name}"
-      print_blueprints_table(blueprints, {color: red})
+      print_red_alert "#{blueprints.size} blueprints found by name #{name}"
+      # print_blueprints_table(blueprints, {color: red})
+      rows = blueprints.collect { |it| {id: it['id'], name: it['name']} }
+      print red
+      print as_pretty_table(rows, [:id, :name], {color:red})
       print reset,"\n"
       return nil
     else

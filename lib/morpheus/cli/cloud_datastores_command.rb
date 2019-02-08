@@ -379,7 +379,7 @@ class Morpheus::Cli::CloudDatastoresCommand
     elsif datastores.size > 1
       print_red_alert "#{datastores.size} datastores found by name #{name}"
       # print_datastores_table(datastores, {color: red})
-      rows = datastores.collect do |datastore|
+      rows = datastores.collect do |it|
         {id: it['id'], name: it['name']}
       end
       print red

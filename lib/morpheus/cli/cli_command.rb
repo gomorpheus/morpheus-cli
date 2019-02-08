@@ -237,17 +237,25 @@ module Morpheus
               end
               options[:options] = custom_options
             end
+            opts.on('-P','--prompt', "Always prompts. Use passed options as the default value.") do |val|
+              options[:always_prompt] = true
+              options[:options] ||= {}
+              options[:options][:always_prompt] = true
+            end
             opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|
               options[:no_prompt] = true
-              # ew, stored in here for now because options[:options] is what is passed into OptionTypes.prompt() everywhere!
               options[:options] ||= {}
               options[:options][:no_prompt] = true
             end
 
-          when :noprompt
+          when :prompt
+            opts.on('-P','--prompt', "Always prompts. Use passed options as the default value.") do |val|
+              options[:always_prompt] = true
+              options[:options] ||= {}
+              options[:options][:always_prompt] = true
+            end
             opts.on('-N','--no-prompt', "Skip prompts. Use default values for all optional fields.") do |val|
               options[:no_prompt] = true
-              # ew, stored in here for now because options[:options] is what is passed into OptionTypes.prompt() everywhere!
               options[:options] ||= {}
               options[:options][:no_prompt] = true
             end

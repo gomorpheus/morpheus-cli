@@ -44,6 +44,18 @@ module Morpheus
           context_map = results
           value = nil
           value_found=false
+
+         
+          # How about this instead?
+          # option_type = option_type.clone
+          # field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+          # if field_key != ''
+          #   value = get_object_value(options, field_key)
+          #   if value != nil && options[:always_prompt] != true
+          #     value_found = true
+          #   end
+          # end
+
           if option_type['fieldContext']
             cur_namespace = options
             namespaces = option_type['fieldContext'].split(".")
@@ -63,7 +75,9 @@ module Morpheus
                 # this should just fall down through below, with the extra params no_prompt, use_value
                 value = select_prompt(option_type, api_client, api_params, true, value)
               end
-              value_found = true
+              if options[:always_prompt] != true
+                value_found = true
+              end
             end
           else
             # no fieldContext
@@ -72,9 +86,19 @@ module Morpheus
               if option_type['type'] == 'number'
                 value = value.to_s.include?('.') ? value.to_f : value.to_i
               end
-              value_found = true
+             # still prompt
+             if options[:always_prompt] != true
+                value_found = true
+              end
             end
           end
+          
+          # set the value that has been passed to the option type default value: options[fieldContext.fieldName]
+          if value != nil # && value != ''
+            option_type = option_type.clone  
+            option_type['defaultValue'] = value
+          end
+          
 
           # no_prompt means skip prompting and instead
           # use default value or error if a required option is not present

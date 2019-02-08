@@ -142,10 +142,10 @@ class Morpheus::Cli::BlueprintsCommand
       end
 
       if options[:json]
-        puts as_json(json_response, options, "blueprint")
+        puts as_json(json_response, options)
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "blueprint")
+        puts as_yaml(json_response, options)
         return 0
       elsif options[:csv]
         puts records_as_csv([json_response['blueprint']], options)
@@ -191,32 +191,41 @@ class Morpheus::Cli::BlueprintsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_blueprint_option_types(false))
+      opts.on('-t', '--type TYPE', String, "Blueprint Type. Default is morpheus.") do |val|
+        options[:blueprint_type] = val.to_s
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new blueprint.\n" + 
-                    "[name] is optional and can be passed as --name or inside the config instead."
-                    "[--config] or [--config-file] can be used to define the blueprint."
+                    "[name] is required. This is the name of the new blueprint."
     end
     optparse.parse!(args)
     if args.count > 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     options[:options] ||= {}
-    if args[0] && !options[:options]['name']
+    if args[0]
       options[:options]['name'] = args[0]
     end
     connect(options)
     begin
       payload = {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       if options[:payload]
         payload = options[:payload]
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
       else
         # prompt for payload
         payload = {}
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+        if options[:blueprint_type]
+          options[:options]['type'] = options[:blueprint_type]
+        else
+          # options[:options]['type'] = 'morpheus'
+        end
         params = Morpheus::Cli::OptionTypes.prompt(add_blueprint_option_types, options[:options], @api_client, options[:params])
+        params.deep_compact!
         #blueprint_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
         # expects no namespace, just the config
         #payload = blueprint_payload
@@ -259,20 +268,8 @@ class Morpheus::Cli::BlueprintsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
-      opts.on('--config JSON', String, "Blueprint Config JSON") do |val|
-        options[:config] = JSON.parse(val.to_s)
-      end
-      opts.on('--config-yaml YAML', String, "Blueprint Config YAML") do |val|
-        options[:config] = YAML.load(val.to_s)
-      end
-      opts.on('--config-file FILE', String, "Blueprint Config from a local JSON or YAML file") do |val|
-        options[:config_file] = val.to_s
-      end
-      opts.on('--config-dir DIRECTORY', String, "Blueprint Config from a local directory, merging all JSON or YAML files") do |val|
-        options[:config_dir] = val.to_s
-      end
       build_option_type_options(opts, options, update_blueprint_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update a blueprint.\n" + 
                     "[id] is required. This is the name or id of a blueprint.\n" +
                     "[options] Available options include --name and --description. This will update only the specified values.\n" +
@@ -290,54 +287,23 @@ class Morpheus::Cli::BlueprintsCommand
     begin
 
       blueprint = find_blueprint_by_name_or_id(args[0])
-      exit 1 if blueprint.nil?
+      return 1 if blueprint.nil?
 
-      payload = nil
-      if options[:config]
-        config_payload = options[:config]
-        payload = config_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_file]
-        config_file = options[:config_file]
-        if !File.exists?(config_file)
-          print_red_alert "File not found: #{config_file}"
-          return false
-        end
-        if config_file =~ /\.ya?ml\Z/
-          config_payload = YAML.load_file(config_file)
-        else
-          config_payload = JSON.parse(File.read(config_file))
-        end
-        payload = config_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      elsif options[:config_dir]
-        config_dir = File.expand_path(options[:config_dir])
-        if !Dir.exists?(config_dir) || !File.directory?(config_dir)
-          print_red_alert "Directory not found: #{config_dir}"
-          return false
-        end
-        merged_payload = {}
-        config_files = []
-        config_files += Dir["#{config_dir}/*.json"]
-        config_files += Dir["#{config_dir}/*.yml"]
-        config_files += Dir["#{config_dir}/*.yaml"]
-        if config_files.empty?
-          print_red_alert "No .json/yaml files found in config directory: #{config_dir}"
-          return false
-        end
-        config_files.each do |config_file|
-          if config_file =~ /\.ya?ml\Z/
-            config_payload = YAML.load_file(config_file)
-          else
-            config_payload = JSON.parse(File.read(config_file))
-          end
-          merged_payload.deep_merge!(config_payload)
-        end
-        payload = merged_payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      payload = {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
       else
+        # no prompting, just merge passed options
         payload = blueprint["config"]
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+
+        if passed_options.empty?
+          print_red_alert "Specify atleast one option to update"
+          puts optparse
+          return 1
+        end
       end
       
       if options[:dry_run]
@@ -482,7 +448,7 @@ class Morpheus::Cli::BlueprintsCommand
     optparse.parse!(args)
     if args.count != 2
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} upload-image expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} upload-image expects 2 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     blueprint_name = args[0]
@@ -637,7 +603,7 @@ class Morpheus::Cli::BlueprintsCommand
 
     if args.count < 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add-instance expects 3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} add-instance expects 3 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
 
@@ -1195,6 +1161,7 @@ class Morpheus::Cli::BlueprintsCommand
     options = {}
     boot_order = nil
     linked_tiers = nil
+    tier_index = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
@@ -1205,6 +1172,9 @@ class Morpheus::Cli::BlueprintsCommand
       end
       opts.on('--linkedTiers x,y,z', Array, "Connected Tiers.") do |val|
         linked_tiers = val
+      end
+      opts.on('--tierIndex NUMBER', Array, "Tier Index. Used for Display Order") do |val|
+        tier_index = val
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
@@ -1276,6 +1246,19 @@ class Morpheus::Cli::BlueprintsCommand
         end
       end
 
+      # Tier Index
+      if !tier_index
+        #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tierIndex', 'fieldLabel' => 'Tier Index', 'type' => 'number', 'required' => false, 'description' => 'Sequence order for displaying app instances by tier. 0-N', 'defaultValue' => tier['tierIndex']}], options[:options])
+        #tier_index = v_prompt['tierIndex']
+        tier_index = (tiers.size - 1)
+      end
+
+      if tier_index.to_s == 'null'
+        tier.delete('tierIndex')
+      elsif tier_index
+        tier['tierIndex'] = tier_index.to_i
+      end
+
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
@@ -1317,6 +1300,7 @@ class Morpheus::Cli::BlueprintsCommand
     new_tier_name = nil
     boot_order = nil
     linked_tiers = nil
+    tier_index = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
@@ -1328,13 +1312,16 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on('--linkedTiers x,y,z', Array, "Connected Tiers") do |val|
         linked_tiers = val
       end
+      opts.on('--tierIndex NUMBER', String, "Tier Index. Used for Display Order") do |val|
+        tier_index = val.to_i
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
     if args.count != 2
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} update-tier expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} update-tier expects 2 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     blueprint_name = args[0]
@@ -1356,14 +1343,17 @@ class Morpheus::Cli::BlueprintsCommand
       end
       tier = tiers[tier_name]
 
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       
       if options[:no_prompt]
-        if !(new_tier_name || boot_order || linked_tiers)
+        if !(new_tier_name || boot_order || linked_tiers || tier_index || !passed_options.empty?)
           print_error Morpheus::Terminal.angry_prompt
           puts_error  "#{command_name} update-tier requires an option to update.\n#{optparse}"
           return 1
         end
       end
+
+      tier.deep_merge!(passed_options) unless passed_options.empty?
 
       # prompt update tier
       # Name
@@ -1421,6 +1411,13 @@ class Morpheus::Cli::BlueprintsCommand
         end
       end
 
+      # Tier Index
+      if tier_index.to_s == 'null'
+        tier.delete('tierIndex')
+      elsif tier_index
+        tier['tierIndex'] = tier_index.to_i
+      end
+
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
@@ -1455,7 +1452,7 @@ class Morpheus::Cli::BlueprintsCommand
 
     if args.count < 2
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} remove-tier expects 2 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} remove-tier expects 2 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
     blueprint_name = args[0]
@@ -1522,7 +1519,7 @@ class Morpheus::Cli::BlueprintsCommand
 
     if args.count < 3
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} connect-tiers expects 3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} connect-tiers expects 3 arguments and received #{args.count}: #{args}\n#{optparse}"
       # puts optparse
       return 1
     end
@@ -1620,7 +1617,7 @@ class Morpheus::Cli::BlueprintsCommand
 
     if args.count < 3
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} disconnect-tiers expects 3 arguments and received #{args.count}: #{args.join(' ')}\n#{optparse}"
+      puts_error  "#{command_name} disconnect-tiers expects 3 arguments and received #{args.count}: #{args}\n#{optparse}"
       # puts optparse
       return 1
     end
@@ -1816,11 +1813,10 @@ class Morpheus::Cli::BlueprintsCommand
 
   def add_blueprint_option_types(connected=true)
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-      # skip Type for now because other types need to use --config anyhow
-      #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprint_types() : []), 'required' => true, 'defaultValue' => 'morpheus', 'displayOrder' => 3},
-      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'},
+      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => (connected ? get_available_blueprint_types() : []), 'required' => true, 'defaultValue' => 'morpheus'},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
+      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false},
       #{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true}
     ]
   end
@@ -1844,7 +1840,7 @@ class Morpheus::Cli::BlueprintsCommand
 
   def update_blueprint_option_types(connected=true)
     list = add_blueprint_option_types(connected)
-    list = list.reject {|it| ["group"].include? it['fieldName'] }
+    list = list.select {|it| ["name","decription","category"].include? it['fieldName'] }
     list.each {|it| it['required'] = false }
     list
   end
@@ -2018,7 +2014,11 @@ class Morpheus::Cli::BlueprintsCommand
     if blueprint["config"] && blueprint["config"]["tiers"] && blueprint["config"]["tiers"].keys.size != 0
       print cyan
       #puts as_yaml(blueprint["config"]["tiers"])
-      blueprint["config"]["tiers"].each do |tier_name, tier_config|
+      tiers = blueprint["config"]["tiers"]
+      sorted_tiers = tiers.collect {|k,v| [k,v] }.sort {|a,b| a[1]['tierIndex'] <=> b[1]['tierIndex'] }
+      sorted_tiers.each do |tier_obj|
+        tier_name = tier_obj[0]
+        tier_config = tier_obj[1]
         # print_h2 "Tier: #{tier_name}"
         print_h2 tier_name
         # puts "  Instances:"

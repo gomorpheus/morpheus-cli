@@ -226,6 +226,9 @@ class Morpheus::Cli::Instances
       opts.on( '--name NAME', "Instance Name" ) do |val|
         options[:instance_name] = val
       end
+      opts.on("--description [TEXT]", String, "Description") do |val|
+        options[:description] = val.to_s
+      end
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
       end
