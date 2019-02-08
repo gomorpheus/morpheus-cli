@@ -157,29 +157,30 @@ class Morpheus::Cli::BlueprintsCommand
       print_blueprint_details(blueprint)
 
       if blueprint['resourcePermission'].nil?
-        print "\n", "No group access found", "\n"
+        #print "\n", "No group access found", "\n"
       else
-        print_h2 "Group Access"
-        rows = []
-        if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
-          rows.push({"name" => 'All'})
-        end
-        if blueprint['resourcePermission']['sites']
-          blueprint['resourcePermission']['sites'].each do |site|
-            rows.push(site)
-          end
-        end
-        rows = rows.collect do |site|
-          {group: site['name'], default: site['default'] ? 'Yes' : ''}
-        end
-        # columns = [:group, :default]
-        columns = [:group]
-        print cyan
-        print as_pretty_table(rows, columns)
+        # print_h2 "Group Access"
+        # rows = []
+        # if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
+        #   rows.push({"name" => 'All'})
+        # end
+        # if blueprint['resourcePermission']['sites']
+        #   blueprint['resourcePermission']['sites'].each do |site|
+        #     rows.push(site)
+        #   end
+        # end
+        # rows = rows.collect do |site|
+        #   {group: site['name'], default: site['default'] ? 'Yes' : ''}
+        # end
+        # # columns = [:group, :default]
+        # columns = [:group]
+        # print cyan
+        # print as_pretty_table(rows, columns)
+        # print reset,"\n"
       end
 
-      print reset,"\n"
-      
+      #print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -2007,7 +2008,25 @@ class Morpheus::Cli::BlueprintsCommand
       "Type" => lambda {|it| it['type'].kind_of?(Hash) ? it['type']['name'] : it['type'] },
       "Category" => 'category',
       "Image" => lambda {|it| it['config'] ? (it['config']['image'] == '/assets/apps/template.png' ? '(default)' : it['config']['image']) : '' },
-      "Visibility" => 'visibility'
+      "Visibility" => 'visibility',
+      "Group Access" => lambda {|it| 
+        group_access_str = ""
+        begin
+          rows = []
+          if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
+            rows.push({"name" => 'All'})
+          end
+          if blueprint['resourcePermission']['sites']
+            blueprint['resourcePermission']['sites'].each do |site|
+              rows.push(site)
+            end
+          end
+          group_access_str = rows.collect {|it| it['default'] ? "#{it['name']} (default)" : "#{it['name']}"}.join(',')
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Error parsing group access: #{ex}" if Morpheus::Logging.debug?
+        end
+        group_access_str
+      }
     }
     print_description_list(description_cols, blueprint)
     # print_h2 "Tiers"
