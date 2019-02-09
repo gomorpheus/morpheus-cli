@@ -99,7 +99,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
       opts.footer = "Get details about a blueprint.\n" +
                     "[id] is required. This is the name or id of a blueprint."
     end
@@ -125,33 +125,19 @@ class Morpheus::Cli::BlueprintsCommand
       #json_response = @blueprints_interface.get(blueprint['id'])
       blueprint = json_response['blueprint']
 
+      # export just the config as json or yaml (default)
       if options[:show_config]
-        #print_h2 "RAW"
-        if options[:json]
-          print cyan
-          print "// JSON config for Morpheus Blueprint: #{blueprint['name']}","\n"
-          print reset
-          puts as_json(blueprint["config"])
-        else
-          print cyan
-          print "# YAML config for Morpheus Blueprint: #{blueprint['name']}","\n"
-          print reset
-          puts as_yaml(blueprint["config"])
+        unless options[:json] || options[:yaml] || options[:csv]
+          options[:yaml] = true
         end
-        return 0
+        blueprint_config = blueprint['config']
+        render_result = render_with_format(blueprint_config, options)
+        return 0 if render_result
       end
 
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options)
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['blueprint']], options)
-        return 0
-      end
-      
+      render_result = render_with_format(json_response, options, 'blueprint')
+      return 0 if render_result
+
       print_h1 "Blueprint Details"
       
       print_blueprint_details(blueprint)

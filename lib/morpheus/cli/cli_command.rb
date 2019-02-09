@@ -517,6 +517,15 @@ module Morpheus
               options[:dry_run] = true
             end
 
+          when :outfile
+            opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
+              # could validate directory is writable..
+              options[:outfile] = val
+            end
+            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
+              options[:dry_run] = true
+            end
+
           when :quiet
             opts.on('-q','--quiet', "No Output, do not print to stdout") do
               options[:quiet] = true
@@ -809,6 +818,43 @@ module Morpheus
           # end
         end
         return subtitles
+      end
+
+      def print_to_file(txt, filename)
+        Morpheus::Logging::DarkPrinter.puts "Writing #{txt.to_s.bytesize} bytes to file #{filename}" if Morpheus::Logging.debug?
+        outfile = nil
+        begin
+          outfile = File.open(File.expand_path(filename), 'w')
+          outfile.print(txt)
+          return 0
+        rescue => ex
+          puts_error "Error printing to outfile '#{filename}'. Error: #{ex}"
+          return 1
+        ensure
+          outfile.close if outfile
+        end
+      end
+
+      # basic rendering for options :json, :yaml, :csv, :fields, and :outfile
+      # returns the string rendered, or nil if nothing was rendered.
+      def render_with_format(json_response, options, object_key=nil)
+        output = nil
+        if options[:json]
+          output = as_json(json_response, options, object_key)
+        elsif options[:yaml]
+          output = as_yaml(json_response, options, object_key)
+        elsif options[:csv]
+          row = object_key ? json_response[object_key] : json_response
+          output = records_as_csv([row], options)
+        end
+        if output
+          if options[:outfile]
+            print_to_file(output, options[:outfile])
+          else
+            puts output
+          end
+        end
+        return output
       end
 
       module ClassMethods

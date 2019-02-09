@@ -451,7 +451,7 @@ class Morpheus::Cli::Apps
       opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
         options[:refresh_until_status] = val.to_s.downcase
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
       opts.footer = "Get details about an app.\n" +
                     "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
@@ -479,17 +479,11 @@ class Morpheus::Cli::Apps
         return
       end
       json_response = @apps_interface.get(app['id'])
+
+      render_result = render_with_format(json_response, options, 'blueprint')
+      return 0 if render_result
+
       app = json_response['app']
-      if options[:json]
-        puts as_json(json_response, options, "app")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "app")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['app']], options)
-        return 0
-      end
       print_h1 "App Details"
       print cyan
       description_cols = {
@@ -520,7 +514,7 @@ class Morpheus::Cli::Apps
         puts yellow, "This app is empty", reset
       else
         app_tiers.each do |app_tier|
-          print_h2 "Tier: #{app_tier['tier']['name']}\n"
+          print_h2 "Tier: #{app_tier['tier']['name']}"
           print cyan
           instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
           if instances.empty?
@@ -550,12 +544,12 @@ class Morpheus::Cli::Apps
             print cyan
             print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status])
             print reset
+            print "\n"
           end
         end
       end
       print cyan
 
-      print reset,"\n"
 
       # refresh until a status is reached
       if options[:refresh_until_status]
