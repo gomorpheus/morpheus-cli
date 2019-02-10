@@ -23,7 +23,9 @@ class Morpheus::Cli::Echo
     var_map.merge!(DEFAULT_VARIABLE_MAP)
     appliance = ::Morpheus::Cli::Remote.load_active_remote()
     if appliance
-      var_map.merge!({'%remote' => appliance[:name], '%remote_url' => appliance[:host], '%username' => appliance[:username]})
+      var_map.merge!({'%remote' => appliance[:name], '%remote_url' => appliance[:host].to_s, '%username' => appliance[:username].to_s})
+    else
+      var_map.merge!({'%remote' => '', '%remote_url' => '', '%username' => ''})
     end
     @output_variable_map = var_map
   end

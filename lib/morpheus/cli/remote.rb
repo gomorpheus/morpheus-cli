@@ -274,15 +274,19 @@ EOT
     options = {}
     checkall = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = <<-EOT
+#{subcommand_usage("[name]")}
+    [name] is required. This is the name of the remote. Use 'current' to check the active appliance."
+EOT
+      #opts.banner = "#{opts.banner}\n" + "    " + "[name] is required. This is the name of the remote. Use 'current' to check the active appliance."
       opts.on("-a",'--all', "Refresh all appliances") do
         checkall = true
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-This can be used to refresh a remote appliance status.
-It makes an api request to the configured appliance url, and stores the status 
-of the server and other info, e.g. version, in the local morpheus cli configuration.
+This can be used to refresh a remote appliance.
+It makes an api request to the configured appliance url to check the status and version.
+[name] is required. This is the name of the remote. Use 'current' to check the active appliance."
 EOT
     end
     optparse.parse!(args)

@@ -512,16 +512,13 @@ module Morpheus
               options[:include_fields] = val
             end
 
-          when :dry_run
-            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
-              options[:dry_run] = true
-            end
-
           when :outfile
             opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
               # could validate directory is writable..
               options[:outfile] = val
             end
+
+          when :dry_run
             opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
               options[:dry_run] = true
             end

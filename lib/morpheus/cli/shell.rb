@@ -45,7 +45,8 @@ class Morpheus::Cli::Shell
     @current_remote = ::Morpheus::Cli::Remote.load_active_remote()
     if @current_remote
       @appliance_name, @appliance_url = @current_remote[:name], @current_remote[:host]
-      @current_username = @current_remote[:username] || '(anonymous)'
+      # @current_username = @current_remote[:username] || '(anonymous)'
+      @current_username = @current_remote[:username] || ''
     else
       @appliance_name, @appliance_url = nil, nil
       @current_username = nil
@@ -663,7 +664,7 @@ class Morpheus::Cli::Shell
     @last_command_number += 1
     @history[@last_command_number] = cmd
     if @history_logger
-      @history_logger.info "(cmd #{@last_command_number}) #{cmd}"
+      @history_logger.info "#{@current_username}@#{@appliance_name} : -- : (cmd #{@last_command_number}) #{cmd}"
     end
   end
 end
