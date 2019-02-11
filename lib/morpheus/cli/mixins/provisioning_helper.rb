@@ -247,7 +247,11 @@ module Morpheus::Cli::ProvisioningHelper
       instance_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Select Instance Type.'}],options[:options],api_client,{groupId: group_id})
       instance_type_code = instance_type_prompt['type']
     end
-    instance_type = find_instance_type_by_code(instance_type_code)
+    if instance_type_code.to_s =~ /\A\d{1,}\Z/
+      instance_type = find_instance_type_by_id(instance_type_code)
+    else
+      instance_type = find_instance_type_by_code(instance_type_code)
+    end
     exit 1 if !instance_type
 
     # Instance Name
