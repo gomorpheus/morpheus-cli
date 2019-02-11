@@ -1999,13 +1999,17 @@ class Morpheus::Cli::BlueprintsCommand
         group_access_str = ""
         begin
           rows = []
-          if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
-            rows.push({"name" => 'All'})
-          end
-          if blueprint['resourcePermission']['sites']
-            blueprint['resourcePermission']['sites'].each do |site|
-              rows.push(site)
+          if blueprint['resourcePermission']
+            if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
+              rows.push({"name" => 'All'})
             end
+            if blueprint['resourcePermission']['sites']
+              blueprint['resourcePermission']['sites'].each do |site|
+                rows.push(site)
+              end
+            end
+          else
+            # rows.push({"name" => 'All'})
           end
           group_access_str = rows.collect {|it| it['default'] ? "#{it['name']} (default)" : "#{it['name']}"}.join(',')
         rescue => ex
