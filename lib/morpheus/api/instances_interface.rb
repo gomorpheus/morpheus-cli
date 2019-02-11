@@ -94,14 +94,24 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
   end
 
   def suspend(id, params={})
-    url = "#{@base_url}/api/instances/#{id}/suspend"
+    url = "#{@base_url}/api/instances/suspend"
+    if id.is_a?(Array)
+      params['ids'] = id
+    else
+      url = "#{@base_url}/api/instances/#{id}/suspend"
+    end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
   def eject(id, params={})
-    url = "#{@base_url}/api/instances/#{id}/eject"
+    url = "#{@base_url}/api/instances/eject"
+    if id.is_a?(Array)
+      params['ids'] = id
+    else
+      url = "#{@base_url}/api/instances/#{id}/eject"
+    end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)

@@ -42,16 +42,26 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def stop(serverId,payload = {})
-    url = "#{@base_url}/api/servers/#{serverId}/stop"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+  def stop(serverId,payload = {}, params={})
+    url = "#{@base_url}/api/servers/stop"
+    if serverId.is_a?(Array)
+      params['ids'] = serverId
+    else
+      url = "#{@base_url}/api/servers/#{serverId}/stop"
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def start(serverId,payload = {})
-    url = "#{@base_url}/api/servers/#{serverId}/start"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+  def start(serverId,payload = {}, params = {})
+    url = "#{@base_url}/api/servers/start"
+    if serverId.is_a?(Array)
+      params['ids'] = serverId
+    else
+      url = "#{@base_url}/api/servers/#{serverId}/start"
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end

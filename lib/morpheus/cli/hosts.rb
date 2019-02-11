@@ -820,17 +820,27 @@ class Morpheus::Cli::Hosts
     end
     connect(options)
     begin
-      host = find_host_by_name_or_id(args[0])
+      host_ids = parse_id_list(args)
+      hosts = []
+      host_ids.each do |host_id|
+        host = find_host_by_name_or_id(host_id)
+        return 1 if host.nil?
+        hosts << host
+      end
+      objects_label = "#{hosts.size == 1 ? 'host' : (hosts.size.to_s + ' hosts')} #{anded_list(hosts.collect {|it| it['name'] })}"
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{objects_label}?", options)
+        return 9, "aborted command"
+      end
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.start(host['id'])
+        print_dry_run @servers_interface.dry.start(hosts.collect {|it| it['id'] })
         return
       end
-      json_response = @servers_interface.start(host['id'])
+      json_response = @servers_interface.start(hosts.collect {|it| it['id'] })
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Host #{host['name']} started."
+        print_green_success "Started #{objects_label}"
       end
       return
     rescue RestClient::Exception => e
@@ -852,17 +862,27 @@ class Morpheus::Cli::Hosts
     end
     connect(options)
     begin
-      host = find_host_by_name_or_id(args[0])
+      host_ids = parse_id_list(args)
+      hosts = []
+      host_ids.each do |host_id|
+        host = find_host_by_name_or_id(host_id)
+        return 1 if host.nil?
+        hosts << host
+      end
+      objects_label = "#{hosts.size == 1 ? 'host' : (hosts.size.to_s + ' hosts')} #{anded_list(hosts.collect {|it| it['name'] })}"
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{objects_label}?", options)
+        return 9, "aborted command"
+      end
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.stop(host['id'])
+        print_dry_run @servers_interface.dry.stop(hosts.collect {|it| it['id'] })
         return
       end
-      json_response = @servers_interface.stop(host['id'])
+      json_response = @servers_interface.stop(hosts.collect {|it| it['id'] })
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        puts "Host #{host['name']} stopped."
+        print_green_success "Stopped #{objects_label}"
       end
       return
     rescue RestClient::Exception => e

@@ -83,13 +83,19 @@ module Morpheus::Cli::PrintHelper
     print out
   end
 
-  # @deprecated, use ErrorHandler.print_rest_exception()
   def print_rest_exception(e, options={})
-    # ugh, time to clean this stuff up
     if respond_to?(:my_terminal)
       Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).print_rest_exception(e, options)
     else
       Morpheus::Cli::ErrorHandler.new.print_rest_exception(e, options)
+    end
+  end
+
+  def print_rest_errors(errors, options={})
+    if respond_to?(:my_terminal)
+      Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).print_rest_errors(errors, options)
+    else
+      Morpheus::Cli::ErrorHandler.new.print_rest_errors(errors, options)
     end
   end
 
@@ -104,10 +110,12 @@ module Morpheus::Cli::PrintHelper
     end
     request_string = "#{http_method.to_s.upcase} #{url}".strip
     payload = opts[:payload] || opts[:body]
-    if command_string
-      print_h1 "DRY RUN > #{command_string}"
-    else
-      print_h1 "DRY RUN"
+    if command_string != false
+      if command_string
+        print_h1 "DRY RUN > #{command_string}"
+      else
+        print_h1 "DRY RUN"
+      end
     end
     print cyan
     print "Request: ", "\n"

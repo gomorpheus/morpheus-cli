@@ -1339,10 +1339,16 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Stop an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1351,21 +1357,44 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop this instance?", options)
-        exit 1
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.stop(instance['id'], params)
-        return
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.stop(instance['id'], params), false
+        end
+        return 0
       end
-      json_response = @instances_interface.stop(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print green, "Stopping instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.stop(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Stopping instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
+      end
+      if !bad_responses.empty?
+        return 1
       end
       return 0
+      
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1377,7 +1406,9 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Start an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1386,17 +1417,41 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
+      end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.start(instance['id'], params)
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.start(instance['id'], params), false
+        end
         return 0
       end
-      json_response = @instances_interface.start(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif !options[:quiet]
-        print green, "Starting instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.start(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Starting instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
+      end
+      if !bad_responses.empty?
+        return 1
       end
       return 0
     rescue RestClient::Exception => e
@@ -1410,10 +1465,16 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
+      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Start an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1422,19 +1483,41 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart this instance?", options)
-        exit 1
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.restart(instance['id'], params)
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.restart(instance['id'], params), false
+        end
         return 0
       end
-      json_response = @instances_interface.restart(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print green, "Restarting instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.restart(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Restarting instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
+      end
+      if !bad_responses.empty?
+        return 1
       end
       return 0
     rescue RestClient::Exception => e
@@ -1460,17 +1543,30 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to suspend this instance?", options)
-        exit 1
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
       end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to suspend #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
+      end
+
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.suspend(instance['id'], params)
+        print_dry_run @instances_interface.dry.suspend(instances.collect {|it| it['id'] }, params)
         return
       end
-      json_response = @instances_interface.suspend(instance['id'], params)
+      json_response = @instances_interface.suspend(instances.collect {|it| it['id'] }, params)
       if options[:json]
         puts as_json(json_response, options)
+      elsif !options[:quiet]
+        if instances.size == 1
+          print_green_success "Suspended instance #{instances[0]['name']}"
+        else
+          print_green_success "Suspended #{instances.size} instances"
+        end
       end
       return 0
     rescue RestClient::Exception => e
@@ -1493,17 +1589,29 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      # unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to eject this instance?", options)
-      #   exit 1
-      # end
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to eject #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
+      end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.eject(instance['id'], params)
+        print_dry_run @instances_interface.dry.eject(instances.collect {|it| it['id'] }, params)
         return
       end
-      json_response = @instances_interface.eject(instance['id'], params)
+      json_response = @instances_interface.eject(instances.collect {|it| it['id'] }, params)
       if options[:json]
         puts as_json(json_response, options)
+      elsif !options[:quiet]
+        if instances.size == 1
+          print_green_success "Ejected instance #{instances[0]['name']}"
+        else
+          print_green_success "Ejected #{instances.size} instances"
+        end
       end
       return 0
     rescue RestClient::Exception => e
@@ -1517,10 +1625,16 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Stop service on an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1529,21 +1643,44 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop service on this instance?", options)
-        exit 1
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop service on #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.stop(instance['id'], params)
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.stop(instance['id'], params), false
+        end
         return 0
       end
-      json_response = @instances_interface.stop(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print green, "Stopping service on instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.stop(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Stopping service on instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
+      end
+      if !bad_responses.empty?
+        return 1
       end
       return 0
+      
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1551,11 +1688,13 @@ class Morpheus::Cli::Instances
   end
 
   def start_service(args)
-    params = {'server' => true}
+    params = {'server' => true} # server is true eh? so start-service is the same as start
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:quiet, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Start service on an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1564,17 +1703,43 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start service on #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
+      end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.start(instance['id'], params)
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.start(instance['id'], params), false
+        end
         return 0
       end
-      json_response = @instances_interface.start(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print green, "Starting service on instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.start(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Starting service on instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
       end
+      if !bad_responses.empty?
+        return 1
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1586,10 +1751,16 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+        params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
+      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Restart service on an instance.\n" +
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1598,19 +1769,41 @@ class Morpheus::Cli::Instances
     end
     connect(options)
     begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart service on this instance?", options)
-        exit 1
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart service on #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.restart(instance['id'], params)
+        print_h1 "DRY RUN"
+        instances.each do |instance|
+          print_dry_run @instances_interface.dry.restart(instance['id'], params), false
+        end
         return 0
       end
-      json_response = @instances_interface.restart(instance['id'], params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print green, "Restarting service on instance #{instance['name']}", reset, "\n"
+      bad_responses = []
+      instances.each do |instance|
+        json_response = @instances_interface.restart(instance['id'], params)
+        render_result = render_with_format(json_response, options)
+        if render_result
+          #return 0
+        elsif !options[:quiet]
+          print green, "Restarting service on instance #{instance['name']}", reset, "\n"
+        end
+        if json_response['success'] == false
+          bad_responses << json_response
+          if !options[:quiet]
+            print_rest_errors(json_response)
+          end
+        end
+      end
+      if !bad_responses.empty?
+        return 1
       end
       return 0
     rescue RestClient::Exception => e
@@ -1684,7 +1877,7 @@ class Morpheus::Cli::Instances
         action_id = val.to_s
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Execute an action for a instance or instances"
+      opts.footer = "Execute an action for one or many instances."
     end
     optparse.parse!(args)
     if args.count < 1
