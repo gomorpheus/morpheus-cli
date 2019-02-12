@@ -265,7 +265,7 @@ class Morpheus::Cli::Apps
                 tier_instance_types = tier_instances ? tier_instances.collect {|it| (it['instance'] && it['instance']['type']) ? it['instance']['type'].to_s : 'unknown'}.compact : []
                 unless options[:quiet]
                   # print cyan, "Configuring Tier: #{tier_name} (#{tier_instance_types.empty? ? 'empty' : tier_instance_types.join(', ')})", "\n"
-                  print cyan, "Configuring tier #{tier_name}", "\n"
+                  print cyan, "Configuring tier #{tier_name}", reset, "\n"
                 end
                 # todo: also prompt for tier settings here, like linkedTiers: []
                 if tier_instances
@@ -280,23 +280,38 @@ class Morpheus::Cli::Apps
                       return 1
                     else
                       unless options[:quiet]
-                        print cyan, "Configuring #{instance_type_code} instance #{tier_name}.#{instance_index}", "\n"
+                        print cyan, "Configuring #{instance_type_code} instance #{tier_name}.#{instance_index}", reset, "\n"
                       end
+
+                      # Cloud
+                      cloud_id = nil
+                      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => scoped_available_clouds, 'defaultValue' => cloud ? cloud['name'] : nil}], options[:options])
+                      cloud_id = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
+                      if cloud_id
+                        # cloud = find_cloud_by_name_or_id_for_provisioning(group['id'], cloud_id)
+                        cloud = scoped_available_clouds.find {|it| it['name'] == cloud_id.to_s } || scoped_available_clouds.find {|it| it['id'].to_s == cloud_id.to_s }
+                        return 1 if cloud.nil?
+                      else
+                        # prompt still happens inside get_scoped_instance_config
+                      end
+                      
+                      
                       # prompt for the cloud for this instance
                       # the cloud is part of finding the scoped config in the blueprint
-
                       scoped_instance_config = get_scoped_instance_config(instance_config.clone, payload['environment'], group ? group['name'] : nil, cloud ? cloud['name'] : nil)
+
                       # now configure an instance like normal, use the config as default options with :always_prompt
                       instance_prompt_options = {}
                       instance_prompt_options[:group] = group ? group['id'] : nil
-                      instance_prompt_options[:default_cloud] = cloud ? cloud['id'] : nil
+                      instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
+                      instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
                       instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
                       instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
                       instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
 
-                      # also allow arbritrary options passed as tierName.instanceIndex
+                      # also allow arbritrary options passed as tierName.instanceIndex like Web.0.instance.layout.id=75
                       instance_extra_options = {}
                       if tier_extra_options && tier_extra_options[instance_index.to_s]
                         instance_extra_options = tier_extra_options[instance_index.to_s]
@@ -1568,18 +1583,20 @@ class Morpheus::Cli::Apps
   # def tmplCfg = getConfigMap(appTemplateConfig?.tiers?.getAt(tierName)?.instances?.getAt(index), opts.environment, opts.group, instanceOpts.instance.cloud?: opts?.defaultCloud?.name)
   def get_scoped_instance_config(instance_config, env_name, group_name, cloud_name)
       config = instance_config.clone
-      if env_name && config['environments'] && config['environments'][env_name]
+      if env_name.to_s != '' && config['environments'] && config['environments'][env_name]
         config = config['environments'][env_name].clone
       end
-      if group_name && config['groups'] && config['groups'][group_name]
+      if group_name.to_s != '' && config['groups'] && config['groups'][group_name]
         config = config['groups'][group_name].clone
       end
-      if cloud_name && config['clouds'] && config['clouds'][cloud_name]
+      if cloud_name.to_s != '' && config['clouds'] && config['clouds'][cloud_name]
         config = config['clouds'][cloud_name].clone
       end
       config.delete('environments')
       config.delete('groups')
       config.delete('clouds')
+      # puts "get_scoped_instance_config(instance_config, #{env_name}, #{group_name}, #{cloud_name})"
+      # puts "returned config: #{config}"
       return config
   end
 

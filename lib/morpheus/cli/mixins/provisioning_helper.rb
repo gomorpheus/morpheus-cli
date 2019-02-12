@@ -258,6 +258,8 @@ module Morpheus::Cli::ProvisioningHelper
     instance_name = nil
     if options[:instance_name]
       options[:options]['name'] = options[:instance_name]
+    elsif options[:options]['instance'] && options[:options]['instance']['name']
+      options[:options]['name'] = options[:options]['instance']['name']
     end
     name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
     instance_name = name_prompt['name']
