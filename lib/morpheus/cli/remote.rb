@@ -560,19 +560,13 @@ EOT
 
     # ok, delete it
     ::Morpheus::Cli::Remote.delete_remote(appliance_name)
-
+    
     # return result
     if options[:quiet]
       return 0, nil
     end
     print_green_success "Deleted remote #{appliance_name}"
     list([])
-    # recalcuate echo vars
-    Morpheus::Cli::Echo.recalculate_variable_map()
-    # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.has_instance?
-      Morpheus::Cli::Shell.instance.reinitialize()
-    end
     return 0, nil
   end
 
@@ -609,12 +603,8 @@ EOT
     appliance[:active] = true
     appliance = ::Morpheus::Cli::Remote.save_remote(appliance_name, appliance)
     
-    # recalcuate echo vars
-    Morpheus::Cli::Echo.recalculate_variable_map()
-    # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.has_instance?
-      Morpheus::Cli::Shell.instance.reinitialize()
-    end
+    # recalculate session variables
+    ::Morpheus::Cli::Remote.recalculate_variable_map()
 
     if !options[:quiet]
       puts "#{cyan}Using remote #{appliance_name}#{reset}"
@@ -639,12 +629,8 @@ EOT
     end
     Morpheus::Cli::Remote.clear_active_appliance()
     puts "You are no longer using the appliance #{@appliance_name}"
-    # recalcuate echo vars
-    Morpheus::Cli::Echo.recalculate_variable_map()
-    # recalculate shell prompt after this change
-    if Morpheus::Cli::Shell.has_instance?
-      Morpheus::Cli::Shell.instance.reinitialize()
-    end
+    # recalculate session variables
+    ::Morpheus::Cli::Remote.recalculate_variable_map()
     return true
   end
 
@@ -1126,7 +1112,8 @@ EOT
 
       # persist all appliances
       save_appliances(cur_appliances)
-
+      # recalculate session variables
+      recalculate_variable_map()
       return app_map
     end
 
@@ -1144,6 +1131,8 @@ EOT
       ::Morpheus::Cli::Credentials.new(app_name, nil).clear_saved_credentials(app_name)
       # delete from groups too..
       ::Morpheus::Cli::Groups.clear_active_group(app_name)
+      # recalculate session variables
+      recalculate_variable_map()
       # return the deleted value
       return app_map
     end
@@ -1248,6 +1237,14 @@ EOT
       # return the updated data
       return app_map
 
+    end
+
+    def recalculate_variable_map()
+      Morpheus::Cli::Echo.recalculate_variable_map()
+      # recalculate shell prompt after this change
+      if Morpheus::Cli::Shell.has_instance?
+        Morpheus::Cli::Shell.instance.reinitialize()
+      end
     end
 
   end

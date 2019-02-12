@@ -79,11 +79,7 @@ class Morpheus::Cli::Login
       creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials() # .load_saved_credentials(true)
 
       # recalcuate echo vars
-      Morpheus::Cli::Echo.recalculate_variable_map()
-      # recalculate shell prompt after this change
-      if Morpheus::Cli::Shell.has_instance?
-        Morpheus::Cli::Shell.instance.reinitialize()
-      end
+      ::Morpheus::Cli::Remote.recalculate_variable_map()
 
       if creds
         if !options[:quiet]

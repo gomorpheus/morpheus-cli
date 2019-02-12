@@ -214,6 +214,14 @@ module Morpheus
           @@appliance_credentials_map = credential_map
         rescue => e
           puts "failed to save #{fn}. #{e}"  if Morpheus::Logging.debug?
+        ensure
+          # recalcuate echo vars
+          #puts "Recalculating variable maps for username change"
+          Morpheus::Cli::Echo.recalculate_variable_map()
+          # recalculate shell prompt after this change
+          if Morpheus::Cli::Shell.has_instance?
+            Morpheus::Cli::Shell.instance.reinitialize()
+          end
         end
       end
     end
