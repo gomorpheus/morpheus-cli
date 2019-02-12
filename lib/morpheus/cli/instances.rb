@@ -1465,16 +1465,16 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
       opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Start an instance.\n" +
-                    "[name] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
+                    "[name] is required. This is the name or id of an instance. Supports 1-N [name] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1751,10 +1751,10 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+      opts.on('--mute-monitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
+      opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
       opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)

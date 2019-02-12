@@ -811,7 +811,9 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Start a host.\n" +
+                    "[name] is required. This is the name or id of a host. Supports 1-N [name] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -842,7 +844,7 @@ class Morpheus::Cli::Hosts
       elsif !options[:quiet]
         print_green_success "Started #{objects_label}"
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -853,7 +855,9 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Stop a host.\n" +
+                    "[name] is required. This is the name or id of a host. Supports 1-N [name] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -884,7 +888,7 @@ class Morpheus::Cli::Hosts
       elsif !options[:quiet]
         print_green_success "Stopped #{objects_label}"
       end
-      return
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
