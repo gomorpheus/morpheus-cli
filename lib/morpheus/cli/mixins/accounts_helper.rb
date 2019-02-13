@@ -156,6 +156,30 @@ module Morpheus::Cli::AccountsHelper
     end
   end
 
+  def find_all_user_ids(account_id, usernames)
+    user_ids = []
+    if usernames.is_a?(String)
+      usernames = usernames.split(",").collect {|it| it.to_s.strip }.select {|it| it }.uniq
+    else
+      usernames = usernames.collect {|it| it.to_s.strip }.select {|it| it }.uniq
+    end
+    usernames.each do |username|
+      # save a query
+      #user = find_user_by_username_or_id(nil, username)
+      if username.to_s =~ /\A\d{1,}\Z/
+        user_ids << username.to_i
+      else
+        user = find_user_by_username(account_id, username)
+        if user.nil?
+          return nil
+        else
+          user_ids << user['id']
+        end
+      end
+    end
+    user_ids
+  end
+
   def print_accounts_table(accounts, opts={})
     table_color = opts[:color] || cyan
     rows = accounts.collect do |account|

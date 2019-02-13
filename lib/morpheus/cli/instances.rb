@@ -4,12 +4,14 @@ require 'optparse'
 require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/mixins/processes_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
 
@@ -25,6 +27,8 @@ class Morpheus::Cli::Instances
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
+    @accounts_interface = @api_client.accounts
+    @users_interface = @api_client.users
     @instances_interface = @api_client.instances
     @task_sets_interface = @api_client.task_sets
     @logs_interface = @api_client.logs
@@ -55,6 +59,9 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."
     end
@@ -62,6 +69,7 @@ class Morpheus::Cli::Instances
     connect(options)
     begin
       params = {}
+      params.merge!(parse_list_options(options))
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
       if group
         params['siteId'] = group['id']
@@ -79,7 +87,12 @@ class Morpheus::Cli::Instances
         params['serverId'] = host['id']
       end
 
-      params.merge!(parse_list_options(options))
+      account = nil
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
 
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
@@ -116,6 +129,9 @@ class Morpheus::Cli::Instances
         end
         if host
           subtitles << "Host: #{host['name']}".strip
+        end
+        if options[:created_by]
+          subtitles << "Created By: #{options[:created_by]}"
         end
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles

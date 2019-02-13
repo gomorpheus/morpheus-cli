@@ -23,6 +23,8 @@ class Morpheus::Cli::Hosts
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
+    @accounts_interface = @api_client.accounts
+    @users_interface = @api_client.users
     @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
@@ -89,12 +91,16 @@ class Morpheus::Cli::Hosts
       opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
         params[:agentInstalled] = false
       end
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List hosts."
     end
     optparse.parse!(args)
     connect(options)
     begin
+      params.merge!(parse_list_options(options))
       account = nil
       if options[:account]
         account = find_account_by_name_or_id(options[:account])
@@ -116,7 +122,12 @@ class Morpheus::Cli::Hosts
         params['zoneId'] = cloud['id']
       end
 
-      params.merge!(parse_list_options(options))
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
+
 
       if options[:dry_run]
         print_dry_run @servers_interface.dry.list(params)

@@ -5,11 +5,13 @@ require 'optparse'
 require 'filesize'
 require 'table_print'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/mixins/processes_helper'
 
 class Morpheus::Cli::Apps
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
 
@@ -25,6 +27,8 @@ class Morpheus::Cli::Apps
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
+    @accounts_interface = @api_client.accounts
+    @users_interface = @api_client.users
     @apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).apps
     @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
@@ -44,6 +48,9 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List apps."
     end
@@ -57,7 +64,13 @@ class Morpheus::Cli::Apps
     begin
       params = {}
       params.merge!(parse_list_options(options))
-
+      account = nil
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
+      
       if options[:dry_run]
         print_dry_run @apps_interface.dry.get(params)
         return
@@ -320,7 +333,8 @@ class Morpheus::Cli::Apps
 
                       #instance_prompt_options[:name_required] = true
                       instance_prompt_options[:instance_type_code] = instance_type_code
-                      
+                      # todo: an effort to render more useful help eg.  -O Web.0.instance.name
+                      instance_prompt_options[:extra_field_context] = "#{tier_name}.#{instance_index}" 
                       # this provisioning helper method handles all (most) of the parsing and prompting
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
                       
