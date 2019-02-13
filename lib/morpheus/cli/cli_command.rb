@@ -736,6 +736,7 @@ module Morpheus
         
         # punt.. and just allow passing an access token instead for now..
         # this skips saving to the appliances file and all that..
+        # JD: wait wtf is this being used? get rid of it.
         if options[:token]
           @access_token = options[:token]
         end

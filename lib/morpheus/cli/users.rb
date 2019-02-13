@@ -402,7 +402,7 @@ class Morpheus::Cli::Users
       opts.on('--password VALUE', String, "New password") do |val|
         new_password = val
       end
-      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote, :quiet])
     end
     optparse.parse!(args)
 
@@ -421,6 +421,10 @@ class Morpheus::Cli::Users
 
       user = find_user_by_username_or_id(account_id, args[0])
       return 1 if user.nil?
+
+      if !options[:quiet]
+        print cyan, "Changing password for #{user['username']}", reset, "\n"
+      end
 
       if new_password.nil?
         
@@ -442,22 +446,23 @@ class Morpheus::Cli::Users
 
       payload = {
         'user' => {
-          'password' => new_password, 
-          'passwordConfirmation' => new_password
+          'password' => new_password
         } 
       }
-      json_response = @users_interface.update(account_id, user['id'], payload)
+      
       if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return
       end
 
+      json_response = @users_interface.update(account_id, user['id'], payload)
+
       if options[:json]
         puts JSON.pretty_generate(json_response)
-      else
+      elsif !options[:quiet]
         print_green_success "Updated password for user #{user['username']}"
       end
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1

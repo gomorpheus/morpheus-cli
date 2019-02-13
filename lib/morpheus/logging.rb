@@ -116,7 +116,8 @@ module Morpheus::Logging
         msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
         msg.gsub!(/Authorization\:\s?Bearer [^"]+/, 'Authorization"=>"Bearer ************')
         msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
-        msg.gsub!(/password\=\"[^"]+/, 'password="************')
+        msg.gsub!(/password\=\"[^" ]+/, 'password="************')
+        msg.gsub!(/password\=[^" ]+/, 'password=************')
       end
       msg
     end

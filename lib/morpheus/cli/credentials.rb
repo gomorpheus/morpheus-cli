@@ -24,7 +24,9 @@ module Morpheus
         password = nil
         access_token = nil
         skip_save = false
-        
+        if opts[:test_only] == true
+          skip_save = true
+        end
         if opts[:remote_token]
           begin
             whoami_interface = Morpheus::WhoamiInterface.new(opts[:remote_token], nil, nil, @appliance_url)
@@ -51,16 +53,25 @@ module Morpheus
           if !opts[:remote_username].nil?
             username = opts[:remote_username]
             password = opts[:remote_password]
-            skip_save = opts[:remote_url] ? true : false
+            if skip_save == false
+              skip_save = opts[:remote_url] ? true : false
+            end
           else
-            access_token = load_saved_credentials
+            if skip_save == false
+              access_token = load_saved_credentials
+            end
           end
           if access_token
             return access_token
           end
+
           unless opts[:quiet] || opts[:no_prompt]
             # if username.empty? || password.empty?
-              print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+              if opts[:test_only]
+                print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+              else
+                print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+              end
             # end
             if username.empty?
               print "Username: #{required_blue_prompt} "
@@ -150,7 +161,17 @@ module Morpheus
       end
 
       def login(opts = {})
-        clear_saved_credentials(@appliance_name)
+        if opts[:test_only] != true
+          clear_saved_credentials(@appliance_name)
+          appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+          if appliance
+            appliance.delete(:username) # could leave this...
+            appliance[:authenticated] = false
+            appliance[:last_logout_at] = Time.now.to_i
+            ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
+            ::Morpheus::Cli::Remote.recalculate_variable_map()
+          end
+        end
         request_credentials(opts)
       end
 
@@ -164,6 +185,7 @@ module Morpheus
           appliance[:last_logout_at] = Time.now.to_i
           ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
         end
+        ::Morpheus::Cli::Remote.recalculate_variable_map()
         true
       end
 
@@ -172,6 +194,8 @@ module Morpheus
         @@appliance_credentials_map.delete(appliance_name)
         Morpheus::Logging::DarkPrinter.puts "clearing credentials for #{appliance_name} from file #{credentials_file_path}" if Morpheus::Logging.debug?
         File.open(credentials_file_path, 'w') {|f| f.write @@appliance_credentials_map.to_yaml } #Store
+        ::Morpheus::Cli::Remote.recalculate_variable_map()
+        true
       end
 
       def load_saved_credentials(reload=false)

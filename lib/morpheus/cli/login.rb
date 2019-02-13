@@ -36,13 +36,23 @@ class Morpheus::Cli::Login
       opts.on( '-p', '--password PASSWORD', "Password" ) do |val|
         password = val
       end
+      opts.on( '-t', '--test', "Test credentials only, does not update stored credentials for the appliance." ) do
+        options[:test_only] = true
+      end
       opts.on( '-T', '--token ACCESS_TOKEN', "Use an existing access token instead of authenticating with a username and password." ) do |val|
         options[:remote_token] = val
       end
       build_common_options(opts, options, [:json, :remote, :quiet])
     end
     optparse.parse!(args)
-
+    if args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} list expects 0-2 arguments and received #{args.count}: #{args}\n#{optparse}"
+      return 1
+    end
+    username = args[0] if args[0]
+    password = args[1] if args[1]
+    
     # connect(options)
     if options[:remote]
       appliance = Morpheus::Cli::Remote.appliances[options[:remote].to_sym]
@@ -74,16 +84,23 @@ class Morpheus::Cli::Login
       options[:remote_password] = password if password
       #options[:remote_url] = true # will skip credentials save
       login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
-
       # check to see if we got credentials, or just look at login_result above...
-      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials() # .load_saved_credentials(true)
+      #creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials() # .load_saved_credentials(true)
+      if login_result
+        creds = login_result
+      end
+      
 
       # recalcuate echo vars
       ::Morpheus::Cli::Remote.recalculate_variable_map()
 
       if creds
         if !options[:quiet]
-          print green,"Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_remote(@appliance_name)[:username]}#{reset}", reset, "\n"
+          if options[:test_only]
+            print green,"Valid credentials for user #{username}", reset, "\n"
+          else
+            print green,"Logged in to #{@appliance_name} as #{::Morpheus::Cli::Remote.load_remote(@appliance_name)[:username]}#{reset}", reset, "\n"
+          end
         end
         return 0 # ,  nil
       else

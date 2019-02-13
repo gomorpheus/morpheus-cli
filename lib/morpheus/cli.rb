@@ -106,6 +106,7 @@ module Morpheus
       load 'morpheus/cli/accounts.rb'
       load 'morpheus/cli/account_groups_command.rb'
       load 'morpheus/cli/users.rb'
+      load 'morpheus/cli/change_password_command.rb'
       load 'morpheus/cli/user_groups_command.rb'
       load 'morpheus/cli/user_sources_command.rb'
       load 'morpheus/cli/roles.rb'
@@ -154,6 +155,7 @@ module Morpheus
       # nice to have commands
       load 'morpheus/cli/curl_command.rb'
       load 'morpheus/cli/set_prompt_command.rb'
+      load 'morpheus/cli/get_prompt_command.rb'
       load 'morpheus/cli/man_command.rb' # please implement me
 
 
