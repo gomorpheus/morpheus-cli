@@ -55,7 +55,7 @@ class Morpheus::Cli::AccessTokenCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:remote, :quiet])
-      opts.footer = "Print your current authentication info.\n" +
+      opts.footer = "Print your current authentication credentials.\n" +
                     "This contains tokens that should be kept secret, be careful."
     end
     optparse.parse!(args)
