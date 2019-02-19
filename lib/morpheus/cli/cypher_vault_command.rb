@@ -6,7 +6,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::CypherVaultCommand
   include Morpheus::Cli::CliCommand
 
-  set_command_name :'vault'
+  set_command_name :'cypher'
 
   register_subcommands :list, :get, :put, :remove
   # some appropriate aliases
@@ -68,7 +68,7 @@ class Morpheus::Cli::CypherVaultCommand
         return 0
       end
       cypher_data = json_response["data"]
-      title = "Morpheus Cypher Vault List"
+      title = "Morpheus Cypher Key List"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       if item_key
@@ -123,6 +123,7 @@ class Morpheus::Cli::CypherVaultCommand
     params = {}
     value_only = false
     do_decrypt = false
+    item_ttl = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
       # opts.on(nil, '--decrypt', 'Display the decrypted value') do
@@ -134,9 +135,18 @@ class Morpheus::Cli::CypherVaultCommand
       opts.on('-v', '--value', 'Print only the decrypted value.') do
         value_only = true
       end
+      opts.on( '-t', '--ttl SECONDS', "Time to live, the lease duration before this key expires. Use if creating new key." ) do |val|
+        item_ttl = val
+        if val.to_s.empty? || val.to_s == '0'
+          item_ttl = 0
+        else
+          item_ttl = val
+        end
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :quiet, :remote, :header, :timeout])
       opts.footer = "Read a cypher item and display the decrypted value." + "\n" +
-                    "[key] is required. This is the cypher key to read."
+                    "[key] is required. This is the cypher key to read." + "\n" +
+                    "Use --ttl to specify a ttl if expecting cypher engine to automatically create the key."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -147,6 +157,9 @@ class Morpheus::Cli::CypherVaultCommand
     connect(options)
     begin
       item_key = args[0]
+      if item_ttl
+        params["ttl"] = item_ttl
+      end
       if options[:dry_run]
         print_dry_run @cypher_vault_interface.dry.get(item_key, params, options)
         return 0
@@ -202,7 +215,7 @@ class Morpheus::Cli::CypherVaultCommand
         return 0
       end
 
-      print_h1 "Cypher Vault Key", [], options
+      print_h1 "Cypher Key", [], options
       print cyan
       # This response does contain cypher too though.
       

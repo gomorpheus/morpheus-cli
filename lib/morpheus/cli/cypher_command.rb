@@ -6,7 +6,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::CypherCommand
   include Morpheus::Cli::CliCommand
 
-  set_command_name :cypher
+  # being deprecated in favor of VaultCypherCommand
+  set_command_name :'old-cypher'
+  set_command_hidden
 
   register_subcommands :list, :get, :add, :remove, :decrypt
   
