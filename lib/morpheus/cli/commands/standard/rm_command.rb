@@ -7,7 +7,7 @@ class Morpheus::Cli::RemoveFileCommand
   set_command_hidden
 
   def handle(args)
-    print_red_alert "Not yet supported"
+    print_red_alert "#{command_name} is not yet supported"
     return -1
   end
 
