@@ -35,9 +35,9 @@ class Morpheus::Cli::CypherVaultCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
-      opts.on('--details', '--details', "Show more details." ) do
-        options[:details] = true
-      end
+      # opts.on('--details', '--details', "Show more details." ) do
+      #   options[:details] = true
+      # end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote, :header, :timeout])
       opts.footer = "List cypher keys." + "\n" +
                     "[key] is optional. This is the cypher key or path to search for."
@@ -85,28 +85,20 @@ class Morpheus::Cli::CypherVaultCommand
 
         cypher_columns = {
           "KEY" => lambda {|it| it["itemKey"] },
+          # "LEASE REMAINING" => lambda {|it| 
+          #   format_lease_remaining(it["expireDate"])
+          # },
           "TTL" => lambda {|it| 
-            format_lease_remaining(it["expireDate"])
+            format_expiration_ttl(it["expireDate"])
           },
-          "EXPIRES" => lambda {|it| 
+          "EXPIRATION" => lambda {|it| 
             format_expiration_date(it["expireDate"])
           },
-          "CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
+          "DATE CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
           "LAST ACCESS" => lambda {|it| format_local_dt(it["lastAccessed"]) }
         }
-        if options[:details] != true
-          cypher_columns.delete "EXPIRES"
-          cypher_columns.delete "CREATED"
-          cypher_columns.delete "LAST ACCESS"
-        end
         print cyan
-        print as_pretty_table(json_response["cypherItems"], cypher_columns, {:border_style => :thin}.merge(options))
-
-        # cypher_columns = {
-        #   "KEY" => lambda {|it| it }
-        # }
-        # print cyan
-        # print as_pretty_table(cypher_keys, cypher_columns, {:border_style => :thin}.merge(options))
+        print as_pretty_table(json_response["cypherItems"], cypher_columns, options)
         print reset
         print_results_pagination({size:cypher_keys.size,total:cypher_keys.size.to_i})
       end
@@ -227,12 +219,12 @@ class Morpheus::Cli::CypherVaultCommand
         #"ID" => 'id',
         "Key" => lambda {|it| it["itemKey"] },
         "TTL" => lambda {|it| 
-          format_lease_remaining(it["expireDate"])
+          format_expiration_ttl(it["expireDate"])
         },
-        "Expires" => lambda {|it| 
+        "Expiration" => lambda {|it| 
           format_expiration_date(it["expireDate"])
         },
-        "Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
+        "Date Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
         "Last Access" => lambda {|it| format_local_dt(it["lastAccessed"]) }
       }
       if cypher_item["expireDate"].nil?
@@ -509,10 +501,25 @@ This can also be passed in abbreviated format with the unit as the suffix. eg. 3
 """
   end
 
+  def format_lease_remaining(expire_date, warning_threshold=3600, return_color=cyan)
+    out = ""
+    if expire_date
+      out << format_expiration_date(expire_date, warning_threshold, return_color)
+      out << " ("
+      out << format_expiration_ttl(expire_date, warning_threshold, return_color)
+      out << ")"
+    else
+      # out << return_color
+      out << "Never expires"
+    end
+    return out
+  end
+
   def format_expiration_date(expire_date, warning_threshold=3600, return_color=cyan)
     expire_date = parse_time(expire_date)
     if !expire_date
-      return ""
+      # return ""
+      return cyan + "Never expires" + return_color
     end
     if expire_date <= Time.now
       return red + format_local_dt(expire_date) + return_color
@@ -521,10 +528,11 @@ This can also be passed in abbreviated format with the unit as the suffix. eg. 3
     end
   end
 
-  def format_lease_remaining(expire_date, warning_threshold=3600, return_color=cyan)
+  def format_expiration_ttl(expire_date, warning_threshold=3600, return_color=cyan)
     expire_date = parse_time(expire_date)
     if !expire_date
-      return cyan + "Never expires" + return_color
+      return ""
+      #return cyan + "Never expires" + return_color
     end
     seconds = expire_date - Time.now
     if seconds <= 0
