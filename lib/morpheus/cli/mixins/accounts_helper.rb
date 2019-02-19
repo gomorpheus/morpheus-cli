@@ -110,7 +110,7 @@ module Morpheus::Cli::AccountsHelper
       return nil
     elsif roles.size > 1
       print_red_alert "#{roles.size} roles by name #{name}"
-      print_roles_table(roles, {color: red})
+      print_roles_table(roles, {color: red, thin: true})
       print reset,"\n\n"
       return nil
     else
@@ -148,7 +148,7 @@ module Morpheus::Cli::AccountsHelper
       return nil
     elsif users.size > 1
       print_red_alert "#{users.size} users by username #{username}"
-      print_users_table(users, {color: red})
+      print_users_table(users, {color: red, thin: true})
       print reset,"\n\n"
       return nil
     else
@@ -180,8 +180,8 @@ module Morpheus::Cli::AccountsHelper
     user_ids
   end
 
-  def print_accounts_table(accounts, opts={})
-    table_color = opts[:color] || cyan
+  def print_accounts_table(accounts, options={})
+    table_color = options.key?(:color) ? options[:color] : cyan
     rows = accounts.collect do |account|
       status_state = nil
       if account['active']
@@ -229,8 +229,8 @@ module Morpheus::Cli::AccountsHelper
     return str
   end
 
-  def print_roles_table(roles, opts={})
-    table_color = opts[:color] || cyan
+  def print_roles_table(roles, options={})
+    table_color = options.key?(:color) ? options[:color] : cyan
     # tp roles, [
     #   'id',
     #   'name',
@@ -250,28 +250,36 @@ module Morpheus::Cli::AccountsHelper
         dateCreated: format_local_dt(role['dateCreated'])
       }
     end
-    print table_color
-    tp rows, [
+    columns = [
       :id,
       :name,
       :description,
-      # opts[:is_master_account] ? :scope : nil,
-      opts[:is_master_account] ? :type : nil,
-      opts[:is_master_account] ? :multitenant : nil,
-      opts[:is_master_account] ? :owner : nil,
+      # options[:is_master_account] ? :scope : nil,
+      options[:is_master_account] ? :type : nil,
+      options[:is_master_account] ? :multitenant : nil,
+      options[:is_master_account] ? :owner : nil,
       {:dateCreated => {:display_name => "Date Created"} }
     ].compact
-    print reset
+    if options[:include_fields]
+      columns = options[:include_fields]
+    end
+    # print table_color if table_color
+    print as_pretty_table(rows, columns, options)
+    # print reset if table_color
   end
 
-  def print_users_table(users, opts={})
-    table_color = opts[:color] || cyan
+  def print_users_table(users, options={})
+    table_color = options[:color] || cyan
     rows = users.collect do |user|
       {id: user['id'], username: user['username'], name: user['displayName'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), account: user['account'] ? user['account']['name'] : nil}
     end
-    print table_color
-    tp rows, :id, :account, :first, :last, :username, :email, :role
-    print reset
+    columns = [:id, :account, :first, :last, :username, :email, :role]
+    if options[:include_fields]
+      columns = options[:include_fields] 
+    end
+    #print table_color if table_color
+    print as_pretty_table(rows, columns, options)
+    #print reset if table_color
   end
 
   def format_user_role_names(user)

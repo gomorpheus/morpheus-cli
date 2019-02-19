@@ -53,13 +53,6 @@ EOT
       curl_args.unshift "--inescure"
     end
 
-    # @access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-    # if !@access_token
-    #   print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-    #   print yellow,"Use the 'login' command.",reset,"\n"
-    #   return 0
-    # end
-
     if !@appliance_url
       raise "Unable to determine remote appliance url"
       print "#{red}Unable to determine remote appliance url.#{reset}\n"

@@ -184,7 +184,7 @@ EOT
         --noprofile                  Do not read and execute the personal initialization script .morpheus_profile
     -C, --nocolor                    Disable ANSI coloring
     -V, --debug                      Print extra output for debugging. 
-    -h, --help                       Prints this help
+    -h, --help                       Print this help
 
 ## COMMON OPTIONS
 

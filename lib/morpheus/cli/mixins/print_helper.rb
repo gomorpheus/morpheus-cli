@@ -34,6 +34,7 @@ module Morpheus::Cli::PrintHelper
   end
 
   # puts red message to stderr
+  # why this not stderr yet?  use print_error or if respond_to?(:my_terminal)
   def print_red_alert(msg)
     #$stderr.print "#{red}#{msg}#{reset}\n"
     print "#{red}#{msg}#{reset}\n"
@@ -51,9 +52,18 @@ module Morpheus::Cli::PrintHelper
   # title - subtitle1, subtitle2
   # ==================
   #
-  def print_h1(title, subtitles=[], color=cyan)
-    #print "\n" ,color, bold, title, (subtitles.empty? ? "" : " - #{subtitles.join(', ')}"), "\n", "==================", reset, "\n\n"
-    subtitles = subtitles.flatten
+  def print_h1(title, subtitles=nil, options=nil)
+    # ok, support all these formats for now:
+    # print_h1(title, options={})
+    # print_h1(title, subtitles, options={})
+    # this can go away when we have a dirty @current_options
+    if subtitles.is_a?(Hash)
+      options = subtitles
+      subtitles = (options[:subtitles] || []).flatten
+    end
+    subtitles = (subtitles || []).flatten
+    options ||= {}
+    color = options[:color] || cyan
     out = ""
     out << "\n"
     out << "#{color}#{bold}#{title}#{reset}"
@@ -61,15 +71,27 @@ module Morpheus::Cli::PrintHelper
       out << "#{color} | #{subtitles.join(', ')}#{reset}"
     end
     out << "\n"
-    out << "#{color}#{bold}==================#{reset}"
-    out << "\n\n"
-    out << reset
+    if options[:border_style] == :thin
+      out << "\n"
+    else
+      out << "#{color}#{bold}==================#{reset}\n\n"
+    end
     print out
   end
 
-  def print_h2(title, subtitles=[], color=cyan)
-    #print "\n" ,color, bold, title, (subtitles.empty? ? "" : " - #{subtitles.join(', ')}"), "\n", "---------------------", reset, "\n\n"
-    subtitles = subtitles.flatten
+  def print_h2(title, subtitles=nil, options=nil)
+    # ok, support all these formats for now:
+    # print_h2(title={})
+    # print_h2(title, options={})
+    # print_h2(title, subtitles, options={})
+    # this can go away when we have a dirty @current_options
+    if subtitles.is_a?(Hash)
+      options = subtitles
+      subtitles = (options[:subtitles] || []).flatten
+    end
+    subtitles = (subtitles || []).flatten
+    options ||= {}
+    color = options[:color] || cyan
     out = ""
     out << "\n"
     out << "#{color}#{bold}#{title}#{reset}"
@@ -77,9 +99,11 @@ module Morpheus::Cli::PrintHelper
       out << "#{color} - #{subtitles.join(', ')}#{reset}"
     end
     out << "\n"
-    out << "#{color}---------------------#{reset}"
-    out << "\n\n"
-    out << reset
+    if options[:border_style] == :thin
+      out << "\n"
+    else
+      out << "#{color}---------------------#{reset}\n\n"
+    end
     print out
   end
 
@@ -99,45 +123,72 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def print_dry_run(opts, command_string=nil)
-    http_method = opts[:method]
-    url = opts[:url]
-    params = opts[:params]
-    params = opts[:headers][:params] if opts[:headers] && opts[:headers][:params]
+  def print_dry_run(api_request, options={})
+    # 2nd argument used to be command_string (String)
+    command_string = nil
+    if options.is_a?(String)
+      command_string = options
+      options = {}
+    end
+    options ||= {}
+    http_method = api_request[:method]
+    url = api_request[:url]
+    params = api_request[:params]
+    params = api_request[:headers][:params] if api_request[:headers] && api_request[:headers][:params]
     query_string = params.respond_to?(:map) ? URI.encode_www_form(params) : query_string
     if query_string && !query_string.empty?
       url = "#{url}?#{query_string}"
     end
     request_string = "#{http_method.to_s.upcase} #{url}".strip
-    payload = opts[:payload] || opts[:body]
-    if command_string != false
-      if command_string
-        print_h1 "DRY RUN > #{command_string}"
-      else
-        print_h1 "DRY RUN"
-      end
+    payload = api_request[:payload] || api_request[:body]
+
+    # curl output?
+    if api_request[:curl] || options[:curl]
+      print "\n"
+      puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
+      print_curl_command(api_request, options)
+      print "\n",reset
+      return
     end
-    print cyan
-    print "Request: ", "\n"
-    print reset
+
+    # print this thing:
+    # REQUEST:
+    # POST http://morpheusdata.com/api/whoami
+    # f it..removing this, just DRY RUN printed at the start of command
+    print "\n"
+    # if command_string != false
+    #   if command_string
+    #     print_h1 "DRY RUN > #{command_string}"
+    #   else
+    #     #print "\n"
+    #     #print_h1 "DRY RUN"
+    #   end
+    # end
+    puts "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
+    # print cyan
+    # print "Request: ", "\n"
+    # print reset
     print request_string, "\n"
     print cyan
     if payload
-      if payload.is_a?(String)
-        begin
-          payload = JSON.parse(payload)
-        rescue => e
-          #payload = "(unparsable) #{payload}"
-        end
-      end
+      
       print "\n"
-      if opts[:headers] && opts[:headers]['Content-Type'] == 'application/json'
-        print "JSON: ", "\n"
-        print reset
+      if api_request[:headers] && api_request[:headers]['Content-Type'] == 'application/json'
+        if payload.is_a?(String)
+          begin
+            payload = JSON.parse(payload)
+          rescue => e
+            #payload = "(unparsable) #{payload}"
+          end
+        end
+        puts "#{cyan}#{bold}#{dark}JSON#{reset}\n"
+        # print "JSON: ", "\n"
+        # print reset
         print JSON.pretty_generate(payload)
       else
-        print "Content-Type: #{opts[:headers]['Content-Type']}", "\n"
-        #print "BODY: ", "\n"
+        content_type = api_request[:headers]['Content-Type'] || 'application/x-www-form-urlencoded'
+        print "Content-Type: #{content_type}", "\n"
+        # print "Body: ", "\n"
         print reset
         if payload.is_a?(File)
           # pretty_size = Filesize.from("#{payload.size} B").pretty.strip
@@ -147,7 +198,17 @@ module Morpheus::Cli::PrintHelper
         elsif payload.is_a?(String)
           print payload
         else
-          print payload.inspect
+          if content_type == 'application/x-www-form-urlencoded'
+            body_str = payload.to_s
+            begin
+              body_str = URI.encode_www_form(payload.to_s)
+            rescue => ex
+              # raise ex
+            end
+            print body_str
+          else
+            print payload
+          end
         end
       end
     end
@@ -155,6 +216,81 @@ module Morpheus::Cli::PrintHelper
     print reset
   end
 
+  # print_curl_command generates a valid curl command for the given api request
+  # @param api_request [Hash] api request, typically returned from api_client.dry.execute()
+  # @param options [Hash] common cli options
+  # prints command like:
+  #
+  # curl -XPOST "https://api.gomorpheus.com/api/cypher" \
+  #   -H "Authorization: BEARER ******************" \
+  #   -H "Content-Type: application/json" \
+  #   -d '{"cypher":{
+  #     "itemKey": "secret/mysecret",
+  #     "itemValue": "meow"
+  #   }}'
+  def print_curl_command(api_request, options={})
+    options ||= {}
+    http_method = api_request[:method]
+    url = api_request[:url]
+    params = api_request[:params]
+    params = api_request[:headers][:params] if api_request[:headers] && api_request[:headers][:params]
+    query_string = params.respond_to?(:map) ? URI.encode_www_form(params) : query_string
+    if query_string && !query_string.empty?
+      url = "#{url}?#{query_string}"
+    end
+    request_string = "#{http_method.to_s.upcase} #{url}".strip
+    payload = api_request[:payload] || api_request[:body]
+    # build curl [options]
+    out = ""
+    out << "curl -X#{api_request[:method].to_s.upcase} '#{url}'" + ' \\' + "\n"
+    api_request[:headers].each do |k,v|
+      # avoid weird [:headers][:params]
+      unless k == :params
+        out << "  -H \"#{k.to_s.capitalize}: #{v}\"" + ' \\' + "\n"
+      end
+    end
+    
+    if payload && !payload.empty?
+      if api_request[:headers] && api_request[:headers]['Content-Type'] == 'application/json'
+        if payload.is_a?(String)
+          begin
+            payload = JSON.parse(payload)
+          rescue => e
+            #payload = "(unparsable) #{payload}"
+          end
+        end
+        out << "  -d '#{payload}'"
+      else
+        content_type = api_request[:headers]['Content-Type'] || 'application/x-www-form-urlencoded'
+        
+        if payload.is_a?(File)
+          # pretty_size = Filesize.from("#{payload.size} B").pretty.strip
+          pretty_size = "#{payload.size} B"
+          # print "File: #{payload.path} (#{payload.size} bytes)"
+          out << "  -d @#{payload.path}"
+        elsif payload.is_a?(String)
+          out << "  -d '#{payload}'"
+        else
+          if content_type == 'application/x-www-form-urlencoded'
+            body_str = payload.to_s
+            begin
+              body_str = URI.encode_www_form(payload.to_s)
+            rescue => ex
+              # raise ex
+            end
+            out << "  -d '#{body_str}'"
+          else
+            out << "  -d '#{payload}'"
+          end
+        end
+      end
+    end
+    
+    out << reset
+    out << "\n"
+    print out
+    
+  end
   def print_results_pagination(json_response, options={})
     # print cyan,"\nViewing #{json_response['meta']['offset'].to_i + 1}-#{json_response['meta']['offset'].to_i + json_response['meta']['size'].to_i} of #{json_response['meta']['total']}\n", reset
     print format_results_pagination(json_response, options)
@@ -473,7 +609,14 @@ module Morpheus::Cli::PrintHelper
     end
     
     # format header spacer row
-    h_line = header_cells.collect {|cell| ("-" * cell.size) }.join(cell_delim.gsub(" ", "-"))
+    if options[:border_style] == :thin
+      # a simpler looking table
+      cell_delim = "   "
+      h_line = header_cells.collect {|cell| ("-" * cell.strip.size).ljust(cell.size, ' ') }.join(cell_delim)
+    else
+      # default border style
+      h_line = header_cells.collect {|cell| ("-" * cell.size) }.join(cell_delim.gsub(" ", "-"))
+    end
     
     # format data rows
     formatted_rows = []

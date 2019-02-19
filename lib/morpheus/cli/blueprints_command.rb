@@ -1995,6 +1995,35 @@ class Morpheus::Cli::BlueprintsCommand
       "Category" => 'category',
       "Image" => lambda {|it| it['config'] ? (it['config']['image'] == '/assets/apps/template.png' ? '(default)' : it['config']['image']) : '' },
       "Visibility" => 'visibility',
+      "Tiers" => lambda {|it| 
+          tiers = []
+          if blueprint["config"]["tiers"].is_a?(Hash)
+            tiers = blueprint["config"]["tiers"].keys
+          end
+          "#{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(',')}"
+        },
+        "Instances" => lambda {|it| 
+          instances = []
+          tiers = {}
+          if blueprint["config"]["tiers"].is_a?(Hash)
+            tiers = blueprint["config"]["tiers"]
+          end
+          sorted_tiers = tiers.collect {|k,v| [k,v] }.sort {|a,b| a[1]['tierIndex'] <=> b[1]['tierIndex'] }
+          sorted_tiers.each do |tier_obj|
+            tier_name = tier_obj[0]
+            tier_config = tier_obj[1]
+            if tier_config && tier_config['instances']
+              tier_config['instances'].each_with_index do |instance_config, instance_index|
+                instances << instance_config
+              end
+            end
+          end
+          #"(#{instances.count})"
+          "(#{instances.count}) #{instances.collect {|it| it['instance'] ? it['instance']['type'] : (it['type'] || it['name']) }.join(',')}"
+        },
+        # "Containers" => lambda {|it| 
+        #     i wish
+        # },
       "Group Access" => lambda {|it| 
         group_access_str = ""
         begin
@@ -2018,6 +2047,7 @@ class Morpheus::Cli::BlueprintsCommand
         group_access_str
       }
     }
+
     print_description_list(description_cols, blueprint)
     # print_h2 "Tiers"
     if blueprint["config"] && blueprint["config"]["tiers"] && blueprint["config"]["tiers"].keys.size != 0

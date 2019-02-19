@@ -7,13 +7,11 @@ require 'morpheus/cli/option_types'
 require 'morpheus/cli/mixins/accounts_helper'
 require 'json'
 
-class Morpheus::Cli::Accounts
+class Morpheus::Cli::TenantsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-
-  # deprecated and replaced with tenants, remove soon
-  set_command_hidden
-  
+  set_command_name :tenants
+  set_command_description "View and manage tenants (accounts)."
   register_subcommands :list, :count, :get, :add, :update, :remove
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -33,7 +31,6 @@ class Morpheus::Cli::Accounts
   end
 
   def handle(args)
-    print_error "#{yellow}DEPRECATION WARNING: `morpheus accounts` has been replaced with `morpheus tenants`. Please use `tenants` instead.#{reset}\n"
     handle_subcommand(args)
   end
 
@@ -46,7 +43,7 @@ class Morpheus::Cli::Accounts
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :remote, :dry_run])
-      opts.footer = "List accounts."
+      opts.footer = "List tenants."
     end
     optparse.parse!(args)
     connect(options)
@@ -63,12 +60,12 @@ class Morpheus::Cli::Accounts
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        title = "Morpheus Accounts"
+        title = "Morpheus Tenants"
         subtitles = []
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if accounts.empty?
-          puts yellow,"No accounts found.",reset
+          puts yellow,"No tenants found.",reset
         else
           print_accounts_table(accounts)
           print_results_pagination(json_response)
@@ -86,7 +83,7 @@ class Morpheus::Cli::Accounts
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_common_options(opts, options, [:query, :remote, :dry_run])
-      opts.footer = "Get the number of accounts."
+      opts.footer = "Get the number of tenants."
     end
     optparse.parse!(args)
     connect(options)
@@ -156,11 +153,12 @@ class Morpheus::Cli::Accounts
           status_state = "#{red}INACTIVE#{cyan}"
         end
         puts "Status: #{status_state}"
-        print_h2 "Account Instance Limits"
-        print cyan
-        puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
-        puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"
-        puts "CPU Count: #{account['instanceLimits'] ? account['instanceLimits']['maxCpu'] : 0}"
+        # JD: pretty sure this is deprecated
+        # print_h2 "Tenant Instance Limits"
+        # print cyan
+        # puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
+        # puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"
+        # puts "CPU Count: #{account['instanceLimits'] ? account['instanceLimits']['maxCpu'] : 0}"
         print reset,"\n"
       end
     rescue RestClient::Exception => e
@@ -179,6 +177,14 @@ class Morpheus::Cli::Accounts
     optparse.parse!(args)
     connect(options)
     begin
+      if args.count > 1
+        raise_command_error "wrong number of arguments. Expected 0-1 and received #{args.count} #{args.join(' ')}\n#{optparse}", args, 127
+        #puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 0-1 and received #{args.count} #{args.join(' ')}\n#{optparse}"
+        #return 127
+      end
+      if args[0]
+        options[:options]['name'] = args[0]
+      end
       params = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params])
       #puts "parsed params is : #{params.inspect}"
       account_keys = ['name', 'description', 'currency']
@@ -195,12 +201,16 @@ class Morpheus::Cli::Accounts
         exit 1 if role.nil?
         account_payload['role'] = {id: role['id']}
       end
-      request_payload = {account: account_payload}
+      payload = {account: account_payload}
+      if options[:dry_run] && options[:json]
+        puts as_json(payload, options)
+        return 0
+      end
       if options[:dry_run]
-        print_dry_run @accounts_interface.dry.create(request_payload)
+        print_dry_run @accounts_interface.dry.create(payload)
         return
       end
-      json_response = @accounts_interface.create(request_payload)
+      json_response = @accounts_interface.create(payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -256,12 +266,16 @@ class Morpheus::Cli::Accounts
         exit 1 if role.nil?
         account_payload['role'] = {id: role['id']}
       end
-      request_payload = {account: account_payload}
+      payload = {account: account_payload}
+      if options[:dry_run] && options[:json]
+        puts as_json(payload, options)
+        return 0
+      end
       if options[:dry_run]
-        print_dry_run @accounts_interface.dry.update(account['id'], request_payload)
+        print_dry_run @accounts_interface.dry.update(account['id'], payload)
         return
       end
-      json_response = @accounts_interface.update(account['id'], request_payload)
+      json_response = @accounts_interface.update(account['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -296,6 +310,10 @@ class Morpheus::Cli::Accounts
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
         exit
       end
+      if options[:dry_run] && options[:json]
+        puts as_json(payload, options)
+        return 0
+      end
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.destroy(account['id'])
         return
@@ -321,10 +339,10 @@ class Morpheus::Cli::Accounts
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
       {'fieldName' => 'role', 'fieldLabel' => 'Base Role', 'type' => 'text', 'displayOrder' => 3},
-      {'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'displayOrder' => 4},
-      {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 5},
-      {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 6},
-      {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 7},
+      {'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'displayOrder' => 4}
+      # {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 5},
+      # {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 6},
+      # {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 7},
     ]
   end
 

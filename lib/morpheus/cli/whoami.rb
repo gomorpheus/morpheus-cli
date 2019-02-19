@@ -81,10 +81,14 @@ class Morpheus::Cli::Whoami
         return 1
       end
       
+      if options[:dry_run]
+        print_dry_run @api_client.whoami.dry.get()
+        return 0
+      end
 
-      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-      
-      if !creds
+      wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+      token = wallet ? wallet['access_token'] : nil
+      if !token
         if options[:quiet]
           return 1
         elsif access_token_only
@@ -96,7 +100,6 @@ class Morpheus::Cli::Whoami
           return 1
         end
       end
-
 
       json_response = load_whoami()
       
@@ -146,7 +149,7 @@ class Morpheus::Cli::Whoami
           exit 1
         end
 
-        print_h1 "Current User"
+        print_h1 "Current User", options
         print cyan
         print_description_list({
           "ID" => 'id',
@@ -163,7 +166,7 @@ class Morpheus::Cli::Whoami
 
         if options[:include_feature_access]
           if @user_permissions
-            print_h2 "Feature Permissions"
+            print_h2 "Feature Permissions", options
             print cyan
             rows = @user_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }
@@ -174,7 +177,7 @@ class Morpheus::Cli::Whoami
           end
         end
 
-        print_h1 "Remote Appliance"
+        print_h1 "Remote Appliance", options
         print cyan
         appliance_data = {
           'name' => @appliance_name,
@@ -189,16 +192,18 @@ class Morpheus::Cli::Whoami
 
         if active_group
           print cyan
-          # print_h1 "Active Group"
+          # print_h1 "Active Group", options
           # print cyan
           # print_description_list({
           #   "ID" => 'id',
           #   "Name" => 'name'
           # }, active_group)
           print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
+          print reset,"\n"
         else
           print "\n", reset
           print "No active group. See `groups use`\n",reset
+          print reset,"\n"
         end
 
         # save pertinent session info to the appliance
@@ -214,8 +219,6 @@ class Morpheus::Cli::Whoami
         rescue => err
           puts "failed to save remote appliance info"
         end
-
-        print reset,"\n"
       end
       return 0
     rescue RestClient::Exception => e

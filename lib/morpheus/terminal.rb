@@ -7,6 +7,7 @@ require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
 require 'morpheus/logging'
+require 'morpheus/benchmarking'
 require 'morpheus/cli'
 
 module Morpheus
@@ -30,7 +31,7 @@ module Morpheus
   #    puts File.read("/tmp/host23.json")
   #
   class Terminal
-    
+    include Morpheus::Benchmarking::HasBenchmarking
     # todo: this can be combined with Cli::Shell
 
     class Blackhole # < IO
@@ -76,6 +77,10 @@ module Morpheus
       #export MORPHEUS_PS1='\[\e[1;32m\]\u@\h:\w${text}$\[\e[m\] '
     end
 
+    # def self.benchmarking=(v)
+    #   @benchmarking = !!v
+    # end
+
     # the global Morpheus::Terminal instance
     # This should go away, but it needed for now...
     def self.instance
@@ -90,6 +95,7 @@ module Morpheus
     end
 
     attr_accessor :prompt #, :angry_prompt
+    attr_accessor :benchmarking
     attr_reader :stdin, :stdout, :stderr, :home_directory
 
 
@@ -221,12 +227,16 @@ module Morpheus
           @coloring = false
           Term::ANSIColor::coloring = false
         end
+        opts.on('-B','--benchmark', "Print benchmark time after the command is finished.") do
+          @benchmarking = true
+          #Morpheus::Benchmarking.enabled = true
+        end
         opts.on('-V','--debug', "Print extra output for debugging.") do |json|
           @terminal_log_level = Morpheus::Logging::Logger::DEBUG
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
         end
-        opts.on( '-h', '--help', "Prints this help" ) do
+        opts.on( '-h', '--help', "Print this help" ) do
           @stdout.puts opts
           # exit
         end
@@ -317,42 +327,55 @@ module Morpheus
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       end
 
-      # execute startup script .morpheus_profile  unless --noprofile is passed
-      # todo: this should happen in initialize..
-      noprofile = false
-      if args.find {|it| it == '--noprofile' }
-        noprofile = true
-        args.delete_if {|it| it == '--noprofile' }
-      end
-
-      if @profile_dot_file && !@profile_dot_file_has_run
-        if !noprofile && File.exists?(@profile_dot_file.filename)
-          execute_profile_script()
-        end
-      end
-
-      # not enough arguments?
-      if args.count == 0
-        @stderr.puts "#{@angry_prompt}[command] argument is required."
-        #@stderr.puts "No command given, here's some help:"
-        @stderr.print usage
-        return 2, nil # CommandError.new("morpheus requires a command")
-      end
-      
-      cmd_name = args[0]
-      cmd_args = args[1..-1]
-
-      # unknown command?
-      # all commands should be registered commands or aliases
-      if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
-        @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not a morpheus command. See 'morpheus --help'."
-        #@stderr.puts usage
-        return 127, nil
-      end
+      # start benchmark right away?
+      # if args.find {|it| it == '-B' || it == '--benchmark'}
+      #   #start_benchmark(args.join(' '))
+      #   @benchmarking = true
+      # end
 
       # ok, execute the command (or alias)
       result = nil
       begin
+      
+        # execute startup script .morpheus_profile  unless --noprofile is passed
+        # todo: this should happen in initialize..
+        noprofile = false
+        if args.find {|it| it == '--noprofile' }
+          noprofile = true
+          args.delete_if {|it| it == '--noprofile' }
+        end
+
+        if @profile_dot_file && !@profile_dot_file_has_run
+          if !noprofile && File.exists?(@profile_dot_file.filename)
+            execute_profile_script()
+          end
+        end
+
+        # not enough arguments?
+        if args.count == 0
+          @stderr.puts "#{@angry_prompt}[command] argument is required."
+          #@stderr.puts "No command given, here's some help:"
+          @stderr.print usage
+          return 2, nil # CommandError.new("morpheus requires a command")
+        end
+        
+        cmd_name = args[0]
+        cmd_args = args[1..-1]
+
+        # unknown command?
+        # all commands should be registered commands or aliases
+        if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
+          @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not recognized. See 'morpheus --help'."
+          #@stderr.puts usage
+          return 127, nil
+        end
+        
+        if @benchmarking || args.include?('-B') || args.include?('--benchmark')
+          benchmark_name = "morpheus " + args.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
+          #benchmark_name = args.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
+          start_benchmark(benchmark_name)
+        end
+
         # shell is a Singleton command class
         if args[0] == "shell"
           result = Morpheus::Cli::Shell.instance.handle(args[1..-1])
@@ -373,6 +396,12 @@ module Morpheus
       rescue => e
         exit_code = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
         err = e
+      ensure
+        # should always try to stop it
+        # if @benchmarking
+          benchmark_record = stop_benchmark(exit_code, err)
+          Morpheus::Logging::DarkPrinter.puts(Term::ANSIColor.cyan + Term::ANSIColor.dark + benchmark_record.msg) if benchmark_record
+        # end
       end
 
       return exit_code, err

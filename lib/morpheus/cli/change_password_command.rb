@@ -41,7 +41,7 @@ class Morpheus::Cli::ChangePasswordCommand
       opts.on('--password VALUE', String, "New password") do |val|
         new_password = val
       end
-      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote, :quiet, :auto_confirm])
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote, :quiet, :auto_confirm], [:username,:password])
       opts.footer = "Change your password or the password of another user.\n" +
                     "[username] is optional. This is the username of the user to update. Default is your own.\n" +
                     "Be careful with this command, the default behavior is to update your own password."
@@ -56,6 +56,7 @@ class Morpheus::Cli::ChangePasswordCommand
 
     connect(options)
     @current_remote = @appliance_name ? ::Morpheus::Cli::Remote.load_remote(@appliance_name) : ::Morpheus::Cli::Remote.load_active_remote()
+    puts "args is #{args}"
     begin
       if args[0]
         username = args[0]
@@ -92,12 +93,6 @@ class Morpheus::Cli::ChangePasswordCommand
         print cyan, "Changing password for #{user['username']}", reset, "\n"
       end
 
-      unless options[:yes]
-        unless ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the password for user #{user['username']}?", options)
-          return 9, "aborted command"
-        end
-      end
-
       if new_password.nil? && options[:options]['password']
         new_password = options[:options]['password']
       end
@@ -127,6 +122,13 @@ class Morpheus::Cli::ChangePasswordCommand
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return 0
       end
+
+      unless options[:yes]
+        unless ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the password for user #{user['username']}?", options)
+          return 9, "aborted command"
+        end
+      end
+
       json_response = @users_interface.update(account_id, user['id'], payload)
       if options[:json]
         puts as_json(json_response)

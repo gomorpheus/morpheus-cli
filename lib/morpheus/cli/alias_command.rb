@@ -10,24 +10,22 @@ require 'json'
 class Morpheus::Cli::AliasCommand
   include Morpheus::Cli::CliCommand
   set_command_name :alias
+  set_command_description "Aliases for commands"
   register_subcommands :add, :export, :remove, :list
   #set_default_subcommand :add
 
   def initialize() 
   end
 
-  def usage
-    out = "Usage: morpheus #{command_name} [name]='[command]'"
-    out
-  end
-
   def handle(args)
     if args.empty?
-      puts usage
-      exit 127
+      list(args)
+      #add(args)
     elsif self.class.has_subcommand?(args[0])
       handle_subcommand(args)
-    elsif args.count == 1 || (args.count == 2 && args.include?('-e'))
+    elsif (args.count == 1) && (args[0] == '-h' || args[0] == '--help')
+      handle_subcommand(args)
+    elsif (args.count == 1) || (args.count == 2 && args.include?('-e'))
       add(args)
     else
       handle_subcommand(args)
@@ -39,35 +37,58 @@ class Morpheus::Cli::AliasCommand
     options = {}
     do_export = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = usage
+      opts.banner = subcommand_usage("[name]='[command]'")
       #build_common_options(opts, options, [])
       opts.on( '-e', '--export', "Export this alias to your .morpheus_profile for future use" ) do
         do_export = true
       end
       opts.on('-h', '--help', "Prints this help" ) do
         puts opts
-        puts "Commands:"
-        subcommands.sort.each {|cmd, method|
-            puts "\t#{cmd.to_s}"
-          }
-        puts "" + 
-              "This defines an alias of a command.\n" + 
-              "The [name] should be a one word .\n" + 
-              "The [command] must be quoted if it is more than one word.\n" + 
-              "The [command] may include multiple commands, semicolon delimited.\n" + 
-              #"Example: alias cloud='clouds' .\n" + 
-              "Aliases can be exported for future use with the -e option.\n" + 
-              "You can use just `alias` instead of `alias add`.\n" +
-              "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias"
         exit
       end
+      formatted_commands_map = "    " + subcommands.sort.collect {|cmd| "\t#{cmd}" }.join("\n")
+      opts.footer = <<-EOT
+Define a new alias.
+[name] is required. This is the alias name. It should be one word.
+[command] is required. This is the full command or or expression wrapped in quotes.
+Aliases can be exported for future use with the -e option.
+The `alias add` command can be invoked with `alias [name]=[command]`
+
+Examples: 
+    alias cloud=clouds
+    alias ij='instances get -j'
+    alias new-hosts='hosts list -S id -D'
+    alias infra='clouds list -m 5; networks list -m 5; hosts list -m 5'
+    alias find-answer='(instances get 42 || instances add) || echo "oh dear..."' -e
+    
+For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias
+EOT
+      
     end
     optparse.parse!(args)
-    if args.count != 1
-      puts optparse
-      exit 1
+    if args.count < 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1-N and got #{args.count}\n#{optparse}"
+      return 1
     end
-    alias_definition = args[0]
+    
+    # make this super forgiving.. my name = command -j -O value=woot
+    # the old way, as one argument "name='command'"
+    # no spaces.. name="command -j -O value=woot"
+    if (args.count == 1)
+      alias_definition = args[0]
+    elsif (args.count == 2)
+      alias_definition = "#{args[0]}='#{args[1]}'"
+    else
+      # meh, never gets here now anyway.. 
+      # alias_definition = args.join(' ')
+      args_alias_str = ""
+      alias_parts = args.join(' ').split('=')
+      left_side = alias_parts[0]
+      right_side = alias_parts[1..-1].join(' ')
+      args_alias_str = ""
+      alias_definition = "#{left_side}='#{right_side}'"
+    end
 
       
       begin
@@ -168,15 +189,24 @@ class Morpheus::Cli::AliasCommand
   end
 
   def list(args)
-    options = {format:'friendly', sort:'name'}
-    do_remove = false
+    options = {format:'table', sort:'name'}
+    do_export = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      opts.on( '-f', '--format FORMAT', "The format for the output: export, json, friendly (default)." ) do |val|
+      opts.on( '-f', '--format FORMAT', "The format for the output: export, json, list, table (default)." ) do |val|
         options[:format] = val
       end
+      opts.on( '-e', '--export', "Include the '-e' switch after each alias in the output. This implies --format export." ) do
+        options[:format] = 'export'
+        do_export = true
+      end
       build_common_options(opts, options, [:list, :json])
-      opts.footer = "This outputs a list of your defined aliases."
+      opts.footer = <<-EOT
+Print list of defined aliases.    
+Use the --format option to vary output.
+The `alias list` command can be abbreviated as just `alias`.
+For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias
+EOT
     end
     optparse.parse!(args)
 
@@ -229,36 +259,34 @@ class Morpheus::Cli::AliasCommand
       end
       out << JSON.pretty_generate({aliases: alias_json})
       out << "\n"
-    elsif options[:format] == 'export' || options[:format] == 'config'
+    elsif options[:format] == 'export' || options[:format] == 'e' || options[:format] == 'config'
       # out << "# morpheus aliases for #{`whoami`}\n" # windows!
       #out << "# morpheus aliases\n"
       my_aliases.each do |it|
         out <<  "alias #{it[:name]}='#{it[:command_string]}'"
+        if do_export
+          out << " -e"
+        end
         out << "\n"
       end
-    else 
-      # friendly
-      #out << cyan
-      if num_aliases == 0
-        #print "You have #{num_aliases} aliases defined."
-        out << "Found #{num_aliases} aliases"
-      elsif num_aliases == 1
-        #print "You have just one alias defined."
-        out <<  "Found #{num_aliases} alias"
-      else
-        #print "You have #{num_aliases} aliases defined."
-        out <<  "Found #{num_aliases} aliases"
-      end
-      if options[:phrase]
-        out << " matching '#{options[:phrase]}'"
-      end
-      out <<  "\n"
-      out << reset
+    elsif options[:format] == 'list'
       my_aliases.each do |it|
-        out <<  "    #{cyan}#{it[:name]}#{reset}='#{it[:command_string]}'"
+        out <<  "#{cyan}#{it[:name]}#{reset}='#{it[:command_string]}'"
         out << "\n"
       end
       out << reset
+    else
+      # table (default)
+      alias_columns = {
+        "ALIAS" => lambda {|it| it[:name] },
+        "COMMAND" => lambda {|it| it[:command_string] }
+      }
+      out << "\n"
+      out << cyan
+      out << as_pretty_table(my_aliases, alias_columns, {:border_style => :thin}.merge(options))
+      out << format_results_pagination({size:my_aliases.size,total:my_aliases.size.to_i})
+      out << reset
+      out << "\n"
     end
     print out
   end

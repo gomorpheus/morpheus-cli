@@ -18,27 +18,64 @@ module Morpheus
         @appliance_url = appliance_url
       end
       
+      # request_credentials will fetch a credentials wallet (access_token, refresh_token, etc)
+      # By default this uses the saved credentials for the current appliance.
+      # If not logged in, it will prompt for username and password to
+      # authenticate with the /oauth/token API to receive an access_token.
+      # If :username and :password are passed, then
+      # Pass :remote_token to skip prompting and the auth api request.
+      # @param opts - Hash of optional settings.
+      #   :username - Username to use, skips saved lookup and prompting.
+      #   :password - Password to use, skips saved lookup and prompting.
+      #   :remote_url - Use this url instead of the one from the current appliance. Credentials will not be saved.
+      #   :remote_token - Use this access_token, skip prompting and API request.
+      #   :test_only - Test only. Saved credentials will not be updated.
+      # @return Hash wallet like {"access_token":"ec68be138765...", "refresh_token":"ec68be138765..."} 
+      # or nil if unable to find credentials.
       def request_credentials(opts = {})
         #puts "request_credentials(#{opts})"
         username = nil
         password = nil
-        access_token = nil
+        wallet = nil
         skip_save = false
-        if opts[:test_only] == true
+        if opts[:skip_save] == true || opts[:test_only] == true || opts[:remote_url] == true || opts[:dry_run] == true
           skip_save = true
         end
+
         if opts[:remote_token]
+          # user passed in a token to login with.
+          # this should get token info from /oauth/token
+          # OR whoami should return other wallet info like access token or maybe just the expiration date
+          # for now, it just stores the access token without other wallet info
           begin
             whoami_interface = Morpheus::WhoamiInterface.new(opts[:remote_token], nil, nil, @appliance_url)
+            if opts[:dry_run]
+              print_dry_run whoami_interface.dry.get()
+              return nil
+            end
             whoami_response = whoami_interface.get()
             if opts[:json]
               print JSON.pretty_generate(whoami_response)
               print reset, "\n"
             end
-            access_token = opts[:remote_token]
+            # store mock /oauth/token  auth_interface.login() result
+            json_response = {'access_token' => opts[:remote_token], 'token_type' => 'bearer'}
             username = whoami_response['user']['username']
+            login_date = Time.now
+            expire_date = nil
+            if json_response['expires_in']
+              expire_date = login_date.to_i + json_response['expires_in'].to_i
+            end
+            wallet = {
+              'username' => username, 
+              'login_date' => login_date.to_i,
+              'expire_date' => expire_date ? expire_date.to_i : nil,
+              'access_token' => json_response['access_token'], 
+              'refresh_token' => json_response['refresh_token'], 
+              'token_type' => json_response['token_type']
+            }
             unless skip_save
-              save_credentials(@appliance_name, access_token)
+              save_credentials(@appliance_name, wallet)
             end
           rescue ::RestClient::Exception => e
             #raise e
@@ -46,95 +83,113 @@ module Morpheus
             if opts[:debug] || opts[:debug]
               print_rest_exception(e, opts)
             end
-            access_token = nil
+            wallet = nil
           end
         else
         
-          if !opts[:remote_username].nil?
-            username = opts[:remote_username]
-            password = opts[:remote_password]
+          # JD: I think this might be wonky, :username global option is overlapping with the one from login, fix it
+          # if passing a username on the fly (skip_save)
+          # that's assumed to be a transient command, not one to log yo in (update your session)
+          # that should be done outside of this method you see...
+          if opts[:username]
+            username = opts[:username]
+            password = opts[:password]
             if skip_save == false
-              skip_save = opts[:remote_url] ? true : false
+              #skip_save = (opts[:remote_url] ? true : false)
             end
           else
+            # maybe just if check if opts[:test_only] != true
             if skip_save == false
-              access_token = load_saved_credentials
-            end
-          end
-          if access_token
-            return access_token
+              wallet = load_saved_credentials
+            end  
           end
 
-          unless opts[:quiet] || opts[:no_prompt]
-            # if username.empty? || password.empty?
-              if opts[:test_only]
-                print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+          if wallet.nil?
+            unless opts[:quiet] || opts[:no_prompt]
+              # if username.empty? || password.empty?
+                if opts[:test_only]
+                  print "Test Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                else
+                  print "Enter Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                end
+              # end
+              if username.empty?
+                print "Username: #{required_blue_prompt} "
+                username = $stdin.gets.chomp!
               else
-                print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                print "Username: #{required_blue_prompt} #{username}\n"
               end
-            # end
-            if username.empty?
-              print "Username: #{required_blue_prompt} "
-              username = $stdin.gets.chomp!
-            else
-              print "Username: #{required_blue_prompt} #{username}\n"
-            end
-            if password.empty?
-              print "Password: #{required_blue_prompt} "
-              password = STDIN.noecho(&:gets).chomp!
-              print "\n"
-            else
-              print "Password: #{required_blue_prompt} \n"
-            end
-          end
-          if username.empty? || password.empty?
-            print_red_alert "Username and password are required to login."
-            return nil
-          end
-          begin
-            auth_interface = Morpheus::AuthInterface.new(@appliance_url)
-            json_response = auth_interface.login(username, password)
-            if opts[:json]
-              print JSON.pretty_generate(json_response)
-              print reset, "\n"
-            end
-            access_token = json_response['access_token']
-            if access_token && access_token != ""
-              unless skip_save
-                save_credentials(@appliance_name, access_token)
+              if password.empty?
+                print "Password: #{required_blue_prompt} "
+                # wtf is this STDIN and $stdin and not my_terminal.stdin ?
+                password = STDIN.noecho(&:gets).chomp!
+                print "\n"
+              else
+                print "Password: #{required_blue_prompt} \n"
               end
-              # return access_token
-            else
-              print_red_alert "Credentials not verified."
-              # return nil
             end
-          rescue ::RestClient::Exception => e
-            #raise e
-            if (e.response && e.response.code == 400)
-              json_response = JSON.parse(e.response.to_s)
-              error_msg = json_response['error_description'] || "Credentials not verified."
-              print_red_alert error_msg
+            if username.empty? || password.empty?
+              print_red_alert "Username and password are required to login."
+              return nil
+            end
+            begin
+              auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+              if opts[:dry_run]
+                print_dry_run auth_interface.dry.login(username, password, opts)
+                return nil
+              end
+              json_response = auth_interface.login(username, password, opts)
               if opts[:json]
-                json_response = JSON.parse(e.response.to_s)
                 print JSON.pretty_generate(json_response)
                 print reset, "\n"
               end
-            else
-              print_rest_exception(e, opts)
-            end
-            access_token = nil
-          end
+              #wallet = json_response
+              login_date = Time.now
+              expire_date = nil
+              if json_response['expires_in']
+                expire_date = login_date.to_i + json_response['expires_in'].to_i
+              end
+              wallet = {
+                'username' => username, 
+                'login_date' => login_date.to_i,
+                'expire_date' => expire_date ? expire_date.to_i : nil,
+                'access_token' => json_response['access_token'], 
+                'refresh_token' => json_response['refresh_token'], 
+                'token_type' => json_response['token_type']
+              }
 
+            rescue ::RestClient::Exception => e
+              #raise e
+              if (e.response && e.response.code == 400)
+                json_response = JSON.parse(e.response.to_s)
+                error_msg = json_response['error_description'] || "Credentials not verified."
+                print_red_alert error_msg
+                if opts[:json]
+                  json_response = JSON.parse(e.response.to_s)
+                  print JSON.pretty_generate(json_response)
+                  print reset, "\n"
+                end
+              else
+                print_rest_exception(e, opts)
+              end
+              wallet = nil
+            end
+
+          end
         end
 
 
         unless skip_save
+
+          # save wallet to credentials file
+          save_credentials(@appliance_name, wallet)
+
           begin
           # save pertinent session info to the appliance
             now = Time.now.to_i
             appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
             if appliance
-              if access_token
+              if wallet && wallet['access_token']
                 appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
                 appliance[:authenticated] = true
                 appliance[:username] = username
@@ -153,11 +208,11 @@ module Morpheus
               end
             end
           rescue => e
-            #puts "failed to update remote appliance config: (#{e.class}) #{e.message}"
+            Morpheus::Logging::DarkPrinter.puts "failed to update remote appliance config: (#{e.class}) #{e.message}"
           end
         end
-
-        return access_token
+        
+        return wallet
       end
 
       def login(opts = {})
@@ -189,9 +244,97 @@ module Morpheus
         true
       end
 
+      def use_refresh_token(opts = {})
+        #puts "use_refresh_token(#{opts})"
+        
+        wallet = load_saved_credentials
+
+        if wallet.nil?
+          print_red_alert yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+          return nil
+        end
+
+        if wallet['refresh_token'].nil?
+          print_red_alert yellow,"No refresh token found for #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+          return nil
+        end
+
+
+        username = wallet['username']
+
+        begin
+          auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+          json_response = auth_interface.use_refresh_token(wallet['refresh_token'], opts)
+          #wallet = json_response
+          login_date = Time.now
+          expire_date = nil
+          if json_response['expires_in']
+            expire_date = login_date.to_i + json_response['expires_in'].to_i
+          end
+          wallet = {
+            'username' => username, 
+            'login_date' => login_date.to_i,
+            'expire_date' => expire_date ? expire_date.to_i : nil,
+            'access_token' => json_response['access_token'], 
+            'refresh_token' => json_response['refresh_token'], 
+            'token_type' => json_response['token_type']
+          }
+          
+        rescue ::RestClient::Exception => e
+          #raise e
+          if (e.response && e.response.code == 400)
+            json_response = JSON.parse(e.response.to_s)
+            error_msg = json_response['error_description'] || "Refresh token not valid."
+            print_red_alert error_msg
+            if opts[:json]
+              json_response = JSON.parse(e.response.to_s)
+              print JSON.pretty_generate(json_response)
+              print reset, "\n"
+            end
+          else
+            print_rest_exception(e, opts)
+          end
+          wallet = nil
+        end
+
+        # save wallet to credentials file
+        save_credentials(@appliance_name, wallet)
+
+        begin
+        # save pertinent session info to the appliance
+          now = Time.now.to_i
+          appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+          if appliance
+            if wallet && wallet['access_token']
+              appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+              appliance[:authenticated] = true
+              appliance[:username] = username
+              appliance[:status] = "ready"
+              appliance[:last_login_at] = now
+              appliance[:last_success_at] = now
+              ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
+            else
+              now = Time.now.to_i
+              appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+              appliance[:authenticated] = false
+              #appliance[:username] = username
+              #appliance[:last_login_at] = now
+              #appliance[:error] = "Credentials not verified"
+              ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
+            end
+          end
+        rescue => e
+          Morpheus::Logging::DarkPrinter.puts "failed to update remote appliance config: (#{e.class}) #{e.message}"
+        end
+        
+        
+        return wallet
+      end
+
       def clear_saved_credentials(appliance_name)
         @@appliance_credentials_map = load_credentials_file || {}
-        @@appliance_credentials_map.delete(appliance_name)
+        @@appliance_credentials_map.delete(appliance_name.to_s)
+        @@appliance_credentials_map.delete(appliance_name.to_sym)
         Morpheus::Logging::DarkPrinter.puts "clearing credentials for #{appliance_name} from file #{credentials_file_path}" if Morpheus::Logging.debug?
         File.open(credentials_file_path, 'w') {|f| f.write @@appliance_credentials_map.to_yaml } #Store
         ::Morpheus::Cli::Remote.recalculate_variable_map()
@@ -202,7 +345,13 @@ module Morpheus
         if reload || !defined?(@@appliance_credentials_map) || @@appliance_credentials_map.nil?
           @@appliance_credentials_map = load_credentials_file || {}
         end
-        return @@appliance_credentials_map[@appliance_name]
+        # ok, we switched  symbols to strings, because symbols suck in yaml! need to support both
+        # also we switched from just a token (symbol) to a whole object of strings
+        wallet = @@appliance_credentials_map[@appliance_name.to_s] || @@appliance_credentials_map[@appliance_name.to_sym]
+        if wallet.is_a?(String)
+          wallet = {'access_token' => wallet}
+        end
+        return wallet
       end
 
       def load_credentials_file
@@ -219,14 +368,19 @@ module Morpheus
         File.join(Morpheus::Cli.home_directory, "credentials")
       end
 
-      def save_credentials(appliance_name, token)
-        # credential_map = appliance_credentials_map
+      # credentials wallet is {'access_token': '...', 'refresh_token': '...' 'expiration': '2019-01-01...'}
+      def save_credentials(appliance_name, wallet)
         # reloading file is better for now, otherwise you can lose credentials with multiple shells.
         credential_map = load_credentials_file || {}
-        if credential_map.nil?
-          credential_map = {}
+        
+        if wallet
+          credential_map[appliance_name.to_s] = wallet
+        else
+          # nil mean remove the damn thing
+          credential_map.delete(appliance_name.to_s)
         end
-        credential_map[appliance_name] = token
+        # always remove symbol, which was used pre 3.6.9
+        credential_map.delete(appliance_name.to_sym)
         begin
           fn = credentials_file_path
           if !Dir.exists?(File.dirname(fn))

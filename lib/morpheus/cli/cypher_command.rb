@@ -62,7 +62,7 @@ class Morpheus::Cli::CypherCommand
           "ID" => 'id',
           "KEY" => lambda {|it| it["itemKey"] || it["key"] },
           "LEASE REMAINING" => lambda {|it| it['expireDate'] ? format_local_dt(it['expireDate']) : "" },
-          "DATED CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
+          "DATE CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
           "LAST ACCESSED" => lambda {|it| format_local_dt(it["lastAccessed"]) }
         }
         if options[:include_fields]
@@ -247,7 +247,7 @@ class Morpheus::Cli::CypherCommand
         # Value
         value_is_required = false
         cypher_mount_type = params['itemKey'].split("/").first
-        if cypher_mount_type == ["secret", "password"].include?(cypher_mount_type)
+        if ["secret", "password"].include?(cypher_mount_type)
           value_is_required = true
         end
 

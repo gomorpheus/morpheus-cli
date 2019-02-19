@@ -12,6 +12,8 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
+  set_command_name :hosts
+  set_command_description "View and manage hosts (servers)."
   register_subcommands :list, :count, :get, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
   register_subcommands :exec => :execution_request
   alias_subcommand :details, :get
@@ -165,7 +167,7 @@ class Morpheus::Cli::Hosts
           subtitles << "Cloud: #{cloud['name']}".strip
         end
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if servers.empty?
           print yellow,"No hosts found.",reset,"\n"
         else
@@ -317,7 +319,7 @@ class Morpheus::Cli::Hosts
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
       title = "Host Details"
-      print_h1 title
+      print_h1 title, [], options
       print cyan
       print_description_list({
         "ID" => 'id',
@@ -335,7 +337,7 @@ class Morpheus::Cli::Hosts
         "Power" => lambda {|it| format_server_power_state(it) },
       }, server)
       
-      print_h2 "Host Usage"
+      print_h2 "Host Usage", options
       print_stats_usage(stats)
       print reset, "\n"
 
@@ -405,11 +407,11 @@ class Morpheus::Cli::Hosts
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
       title = "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})"
-      print_h1 title
+      print_h1 title, [], options
       puts cyan + "Power: ".rjust(12) + format_server_power_state(server).to_s
       puts cyan + "Status: ".rjust(12) + format_host_status(server).to_s
       puts cyan + "Nodes: ".rjust(12) + (server['containers'] ? server['containers'].size : '').to_s
-      #print_h2 "Host Usage"
+      #print_h2 "Host Usage", options
       print_stats_usage(stats, {label_width: 10})
 
       print reset, "\n"
@@ -454,7 +456,7 @@ class Morpheus::Cli::Hosts
           subtitles << "Search: #{params[:query]}".strip
         end
         # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if logs['data'].empty?
           output << "#{cyan}No logs found.#{reset}\n"
         else
@@ -506,7 +508,7 @@ class Morpheus::Cli::Hosts
       print JSON.pretty_generate(cloud_server_types)
       print "\n"
     else
-      print_h1 "Morpheus Server Types - Cloud: #{zone['name']}"
+      print_h1 "Morpheus Server Types - Cloud: #{zone['name']}", [], options
       if cloud_server_types.nil? || cloud_server_types.empty?
         print yellow,"No server types found for the selected cloud",reset,"\n"
       else

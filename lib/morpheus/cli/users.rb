@@ -69,11 +69,11 @@ class Morpheus::Cli::Users
           subtitles << "Account: #{account['name']}".strip
         end
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if users.empty?
           puts yellow,"No users found.",reset
         else
-          print_users_table(users)
+          print_users_table(users, options)
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -188,7 +188,7 @@ class Morpheus::Cli::Users
           user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
           user_feature_permissions = user_feature_permissions_json['featurePermissions']
         end
-        print_h1 "User Details"
+        print_h1 "User Details", options
         print cyan
         description_cols = {
           "ID" => 'id',
@@ -205,17 +205,17 @@ class Morpheus::Cli::Users
         }
         print_description_list(description_cols, user)
 
-        print_h2 "User Instance Limits"
-        print cyan
-        print_description_list({
-          "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
-          "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
-          "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
-        }, user['instanceLimits'])
+        # print_h2 "User Instance Limits", options
+        # print cyan
+        # print_description_list({
+        #   "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
+        #   "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
+        #   "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
+        # }, user['instanceLimits'])
 
         if options[:include_feature_access] && user_feature_permissions
           if user_feature_permissions
-            print_h2 "Feature Permissions"
+            print_h2 "Feature Permissions", options
             print cyan
             rows = user_feature_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }
@@ -276,7 +276,10 @@ class Morpheus::Cli::Users
         end      
         payload = {'user' => params}
       end
-
+      if options[:dry_run] && options[:json]
+        puts as_json(payload, options)
+        return 0
+      end
       if options[:dry_run]
         print_dry_run @users_interface.dry.create(account_id, payload)
         return

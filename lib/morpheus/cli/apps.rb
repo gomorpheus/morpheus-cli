@@ -14,7 +14,8 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
-
+  set_command_name :apps
+  set_command_description "View and manage apps."
   register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
   #register_subcommands :validate # add --validate instead
@@ -70,7 +71,7 @@ class Morpheus::Cli::Apps
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
       end
-      
+
       if options[:dry_run]
         print_dry_run @apps_interface.dry.get(params)
         return
@@ -86,11 +87,11 @@ class Morpheus::Cli::Apps
       title = "Morpheus Apps"
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
+      print_h1 title, subtitles, options
       if apps.empty?
         print cyan,"No apps found.",reset,"\n"
       else
-        print_apps_table(apps)
+        print_apps_table(apps, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -513,7 +514,8 @@ class Morpheus::Cli::Apps
       return 0 if render_result
 
       app = json_response['app']
-      print_h1 "App Details"
+      app_tiers = app['appTiers']
+      print_h1 "App Details", [], options
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -522,6 +524,35 @@ class Morpheus::Cli::Apps
         "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Tiers" => lambda {|it| 
+          # it['instanceCount']
+          tiers = []
+          app_tiers = it['appTiers'] || []
+          app_tiers.each do |app_tier|
+            tiers << app_tier['tier']
+          end
+          "#{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(',')}"
+        },
+        "Instances" => lambda {|it| 
+          # it['instanceCount']
+          instances = []
+          app_tiers = it['appTiers'] || []
+          app_tiers.each do |app_tier|
+            instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
+          end
+          #"(#{instances.count})"
+          "(#{instances.count}) #{instances.collect {|it| it['name'] }.join(',')}"
+        },
+        "Containers" => lambda {|it| 
+          #it['containerCount'] 
+          containers = []
+          app_tiers = it['appTiers'] || []
+          app_tiers.each do |app_tier|
+            containers += (app_tier['appInstances'] || []).collect {|it| it['instance']['containers']}.flatten().compact
+          end
+          #"(#{containers.count})"
+          "(#{containers.count}) #{containers.collect {|it| it }.join(',')}"
+        },
         "Status" => lambda {|it| format_app_status(it) }
       }
       if app['blueprint'].nil?
@@ -534,16 +565,16 @@ class Morpheus::Cli::Apps
 
       stats = app['stats']
       if app['instanceCount'].to_i > 0
-        print_h2 "App Usage"
+        print_h2 "App Usage", options
         print_stats_usage(stats, {include: [:memory, :storage]})
       end
 
-      app_tiers = app['appTiers']
       if app_tiers.empty?
         puts yellow, "This app is empty", reset
       else
         app_tiers.each do |app_tier|
-          print_h2 "Tier: #{app_tier['tier']['name']}"
+          # print_h2 "Tier: #{app_tier['tier']['name']}", options
+          print_h2 "#{app_tier['tier']['name']}", options
           print cyan
           instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
           if instances.empty?
@@ -571,7 +602,7 @@ class Morpheus::Cli::Apps
             end
             instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
             print cyan
-            print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status])
+            print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status], {border_style: options[:border_style]})
             print reset
             print "\n"
           end
@@ -768,7 +799,7 @@ class Morpheus::Cli::Apps
       opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
         query_params[:preserveVolumes] = val.nil? ? 'on' : val
       end
-      opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
+      opts.on( '--keep-backups', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
       opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
@@ -915,7 +946,7 @@ class Morpheus::Cli::Apps
           subtitles << "Search: #{params[:query]}".strip
         end
         # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         logs['data'].reverse.each do |log_entry|
           log_level = ''
           case log_entry['level']
@@ -970,7 +1001,7 @@ class Morpheus::Cli::Apps
     return 1 if app.nil?
     tier_records = extract_app_tiers(app)
     if options[:dry_run]
-      print_h1 "Dry Run"
+      print_h1 "Dry Run", [], options
     end
     tier_records.each do |tier_record|
       tier_record[:instances].each do |instance|
@@ -1014,7 +1045,7 @@ class Morpheus::Cli::Apps
     return 1 if app.nil?
     tier_records = extract_app_tiers(app)
     if options[:dry_run]
-      print_h1 "Dry Run"
+      print_h1 "Dry Run", [], options
     end
     tier_records.each do |tier_record|
       tier_record[:instances].each do |instance|
@@ -1058,7 +1089,7 @@ class Morpheus::Cli::Apps
     return 1 if app.nil?
     tier_records = extract_app_tiers(app)
     if options[:dry_run]
-      print_h1 "Dry Run"
+      print_h1 "Dry Run", [], options
     end
     tier_records.each do |tier_record|
       tier_record[:instances].each do |instance|
@@ -1151,7 +1182,7 @@ class Morpheus::Cli::Apps
       end
       json_response = @apps_interface.security_groups(app['id'])
       securityGroups = json_response['securityGroups']
-      print_h1 "Morpheus Security Groups for App: #{app['name']}"
+      print_h1 "Morpheus Security Groups for App: #{app['name']}", options
       print cyan
       print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
       if securityGroups.empty?
@@ -1183,7 +1214,7 @@ class Morpheus::Cli::Apps
         options[:securityGroupIds] = secgroups.split(",")
         clear_or_secgroups_specified = true
       end
-      opts.on( '-h', '--help', "Prints this help" ) do
+      opts.on( '-h', '--help', "Print this help" ) do
         puts opts
         exit
       end
@@ -1283,7 +1314,7 @@ class Morpheus::Cli::Apps
           subtitles << "Search: #{params[:query]}".strip
         end
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if json_response['processes'].empty?
           print "#{cyan}No process history found.#{reset}\n\n"
         else

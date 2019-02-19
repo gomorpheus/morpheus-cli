@@ -14,7 +14,8 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
-
+  set_command_name :instances
+  set_command_description "View and manage instances."
   register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   register_subcommands :exec => :execution_request
   # register_subcommands {:'lb-update' => :load_balancer_update}
@@ -96,7 +97,7 @@ class Morpheus::Cli::Instances
 
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
-        return
+        return 0
       end
       json_response = @instances_interface.list(params)
       if options[:json]
@@ -134,7 +135,7 @@ class Morpheus::Cli::Instances
           subtitles << "Created By: #{options[:created_by]}"
         end
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if instances.empty?
           print yellow,"No instances found.",reset,"\n"
         else
@@ -626,11 +627,11 @@ class Morpheus::Cli::Instances
       instance = json_response['instance']
       stats = instance['stats'] || json_response['stats'] || {}
       title = "Instance Stats: #{instance['name']} (#{instance['instanceType']['name']})"
-      print_h1 title
+      print_h1 title, [], options
       puts cyan + "Status: ".rjust(12) + format_instance_status(instance).to_s
       puts cyan + "Nodes: ".rjust(12) + (instance['containers'] ? instance['containers'].count : '').to_s
       # print "\n"
-      #print_h2 "Instance Usage"
+      #print_h2 "Instance Usage", options
       print_stats_usage(stats)
       print reset, "\n"
     rescue RestClient::Exception => e
@@ -716,7 +717,7 @@ class Morpheus::Cli::Instances
           subtitles << "Search: #{params[:query]}".strip
         end
         # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if logs['data'].empty?
           puts "#{cyan}No logs found.#{reset}"
         else
@@ -805,6 +806,9 @@ class Morpheus::Cli::Instances
       end
       instance = find_instance_by_name_or_id(arg)
       json_response = @instances_interface.get(instance['id'])
+      if options[:quiet]
+        return 0
+      end
       if options[:json]
         puts as_json(json_response, options, "instance")
         return 0
@@ -846,7 +850,7 @@ class Morpheus::Cli::Instances
         #current_load_balancer = current_instance_lb['loadBalancer']
       end
 
-      print_h1 "Instance Details"
+      print_h1 "Instance Details", [], options
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -872,7 +876,7 @@ class Morpheus::Cli::Instances
       print_description_list(description_cols, instance)
 
       if instance['statusMessage']
-        print_h2 "Status Message"
+        print_h2 "Status Message", options
         if instance['status'] == 'failed'
           print red, instance['statusMessage'], reset
         else
@@ -881,22 +885,22 @@ class Morpheus::Cli::Instances
         print "\n"
       end
       if instance['errorMessage']
-        print_h2 "Error Message"
+        print_h2 "Error Message", options
         print red, instance['errorMessage'], reset, "\n"
       end
       if !instance['notes'].to_s.empty?
-        print_h2 "Instance Notes"
+        print_h2 "Instance Notes", options
         print cyan, instance['notes'], reset, "\n"
       end
       if stats
-        print_h2 "Instance Usage"
+        print_h2 "Instance Usage", options
         print_stats_usage(stats)
       end
       print reset, "\n"
 
       # if options[:include_lb]
       if current_instance_lb
-        print_h2 "Load Balancer"
+        print_h2 "Load Balancer", options
         print cyan
         description_cols = {
           "LB ID" => lambda {|it| it['loadBalancer']['id'] },
@@ -916,7 +920,7 @@ class Morpheus::Cli::Instances
       # end
 
       if options[:include_containers]
-        print_h2 "Instance Containers"
+        print_h2 "Instance Containers", options
 
         if containers.empty?
           print yellow,"No containers found for instance.",reset,"\n"
@@ -958,7 +962,7 @@ class Morpheus::Cli::Instances
       end
 
       if options[:include_scaling]
-        print_h2 "Instance Scaling"
+        print_h2 "Instance Scaling", options
         if instance_threshold.nil? || instance_threshold.empty?
           print yellow,"No scaling settings applied to this instance.",reset,"\n"
         else
@@ -1033,7 +1037,7 @@ class Morpheus::Cli::Instances
       containers = json_response['containers']
       containers = containers.sort { |x,y| x['id'] <=> y['id'] }
       title = "Instance Containers: #{instance['name']} (#{instance['instanceType']['name']})"
-      print_h1 title
+      print_h1 title, [], options
       if containers.empty?
         print yellow,"No containers found for instance.",reset,"\n"
       else
@@ -1105,7 +1109,7 @@ class Morpheus::Cli::Instances
       
       if json_response['backups'] && json_response['backups'][0] && json_response['backups'][0]['backupResults']
         # new format
-        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})", [], options
 
 
         backup = json_response['backups'][0]
@@ -1133,7 +1137,7 @@ class Morpheus::Cli::Instances
           {id: it['id'], startDate: format_local_dt(it['dateCreated']), duration: format_duration_milliseconds(it['durationMillis']), 
             size: format_bytes(it['sizeInMb'], 'MB'), status: status_str }
         }
-        print_h1 "Backup Results"
+        print_h1 "Backup Results", [], options
         print cyan
         puts as_pretty_table backup_rows, [
           :id,
@@ -1145,11 +1149,11 @@ class Morpheus::Cli::Instances
         print reset, "\n"
       elsif json_response['backups'].size == 0
         # no backup configured
-        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})", [], options
         print "#{yellow}No backups configured#{reset}\n\n"
       else
         # old format
-        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})"
+        print_h1 "Instance Backups: #{instance['name']} (#{instance['instanceType']['name']})", [], options
         backups = json_response['backups']
         backup_rows = backups.collect {|r| 
           it = r['backup']
@@ -1260,14 +1264,14 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
         return
       end
-      print_h1 "Instance Envs: #{instance['name']} (#{instance['instanceType']['name']})"
+      print_h1 "Instance Envs: #{instance['name']} (#{instance['instanceType']['name']})", [], options
       print cyan
       envs = json_response['envs'] || {}
       if json_response['readOnlyEnvs']
         envs += json_response['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
       end
       tp envs, :name, :value, :export
-      print_h2 "Imported Envs"
+      print_h2 "Imported Envs", options
       imported_envs = json_response['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
       tp imported_envs
       print reset, "\n"
@@ -1384,7 +1388,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.stop(instance['id'], params), false
         end
@@ -1444,7 +1448,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.start(instance['id'], params), false
         end
@@ -1510,7 +1514,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.restart(instance['id'], params), false
         end
@@ -1674,7 +1678,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.stop(instance['id'], params), false
         end
@@ -1734,7 +1738,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.start(instance['id'], params), false
         end
@@ -1800,7 +1804,7 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_h1 "DRY RUN"
+        print_h1 "DRY RUN", [], options
         instances.each do |instance|
           print_dry_run @instances_interface.dry.restart(instance['id'], params), false
         end
@@ -1872,7 +1876,7 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
       else
         title = "Instance Actions: #{anded_list(id_list)}"
-        print_h1 title
+        print_h1 title, [], options
         available_actions = json_response["actions"]
         if (available_actions && available_actions.size > 0)
           print as_pretty_table(available_actions, [:name, :code])
@@ -2237,7 +2241,7 @@ class Morpheus::Cli::Instances
         return
       end
       securityGroups = json_response['securityGroups']
-      print_h1 "Morpheus Security Groups for Instance: #{instance['name']}"
+      print_h1 "Morpheus Security Groups for Instance: #{instance['name']}", [], options
       print cyan
       print_description_list({"Firewall Enabled" => lambda {|it| format_boolean it['firewallEnabled'] } }, json_response)
       #print cyan, "Firewall Enabled=#{json_response['firewallEnabled']}\n\n"
@@ -2461,11 +2465,11 @@ class Morpheus::Cli::Instances
     instance_threshold = json_response['instanceThreshold']
 
     title = "Instance Scaling: [#{instance['id']}] #{instance['name']} (#{instance['instanceType']['name']})"
-    print_h1 title
+    print_h1 title, [], options
     if instance_threshold.empty?
       print yellow,"No scaling settings applied to this instance.",reset,"\n"
     else
-      # print_h1 "Threshold Settings"
+      # print_h1 "Threshold Settings", [], options
       print cyan
       print_instance_threshold_description_list(instance_threshold)
     end
@@ -2798,7 +2802,7 @@ class Morpheus::Cli::Instances
           subtitles << "Search: #{params[:query]}".strip
         end
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         if json_response['processes'].empty?
           print "#{cyan}No process history found.#{reset}\n\n"
         else
@@ -2928,10 +2932,10 @@ class Morpheus::Cli::Instances
         subtitles = []
         subtitles << " Process ID: #{process_id}"
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         print_process_details(process)
   
-        print_h2 "Process Events"
+        print_h2 "Process Events", options
         process_events = process['events'] || process['processEvents'] || []
         history_records = []
         if process_events.empty?
@@ -3026,7 +3030,7 @@ class Morpheus::Cli::Instances
         title = "Instance History Event"
         subtitles = []
         subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
+        print_h1 title, subtitles, options
         print_process_event_details(process_event)
         print reset, "\n"
         return 0
@@ -3361,14 +3365,14 @@ private
     print_description_list(description_cols, process)
 
     if process['error']
-      print_h2 "Error"
+      print_h2 "Error", options
       print reset
       #puts format_process_error(process_event)
       puts process['error'].to_s.strip
     end
 
     if process['output']
-      print_h2 "Output"
+      print_h2 "Output", options
       print reset
       #puts format_process_error(process_event)
       puts process['output'].to_s.strip
@@ -3392,14 +3396,14 @@ private
     print_description_list(description_cols, process_event)
 
     if process_event['error']
-      print_h2 "Error"
+      print_h2 "Error", options
       print reset
       #puts format_process_error(process_event)
       puts process_event['error'].to_s.strip
     end
 
     if process_event['output']
-      print_h2 "Output"
+      print_h2 "Output", options
       print reset
       #puts format_process_error(process_event)
       puts process_event['output'].to_s.strip

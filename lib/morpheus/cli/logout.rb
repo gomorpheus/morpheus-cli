@@ -17,7 +17,6 @@ class Morpheus::Cli::Logout
 
   def connect(opts)
     #@api_client = establish_remote_appliance_connection(opts)
-    #@access_token = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials(options)
   end
 
   def usage
@@ -45,8 +44,8 @@ class Morpheus::Cli::Logout
         puts_error "Please specify a Morpheus Appliance to logout of with -r or see the command `remote use`"
         return 1
       end
-      creds = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
-      token = creds.load_saved_credentials
+      wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials
+      token = wallet ? wallet['access_token'] : nil
       if !token
         if !options[:quiet]
           puts "You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}"
@@ -57,7 +56,7 @@ class Morpheus::Cli::Logout
         # note: this also handles updating appliance session info
         Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).logout()
         if !options[:quiet]
-          puts "#{cyan}Logged out of #{@appliance_name}. Goodbye.#{reset}"
+          puts "#{cyan}Logged out of #{@appliance_name}. Goodbye #{wallet['username']}!#{reset}"
         end
       end
       # recalcuate echo vars

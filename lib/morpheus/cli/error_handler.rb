@@ -35,6 +35,9 @@ class Morpheus::Cli::ErrorHandler
       # @stderr.puts "#{red}#{err.message}#{reset}"
       puts_angry_error err.message
       do_print_stacktrace = false
+      if err.exit_code
+        exit_code = err.exit_code
+      end
       # @stderr.puts "Try -h for help with this command."
     when Morpheus::Cli::ExpressionParser::InvalidExpression
       # @stderr.puts "#{red}#{err.message}#{reset}"
@@ -112,8 +115,15 @@ class Morpheus::Cli::ErrorHandler
         return
       end
       if err.response.code == 400
-        response = JSON.parse(err.response.to_s)
-        print_rest_errors(response, options)
+        begin
+          print_rest_errors(JSON.parse(err.response.to_s), options)
+        rescue TypeError, JSON::ParserError => ex
+        end
+      elsif err.response.code == 404
+        begin
+          print_rest_errors(JSON.parse(err.response.to_s), options)
+        rescue TypeError, JSON::ParserError => ex
+        end
       else
         @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
         if options[:json] || options[:debug]

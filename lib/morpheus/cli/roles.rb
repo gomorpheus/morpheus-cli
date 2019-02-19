@@ -50,7 +50,7 @@ class Morpheus::Cli::Roles
       params.merge!(parse_list_options(options))
 
       if options[:dry_run]
-        print_dry_run @roles_interface.dry.list(account_id, params)
+        print_dry_run @roles_interface.dry.list(account_id, params), options
         return
       end
       load_whoami()
@@ -69,11 +69,11 @@ class Morpheus::Cli::Roles
       title = "Morpheus Roles"
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
+      print_h1 title, subtitles, options
       if roles.empty?
         print cyan,"No roles found.",reset,"\n"
       else
-        print_roles_table(roles, {is_master_account: @is_master_account})
+        print_roles_table(roles, options.merge({is_master_account: @is_master_account}))
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -164,7 +164,7 @@ class Morpheus::Cli::Roles
       end
 
       print cyan
-      print_h1 "Role Details"
+      print_h1 "Role Details", options
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -180,16 +180,16 @@ class Morpheus::Cli::Roles
       }
       print_description_list(description_cols, role)
 
-      print_h2 "Role Instance Limits"
-      print cyan
-      print_description_list({
-        "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
-        "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
-        "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
-      }, role['instanceLimits'])
+      # print_h2 "Role Instance Limits", options
+      # print cyan
+      # print_description_list({
+      #   "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
+      #   "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
+      #   "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
+      # }, role['instanceLimits'])
 
-      print_h2 "Feature Access"
-      print cyan
+      # print_h2 "Feature Access", options
+      # print cyan
 
       if options[:include_feature_access]
         rows = json_response['featurePermissions'].collect do |it|
@@ -204,7 +204,7 @@ class Morpheus::Cli::Roles
         puts "Use --feature-access to list feature access"
       end
 
-      print_h2 "Group Access"
+      print_h2 "Group Access", options
       print cyan
       puts "Global Group Access: #{get_access_string(json_response['globalSiteAccess'])}\n\n"
       if json_response['globalSiteAccess'] == 'custom'
@@ -221,7 +221,7 @@ class Morpheus::Cli::Roles
         end
       end
 
-      print_h2 "Cloud Access"
+      print_h2 "Cloud Access", options
       print cyan
       puts "Global Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}\n\n"
       if json_response['globalZoneAccess'] == 'custom'
@@ -238,7 +238,7 @@ class Morpheus::Cli::Roles
         end
       end
 
-      print_h2 "Instance Type Access"
+      print_h2 "Instance Type Access", options
       print cyan
       puts "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}\n\n"
       if json_response['globalInstanceTypeAccess'] == 'custom'
@@ -257,7 +257,7 @@ class Morpheus::Cli::Roles
 
       blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
       blueprint_permissions = json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || []
-      print_h2 "Blueprint Access"
+      print_h2 "Blueprint Access", options
       print cyan
       puts "Global Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}\n\n"
       if blueprint_global_access == 'custom'

@@ -30,7 +30,86 @@ class Morpheus::APIClient
     @verify_ssl = !!val
   end
 
-  def execute(opts, parse_json=true)
+  # set this in your interface, eg. to 'application/json'
+  def default_content_type
+    nil
+  end
+
+  # Execute an HTTP request with this client.
+  # opts - Hash of options for HTTP Request.
+  #   :url - The full url
+  #   :method - The default method is :get (GET)
+  #   :headers - Hash of headers to include in the request.
+  #              eg. {'Content-Type' => 'application/json'}. :params is a special key for query parameters.
+  #   :params - query parameters
+  #   :payload - The body of the request.
+  #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
+  # options - Hash of common options that commands parse. eg. :headers, :timeout
+  #   :headers - Extra headers to add. This expects a Hash like {'Content-Type' => 'application/json'}.
+  #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
+  def execute(opts, options={})
+
+    # Parsed api response as JSON? 
+    # True by default. 
+    # Pass parse_json:false to avoid that. ie. you do not expect JSON back
+    # todo: get rid of this behavior..make parsing the caller responsibility, 
+    #       or atleast check the Content-Type of the result.. 
+    # ok .. the second argument used to be 'parse_json' (boolean) which is true by default
+    # so still support it that way until we can update those interface methods to use parse_json:false
+    parse_json = true
+    if options == true || options == false
+      parse_json = options
+      options = {}
+    end
+    if opts[:parse_json] == false || options[:parse_json] == false
+      parse_json = false
+    end
+
+    # default HTTP method
+    if opts[:method].nil?
+      # why not a default? you will get an error from RestClient
+      # opts[:method] = :get
+    else
+      # convert to lowercase Symbol like :get, :post, :put, or :delete
+      opts[:method] = opts[:method].to_s.downcase.to_sym
+    end
+
+    # apply default headers
+    opts[:headers] ||= {}
+    # Authorization: apply our access token
+    if @access_token
+      if opts[:headers][:authorization].nil? && opts[:headers]['Authorization'].nil?
+        opts[:headers][:authorization] = "Bearer #{@access_token}"
+      else
+        # authorization header has already been set.
+      end
+    end
+
+    # Content-Type: apply interface default
+    if opts[:headers]['Content-Type'].nil? && default_content_type
+      opts[:headers]['Content-Type'] = default_content_type
+    end
+
+    # use custom timeout eg. from --timeout option
+    opts[:timeout] = options[:timeout].to_f if options[:timeout]
+    
+    # add extra headers, eg. from --header option
+    # headers should be a Hash and not an Array, dont make me split you here!
+    opts[:headers].merge(options[:headers]) if options[:headers]
+
+    # this is confusing, but RestClient expects :params inside the headers...?
+    # right?
+    # move/copy params to headers.params for simplification.
+    # remove this if issues arise
+    if opts[:params] && (opts[:headers][:params].nil? || opts[:headers][:params].empty?)
+      opts[:headers][:params] = opts[:params] # .delete(:params) maybe?
+    end
+
+    # curl output for dry run?
+    if options[:curl]
+      opts[:curl] = options[:curl]
+    end
+
     # @verify_ssl is not used atm
     # todo: finish this and use it instead of the global variable RestClient.ssl_verification_enabled?
     # gotta clean up all APIClient subclasses new() methods to support this
@@ -43,6 +122,13 @@ class Morpheus::APIClient
       # JD: could return a Request object instead...
       return opts
     end
+
+    # uhh can't use LIST at the moment
+    # fix it!
+    # if opts[:method] == :list
+    #   opts[:method]
+    # end
+
     # Morpheus::Logging::DarkPrinter.puts "Morpheus::RestClient.execute(#{opts})" if Morpheus::Logging.debug?
     # instead, using ::RestClient.log = STDOUT 
     response = Morpheus::RestClient.execute(opts)
@@ -310,6 +396,10 @@ class Morpheus::APIClient
   def cypher
     Morpheus::CypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
+
+  def cypher_vault
+    Morpheus::CypherVaultInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
   
   def execution_request
     Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
@@ -322,5 +412,7 @@ class Morpheus::APIClient
   def processes
     Morpheus::ProcessesInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
+
+  # ^ + add new interfaces here
 
 end

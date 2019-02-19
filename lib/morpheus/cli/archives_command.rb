@@ -696,8 +696,6 @@ class Morpheus::Cli::ArchivesCommand
         print JSON.pretty_generate(json_response)
         return
       end
-      # print_h1 "Archive Files"
-      # print_h1 "Archive Files", ["Bucket: [#{archive_bucket['id']}] #{archive_bucket['name']}", "Path: #{search_file_path}"]
       print_h1 "Archive Files", ["#{archive_bucket['name']}:#{search_file_path}"]
       print cyan
       description_cols = {

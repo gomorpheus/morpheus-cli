@@ -118,6 +118,8 @@ module Morpheus::Logging
         msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
         msg.gsub!(/password\=\"[^" ]+/, 'password="************')
         msg.gsub!(/password\=[^" ]+/, 'password=************')
+        msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation="************')
+        msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation=************')
       end
       msg
     end

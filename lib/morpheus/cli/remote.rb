@@ -64,7 +64,7 @@ EOT
       return 0
     end
 
-    print_h1 "Morpheus Appliances"
+    print_h1 "Morpheus Appliances", [], options
     if appliances.empty?
       print yellow
       puts "You have no appliances configured. See the `remote add` command."
@@ -494,9 +494,9 @@ EOT
 
       if appliance[:active]
         # print_h1 "Current Remote Appliance: #{appliance[:name]}"
-        print_h1 "Remote Appliance: #{appliance[:name]}"
+        print_h1 "Remote Appliance: #{appliance[:name]}", [], options
       else
-        print_h1 "Remote Appliance: #{appliance[:name]}"
+        print_h1 "Remote Appliance: #{appliance[:name]}", [], options
       end
       print cyan
       description_cols = {
@@ -560,7 +560,7 @@ EOT
 
     # ok, delete it
     ::Morpheus::Cli::Remote.delete_remote(appliance_name)
-    
+
     # return result
     if options[:quiet]
       return 0, nil
@@ -735,7 +735,7 @@ EOT
       # end
       return false
     else
-      print_h1 "Morpheus Appliance Setup"
+      print_h1 "Morpheus Appliance Setup", [], options
 
       puts "It looks like you're the first one here."
       puts "Let's initialize your remote appliance at #{@appliance_url}"
@@ -743,7 +743,7 @@ EOT
 
       
       # Master Account
-      print_h2 "Create Master Account"
+      print_h2 "Create Master Account", options
       account_option_types = [
         {'fieldName' => 'accountName', 'fieldLabel' => 'Master Account Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       ]
@@ -751,7 +751,7 @@ EOT
       payload.merge!(v_prompt)
 
       # Master User
-      print_h2 "Create Master User"
+      print_h2 "Create Master User", options
       user_option_types = [
         {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
         {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
@@ -774,7 +774,7 @@ EOT
       payload.merge!(v_prompt)
 
       # Extra settings
-      print_h2 "Initial Setup"
+      print_h2 "Initial Setup", options
       extra_option_types = [
         {'fieldName' => 'applianceName', 'fieldLabel' => 'Appliance Name', 'type' => 'text', 'required' => true, 'defaultValue' => nil},
         {'fieldName' => 'applianceUrl', 'fieldLabel' => 'Appliance URL', 'type' => 'text', 'required' => true, 'defaultValue' => appliance_status_json['applianceUrl']},
@@ -847,10 +847,8 @@ EOT
       out << "#{green}#{status_str.upcase}#{return_color}"
     elsif status_str == "unreachable"
       out << "#{red}#{status_str.upcase}#{return_color}"
-    elsif status_str.include?("error")
-      out << "#{red}#{status_str.upcase}#{return_color}"
-    # elsif status_str == "unknown"
-    #   out << "#{yellow}#{status_str}#{return_color}"
+    elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable']
+      out << "#{red}#{status_str.upcase.gsub('-',' ')}#{return_color}"
     elsif status_str == "fresh" 
       # cold appliance, needs setup
       out << "#{magenta}#{status_str.upcase}#{return_color}"
@@ -887,10 +885,6 @@ EOT
     # Current User
     # 
     username = app_map[:username]
-    # creds = app_map[:access_token]
-    #creds = Morpheus::Cli::Credentials.new(app_map[:name], app_map[:host]).load_saved_credentials()
-    
-    
     
     if app_map[:status] == 'ready'
 

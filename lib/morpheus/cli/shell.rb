@@ -10,6 +10,8 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
 require 'morpheus/terminal'
+require 'morpheus/logging'
+require 'morpheus/benchmarking'
 
 #class Morpheus::Cli::Shell < Morpheus::Terminal
 class Morpheus::Cli::Shell
@@ -126,7 +128,7 @@ class Morpheus::Cli::Shell
         @@insecure = true
         Morpheus::RestClient.enable_ssl_verification = false
       end
-       opts.on('-Z','--incognito', "Incognito mode. Use a temporary shell, no saved credentials and no history.") do
+       opts.on('-Z','--incognito', "Incognito mode. Use a temporary shell. Remotes are loaded without without saved credentials or history logging.") do
         @incognito_mode = true
         #@norc = true # perhaps?
         tmpdir = ENV['MORPHEUS_CLI_TMPDIR'] || ENV['TMPDIR'] || ENV['TMP']
@@ -167,9 +169,13 @@ class Morpheus::Cli::Shell
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         Term::ANSIColor::coloring = false
       end
-      opts.on('-V','--debug', "Print extra output for debugging.") do |json|
+      opts.on('-V','--debug', "Print extra output for debugging.") do
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
+      end
+      opts.on('-B','--benchmark', "Print benchmark time after each command is finished, including shell itself." ) do
+        Morpheus::Benchmarking.enabled = true
+        my_terminal.benchmarking = Morpheus::Benchmarking.enabled
       end
       opts.on( '-h', '--help', "Prints this help" ) do
         puts opts
@@ -235,33 +241,12 @@ class Morpheus::Cli::Shell
     return result
   end
 
-  # return exitstatus integer for a given command result
-  #todo: clean up CliCommand return values, handle a few diff types for now
-  def parse_result_exitstatus(result)
-    exit_code, err = 0, nil
-    if result.is_a?(Array) # exit_code, err
-      exit_code = result[0].to_i
-      err = result[1]
-    elsif result == nil || result == true || result == 0
-      exit_code = 0
-    elsif result == false
-      exit_code = 1
-    # elsif result.is_a?(Integer)
-    #   exit_code = result.to_i
-    else
-      exit_code = result.to_i
-    end
-    # return exit_code, err
-    return exit_code
-  end
-
-  # same as Terminal instance
+  # execute the input as an expression. 
+  # provides support for operators '(', ')', '&&', '||', ';'
+  # logs entire input as one command in shell history
+  # logging is skipped for certain commands: exit, !,  !!
   def execute(input)
-    # args = Shellwords.shellsplit(input)
-    #cmd = args.shift
-    #execute_commands(input)
     result = execute_commands_as_expression(input)
-    # skip logging of exit and !cmd
     unless input.strip.empty? || (["exit", "history"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
       log_history_command(input.strip)
     end
@@ -302,12 +287,14 @@ class Morpheus::Cli::Shell
             if flow_cmd == '&&'
               # AND operator
               current_operator = flow_cmd
-              if parse_result_exitstatus(previous_command_result) != 0
+              exit_code, cmd_err = parse_command_result(previous_command_result)
+              if exit_code != 0
                 still_executing = false
               end
             elsif flow_cmd == '||' # or with previous command
               current_operator = flow_cmd
-              if parse_result_exitstatus(previous_command_result) == 0
+              exit_code, err = parse_command_result(previous_command_result)
+              if exit_code == 0
                 still_executing = false
               end
             elsif flow_cmd == '|' # or with previous command
@@ -349,9 +336,6 @@ class Morpheus::Cli::Shell
         return 0
         #exit 0
       elsif input == 'help'
-
-        #print_h1 "Morpheus Shell Help", [], white
-        #print "\n"
 
         puts "You are in a morpheus client shell."
         puts "See the available commands below."
@@ -520,7 +504,16 @@ class Morpheus::Cli::Shell
         log_history_command(input)
         return Morpheus::Cli::LogLevelCommand.new.handle(["debug"])
       elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
-        print "#{input.capitalize}, how may I #{cyan}help#{reset} you?\n"
+        # need a logged_in? method already damnit
+        #wallet = @wallet
+        wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials
+        if wallet
+          # my_terminal.echo("#{input} %username!")
+          # todo: this morning|afternoon|evening would be pleasant
+          print "#{input} #{green}#{wallet['username']}#{reset}, how may I #{cyan}help#{reset} you?\n"
+        else
+          print "#{input}, how may I #{cyan}help#{reset} you?\n"
+        end
         return 0
       elsif input == "shell"
         print "#{cyan}You are already in a shell.#{reset}\n"
@@ -531,11 +524,15 @@ class Morpheus::Cli::Shell
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
       cmd_result = nil
+      # crap hack, naming conflicts can occur with aliases
       unless input =~ /log-level/
         @return_to_log_level = Morpheus::Logging.log_level
       end
       unless input =~ /coloring/
         @return_to_coloring = Term::ANSIColor::coloring?
+      end
+      unless input =~ /^benchmark/
+        @return_to_benchmarking = Morpheus::Benchmarking.enabled?
       end
       begin
         argv = Shellwords.shellsplit(input)
@@ -543,9 +540,20 @@ class Morpheus::Cli::Shell
         cmd_args = argv[1..-1]
         if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
+          # start a benchmark, unless the command is benchmark of course
+          if my_terminal.benchmarking || cmd_args.include?("-B") || cmd_args.include?("--benchmark")
+            if cmd_name != 'benchmark' # jd: this does not work still 2 of them printed.. fix it!
+              # benchmark_name = "morpheus " + argv.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
+              benchmark_name = argv.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
+              start_benchmark(benchmark_name)
+            end
+          end
           cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
+          cmd_exit_code, cmd_err = parse_command_result(cmd_result)
+          benchmark_record = stop_benchmark(cmd_exit_code, cmd_err) # if benchmarking?
+          Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
         else
-          puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not a morpheus command. Use 'help' to see the list of available commands."
+          puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not recognized. Use 'help' to see the list of available commands."
           @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
           cmd_result = -1
         end
@@ -570,6 +578,11 @@ class Morpheus::Cli::Shell
         if @return_to_coloring != nil
           Term::ANSIColor::coloring = @return_to_coloring
           @return_to_coloring = nil
+        end
+        if @return_to_benchmarking != nil
+          Morpheus::Benchmarking.enabled = @return_to_benchmarking
+          my_terminal.benchmarking = Morpheus::Benchmarking.enabled
+          @return_to_benchmarking = nil
         end
       end
 
@@ -664,7 +677,7 @@ class Morpheus::Cli::Shell
     @last_command_number += 1
     @history[@last_command_number] = cmd
     if @history_logger
-      @history_logger.info "#{@current_username}@#{@appliance_name} : -- : (cmd #{@last_command_number}) #{cmd}"
+      @history_logger.info "#{@current_username}@#{@appliance_name} -- : (cmd #{@last_command_number}) #{cmd}"
     end
   end
 end

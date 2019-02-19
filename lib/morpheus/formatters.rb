@@ -115,11 +115,11 @@ def format_human_duration(seconds)
   #seconds = seconds.round
   days, hours, minutes = (seconds / (60*60*24)).floor, (seconds / (60*60)).floor, (seconds / (60)).floor
   if days > 365
-    out << "#{days.floor} days (over a year)"
+    out << "#{days.floor} days"
   elsif days > 61
-    out << "#{days.floor} days (many months)"
+    out << "#{days.floor} days"
   elsif days > 31
-    out << "#{days.floor} days (over a month)"
+    out << "#{days.floor} days"
   elsif days > 0
     if days.floor == 1
       out << "1 day"

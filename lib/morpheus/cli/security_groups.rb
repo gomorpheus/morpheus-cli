@@ -27,41 +27,71 @@ class Morpheus::Cli::SecurityGroups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
       params = {}
+      params.merge!(parse_list_options(options))
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.list(params)
         return
       end
       json_response = @security_groups_interface.list(params)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
+      
+      render_result = render_with_format(json_response, options, 'securityGroups')
+      return 0 if render_result
+
+      title = "Morpheus Security Groups"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+
       security_groups = json_response['securityGroups']
-      print_h1 "Morpheus Security Groups"
+      
       if security_groups.empty?
-        print yellow,"No Security Groups currently configured.",reset,"\n"
+        print yellow,"No security groups found.",reset,"\n"
       else
         active_id = @active_security_group[@appliance_name.to_sym]
-        security_groups.each do |security_group|
-          if @active_security_group[@appliance_name.to_sym] == security_group['id']
-            print cyan, "=> #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
-          else
-            print cyan, "   #{security_group['id']}: #{security_group['name']} (#{security_group['description']})\n"
-          end
+        # table_color = options[:color] || cyan
+        # rows = security_groups.collect do |security_group|
+        #   {
+        #     id: security_group['id'].to_s + ((security_group['id'] == active_id.to_i) ? " (active)" : ""),
+        #     name: security_group['name'],
+        #     description: security_group['description']
+        #   }
+        # end
+
+        # columns = [
+        #   :id,
+        #   :name,
+        #   :description,
+        #   # :ports,
+        #   # :status,
+        # ]
+        columns = {
+          "ID" => 'id',
+          "NAME" => 'name',
+          "DESCRIPTION" => 'description',
+          # need more to show here
+        }
+        # custom pretty table columns ...
+        if options[:include_fields]
+          columns = options[:include_fields]
         end
-        if active_id
-          print cyan, "\n# => - current", reset, "\n"
+        print as_pretty_table(security_groups, columns, options)
+        print reset
+        if json_response['meta']
+          print_results_pagination(json_response, {:label => "security group", :n_label => "security groups"})
+        else
+          print_results_pagination({'meta'=>{'total'=>(json_response['securityGroupCount'] ? json_response['securityGroupCount'] : security_groups.size),'size'=>security_groups.size,'max'=>(params['max']||25),'offset'=>(params['offset']||0)}}, {:label => "security group", :n_label => "security groups"})
         end
+        # print reset
       end
       print reset,"\n"
-          rescue RestClient::Exception => e
+      return 0
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end

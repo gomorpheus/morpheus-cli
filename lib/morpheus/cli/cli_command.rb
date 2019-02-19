@@ -1,6 +1,7 @@
 require 'yaml'
 require 'json'
 require 'morpheus/logging'
+require 'morpheus/benchmarking'
 require 'morpheus/cli/option_parser'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/mixins/print_helper'
@@ -18,6 +19,7 @@ module Morpheus
 
       def self.included(klass)
         klass.send :include, Morpheus::Cli::PrintHelper
+        klass.send :include, Morpheus::Benchmarking::HasBenchmarking
         klass.extend ClassMethods
         Morpheus::Cli::CliRegistry.add(klass, klass.command_name)
       end
@@ -65,6 +67,13 @@ module Morpheus
       def puts_error(*msgs)
         my_terminal.stderr.puts(*msgs)
       end
+
+      # todo: customizable output color, other than cyan.
+      # def terminal_fg
+      # end
+      # def cyan
+      #   Term::ANSIColor.black
+      # end
 
       # todo: use terminal.stdin
       # def readline(*msgs)
@@ -179,11 +188,16 @@ module Morpheus
       # @param options [Hash] the output Hash that is to being modified
       # @param includes [Array] which options to include eg. :options, :json, :remote
       # @return opts
-      def build_common_options(opts, options, includes=[])
+      def build_common_options(opts, options, includes=[], excludes=[])
         #opts.separator ""
         # opts.separator "Common options:"
-        includes = includes.clone
-        while (option_key = includes.shift) do
+        option_keys = includes.clone
+        # todo: support --quiet everywhere
+        # turn on some options all the time..
+        # unless command_name == "shell"
+        #   option_keys << :quiet unless option_keys.include?(:quiet)
+        # end
+        while (option_key = option_keys.shift) do
           case option_key.to_sym
 
           when :account
@@ -400,47 +414,55 @@ module Morpheus
             end
 
           when :remote
-
-            # this is the only option now... 
-            # first, you must do `remote use [appliance]`
-            opts.on( '-r', '--remote REMOTE', "Remote Appliance Name to use for this command. The active appliance is used by default." ) do |val|
+            opts.on( '-r', '--remote REMOTE', "Remote name. The current remote is used by default." ) do |val|
               options[:remote] = val
             end
+            opts.on( nil, '--remote-url URL', "Remote url. The current remote url is used by default." ) do |remote|
+              options[:remote_url] = remote
+            end
+            opts.on( '-T', '--token TOKEN', "Access token for authentication with --remote. Saved credentials are used by default." ) do |val|
+              options[:remote_token] = val
+            end unless excludes.include?(:remote_token)
+            opts.on( '-U', '--username USERNAME', "Username for authentication." ) do |val|
+              options[:username] = val
+            end unless excludes.include?(:username)
+            opts.on( '-P', '--password PASSWORD', "Password for authentication." ) do |val|
+              options[:password] = val
+            end unless excludes.include?(:password)
 
             # todo: also require this for talking to plain old HTTP
             opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
               options[:insecure] = true
               Morpheus::RestClient.enable_ssl_verification = false
             end
+          
+          when :header, :headers
+            opts.on( '-H', '--header HEADER', "Additional HTTP header to include with requests." ) do |val|
+              options[:headers] ||= {}
+              # header_list = val.to_s.split(',')
+              header_list = [val.to_s]
+              header_list.each do |h|
+                header_parts = val.to_s.split(":")
+                header_key, header_value = header_parts[0], header_parts[1..-1].join(":")
+                if header_parts.size() < 2
+                  header_parts = val.to_s.split("=")
+                  header_key, header_value = header_parts[0], header_parts[1..-1].join("=")
+                end
+                if header_parts.size() < 2
+                  raise_command_error "Invalid HEADER value '#{val}'. HEADER should contain a key and a value. eg. -H 'X-Morpheus-Lease: $MORPHEUS_LEASE_TOKEN'"
+                end
+                options[:headers][header_key] = header_value
+              end
+            end
+            # opts.add_hidden_option('-H') if opts.is_a?(Morpheus::Cli::OptionParser)
+            # opts.add_hidden_option('--header') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('--headers') if opts.is_a?(Morpheus::Cli::OptionParser)
 
-            opts.on( '-T', '--token ACCESS_TOKEN', "Access Token for api requests. While authenticated to a remote, the current saved credentials are used." ) do |remote|
-              options[:remote_token] = remote
+          when :timeout
+            opts.on( '--timeout SECONDS', "A timeout for api requests. Default is usually 30 seconds." ) do |val|
+              options[:timeout] = val ? val.to_f : nil
             end
 
-            # skipping the rest of this for now..
-
-            next
-
-            # opts.on( '-r', '--remote REMOTE', "Remote Appliance" ) do |remote|
-            #   options[:remote] = remote
-            # end
-
-            opts.on( '-U', '--url REMOTE', "API Url" ) do |remote|
-              options[:remote_url] = remote
-            end
-
-            opts.on( '-u', '--username USERNAME', "Username" ) do |remote|
-              options[:remote_username] = remote
-            end
-
-            opts.on( '-p', '--password PASSWORD', "Password" ) do |remote|
-              options[:remote_password] = remote
-            end
-
-            opts.on( '-T', '--token ACCESS_TOKEN', "Access Token" ) do |remote|
-              options[:remote_token] = remote
-            end
-            
           when :auto_confirm
             opts.on( '-y', '--yes', "Auto Confirm" ) do
               options[:yes] = true
@@ -512,6 +534,11 @@ module Morpheus
               options[:include_fields] = val
             end
 
+          when :thin
+            opts.on( '--thin', '--thin', "Format headers and columns with thin borders." ) do |val|
+              options[:border_style] = :thin
+            end
+            
           when :outfile
             opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
               # could validate directory is writable..
@@ -520,9 +547,27 @@ module Morpheus
 
           when :dry_run
             opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
+              # todo: this should print after parsing obv..
+              # need a hook after parse! or a standard_handle(options) { ... } paradigm
+              # either that or hook it up in every command somehow, maybe a hook on connect()
+              #puts "#{cyan}#{dark} #=> DRY RUN#{reset}"
+              # don't print this for --json combined with -d
+              # print once and dont munge json
+              if !options[:curl] && !options[:json]
+                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              end
               options[:dry_run] = true
             end
-
+            opts.on(nil,'--curl', "Dry Run to output API request as a curl command.") do
+              # print once and dont munge json
+              if !options[:dry_run] && !options[:json]
+                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              end
+              options[:dry_run] = true
+              options[:curl] = true
+            end
+            # hide until fully supported
+            opts.add_hidden_option('--curl') if opts.is_a?(Morpheus::Cli::OptionParser)
           when :quiet
             opts.on('-q','--quiet', "No Output, do not print to stdout") do
               options[:quiet] = true
@@ -535,9 +580,30 @@ module Morpheus
 
         # options that are always included
 
+        # always support thin, but hidden because mostly not hooked up at the moment...
+        unless includes.include?(:thin)
+          opts.on( '--thin', '--thin', "Format headers and columns with thin borders." ) do |val|
+            options[:border_style] = :thin
+          end
+          opts.add_hidden_option('--thin') if opts.is_a?(Morpheus::Cli::OptionParser)
+        end
+
         # disable ANSI coloring
         opts.on('-C','--nocolor', "Disable ANSI coloring") do
           Term::ANSIColor::coloring = false
+        end
+
+
+        # Benchmark this command?
+        opts.on('-B','--benchmark', "Print benchmark time after the command is finished.") do
+          options[:benchmark] = true
+          # this is hacky, but working!  
+          # shell handles returning to false
+          #Morpheus::Benchmarking.enabled = true
+          #my_terminal.benchmarking = true
+          #start_benchmark(args.join(' '))
+          # ok it happens outside of handle() alltogether..
+          # wow, simplify me plz
         end
 
         opts.on('-V','--debug', "Print extra output for debugging.") do
@@ -555,7 +621,7 @@ module Morpheus
 
         opts.on('-h', '--help', "Prints this help" ) do
           puts opts
-          exit
+          exit # return 0 maybe?
         end
 
         opts
@@ -646,7 +712,7 @@ module Morpheus
         cmd_method = subcommands[subcommand_name]
         if !cmd_method
           print_error Morpheus::Terminal.angry_prompt
-          puts_error "'#{subcommand_name}' is not a morpheus #{self.command_name} command. See '#{my_help_command}'"
+          puts_error "'#{subcommand_name}' is not recognized. See '#{my_help_command}'"
           return 127
         end
         self.send(cmd_method, args[1..-1])
@@ -733,25 +799,21 @@ module Morpheus
         Morpheus::Logging::DarkPrinter.puts "establishing connection to [#{@appliance_name}] #{@appliance_url}" if options[:debug]
         #puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
 
-        
-        # punt.. and just allow passing an access token instead for now..
-        # this skips saving to the appliances file and all that..
-        # JD: wait wtf is this being used? get rid of it.
-        if options[:token]
-          @access_token = options[:token]
-        end
 
         # ok, get some credentials.
         # this prompts for username, password  without options[:no_prompt]
         # used saved credentials please
-        @api_credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
+        
         if options[:remote_token]
           @access_token = options[:remote_token]
         else
-          @access_token = @api_credentials.load_saved_credentials()
+          credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
+          @wallet = credentials.load_saved_credentials()
+          @access_token = @wallet ? @wallet['access_token'] : nil
           if @access_token.to_s.empty?
             unless options[:no_prompt]
-              @access_token = @api_credentials.request_credentials(options)
+              @wallet = credentials.request_credentials(options)
+              @access_token = @wallet ? @wallet['access_token'] : nil
             end
           end
           # bail if we got nothing still
@@ -855,7 +917,43 @@ module Morpheus
         return output
       end
 
+      def parse_command_result(cmd_result)
+        self.class.parse_command_result(cmd_result)
+      end
+
       module ClassMethods
+
+        # Parse exit_code and err from a command result (object of some type)
+        # returns [exit_code, err]
+        def parse_command_result(cmd_result)
+          exit_code, err = nil, nil
+          if cmd_result.is_a?(Array)
+            exit_code, err = cmd_result[0], cmd_result[1]
+          elsif cmd_result.is_a?(Hash)
+            exit_code, err = cmd_result[:exit_code], (cmd_result[:error] || cmd_result[:err])
+          end
+          if cmd_result == nil || cmd_result == true
+            exit_code = 0
+          elsif cmd_result == false
+            exit_code = 1
+          elsif cmd_result.is_a?(Integer)
+            exit_code = cmd_result
+          elsif cmd_result.is_a?(Float)
+            exit_code = cmd_result.to_i
+          elsif cmd_result.is_a?(String)
+            exit_code = cmd_result.to_i
+          else
+            if cmd_result.respond_to?(:to_i)
+              exit_code = cmd_result.to_i
+            else
+              # happens for aliases right now.. and execution flow probably, need to handle Array
+              # uncomment to track them down, proceed with exit 0 for now
+              #Morpheus::Logging::DarkPrinter.puts "debug: command #{command_name} produced an unexpected result: (#{cmd_result.class}) #{cmd_result}" if Morpheus::Logging.debug?
+              exit_code = 0
+            end
+          end
+          return exit_code, err
+        end
 
         def set_command_name(cmd_name)
           @command_name = cmd_name
@@ -880,6 +978,17 @@ module Morpheus
         def hidden_command
           !!@hidden_command
         end
+
+        def command_description
+          @command_description
+        end
+
+        def set_command_description(val)
+          @command_description = val
+        end
+
+        # alias :command_name= :set_command_name
+        # alias :command_description= :set_command_description
 
         # construct map of command name => instance method
         def register_subcommands(*cmds)
