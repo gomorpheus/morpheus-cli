@@ -91,7 +91,6 @@ class Morpheus::APIClient
   #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
   def execute(opts, options={})
     # merge in common global @options
-    puts "api_client @options is: #{@options}"
     if @options
       options = options.merge(@options)
     else
@@ -141,8 +140,6 @@ class Morpheus::APIClient
     if opts[:params] && (opts[:headers][:params].nil? || opts[:headers][:params].empty?)
       opts[:headers][:params] = opts[:params] # .delete(:params) maybe?
     end
-
-    puts "api_client opts is: #{opts}"
 
     # :command_options for these
     # if options[:curl]
