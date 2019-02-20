@@ -15,31 +15,27 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/blueprints"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
-  def create(options)
+  def create(payload)
     url = "#{@base_url}/api/blueprints"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def update(id, options)
+  def update(id, payload)
     url = "#{@base_url}/api/blueprints/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def update_permissions(id, options)
+  def update_permissions(id, payload)
     url = "#{@base_url}/api/blueprints/#{id}/update-permissions"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
@@ -53,10 +49,9 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload)
   end
 
-  def duplicate(id, options)
+  def duplicate(id, payload)
     url = "#{@base_url}/api/blueprints/#{id}/duplicate"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
@@ -66,17 +61,15 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
-  def list_tiers(options={})
+  def list_tiers(payload={})
     url = "#{@base_url}/api/blueprints/tiers"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list_types(options={})
+  def list_types(params={})
     url = "#{@base_url}/api/blueprints/types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 

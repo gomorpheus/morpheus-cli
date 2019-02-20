@@ -15,34 +15,23 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/app-templates"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
-  def create(options)
+  def create(payload)
     url = "#{@base_url}/api/app-templates"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def update(id, options)
+  def update(id, payload)
     url = "#{@base_url}/api/app-templates/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
-
-  def save_image(id, options)
-    url = "#{@base_url}/api/app-templates/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
-  end
-
 
   # multipart image upload
   def save_image(id, image_file, params={})
@@ -54,10 +43,9 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload)
   end
 
-  def duplicate(id, options)
+  def duplicate(id, payload)
     url = "#{@base_url}/api/app-templates/#{id}/duplicate"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
@@ -67,19 +55,10 @@ class Morpheus::AppTemplatesInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
-  def list_tiers(options={})
+  def list_tiers(params={})
     url = "#{@base_url}/api/app-templates/tiers"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
-
-  # unused, prefer /options/instanceTypes
-  # def list_types(options={})
-  #   url = "#{@base_url}/api/app-templates/types"
-  #   headers = { params: {}, authorization: "Bearer #{@access_token}" }
-  #   headers[:params].merge!(options)
-  #   execute(method: :get, url: url, headers: headers)
-  # end
 
 end

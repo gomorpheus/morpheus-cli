@@ -62,11 +62,12 @@ class Morpheus::Cli::Processes
     begin
       params.merge!(parse_list_options(options))
       # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @processes_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @processes_interface.dry.list(params, options)
+        print_dry_run @processes_interface.dry.list(params)
         return
       end
-      json_response = @processes_interface.list(params, options)
+      json_response = @processes_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "processes")
         return 0
@@ -190,11 +191,12 @@ class Morpheus::Cli::Processes
       process_id = args[0]
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @processes_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @processes_interface.dry.get(process_id, params, options)
+        print_dry_run @processes_interface.dry.get(process_id, params)
         return
       end
-      json_response = @processes_interface.get(process_id, params, options)
+      json_response = @processes_interface.get(process_id, params)
       if options[:json]
         puts as_json(json_response, options, "process")
         return 0
@@ -280,11 +282,12 @@ class Morpheus::Cli::Processes
     begin
       process_event_id = args[0]
       params.merge!(parse_list_options(options))
+      @processes_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @processes_interface.dry.get_event(process_event_id, params, options)
+        print_dry_run @processes_interface.dry.get_event(process_event_id, params)
         return
       end
-      json_response = @processes_interface.get_event(process_event_id, params, options)
+      json_response = @processes_interface.get_event(process_event_id, params)
       if options[:json]
         puts as_json(json_response, options, "processEvent")
         return 0

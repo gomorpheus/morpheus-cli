@@ -8,7 +8,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(params={}, options={})
+  def get(params={})
     url = "#{@base_url}/api/instances"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     if params.is_a?(Hash)
@@ -19,77 +19,77 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
       headers[:params]['name'] = params
     end
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def list(params={}, options={})
-    get(params, options)
+  def list(params={})
+    get(params)
   end
 
-  def get_envs(id, params={}, options={})
+  def get_envs(id, params={})
     url = "#{@base_url}/api/instances/#{id}/envs"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def create_env(id, payload={}, options={})
+  def create_env(id, payload={})
     url = "#{@base_url}/api/instances/#{id}/envs"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def del_env(id, name, options={})
+  def del_env(id, name)
     url = "#{@base_url}/api/instances/#{id}/envs/#{name}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def create(payload, options={})
+  def create(payload)
     url = "#{@base_url}/api/instances"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def update(id, payload, options={})
+  def update(id, payload)
     url = "#{@base_url}/api/instances/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def destroy(id, params = {}, options={})
+  def destroy(id, params = {})
     url = "#{@base_url}/api/instances/#{id}"
     headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def stop(id, params={}, options={})
+  def stop(id, params={})
     url = "#{@base_url}/api/instances/#{id}/stop"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
     execute(opts)
   end
 
-  def start(id, params={}, options={})
+  def start(id, params={})
     url = "#{@base_url}/api/instances/#{id}/start"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def restart(id, params={}, options={})
+  def restart(id, params={})
     url = "#{@base_url}/api/instances/#{id}/restart"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def suspend(id, params={}, options={})
+  def suspend(id, params={})
     url = "#{@base_url}/api/instances/suspend"
     if id.is_a?(Array)
       params['ids'] = id
@@ -98,10 +98,10 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def eject(id, params={}, options={})
+  def eject(id, params={})
     url = "#{@base_url}/api/instances/eject"
     if id.is_a?(Array)
       params['ids'] = id
@@ -110,10 +110,10 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def available_actions(id, options={})
+  def available_actions(id)
     url, params = "", {}
     if id.is_a?(Array)
       url = "#{@base_url}/api/instances/actions"
@@ -124,10 +124,10 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def action(id, action_code, payload={}, options={})
+  def action(id, action_code, payload={})
     url, params = "", {}
     if id.is_a?(Array)
       url = "#{@base_url}/api/instances/action"
@@ -138,153 +138,153 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def volumes(id, options={})
+  def volumes(id)
     url = "#{@base_url}/api/instances/#{id}/volumes"
     headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options={})
+    execute(opts)
   end
 
-  def resize(id,payload, options={})
+  def resize(id,payload)
     url = "#{@base_url}/api/instances/#{id}/resize"
     headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers,payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def workflow(id,task_set_id,payload, options={})
+  def workflow(id,task_set_id,payload)
     url = "#{@base_url}/api/instances/#{id}/workflow"
     headers = { :params => {:taskSetId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers,payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def backup(id,server=true, options={})
+  def backup(id,server=true)
     url = "#{@base_url}/api/instances/#{id}/backup"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def backups(id, params, options={})
+  def backups(id, params)
     url = "#{@base_url}/api/instances/#{id}/backups"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def clone(id, payload, options={})
+  def clone(id, payload)
     url = "#{@base_url}/api/instances/#{id}/clone"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options={})
+    execute(opts)
   end
 
-  def firewall_disable(id, options={})
+  def firewall_disable(id)
     url = "#{@base_url}/api/instances/#{id}/security-groups/disable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def firewall_enable(id, options={})
+  def firewall_enable(id)
     url = "#{@base_url}/api/instances/#{id}/security-groups/enable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def security_groups(id, options={})
+  def security_groups(id)
     url = "#{@base_url}/api/instances/#{id}/security-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def apply_security_groups(id, payload, options={})
+  def apply_security_groups(id, payload)
     url = "#{@base_url}/api/instances/#{id}/security-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
-    def import_snapshot(id, params={}, options={})
+    def import_snapshot(id, params={})
     url = "#{@base_url}/api/instances/#{id}/import-snapshot"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def service_plans(params={}, options={})
+  def service_plans(params={})
     url = "#{@base_url}/api/instances/service-plans"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def containers(instance_id, params={}, options={})
+  def containers(instance_id, params={})
     url = "#{@base_url}/api/instances/#{instance_id}/containers"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def threshold(id, params={}, options={})
+  def threshold(id, params={})
     url = "#{@base_url}/api/instances/#{id}/threshold"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def update_threshold(id, payload, options={})
+  def update_threshold(id, payload)
     url = "#{@base_url}/api/instances/#{id}/threshold"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def update_load_balancer(id, payload, options={})
+  def update_load_balancer(id, payload)
     url = "#{@base_url}/api/instances/#{id}/load-balancer"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def remove_load_balancer(id, payload={}, options={})
+  def remove_load_balancer(id, payload={})
     url = "#{@base_url}/api/instances/#{id}/load-balancer"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def update_notes(id, payload, options={})
+  def update_notes(id, payload)
     url = "#{@base_url}/api/instances/#{id}/notes"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def history(id, params={}, options={})
+  def history(id, params={})
     url = "#{@base_url}/api/instances/#{id}/history"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def history_details(id, process_id, params={}, options={})
+  def history_details(id, process_id, params={})
     url = "#{@base_url}/api/instances/#{id}/history/#{process_id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
-  def history_event_details(id, process_event_id, params={}, options={})
+  def history_event_details(id, process_event_id, params={})
     url = "#{@base_url}/api/instances/#{id}/history/events/#{process_event_id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts, options)
+    execute(opts)
   end
 
 end

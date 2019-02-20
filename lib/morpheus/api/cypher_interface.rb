@@ -18,26 +18,26 @@ class Morpheus::CypherInterface < Morpheus::APIClient
 
   # list url is the same as get but uses $itemKey/?list=true
   # method: 'LIST' would be neat though
-  def list(item_key=nil, params={}, options={})
+  def list(item_key=nil, params={})
     url = item_key ? "#{@base_url}/api/cypher/v1/#{item_key}" : "#{@base_url}/api/cypher/v1"
     params.merge!({list:'true'})
     headers = { params: params, authorization: "Bearer #{@access_token}" }.merge(options[:headers] || {})
     execute({method: :get, url: url, headers: headers})
   end
 
-  def create(item_key, payload, options={})
+  def create(item_key, payload)
     url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute({method: :post, url: url, headers: headers, payload: payload.to_json})
   end
 
-  def update(item_key, payload, options={})
+  def update(item_key, payload)
     url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute({method: :put, url: url, headers: headers, payload: payload.to_json})
   end
 
-  def destroy(item_key, params={}, options={})
+  def destroy(item_key, params={})
     url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute({method: :delete, url: url, headers: headers})

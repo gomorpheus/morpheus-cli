@@ -51,7 +51,7 @@ class Morpheus::Cli::BlueprintsCommand
     begin
       params = {}
       params.merge!(parse_list_options(options))
-
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.list(params)
         return
@@ -111,6 +111,7 @@ class Morpheus::Cli::BlueprintsCommand
     connect(options)
     begin
       if options[:dry_run]
+        @blueprints_interface.setopts(options)
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @blueprints_interface.dry.get(args[0].to_i)
         else
@@ -118,6 +119,7 @@ class Morpheus::Cli::BlueprintsCommand
         end
         return
       end
+      @blueprints_interface.setopts(options)
       blueprint = find_blueprint_by_name_or_id(args[0])
       exit 1 if blueprint.nil?
 
@@ -218,7 +220,7 @@ class Morpheus::Cli::BlueprintsCommand
         #payload = blueprint_payload
         payload.deep_merge!(params)
       end
-
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.create(payload)
         return
@@ -292,7 +294,7 @@ class Morpheus::Cli::BlueprintsCommand
           return 1
         end
       end
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -396,7 +398,7 @@ class Morpheus::Cli::BlueprintsCommand
           payload['blueprint']['visibility'] = options['visibility']
         end
       end
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update_permissions(blueprint['id'], payload)
         return
@@ -454,6 +456,7 @@ class Morpheus::Cli::BlueprintsCommand
     begin
       blueprint = find_blueprint_by_name_or_id(blueprint_name)
       exit 1 if blueprint.nil?
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.save_image(blueprint['id'], image_file)
         return 0
@@ -505,6 +508,7 @@ class Morpheus::Cli::BlueprintsCommand
       # unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to duplicate the blueprint #{blueprint['name']}?")
       #   exit
       # end
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.duplicate(blueprint['id'], payload)
         return
@@ -548,6 +552,7 @@ class Morpheus::Cli::BlueprintsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the blueprint #{blueprint['name']}?")
         exit
       end
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.destroy(blueprint['id'])
         return
@@ -659,7 +664,7 @@ class Morpheus::Cli::BlueprintsCommand
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return 0
@@ -817,7 +822,7 @@ class Morpheus::Cli::BlueprintsCommand
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return 0
@@ -1001,7 +1006,7 @@ class Morpheus::Cli::BlueprintsCommand
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1123,7 +1128,7 @@ class Morpheus::Cli::BlueprintsCommand
       # ok, make api request
       blueprint["config"]["tiers"] = tiers
       payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1250,7 +1255,7 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
       # payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1409,7 +1414,7 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
       # payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1473,7 +1478,7 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
       # payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1572,7 +1577,7 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
       # payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1662,7 +1667,7 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint["config"]["tiers"] = tiers
       payload = blueprint["config"]
       # payload = {blueprint: blueprint}
-      
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.update(blueprint['id'], payload)
         return
@@ -1695,6 +1700,7 @@ class Morpheus::Cli::BlueprintsCommand
     params = {}
 
     begin
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.list_tiers(params)
         return
@@ -1745,6 +1751,7 @@ class Morpheus::Cli::BlueprintsCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.list_types(params)
         return
