@@ -76,6 +76,21 @@ module Morpheus::Logging
     self.debug?
   end
 
+  # mask well known secrets
+  def self.scrub_message(msg)
+    if msg.is_a?(String)
+      msg = msg.clone
+      msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
+      msg.gsub!(/Authorization\:\s?Bearer [^"'']+/, 'Authorization: Bearer ************')
+      msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
+      msg.gsub!(/password\=\"[^" ]+/, 'password="************')
+      msg.gsub!(/password\=[^" ]+/, 'password=************')
+      msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation="************')
+      msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation=************')
+    end
+    msg
+  end
+
   # An IO class for printing debugging info
   # This is used as a proxy for ::RestClient.log printing right now.
   class DarkPrinter
@@ -110,18 +125,8 @@ module Morpheus::Logging
       @is_dark = is_dark
     end
 
-    # mask well known secrets
     def scrub_message(msg)
-      if msg.is_a?(String)
-        msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
-        msg.gsub!(/Authorization\:\s?Bearer [^"]+/, 'Authorization"=>"Bearer ************')
-        msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
-        msg.gsub!(/password\=\"[^" ]+/, 'password="************')
-        msg.gsub!(/password\=[^" ]+/, 'password=************')
-        msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation="************')
-        msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation=************')
-      end
-      msg
+      Morpheus::Logging.scrub_message(msg)
     end
 
     def print_with_color(&block)

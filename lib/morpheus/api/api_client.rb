@@ -48,14 +48,14 @@ class Morpheus::APIClient
   #   :headers - Extra headers to add. This expects a Hash like {'Content-Type' => 'application/json'}.
   #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
   def execute(opts, options={})
-
-    # Parsed api response as JSON? 
+    # Parsed api response as JSON?
+    # ok .. the second argument used to be 'parse_json' (boolean) which is true by default
+    # so still support it that way until we can update those interface methods to use parse_json:false
     # True by default. 
     # Pass parse_json:false to avoid that. ie. you do not expect JSON back
     # todo: get rid of this behavior..make parsing the caller responsibility, 
     #       or atleast check the Content-Type of the result.. 
-    # ok .. the second argument used to be 'parse_json' (boolean) which is true by default
-    # so still support it that way until we can update those interface methods to use parse_json:false
+    opts = opts.clone
     parse_json = true
     if options == true || options == false
       parse_json = options
@@ -105,15 +105,17 @@ class Morpheus::APIClient
       opts[:headers][:params] = opts[:params] # .delete(:params) maybe?
     end
 
-    # curl output for dry run?
-    if options[:curl]
-      opts[:curl] = options[:curl]
-    end
 
-    # not working when combining with curl, fix it!
-    if options.key?(:pretty_json) == false
-      opts[:pretty_json] = options[:pretty_json]
-    end
+    # :command_options for these
+    # if options[:curl]
+    #   opts[:curl] = options[:curl]
+    # end
+    # if options.key?(:pretty_json)
+    #   opts[:pretty_json] = options[:pretty_json]
+    # end
+    # if options.key?(:scrub)
+    #   opts[:scrub] = options[:scrub]
+    # end
 
     # @verify_ssl is not used atm
     # todo: finish this and use it instead of the global variable RestClient.ssl_verification_enabled?
@@ -125,6 +127,8 @@ class Morpheus::APIClient
     end
     if @dry_run
       # JD: could return a Request object instead...
+      # print_dry_run needs options somehow...
+      opts[:command_options] = options
       return opts
     end
 

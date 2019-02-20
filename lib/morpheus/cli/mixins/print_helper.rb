@@ -4,6 +4,7 @@ require 'json'
 require 'yaml'
 require 'ostruct'
 require 'io/console'
+require 'morpheus/logging'
 
 module Morpheus::Cli::PrintHelper
 
@@ -131,11 +132,28 @@ module Morpheus::Cli::PrintHelper
       options = {}
     end
     options ||= {}
+    # api client injects common command options here
+    if api_request[:command_options]
+      options.merge!(api_request[:command_options])
+    end
+    options ||= {}
+    # parse params request arguments
     http_method = api_request[:method]
     url = api_request[:url]
-    params = api_request[:params]
-    params = api_request[:headers][:params] if api_request[:headers] && api_request[:headers][:params]
-    query_string = params.respond_to?(:map) ? URI.encode_www_form(params) : query_string
+    headers = api_request[:headers]
+    params = nil
+    if api_request[:params] && !api_request[:params].empty?
+      params = api_request[:params]
+    elsif api_request[:headers] && api_request[:headers][:params]
+      # params inside headers for restclient reasons..
+      params = api_request[:headers][:params]
+    elsif api_request[:query] && !api_request[:query].empty?
+      params = api_request[:query]
+    end
+    query_string = params
+    if query_string.respond_to?(:map)
+      query_string = URI.encode_www_form(query_string)
+    end
     if query_string && !query_string.empty?
       url = "#{url}?#{query_string}"
     end
@@ -148,7 +166,7 @@ module Morpheus::Cli::PrintHelper
     if api_request[:curl] || options[:curl]
       print "\n"
       puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
-      print_curl_command(api_request, options)
+      print format_curl_command(http_method, url, headers, payload, options)
       print "\n",reset
       return
     end
@@ -170,6 +188,7 @@ module Morpheus::Cli::PrintHelper
     # print cyan
     # print "Request: ", "\n"
     # print reset
+    request_string = "#{http_method.to_s.upcase} #{url}".strip
     print request_string, "\n"
     print cyan
     if payload
@@ -218,10 +237,10 @@ module Morpheus::Cli::PrintHelper
     print reset
   end
 
-  # print_curl_command generates a valid curl command for the given api request
+  # format_curl_command generates a valid curl command for the given api request
   # @param api_request [Hash] api request, typically returned from api_client.dry.execute()
   # @param options [Hash] common cli options
-  # prints command like:
+  # formats command like:
   #
   # curl -XPOST "https://api.gomorpheus.com/api/cypher" \
   #   -H "Authorization: BEARER ******************" \
@@ -230,32 +249,28 @@ module Morpheus::Cli::PrintHelper
   #     "itemKey": "secret/mysecret",
   #     "itemValue": "meow"
   #   }}'
-  def print_curl_command(api_request, options={})
+  def format_curl_command(http_method, url, headers, payload=nil, options={})
     options ||= {}
-    http_method = api_request[:method]
-    url = api_request[:url]
-    params = api_request[:params]
-    params = api_request[:headers][:params] if api_request[:headers] && api_request[:headers][:params]
-    query_string = params.respond_to?(:map) ? URI.encode_www_form(params) : query_string
-    if query_string && !query_string.empty?
-      url = "#{url}?#{query_string}"
-    end
-    request_string = "#{http_method.to_s.upcase} #{url}".strip
-    payload = api_request[:payload] || api_request[:body]
     # build curl [options]
     out = ""
-    out << "curl -X#{api_request[:method].to_s.upcase} '#{url}'"
-    api_request[:headers].each do |k,v|
-      # avoid weird [:headers][:params]
-      unless k == :params
-        out <<  ' \\' + "\n"
-        out << "  -H \"#{k.to_s.capitalize}: #{v}\""
+    out << "curl -X#{http_method.to_s.upcase} '#{url}'"
+    if headers
+      headers.each do |k,v|
+        # avoid weird [:headers][:params]
+        unless k == :params
+          header_value = v
+          out <<  ' \\' + "\n"
+          header_line = "  -H \"#{k.to_s.capitalize}: #{v}\""
+          if options[:scrub]
+            header_line = Morpheus::Logging.scrub_message(header_line)
+          end
+          out << header_line
+        end
       end
     end
-    
     if payload && !payload.empty?
       out <<  + ' \\' + "\n"
-      if api_request[:headers] && api_request[:headers]['Content-Type'] == 'application/json'
+      if headers && headers['Content-Type'] == 'application/json'
         if payload.is_a?(String)
           begin
             payload = JSON.parse(payload)
@@ -269,7 +284,7 @@ module Morpheus::Cli::PrintHelper
           out << "  -d '#{payload}'"
         end
       else
-        content_type = api_request[:headers]['Content-Type'] || 'application/x-www-form-urlencoded'
+        content_type = headers['Content-Type'] || 'application/x-www-form-urlencoded'
         
         if payload.is_a?(File)
           # pretty_size = Filesize.from("#{payload.size} B").pretty.strip
@@ -292,11 +307,12 @@ module Morpheus::Cli::PrintHelper
           end
         end
       end
+      out << "\n"
+    else
+      out << "\n"
     end
-    
-    # out << reset
-    # out << "\n"
-    print out
+
+    return out
     
   end
   def print_results_pagination(json_response, options={})

@@ -2425,6 +2425,7 @@ class Morpheus::Cli::Instances
 
   def scaling(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -2450,7 +2451,7 @@ class Morpheus::Cli::Instances
       print_dry_run @instances_interface.dry.threshold(instance['id'], params, options)
       return 0
     end
-    json_response = @instances_interface.threshold(instance['id'], options)
+    json_response = @instances_interface.threshold(instance['id'], params, options)
     if options[:json]
       puts as_json(json_response, options, "instanceThreshold")
       return 0
