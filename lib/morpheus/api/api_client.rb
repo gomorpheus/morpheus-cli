@@ -110,6 +110,11 @@ class Morpheus::APIClient
       opts[:curl] = options[:curl]
     end
 
+    # not working when combining with curl, fix it!
+    if options.key?(:pretty_json) == false
+      opts[:pretty_json] = options[:pretty_json]
+    end
+
     # @verify_ssl is not used atm
     # todo: finish this and use it instead of the global variable RestClient.ssl_verification_enabled?
     # gotta clean up all APIClient subclasses new() methods to support this

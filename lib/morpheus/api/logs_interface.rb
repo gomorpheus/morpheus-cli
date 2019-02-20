@@ -8,25 +8,22 @@ class Morpheus::LogsInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def container_logs(containers=[], options={})
+  def container_logs(containers=[], params={})
     url = "#{@base_url}/api/logs"
-    headers = { params: {'containers' => containers}.merge(options), authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    headers = { params: {'containers' => containers}.merge(params), authorization: "Bearer #{@access_token}" }
+    execute({method: :get, url: url, headers: headers}, options)
   end
 
-  def server_logs(servers=[], options={})
+  def server_logs(servers=[], params={})
     url = "#{@base_url}/api/logs"
-    headers = { params: {'servers' => servers}.merge(options), authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    headers = { params: {'servers' => servers}.merge(params), authorization: "Bearer #{@access_token}" }
+    execute({method: :get, url: url, headers: headers}, options)
   end
 
-  def stats()
+  def stats(options={})
     url = "#{@base_url}/api/logs/log-stats"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute({method: :get, url: url, headers: headers}, options)
   end
 
 

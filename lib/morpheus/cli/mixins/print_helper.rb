@@ -142,6 +142,8 @@ module Morpheus::Cli::PrintHelper
     request_string = "#{http_method.to_s.upcase} #{url}".strip
     payload = api_request[:payload] || api_request[:body]
 
+    #Morpheus::Logging::DarkPrinter.puts "API payload is: (#{payload.class}) #{payload.inspect}"
+
     # curl output?
     if api_request[:curl] || options[:curl]
       print "\n"
@@ -201,7 +203,7 @@ module Morpheus::Cli::PrintHelper
           if content_type == 'application/x-www-form-urlencoded'
             body_str = payload.to_s
             begin
-              body_str = URI.encode_www_form(payload.to_s)
+              body_str = URI.encode_www_form(payload)
             rescue => ex
               # raise ex
             end
@@ -242,15 +244,17 @@ module Morpheus::Cli::PrintHelper
     payload = api_request[:payload] || api_request[:body]
     # build curl [options]
     out = ""
-    out << "curl -X#{api_request[:method].to_s.upcase} '#{url}'" + ' \\' + "\n"
+    out << "curl -X#{api_request[:method].to_s.upcase} '#{url}'"
     api_request[:headers].each do |k,v|
       # avoid weird [:headers][:params]
       unless k == :params
-        out << "  -H \"#{k.to_s.capitalize}: #{v}\"" + ' \\' + "\n"
+        out <<  ' \\' + "\n"
+        out << "  -H \"#{k.to_s.capitalize}: #{v}\""
       end
     end
     
     if payload && !payload.empty?
+      out <<  + ' \\' + "\n"
       if api_request[:headers] && api_request[:headers]['Content-Type'] == 'application/json'
         if payload.is_a?(String)
           begin
@@ -259,7 +263,11 @@ module Morpheus::Cli::PrintHelper
             #payload = "(unparsable) #{payload}"
           end
         end
-        out << "  -d '#{payload}'"
+        if payload.is_a?(Hash)
+          out << "  -d '#{as_json(payload, options)}'"
+        else
+          out << "  -d '#{payload}'"
+        end
       else
         content_type = api_request[:headers]['Content-Type'] || 'application/x-www-form-urlencoded'
         
@@ -274,7 +282,7 @@ module Morpheus::Cli::PrintHelper
           if content_type == 'application/x-www-form-urlencoded'
             body_str = payload.to_s
             begin
-              body_str = URI.encode_www_form(payload.to_s)
+              body_str = URI.encode_www_form(payload)
             rescue => ex
               # raise ex
             end
@@ -286,8 +294,8 @@ module Morpheus::Cli::PrintHelper
       end
     end
     
-    out << reset
-    out << "\n"
+    # out << reset
+    # out << "\n"
     print out
     
   end

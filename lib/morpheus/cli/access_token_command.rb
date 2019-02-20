@@ -112,7 +112,7 @@ class Morpheus::Cli::AccessTokenCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:auto_confirm, :remote, :quiet])
+      build_common_options(opts, options, [:auto_confirm, :remote, :dry_run, :json, :quiet])
       opts.footer = "Use your refresh token.\n" +
                     "This will replace your current access and refresh tokens with a new values.\n" +
                     "Your current access token will be invalidated\n" +
@@ -141,6 +141,7 @@ class Morpheus::Cli::AccessTokenCommand
       print cyan,"#{bold}WARNING!#{reset}#{cyan} You are about to invalidate your current access token '#{masked_access_token}'.",reset,"\n"
       print cyan, "You will need to update everywhere this token is used.",reset, "\n"
     end
+    
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to refresh your access token?")
       return 9, "aborted command"
     end
@@ -149,9 +150,15 @@ class Morpheus::Cli::AccessTokenCommand
     # this regenerates the current access token.
     refresh_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).use_refresh_token(options)
     new_wallet = refresh_result
+    if options[:json]
+      puts as_json(refresh_result, options)
+      return new_wallet ? 0 : 1
+    end
     if new_wallet
       unless options[:quiet]
-        print_green_success "Access token refreshed."
+        print_green_success "Access token refreshed: #{new_wallet['access_token']}"
+        #print_green_success "Access token refreshed"
+        details([])
       end
       return 0
     else

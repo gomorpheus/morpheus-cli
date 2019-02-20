@@ -8,27 +8,27 @@ class Morpheus::ProcessesInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def list(params={})
+  def list(params={}, options={})
     url = "#{@base_url}/api/processes"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def get(id, params={})
+  def get(id, params={}, options={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = "#{@base_url}/api/processes/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def get_event(id, params={})
+  def get_event(id, params={}, options={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = "#{@base_url}/api/processes/events/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
 end

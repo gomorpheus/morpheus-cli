@@ -73,16 +73,22 @@ class Morpheus::Cli::Apps
       end
 
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.get(params)
+        print_dry_run @apps_interface.dry.get(params, options)
         return
       end
 
-      json_response = @apps_interface.get(params)
+      json_response = @apps_interface.get(params, options)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
+        puts as_json(json_response, options, "apps")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "apps")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['apps'], options)
+        return 0
       end
+      
       apps = json_response['apps']
       title = "Morpheus Apps"
       subtitles = []
@@ -383,11 +389,11 @@ class Morpheus::Cli::Apps
           elsif options[:yaml]
             puts as_yaml(payload, options)
           else
-            print_dry_run @apps_interface.dry.validate(payload)
+            print_dry_run @apps_interface.dry.validate(payload, options)
           end
           return 0
         end
-        json_response = @apps_interface.validate(payload)
+        json_response = @apps_interface.validate(payload, options)
 
         if options[:json]
           puts as_json(json_response, options)
@@ -427,17 +433,11 @@ class Morpheus::Cli::Apps
 
       # Dry Run?
       if options[:dry_run]
-        if options[:json]
-          puts as_json(payload, options)
-        elsif options[:yaml]
-          puts as_yaml(payload, options)
-        else
-          print_dry_run @apps_interface.dry.create(payload)
-        end
+        print_dry_run @apps_interface.dry.create(payload, options)
         return 0
       end
 
-      json_response = @apps_interface.create(payload)
+      json_response = @apps_interface.create(payload, options)
 
       if options[:json]
         puts as_json(json_response, options)
@@ -505,10 +505,10 @@ class Morpheus::Cli::Apps
     begin
       app = find_app_by_name_or_id(arg)
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.get(app['id'])
+        print_dry_run @apps_interface.dry.get(app['id'], options)
         return
       end
-      json_response = @apps_interface.get(app['id'])
+      json_response = @apps_interface.get(app['id'], options)
 
       render_result = render_with_format(json_response, options, 'blueprint')
       return 0 if render_result
@@ -700,11 +700,11 @@ class Morpheus::Cli::Apps
       end
 
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.update(app["id"], payload)
+        print_dry_run @apps_interface.dry.update(app["id"], payload, options)
         return
       end
 
-      json_response = @apps_interface.update(app["id"], payload)
+      json_response = @apps_interface.update(app["id"], payload, options)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -769,10 +769,10 @@ class Morpheus::Cli::Apps
       end
 
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.add_instance(app['id'], payload)
+        print_dry_run @apps_interface.dry.add_instance(app['id'], payload, options)
         return
       end
-      json_response = @apps_interface.add_instance(app['id'], payload)
+      json_response = @apps_interface.add_instance(app['id'], payload, options)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -830,10 +830,10 @@ class Morpheus::Cli::Apps
         query_params[:removeVolumes] = 'on'
       end
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.destroy(app['id'], query_params)
+        print_dry_run @apps_interface.dry.destroy(app['id'], query_params, options)
         return
       end
-      json_response = @apps_interface.destroy(app['id'], query_params)
+      json_response = @apps_interface.destroy(app['id'], query_params, options)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -881,11 +881,11 @@ class Morpheus::Cli::Apps
       payload[:instanceId] = instance['id']
 
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.remove_instance(app['id'], payload)
+        print_dry_run @apps_interface.dry.remove_instance(app['id'], payload, options)
         return
       end
 
-      json_response = @apps_interface.remove_instance(app['id'], payload)
+      json_response = @apps_interface.remove_instance(app['id'], payload, options)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -1121,10 +1121,10 @@ class Morpheus::Cli::Apps
     begin
       app = find_app_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.firewall_disable(app['id'])
+        print_dry_run @apps_interface.dry.firewall_disable(app['id'], options)
         return
       end
-      @apps_interface.firewall_disable(app['id'])
+      @apps_interface.firewall_disable(app['id'], options)
       security_groups([args[0]])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1149,10 +1149,10 @@ class Morpheus::Cli::Apps
     begin
       app = find_app_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.firewall_enable(app['id'])
+        print_dry_run @apps_interface.dry.firewall_enable(app['id'], options)
         return
       end
-      @apps_interface.firewall_enable(app['id'])
+      @apps_interface.firewall_enable(app['id'], options)
       security_groups([args[0]])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1177,10 +1177,10 @@ class Morpheus::Cli::Apps
     begin
       app = find_app_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.security_groups(app['id'])
+        print_dry_run @apps_interface.dry.security_groups(app['id'], options)
         return
       end
-      json_response = @apps_interface.security_groups(app['id'])
+      json_response = @apps_interface.security_groups(app['id'], options)
       securityGroups = json_response['securityGroups']
       print_h1 "Morpheus Security Groups for App: #{app['name']}", options
       print cyan
@@ -1203,15 +1203,16 @@ class Morpheus::Cli::Apps
 
   def apply_security_groups(args)
     options = {}
+    params = {}
     clear_or_secgroups_specified = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app] [--clear] [-s]")
       opts.on( '-c', '--clear', "Clear all security groups" ) do
-        options[:securityGroupIds] = []
+        params[:securityGroupIds] = []
         clear_or_secgroups_specified = true
       end
       opts.on( '-s', '--secgroups SECGROUPS', "Apply the specified comma separated security group ids" ) do |secgroups|
-        options[:securityGroupIds] = secgroups.split(",")
+        params[:securityGroupIds] = secgroups.split(",")
         clear_or_secgroups_specified = true
       end
       opts.on( '-h', '--help', "Print this help" ) do
@@ -1236,11 +1237,12 @@ class Morpheus::Cli::Apps
 
     begin
       app = find_app_by_name_or_id(args[0])
+      payload = params
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.apply_security_groups(app['id'], options)
+        print_dry_run @apps_interface.dry.apply_security_groups(app['id'], payload, options)
         return
       end
-      @apps_interface.apply_security_groups(app['id'], options)
+      @apps_interface.apply_security_groups(app['id'], payloaad, options)
       security_groups([args[0]])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1293,10 +1295,10 @@ class Morpheus::Cli::Apps
       params.merge!(parse_list_options(options))
       # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @processes_interface.dry.list(params)
+        print_dry_run @processes_interface.dry.list(params, options)
         return
       end
-      json_response = @processes_interface.list(params)
+      json_response = @processes_interface.list(params, options)
       if options[:json]
         puts as_json(json_response, options, "processes")
         return 0

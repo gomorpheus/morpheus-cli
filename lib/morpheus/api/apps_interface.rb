@@ -9,125 +9,118 @@ class Morpheus::AppsInterface < Morpheus::APIClient
   end
 
 
-  def get(options=nil)
+  def get(params={}, options={})
     url = "#{@base_url}/api/apps"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/apps/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
+    if params.is_a?(Hash)
+      headers[:params].merge!(params)
+    elsif params.is_a?(Numeric)
+      url = "#{@base_url}/api/apps/#{params}"
+    elsif params.is_a?(String)
+      headers[:params]['name'] = params
     end
     opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def validate(options)
+  def validate(payload, options={})
     # url = "#{@base_url}/api/apps/validate-instance"
     url = "#{@base_url}/api/apps/validate"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def validate_instance(options)
+  def validate_instance(payload, options={})
     # url = "#{@base_url}/api/apps/validate-instance"
     url = "#{@base_url}/api/apps/validate-instance"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def create(options)
+  def create(payload, options={})
     url = "#{@base_url}/api/apps"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def update(app_id, options)
+  def update(app_id, payload, options={})
     url = "#{@base_url}/api/apps/#{app_id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def add_instance(app_id, options)
+  def add_instance(app_id, payload, options={})
     url = "#{@base_url}/api/apps/#{app_id}/add-instance"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def remove_instance(app_id, options)
+  def remove_instance(app_id, payload, options={})
     url = "#{@base_url}/api/apps/#{app_id}/remove-instance"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def destroy(id, params={})
+  def destroy(id, params={}, options={})
     url = "#{@base_url}/api/apps/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     headers[:params] = params
     opts = {method: :delete, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def stop(id)
+  def stop(id, options={})
     url = "#{@base_url}/api/apps/#{id}/stop"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def start(id)
+  def start(id, options={})
     url = "#{@base_url}/api/apps/#{id}/start"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def restart(id)
+  def restart(id, options={})
     url = "#{@base_url}/api/apps/#{id}/restart"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def firewall_disable(id)
+  def firewall_disable(id, options={})
     url = "#{@base_url}/api/apps/#{id}/security-groups/disable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def firewall_enable(id)
+  def firewall_enable(id, options={})
     url = "#{@base_url}/api/apps/#{id}/security-groups/enable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def security_groups(id)
+  def security_groups(id, options={})
     url = "#{@base_url}/api/apps/#{id}/security-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute(opts, options)
   end
 
-  def apply_security_groups(id, options)
+  def apply_security_groups(id, payload, options={})
     url = "#{@base_url}/api/apps/#{id}/security-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute(opts, options)
   end
 end

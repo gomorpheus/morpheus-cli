@@ -24,7 +24,7 @@ module Morpheus
       # authenticate with the /oauth/token API to receive an access_token.
       # If :username and :password are passed, then
       # Pass :remote_token to skip prompting and the auth api request.
-      # @param opts - Hash of optional settings.
+      # @param options - Hash of optional settings.
       #   :username - Username to use, skips saved lookup and prompting.
       #   :password - Password to use, skips saved lookup and prompting.
       #   :remote_url - Use this url instead of the one from the current appliance. Credentials will not be saved.
@@ -32,34 +32,34 @@ module Morpheus
       #   :test_only - Test only. Saved credentials will not be updated.
       # @return Hash wallet like {"access_token":"ec68be138765...", "refresh_token":"ec68be138765..."} 
       # or nil if unable to find credentials.
-      def request_credentials(opts = {})
-        #puts "request_credentials(#{opts})"
+      def request_credentials(options = {})
+        #puts "request_credentials(#{options})"
         username = nil
         password = nil
         wallet = nil
         skip_save = false
-        if opts[:skip_save] == true || opts[:test_only] == true || opts[:remote_url] == true || opts[:dry_run] == true
+        if options[:skip_save] == true || options[:test_only] == true || options[:remote_url] == true || options[:dry_run] == true
           skip_save = true
         end
 
-        if opts[:remote_token]
+        if options[:remote_token]
           # user passed in a token to login with.
           # this should get token info from /oauth/token
           # OR whoami should return other wallet info like access token or maybe just the expiration date
           # for now, it just stores the access token without other wallet info
           begin
-            whoami_interface = Morpheus::WhoamiInterface.new(opts[:remote_token], nil, nil, @appliance_url)
-            if opts[:dry_run]
+            whoami_interface = Morpheus::WhoamiInterface.new(options[:remote_token], nil, nil, @appliance_url)
+            if options[:dry_run]
               print_dry_run whoami_interface.dry.get()
               return nil
             end
             whoami_response = whoami_interface.get()
-            if opts[:json]
+            if options[:json]
               print JSON.pretty_generate(whoami_response)
               print reset, "\n"
             end
             # store mock /oauth/token  auth_interface.login() result
-            json_response = {'access_token' => opts[:remote_token], 'token_type' => 'bearer'}
+            json_response = {'access_token' => options[:remote_token], 'token_type' => 'bearer'}
             username = whoami_response['user']['username']
             login_date = Time.now
             expire_date = nil
@@ -80,8 +80,8 @@ module Morpheus
           rescue ::RestClient::Exception => e
             #raise e
             print_red_alert "Token not valid."
-            if opts[:debug] || opts[:debug]
-              print_rest_exception(e, opts)
+            if options[:debug] || options[:debug]
+              print_rest_exception(e, options)
             end
             wallet = nil
           end
@@ -91,23 +91,23 @@ module Morpheus
           # if passing a username on the fly (skip_save)
           # that's assumed to be a transient command, not one to log yo in (update your session)
           # that should be done outside of this method you see...
-          if opts[:username]
-            username = opts[:username]
-            password = opts[:password]
+          if options[:username]
+            username = options[:username]
+            password = options[:password]
             if skip_save == false
-              #skip_save = (opts[:remote_url] ? true : false)
+              #skip_save = (options[:remote_url] ? true : false)
             end
           else
-            # maybe just if check if opts[:test_only] != true
+            # maybe just if check if options[:test_only] != true
             if skip_save == false
               wallet = load_saved_credentials
             end  
           end
 
           if wallet.nil?
-            unless opts[:quiet] || opts[:no_prompt]
+            unless options[:quiet] || options[:no_prompt]
               # if username.empty? || password.empty?
-                if opts[:test_only]
+                if options[:test_only]
                   print "Test Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
                 else
                   print "Enter Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
@@ -134,12 +134,12 @@ module Morpheus
             end
             begin
               auth_interface = Morpheus::AuthInterface.new(@appliance_url)
-              if opts[:dry_run]
-                print_dry_run auth_interface.dry.login(username, password, opts)
+              if options[:dry_run]
+                print_dry_run auth_interface.dry.login(username, password, options)
                 return nil
               end
-              json_response = auth_interface.login(username, password, opts)
-              if opts[:json]
+              json_response = auth_interface.login(username, password, options)
+              if options[:json]
                 print JSON.pretty_generate(json_response)
                 print reset, "\n"
               end
@@ -164,13 +164,13 @@ module Morpheus
                 json_response = JSON.parse(e.response.to_s)
                 error_msg = json_response['error_description'] || "Credentials not verified."
                 print_red_alert error_msg
-                if opts[:json]
+                if options[:json]
                   json_response = JSON.parse(e.response.to_s)
                   print JSON.pretty_generate(json_response)
                   print reset, "\n"
                 end
               else
-                print_rest_exception(e, opts)
+                print_rest_exception(e, options)
               end
               wallet = nil
             end
@@ -215,8 +215,8 @@ module Morpheus
         return wallet
       end
 
-      def login(opts = {})
-        if opts[:test_only] != true
+      def login(options = {})
+        if options[:test_only] != true
           clear_saved_credentials(@appliance_name)
           appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
           if appliance
@@ -227,7 +227,7 @@ module Morpheus
             ::Morpheus::Cli::Remote.recalculate_variable_map()
           end
         end
-        request_credentials(opts)
+        request_credentials(options)
       end
 
       def logout()
@@ -244,8 +244,8 @@ module Morpheus
         true
       end
 
-      def use_refresh_token(opts = {})
-        #puts "use_refresh_token(#{opts})"
+      def use_refresh_token(options = {})
+        #puts "use_refresh_token(#{options})"
         
         wallet = load_saved_credentials
 
@@ -264,7 +264,11 @@ module Morpheus
 
         begin
           auth_interface = Morpheus::AuthInterface.new(@appliance_url)
-          json_response = auth_interface.use_refresh_token(wallet['refresh_token'], opts)
+          if options[:dry_run]
+            print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'], options)
+            return nil
+          end
+          json_response = auth_interface.use_refresh_token(wallet['refresh_token'], options)
           #wallet = json_response
           login_date = Time.now
           expire_date = nil
@@ -286,13 +290,13 @@ module Morpheus
             json_response = JSON.parse(e.response.to_s)
             error_msg = json_response['error_description'] || "Refresh token not valid."
             print_red_alert error_msg
-            if opts[:json]
+            if options[:json]
               json_response = JSON.parse(e.response.to_s)
               print JSON.pretty_generate(json_response)
               print reset, "\n"
             end
           else
-            print_rest_exception(e, opts)
+            print_rest_exception(e, options)
           end
           wallet = nil
         end

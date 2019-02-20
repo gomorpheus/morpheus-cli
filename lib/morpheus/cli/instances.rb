@@ -96,10 +96,10 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.list(params)
+        print_dry_run @instances_interface.dry.list(params, options)
         return 0
       end
-      json_response = @instances_interface.list(params)
+      json_response = @instances_interface.list(params, options)
       if options[:json]
         puts as_json(json_response, options, "instances")
         return 0
@@ -209,10 +209,10 @@ class Morpheus::Cli::Instances
       params = {}
       params.merge!(parse_list_options(options))
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.list(params)
+        print_dry_run @instances_interface.dry.list(params, options)
         return
       end
-      json_response = @instances_interface.list(params)
+      json_response = @instances_interface.list(params, options)
       # print number only
       if json_response['meta'] && json_response['meta']['total']
         print cyan, json_response['meta']['total'], reset, "\n"
@@ -350,11 +350,11 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.create(payload)
+        print_dry_run @instances_interface.dry.create(payload, options)
         return 0
       end
 
-      json_response = @instances_interface.create(payload)
+      json_response = @instances_interface.create(payload, options)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -462,10 +462,10 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.update(instance["id"], payload)
+        print_dry_run @instances_interface.dry.update(instance["id"], payload, options)
         return
       end
-      json_response = @instances_interface.update(instance["id"], payload)
+      json_response = @instances_interface.update(instance["id"], payload, options)
 
       if options[:json]
         puts as_json(json_response, options)
@@ -538,10 +538,10 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_notes(instance["id"], payload)
+        print_dry_run @instances_interface.dry.update_notes(instance["id"], payload, options)
         return
       end
-      json_response = @instances_interface.update_notes(instance["id"], payload)
+      json_response = @instances_interface.update_notes(instance["id"], payload, options)
 
       if options[:json]
         puts as_json(json_response, options)
@@ -613,10 +613,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(arg)
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.get(instance['id'])
+        print_dry_run @instances_interface.dry.get(instance['id'], options)
         return 0
       end
-      json_response = @instances_interface.get(instance['id'])
+      json_response = @instances_interface.get(instance['id'], options)
       if options[:json]
         puts as_json(json_response, options, "stats")
         return 0
@@ -702,10 +702,10 @@ class Morpheus::Cli::Instances
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @logs_interface.dry.container_logs(container_ids, params)
+        print_dry_run @logs_interface.dry.container_logs(container_ids, params, options)
         return
       end
-      logs = @logs_interface.container_logs(container_ids, params)
+      logs = @logs_interface.container_logs(container_ids, params, options)
       output = ""
       if options[:json]
         puts as_json(logs, options)
@@ -798,14 +798,14 @@ class Morpheus::Cli::Instances
     begin
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @instances_interface.dry.get(arg.to_i)
+          print_dry_run @instances_interface.dry.get(arg.to_i, options)
         else
-          print_dry_run @instances_interface.dry.get({name:arg})
+          print_dry_run @instances_interface.dry.get({name:arg}, options)
         end
         return
       end
       instance = find_instance_by_name_or_id(arg)
-      json_response = @instances_interface.get(instance['id'])
+      json_response = @instances_interface.get(instance['id'], options)
       if options[:quiet]
         return 0
       end
@@ -828,13 +828,13 @@ class Morpheus::Cli::Instances
       # containers are fetched via separate api call
       containers = nil
       if options[:include_containers]
-        containers = @instances_interface.containers(instance['id'])['containers']
+        containers = @instances_interface.containers(instance['id'], options)['containers']
       end
 
       # threshold is fetched via separate api call too
       instance_threshold = nil
       if options[:include_scaling]
-        instance_threshold = @instances_interface.threshold(instance['id'])['instanceThreshold']
+        instance_threshold = @instances_interface.threshold(instance['id'], options)['instanceThreshold']
       end
 
       # loadBalancers is returned via show
@@ -1016,10 +1016,10 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(arg)
       return 1 if instance.nil?
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.containers(instance['id'], params)
+        print_dry_run @instances_interface.dry.containers(instance['id'], params, options)
         return
       end
-      json_response = @instances_interface.containers(instance['id'])
+      json_response = @instances_interface.containers(instance['id'], options)
       if options[:json]
         puts as_json(json_response, options, "containers")
         return 0
@@ -1098,10 +1098,10 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       params = {}
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.backups(instance['id'], params)
+        print_dry_run @instances_interface.dry.backups(instance['id'], params, options)
         return
       end
-      json_response = @instances_interface.backups(instance['id'], params)
+      json_response = @instances_interface.backups(instance['id'], params, options)
       if options[:json]
         puts as_json(json_response, options)
         return
@@ -1224,10 +1224,10 @@ class Morpheus::Cli::Instances
       end
       
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.clone(instance['id'], payload)
+        print_dry_run @instances_interface.dry.clone(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.clone(instance['id'], payload)
+      json_response = @instances_interface.clone(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -1256,10 +1256,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.get_envs(instance['id'])
+        print_dry_run @instances_interface.dry.get_envs(instance['id'], options)
         return
       end
-      json_response = @instances_interface.get_envs(instance['id'])
+      json_response = @instances_interface.get_envs(instance['id'], options)
       if options[:json]
         puts as_json(json_response, options)
         return
@@ -1305,10 +1305,10 @@ class Morpheus::Cli::Instances
       evar = {name: args[1], value: args[2], export: options[:export], masked: options[:masked]}
       payload = {envs: [evar]}
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.create_env(instance['id'], payload)
+        print_dry_run @instances_interface.dry.create_env(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.create_env(instance['id'], payload)
+      json_response = @instances_interface.create_env(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
         return
@@ -1337,10 +1337,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.del_env(instance['id'], args[1])
+        print_dry_run @instances_interface.dry.del_env(instance['id'], args[1], options)
         return
       end
-      json_response = @instances_interface.del_env(instance['id'], args[1])
+      json_response = @instances_interface.del_env(instance['id'], args[1], options)
       if options[:json]
         puts as_json(json_response, options)
         return
@@ -1390,13 +1390,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.stop(instance['id'], params), false
+          print_dry_run @instances_interface.dry.stop(instance['id'], params, options), false
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.stop(instance['id'], params)
+        json_response = @instances_interface.stop(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1450,13 +1450,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.start(instance['id'], params), false
+          print_dry_run @instances_interface.dry.start(instance['id'], params, options), false
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.start(instance['id'], params)
+        json_response = @instances_interface.start(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1516,13 +1516,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.restart(instance['id'], params), false
+          print_dry_run @instances_interface.dry.restart(instance['id'], params, options), false
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.restart(instance['id'], params)
+        json_response = @instances_interface.restart(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1577,10 +1577,10 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.suspend(instances.collect {|it| it['id'] }, params)
+        print_dry_run @instances_interface.dry.suspend(instances.collect {|it| it['id'] }, params, options)
         return
       end
-      json_response = @instances_interface.suspend(instances.collect {|it| it['id'] }, params)
+      json_response = @instances_interface.suspend(instances.collect {|it| it['id'] }, params, options)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1624,10 +1624,10 @@ class Morpheus::Cli::Instances
         return 9, "aborted command"
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.eject(instances.collect {|it| it['id'] }, params)
+        print_dry_run @instances_interface.dry.eject(instances.collect {|it| it['id'] }, params, options)
         return
       end
-      json_response = @instances_interface.eject(instances.collect {|it| it['id'] }, params)
+      json_response = @instances_interface.eject(instances.collect {|it| it['id'] }, params, options)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -1680,13 +1680,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.stop(instance['id'], params), false
+          print_dry_run @instances_interface.dry.stop(instance['id'], params, options)
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.stop(instance['id'], params)
+        json_response = @instances_interface.stop(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1740,13 +1740,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.start(instance['id'], params), false
+          print_dry_run @instances_interface.dry.start(instance['id'], params, options)
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.start(instance['id'], params)
+        json_response = @instances_interface.start(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1806,13 +1806,13 @@ class Morpheus::Cli::Instances
       if options[:dry_run]
         print_h1 "DRY RUN", [], options
         instances.each do |instance|
-          print_dry_run @instances_interface.dry.restart(instance['id'], params), false
+          print_dry_run @instances_interface.dry.restart(instance['id'], params, options)
         end
         return 0
       end
       bad_responses = []
       instances.each do |instance|
-        json_response = @instances_interface.restart(instance['id'], params)
+        json_response = @instances_interface.restart(instance['id'], params, options)
         render_result = render_with_format(json_response, options)
         if render_result
           #return 0
@@ -1868,10 +1868,10 @@ class Morpheus::Cli::Instances
     begin
       # instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.available_actions(instance_ids)
+        print_dry_run @instances_interface.dry.available_actions(instance_ids, options)
         return 0
       end
-      json_response = @instances_interface.available_actions(instance_ids)
+      json_response = @instances_interface.available_actions(instance_ids, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -1928,7 +1928,7 @@ class Morpheus::Cli::Instances
     instance_ids = instances.collect {|instance| instance["id"] }
 
     # figure out what action to run
-    available_actions = @instances_interface.available_actions(instance_ids)["actions"]
+    available_actions = @instances_interface.available_actions(instance_ids, options)["actions"]
     if available_actions.empty?
       if instance_ids.size > 1
         print_red_alert "The specified instances have no available actions in common."
@@ -1962,10 +1962,10 @@ class Morpheus::Cli::Instances
     #   _action(arg, action_id, options)
     # end
     if options[:dry_run]
-      print_dry_run @instances_interface.dry.action(instance_ids, action_id)
+      print_dry_run @instances_interface.dry.action(instance_ids, action_id, options)
       return 0
     end
-    json_response = @instances_interface.action(instance_ids, action_id)
+    json_response = @instances_interface.action(instance_ids, action_id, options)
     # just assume json_response["success"] == true,  it always is with 200 OK
     if options[:json]
       puts as_json(json_response, options)
@@ -2008,7 +2008,7 @@ class Morpheus::Cli::Instances
       puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
 
       # prompt for service plan
-      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
+      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id}, options)
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
@@ -2023,7 +2023,7 @@ class Morpheus::Cli::Instances
       #payload[:servicePlanId] = new_plan_id
       payload[:instance][:plan] = {id: service_plan["id"]}
 
-      volumes_response = @instances_interface.volumes(instance['id'])
+      volumes_response = @instances_interface.volumes(instance['id'], options)
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
@@ -2037,10 +2037,10 @@ class Morpheus::Cli::Instances
       payload[:deleteOriginalVolumes] = true
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.resize(instance['id'], payload)
+        print_dry_run @instances_interface.dry.resize(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.resize(instance['id'], payload)
+      json_response = @instances_interface.resize(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
         return 0
@@ -2072,10 +2072,10 @@ class Morpheus::Cli::Instances
         exit 1
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.backup(instance['id'])
+        print_dry_run @instances_interface.dry.backup(instance['id'], options)
         return
       end
-      json_response = @instances_interface.backup(instance['id'])
+      json_response = @instances_interface.backup(instance['id'], options)
       if options[:json]
         puts as_json(json_response, options)
         return 0
@@ -2138,10 +2138,10 @@ class Morpheus::Cli::Instances
         query_params[:removeVolumes] = 'on'
       end
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.destroy(instance['id'],query_params)
+        print_dry_run @instances_interface.dry.destroy(instance['id'],query_params, options)
         return
       end
-      json_response = @instances_interface.destroy(instance['id'],query_params)
+      json_response = @instances_interface.destroy(instance['id'],query_params, options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2170,10 +2170,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.firewall_disable(instance['id'])
+        print_dry_run @instances_interface.dry.firewall_disable(instance['id'], options)
         return
       end
-      json_response = @instances_interface.firewall_disable(instance['id'])
+      json_response = @instances_interface.firewall_disable(instance['id'], options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2201,10 +2201,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.firewall_enable(instance['id'])
+        print_dry_run @instances_interface.dry.firewall_enable(instance['id'], options)
         return
       end
-      json_response = @instances_interface.firewall_enable(instance['id'])
+      json_response = @instances_interface.firewall_enable(instance['id'], options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2232,10 +2232,10 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.security_groups(instance['id'])
+        print_dry_run @instances_interface.dry.security_groups(instance['id'], options)
         return
       end
-      json_response = @instances_interface.security_groups(instance['id'])
+      json_response = @instances_interface.security_groups(instance['id'], options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2292,10 +2292,10 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       payload = {securityGroupIds: security_group_ids}
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.apply_security_groups(instance['id'], payload)
+        print_dry_run @instances_interface.dry.apply_security_groups(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.apply_security_groups(instance['id'], payload)
+      json_response = @instances_interface.apply_security_groups(instance['id'], payload, options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2350,10 +2350,10 @@ class Morpheus::Cli::Instances
     workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
     begin
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.workflow(instance['id'],workflow['id'], workflow_payload)
+        print_dry_run @instances_interface.dry.workflow(instance['id'],workflow['id'], workflow_payload, options)
         return
       end
-      json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload)
+      json_response = @instances_interface.workflow(instance['id'],workflow['id'], workflow_payload, options)
       if options[:json]
         print as_json(json_response, options), "\n"
         return
@@ -2406,10 +2406,10 @@ class Morpheus::Cli::Instances
       end
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.import_snapshot(instance['id'], payload)
+        print_dry_run @instances_interface.dry.import_snapshot(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.import_snapshot(instance['id'], payload)
+      json_response = @instances_interface.import_snapshot(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -2447,10 +2447,10 @@ class Morpheus::Cli::Instances
     instance = find_instance_by_name_or_id(arg)
     return 1 if instance.nil?
     if options[:dry_run]
-      print_dry_run @instances_interface.dry.threshold(instance['id'], params)
+      print_dry_run @instances_interface.dry.threshold(instance['id'], params, options)
       return 0
     end
-    json_response = @instances_interface.threshold(instance['id'])
+    json_response = @instances_interface.threshold(instance['id'], options)
     if options[:json]
       puts as_json(json_response, options, "instanceThreshold")
       return 0
@@ -2583,10 +2583,10 @@ class Morpheus::Cli::Instances
       # end
       
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_threshold(instance['id'], payload)
+        print_dry_run @instances_interface.dry.update_threshold(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.update_threshold(instance['id'], payload)
+      json_response = @instances_interface.update_threshold(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -2623,11 +2623,11 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       return 1 if instance.nil?
       # refetch to get loadBalancers from show()
-      json_response = @instances_interface.get(instance['id'])
+      json_response = @instances_interface.get(instance['id'], options)
 
       current_instance_lb = nil
       # refetch to get current load balancer info from show()
-      json_response = @instances_interface.get(instance['id'])
+      json_response = @instances_interface.get(instance['id'], options)
       #load_balancers = @instances_interface.threshold(instance['id'])['loadBalancers'] || {}
       if json_response['loadBalancers'] && json_response['loadBalancers'][0] && json_response['loadBalancers'][0]['lbs'] && json_response['loadBalancers'][0]['lbs'][0]
         current_instance_lb = json_response['loadBalancers'][0]['lbs'][0]
@@ -2665,10 +2665,10 @@ class Morpheus::Cli::Instances
       end
       
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_load_balancer(instance['id'], payload)
+        print_dry_run @instances_interface.dry.update_load_balancer(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.update_load_balancer(instance['id'], payload)
+      json_response = @instances_interface.update_load_balancer(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -2716,10 +2716,10 @@ class Morpheus::Cli::Instances
       payload = {}
 
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.remove_load_balancer(instance['id'], payload)
+        print_dry_run @instances_interface.dry.remove_load_balancer(instance['id'], payload, options)
         return
       end
-      json_response = @instances_interface.remove_load_balancer(instance['id'], payload)
+      json_response = @instances_interface.remove_load_balancer(instance['id'], payload, options)
       if options[:json]
         puts as_json(json_response, options)
       else
@@ -2781,10 +2781,10 @@ class Morpheus::Cli::Instances
       params.merge!(parse_list_options(options))
       # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.history(instance['id'], params)
+        print_dry_run @instances_interface.dry.history(instance['id'], params, options)
         return
       end
-      json_response = @instances_interface.history(instance['id'], params)
+      json_response = @instances_interface.history(instance['id'], params, options)
       if options[:json]
         puts as_json(json_response, options, "processes")
         return 0
@@ -2913,10 +2913,10 @@ class Morpheus::Cli::Instances
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.history_details(instance['id'], process_id, params)
+        print_dry_run @instances_interface.dry.history_details(instance['id'], process_id, params, options)
         return
       end
-      json_response = @instances_interface.history_details(instance['id'], process_id, params)
+      json_response = @instances_interface.history_details(instance['id'], process_id, params, options)
       if options[:json]
         puts as_json(json_response, options, "process")
         return 0
@@ -3012,10 +3012,10 @@ class Morpheus::Cli::Instances
       params = {}
       params.merge!(parse_list_options(options))
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.history_event_details(instance['id'], process_event_id, params)
+        print_dry_run @instances_interface.dry.history_event_details(instance['id'], process_event_id, params, options)
         return
       end
-      json_response = @instances_interface.history_event_details(instance['id'], process_event_id, params)
+      json_response = @instances_interface.history_event_details(instance['id'], process_event_id, params, options)
       if options[:json]
         puts as_json(json_response, options, "processEvent")
         return 0
@@ -3096,11 +3096,11 @@ class Morpheus::Cli::Instances
       end
       # dry run?
       if options[:dry_run]
-        print_dry_run @execution_request_interface.dry.create(params, payload)
+        print_dry_run @execution_request_interface.dry.create(params, payload, options)
         return 0
       end
       # do it
-      json_response = @execution_request_interface.create(params, payload)
+      json_response = @execution_request_interface.create(params, payload, options)
       # print and return result
       if options[:quiet]
         return 0
