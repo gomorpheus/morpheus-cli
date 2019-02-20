@@ -119,10 +119,12 @@ EOT
       puts_error  "wrong number of arguments, expected 0 and got #{args.count} #{args.join(' ')}\n#{optparse}"
       return 1
     end
-    if Morpheus::Benchmarking.enabled?
-      puts "#{cyan}benchmark: #{green}on#{reset}" unless options[:quiet]
-    else
-      puts "#{cyan}benchmark: #{dark}off#{reset}" unless options[:quiet]
+    unless options[:quiet]
+      if Morpheus::Benchmarking.enabled?
+        puts "#{cyan}benchmark: #{green}on#{reset}"
+      else
+        puts "#{cyan}benchmark: #{dark}off#{reset}"
+      end
     end
     return Morpheus::Benchmarking.enabled? ? 1 : 0
   end

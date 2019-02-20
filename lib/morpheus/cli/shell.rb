@@ -495,14 +495,6 @@ class Morpheus::Cli::Shell
         Morpheus::RestClient.enable_ssl_verification = false
         return 0
 
-      # use log-level [debug|info]
-      # elsif input =~ /^log_level/ # hidden for now
-      #   log_level = input.sub(/^log_level\s*/, '').strip
-      #   if log_level == ""
-      #     puts "#{Morpheus::Logging.log_level}"
-      elsif input == "debug"
-        log_history_command(input)
-        return Morpheus::Cli::LogLevelCommand.new.handle(["debug"])
       elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
         # need a logged_in? method already damnit
         #wallet = @wallet
@@ -524,20 +516,15 @@ class Morpheus::Cli::Shell
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
       cmd_result = nil
-      # crap hack, naming conflicts can occur with aliases
-      unless input =~ /log-level/
-        @return_to_log_level = Morpheus::Logging.log_level
-      end
-      unless input =~ /coloring/
-        @return_to_coloring = Term::ANSIColor::coloring?
-      end
-      unless input =~ /^benchmark/
-        @return_to_benchmarking = Morpheus::Benchmarking.enabled?
-      end
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
         cmd_args = argv[1..-1]
+        # crap hack, naming conflicts can occur with aliases
+        @return_to_log_level = ["log-level","debug"].include?(cmd_name) ? nil : Morpheus::Logging.log_level
+        @return_to_coloring = ["coloring"].include?(cmd_name) ? nil : Term::ANSIColor::coloring?
+        @return_to_benchmarking = ["benchmarking"].include?(cmd_name) ? nil : Morpheus::Benchmarking.enabled?
+        
         if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
           # start a benchmark, unless the command is benchmark of course

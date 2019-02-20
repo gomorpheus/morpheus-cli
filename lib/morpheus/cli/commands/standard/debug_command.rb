@@ -1,12 +1,11 @@
-require 'optparse'
 require 'morpheus/cli/cli_command'
-require 'json'
+require 'morpheus/logging'
 
 # This is for use in dotfile scripts
 # It allows you to turn colors on or off globally
-class Morpheus::Cli::ColoringCommand
+class Morpheus::Cli::DebugCommand
   include Morpheus::Cli::CliCommand
-  set_command_name :coloring
+  set_command_name :debug
   set_command_hidden
 
   def handle(args)
@@ -19,7 +18,7 @@ class Morpheus::Cli::ColoringCommand
         puts opts
         exit
       end
-      opts.footer = "Enable [on] or Disable [off] ANSI Colors for all output.\n" + 
+      opts.footer = "Enable [on] or Disable [off] debugging for all output.\n" + 
                     "Use [on?] or [off?] to print the current value and exit accordingly." + "\n" +
                     "Pass no arguments to just print the current value."
     end
@@ -35,23 +34,25 @@ class Morpheus::Cli::ColoringCommand
     else
       subcmd = args[0].to_s.strip
       if subcmd == "on"
-        Term::ANSIColor::coloring = true
+        Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+        ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       elsif subcmd == "off"
-        Term::ANSIColor::coloring = false
+        Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
+        ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       elsif subcmd == "on?"
-        exit_code = Term::ANSIColor::coloring? ? 0 : 1
+        exit_code = Morpheus::Logging.debug? ? 0 : 1
       elsif subcmd == "off?"
-        exit_code = Term::ANSIColor::coloring? ? 1 : 0
+        exit_code = Morpheus::Logging.debug? ? 1 : 0
       else
         puts optparse
         return 127
       end
     end
     unless options[:quiet]
-      if Term::ANSIColor::coloring?
-        puts "#{cyan}coloring: #{bold}#{green}on#{reset}"
+      if Morpheus::Logging.debug?
+        puts "#{cyan}debug: #{green}on#{reset}"
       else
-        puts "coloring: off"
+        puts "#{cyan}debug: #{dark}off#{reset}"
       end
     end
     return exit_code
