@@ -91,10 +91,11 @@ class Morpheus::APIClient
   #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
   def execute(opts, options={})
     # merge in common global @options
+    puts "api_client @options is: #{@options}"
     if @options
       options = options.merge(@options)
     else
-      #options = options.clone
+      options = options.clone
     end
 
     # default HTTP method
@@ -123,11 +124,15 @@ class Morpheus::APIClient
     end
 
     # use custom timeout eg. from --timeout option
-    opts[:timeout] = options[:timeout].to_f if options[:timeout]
+    if options[:timeout]
+      opts[:timeout] = options[:timeout].to_f
+    end
     
     # add extra headers, eg. from --header option
     # headers should be a Hash and not an Array, dont make me split you here!
-    opts[:headers].merge(options[:headers]) if options[:headers]
+    if options[:headers]
+      opts[:headers] = opts[:headers].merge(options[:headers])
+    end
 
     # this is confusing, but RestClient expects :params inside the headers...?
     # right?
@@ -137,6 +142,7 @@ class Morpheus::APIClient
       opts[:headers][:params] = opts[:params] # .delete(:params) maybe?
     end
 
+    puts "api_client opts is: #{opts}"
 
     # :command_options for these
     # if options[:curl]
