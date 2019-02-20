@@ -38,6 +38,7 @@ class Morpheus::Cli::Whoami
 
   def show(args)
     options = {}
+    params = {}
     username_only = false
     access_token_only = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -82,7 +83,7 @@ class Morpheus::Cli::Whoami
       end
       
       if options[:dry_run]
-        print_dry_run @api_client.whoami.dry.get()
+        print_dry_run @api_client.whoami.dry.get(params, options)
         return 0
       end
 

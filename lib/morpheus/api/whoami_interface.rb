@@ -8,10 +8,10 @@ class Morpheus::WhoamiInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get()
+  def get(params={}, options={})
     url = "#{@base_url}/api/whoami"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    execute(method: :get, url: url, headers: headers, timeout: 5)
+    execute({method: :get, url: url, headers: headers, timeout: 5}, options)
   end
 
 end
