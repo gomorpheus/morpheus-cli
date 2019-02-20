@@ -134,7 +134,7 @@ module Morpheus::Cli::PrintHelper
     options ||= {}
     # api client injects common command options here
     if api_request[:command_options]
-      options.merge!(api_request[:command_options])
+      options = options.merge(api_request[:command_options])
     end
     options ||= {}
     # parse params request arguments
