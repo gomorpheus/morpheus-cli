@@ -260,7 +260,7 @@ module Morpheus::Cli::PrintHelper
         unless k == :params
           header_value = v
           out <<  ' \\' + "\n"
-          header_line = "  -H \"#{k.to_s.capitalize}: #{v}\""
+          header_line = "  -H \"#{k.is_a?(Symbol) ? k.to_s.capitalize : k.to_s}: #{v}\""
           if options[:scrub]
             header_line = Morpheus::Logging.scrub_message(header_line)
           end
