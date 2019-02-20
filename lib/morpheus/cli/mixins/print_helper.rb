@@ -245,10 +245,9 @@ module Morpheus::Cli::PrintHelper
   # curl -XPOST "https://api.gomorpheus.com/api/cypher" \
   #   -H "Authorization: BEARER ******************" \
   #   -H "Content-Type: application/json" \
-  #   -d '{"cypher":{
-  #     "itemKey": "secret/mysecret",
-  #     "itemValue": "meow"
-  #   }}'
+  #   -d '{
+  #     "value": "mysecret"
+  #   }'
   def format_curl_command(http_method, url, headers, payload=nil, options={})
     options ||= {}
     # build curl [options]
