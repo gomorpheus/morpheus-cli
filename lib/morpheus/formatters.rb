@@ -1,7 +1,7 @@
 require 'time'
 require 'filesize'
 
-DEFAULT_TIME_FORMAT = "%x %I:%M %p %Z"
+DEFAULT_TIME_FORMAT = "%x %I:%M %p"
 
 # returns an instance of Time
 def parse_time(dt, format=nil)
