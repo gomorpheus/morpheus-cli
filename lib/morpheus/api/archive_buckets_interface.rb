@@ -89,7 +89,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
     url = "#{@base_url}/api/archives/buckets/#{URI.escape(bucket_id.to_s)}" + ".zip"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
-    # execute(opts, false)
+    # execute(opts, {parse_json:false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end

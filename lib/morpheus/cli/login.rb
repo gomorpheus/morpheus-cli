@@ -101,7 +101,7 @@ class Morpheus::Cli::Login
       # maybe it should not ever log you out unless it succeeds (and overwrites your current session)
       # old_wallet = @wallet
       old_wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-      if old_wallet && old_wallet['access_token'] && options[:test_only] != true
+      if old_wallet && old_wallet['access_token'] && !options[:dry_run] && !options[:test_only]
         unless options[:quiet]
           print reset,"You have been automatically logged out. Goodbye #{old_wallet['username']}!", reset, "\n"
         end

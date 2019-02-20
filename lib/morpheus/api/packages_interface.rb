@@ -84,7 +84,7 @@ class Morpheus::PackagesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/packages/export"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :post, url: url, headers: headers}
-    # execute(opts, false)
+    # execute(opts, {parse_json: false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end

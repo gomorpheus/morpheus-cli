@@ -15,24 +15,21 @@ class Morpheus::AccountsInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/accounts"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
-  def create(options)
+  def create(payload)
     url = "#{@base_url}/api/accounts"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def update(id, options)
+  def update(id, payload)
     url = "#{@base_url}/api/accounts/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 

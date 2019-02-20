@@ -9,47 +9,38 @@ class Morpheus::CypherInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(id, params={})
-    raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/cypher/#{id}"
+  def get(item_key, params={})
+    raise "#{self.class}.get() passed a blank item_key!" if item_key.to_s == ''
+    url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute({method: :get, url: url, headers: headers})
   end
 
-  def list(params={})
-    url = "#{@base_url}/api/cypher"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+  # list url is the same as get but uses $itemKey/?list=true
+  # method: 'LIST' would be neat though
+  def list(item_key=nil, params={}, options={})
+    url = item_key ? "#{@base_url}/api/cypher/v1/#{item_key}" : "#{@base_url}/api/cypher/v1"
+    params.merge!({list:'true'})
+    headers = { params: params, authorization: "Bearer #{@access_token}" }.merge(options[:headers] || {})
+    execute({method: :get, url: url, headers: headers})
   end
 
-  def create(payload)
-    url = "#{@base_url}/api/cypher"
+  def create(item_key, payload, options={})
+    url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute({method: :post, url: url, headers: headers, payload: payload.to_json})
   end
 
-  def update(id, payload)
-    url = "#{@base_url}/api/cypher/#{id}"
+  def update(item_key, payload, options={})
+    url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
+    execute({method: :put, url: url, headers: headers, payload: payload.to_json})
   end
 
-  def destroy(id, params={})
-    url = "#{@base_url}/api/cypher/#{id}"
+  def destroy(item_key, params={}, options={})
+    url = "#{@base_url}/api/cypher/v1/#{item_key}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
-    execute(opts)
-  end
-
-  def decrypt(id, params={})
-    url = "#{@base_url}/api/cypher/#{id}/decrypt"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+    execute({method: :delete, url: url, headers: headers})
   end
 
 end

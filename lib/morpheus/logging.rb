@@ -76,15 +76,15 @@ module Morpheus::Logging
     self.debug?
   end
 
-  # mask well known secrets
+  # mask well known secrets and password patterns
   def self.scrub_message(msg)
     if msg.is_a?(String)
       msg = msg.clone
       msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
       msg.gsub!(/Authorization\:\s?Bearer [^"'']+/, 'Authorization: Bearer ************')
       msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
-      msg.gsub!(/password\=\"[^" ]+/, 'password="************')
-      msg.gsub!(/password\=[^" ]+/, 'password=************')
+      msg.gsub!(/password\=\"[^"]+/, 'password="************')
+      msg.gsub!(/password\=[^"'&\Z]+/, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh
       msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation="************')
       msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation=************')
     end

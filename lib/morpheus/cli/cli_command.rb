@@ -436,7 +436,7 @@ module Morpheus
               Morpheus::RestClient.enable_ssl_verification = false
             end
           
-          when :header, :headers
+          #when :header, :headers
             opts.on( '-H', '--header HEADER', "Additional HTTP header to include with requests." ) do |val|
               options[:headers] ||= {}
               # header_list = val.to_s.split(',')
@@ -458,10 +458,11 @@ module Morpheus
             # opts.add_hidden_option('--header') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.add_hidden_option('--headers') if opts.is_a?(Morpheus::Cli::OptionParser)
 
-          when :timeout
-            opts.on( '--timeout SECONDS', "A timeout for api requests. Default is usually 30 seconds." ) do |val|
+          #when :timeout
+            opts.on( '--timeout SECONDS', "Timeout for api requests. Default is typically 30 seconds." ) do |val|
               options[:timeout] = val ? val.to_f : nil
             end
+            # opts.add_hidden_option('--timeout') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :auto_confirm
             opts.on( '-y', '--yes', "Auto Confirm" ) do

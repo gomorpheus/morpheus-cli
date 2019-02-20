@@ -48,7 +48,7 @@ class Morpheus::FileCopyRequestInterface < Morpheus::APIClient
     url = "#{@base_url}/api/file-copy-request/download/#{URI.escape(id)}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
-    # execute(opts, false)
+    # execute(opts, {parse_json: false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end

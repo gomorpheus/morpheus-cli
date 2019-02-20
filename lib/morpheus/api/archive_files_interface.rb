@@ -21,7 +21,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/archives/download" + "/#{full_file_path}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
-    execute(opts, false)
+    execute(opts, {parse_json: false})
   end
 
   def download_file_by_path_chunked(full_file_path, outfile, params={})
@@ -29,7 +29,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/archives/download" + "/#{full_file_path}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
-    # execute(opts, false)
+    # execute(opts, {parse_json: false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end
@@ -59,7 +59,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
     url = "#{@base_url}/public-archives/download" + "/#{full_file_path}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
-    # execute(opts, false)
+    # execute(opts, {parse_json: false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end
@@ -90,7 +90,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
     params['s'] = link_key
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
-    # execute(opts, false)
+    # execute(opts, {parse_json: false})
     if Dir.exists?(outfile)
       raise "outfile is invalid. It is the name of an existing directory: #{outfile}"
     end

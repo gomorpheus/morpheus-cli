@@ -130,7 +130,7 @@ class Morpheus::Cli::Hosts
         params['createdBy'] = created_by_ids
       end
 
-
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.list(params)
         return
@@ -246,6 +246,7 @@ class Morpheus::Cli::Hosts
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.list(params)
         return
@@ -294,14 +295,14 @@ class Morpheus::Cli::Hosts
     begin
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @servers_interface.dry.get(arg.to_i)
+          print_dry_run @servers_interface.setopts(options).get(arg.to_i)
         else
-          print_dry_run @servers_interface.dry.list({name: arg})
+          print_dry_run @servers_interface.setopts(options).list({name: arg})
         end
         return
       end
       server = find_host_by_name_or_id(arg)
-      json_response = @servers_interface.get(server['id'])
+      json_response = @servers_interface.setopts(options).get(server['id'])
       if options[:json]
         json_response.delete('stats') if options[:include_fields]
         puts as_json(json_response, options, "server")
@@ -385,14 +386,14 @@ class Morpheus::Cli::Hosts
     begin
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @servers_interface.dry.get(arg.to_i)
+          print_dry_run @servers_interface.setopts(options).get(arg.to_i)
         else
-          print_dry_run @servers_interface.dry.list({name: arg})
+          print_dry_run @servers_interface.setopts(options).list({name: arg})
         end
         return
       end
       server = find_host_by_name_or_id(arg)
-      json_response = @servers_interface.get(server['id'])
+      json_response = @servers_interface.setopts(options).get(server['id'])
       if options[:json]
         puts as_json(json_response, options, "stats")
         return 0
@@ -441,6 +442,7 @@ class Morpheus::Cli::Hosts
         params[k] = options[k] unless options[k].nil?
       end
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.server_logs([server['id']], params)
         return
@@ -673,6 +675,7 @@ class Morpheus::Cli::Hosts
         payload.deep_merge!(params)
         
       end
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.create(payload)
         return
@@ -746,6 +749,7 @@ class Morpheus::Cli::Hosts
         payload['server'] = params
       end
 
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.update(server["id"], payload)
         return
@@ -802,6 +806,7 @@ class Morpheus::Cli::Hosts
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the server '#{server['name']}'?", options)
         exit 1
       end
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.destroy(server['id'], query_params)
         return
@@ -846,6 +851,7 @@ class Morpheus::Cli::Hosts
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{objects_label}?", options)
         return 9, "aborted command"
       end
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.start(hosts.collect {|it| it['id'] })
         return
@@ -890,6 +896,7 @@ class Morpheus::Cli::Hosts
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{objects_label}?", options)
         return 9, "aborted command"
       end
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.stop(hosts.collect {|it| it['id'] })
         return
@@ -981,7 +988,7 @@ class Morpheus::Cli::Hosts
       # only amazon supports this option
       # for now, always do this
       payload[:deleteOriginalVolumes] = true
-
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.resize(server['id'], payload)
         return
@@ -1034,7 +1041,7 @@ class Morpheus::Cli::Hosts
         payload['server']['account'] = {id: account}
       end
       payload['server'].merge!(params)
-
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.install_agent(host['id'], payload)
         return
@@ -1068,6 +1075,7 @@ class Morpheus::Cli::Hosts
     connect(options)
     begin
       host = find_host_by_name_or_id(args[0])
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.upgrade(host['id'])
         return
@@ -1147,6 +1155,7 @@ class Morpheus::Cli::Hosts
     end
 
     begin
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.workflow(host['id'],workflow['id'], payload)
         return
@@ -1222,6 +1231,7 @@ class Morpheus::Cli::Hosts
         payload['script'] = script_content
       end
       # dry run?
+      @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execution_request_interface.dry.create(params, payload)
         return 0

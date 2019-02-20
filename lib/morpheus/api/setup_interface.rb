@@ -17,7 +17,7 @@ class Morpheus::SetupInterface < Morpheus::APIClient
     url = "#{@base_url}/ping"
     headers = {:params => params }
     opts = {method: :get, url: url, headers: headers, timeout: timeout}
-    execute(opts, false)
+    execute(opts, {parse_json: false})
   end
 
   def check(params={}, timeout=5)
