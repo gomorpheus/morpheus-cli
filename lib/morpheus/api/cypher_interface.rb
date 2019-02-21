@@ -21,7 +21,7 @@ class Morpheus::CypherInterface < Morpheus::APIClient
   def list(item_key=nil, params={})
     url = item_key ? "#{@base_url}/api/cypher/v1/#{item_key}" : "#{@base_url}/api/cypher/v1"
     params.merge!({list:'true'})
-    headers = { params: params, authorization: "Bearer #{@access_token}" }.merge(options[:headers] || {})
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute({method: :get, url: url, headers: headers})
   end
 
