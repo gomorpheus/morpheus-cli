@@ -65,13 +65,6 @@ module Morpheus
       Dir[File.dirname(__FILE__)  + "/cli/commands/standard/**/*.rb"].each {|file| load file }
 
       # shell scripting commands
-      load 'morpheus/cli/source_command.rb'
-      load 'morpheus/cli/echo_command.rb'
-      load 'morpheus/cli/sleep_command.rb'
-      load 'morpheus/cli/coloring_command.rb'
-      load 'morpheus/cli/ssl_verification_command.rb'
-      load 'morpheus/cli/edit_profile_command.rb'
-      load 'morpheus/cli/edit_rc_command.rb'
 
       # all the known commands
       load 'morpheus/cli/remote.rb'
@@ -154,13 +147,6 @@ module Morpheus
       load 'morpheus/cli/execution_request_command.rb'
       load 'morpheus/cli/file_copy_request_command.rb'
       load 'morpheus/cli/processes_command.rb'
-
-      # nice to have commands
-      load 'morpheus/cli/curl_command.rb'
-      load 'morpheus/cli/set_prompt_command.rb'
-      load 'morpheus/cli/get_prompt_command.rb'
-      load 'morpheus/cli/man_command.rb' # please implement me
-
 
       # Your new commands go here...
 
