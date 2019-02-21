@@ -13,7 +13,7 @@ class Morpheus::Cli::LogLevelCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [debug|info|0|1]"
       #build_common_options(opts, options, [])
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

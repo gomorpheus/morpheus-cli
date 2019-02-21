@@ -667,7 +667,7 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
-      opts.footer = "Prints the name of the current remote appliance"
+      opts.footer = "Print the name of the current remote appliance"
     end
     optparse.parse!(args)
 

@@ -624,7 +624,7 @@ module Morpheus
           # end
         end
 
-        opts.on('-h', '--help', "Prints this help" ) do
+        opts.on('-h', '--help', "Print this help" ) do
           puts opts
           exit # return 0 maybe?
         end

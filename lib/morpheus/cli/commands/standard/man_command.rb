@@ -41,7 +41,7 @@ class Morpheus::Cli::ManCommand
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       end
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

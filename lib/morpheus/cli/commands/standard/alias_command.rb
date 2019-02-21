@@ -42,7 +42,7 @@ class Morpheus::Cli::AliasCommand
       opts.on( '-e', '--export', "Export this alias to your .morpheus_profile for future use" ) do
         do_export = true
       end
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

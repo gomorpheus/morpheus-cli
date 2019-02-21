@@ -90,7 +90,7 @@ class Morpheus::Cli::Shell
 
   def recalculate_auto_complete_commands
     @morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
-    @shell_commands = [:clear, :history, :'flush-history', :reload!, :help, :exit]
+    @shell_commands = [:clear, :history, :reload!, :help, :exit]
     @alias_commands = Morpheus::Cli::CliRegistry.all_aliases.keys
     @exploded_commands = []
     Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
@@ -177,7 +177,7 @@ class Morpheus::Cli::Shell
         Morpheus::Benchmarking.enabled = true
         my_terminal.benchmarking = Morpheus::Benchmarking.enabled
       end
-      opts.on( '-h', '--help', "Prints this help" ) do
+      opts.on( '-h', '--help', "Print this help" ) do
         puts opts
         exit
       end
@@ -374,37 +374,37 @@ class Morpheus::Cli::Shell
       #     Morpheus::Logging::DarkPrinter.puts "\nInterrupt. waking up from sleep early"
       #   end
       #   return 0
-      elsif input =~ /^history/
-        n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
-        n_commands = n_commands.empty? ? 25 : n_commands.to_i
-        cmd_numbers = @history.keys.last(n_commands)
-        if cmd_numbers.size == 1
-          puts "Last command"
-        else
-          puts "Last #{cmd_numbers.size} commands"
-        end
-        cmd_numbers.each do |cmd_number|
-          cmd = @history[cmd_number]
-          puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
-        end
-        last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
-        if input != last_cmd # no consecutive
-          log_history_command(input)
-        end
-        return 0
+      # elsif input =~ /^history/
+      #   n_commands = input.sub(/^history\s?/, '').sub(/\-n\s?/, '')
+      #   n_commands = n_commands.empty? ? 25 : n_commands.to_i
+      #   cmd_numbers = @history.keys.last(n_commands)
+      #   if cmd_numbers.size == 1
+      #     puts "Last command"
+      #   else
+      #     puts "Last #{cmd_numbers.size} commands"
+      #   end
+      #   cmd_numbers.each do |cmd_number|
+      #     cmd = @history[cmd_number]
+      #     puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
+      #   end
+      #   last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
+      #   if input != last_cmd # no consecutive
+      #     log_history_command(input)
+      #   end
+      #   return 0
       elsif input == 'clear'
         print "\e[H\e[2J"
         return 0
-      elsif input == 'flush-history' || input == 'flush_history'
-        file_path = history_file_path
-        if File.exists?(file_path)
-          File.truncate(file_path, 0)
-        end
-        @history = {}
-        @last_command_number = 0
-        @history_logger = load_history_logger
-        puts "history cleared!"
-        return 0
+      # elsif input == 'flush-history' || input == 'flush_history'
+      #   file_path = history_file_path
+      #   if File.exists?(file_path)
+      #     File.truncate(file_path, 0)
+      #   end
+      #   @history = {}
+      #   @last_command_number = 0
+      #   @history_logger = load_history_logger
+      #   puts "history cleared!"
+      #   return 0
       # elsif input == "edit rc"
       #   fn = Morpheus::Cli::DotFile.morpheusrc_filename
       #   editor = ENV['EDITOR'] # || 'nano'
@@ -666,5 +666,65 @@ class Morpheus::Cli::Shell
     if @history_logger
       @history_logger.info "#{@current_username}@#{@appliance_name} -- : (cmd #{@last_command_number}) #{cmd}"
     end
+  end
+
+  def last_command(n=25)
+    return list_history_commands(max:1)[0]
+  end
+
+  # list the N most recent commands, sorted oldest -> newest
+  # todo: support sort and order options..
+  def list_history_commands(options={})
+    history_records = []
+    max = options[:max] ? options[:max].to_i : 25
+    max = 50
+    load_history_from_log_file if !@history
+    cmd_numbers = @history.keys.last(max.to_i)
+    history_records = cmd_numbers.collect { |cmd_number| {command_number: cmd_number, command: @history[cmd_number]} }
+    last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
+    # if input != last_cmd # no consecutive
+    #   log_history_command(input)
+    # end
+    return history_records
+  end
+
+  def print_history(n)
+    n ||= 25
+    load_history_from_log_file if !@history
+    cmd_numbers = @history.keys.last(n.to_i)
+    if cmd_numbers.size == 1
+      puts "Last command"
+    else
+      puts "Last #{cmd_numbers.size} commands"
+    end
+    print cyan
+    cmd_numbers.each do |cmd_number|
+      cmd = @history[cmd_number]
+      puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
+    end
+    print reset
+    #last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
+    # if input != last_cmd # no consecutive
+    #   log_history_command(input)
+    # end
+    return 0
+  end
+
+  def history_commands_count()
+    load_history_from_log_file if !@history
+    @history.keys.size
+  end
+
+  def flush_history(n=nil)
+    # todo: support only flushing last n commands
+      file_path = history_file_path
+      if File.exists?(file_path)
+        File.truncate(file_path, 0)
+      end
+      @history = {}
+      @last_command_number = 0
+      @history_logger = load_history_logger
+      print cyan, "Command history flushed!", reset, "\n"
+      return 0
   end
 end

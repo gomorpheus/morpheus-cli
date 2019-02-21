@@ -782,7 +782,7 @@ class Morpheus::Cli::Instances
       # opts.on( nil, '--lb', "Display Load Balancer Details" ) do
       #   options[:include_lb] = true
       # end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about an instance.\n" + 
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end

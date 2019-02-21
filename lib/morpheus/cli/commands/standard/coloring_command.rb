@@ -15,7 +15,7 @@ class Morpheus::Cli::ColoringCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [on|off]"
       #build_common_options(opts, options, [])
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

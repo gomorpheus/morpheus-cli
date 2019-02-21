@@ -22,7 +22,7 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = usage
       #build_common_options(opts, options, [])
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

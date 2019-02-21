@@ -12,7 +12,7 @@ class Morpheus::Cli::SetPromptCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [prompt]"
-      opts.on('-h', '--help', "Prints this help" ) do
+      opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
       end

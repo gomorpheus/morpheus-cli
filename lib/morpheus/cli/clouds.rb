@@ -60,10 +60,10 @@ class Morpheus::Cli::Clouds
       end
 
       params.merge!(parse_list_options(options))
-
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.get(params)
-        return
+        return 0
       end
 
       json_response = @clouds_interface.get(params)
@@ -113,6 +113,7 @@ class Morpheus::Cli::Clouds
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.get(params)
         return
@@ -153,6 +154,7 @@ class Morpheus::Cli::Clouds
   def _get(arg, options={})
     begin
       if options[:dry_run]
+        @clouds_interface.setopts(options)
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @clouds_interface.dry.get(arg.to_i)
         else
@@ -166,6 +168,7 @@ class Morpheus::Cli::Clouds
       #   print_dry_run @clouds_interface.dry.get(cloud['id'])
       #   return
       # end
+      @clouds_interface.setopts(options)
       json_response = @clouds_interface.get(cloud['id'])
       cloud = json_response['zone']
       cloud_stats = cloud['stats']
@@ -323,6 +326,7 @@ class Morpheus::Cli::Clouds
         cloud_payload.deep_merge!(params)
         payload = {zone: cloud_payload}
       end
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.create(payload)
         return
@@ -377,7 +381,7 @@ class Morpheus::Cli::Clouds
         end
       else
         cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
-        cloud_payload = {id: cloud['id']}
+        cloud_payload = {}
         all_option_types = update_cloud_option_types(cloud_type)
         #params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {zoneTypeId: cloud_type['id']})
         params = options[:options] || {}
@@ -393,7 +397,7 @@ class Morpheus::Cli::Clouds
         cloud_payload.merge!(params)
         payload = {zone: cloud_payload}
       end
-
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.update(cloud['id'], payload)
         return
@@ -433,6 +437,7 @@ class Morpheus::Cli::Clouds
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the cloud #{cloud['name']}?")
         exit
       end
+      @clouds_interface.setopts(options)
       json_response = @clouds_interface.destroy(cloud['id'], query_params)
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -462,6 +467,7 @@ class Morpheus::Cli::Clouds
     connect(options)
     begin
       cloud = find_cloud_by_name_or_id(args[0])
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.firewall_disable(cloud['id'])
         return
@@ -494,6 +500,7 @@ class Morpheus::Cli::Clouds
     connect(options)
     begin
       cloud = find_cloud_by_name_or_id(args[0])
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.firewall_enable(cloud['id'])
         return
@@ -527,6 +534,7 @@ class Morpheus::Cli::Clouds
     begin
       cloud = find_cloud_by_name_or_id(args[0])
       zone_id = cloud['id']
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.security_groups(zone_id)
         return
@@ -580,6 +588,7 @@ class Morpheus::Cli::Clouds
     connect(options)
     begin
       cloud = find_cloud_by_name_or_id(args[0])
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.apply_security_groups(cloud['id'])
         return
@@ -607,9 +616,10 @@ class Morpheus::Cli::Clouds
     optparse.parse!(args)
     connect(options)
     begin
+      @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.cloud_types({})
-        return
+        return 0
       end
       cloud_types = get_available_cloud_types() # @clouds_interface.dry.cloud_types({})['zoneTypes']
       if options[:json]

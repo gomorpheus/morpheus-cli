@@ -36,22 +36,25 @@ class Morpheus::Cli::Groups
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :remote])
-      opts.footer = "This outputs a paginated list of groups."
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List groups (sites)."
     end
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
+      params.merge!(parse_list_options(options))
+      @groups_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @groups_interface.get(params)
+        return 0
       end
       json_response = @groups_interface.get(params)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options, 'groups')
+      return 0 if render_result
+
       groups = json_response['groups']
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
       print_h1 "Morpheus Groups"
       if groups.empty?
         print yellow,"No groups currently configured.",reset,"\n"
@@ -81,8 +84,9 @@ class Morpheus::Cli::Groups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :remote])
-      opts.footer = "This outputs details about a specific group."
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a group.\n" + 
+                    "[name] is required. This is the name or id of a group. Supports 1-N arguments."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -90,14 +94,31 @@ class Morpheus::Cli::Groups
       exit 1
     end
     connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+
+  def _get(arg, options={})
     begin
-      group = find_group_by_name_or_id(args[0])
+      if options[:dry_run]
+        @groups_interface.setopts(options)
+        if arg.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @groups_interface.dry.get(arg.to_i)
+        else
+          print_dry_run @groups_interface.dry.get({name:arg})
+        end
+        return 0
+      end
+      group = find_group_by_name_or_id(arg)
+      @groups_interface.setopts(options)
       #json_response = @groups_interface.get(group['id'])
       json_response = {'group' => group}
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+
       group = json_response['group']
       is_active = @active_group_id && (@active_group_id == group['id'])
       print_h1 "Group Details"
@@ -169,7 +190,7 @@ class Morpheus::Cli::Groups
       params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
       group_payload.merge!(params)
       payload = {group: group_payload}
-
+      @groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @groups_interface.dry.create(payload)
         return
@@ -212,7 +233,7 @@ class Morpheus::Cli::Groups
     connect(options)
     begin
       group = find_group_by_name_or_id(args[0])
-      group_payload = {id: group['id']}
+      group_payload = {}
 
       #params = Morpheus::Cli::OptionTypes.prompt(update_group_option_types, options[:options], @api_client, {})
       params = options[:options] || {}
@@ -225,7 +246,7 @@ class Morpheus::Cli::Groups
       group_payload.merge!(params)
 
       payload = {group: group_payload}
-
+      @groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @groups_interface.dry.update(group['id'], payload)
         return
@@ -268,6 +289,7 @@ class Morpheus::Cli::Groups
       end
       new_zones = current_zones + [{'id' => cloud['id']}]
       payload = {group: {id: group["id"], zones: new_zones}}
+      @groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @groups_interface.dry.update_zones(group["id"], payload)
         return
@@ -311,6 +333,7 @@ class Morpheus::Cli::Groups
       end
       new_zones = current_zones.reject {|it| it["id"] == cloud["id"] }
       payload = {group: {id: group["id"], zones: new_zones}}
+      @groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @groups_interface.dry.update_zones(group["id"], payload)
         return
@@ -350,6 +373,7 @@ class Morpheus::Cli::Groups
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group['name']}?")
         exit
       end
+      @groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @groups_interface.dry.destroy(group['id'])
         return
@@ -439,7 +463,7 @@ class Morpheus::Cli::Groups
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [])
-      opts.footer = "Prints the name of the current active group"
+      opts.footer = "Print the name of the current active group"
     end
     optparse.parse!(args)
     connect(options)
