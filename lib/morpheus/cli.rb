@@ -116,14 +116,6 @@ module Morpheus
       load 'morpheus/cli/library_container_templates_command.rb'
       load 'morpheus/cli/library_option_types_command.rb'
       load 'morpheus/cli/library_option_lists_command.rb'
-      load 'morpheus/cli/packages_command.rb'
-
-      load 'morpheus/cli/version_command.rb'
-      load 'morpheus/cli/alias_command.rb'
-      # todo: combine checks, incidents, apps, and goups under monitoring?
-      # `monitoring apps|groups` still needed, 
-      # maybe they should go under the apps and groups commands instead?
-      # load 'morpheus/cli/monitoring_command.rb'
       load 'morpheus/cli/monitoring_incidents_command.rb'
       load 'morpheus/cli/monitoring_checks_command.rb'
       load 'morpheus/cli/monitoring_contacts_command.rb'
@@ -147,6 +139,7 @@ module Morpheus
       load 'morpheus/cli/execution_request_command.rb'
       load 'morpheus/cli/file_copy_request_command.rb'
       load 'morpheus/cli/processes_command.rb'
+      load 'morpheus/cli/packages_command.rb'
 
       # Your new commands go here...
 
