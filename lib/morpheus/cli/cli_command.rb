@@ -417,18 +417,18 @@ module Morpheus
             opts.on( '-r', '--remote REMOTE', "Remote name. The current remote is used by default." ) do |val|
               options[:remote] = val
             end
-            opts.on( nil, '--remote-url URL', "Remote url. The current remote url is used by default." ) do |remote|
-              options[:remote_url] = remote
+            opts.on( nil, '--remote-url URL', "Remote url. The current remote url is used by default." ) do |val|
+              options[:remote_url] = val
             end
             opts.on( '-T', '--token TOKEN', "Access token for authentication with --remote. Saved credentials are used by default." ) do |val|
               options[:remote_token] = val
             end unless excludes.include?(:remote_token)
             opts.on( '-U', '--username USERNAME', "Username for authentication." ) do |val|
-              options[:username] = val
-            end unless excludes.include?(:username)
+              options[:remote_username] = val
+            end unless excludes.include?(:remote_username)
             opts.on( '-P', '--password PASSWORD', "Password for authentication." ) do |val|
-              options[:password] = val
-            end unless excludes.include?(:password)
+              options[:remote_password] = val
+            end unless excludes.include?(:remote_password)
 
             # todo: also require this for talking to plain old HTTP
             opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
@@ -807,20 +807,29 @@ module Morpheus
 
         # ok, get some credentials.
         # this prompts for username, password  without options[:no_prompt]
-        # used saved credentials please
-        
+        # uses saved credentials by default.
+        # passing --remote-url or --token or --username will skip loading saved credentials and trigger prompting
         if options[:remote_token]
           @access_token = options[:remote_token]
         else
           credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
-          @wallet = credentials.load_saved_credentials()
-          @access_token = @wallet ? @wallet['access_token'] : nil
-          if @access_token.to_s.empty?
-            unless options[:no_prompt]
-              @wallet = credentials.request_credentials(options)
-              @access_token = @wallet ? @wallet['access_token'] : nil
-            end
+          # @wallet = credentials.load_saved_credentials()
+          # @wallet = credentials.request_credentials(options)
+          if options[:remote_token]
+            @wallet = credentials.request_credentials(options, false)
+          elsif options[:remote_url] || options[:remote_username]
+            @wallet = credentials.request_credentials(options, false)
+          else
+            #@wallet = credentials.request_credentials(options)
+            @wallet = credentials.load_saved_credentials()
           end
+          @access_token = @wallet ? @wallet['access_token'] : nil
+          # if @access_token.to_s.empty?
+          #   unless options[:no_prompt]
+          #     @wallet = credentials.request_credentials(options)
+          #     @access_token = @wallet ? @wallet['access_token'] : nil
+          #   end
+          # end
           # bail if we got nothing still
           unless options[:skip_verify_access_token]
             verify_access_token!

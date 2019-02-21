@@ -25,35 +25,22 @@ module Morpheus
       # If :username and :password are passed, then
       # Pass :remote_token to skip prompting and the auth api request.
       # @param options - Hash of optional settings.
-      #   :username - Username to use, skips saved lookup and prompting.
-      #   :password - Password to use, skips saved lookup and prompting.
+      #   :username - Username for prompt.
+      #   :password - Password for prompt.
       #   :remote_url - Use this url instead of the one from the current appliance. Credentials will not be saved.
       #   :remote_token - Use this access_token, skip prompting and API request.
+      #   :remote_username - Username for authentication with --remote, skips saving credentials
+      #   :remote_password - Password for authentication with --remote, skips saving credentials
       #   :test_only - Test only. Saved credentials will not be updated.
       # @return Hash wallet like {"access_token":"ec68be138765...", "refresh_token":"ec68be138765..."} 
       # or nil if unable to find credentials.
-      def request_credentials(options = {})
+      def request_credentials(options = {}, do_save=true)
         #puts "request_credentials(#{options})"
         username = nil
         password = nil
         wallet = nil
-        skip_save = false
-        if options[:skip_save] == true || options[:test_only] == true || options[:remote_url] == true || options[:dry_run] == true
-          skip_save = true
-        end
 
-        # logout/ clear credentials
-        unless skip_save
-          clear_saved_credentials(@appliance_name)
-          appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
-          if appliance
-            appliance.delete(:username)
-            appliance[:authenticated] = false
-            appliance[:last_logout_at] = Time.now.to_i
-            ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
-            ::Morpheus::Cli::Remote.recalculate_variable_map()
-          end
-        end
+        
 
         if options[:remote_token]
           # user passed in a token to login with.
@@ -87,9 +74,6 @@ module Morpheus
               'refresh_token' => json_response['refresh_token'], 
               'token_type' => json_response['token_type']
             }
-            unless skip_save
-              save_credentials(@appliance_name, wallet)
-            end
           rescue ::RestClient::Exception => e
             #raise e
             print_red_alert "Token not valid."
@@ -99,31 +83,31 @@ module Morpheus
             wallet = nil
           end
         else
-        
-          # JD: I think this might be wonky, :username global option is overlapping with the one from login, fix it
-          # if passing a username on the fly (skip_save)
-          # that's assumed to be a transient command, not one to log yo in (update your session)
-          # that should be done outside of this method you see...
-          if options[:username]
-            username = options[:username]
-            password = options[:password]
-            if skip_save == false
-              #skip_save = (options[:remote_url] ? true : false)
+          
+          # ok prompt for creds..
+          username = options['username'] || options[:username] || nil
+          password = options['password'] || options[:password] || nil
+          
+          if options[:remote_username]
+            username = options[:remote_username]
+            password = options[:remote_password]
+            if do_save == true
+              do_save = (options[:remote_url] ? false : true)
             end
           else
             # maybe just if check if options[:test_only] != true
-            if skip_save == false
-              wallet = load_saved_credentials
-            end  
+            # if do_save == true
+            #   wallet = load_saved_credentials
+            # end  
           end
 
           if wallet.nil?
             unless options[:quiet] || options[:no_prompt]
               # if username.empty? || password.empty?
                 if options[:test_only]
-                  print "Test Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
                 else
-                  print "Enter Morpheus Credentials @ #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
                 end
               # end
               if username.empty?
@@ -192,18 +176,25 @@ module Morpheus
           end
         end
 
+        if do_save && @appliance_name
 
-        unless skip_save
-
-          # save wallet to credentials file
-          save_credentials(@appliance_name, wallet)
 
           begin
-          # save pertinent session info to the appliance
+            # save pertinent session info to the appliance
+            save_credentials(@appliance_name, wallet)
             now = Time.now.to_i
             appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
+            
+            if wallet && wallet['access_token']
+              save_credentials(@appliance_name, wallet)
+            else
+              clear_saved_credentials(@appliance_name)
+            end
             if appliance
               if wallet && wallet['access_token']
+                # save wallet to credentials file
+                save_credentials(@appliance_name, wallet)
+                # save appliances file
                 appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
                 appliance[:authenticated] = true
                 appliance[:username] = username
@@ -212,25 +203,37 @@ module Morpheus
                 appliance[:last_success_at] = now
                 ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
               else
+                # could be nice and not do this
+                #logout()
+                #save wallet to credentials file
+                clear_saved_credentials(@appliance_name)
                 now = Time.now.to_i
                 appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
                 appliance[:authenticated] = false
-                #appliance[:username] = username
+                old_username = appliance.delete(:username)
+                appliance[:last_logout_at] = Time.now.to_i
                 #appliance[:last_login_at] = now
                 #appliance[:error] = "Credentials not verified"
+                appliance.delete(:username)
                 ::Morpheus::Cli::Remote.save_remote(@appliance_name, appliance)
+                if old_username
+                  print reset,"You have been automatically logged out. Goodbye #{old_username}!", reset, "\n"
+                end
               end
+
             end
           rescue => e
             Morpheus::Logging::DarkPrinter.puts "failed to update remote appliance config: (#{e.class}) #{e.message}"
+          ensure
+            #::Morpheus::Cli::Remote.recalculate_variable_map()
           end
         end
         
         return wallet
       end
 
-      def login(options = {})
-        request_credentials(options)
+      def login(options = {}, do_save=true)
+        request_credentials(options, do_save)
       end
 
       def logout()

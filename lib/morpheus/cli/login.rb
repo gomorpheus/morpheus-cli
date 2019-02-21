@@ -39,19 +39,19 @@ class Morpheus::Cli::Login
       opts.on( '-t', '--test', "Test credentials only, does not update stored credentials for the appliance." ) do
         options[:test_only] = true
       end
-      opts.on( '-T', '--token ACCESS_TOKEN', "Use an existing access token instead of authenticating with a username and password." ) do |val|
+      opts.on( '-T', '--token ACCESS_TOKEN', "Use an existing access token to login instead of authenticating with a username and password." ) do |val|
         options[:remote_token] = val
       end
-      build_common_options(opts, options, [:json, :dry_run, :remote, :quiet], [:username, :password, :remote_token])
-      opts.footer = "Login to a remote appliance with username and password or an access token.\n" +
-                    "[username] is required and will be prompted for if not given.\n" +
-                    "[password] is required and will be prompted for if not given.\n" +
-                    "The --token option can be used to login with an existing token instead of [username] and [password].\n" +
+      build_common_options(opts, options, [:json, :dry_run, :remote, :quiet], [:remote_username, :remote_password, :remote_token])
+      opts.footer = "Login to a remote appliance with a username and password or an access token.\n" +
+                    "[username] is required .\n" +
+                    "[password] is required.\n" +
                     "Logging in with username and password will make an authentication api request to obtain an access token.\n" +
-                    "If using --token, the whoami api is used to validate the token.\n" +
-                    "If successful, the access token will be saved with the active session for the remote appliance, for use with future commands.\n" +
-                    "This command will first logout any active session before attempting to login." + 
-                    "The --test option allows for authenticating credentials without updating your active session."
+                    "The --token option can be used to login with an existing token instead of username and password.\n" +
+                    "Using --token makes a whoami api request to validate the token.\n" +
+                    "If successful, the access token will be saved with the active session for the remote appliance.\n" +
+                    "This command will first logout any active session before attempting to login.\n" + 
+                    "The --test option can be used for testing credentials without updating your active session."
                     
     end
     optparse.parse!(args)
@@ -75,6 +75,9 @@ class Morpheus::Cli::Login
         print_error red, "You have no appliance named '#{options[:remote]}' configured. See the `remote list` command.", reset, "\n"
         return 1
       end
+    elsif options[:remote_url]
+      # --remote-url
+      @appliance_name, @appliance_url = nil, appliance[:remote_url]
     else
       @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
       if !@appliance_name
@@ -92,21 +95,13 @@ class Morpheus::Cli::Login
       options[:username] = username if username
       options[:password] = password if password
 
-
-      # ok, what we should really do is prompt to add the remote on the fly
-      # fuck ya!
-
-      # load existing credentials (without erroring)
-      # this is so we can tell you you're getting automatically logged out.
-      # maybe it should not ever log you out unless it succeeds (and overwrites your current session)
-      # old_wallet = @wallet
-      old_wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-      if old_wallet && old_wallet['access_token'] && !options[:dry_run] && !options[:test_only]
-        unless options[:quiet]
-          print reset,"You have been automatically logged out. Goodbye #{old_wallet['username']}!", reset, "\n"
-        end
+      do_save = true
+      if options[:test_only] || options[:remote_url]
+        do_save = false
       end
-      login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options)
+      #old_wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+      
+      login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(options, do_save)
       if options[:dry_run]
         return 0
       end
@@ -139,10 +134,10 @@ class Morpheus::Cli::Login
           if options[:test_only]
             # you are fine, nothing has changed
           else
-            if old_wallet && old_wallet['access_token']
-              #print reset,"You are no longer logged in. Goodbye #{old_wallet['username']}!", reset, "\n"
-               # todo: prompt to recover wallet ?
-            end
+            # if old_wallet && old_wallet['access_token']
+            #   #print reset,"You are no longer logged in. Goodbye #{old_wallet['username']}!", reset, "\n"
+            #    # todo: prompt to recover wallet ?
+            # end
           end
         end
         return 1, "Login failed"
