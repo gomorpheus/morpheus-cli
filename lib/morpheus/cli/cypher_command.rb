@@ -3,7 +3,7 @@ require 'yaml'
 require 'table_print'
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::CypherVaultCommand
+class Morpheus::Cli::CypherCommand
   include Morpheus::Cli::CliCommand
 
   set_command_name :'cypher'
