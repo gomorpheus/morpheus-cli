@@ -144,7 +144,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
   def destroy_file_link(file_id, link_id, params={})
     url = "#{@base_url}/api/archives/files/#{file_id}/links/#{link_id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 
@@ -175,7 +175,7 @@ class Morpheus::ArchiveFilesInterface < Morpheus::APIClient
   def destroy(id, params={})
     url = "#{@base_url}/api/archives/files/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 

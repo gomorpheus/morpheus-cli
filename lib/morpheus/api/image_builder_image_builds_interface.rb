@@ -47,14 +47,14 @@ class Morpheus::ImageBuilderImageBuildsInterface < Morpheus::APIClient
   def destroy(id, params={})
     url = "#{@base_url}/api/image-builds/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 
   def run(id, params={})
     url = "#{@base_url}/api/image-builds/#{id}/run"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :post, url: url, timeout: 30, headers: headers}
+    opts = {method: :post, url: url, headers: headers}
     execute(opts)
   end
 

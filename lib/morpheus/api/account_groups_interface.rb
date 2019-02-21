@@ -40,14 +40,14 @@ class Morpheus::AccountGroupsInterface < Morpheus::APIClient
   def destroy(account_id, id, params={})
     url = "#{@base_url}/api/accounts/#{account_id}/groups/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 
   def update_zones(account_id, id, payload)
     url = "#{@base_url}/api/accounts/#{account_id}/groups/#{id}/update-zones"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, timeout: 30, headers: headers, payload: payload.to_json}
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

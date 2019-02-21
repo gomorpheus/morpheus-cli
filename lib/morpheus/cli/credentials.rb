@@ -147,11 +147,12 @@ module Morpheus
             end
             begin
               auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+              auth_interface.setopts(options)
               if options[:dry_run]
-                print_dry_run auth_interface.dry.login(username, password, options)
+                print_dry_run auth_interface.dry.login(username, password)
                 return nil
               end
-              json_response = auth_interface.login(username, password, options)
+              json_response = auth_interface.login(username, password)
               if options[:json]
                 print JSON.pretty_generate(json_response)
                 print reset, "\n"
@@ -265,12 +266,13 @@ module Morpheus
         username = wallet['username']
 
         begin
+          auth_interface.setopts(options)
           auth_interface = Morpheus::AuthInterface.new(@appliance_url)
           if options[:dry_run]
-            print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'], options)
+            print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'])
             return nil
           end
-          json_response = auth_interface.use_refresh_token(wallet['refresh_token'], options)
+          json_response = auth_interface.use_refresh_token(wallet['refresh_token'])
           #wallet = json_response
           login_date = Time.now
           expire_date = nil

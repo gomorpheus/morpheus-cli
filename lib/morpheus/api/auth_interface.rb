@@ -9,28 +9,26 @@ class Morpheus::AuthInterface < Morpheus::APIClient
     @access_token = access_token
   end
 
-  def login(username, password, options={})
+  def login(username, password)
     @access_token = nil
     url = "#{@base_url}/oauth/token"
     params = {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}
     payload = {password: password}
-    opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 10}
-    opts[:headers].merge(options[:headers]) if options[:headers]
-    opts[:timeout] = options[:timeout] if options[:timeout]
-    response = execute(opts, options)
+    opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 5}
+    response = execute(opts)
     return response if @dry_run
     @access_token = response['access_token']
     return response
   end
 
   # this regenerates the access_token and refresh_token
-  def use_refresh_token(refresh_token, options={})
+  def use_refresh_token(refresh_token)
     @access_token = nil
     url = "#{@base_url}/oauth/token"
     params = {grant_type: 'refresh_token', scope:'write', client_id: 'morph-cli'}
     payload = {refresh_token: refresh_token}
-    opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 10}
-    response = execute(opts, options)
+    opts = {method: :post, url: url, headers:{ params: params}, payload: payload}
+    response = execute(opts)
     return response if @dry_run
     @access_token = response['access_token']
     return response

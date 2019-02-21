@@ -40,7 +40,7 @@ class Morpheus::CloudDatastoresInterface < Morpheus::APIClient
   def destroy(cloud_id, id, params={})
     url = "#{@base_url}/api/zones/#{cloud_id}/data-stores/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 

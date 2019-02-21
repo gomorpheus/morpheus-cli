@@ -40,7 +40,7 @@ class Morpheus::GroupPoliciesInterface < Morpheus::APIClient
   def destroy(group_id, id, params={})
     url = "#{@base_url}/api/groups/#{group_id}/policies/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 30, headers: headers}
+    opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
 
