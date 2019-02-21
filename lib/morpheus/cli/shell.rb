@@ -523,7 +523,7 @@ class Morpheus::Cli::Shell
         # crap hack, naming conflicts can occur with aliases
         @return_to_log_level = ["log-level","debug"].include?(cmd_name) ? nil : Morpheus::Logging.log_level
         @return_to_coloring = ["coloring"].include?(cmd_name) ? nil : Term::ANSIColor::coloring?
-        @return_to_benchmarking = ["benchmarking"].include?(cmd_name) ? nil : Morpheus::Benchmarking.enabled?
+        @return_to_benchmarking = ["benchmark"].include?(cmd_name) ? nil : Morpheus::Benchmarking.enabled?
         
         if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
