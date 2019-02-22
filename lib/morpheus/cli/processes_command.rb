@@ -37,6 +37,14 @@ class Morpheus::Cli::Processes
       opts.on( nil, '--output', "Display process output." ) do
         options[:show_output] = true
       end
+      opts.on(nil, '--details', "Display all details. Includes sub processes, output and error data is not truncated." ) do
+        options[:show_events] = true
+        options[:show_output] = true
+        options[:details] = true
+      end
+      opts.on('--app ID', String, "Limit results to specific app(s).") do |val|
+        params['appIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
+      end
       opts.on('--instance ID', String, "Limit results to specific instance(s).") do |val|
         params['instanceIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
@@ -103,8 +111,8 @@ class Morpheus::Cli::Processes
               startDate: format_local_dt(process['startDate']),
               duration: format_process_duration(process),
               status: format_process_status(process),
-              error: format_process_error(process),
-              output: format_process_output(process)
+              error: format_process_error(process, options[:details] ? nil : 20),
+              output: format_process_output(process, options[:details] ? nil : 20)
             }
             history_records << row
             process_events = process['events'] || process['processEvents']
@@ -122,8 +130,8 @@ class Morpheus::Cli::Processes
                     startDate: format_local_dt(process_event['startDate']),
                     duration: format_process_duration(process_event),
                     status: format_process_status(process_event),
-                    error: format_process_error(process_event),
-                    output: format_process_output(process_event)
+                    error: format_process_error(process_event, options[:details] ? nil : 20),
+                    output: format_process_output(process_event, options[:details] ? nil : 20)
                   }
                   history_records << event_row
                 end
@@ -177,6 +185,9 @@ class Morpheus::Cli::Processes
     process_id = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on(nil, '--details', "Display more details. Shows everything, untruncated." ) do
+        options[:details] = true
+      end
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display details for a specific process.\n"
                     "[id] is required. This is the id of the process."
@@ -233,8 +244,8 @@ class Morpheus::Cli::Processes
                     startDate: format_local_dt(process_event['startDate']),
                     duration: format_process_duration(process_event),
                     status: format_process_status(process_event),
-                    error: format_process_error(process_event),
-                    output: format_process_output(process_event)
+                    error: format_process_error(process_event, options[:details] ? nil : 20),
+                    output: format_process_output(process_event, options[:details] ? nil : 20)
                   }
             history_records << event_row
           end

@@ -1273,6 +1273,11 @@ class Morpheus::Cli::Apps
       opts.on( nil, '--output', "Display process output." ) do
         options[:show_output] = true
       end
+      opts.on(nil, '--details', "Display more details. Shows everything, untruncated." ) do
+        options[:show_events] = true
+        options[:show_output] = true
+        options[:details] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List historical processes for a specific app.\n" + 
                     "[app] is required. This is the name or id of an app."
@@ -1361,8 +1366,8 @@ class Morpheus::Cli::Apps
                     startDate: format_local_dt(process_event['startDate']),
                     duration: format_process_duration(process_event),
                     status: format_process_status(process_event),
-                    error: format_process_error(process_event),
-                    output: format_process_output(process_event)
+                    error: format_process_error(process_event, options[:details] ? nil : 20),
+                    output: format_process_output(process_event, options[:details] ? nil : 20)
                   }
                   history_records << event_row
                 end

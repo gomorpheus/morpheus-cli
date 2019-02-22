@@ -2776,6 +2776,11 @@ class Morpheus::Cli::Instances
       opts.on( nil, '--output', "Display process output." ) do
         options[:show_output] = true
       end
+      opts.on(nil, '--details', "Display more details. Shows everything, untruncated." ) do
+        options[:show_events] = true
+        options[:show_output] = true
+        options[:details] = true
+      end
       opts.on('--process-id ID', String, "Display details about a specfic process only." ) do |val|
         options[:process_id] = val
       end
@@ -2849,8 +2854,8 @@ class Morpheus::Cli::Instances
               startDate: format_local_dt(process['startDate']),
               duration: format_process_duration(process),
               status: format_process_status(process),
-              error: format_process_error(process),
-              output: format_process_output(process)
+              error: format_process_error(process, options[:details] ? nil : 20),
+              output: format_process_output(process, options[:details] ? nil : 20)
             }
             history_records << row
             process_events = process['events'] || process['processEvents']
@@ -2868,8 +2873,8 @@ class Morpheus::Cli::Instances
                     startDate: format_local_dt(process_event['startDate']),
                     duration: format_process_duration(process_event),
                     status: format_process_status(process_event),
-                    error: format_process_error(process_event),
-                    output: format_process_output(process_event)
+                    error: format_process_error(process_event, options[:details] ? nil : 20),
+                    output: format_process_output(process_event, options[:details] ? nil : 20)
                   }
                   history_records << event_row
                 end
