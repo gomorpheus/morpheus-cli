@@ -42,7 +42,8 @@ class Morpheus::Cli::AccessTokenCommand
   end
 
   def handle(args)
-    if args.empty?
+    # access-token get by default, except access-token -h should list the subcommands.
+    if args.empty? || (args[0] && args[0] =~ /^\-/ && !['-h', '--help'].include?(args[0]))
       print_access_token(args)
     else
       handle_subcommand(args)
@@ -124,10 +125,8 @@ class Morpheus::Cli::AccessTokenCommand
     end
 
     connect(options)
-
     if options[:dry_run]
-      auth_interface = Morpheus::AuthInterface.new(@appliance_url)
-      print_dry_run auth_interface.dry.use_refresh_token(@wallet['refresh_token'])
+      print_dry_run Morpheus::AuthInterface.new(@appliance_url).setopts(options).use_refresh_token(@wallet['refresh_token'])
       return 0
     end
     unless options[:quiet]
