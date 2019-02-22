@@ -50,7 +50,7 @@ class Morpheus::Cli::AliasCommand
       opts.footer = <<-EOT
 Define a new alias.
 [name] is required. This is the alias name. It should be one word.
-[command] is required. This is the full command or or expression wrapped in quotes.
+[command] is required. This is the full command wrapped in quotes.
 Aliases can be exported for future use with the -e option.
 The `alias add` command can be invoked with `alias [name]=[command]`
 
@@ -58,9 +58,6 @@ Examples:
     alias cloud=clouds
     alias ij='instances get -j'
     alias new-hosts='hosts list -S id -D'
-    alias infra='clouds list -m 5; networks list -m 5; hosts list -m 5'
-    alias find-answer='(instances get 42 || instances add) || echo "oh dear..."' -e
-    
 For more information, see https://github.com/gomorpheus/morpheus-cli/wiki/Alias
 EOT
       
@@ -210,9 +207,8 @@ EOT
     end
     optparse.parse!(args)
 
-    #my_aliases = Morpheus::Cli::CliRegistry.all_aliases
     my_aliases = Morpheus::Cli::CliRegistry.all_aliases.collect {|k,v|
-      {name: k, command_string: v}
+      {name: k, command: v}
     }
 
     # todo: generic support :list options on a local Array
@@ -220,7 +216,7 @@ EOT
       # my_aliases = my_aliases.grep(/^#{Regexp.escape(options[:phrase])}/)
       match_regex = /#{Regexp.escape(options[:phrase])}/
       my_aliases = my_aliases.select {|it| 
-        it[:name].to_s =~ match_regex || it[:command_string].to_s =~ match_regex
+        it[:name].to_s =~ match_regex || it[:command].to_s =~ match_regex
       }
     end
 
@@ -228,11 +224,11 @@ EOT
     options[:direction] ||= 'asc'
 
     if options[:sort]
-      if options[:sort].to_s == 'name'
+      if options[:sort].to_s == 'name' || options[:sort].to_s == 'alias'
         my_aliases = my_aliases.sort {|x,y| x[:name].to_s.downcase <=> y[:name].to_s.downcase }
-      elsif options[:sort].to_s == 'ts'
+      elsif options[:sort].to_s == 'command' || options[:sort].to_s == 'command_string'
         # just relies on the order they were registered in, heh...
-        my_aliases = my_aliases.sort {|x,y| x[:command_string].to_s.downcase <=> y[:command_string].to_s.downcase }
+        my_aliases = my_aliases.sort {|x,y| x[:command].to_s.downcase <=> y[:command].to_s.downcase }
       else
         # a-z is the default, and the best
       end
@@ -255,7 +251,7 @@ EOT
     if options[:format] == 'json' || options[:json]
       alias_json = {}
       my_aliases.each do |it|
-        alias_json[it[:name]] = it[:command_string]
+        alias_json[it[:name]] = it[:command]
       end
       out << JSON.pretty_generate({aliases: alias_json})
       out << "\n"
@@ -263,7 +259,7 @@ EOT
       # out << "# morpheus aliases for #{`whoami`}\n" # windows!
       #out << "# morpheus aliases\n"
       my_aliases.each do |it|
-        out <<  "alias #{it[:name]}='#{it[:command_string]}'"
+        out <<  "alias #{it[:name]}='#{it[:command]}'"
         if do_export
           out << " -e"
         end
@@ -271,7 +267,7 @@ EOT
       end
     elsif options[:format] == 'list'
       my_aliases.each do |it|
-        out <<  "#{cyan}#{it[:name]}#{reset}='#{it[:command_string]}'"
+        out <<  "#{cyan}#{it[:name]}#{reset}='#{it[:command]}'"
         out << "\n"
       end
       out << reset
@@ -279,7 +275,7 @@ EOT
       # table (default)
       alias_columns = {
         "ALIAS" => lambda {|it| it[:name] },
-        "COMMAND" => lambda {|it| it[:command_string] }
+        "COMMAND" => lambda {|it| it[:command] }
       }
       out << "\n"
       out << cyan
