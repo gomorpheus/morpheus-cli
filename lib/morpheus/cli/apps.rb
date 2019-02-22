@@ -1250,7 +1250,7 @@ class Morpheus::Cli::Apps
         print_dry_run @apps_interface.dry.apply_security_groups(app['id'], payload)
         return
       end
-      @apps_interface.apply_security_groups(app['id'], payloaad)
+      @apps_interface.apply_security_groups(app['id'], payload)
       security_groups([args[0]])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
