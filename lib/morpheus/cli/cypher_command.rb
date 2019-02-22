@@ -480,7 +480,7 @@ key - Generates a Base 64 encoded AES Key of specified bit length in the key pat
 
   def cypher_ttl_help
     """
-Lease time in seconds (defaults to 32 days)
+Lease time in seconds
 Quick Second Time Reference:
 Hour: 3600
 Day: 86400
@@ -488,6 +488,8 @@ Week: 604800
 Month (30 days): 2592000
 Year: 31536000
 This can also be passed in abbreviated format with the unit as the suffix. eg. 32d, 90s, 5y
+This can be passed as 0 to disable expiration and never expire.
+The default is 32 days (2764800).
 """
   end
 
