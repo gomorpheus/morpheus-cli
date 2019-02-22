@@ -661,31 +661,22 @@ class Morpheus::Cli::Shell
   def log_history_command(cmd)
     @history ||= {}
     @last_command_number ||= 0
+    previous_cmd = @history[@last_command_number]
+    return if previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
     @last_command_number += 1
     @history[@last_command_number] = cmd
+    skip_log = previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
     if @history_logger
       @history_logger.info "#{@current_username}@#{@appliance_name} -- : (cmd #{@last_command_number}) #{cmd}"
     end
   end
 
   def last_command(n=25)
-    return list_history_commands(max:1)[0]
-  end
-
-  # list the N most recent commands, sorted oldest -> newest
-  # todo: support sort and order options..
-  def list_history_commands(options={})
-    history_records = []
-    max = options[:max] ? options[:max].to_i : 25
-    max = 50
-    load_history_from_log_file if !@history
-    cmd_numbers = @history.keys.last(max.to_i)
-    history_records = cmd_numbers.collect { |cmd_number| {command_number: cmd_number, command: @history[cmd_number]} }
-    last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
-    # if input != last_cmd # no consecutive
-    #   log_history_command(input)
-    # end
-    return history_records
+    if @history && @last_command_number
+      @history[@last_command_number]
+    else
+      nil
+    end
   end
 
   def print_history(n)

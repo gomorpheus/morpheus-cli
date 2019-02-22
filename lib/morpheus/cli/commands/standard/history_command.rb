@@ -14,21 +14,6 @@ class Morpheus::Cli::HistoryCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name}"
-      # opts.on( '-m', '--max MAX', "Max Results" ) do |max|
-      #   options[:max] = max.to_i
-      # end
-      # opts.on( '-o', '--offset OFFSET', "Offset Results" ) do |offset|
-      #   options[:offset] = offset.to_i.abs
-      # end
-      # opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
-      #   options[:phrase] = phrase
-      # end
-      # opts.on( '-S', '--sort ORDER', "Sort Order" ) do |v|
-      #   options[:sort] = v
-      # end
-      # opts.on( '-D', '--desc', "Reverse Sort Order" ) do |v|
-      #   options[:direction] = "desc"
-      # end
       opts.on( '-n', '--max-commands MAX', "Max Results. Default is 25" ) do |val|
         options[:max] = val
       end
@@ -64,11 +49,6 @@ EOT
     else
       max_commands = options[:max] || 25
       Morpheus::Cli::Shell.instance.print_history(max_commands)
-      last_cmd = Morpheus::Cli::Shell.instance.last_command
-      # log history, but not consecutive log entries
-      if last_cmd.nil? || last_cmd[:command] != raw_cmd
-        Morpheus::Cli::Shell.instance.log_history_command(raw_cmd)
-      end
       return 0  
     end
   end
