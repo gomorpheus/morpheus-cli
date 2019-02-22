@@ -567,12 +567,10 @@ module Morpheus
               options[:dry_run] = true
               options[:curl] = true
             end
-            # hide until fully supported
-            opts.add_hidden_option('--curl') if opts.is_a?(Morpheus::Cli::OptionParser)
-            opts.on(nil,'--scrub', "Mask secrets in output, such as the Authorization header. For use with --curl") do
+            opts.on(nil,'--scrub', "Mask secrets in output, such as the Authorization header. For use with --curl and --dry-run.") do
               options[:scrub] = true
             end
-            opts.add_hidden_option('--scrub') if opts.is_a?(Morpheus::Cli::OptionParser)
+            #opts.add_hidden_option('--scrub') if opts.is_a?(Morpheus::Cli::OptionParser)
           when :quiet
             opts.on('-q','--quiet', "No Output, do not print to stdout") do
               options[:quiet] = true
