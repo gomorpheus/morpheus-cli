@@ -383,7 +383,6 @@ class Morpheus::Cli::CypherCommand
       end
       existing_cypher = nil
       json_response = @cypher_interface.list(item_key)
-      puts "json_response: #{json_response}"
       if json_response["data"] && json_response["data"]["keys"]
         existing_cypher = json_response["data"]["keys"].find {|k| k == item_key }
       end
