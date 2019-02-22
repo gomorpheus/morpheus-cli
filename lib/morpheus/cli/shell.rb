@@ -90,7 +90,7 @@ class Morpheus::Cli::Shell
 
   def recalculate_auto_complete_commands
     @morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
-    @shell_commands = [:clear, :history, :reload!, :help, :exit]
+    @shell_commands = [:clear, :history, :reload, :help, :exit]
     @alias_commands = Morpheus::Cli::CliRegistry.all_aliases.keys
     @exploded_commands = []
     Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
