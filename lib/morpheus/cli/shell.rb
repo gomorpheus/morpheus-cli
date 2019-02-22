@@ -681,22 +681,73 @@ class Morpheus::Cli::Shell
       nil
     end
   end
-
-  def print_history(n)
-    n ||= 25
+  
+  # load_history_commands paginates and sorts the command history
+  # the most recent 25 are returned by default.
+  # @return Hash like {:commands => [], :command_count => total}
+  def load_history_commands(options={})
+    options[:phrase] ||= nil
+    options[:sort] = options[:sort] ? options[:sort].to_sym : :number
+    options[:direction] ||= 'asc'
+    options[:offset] = options[:offset].to_i > 0 ? options[:offset].to_i : 0
+    options[:max] = options[:max].to_i > 0 ? options[:max].to_i : 25
+    
     load_history_from_log_file if !@history
-    cmd_numbers = @history.keys.last(n.to_i)
-    if cmd_numbers.size == 1
-      puts "Last command"
+    
+    # collect records as [{:number => 1, :command => "instances list"}, etc]
+    history_records = []
+    history_count = 0
+    if options[:sort].to_sym == :command
+      sort_key = :command
     else
-      puts "Last #{cmd_numbers.size} commands"
+      sort_key = :number
     end
+    if options[:phrase] || sort_key != :number
+      # this could be a large object...need to index our shell_history file lol
+      history_records = @history.keys.collect { |k| {number: k, command: @history[k]} }
+      history_records = history_records.sort {|x,y| x[sort_key] <=> y[sort_key] }
+      if options[:phrase]
+        history_records = history_records.select {|it| it[:command].include?(options[:phrase]) || it[:number].to_s == options[:phrase] }
+      end
+      # get count and then slice it
+      command_count = history_records.size
+      history_records = history_records[options[:offset]..options[:max]-1]
+    else
+      # default should try to be as fast as possible..
+      # no searching or sorting, default order by :number works
+      # desc here means show oldest commands
+      if options[:direction] == 'desc'
+        if options[:offset]
+          cmd_numbers = @history.keys.first(options[:max] + options[:offset]).first(options[:max])
+        else
+          cmd_numbers = @history.keys.first(options[:max])
+        end
+        cmd_count = @history.keys.size
+      else
+        cmd_numbers = []
+        if options[:offset]
+          cmd_numbers = @history.keys.last(options[:max] + options[:offset]).first(options[:max])
+        else
+          cmd_numbers = @history.keys.last(options[:max])
+        end
+        history_records = cmd_numbers.collect { |k| {number: k, command: @history[k]} }
+        command_count = @history.size
+      end
+    end
+    return {:commands => history_records, :command_count => command_count}
+  end
+
+  def print_history(options={})
+    history_result = load_history_commands(options)
+    history_records = history_result[:commands]
+    command_count = history_result[:command_count]
     print cyan
-    cmd_numbers.each do |cmd_number|
-      cmd = @history[cmd_number]
-      puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
+    history_records.each do |history_record|
+      puts "#{history_record[:number].to_s.rjust(3, ' ')}  #{history_record[:command]}"
     end
+    #print_results_pagination({size:history_records.size,total:command_count.to_i}, {:label => "command", :n_label => "commands"})
     print reset
+    #print "\n"
     return 0
   end
 

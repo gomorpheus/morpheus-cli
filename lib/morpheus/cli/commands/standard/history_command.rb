@@ -47,8 +47,8 @@ EOT
       Morpheus::Cli::Shell.instance.flush_history
       return 0
     else
-      max_commands = options[:max] || 25
-      Morpheus::Cli::Shell.instance.print_history(max_commands)
+      # supports all the :list options
+      Morpheus::Cli::Shell.instance.print_history(options)
       return 0  
     end
   end

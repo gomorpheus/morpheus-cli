@@ -13,6 +13,9 @@ class Morpheus::Cli::LogLevelCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [debug|info|0|1]"
       #build_common_options(opts, options, [])
+      opts.on('-q','--quiet', "No Output, do not print to stdout") do
+        options[:quiet] = true
+      end
       opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
@@ -33,10 +36,11 @@ EOT
       puts optparse
       return false
     end
+    debug_was_enabled = Morpheus::Logging.debug?
     if ["debug", "0"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
       ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
-      Morpheus::Logging::DarkPrinter.puts "debug enabled"
+      Morpheus::Logging::DarkPrinter.puts "debug enabled" unless debug_was_enabled
     elsif ["info", "1"].include?(args[0].to_s.strip.downcase)
       Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
       ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil

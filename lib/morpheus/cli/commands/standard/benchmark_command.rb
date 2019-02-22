@@ -45,9 +45,15 @@ EOT
       puts_error  "wrong number of arguments, expected 0 and got #{args.count} #{args.join(' ')}\n#{optparse}"
       return 1
     end
+    benchmark_was_enabled = Morpheus::Benchmarking.enabled
     Morpheus::Benchmarking.enabled = true
     my_terminal.benchmarking = Morpheus::Benchmarking.enabled
-    puts "#{cyan}benchmark: #{green}on#{reset}" unless options[:quiet]
+    unless options[:quiet]
+      if benchmark_was_enabled == false
+        Morpheus::Logging::DarkPrinter.puts "benchmark enabled" if Morpheus::Logging.debug?
+      end
+      puts "#{cyan}benchmark: #{green}on#{reset}"
+    end
     return 0 
   end
 
@@ -69,9 +75,15 @@ EOT
       puts_error  "wrong number of arguments, expected 0 and got #{args.count} #{args.join(' ')}\n#{optparse}"
       return 1
     end
+    benchmark_was_enabled = Morpheus::Benchmarking.enabled
     Morpheus::Benchmarking.enabled = false
     my_terminal.benchmarking = Morpheus::Benchmarking.enabled
-    puts "#{cyan}benchmark: #{dark}off#{reset}" unless options[:quiet]
+    unless options[:quiet]
+      if benchmark_was_enabled == true
+        Morpheus::Logging::DarkPrinter.puts "benchmark disabled" if Morpheus::Logging.debug?
+      end
+      puts "#{cyan}benchmark: #{dark}off#{reset}"
+    end
     return 0 
   end
 

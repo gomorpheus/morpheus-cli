@@ -14,6 +14,9 @@ class Morpheus::Cli::DebugCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [on|off]"
       #build_common_options(opts, options, [])
+      opts.on('-q','--quiet', "No Output, do not print to stdout") do
+        options[:quiet] = true
+      end
       opts.on('-h', '--help', "Print this help" ) do
         puts opts
         exit
@@ -27,10 +30,14 @@ class Morpheus::Cli::DebugCommand
       raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     
+    debug_was_enabled = Morpheus::Logging.debug?
     exit_code = 0
 
     if args.count == 0
       # just print
+      # no way, debug means turn it on.
+      Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+      ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
     else
       subcmd = args[0].to_s.strip
       if subcmd == "on"
@@ -43,6 +50,8 @@ class Morpheus::Cli::DebugCommand
         exit_code = Morpheus::Logging.debug? ? 0 : 1
       elsif subcmd == "off?"
         exit_code = Morpheus::Logging.debug? ? 1 : 0
+      elsif subcmd == "status"
+        # just print current value
       else
         puts optparse
         return 127
@@ -50,8 +59,14 @@ class Morpheus::Cli::DebugCommand
     end
     unless options[:quiet]
       if Morpheus::Logging.debug?
+        if debug_was_enabled == false
+          Morpheus::Logging::DarkPrinter.puts "debug enabled" if Morpheus::Logging.debug?
+        end
         puts "#{cyan}debug: #{green}on#{reset}"
       else
+        if debug_was_enabled == true
+          Morpheus::Logging::DarkPrinter.puts "debug disabled" if Morpheus::Logging.debug?
+        end
         puts "#{cyan}debug: #{dark}off#{reset}"
       end
     end
