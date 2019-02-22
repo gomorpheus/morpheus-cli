@@ -29,7 +29,7 @@ class Morpheus::Cli::Deploys
     options={}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus deploy [environment]"
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:remote, :dry_run])
       opts.footer = "Deploy to an environment using the morpheus.yml file, located in the working directory."
       # "todo: document me better!"
     end
@@ -66,6 +66,11 @@ class Morpheus::Cli::Deploys
         return
       end
     end
+    @deploy_interface.setopts(options)
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.create(instance_id)
+    end
     # Create a new deployment record
     deploy_result = @deploy_interface.create(instance_id)
     app_deploy = deploy_result['appDeploy']
@@ -81,7 +86,11 @@ class Morpheus::Cli::Deploys
         if File.file?(file)
           print cyan,bold, "  - Uploading #{file} ...", reset, "\n"
           destination = file.split("/")[0..-2].join("/")
-          @deploy_interface.upload_file(deployment_id,file,destination)
+          if options[:dry_run]
+            print_dry_run @deploy_interface.upload_file(deployment_id,file,destination)
+          else
+            upload_result = @deploy_interface.upload_file(deployment_id,file,destination)
+          end
         end
       end
     end
@@ -103,8 +112,13 @@ class Morpheus::Cli::Deploys
         evars << {name: key, value: value, export: false}
       end
       payload = {envs: evars}
-      @instances_interface.create_env(instance_id, payload)
-      @instances_interface.restart(instance_id)
+      if options[:dry_run]
+        print_dry_run @instances_interface.create_env(instance_id, payload)
+        print_dry_run @instances_interface.restart(instance_id)
+      else
+        @instances_interface.create_env(instance_id, payload)
+        @instances_interface.restart(instance_id)
+      end
     end
     if deploy_args['options']
       deploy_payload = {
@@ -113,12 +127,15 @@ class Morpheus::Cli::Deploys
         }
       }
     end
-
-    print cyan, bold, "Deploying to Servers...", reset, "\n"
-    @deploy_interface.deploy(deployment_id,deploy_payload)
-    print cyan, bold, "Deploy Successful!", reset, "\n"
+    if options[:dry_run]
+      print_dry_run @deploy_interface.deploy(deployment_id,deploy_payload)
+    else
+      print cyan, bold, "Deploying to Servers...", reset, "\n"
+      @deploy_interface.deploy(deployment_id,deploy_payload)
+      print cyan, bold, "Deploy Successful!", reset, "\n"
+    end
+    
   end
-
   def list(args)
   end
 

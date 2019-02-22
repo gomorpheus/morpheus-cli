@@ -40,20 +40,24 @@ class Morpheus::DeployInterface < Morpheus::APIClient
 
   # todo: use execute() to support @dry_run?
   def upload_file(id,path,destination=nil)
-    url_string = "#{@base_url}/api/deploy/#{id}/files"
+    url = "#{@base_url}/api/deploy/#{id}/files"
     if !destination.empty?
-      url_string += "/#{destination}"
+      url += "/#{destination}"
     end
-
-    url = URI.parse(url_string)
-    req = Net::HTTP::Post::Multipart.new url.path,
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream' }
+    opts = { method: :post, url: url, headers: headers, payload: File.new(path,'rb')}
+    if @dry_run
+      return opts
+    end
+    uri = URI.parse(url)
+    req = Net::HTTP::Post::Multipart.new uri.path,
     "file" => UploadIO.new(File.new(path,'rb'), "image/jpeg", File.basename(path))
-
+    # todo: iterate headers and abstract th :upload_io to execute() too.
     req['Authorization'] = "Bearer #{@access_token}"
-    res = Net::HTTP.start(url.host, url.port) do |http|
+    res = Net::HTTP.start(uri.host, uri.port) do |http|
       http.request(req)
     end
-        res
+    res
   end
 
   def destroy(id)
