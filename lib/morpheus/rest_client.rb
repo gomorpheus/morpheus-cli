@@ -18,7 +18,12 @@ module Morpheus
       end
 
       def execute(options)
-        opts = {timeout: 30}.merge(options)
+        default_opts = {}
+        # only read requests get default 30 second timeout.
+        if options[:method] == :get || options[:method] == :head
+          default_opts[:timeout] = 30
+        end
+        opts = default_opts.merge(options)
         unless ssl_verification_enabled?
           opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
         end
