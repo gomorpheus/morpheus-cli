@@ -1565,8 +1565,8 @@ class Morpheus::Cli::Apps
 
   def get_available_blueprints(refresh=false)
     if !@available_blueprints || refresh
-      results = @options_interface.options_for_source('appTemplates',{}) # still exists
-      #results = @options_interface.options_for_source('blueprints',{})
+      #results = @options_interface.options_for_source('appTemplates',{}) # still exists
+      results = @options_interface.options_for_source('blueprints',{})
       @available_blueprints = results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }

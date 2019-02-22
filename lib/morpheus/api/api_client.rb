@@ -260,10 +260,6 @@ class Morpheus::APIClient
     Morpheus::BlueprintsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def app_templates
-    Morpheus::AppTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
-  end
-
   def deploy
     Morpheus::DeployInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
