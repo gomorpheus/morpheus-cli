@@ -305,3 +305,7 @@ def format_bytes_short(bytes)
   end
   return out
 end
+
+def no_colors(str)
+  str.to_s.gsub /\e\[\d+m/, ""
+end
