@@ -66,15 +66,15 @@ EOT
 
     fn = Morpheus::Cli::ManCommand.man_file_path
     if regenerate || !File.exists?(fn)
-      #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug?
-      Morpheus::Cli::ManCommand.generate_manual()
+      #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug? && !options[:quiet]
+      Morpheus::Cli::ManCommand.generate_manual(options)
     end
     
     if options[:quiet]
       return 0, nil
     end
     
-    Morpheus::Logging::DarkPrinter.puts "opening manual file #{fn}" if Morpheus::Logging.debug?
+    Morpheus::Logging::DarkPrinter.puts "opening manual file #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
     
     
     if open_as_link # not used atm
@@ -134,14 +134,14 @@ EOT
   #   FileUtils.chmod(0600, fn)
   # end
 
-  def self.generate_manual()
+  def self.generate_manual(options={})
     # todo: use pandoc or something else to convert the CLI-Manual.md to a man page
     # and install it, so the os command `man morpheus` will work too.
     fn = man_file_path()
     if !Dir.exists?(File.dirname(fn))
       FileUtils.mkdir_p(File.dirname(fn))
     end
-    Morpheus::Logging::DarkPrinter.puts "generating manual #{fn}" if Morpheus::Logging.debug?
+    Morpheus::Logging::DarkPrinter.puts "generating manual #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
 
     File.open(fn, 'w') {|f| f.write("") } # clear file
     FileUtils.chmod(0600, fn)
@@ -211,7 +211,7 @@ EOT
 ENDTEXT
       
       terminal = Morpheus::Terminal.new($stdin, manpage)
-      Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus --help`" if Morpheus::Logging.debug?
+      Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus --help`" if Morpheus::Logging.debug? && !options[:quiet]
 
       manpage.print "\n"
       manpage.print "## morpheus\n"
@@ -224,7 +224,7 @@ ENDTEXT
       Morpheus::Cli::CliRegistry.all.keys.sort.each do |cmd|
         cmd_klass = Morpheus::Cli::CliRegistry.instance.get(cmd)
         cmd_instance = cmd_klass.new
-        Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} --help`" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} --help`" if Morpheus::Logging.debug? && !options[:quiet]
         #help_cmd = "morpheus #{cmd} --help"
         #help_output = `#{help_cmd}`
         manpage.print "\n"
@@ -240,7 +240,7 @@ ENDTEXT
         subcommands = cmd_klass.subcommands
         if subcommands && subcommands.size > 0
           subcommands.sort.each do |subcommand, subcommand_method|
-            Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug?
+            Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug? && !options[:quiet]
             manpage.print "\n"
             manpage.print "#### morpheus #{cmd} #{subcommand}\n"
             manpage.print "\n"
