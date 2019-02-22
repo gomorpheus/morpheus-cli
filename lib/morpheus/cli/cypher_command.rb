@@ -381,8 +381,16 @@ class Morpheus::Cli::CypherCommand
         print_dry_run @cypher_interface.dry.create(item_key, payload)
         return
       end
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to overwrite the cypher key #{item_key}?", {default:true})
-        return 9, "aborted command"
+      existing_cypher = nil
+      json_response = @cypher_interface.list(item_key)
+      puts "json_response: #{json_response}"
+      if json_response["data"] && json_response["data"]["keys"]
+        existing_cypher = json_response["data"]["keys"].find {|k| k == item_key }
+      end
+      if existing_cypher
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to overwrite the cypher key #{item_key}?")
+          return 9, "aborted command"
+        end
       end
       json_response = @cypher_interface.create(item_key, payload)
       if options[:json]
