@@ -78,6 +78,9 @@ class Morpheus::Cli::PoliciesCommand
         params['refType'] = 'User'
         params['refId'] = user['id']
       end
+      @policies_interface.setopts(options)
+      @group_policies_interface.setopts(options)
+      @cloud_policies_interface.setopts(options)
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.list(group['id'], params)
@@ -212,6 +215,9 @@ class Morpheus::Cli::PoliciesCommand
         user = find_user_by_username_or_id(nil, options[:user])
         return 1 if user.nil?
       end
+      @policies_interface.setopts(options)
+      @group_policies_interface.setopts(options)
+      @cloud_policies_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           if group
@@ -463,7 +469,9 @@ class Morpheus::Cli::PoliciesCommand
         end
       end
 
-      
+      @policies_interface.setopts(options)
+      @group_policies_interface.setopts(options)
+      @cloud_policies_interface.setopts(options)
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.create(group['id'], payload)
@@ -593,7 +601,9 @@ class Morpheus::Cli::PoliciesCommand
       #   return
       # end
       # json_response = @policies_interface.update(policy["id"], payload)
-
+      @policies_interface.setopts(options)
+      @group_policies_interface.setopts(options)
+      @cloud_policies_interface.setopts(options)
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.update(group['id'], policy["id"], payload)
@@ -656,6 +666,9 @@ class Morpheus::Cli::PoliciesCommand
       #   return 0
       # end
       # json_response = @policies_interface.destroy(policy['id'])
+      @policies_interface.setopts(options)
+      @group_policies_interface.setopts(options)
+      @cloud_policies_interface.setopts(options)
       if options[:dry_run]
         if group
           print_dry_run @group_policies_interface.dry.destroy(group['id'], policy["id"])
@@ -706,6 +719,7 @@ class Morpheus::Cli::PoliciesCommand
 
     connect(options)
     begin
+      @policies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @policies_interface.dry.list_policy_types(params)
         return 0
@@ -746,7 +760,6 @@ class Morpheus::Cli::PoliciesCommand
       print_rest_exception(e, options)
       return 1
     end
-    @policies_interface.list_policy_types
   end
 
   def get_type(args)
@@ -769,6 +782,7 @@ class Morpheus::Cli::PoliciesCommand
     connect(options)
     begin
       policy_type_id = args[0].to_s
+      @policies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @policies_interface.dry.get_policy_type(policy_type_id, params)
         return 0

@@ -58,7 +58,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-      # dry run?
+      @library_container_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_types_interface.dry.list(layout_id, params)
         return
@@ -121,6 +121,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
   def _get(id, options)
     layout_id = nil
     begin
+      @library_container_types_interface.setopts(options)
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @library_container_types_interface.dry.get(layout_id, arg.to_i)
@@ -375,7 +376,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         
 
       end
-
+      @library_container_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_types_interface.dry.create(layout_id, payload)
         return
@@ -480,7 +481,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         payload['containerType'].deep_merge!(params)
 
       end
-
+      @library_container_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_types_interface.dry.update(layout_id, container_type['id'], payload)
         return
@@ -523,6 +524,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the node type #{container_type['name']}?", options)
         exit
       end
+      @library_container_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_types_interface.dry.destroy(nil, container_type['id'])
         return

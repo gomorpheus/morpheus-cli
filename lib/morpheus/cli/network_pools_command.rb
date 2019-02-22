@@ -42,6 +42,7 @@ class Morpheus::Cli::NetworkPoolsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @network_pools_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_pools_interface.dry.list(params)
         return
@@ -111,6 +112,7 @@ class Morpheus::Cli::NetworkPoolsCommand
     end
     connect(options)
     begin
+      @network_pools_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @network_pools_interface.dry.get(args[0].to_i)
@@ -253,7 +255,7 @@ class Morpheus::Cli::NetworkPoolsCommand
 
       end
 
-      
+      @network_pools_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_pools_interface.dry.create(payload)
         return
@@ -373,7 +375,7 @@ class Morpheus::Cli::NetworkPoolsCommand
         end
 
       end
-
+      @network_pools_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_pools_interface.dry.update(network_pool["id"], payload)
         return
@@ -417,6 +419,7 @@ class Morpheus::Cli::NetworkPoolsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the network pool: #{network_pool['name']}?")
         return 9, "aborted command"
       end
+      @network_pools_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_pools_interface.dry.destroy(network_pool['id'])
         return 0

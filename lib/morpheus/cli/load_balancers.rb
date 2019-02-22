@@ -38,6 +38,7 @@ class Morpheus::Cli::LoadBalancers
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @load_balancers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @load_balancers_interface.dry.get(params)
         return
@@ -90,6 +91,7 @@ class Morpheus::Cli::LoadBalancers
     lb_name = args[0]
     connect(options)
     begin
+      @load_balancers_interface.setopts(options)
       if options[:dry_run]
         if lb_name.to_s =~ /\A\d{1,}\Z/
           print_dry_run @load_balancers_interface.dry.get(lb_name.to_i)
@@ -200,6 +202,7 @@ class Morpheus::Cli::LoadBalancers
         task_payload['taskOptions'].merge!(params['taskOptions'])
       end
       payload = {task: task_payload}
+      @load_balancers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @load_balancers_interface.dry.update(task['id'], payload)
         return
@@ -229,6 +232,7 @@ class Morpheus::Cli::LoadBalancers
     optparse.parse!(args)
     connect(options)
     begin
+      @load_balancers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @load_balancers_interface.dry.load_balancer_types()
         return
@@ -287,9 +291,13 @@ class Morpheus::Cli::LoadBalancers
       end
 
       payload = {loadBalancer: {name: lb_name, type: {code: lb_type['code'], id: lb_type['id']}}}
-
       # todo: The options available here are specific by type...
       #input_options = Morpheus::Cli::OptionTypes.prompt(lb_type['optionTypes'],options[:options],@api_client, options[:params])
+      @load_balancers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @load_balancers_interface.dry.create(payload)
+        return
+      end      
       json_response = @load_balancers_interface.create(payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -321,6 +329,7 @@ class Morpheus::Cli::LoadBalancers
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the load balancer #{lb['name']}?")
         exit
       end
+      @load_balancers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @load_balancers_interface.dry.destroy(lb['id'])
         return

@@ -41,6 +41,7 @@ class Morpheus::Cli::UserSettingsCommand
     
     begin
       params.merge!(parse_list_options(options))
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.get(params)
         return
@@ -129,7 +130,7 @@ class Morpheus::Cli::UserSettingsCommand
         payload['user'] ||= {}
         payload['user'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
       end
-
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.update(params, payload)
         return
@@ -179,6 +180,7 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.update_avatar(image_file, params)
         return
@@ -217,6 +219,7 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.remove_avatar(params)
         return
@@ -302,6 +305,7 @@ class Morpheus::Cli::UserSettingsCommand
     params['clientId'] = args[0]
     begin
       payload = {}
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.regenerate_access_token(params, payload)
         return
@@ -350,6 +354,7 @@ class Morpheus::Cli::UserSettingsCommand
     params['clientId'] = args[0]
     begin
       payload = {}
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.clear_access_token(params, payload)
         return
@@ -397,6 +402,7 @@ class Morpheus::Cli::UserSettingsCommand
     
     begin
       params.merge!(parse_list_options(options))
+      @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.available_clients(params)
         return

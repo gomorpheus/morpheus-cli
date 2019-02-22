@@ -59,6 +59,7 @@ class Morpheus::Cli::ContainersCommand
 
   def _get(arg, options)
     begin
+      @containers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @containers_interface.dry.get(arg.to_i)
         return
@@ -179,6 +180,7 @@ class Morpheus::Cli::ContainersCommand
   def _stop(container_id, options)
     container = find_container_by_id(container_id) # could skip this since only id is supported
     return 1 if container.nil?
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.stop(container['id'])
       return 0
@@ -218,6 +220,7 @@ class Morpheus::Cli::ContainersCommand
   def _start(container_id, options)
     container = find_container_by_id(container_id) # could skip this since only id is supported
     return 1 if container.nil?
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.start(container['id'])
       return 0
@@ -257,6 +260,7 @@ class Morpheus::Cli::ContainersCommand
   def _restart(container_id, options)
     container = find_container_by_id(container_id) # could skip this since only id is supported
     return 1 if container.nil?
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.restart(container['id'])
       return 0
@@ -296,6 +300,7 @@ class Morpheus::Cli::ContainersCommand
   def _suspend(container_id, options)
     container = find_container_by_id(container_id) # could skip this since only id is supported
     return 1 if container.nil?
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.suspend(container['id'])
       return 0
@@ -335,6 +340,7 @@ class Morpheus::Cli::ContainersCommand
   def _eject(container_id, options)
     container = find_container_by_id(container_id) # could skip this since only id is supported
     return 1 if container.nil?
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.eject(container['id'])
       return 0
@@ -379,6 +385,7 @@ class Morpheus::Cli::ContainersCommand
     container_ids = containers.collect {|container| container["id"] }
     begin
       # container = find_container_by_name_or_id(args[0])
+      @containers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @containers_interface.dry.available_actions(container_ids)
         return 0
@@ -479,6 +486,7 @@ class Morpheus::Cli::ContainersCommand
     # return run_command_for_each_arg(containers) do |arg|
     #   _action(arg, action_id, options)
     # end
+    @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.action(container_ids, action_id)
       return 0
@@ -550,7 +558,7 @@ class Morpheus::Cli::ContainersCommand
         end
         payload['script'] = script_content
       end
-      # dry run?
+      @execution_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execution_request_interface.dry.create(params, payload)
         return 0

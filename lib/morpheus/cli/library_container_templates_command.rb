@@ -31,7 +31,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @container_templates_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_templates_interface.dry.list(params)
         return
@@ -100,6 +100,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       if container_template.nil?
         return 1
       end
+      @container_templates_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_templates_interface.dry.get(container_template['id'])
         return
@@ -227,6 +228,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
         # todo: prompt?
         payload = {'containerTemplate' => params}
       end
+      @container_templates_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_templates_interface.dry.create(payload)
         return
@@ -311,6 +313,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         payload = {'containerTemplate' => params}
       end
+      @container_templates_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_templates_interface.dry.update(container_template["id"], payload)
         return
@@ -358,7 +361,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       # }
       # payload['containerTemplate'].merge!(container_template)
       payload = params
-
+      @container_templates_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_templates_interface.dry.destroy(container_template["id"])
         return

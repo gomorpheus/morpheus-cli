@@ -42,6 +42,7 @@ class Morpheus::Cli::NetworkProxiesCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @network_proxies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_proxies_interface.dry.list(params)
         return
@@ -110,6 +111,7 @@ class Morpheus::Cli::NetworkProxiesCommand
     end
     connect(options)
     begin
+      @network_proxies_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @network_proxies_interface.dry.get(args[0].to_i)
@@ -304,7 +306,7 @@ class Morpheus::Cli::NetworkProxiesCommand
 
       end
 
-      
+      @network_proxies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_proxies_interface.dry.create(payload)
         return
@@ -470,7 +472,7 @@ class Morpheus::Cli::NetworkProxiesCommand
         end
 
       end
-
+      @network_proxies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_proxies_interface.dry.update(network_proxy["id"], payload)
         return
@@ -514,6 +516,7 @@ class Morpheus::Cli::NetworkProxiesCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the network proxy: #{network_proxy['name']}?")
         return 9, "aborted command"
       end
+      @network_proxies_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_proxies_interface.dry.destroy(network_proxy['id'])
         return 0

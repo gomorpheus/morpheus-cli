@@ -56,6 +56,7 @@ class Morpheus::Cli::FileCopyRequestCommand
     file_copy_request_id = args[0]
     begin
       params.merge!(parse_list_options(options))
+      @file_copy_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @file_copy_request_interface.dry.get(file_copy_request_id, params)
         return
@@ -203,7 +204,7 @@ class Morpheus::Cli::FileCopyRequestCommand
         params['targetPath'] = v_prompt['targetPath']
       end
 
-      # dry run?
+      @file_copy_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @file_copy_request_interface.dry.create(local_file, params)
         return 0
@@ -297,7 +298,7 @@ class Morpheus::Cli::FileCopyRequestCommand
     begin
       # construct payload
       
-      # dry run?
+      @file_copy_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @file_copy_request_interface.dry.download_file_chunked(file_copy_request_id, outfile, params)
         return 0

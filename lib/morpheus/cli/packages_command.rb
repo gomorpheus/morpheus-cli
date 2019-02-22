@@ -39,7 +39,7 @@ class Morpheus::Cli::LibraryPackagesCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
-
+      @packages_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @packages_interface.dry.list(params)
         return 0
@@ -104,6 +104,7 @@ class Morpheus::Cli::LibraryPackagesCommand
         # params['phrase'] = args[0]
       end
       params.merge!(parse_list_options(options))
+      @packages_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @packages_interface.dry.search(params)
         return 0
@@ -177,6 +178,7 @@ class Morpheus::Cli::LibraryPackagesCommand
     begin
       params.merge!(parse_list_options(options))
       params['code'] = args[0]
+      @packages_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @packages_interface.dry.info(params)
         return 0
@@ -325,6 +327,7 @@ class Morpheus::Cli::LibraryPackagesCommand
     connect(options)
     begin
       params['code'] = args[0]
+      @packages_interface.setopts(options)
       if options[:dry_run]
         #print cyan,bold, "  - Uploading #{local_file_path} to #{bucket_id}:#{destination} DRY RUN", reset, "\n"
         # print_h1 "DRY RUN"
@@ -398,7 +401,7 @@ class Morpheus::Cli::LibraryPackagesCommand
 
     connect(options)
     begin
-      
+      @packages_interface.setopts(options)
       if options[:dry_run]
         #print cyan,bold, "  - Uploading #{local_file_path} to #{bucket_id}:#{destination} DRY RUN", reset, "\n"
         # print_h1 "DRY RUN"
@@ -577,7 +580,7 @@ class Morpheus::Cli::LibraryPackagesCommand
 
       # merge -O options into normally parsed options
       params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-
+      @packages_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @packages_interface.dry.export(params, outfile), full_command_string
         return 0

@@ -32,6 +32,7 @@ class Morpheus::Cli::UserGroupsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.list(nil, params)
         return
@@ -91,6 +92,7 @@ class Morpheus::Cli::UserGroupsCommand
       if user_group.nil?
         return 1
       end
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.get(nil, user_group['id'])
         return
@@ -209,6 +211,7 @@ class Morpheus::Cli::UserGroupsCommand
         # todo: prompt?
         payload = {'userGroup' => params}
       end
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.create(nil, payload)
         return
@@ -289,6 +292,7 @@ class Morpheus::Cli::UserGroupsCommand
         # todo: prompt?
         payload = {'userGroup' => params}
       end
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.update(nil, user_group["id"], payload)
         return
@@ -350,6 +354,7 @@ class Morpheus::Cli::UserGroupsCommand
         user_group_payload['users'] = new_user_ids
         payload = {'userGroup' => user_group_payload}
       end
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.update(nil, user_group["id"], payload)
         return 0
@@ -414,6 +419,7 @@ class Morpheus::Cli::UserGroupsCommand
         user_group_payload['users'] = new_user_ids
         payload = {'userGroup' => user_group_payload}
       end
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.update(nil, user_group["id"], payload)
         return 0
@@ -465,7 +471,7 @@ class Morpheus::Cli::UserGroupsCommand
       # }
       # payload['userGroup'].merge!(user_group)
       payload = params
-
+      @user_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_groups_interface.dry.destroy(nil, user_group["id"])
         return

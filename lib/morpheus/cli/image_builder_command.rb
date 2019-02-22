@@ -59,7 +59,7 @@ class Morpheus::Cli::ImageBuilderCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -68,7 +68,7 @@ class Morpheus::Cli::ImageBuilderCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.list(params)
         return
@@ -140,7 +140,7 @@ class Morpheus::Cli::ImageBuilderCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -150,6 +150,7 @@ class Morpheus::Cli::ImageBuilderCommand
     end
     connect(options)
     begin
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @image_builds_interface.dry.get(args[0].to_i)
@@ -342,7 +343,7 @@ class Morpheus::Cli::ImageBuilderCommand
       opts.on('--keepResults VALUE', String, "Keep only the most recent builds. Older executions will be deleted along with their associated Virtual Images. The value 0 disables this functionality.") do |val|
         options['keepResults'] = val.to_i
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
     end
     optparse.parse!(args)
     if args.count > 1
@@ -373,7 +374,7 @@ class Morpheus::Cli::ImageBuilderCommand
         return 1 if !image_build_payload
         payload = {'imageBuild' => image_build_payload}
       end
-
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.create(payload)
         return
@@ -470,7 +471,7 @@ class Morpheus::Cli::ImageBuilderCommand
         # 0 disables it
         # options['deleteOldResults'] = (options['keepResults'] > 0)
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -494,7 +495,7 @@ class Morpheus::Cli::ImageBuilderCommand
         return 1 if !image_build_payload
         payload = {'imageBuild' => image_build_payload}
       end
-
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.update(image_build["id"], payload)
         return
@@ -522,7 +523,7 @@ class Morpheus::Cli::ImageBuilderCommand
       opts.on( '-K', '--keep-virtual-images', "Preserve associated virtual images" ) do
         query_params['keepVirtualImages'] = 'on'
       end
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -544,6 +545,7 @@ class Morpheus::Cli::ImageBuilderCommand
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'keepVirtualImages', 'type' => 'checkbox', 'fieldLabel' => 'Keep Virtual Images?', 'required' => false, 'defaultValue' => false, 'description' => 'Preserve associated virtual images. By default, they are deleted as well.'}],options,@api_client,{})
         query_params['keepVirtualImages'] = v_prompt['keepVirtualImages']
       end
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.destroy(image_build['id'], query_params)
         return 0
@@ -568,7 +570,7 @@ class Morpheus::Cli::ImageBuilderCommand
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -586,6 +588,7 @@ class Morpheus::Cli::ImageBuilderCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to run the image build: #{image_build['name']}?")
         return 9, "aborted command"
       end
+      @image_builds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @image_builds_interface.dry.run(image_build['id'], query_params)
         return 0
@@ -609,7 +612,7 @@ class Morpheus::Cli::ImageBuilderCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List executions for an image build."
       opts.footer = "Display a list of executions for an image build.\n"
                     "[image-build] is the name or id of an image build."
@@ -629,6 +632,7 @@ class Morpheus::Cli::ImageBuilderCommand
     [:phrase, :offset, :max, :sort, :direction].each do |k|
       params[k] = options[k] unless options[k].nil?
     end
+    @image_builds_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @image_builds_interface.dry.list_executions(image_build['id'], params)
       return 0

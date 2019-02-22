@@ -33,6 +33,7 @@ class Morpheus::Cli::License
     optparse.parse!(args)
     connect(options)
     begin
+      @license_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @license_interface.dry.get()
         return
@@ -91,6 +92,7 @@ class Morpheus::Cli::License
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
         key = v_prompt['licenseKey'] || ''
       end
+      @license_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @license_interface.dry.apply(key)
         return 0
@@ -127,6 +129,7 @@ class Morpheus::Cli::License
       key = v_prompt['licenseKey'] || ''
     end
     begin
+      @license_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @license_interface.dry.decode(key)
         return

@@ -68,7 +68,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
       end
       
       params.merge!(parse_list_options(options))
-
+      @library_container_upgrades_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_upgrades_interface.dry.list(instance_type_id, params)
         return
@@ -132,6 +132,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
     exit 1 if instance_type.nil?
     instance_type_id = instance_type['id']
     begin
+      @library_container_upgrades_interface.setopts(options)
       if options[:dry_run]
         if id.to_s =~ /\A\d{1,}\Z/
           print_dry_run @library_container_upgrades_interface.dry.get(instance_type_id, upgrade_id.to_i)
@@ -347,7 +348,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
         # any other options or custom option types?
 
       end
-      # dry run?
+      @library_container_upgrades_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_upgrades_interface.dry.create(instance_type_id, payload)
         return
@@ -452,7 +453,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
         payload = {'upgrade' => params}
 
       end
-
+      @library_container_upgrades_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_upgrades_interface.dry.update(nil, upgrade['id'], payload)
         return
@@ -494,6 +495,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the upgrade #{upgrade['name']}?", options)
         exit
       end
+      @library_container_upgrades_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_upgrades_interface.dry.destroy(nil, upgrade['id'])
         return

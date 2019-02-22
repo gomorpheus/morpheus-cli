@@ -76,7 +76,7 @@ class Morpheus::Cli::ArchivesCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.list(params)
         return
@@ -170,6 +170,7 @@ class Morpheus::Cli::ArchivesCommand
     bucket_id, search_file_path  = parse_bucket_id_and_file_path(args[0])
     connect(options)
     begin
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @archive_buckets_interface.dry.get(bucket_id.to_i)
@@ -292,7 +293,7 @@ class Morpheus::Cli::ArchivesCommand
         return 1 if !archive_bucket_payload
         payload = {'archiveBucket' => archive_bucket_payload}
       end
-
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.create(payload)
         return
@@ -371,7 +372,7 @@ class Morpheus::Cli::ArchivesCommand
         return 1 if !archive_bucket_payload
         payload = {'archiveBucket' => archive_bucket_payload}
       end
-
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.update(archive_bucket["id"], payload)
         return
@@ -422,6 +423,7 @@ class Morpheus::Cli::ArchivesCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the archive bucket: #{archive_bucket['name']}?")
         return 9, "aborted command"
       end
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.destroy(archive_bucket['id'], query_params), full_command_string
         return 0
@@ -565,6 +567,7 @@ class Morpheus::Cli::ArchivesCommand
           upload_file_list << {file: file, destination: destination}
         end
 
+        @archive_buckets_interface.setopts(options)
         if options[:dry_run]
           # print_h1 "DRY RUN"
           print "\n",cyan, bold, "Uploading #{upload_file_list.size} Files...", reset, "\n"
@@ -627,6 +630,7 @@ class Morpheus::Cli::ArchivesCommand
           return 9, "aborted command"
         end
 
+        @archive_buckets_interface.setopts(options)
         if options[:dry_run]
           #print cyan,bold, "  - Uploading #{file} to #{bucket_id}:#{destination} DRY RUN", reset, "\n"
           # print_h1 "DRY RUN"
@@ -685,6 +689,7 @@ class Morpheus::Cli::ArchivesCommand
       if params[:phrase]
         params[:fullTree] = true # these are not exclusively supported by api yet
       end
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.list_files(bucket_id, search_file_path, params)
         return
@@ -766,6 +771,7 @@ class Morpheus::Cli::ArchivesCommand
       [:phrase, :offset, :max, :sort, :direction, :fullTree].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.list_files(bucket_id, search_file_path, params)
         return 0
@@ -930,6 +936,8 @@ class Morpheus::Cli::ArchivesCommand
       # archive_bucket = find_archive_bucket_by_name_or_id(bucket_id)
       # return 1 if archive_bucket.nil?
       params = {}
+      @archive_buckets_interface.setopts(options)
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         if file_id
           print_dry_run @archive_files_interface.dry.get(file_id, params), full_command_string
@@ -1065,7 +1073,7 @@ class Morpheus::Cli::ArchivesCommand
           return 9, "aborted command"
         end
       end
-      
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.destroy(archive_file['id'], query_params)
         return 0
@@ -1112,6 +1120,7 @@ class Morpheus::Cli::ArchivesCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.history(archive_file['id'], params)
         return
@@ -1174,6 +1183,7 @@ class Morpheus::Cli::ArchivesCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.list_links(archive_file['id'], params)
         return
@@ -1287,6 +1297,7 @@ class Morpheus::Cli::ArchivesCommand
         end
       end
       begin
+        @archive_files_interface.setopts(options)
         if options[:dry_run]
           # print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
           if use_public_url
@@ -1372,6 +1383,7 @@ class Morpheus::Cli::ArchivesCommand
       archive_file = find_archive_file_by_bucket_and_path(bucket_id, file_path)
       return 1 if archive_file.nil?
       full_file_path = "#{bucket_id}/#{file_path}".squeeze('/')
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
         return 1
@@ -1421,6 +1433,7 @@ class Morpheus::Cli::ArchivesCommand
       if expiration_seconds.to_i > 0
         params['expireSeconds'] = expiration_seconds.to_i
       end
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.create_file_link(archive_file['id'], params)
         return
@@ -1474,6 +1487,7 @@ class Morpheus::Cli::ArchivesCommand
         return 1
       end
       params = {}
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_files_interface.dry.destroy_file_link(archive_file['id'], link_id, params)
         return
@@ -1561,7 +1575,7 @@ class Morpheus::Cli::ArchivesCommand
           return 1
         end
       end
-
+      @archive_files_interface.setopts(options)
       if options[:dry_run]
         # print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
         print_dry_run @archive_files_interface.dry.download_file_by_link_chunked(link_key, outfile), full_command_string
@@ -1681,7 +1695,7 @@ class Morpheus::Cli::ArchivesCommand
           return 1
         end
       end
-
+      @archive_buckets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @archive_buckets_interface.dry.download_bucket_zip_chunked(bucket_id, outfile), full_command_string
         return 1

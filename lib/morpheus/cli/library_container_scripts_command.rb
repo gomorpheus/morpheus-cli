@@ -34,7 +34,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-      # dry run?
+      @container_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_scripts_interface.dry.list(params)
         return
@@ -95,6 +95,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       if container_script.nil?
         return 1
       end
+      @container_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_scripts_interface.dry.get(container_script['id'])
         return
@@ -204,6 +205,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
         # todo: prompt?
         payload = {'containerScript' => params}
       end
+      @container_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_scripts_interface.dry.create(payload)
         return
@@ -287,6 +289,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         payload = {'containerScript' => params}
       end
+      @container_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_scripts_interface.dry.update(container_script["id"], payload)
         return
@@ -334,7 +337,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       # }
       # payload['containerScript'].merge!(container_script)
       payload = params
-
+      @container_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @container_scripts_interface.dry.destroy(container_script["id"])
         return

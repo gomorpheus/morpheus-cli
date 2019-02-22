@@ -42,6 +42,7 @@ class Morpheus::Cli::NetworkGroupsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @network_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_groups_interface.dry.list(params)
         return
@@ -110,6 +111,7 @@ class Morpheus::Cli::NetworkGroupsCommand
     end
     connect(options)
     begin
+      @network_groups_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @network_groups_interface.dry.get(args[0].to_i)
@@ -319,7 +321,7 @@ class Morpheus::Cli::NetworkGroupsCommand
 
       end
 
-      
+      @network_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_groups_interface.dry.create(payload)
         return
@@ -480,7 +482,7 @@ class Morpheus::Cli::NetworkGroupsCommand
         end
 
       end
-
+      @network_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_groups_interface.dry.update(network_group["id"], payload)
         return
@@ -524,6 +526,7 @@ class Morpheus::Cli::NetworkGroupsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the network group: #{network_group['name']}?")
         return 9, "aborted command"
       end
+      @network_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_groups_interface.dry.destroy(network_group['id'])
         return 0

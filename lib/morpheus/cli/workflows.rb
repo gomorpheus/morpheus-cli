@@ -38,6 +38,7 @@ class Morpheus::Cli::Workflows
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @task_sets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.get(params)
         return
@@ -127,6 +128,7 @@ class Morpheus::Cli::Workflows
           payload['taskSet']['tasks'] = tasks
         end
       end
+      @task_sets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.create(payload)
         return
@@ -166,6 +168,7 @@ class Morpheus::Cli::Workflows
   def _get(id, options)
     workflow_name = id
     begin
+      @task_sets_interface.setopts(options)
       if options[:dry_run]
         if workflow_name.to_s =~ /\A\d{1,}\Z/
           print_dry_run @task_sets_interface.dry.get(workflow_name.to_i)
@@ -288,6 +291,7 @@ class Morpheus::Cli::Workflows
           payload['taskSet']['tasks'] = tasks
         end
       end
+      @task_sets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.update(workflow['id'], payload)
         return
@@ -324,6 +328,7 @@ class Morpheus::Cli::Workflows
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the workflow #{workflow['name']}?")
         exit 1
       end
+      @task_sets_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @task_sets_interface.dry.destroy(workflow['id'])
         return

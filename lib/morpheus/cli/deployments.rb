@@ -35,6 +35,7 @@ class Morpheus::Cli::Deployments
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @deployments_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @deployments_interface.dry.get(params)
         return
@@ -82,7 +83,7 @@ class Morpheus::Cli::Deployments
       end
       deployment = find_deployment_by_name_or_id(deployment_name)
       exit 1 if deployment.nil?
-
+      @deployments_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @deployments_interface.dry.list_versions(deployment['id'],params)
         return
@@ -148,6 +149,7 @@ class Morpheus::Cli::Deployments
 
 
       payload = {deployment: deployment_payload}
+      @deployments_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @deployments_interface.dry.update(deployment['id'], payload)
         return
@@ -185,6 +187,7 @@ class Morpheus::Cli::Deployments
     connect(options)
     begin
       payload = {deployment: {name: deployment_name, description: options[:description]}}
+      @deployments_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @deployments_interface.dry.create(payload)
         return
@@ -220,6 +223,7 @@ class Morpheus::Cli::Deployments
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment #{deployment['name']}?")
         exit
       end
+      @deployments_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @deployments_interface.dry.destroy(deployment['id'])
         return

@@ -63,7 +63,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
       end
       
       params.merge!(parse_list_options(options))
-
+      @library_layouts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_layouts_interface.dry.list(instance_type_id, params)
         return
@@ -123,6 +123,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
   def _get(id, options)
     instance_type_id = nil
     begin
+      @library_layouts_interface.setopts(options)
       if options[:dry_run]
         if id.to_s =~ /\A\d{1,}\Z/
           print_dry_run @library_layouts_interface.dry.get(instance_type_id, id.to_i)
@@ -380,7 +381,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
         payload = {'instanceTypeLayout' => params}
         
       end
-
+      @library_layouts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_layouts_interface.dry.create(instance_type_id, payload)
         return
@@ -486,7 +487,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
         payload = {'instanceTypeLayout' => params}
 
       end
-
+      @library_layouts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_layouts_interface.dry.update(nil, layout['id'], payload)
         return
@@ -528,6 +529,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the instance type #{layout['name']}?", options)
         exit
       end
+      @library_layouts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_layouts_interface.dry.destroy(nil, layout['id'])
         return

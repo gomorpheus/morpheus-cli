@@ -45,7 +45,7 @@ class Morpheus::Cli::PreseedScriptsCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @preseed_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @preseed_scripts_interface.dry.list(params)
         return
@@ -104,6 +104,7 @@ class Morpheus::Cli::PreseedScriptsCommand
     end
     connect(options)
     begin
+      @preseed_scripts_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @preseed_scripts_interface.dry.get(args[0].to_i)
@@ -182,6 +183,7 @@ class Morpheus::Cli::PreseedScriptsCommand
         payload['preseedScript']['content'] = File.read(script_file)
       end
       payload['preseedScript'].merge!(params)
+      @preseed_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @preseed_scripts_interface.dry.create(payload)
         return
@@ -252,7 +254,7 @@ class Morpheus::Cli::PreseedScriptsCommand
         payload['preseedScript']['content'] = File.read(script_file)
       end
       payload['preseedScript'].merge!(params)
-
+      @preseed_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @preseed_scripts_interface.dry.update(preseed_script["id"], payload)
         return
@@ -295,6 +297,7 @@ class Morpheus::Cli::PreseedScriptsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the preseed script: #{preseed_script['fileName']}?")
         return 9, "aborted command"
       end
+      @preseed_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @preseed_scripts_interface.dry.destroy(preseed_script['id'])
         return 0

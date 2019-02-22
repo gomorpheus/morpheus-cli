@@ -14,7 +14,7 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
+    @monitoring_apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.apps 
   end
 
   def handle(args)
@@ -37,13 +37,13 @@ class Morpheus::Cli::MonitoringAppsCommand
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.list(params)
+        print_dry_run @monitoring_apps_interface.dry.list(params)
         return
       end
 
-      json_response = @monitoring_interface.apps.list(params)
+      json_response = @monitoring_apps_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "monitorApps")
         return 0
@@ -109,12 +109,12 @@ class Morpheus::Cli::MonitoringAppsCommand
 
     begin
       monitor_app = find_monitoring_app_by_name_or_id(id)
-
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.get(monitor_app['id'])
+        print_dry_run @monitoring_apps_interface.dry.get(monitor_app['id'])
         return
       end
-      json_response = @monitoring_interface.apps.get(monitor_app['id'])
+      json_response = @monitoring_apps_interface.get(monitor_app['id'])
       monitor_app = json_response['monitorApp']
       if options[:json]
         puts as_json(json_response, options, "monitorApp")
@@ -180,7 +180,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       if options[:show_history]
         # history_items = json_response["history"]
         # gotta go get it
-        history_json_response = @monitoring_interface.apps.history(monitor_app["id"], {})
+        history_json_response = @monitoring_apps_interface.history(monitor_app["id"], {})
         history_items = history_json_response["history"] || history_json_response["events"]  || history_json_response["issues"]
         issues = history_items
         if history_items && !history_items.empty?
@@ -233,13 +233,13 @@ class Morpheus::Cli::MonitoringAppsCommand
         params[k] = options[k] unless options[k].nil?
       end
       # JD: lastUpdated 500ing, checks don't have that property ? =o  Fix it!
-
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.history(monitor_app['id'], params)
+        print_dry_run @monitoring_apps_interface.dry.history(monitor_app['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.apps.history(monitor_app['id'], params)
+      json_response = @monitoring_apps_interface.history(monitor_app['id'], params)
       if options[:json]
         puts as_json(json_response, options, "history")
         return 0
@@ -334,11 +334,12 @@ class Morpheus::Cli::MonitoringAppsCommand
         # todo: prompt?
         payload = {'monitorApp' => params}
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.create(payload)
+        print_dry_run @monitoring_apps_interface.dry.create(payload)
         return
       end
-      json_response = @monitoring_interface.apps.create(payload)
+      json_response = @monitoring_apps_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -416,11 +417,12 @@ class Morpheus::Cli::MonitoringAppsCommand
         # todo: prompt?
         payload = {'monitorApp' => params}
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.update(monitor_app["id"], payload)
+        print_dry_run @monitoring_apps_interface.dry.update(monitor_app["id"], payload)
         return
       end
-      json_response = @monitoring_interface.apps.update(monitor_app["id"], payload)
+      json_response = @monitoring_apps_interface.update(monitor_app["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -461,11 +463,12 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         payload = params
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.quarantine(monitor_app["id"], payload)
+        print_dry_run @monitoring_apps_interface.dry.quarantine(monitor_app["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.apps.quarantine(monitor_app["id"], payload)
+      json_response = @monitoring_apps_interface.quarantine(monitor_app["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -508,11 +511,12 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         payload = params
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.quarantine(monitor_app["id"], payload)
+        print_dry_run @monitoring_apps_interface.dry.quarantine(monitor_app["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.apps.quarantine(monitor_app["id"], payload)
+      json_response = @monitoring_apps_interface.quarantine(monitor_app["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -551,11 +555,12 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         payload = params
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.quarantine_all(payload)
+        print_dry_run @monitoring_apps_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.apps.quarantine_all(payload)
+      json_response = @monitoring_apps_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -596,11 +601,12 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         payload = params
       end
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.quarantine_all(payload)
+        print_dry_run @monitoring_apps_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.apps.quarantine_all(payload)
+      json_response = @monitoring_apps_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -640,13 +646,13 @@ class Morpheus::Cli::MonitoringAppsCommand
       # }
       # payload['monitorApp'].merge!(monitor_app)
       payload = params
-
+      @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.apps.dry.destroy(monitor_app["id"])
+        print_dry_run @monitoring_apps_interface.dry.destroy(monitor_app["id"])
         return
       end
 
-      json_response = @monitoring_interface.apps.destroy(monitor_app["id"])
+      json_response = @monitoring_apps_interface.destroy(monitor_app["id"])
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]

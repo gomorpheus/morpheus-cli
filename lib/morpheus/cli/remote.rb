@@ -786,6 +786,7 @@ EOT
       payload.merge!(v_prompt)
 
       begin
+        @setup_interface.setopts(options)
         if options[:dry_run]
           print_dry_run @setup_interface.dry.init(payload)
           return

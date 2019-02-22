@@ -12,7 +12,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
+    @monitoring_incidents_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.incidents
   end
 
   def handle(args)
@@ -36,11 +36,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.list(params)
+        print_dry_run @monitoring_incidents_interface.dry.list(params)
         return
       end
-      json_response = @monitoring_interface.incidents.list(params)
+      json_response = @monitoring_incidents_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "incidents")
         return 0
@@ -94,11 +95,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.stats(params)
+        print_dry_run @monitoring_incidents_interface.dry.stats(params)
         return
       end
-      json_response = @monitoring_interface.incidents.stats(params)
+      json_response = @monitoring_incidents_interface.stats(params)
       if options[:json]
         puts as_json(json_response, options, "openIncidents")
         return 0
@@ -185,11 +187,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
     begin
       incident = find_incident_by_id(id)
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.get(incident['id'])
+        print_dry_run @monitoring_incidents_interface.dry.get(incident['id'])
         return
       end
-      json_response = @monitoring_interface.incidents.get(incident['id'])
+      json_response = @monitoring_incidents_interface.get(incident['id'])
       incident = json_response['incident']
       
       if options[:json]
@@ -242,7 +245,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       if options[:show_history]
         # history_items = json_response["history"]
         # gotta go get it
-        history_json_response = @monitoring_interface.incidents.history(incident["id"], {})
+        history_json_response = @monitoring_incidents_interface.history(incident["id"], {})
         history_items = history_json_response["history"] || history_json_response["events"]  || history_json_response["issues"]
         issues = history_items
         if history_items && !history_items.empty?
@@ -259,7 +262,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       if options[:show_notifications]
         # history_items = json_response["history"]
         # gotta go get it
-        notifications_json_response = @monitoring_interface.incidents.notifications(incident["id"], {max: 10})
+        notifications_json_response = @monitoring_incidents_interface.notifications(incident["id"], {max: 10})
         notification_items = notifications_json_response["notifications"]
         if notification_items && notification_items.empty?
           print_h2 "Notifications"
@@ -300,13 +303,13 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       return 1 if incident.nil?
       
       params.merge!(parse_list_options(options))
-
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.history(incident['id'], params)
+        print_dry_run @monitoring_incidents_interface.dry.history(incident['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.incidents.history(incident['id'], params)
+      json_response = @monitoring_incidents_interface.history(incident['id'], params)
       if options[:json]
         puts as_json(json_response, options, "history")
         return 0
@@ -352,13 +355,13 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       # return false if incident.nil?
       params = {}
       params.merge!(parse_list_options(options))
-      
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.notifications(incident['id'], params)
+        print_dry_run @monitoring_incidents_interface.dry.notifications(incident['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.incidents.notifications(incident['id'], params)
+      json_response = @monitoring_incidents_interface.notifications(incident['id'], params)
       if options[:json]
         puts as_json(json_response, options, "notifications")
         return 0
@@ -452,13 +455,13 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         'incident' => {id: incident["id"]}
       }
       payload['incident'].merge!(params)
-
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.update(incident["id"], payload)
+        print_dry_run @monitoring_incidents_interface.dry.update(incident["id"], payload)
         return
       end
 
-      json_response = @monitoring_interface.incidents.update(incident["id"], payload)
+      json_response = @monitoring_incidents_interface.update(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -500,11 +503,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       else
         payload = params
       end
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.quarantine(incident["id"], payload)
+        print_dry_run @monitoring_incidents_interface.dry.quarantine(incident["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.incidents.quarantine(incident["id"], payload)
+      json_response = @monitoring_incidents_interface.quarantine(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -547,11 +551,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       else
         payload = params
       end
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.quarantine(incident["id"], payload)
+        print_dry_run @monitoring_incidents_interface.dry.quarantine(incident["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.incidents.quarantine(incident["id"], payload)
+      json_response = @monitoring_incidents_interface.quarantine(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -590,11 +595,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       else
         payload = params
       end
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.quarantine_all(payload)
+        print_dry_run @monitoring_incidents_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.incidents.quarantine_all(payload)
+      json_response = @monitoring_incidents_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -635,11 +641,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       else
         payload = params
       end
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.quarantine_all(payload)
+        print_dry_run @monitoring_incidents_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.incidents.quarantine_all(payload)
+      json_response = @monitoring_incidents_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -679,11 +686,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     begin
       incident = find_incident_by_id(id)
       already_closed = incident['status'] == 'closed'
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.close(incident['id'])
+        print_dry_run @monitoring_incidents_interface.dry.close(incident['id'])
         return
       end
-      json_response = @monitoring_interface.incidents.close(incident['id'])
+      json_response = @monitoring_incidents_interface.close(incident['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -727,11 +735,12 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         print bold,yellow,"Incident #{incident['id']} is already open",reset,"\n"
         return false
       end
+      @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.incidents.dry.reopen(incident['id'])
+        print_dry_run @monitoring_incidents_interface.dry.reopen(incident['id'])
         return
       end
-      json_response = @monitoring_interface.incidents.reopen(incident['id'])
+      json_response = @monitoring_incidents_interface.reopen(incident['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"

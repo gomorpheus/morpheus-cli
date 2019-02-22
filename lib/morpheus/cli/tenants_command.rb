@@ -50,6 +50,7 @@ class Morpheus::Cli::TenantsCommand
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.list(params)
         return
@@ -90,6 +91,7 @@ class Morpheus::Cli::TenantsCommand
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.list(params)
         return
@@ -114,12 +116,12 @@ class Morpheus::Cli::TenantsCommand
       build_common_options(opts, options, [:json, :remote, :dry_run])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
     connect(options)
     begin
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @accounts_interface.dry.get(args[0].to_i)
@@ -130,7 +132,6 @@ class Morpheus::Cli::TenantsCommand
       end
       account = find_account_by_name_or_id(args[0])
       exit 1 if account.nil?
-
       if options[:json]
         print JSON.pretty_generate({account: account})
         print "\n"
@@ -206,6 +207,7 @@ class Morpheus::Cli::TenantsCommand
         puts as_json(payload, options)
         return 0
       end
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.create(payload)
         return
@@ -271,6 +273,7 @@ class Morpheus::Cli::TenantsCommand
         puts as_json(payload, options)
         return 0
       end
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.update(account['id'], payload)
         return
@@ -314,6 +317,7 @@ class Morpheus::Cli::TenantsCommand
         puts as_json(payload, options)
         return 0
       end
+      @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.destroy(account['id'])
         return

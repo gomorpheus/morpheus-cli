@@ -293,16 +293,17 @@ class Morpheus::Cli::Hosts
 
   def _get(arg, options)
     begin
+      @servers_interface.setopts(options)
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @servers_interface.setopts(options).get(arg.to_i)
+          print_dry_run @servers_interface.dry.get(arg.to_i)
         else
-          print_dry_run @servers_interface.setopts(options).list({name: arg})
+          print_dry_run @servers_interface.dry.list({name: arg})
         end
         return
       end
       server = find_host_by_name_or_id(arg)
-      json_response = @servers_interface.setopts(options).get(server['id'])
+      json_response = @servers_interface.get(server['id'])
       if options[:json]
         json_response.delete('stats') if options[:include_fields]
         puts as_json(json_response, options, "server")
@@ -384,16 +385,17 @@ class Morpheus::Cli::Hosts
 
   def _stats(arg, options)
     begin
+      @servers_interface.setopts(options)
       if options[:dry_run]
         if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @servers_interface.setopts(options).get(arg.to_i)
+          print_dry_run @servers_interface.dry.get(arg.to_i)
         else
-          print_dry_run @servers_interface.setopts(options).list({name: arg})
+          print_dry_run @servers_interface.dry.list({name: arg})
         end
         return
       end
       server = find_host_by_name_or_id(arg)
-      json_response = @servers_interface.setopts(options).get(server['id'])
+      json_response = @servers_interface.get(server['id'])
       if options[:json]
         puts as_json(json_response, options, "stats")
         return 0

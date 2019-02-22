@@ -52,7 +52,7 @@ class Morpheus::Cli::InstanceTypes
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-      # dry run?
+      @instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instance_types_interface.dry.list(params)
         return
@@ -119,6 +119,7 @@ class Morpheus::Cli::InstanceTypes
       if instance_type.nil?
         return 1
       end
+      @instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instance_types_interface.dry.get(instance_type['id'])
         return

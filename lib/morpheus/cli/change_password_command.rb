@@ -117,7 +117,7 @@ class Morpheus::Cli::ChangePasswordCommand
           'password' => new_password
         } 
       }
-
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return 0

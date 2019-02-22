@@ -48,7 +48,7 @@ class Morpheus::Cli::Roles
       
       params = {}
       params.merge!(parse_list_options(options))
-
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.list(account_id, params), options
         return
@@ -125,6 +125,7 @@ class Morpheus::Cli::Roles
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
+      @roles_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
@@ -344,7 +345,7 @@ class Morpheus::Cli::Roles
       end
 
       payload = {role: role_payload}
-
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.create(account_id, payload)
         return
@@ -432,6 +433,7 @@ class Morpheus::Cli::Roles
         role_payload['multitenant'] = ['on','true'].include?(params['multitenant'].to_s)
       end
       payload = {role: role_payload}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update(account_id, role['id'], payload)
         return
@@ -481,6 +483,7 @@ class Morpheus::Cli::Roles
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the role #{role['authority']}?")
         exit
       end
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.destroy(account_id, role['id'])
         return
@@ -528,6 +531,7 @@ class Morpheus::Cli::Roles
       exit 1 if role.nil?
 
       params = {permissionCode: permission_code, access: access_value}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
         return
@@ -574,6 +578,7 @@ class Morpheus::Cli::Roles
       exit 1 if role.nil?
 
       params = {permissionCode: 'ComputeSite', access: access_value}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
         return
@@ -669,7 +674,7 @@ class Morpheus::Cli::Roles
         params['groupId'] = group_id
       end
       params['access'] = access_value
-      
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_group(account_id, role['id'], params)
         return
@@ -721,6 +726,7 @@ class Morpheus::Cli::Roles
       exit 1 if role.nil?
 
       params = {permissionCode: 'ComputeZone', access: access_value}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
         return
@@ -831,6 +837,7 @@ class Morpheus::Cli::Roles
         params['cloudId'] = cloud_id
       end
       params['access'] = access_value
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_cloud(account_id, role['id'], params)
         return
@@ -883,6 +890,7 @@ class Morpheus::Cli::Roles
       exit 1 if role.nil?
 
       params = {permissionCode: 'InstanceType', access: access_value}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
         return
@@ -974,7 +982,7 @@ class Morpheus::Cli::Roles
         params['instanceTypeId'] = instance_type['id']
       end
       params['access'] = access_value
-
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_instance_type(account_id, role['id'], params)
         return
@@ -1027,6 +1035,7 @@ class Morpheus::Cli::Roles
       exit 1 if role.nil?
 
       params = {permissionCode: 'AppTemplate', access: access_value}
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
         return
@@ -1130,7 +1139,7 @@ class Morpheus::Cli::Roles
         # params['blueprintId'] = blueprint['id']
       end
       params['access'] = access_value
-
+      @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_blueprint(account_id, role['id'], params)
         return

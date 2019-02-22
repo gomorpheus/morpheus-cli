@@ -22,7 +22,7 @@ class Morpheus::Cli::MonitoringContactsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
+    @monitoring_contacts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.contacts
   end
 
   def handle(args)
@@ -43,13 +43,13 @@ class Morpheus::Cli::MonitoringContactsCommand
         params[k] = options[k] unless options[k].nil?
       end
       # JD: lastUpdated 500ing, contacts don't have that property ? =o  Fix it!
-
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.list(params)
+        print_dry_run @monitoring_contacts_interface.dry.list(params)
         return
       end
 
-      json_response = @monitoring_interface.contacts.list(params)
+      json_response = @monitoring_contacts_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "contacts")
         return 0
@@ -108,11 +108,12 @@ class Morpheus::Cli::MonitoringContactsCommand
 
     begin
       contact = find_contact_by_name_or_id(id)
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.get(contact['id'])
+        print_dry_run @monitoring_contacts_interface.dry.get(contact['id'])
         return
       end
-      json_response = @monitoring_interface.contacts.get(contact['id'])
+      json_response = @monitoring_contacts_interface.get(contact['id'])
       contact = json_response['contact']
       
       if options[:json]
@@ -183,13 +184,13 @@ class Morpheus::Cli::MonitoringContactsCommand
         'contact' => {}
       }
       payload['contact'].merge!(params)
-
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.create(payload)
+        print_dry_run @monitoring_contacts_interface.dry.create(payload)
         return
       end
 
-      json_response = @monitoring_interface.contacts.create(payload)
+      json_response = @monitoring_contacts_interface.create(payload)
       contact = json_response['contact']
       if options[:json]
         puts as_json(json_response, options)
@@ -243,13 +244,13 @@ class Morpheus::Cli::MonitoringContactsCommand
         'contact' => {id: contact["id"]}
       }
       payload['contact'].merge!(params)
-
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.update(contact["id"], payload)
+        print_dry_run @monitoring_contacts_interface.dry.update(contact["id"], payload)
         return
       end
 
-      json_response = @monitoring_interface.contacts.update(contact["id"], payload)
+      json_response = @monitoring_contacts_interface.update(contact["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -289,11 +290,12 @@ class Morpheus::Cli::MonitoringContactsCommand
 
     begin
       contact = find_contact_by_name_or_id(id)
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.destroy(contact['id'])
+        print_dry_run @monitoring_contacts_interface.dry.destroy(contact['id'])
         return
       end
-      json_response = @monitoring_interface.contacts.destroy(contact['id'])
+      json_response = @monitoring_contacts_interface.destroy(contact['id'])
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -335,11 +337,12 @@ class Morpheus::Cli::MonitoringContactsCommand
         print bold,yellow,"contact #{contact['id']} is already open",reset,"\n"
         return false
       end
+      @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.contacts.dry.reopen(contact['id'])
+        print_dry_run @monitoring_contacts_interface.dry.reopen(contact['id'])
         return
       end
-      json_response = @monitoring_interface.contacts.reopen(contact['id'])
+      json_response = @monitoring_contacts_interface.reopen(contact['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"

@@ -61,7 +61,7 @@ class Morpheus::Cli::AccountGroupsCommand
       account_id = account['id']
 
       params.merge!(parse_list_options(options))
-
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.list(account['id'], params)
         return
@@ -119,6 +119,7 @@ class Morpheus::Cli::AccountGroupsCommand
       account_id = account['id']
 
       if options[:dry_run]
+        @account_groups_interface.setopts(options)
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @account_groups_interface.dry.get(account_id, args[0].to_i)
         else
@@ -128,6 +129,7 @@ class Morpheus::Cli::AccountGroupsCommand
       end
 
       group = find_account_group_by_name_or_id(account_id, args[0])
+      @account_groups_interface.setopts(options)
       return 1 if group.nil?
       # skip redundant request
       # json_response = @account_groups_interface.dry.get(account_id, args[0].to_i)
@@ -215,7 +217,7 @@ class Morpheus::Cli::AccountGroupsCommand
       params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {})
       group_payload.merge!(params)
       payload = {group: group_payload}
-
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.create(account['id'], payload)
         return
@@ -279,7 +281,7 @@ class Morpheus::Cli::AccountGroupsCommand
       group_payload.merge!(params)
 
       payload = {group: group_payload}
-
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.update(account['id'], group['id'], payload)
         return
@@ -335,6 +337,7 @@ class Morpheus::Cli::AccountGroupsCommand
       end
       new_zones = current_zones + [{'id' => cloud['id']}]
       payload = {group: {id: group["id"], zones: new_zones}}
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.update_zones(account['id'], group["id"], payload)
         return
@@ -391,6 +394,7 @@ class Morpheus::Cli::AccountGroupsCommand
       end
       new_zones = current_zones.reject {|it| it["id"] == cloud["id"] }
       payload = {group: {id: group["id"], zones: new_zones}}
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.update_zones(account['id'], group["id"], payload)
         return
@@ -441,6 +445,7 @@ class Morpheus::Cli::AccountGroupsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group['name']}?")
         exit
       end
+      @account_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @account_groups_interface.dry.destroy(account['id'], group['id'])
         return

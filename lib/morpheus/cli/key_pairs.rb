@@ -31,7 +31,7 @@ class Morpheus::Cli::KeyPairs
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:account, :list, :json])
+      build_common_options(opts, options, [:account, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -40,24 +40,23 @@ class Morpheus::Cli::KeyPairs
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
+      params.merge!(parse_list_options(options))
+      @key_pairs_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.list(account_id, params)
+        return 0
       end
-
       json_response = @key_pairs_interface.list(account_id, params)
+      render_result = render_with_format(json_response, options, 'keyPairs')
+      return 0 if render_result
       key_pairs = json_response['keyPairs']
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
+      unless options[:quiet]
         title = "Morpheus Key Pairs"
         subtitles = []
         if account
           subtitles << "Account: #{account['name']}".strip
         end
-        if params[:phrase]
-          subtitles << "Search: #{params[:phrase]}".strip
-        end
+        subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if key_pairs.empty?
           puts yellow,"No key pairs found.",reset
@@ -67,6 +66,7 @@ class Morpheus::Cli::KeyPairs
         end
         print reset,"\n"
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -78,7 +78,7 @@ class Morpheus::Cli::KeyPairs
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:account, :json])
+      build_common_options(opts, options, [:account, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -92,13 +92,22 @@ class Morpheus::Cli::KeyPairs
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
+      @key_pairs_interface.setopts(options)
+      if options[:dry_run]
+        if val.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @key_pairs_interface.dry.get(account_id, id.to_i)
+        else
+          print_dry_run @key_pairs_interface.dry.list(account_id, {name: name.to_s})
+        end
+        return 0
+      end
       key_pair = find_key_pair_by_name_or_id(account_id, args[0])
-      exit 1 if key_pair.nil?
-
-      if options[:json]
-        print JSON.pretty_generate({keyPair: key_pair})
-        print "\n"
-      else
+      return 1 if key_pair.nil?
+      json_response = {'keyPair' => key_pair}
+      render_result = render_with_format(json_response, options, 'keyPair')
+      return 0 if render_result
+      
+      unless options[:quiet]
         print_h1 "Key Pair Details"
         print cyan
         if account
@@ -176,7 +185,7 @@ class Morpheus::Cli::KeyPairs
         options[:options]['privateKey'] = options['privateKey']
       end
 
-      build_common_options(opts, options, [:account, :options, :json, :dry_run])
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -209,6 +218,7 @@ class Morpheus::Cli::KeyPairs
 
       key_pair_payload = params.select {|k,v| ['name','publicKey', 'privateKey', 'passphrase'].include?(k) }
       payload = {keyPair: key_pair_payload}
+      @key_pairs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @key_pairs_interface.dry.create(account_id, payload)
         return
@@ -232,7 +242,7 @@ class Morpheus::Cli::KeyPairs
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_key_pair_option_types)
-      build_common_options(opts, options, [:account, :options, :json, :dry_run])
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -262,6 +272,7 @@ class Morpheus::Cli::KeyPairs
 
       key_pair_payload = params.select {|k,v| ['name'].include?(k) }
       payload = {keyPair: key_pair_payload}
+      @key_pairs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @key_pairs_interface.dry.update(account_id, key_pair['id'], payload)
         return
@@ -284,7 +295,7 @@ class Morpheus::Cli::KeyPairs
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -305,6 +316,7 @@ class Morpheus::Cli::KeyPairs
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the key pair #{key_pair['name']}?")
         exit
       end
+      @key_pairs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @key_pairs_interface.dry.destroy(account_id, key_pair['id'])
         return

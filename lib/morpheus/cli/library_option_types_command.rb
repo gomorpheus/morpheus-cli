@@ -39,6 +39,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.list(params)
         return
@@ -109,6 +110,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
 
   def _get(id, options)
     begin
+      @option_types_interface.setopts(options)
       if options[:dry_run]
         if id.to_s =~ /\A\d{1,}\Z/
           print_dry_run @option_types_interface.dry.get(id.to_i)
@@ -171,6 +173,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       end
       option_type_payload = params
       payload = {optionType: option_type_payload}
+      @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.create(payload)
         return
@@ -217,6 +220,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       end
       option_type_payload = params
       payload = {optionType: option_type_payload}
+      @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.update(option_type['id'], payload)
         return
@@ -255,6 +259,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the option type #{option_type['name']}?", options)
         exit
       end
+      @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.destroy(option_type['id'])
         return

@@ -63,7 +63,7 @@ class Morpheus::Cli::UserSourcesCommand
       end
       
       params.merge!(parse_list_options(options))
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.list(account_id, params)
         return
@@ -130,6 +130,7 @@ class Morpheus::Cli::UserSourcesCommand
     # account_id = account['id']
     # user_source_id = args[1]
     begin
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         if user_source_id.to_s =~ /\A\d{1,}\Z/
           print_dry_run @user_sources_interface.dry.get(account_id, user_source_id.to_i)
@@ -352,7 +353,7 @@ class Morpheus::Cli::UserSourcesCommand
         
 
       end
-      # dry run?
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.create(account_id, payload)
         return
@@ -447,7 +448,7 @@ class Morpheus::Cli::UserSourcesCommand
         payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
       end
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.update(nil, user_source['id'], payload)
         return
@@ -497,7 +498,7 @@ class Morpheus::Cli::UserSourcesCommand
         # support old -O options
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       end
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.activate(nil, user_source['id'], payload)
         return
@@ -547,7 +548,7 @@ class Morpheus::Cli::UserSourcesCommand
         # support old -O options
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       end
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.deactivate(nil, user_source['id'], payload)
         return
@@ -599,7 +600,7 @@ class Morpheus::Cli::UserSourcesCommand
         # support old -O options
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       end
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.update_subdomain(nil, user_source['id'], payload)
         return
@@ -641,6 +642,7 @@ class Morpheus::Cli::UserSourcesCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user source #{user_source['name']}?", options)
         exit
       end
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.destroy(nil, user_source['id'])
         return
@@ -682,7 +684,7 @@ class Morpheus::Cli::UserSourcesCommand
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.list_types(params)
         return
@@ -749,7 +751,7 @@ class Morpheus::Cli::UserSourcesCommand
       # end
 
       # construct payload
-
+      @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.list_types(user_source_type_id, params)
         return

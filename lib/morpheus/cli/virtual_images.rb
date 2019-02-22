@@ -57,6 +57,7 @@ class Morpheus::Cli::VirtualImages
       if options[:filterType]
         params[:filterType] = options[:filterType]
       end
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.get(params)
         return
@@ -131,6 +132,7 @@ class Morpheus::Cli::VirtualImages
     image_name = args[0]
     connect(options)
     begin
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @virtual_images_interface.dry.get(args[0].to_i)
@@ -264,6 +266,7 @@ class Morpheus::Cli::VirtualImages
         end
         payload = {'virtualImage' => params}
       end
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.update(image['id'], payload)
         return
@@ -293,6 +296,7 @@ class Morpheus::Cli::VirtualImages
     connect(options)
     begin
       params = {}
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.virtual_image_types(params)
         return
@@ -399,7 +403,7 @@ class Morpheus::Cli::VirtualImages
         virtual_image_payload['accounts'] = tenants_list
       end
       payload = {virtualImage: virtual_image_payload}
-
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.create(payload)
         if file_url
@@ -497,6 +501,7 @@ class Morpheus::Cli::VirtualImages
     begin
       image = find_virtual_image_by_name_or_id(image_name)
       return 1 if image.nil?
+      @virtual_images_interface.setopts(options)
       if file_url
         if options[:dry_run]
           print_dry_run @virtual_images_interface.dry.upload_by_url(image['id'], file_url, file_name)
@@ -556,6 +561,7 @@ class Morpheus::Cli::VirtualImages
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image filename #{filename}?")
         exit
       end
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.destroy_file(image['id'], filename)
         return
@@ -591,6 +597,7 @@ class Morpheus::Cli::VirtualImages
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
         exit
       end
+      @virtual_images_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @virtual_images_interface.dry.destroy(image['id'])
         return

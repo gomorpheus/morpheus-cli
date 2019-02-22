@@ -45,6 +45,7 @@ class Morpheus::Cli::RecentActivityCommand
       account_id = account ? account['id'] : nil
       params = {}
       params.merge!(parse_list_options(options))
+      @dashboard_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @dashboard_interface.dry.recent_activity(account_id, params)
         return

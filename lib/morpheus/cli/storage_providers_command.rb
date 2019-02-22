@@ -57,6 +57,7 @@ class Morpheus::Cli::StorageProvidersCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.list(params)
         return
@@ -126,6 +127,7 @@ class Morpheus::Cli::StorageProvidersCommand
     end
     connect(options)
     begin
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @storage_providers_interface.dry.get(args[0].to_i)
@@ -371,7 +373,7 @@ class Morpheus::Cli::StorageProvidersCommand
         end
       end
 
-      
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.create(payload)
         return
@@ -482,7 +484,7 @@ class Morpheus::Cli::StorageProvidersCommand
           payload['storageBucket']['createBucket'] = true
         end
       end
-
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.update(storage_provider["id"], payload)
         return
@@ -526,6 +528,7 @@ class Morpheus::Cli::StorageProvidersCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the storage bucket: #{storage_provider['name']}?")
         return 9, "aborted command"
       end
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.destroy(storage_provider['id'])
         return 0
@@ -571,6 +574,7 @@ class Morpheus::Cli::StorageProvidersCommand
       [:fullTree].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.list_files(storage_provider['id'], search_file_path, params)
         return
@@ -667,6 +671,7 @@ class Morpheus::Cli::StorageProvidersCommand
       [:fullTree].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.list_files(storage_provider['id'], search_file_path, params)
         return 0
@@ -911,7 +916,7 @@ class Morpheus::Cli::StorageProvidersCommand
           destination = file.sub(local_file_path, (remote_file_path || "")).squeeze('/')
           upload_file_list << {file: file, destination: destination}
         end
-
+        @storage_providers_interface.setopts(options)
         if options[:dry_run]
           # print_h1 "DRY RUN"
           print "\n",cyan, bold, "Uploading #{upload_file_list.size} Files...", reset, "\n"
@@ -973,7 +978,7 @@ class Morpheus::Cli::StorageProvidersCommand
         unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to upload #{local_file_path} to #{storage_provider['name']}:#{destination}?")
           return 9, "aborted command"
         end
-
+        @storage_providers_interface.setopts(options)
         if options[:dry_run]
           #print cyan,bold, "  - Uploading #{file} to #{storage_provider_id}:#{destination} DRY RUN", reset, "\n"
           # print_h1 "DRY RUN"
@@ -1078,6 +1083,7 @@ class Morpheus::Cli::StorageProvidersCommand
         end
       end
       begin
+        @storage_providers_interface.setopts(options)
         if options[:dry_run]
           print_dry_run @storage_providers_interface.dry.download_file_chunked(storage_provider['id'], file_path, outfile), full_command_string
           return 0
@@ -1150,7 +1156,7 @@ class Morpheus::Cli::StorageProvidersCommand
       return 1 if storage_provider.nil?
 
       file_path = file_path.squeeze('/')
-
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_providers_interface.dry.download_file(storage_provider['id'], file_path), full_command_string
         return 1
@@ -1204,7 +1210,7 @@ class Morpheus::Cli::StorageProvidersCommand
           return 9, "aborted command"
         end
       end
-      
+      @storage_providers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @storage_files_interface.dry.destroy(storage_file['id'], query_params)
         return 0

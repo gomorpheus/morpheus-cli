@@ -45,6 +45,7 @@ class Morpheus::Cli::NetworksCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @networks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @networks_interface.dry.list(params)
         return
@@ -115,6 +116,7 @@ class Morpheus::Cli::NetworksCommand
     end
     connect(options)
     begin
+      @networks_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @networks_interface.dry.get(args[0].to_i)
@@ -456,7 +458,7 @@ class Morpheus::Cli::NetworksCommand
 
       end
 
-      
+      @networks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @networks_interface.dry.create(payload)
         return
@@ -734,7 +736,7 @@ class Morpheus::Cli::NetworksCommand
         end
 
       end
-
+      @networks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @networks_interface.dry.update(network["id"], payload)
         return
@@ -778,6 +780,7 @@ class Morpheus::Cli::NetworksCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the network: #{network['name']}?")
         return 9, "aborted command"
       end
+      @networks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @networks_interface.dry.destroy(network['id'])
         return 0

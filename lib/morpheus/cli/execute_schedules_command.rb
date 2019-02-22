@@ -33,6 +33,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.list(params)
         return
@@ -102,6 +103,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
       if schedule.nil?
         return 1
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.get(schedule['id'])
         return
@@ -218,6 +220,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         # todo: prompt?
         payload = {'schedule' => params}
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.create(payload)
         return
@@ -289,6 +292,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         payload = {'schedule' => params}
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.update(schedule["id"], payload)
         return
@@ -336,7 +340,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
       # }
       # payload['schedule'].merge!(schedule)
       payload = params
-
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.destroy(schedule["id"])
         return
@@ -391,6 +395,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         end
         payload = {'instances' => instances.collect {|it| it['id'] } }
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.add_instances(schedule["id"], payload)
         return 0
@@ -449,6 +454,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         end
         payload = {'instances' => instances.collect {|it| it['id'] } }
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.remove_instances(schedule["id"], payload)
         return 0
@@ -507,6 +513,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         end
         payload = {'servers' => servers.collect {|it| it['id'] } }
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.add_servers(schedule["id"], payload)
         return 0
@@ -565,6 +572,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
         end
         payload = {'servers' => servers.collect {|it| it['id'] } }
       end
+      @execute_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execute_schedules_interface.dry.remove_servers(schedule["id"], payload)
         return 0

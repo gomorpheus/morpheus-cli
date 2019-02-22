@@ -36,7 +36,7 @@ EOT
       opts.on( '-s', '--secgroup SECGROUP', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -64,6 +64,7 @@ EOT
     }
     connect(options)
     begin
+      @security_group_rules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_group_rules_interface.dry.create(security_group_id, params)
         return
@@ -95,7 +96,7 @@ EOT
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 2
@@ -119,6 +120,7 @@ EOT
     }
     connect(options)
     begin
+      @security_group_rules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_group_rules_interface.dry.create(security_group_id, params)
         return
@@ -141,7 +143,7 @@ EOT
     security_group_id = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     security_group_id = args[0]
@@ -156,6 +158,7 @@ EOT
     connect(options)
     begin
       params = {}
+      @security_group_rules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_group_rules_interface.dry.get(security_group_id, params)
         return
@@ -191,7 +194,7 @@ EOT
       opts.on( '-s', '--secgroup secgroup', "Security Group ID (Use will use security as set with 'security-groups use id'" ) do |id|
         security_group_id = id
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -208,6 +211,7 @@ EOT
     end
     connect(options)
     begin
+      @security_group_rules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_group_rules_interface.dry.delete(security_group_id, args[0])
         return

@@ -37,6 +37,7 @@ class Morpheus::Cli::Tasks
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.get(params)
         return
@@ -94,6 +95,7 @@ class Morpheus::Cli::Tasks
   def _get(id, options)
     task_name = id
     begin
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         if task_name.to_s =~ /\A\d{1,}\Z/
           print_dry_run @tasks_interface.dry.get(task_name.to_i)
@@ -196,6 +198,7 @@ class Morpheus::Cli::Tasks
       end
 
       payload = {task: task_payload}
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.update(task['id'], payload)
         return
@@ -226,6 +229,7 @@ class Morpheus::Cli::Tasks
     optparse.parse!(args)
     connect(options)
     begin
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.task_types()
         return
@@ -312,6 +316,7 @@ class Morpheus::Cli::Tasks
         input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
         payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
       end
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.create(payload)
         return
@@ -354,6 +359,7 @@ class Morpheus::Cli::Tasks
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the task #{task['name']}?")
         exit
       end
+      @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.destroy(task['id'], params)
         return

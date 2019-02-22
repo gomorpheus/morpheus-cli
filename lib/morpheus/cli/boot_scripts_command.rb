@@ -46,7 +46,7 @@ class Morpheus::Cli::BootScriptsCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
-
+      @boot_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @boot_scripts_interface.dry.list(params)
         return
@@ -105,6 +105,7 @@ class Morpheus::Cli::BootScriptsCommand
     end
     connect(options)
     begin
+      @boot_scripts_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @boot_scripts_interface.dry.get(args[0].to_i)
@@ -183,6 +184,7 @@ class Morpheus::Cli::BootScriptsCommand
         payload['bootScript']['content'] = File.read(script_file)
       end
       payload['bootScript'].merge!(params)
+      @boot_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @boot_scripts_interface.dry.create(payload)
         return
@@ -253,7 +255,7 @@ class Morpheus::Cli::BootScriptsCommand
         payload['bootScript']['content'] = File.read(script_file)
       end
       payload['bootScript'].merge!(params)
-
+      @boot_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @boot_scripts_interface.dry.update(boot_script["id"], payload)
         return
@@ -296,6 +298,7 @@ class Morpheus::Cli::BootScriptsCommand
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the boot script: #{boot_script['fileName']}?")
         return 9, "aborted command"
       end
+      @boot_scripts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @boot_scripts_interface.dry.destroy(boot_script['id'])
         return 0

@@ -68,7 +68,7 @@ class Morpheus::Cli::Whoami
       opts.on('-t','--token-only', "Print your access token only") do
         access_token_only = true
       end
-      build_common_options(opts, options, [:json, :remote, :dry_run])
+      build_common_options(opts, options, [:json, :remote, :dry_run, :quiet])
     end
     optparse.parse!(args)
     connect(options)
@@ -83,10 +83,14 @@ class Morpheus::Cli::Whoami
       end
       
       if options[:dry_run]
-        print_dry_run @api_client.whoami.dry.get(params, options)
+        print_dry_run @api_client.whoami.setopts(options).dry.get(params)
         return 0
       end
 
+      # todo: fix potential issue here, should be able to use --remote-url or --username
+      # in which case you do not have to be logged in (saved credentials)...
+      # maybe just update connect() to do @api_client = establish_remote_appliance_connection(opts)
+      # wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
       wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
       token = wallet ? wallet['access_token'] : nil
       if !token
@@ -102,16 +106,30 @@ class Morpheus::Cli::Whoami
         end
       end
 
-      json_response = load_whoami()
-      
-      user = @current_user # from load_whoami()  meh
+      #json_response = load_whoami()
 
+      whoami_interface = @api_client.whoami.setopts(options)
+      whoami_response = whoami_interface.get()
+      json_response = whoami_response
+      @current_user = whoami_response["user"]
+      if @current_user.empty?
+        print_red_alert "Unauthenticated. Please login."
+        exit 1
+      end
+      @is_master_account = whoami_response["isMasterAccount"]
+      @user_permissions = whoami_response["permissions"]
+
+      if whoami_response["appliance"]
+        @appliance_build_verison = whoami_response["appliance"]["buildVersion"]
+      else
+        @appliance_build_verison = nil
+      end
 
       if access_token_only
         if options[:quiet]
-          return 1
+          return @current_user ? 0 : 1
         end
-        if !@access_token
+        if @access_token.nil?
           print yellow,"\n","No access token. Please login",reset,"\n"
           return false
         end
@@ -121,14 +139,15 @@ class Morpheus::Cli::Whoami
 
       if username_only
         if options[:quiet]
-          return 1
+          return @current_user ? 0 : 1
         end
-        if !user
-          puts "(logged out)" # "(anonymous)" || ""
+        if @current_user.nil?
+          puts_error "(logged out)" # "(anonymous)" || ""
           return 1
+        else
+          print cyan,@current_user['username'].to_s,reset,"\n"
+          return 0
         end
-        print cyan,user['username'].to_s,reset,"\n"
-        return 0
       end
 
       
@@ -145,7 +164,7 @@ class Morpheus::Cli::Whoami
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        if !user
+        if @current_user.nil?
           print yellow,"\n","No active session. Please login",reset,"\n"
           exit 1
         end
@@ -162,7 +181,7 @@ class Morpheus::Cli::Whoami
           "Username" => 'username',
           "Email" => 'email',
           "Role" => lambda {|it| format_user_role_names(it) }
-        }, user)
+        }, @current_user)
         print cyan
 
         if options[:include_feature_access]
@@ -211,7 +230,7 @@ class Morpheus::Cli::Whoami
         begin
           now = Time.now.to_i
           app_map = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
-          app_map[:username] = user['username']
+          app_map[:username] = @current_user['username']
           app_map[:authenticated] = true
           app_map[:status] = 'ready'
           app_map[:build_version] = @appliance_build_verison if @appliance_build_verison

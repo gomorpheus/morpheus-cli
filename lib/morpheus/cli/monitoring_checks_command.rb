@@ -14,7 +14,7 @@ class Morpheus::Cli::MonitoringChecksCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
+    @monitoring_checks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.checks
   end
 
   def handle(args)
@@ -41,11 +41,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.list(params)
+        print_dry_run @monitoring_checks_interface.dry.list(params)
         return
       end
-      json_response = @monitoring_interface.checks.list(params)
+      json_response = @monitoring_checks_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "checks")
         return 0
@@ -110,12 +111,12 @@ class Morpheus::Cli::MonitoringChecksCommand
 
     begin
       check = find_check_by_name_or_id(id)
-
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.get(check['id'])
+        print_dry_run @monitoring_checks_interface.dry.get(check['id'])
         return
       end
-      json_response = @monitoring_interface.checks.get(check['id'])
+      json_response = @monitoring_checks_interface.get(check['id'])
       check = json_response['check']
       if options[:json]
         puts as_json(json_response, options, 'check')
@@ -207,7 +208,7 @@ class Morpheus::Cli::MonitoringChecksCommand
       if options[:show_history]
         # history_items = json_response["history"]
         # gotta go get it
-        history_json_response = @monitoring_interface.checks.history(check["id"], {})
+        history_json_response = @monitoring_checks_interface.history(check["id"], {})
         history_items = history_json_response["history"] || history_json_response["events"]  || history_json_response["issues"]
         issues = history_items
         if history_items && !history_items.empty?
@@ -260,13 +261,13 @@ class Morpheus::Cli::MonitoringChecksCommand
         params[k] = options[k] unless options[k].nil?
       end
       # JD: lastUpdated 500ing, checks don't have that property ? =o  Fix it!
-
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.history(check['id'], params)
+        print_dry_run @monitoring_checks_interface.dry.history(check['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.checks.history(check['id'], params)
+      json_response = @monitoring_checks_interface.history(check['id'], params)
       if options[:json]
         puts as_json(json_response, options, "history")
         return 0
@@ -356,11 +357,12 @@ class Morpheus::Cli::MonitoringChecksCommand
         # todo: load option types based on type and prompt
         payload = {'check' => params}
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.create(payload)
+        print_dry_run @monitoring_checks_interface.dry.create(payload)
         return
       end
-      json_response = @monitoring_interface.checks.create(payload)
+      json_response = @monitoring_checks_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -422,11 +424,12 @@ class Morpheus::Cli::MonitoringChecksCommand
         # todo: prompt?
         payload = {'check' => params}
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.update(check["id"], payload)
+        print_dry_run @monitoring_checks_interface.dry.update(check["id"], payload)
         return
       end
-      json_response = @monitoring_interface.checks.update(check["id"], payload)
+      json_response = @monitoring_checks_interface.update(check["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -468,11 +471,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         payload = params
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.quarantine(check["id"], payload)
+        print_dry_run @monitoring_checks_interface.dry.quarantine(check["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.checks.quarantine(check["id"], payload)
+      json_response = @monitoring_checks_interface.quarantine(check["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -515,11 +519,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         payload = params
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.quarantine(check["id"], payload)
+        print_dry_run @monitoring_checks_interface.dry.quarantine(check["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.checks.quarantine(check["id"], payload)
+      json_response = @monitoring_checks_interface.quarantine(check["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -558,11 +563,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         payload = params
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.quarantine_all(payload)
+        print_dry_run @monitoring_checks_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.checks.quarantine_all(payload)
+      json_response = @monitoring_checks_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -603,11 +609,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         payload = params
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.quarantine_all(payload)
+        print_dry_run @monitoring_checks_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.checks.quarantine_all(payload)
+      json_response = @monitoring_checks_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -641,13 +648,13 @@ class Morpheus::Cli::MonitoringChecksCommand
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete check '#{check['name']}'?", options)
         return false
       end
-
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.destroy(check["id"])
+        print_dry_run @monitoring_checks_interface.dry.destroy(check["id"])
         return
       end
 
-      json_response = @monitoring_interface.checks.destroy(check["id"])
+      json_response = @monitoring_checks_interface.destroy(check["id"])
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -674,12 +681,13 @@ class Morpheus::Cli::MonitoringChecksCommand
       [:phrase, :offset, :max, :sort, :direction].each do |k|
         params[k] = options[k] unless options[k].nil?
       end
+      @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.checks.dry.list_check_types(params)
+        print_dry_run @monitoring_checks_interface.dry.list_check_types(params)
         return
       end
 
-      json_response = @monitoring_interface.checks.list_check_types(params)
+      json_response = @monitoring_checks_interface.list_check_types(params)
       if options[:json]
         puts as_json(json_response, options, "checkTypes")
         return 0

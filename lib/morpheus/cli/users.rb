@@ -47,6 +47,7 @@ class Morpheus::Cli::Users
 
       params = {}
       params.merge!(parse_list_options(options))
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.list(account_id, params)
         return
@@ -98,6 +99,7 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
       params = {}
       params.merge!(parse_list_options(options))
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.list(account_id, params)
         return
@@ -152,6 +154,7 @@ class Morpheus::Cli::Users
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
+      @users_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @users_interface.dry.get(account_id, args[0].to_i)
@@ -280,6 +283,7 @@ class Morpheus::Cli::Users
         puts as_json(payload, options)
         return 0
       end
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.create(account_id, payload)
         return
@@ -370,7 +374,7 @@ class Morpheus::Cli::Users
 
         payload = {'user' => params}
       end
-
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return
@@ -452,7 +456,7 @@ class Morpheus::Cli::Users
           'password' => new_password
         } 
       }
-      
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
         return
@@ -496,6 +500,7 @@ class Morpheus::Cli::Users
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
         exit
       end
+      @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.destroy(account_id, user['id'])
         return

@@ -34,6 +34,7 @@ class Morpheus::Cli::SecurityGroups
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.list(params)
         return
@@ -110,6 +111,7 @@ class Morpheus::Cli::SecurityGroups
     end
     connect(options)
     begin
+      @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.get({id: args[0]})
         return
@@ -155,6 +157,7 @@ class Morpheus::Cli::SecurityGroups
     params[:securityGroup][:name] = args[0]
     connect(options)
     begin
+      @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.create(params)
         return
@@ -191,6 +194,7 @@ class Morpheus::Cli::SecurityGroups
         puts "Security Group not found by id #{args[0]}"
         return
       end
+      @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.delete(security_group['id'])
         return

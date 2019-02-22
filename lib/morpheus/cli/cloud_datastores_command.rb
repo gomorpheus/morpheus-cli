@@ -54,6 +54,7 @@ class Morpheus::Cli::CloudDatastoresCommand
       return 1 if cloud.nil?
 
       params.merge!(parse_list_options(options))
+      @cloud_datastores_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @cloud_datastores_interface.dry.list(cloud['id'], params)
         return
@@ -137,7 +138,7 @@ class Morpheus::Cli::CloudDatastoresCommand
       end
       cloud = find_cloud_by_name_or_id(cloud_id)
       return 1 if cloud.nil?
-
+      @cloud_datastores_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
           print_dry_run @cloud_datastores_interface.dry.get(cloud['id'], args[0].to_i)
@@ -325,7 +326,7 @@ class Morpheus::Cli::CloudDatastoresCommand
         end
 
       end
-
+      @cloud_datastores_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @cloud_datastores_interface.dry.update(cloud['id'], datastore["id"], payload)
         return

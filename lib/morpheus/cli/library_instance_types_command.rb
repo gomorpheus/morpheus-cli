@@ -55,7 +55,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-      # dry run?
+      @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.list(params)
         return
@@ -116,6 +116,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       if instance_type.nil?
         return 1
       end
+      @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.get(instance_type['id'])
         return
@@ -270,6 +271,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         params['hasAutoScale'] = ['on','true','1'].include?(params['hasAutoScale'].to_s) if params.key?('hasAutoScale')
         params['hasDeployment'] = ['on','true','1'].include?(params['hasDeployment'].to_s) if params.key?('hasDeployment')
         payload = {instanceType: params}
+        @library_instance_types_interface.setopts(options)
         if options[:dry_run]
           print_dry_run @library_instance_types_interface.dry.create(payload)
           if logo_file
@@ -344,7 +346,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         end
         payload = {'instanceType' => params}
       end
-
+      @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.update(instance_type['id'], payload)
         return
@@ -398,6 +400,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         end
         logo_file = File.new(filename, 'rb')
       end
+      @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.update_logo(instance_type['id'], logo_file)
         return
@@ -436,6 +439,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the instance type #{instance_type['name']}?", options)
         exit
       end
+      @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.destroy(instance_type['id'])
         return

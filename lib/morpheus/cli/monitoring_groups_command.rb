@@ -13,7 +13,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring
+    @monitoring_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.groups
   end
 
   def handle(args)
@@ -35,13 +35,13 @@ class Morpheus::Cli::MonitoringGroupsCommand
     begin
       # construct payload
       params.merge!(parse_list_options(options))
-
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.list(params)
+        print_dry_run @monitoring_groups_interface.dry.list(params)
         return
       end
 
-      json_response = @monitoring_interface.groups.list(params)
+      json_response = @monitoring_groups_interface.list(params)
 
       if options[:json]
         puts as_json(json_response, options, "checkGroups")
@@ -100,12 +100,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
     begin
       check_group = find_check_group_by_name_or_id(id)
-
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.get(check_group['id'])
+        print_dry_run @monitoring_groups_interface.dry.get(check_group['id'])
         return
       end
-      json_response = @monitoring_interface.groups.get(check_group['id'])
+      json_response = @monitoring_groups_interface.get(check_group['id'])
       check_group = json_response['checkGroup']
       if options[:json]
         puts as_json(json_response, options, "checkGroup")
@@ -166,7 +166,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       if options[:show_history]
         # history_items = json_response["history"]
         # gotta go get it
-        history_json_response = @monitoring_interface.groups.history(check_group["id"], {})
+        history_json_response = @monitoring_groups_interface.history(check_group["id"], {})
         history_items = history_json_response["history"] || history_json_response["events"]  || history_json_response["issues"]
         issues = history_items
         if history_items && !history_items.empty?
@@ -217,13 +217,13 @@ class Morpheus::Cli::MonitoringGroupsCommand
       
       # construct payload
       params.merge!(parse_list_options(options))
-
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.history(check_group['id'], params)
+        print_dry_run @monitoring_groups_interface.dry.history(check_group['id'], params)
         return
       end
 
-      json_response = @monitoring_interface.groups.history(check_group['id'], params)
+      json_response = @monitoring_groups_interface.history(check_group['id'], params)
       if options[:json]
         puts as_json(json_response, options, "history")
         return 0
@@ -308,11 +308,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
         # todo: prompt?
         payload = {'checkGroup' => params}
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.create(payload)
+        print_dry_run @monitoring_groups_interface.dry.create(payload)
         return
       end
-      json_response = @monitoring_interface.groups.create(payload)
+      json_response = @monitoring_groups_interface.create(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -381,11 +382,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
         # todo: prompt?
         payload = {'checkGroup' => params}
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.update(check_group["id"], payload)
+        print_dry_run @monitoring_groups_interface.dry.update(check_group["id"], payload)
         return
       end
-      json_response = @monitoring_interface.groups.update(check_group["id"], payload)
+      json_response = @monitoring_groups_interface.update(check_group["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -426,11 +428,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         payload = params
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.quarantine(check_group["id"], payload)
+        print_dry_run @monitoring_groups_interface.dry.quarantine(check_group["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.groups.quarantine(check_group["id"], payload)
+      json_response = @monitoring_groups_interface.quarantine(check_group["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -473,11 +476,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         payload = params
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.quarantine(check_group["id"], payload)
+        print_dry_run @monitoring_groups_interface.dry.quarantine(check_group["id"], payload)
         return 0
       end
-      json_response = @monitoring_interface.groups.quarantine(check_group["id"], payload)
+      json_response = @monitoring_groups_interface.quarantine(check_group["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -516,11 +520,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         payload = params
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.quarantine_all(payload)
+        print_dry_run @monitoring_groups_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.groups.quarantine_all(payload)
+      json_response = @monitoring_groups_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -561,11 +566,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         payload = params
       end
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.quarantine_all(payload)
+        print_dry_run @monitoring_groups_interface.dry.quarantine_all(payload)
         return 0
       end
-      json_response = @monitoring_interface.groups.quarantine_all(payload)
+      json_response = @monitoring_groups_interface.quarantine_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -605,13 +611,13 @@ class Morpheus::Cli::MonitoringGroupsCommand
       # }
       # payload['checkGroup'].merge!(check_group)
       payload = params
-
+      @monitoring_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_interface.groups.dry.destroy(check_group["id"])
+        print_dry_run @monitoring_groups_interface.dry.destroy(check_group["id"])
         return
       end
 
-      json_response = @monitoring_interface.groups.destroy(check_group["id"])
+      json_response = @monitoring_groups_interface.destroy(check_group["id"])
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]

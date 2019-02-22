@@ -56,6 +56,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     execution_request_id = args[0]
     begin
       params.merge!(parse_list_options(options))
+      @execution_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execution_request_interface.dry.get(execution_request_id, params)
         return
@@ -194,7 +195,7 @@ class Morpheus::Cli::ExecutionRequestCommand
         end
         payload['script'] = script_content
       end
-      # dry run?
+      @execution_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execution_request_interface.dry.create(params, payload)
         return 0
@@ -269,7 +270,7 @@ class Morpheus::Cli::ExecutionRequestCommand
           payload['script'] = script_content
         end
       end
-      # dry run?
+      @execution_request_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @execution_request_interface.dry.execute_against_lease(execution_request_id, params, payload)
         return 0

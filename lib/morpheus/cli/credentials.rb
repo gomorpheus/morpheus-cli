@@ -49,13 +49,14 @@ module Morpheus
           # for now, it just stores the access token without other wallet info
           begin
             whoami_interface = Morpheus::WhoamiInterface.new(options[:remote_token], nil, nil, @appliance_url)
+            whoami_interface.setopts(options)
             if options[:dry_run]
               print_dry_run whoami_interface.dry.get()
               return nil
             end
             whoami_response = whoami_interface.get()
             if options[:json]
-              print JSON.pretty_generate(whoami_response)
+              puts as_json(whoami_response, options)
               print reset, "\n"
             end
             # store mock /oauth/token  auth_interface.login() result

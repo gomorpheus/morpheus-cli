@@ -43,6 +43,7 @@ class Morpheus::Cli::NetworkServicesCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      @network_services_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_services_interface.dry.list(params)
         return

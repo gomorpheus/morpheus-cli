@@ -35,6 +35,7 @@ class Morpheus::Cli::DashboardCommand
     connect(options)
     begin
       params = {}
+      @dashboard_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @dashboard_interface.dry.get(params)
         return
