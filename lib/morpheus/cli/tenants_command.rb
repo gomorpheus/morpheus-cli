@@ -43,7 +43,7 @@ class Morpheus::Cli::TenantsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :remote, :dry_run])
-      opts.footer = "List tenants."
+      opts.footer = "List tenants (accounts)."
     end
     optparse.parse!(args)
     connect(options)
@@ -136,7 +136,7 @@ class Morpheus::Cli::TenantsCommand
         print JSON.pretty_generate({account: account})
         print "\n"
       else
-        print_h1 "Account Details"
+        print_h1 "Tenant Details"
         print cyan
         puts "ID: #{account['id']}"
         puts "Name: #{account['name']}"
@@ -217,7 +217,7 @@ class Morpheus::Cli::TenantsCommand
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Account #{account_payload['name']} added"
+        print_green_success "Tenant #{account_payload['name']} added"
         get([account_payload["name"]])
       end
 
@@ -285,7 +285,7 @@ class Morpheus::Cli::TenantsCommand
         print "\n"
       else
         account_name = account_payload['name'] || account['name']
-        print_green_success "Account #{account_name} updated"
+        print_green_success "Tenant #{account_name} updated"
         get([account_name])
       end
     rescue RestClient::Exception => e
@@ -327,7 +327,7 @@ class Morpheus::Cli::TenantsCommand
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Account #{account['name']} removed"
+        print_green_success "Tenant #{account['name']} removed"
       end
 
     rescue RestClient::Exception => e
