@@ -24,7 +24,7 @@ class Morpheus::Cli::ColoringCommand
       end
       opts.footer = "Enable [on] or Disable [off] ANSI Colors for all output.\n" + 
                     "Use [on?] or [off?] to print the current value and exit accordingly." + "\n" +
-                    "Pass no arguments to just print the current value."
+                    "Passing no arguments is the same as `#{command_name} on`"
     end
     optparse.parse!(args)
     if args.count > 1

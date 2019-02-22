@@ -49,9 +49,9 @@ EOT
     Morpheus::Benchmarking.enabled = true
     my_terminal.benchmarking = Morpheus::Benchmarking.enabled
     unless options[:quiet]
-      if benchmark_was_enabled == false
-        Morpheus::Logging::DarkPrinter.puts "benchmark enabled" if Morpheus::Logging.debug?
-      end
+      # if benchmark_was_enabled == false
+      #   Morpheus::Logging::DarkPrinter.puts "benchmark enabled" if Morpheus::Logging.debug?
+      # end
       puts "#{cyan}benchmark: #{green}on#{reset}"
     end
     return 0 
@@ -79,9 +79,9 @@ EOT
     Morpheus::Benchmarking.enabled = false
     my_terminal.benchmarking = Morpheus::Benchmarking.enabled
     unless options[:quiet]
-      if benchmark_was_enabled == true
-        Morpheus::Logging::DarkPrinter.puts "benchmark disabled" if Morpheus::Logging.debug?
-      end
+      # if benchmark_was_enabled == true
+      #   Morpheus::Logging::DarkPrinter.puts "benchmark disabled" if Morpheus::Logging.debug?
+      # end
       puts "#{cyan}benchmark: #{dark}off#{reset}"
     end
     return 0 
