@@ -247,7 +247,7 @@ class Morpheus::Cli::Shell
   # logging is skipped for certain commands: exit, !,  !!
   def execute(input)
     result = execute_commands_as_expression(input)
-    unless input.strip.empty? || (["exit", "history"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
+    unless input.strip.empty? || (["exit"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
       log_history_command(input.strip)
     end
     return result
@@ -662,13 +662,16 @@ class Morpheus::Cli::Shell
     @history ||= {}
     @last_command_number ||= 0
     previous_cmd = @history[@last_command_number]
-    return if previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
+    # skip logging consecutive history commands.
+    if previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
+      return @last_command_number
+    end
     @last_command_number += 1
     @history[@last_command_number] = cmd
-    skip_log = previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
     if @history_logger
       @history_logger.info "#{@current_username}@#{@appliance_name} -- : (cmd #{@last_command_number}) #{cmd}"
     end
+    return @last_command_number
   end
 
   def last_command(n=25)
@@ -694,10 +697,6 @@ class Morpheus::Cli::Shell
       puts "#{cmd_number.to_s.rjust(3, ' ')}  #{cmd}"
     end
     print reset
-    #last_cmd = cmd_numbers.last ? @history[cmd_numbers.last] : nil
-    # if input != last_cmd # no consecutive
-    #   log_history_command(input)
-    # end
     return 0
   end
 
