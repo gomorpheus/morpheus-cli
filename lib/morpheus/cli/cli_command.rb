@@ -443,10 +443,10 @@ module Morpheus
               header_list = [val.to_s]
               header_list.each do |h|
                 header_parts = val.to_s.split(":")
-                header_key, header_value = header_parts[0], header_parts[1..-1].join(":")
+                header_key, header_value = header_parts[0], header_parts[1..-1].join(":").strip
                 if header_parts.size() < 2
                   header_parts = val.to_s.split("=")
-                  header_key, header_value = header_parts[0], header_parts[1..-1].join("=")
+                  header_key, header_value = header_parts[0], header_parts[1..-1].join("=").strip
                 end
                 if header_parts.size() < 2
                   raise_command_error "Invalid HEADER value '#{val}'. HEADER should contain a key and a value. eg. -H 'X-Morpheus-Lease: $MORPHEUS_LEASE_TOKEN'"
