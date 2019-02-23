@@ -8,6 +8,9 @@ module Morpheus::Logging
 
   DEFAULT_LOG_LEVEL = ENV['DEBUG'] ? Logger::DEBUG : Logger::INFO
 
+  AUTHORIZATION_HEADER = 'Authorization'
+  SECRET_TOKEN_HEADERS = ['X-Morpheus-Token', 'X-Cypher-Token', 'X-Vault-Token', 'X-Morpheus-Lease']
+
   @@log_level = DEFAULT_LOG_LEVEL
   @@logger = nil
 
@@ -80,13 +83,20 @@ module Morpheus::Logging
   def self.scrub_message(msg)
     if msg.is_a?(String)
       msg = msg.clone
-      msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/, 'Authorization"=>"Bearer ************')
-      msg.gsub!(/Authorization\:\s?Bearer [^"'']+/, 'Authorization: Bearer ************')
-      msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/, 'password"=>"************')
-      msg.gsub!(/password\=\"[^"]+/, 'password="************')
-      msg.gsub!(/password\=[^"'&\Z]+/, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh
-      msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation="************')
-      msg.gsub!(/passwordConfirmation\=[^" ]+/, 'passwordConfirmation=************')
+      # looks for RestClient format (hash.inspect) and request/curl output name: value
+      msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/i, 'Authorization"=>"Bearer ************')
+      msg.gsub!(/Authorization\:\s?Bearer [^"'']+/i, 'Authorization: Bearer ************')
+      # msg.gsub!(/#{AUTHORIZATION_HEADER}\"\s?\=\>\s?\"Bearer [^"]+/, "#{AUTHORIZATION_HEADER}"=>"Bearer ************")
+      # msg.gsub!(/#{AUTHORIZATION_HEADER}\:\s?Bearer [^"'']+/, "#{AUTHORIZATION_HEADER}: Bearer ************")
+      SECRET_TOKEN_HEADERS.each do |header|
+        msg.gsub!(/#{header}\"\s?\=\>\s?\"[^"]+/, "#{header}\"=>\"************")
+        msg.gsub!(/#{header}\:\s?[^"'']+/, "#{header}: ************")
+      end
+      msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/i, 'password"=>"************')
+      msg.gsub!(/password\=\"[^"]+/i, 'password="************')
+      msg.gsub!(/password\=[^"'&\Z]+/i, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh
+      msg.gsub!(/passwordConfirmation\=[^" ]+/i, 'passwordConfirmation="************')
+      msg.gsub!(/passwordConfirmation\=[^" ]+/i, 'passwordConfirmation=************')
     end
     msg
   end
