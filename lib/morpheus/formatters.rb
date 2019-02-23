@@ -309,3 +309,20 @@ end
 def no_colors(str)
   str.to_s.gsub /\e\[\d+m/, ""
 end
+
+def format_number(n, opts={})
+  delim = opts[:delimiter] || ','
+  out = ""
+  parts = n.to_s.split(".")
+  whole_number = parts[0]
+  decimal = parts[1] ? parts[1..-1].join('.') : nil
+  i = 0
+  whole_number.reverse.each_char do |c|
+    out = (i > 0 && i % 3 == 0) ? "#{c}#{delim}#{out}" : "#{c}#{out}"
+    i+= 1
+  end
+  if decimal
+    out << "." + decimal
+  end
+  return out
+end

@@ -349,7 +349,7 @@ module Morpheus::Cli::PrintHelper
       label = n_label || label
     end
     out_str = ""
-    string_key_values = {start_index: offset + 1, end_index: offset + size, total: total, size: size, offset: offset, label: label}
+    string_key_values = {start_index: format_number(offset + 1), end_index: format_number(offset + size), total: format_number(total), size: format_number(size), offset: format_number(offset), label: label}
     if size > 0
       if message
         out_str << message % string_key_values

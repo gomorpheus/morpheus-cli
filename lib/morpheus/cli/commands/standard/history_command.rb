@@ -11,13 +11,17 @@ class Morpheus::Cli::HistoryCommand
   # todo: support all the other :list options too, not just max
   # AND start logging every terminal command, not just shell...
   def handle(args)
-    options = {}
+    options = {show_pagination:false}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name}"
-      opts.on( '-n', '--max-commands MAX', "Max Results. Default is 25" ) do |val|
+      # -n is a hidden alias for -m
+      opts.on( '-n', '--max-commands MAX', "Alias for -m, --max option." ) do |val|
         options[:max] = val
       end
       opts.add_hidden_option('-n')
+      opts.on( '-p', '--pagination', "Display pagination and count info eg. Viewing 1-M of N" ) do
+        options[:show_pagination] = true
+      end
       opts.on( nil, '--flush', "Flush history, purges entire shell history file." ) do |val|
         options[:do_flush] = true
       end
@@ -31,6 +35,7 @@ Examples:
     history -m 100
     history --flush
 
+The most recently executed commands are seen by default.  Use --reverse to see the oldest commands.
 EOT
     end
     raw_cmd = "#{command_name} #{args.join(' ')}"
@@ -47,7 +52,6 @@ EOT
       Morpheus::Cli::Shell.instance.flush_history
       return 0
     else
-      # supports all the :list options
       Morpheus::Cli::Shell.instance.print_history(options)
       return 0  
     end

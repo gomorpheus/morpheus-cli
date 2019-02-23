@@ -246,10 +246,10 @@ class Morpheus::Cli::Shell
   # logs entire input as one command in shell history
   # logging is skipped for certain commands: exit, !,  !!
   def execute(input)
-    result = execute_commands_as_expression(input)
-    unless input.strip.empty? || (["exit"].include?(input.strip)) || input.strip[0].to_s.chr == "!"
+    unless input.strip.empty? || input.strip[0] == "!"
       log_history_command(input.strip)
     end
+    result = execute_commands_as_expression(input)
     return result
   end
 
@@ -331,7 +331,7 @@ class Morpheus::Cli::Shell
 
       if input == 'exit'
         #print cyan,"Goodbye\n",reset
-        @history_logger.info "exit" if @history_logger
+        #@history_logger.info "exit" if @history_logger
         @exit_now_please = true
         return 0
         #exit 0
@@ -620,7 +620,41 @@ class Morpheus::Cli::Shell
     return logger
   end
 
-  def load_history_from_log_file(n_commands=1000)
+  def load_history_from_log_file
+    
+    # @history ||= {}
+    # @last_command_number ||= 0
+    @history = {}
+    @last_command_number = 0
+
+    begin
+      file_path = history_file_path
+      FileUtils.mkdir_p(File.dirname(file_path))
+
+      File.open(file_path).each_line do |line|
+        # this is pretty goofy, but this looks for the format: (cmd $command_number) $command_string
+        matches = line.match(/\(cmd (\d+)\) (.+)/)
+        if matches && matches.size == 3
+          cmd_number = matches[1].to_i
+          cmd = matches[2]
+
+          @last_command_number = cmd_number
+          @history[@last_command_number] = cmd
+
+          # for Ctrl+R history searching
+          Readline::HISTORY << cmd
+        end
+      end
+    rescue => e
+      # raise e
+      puts_error "failed to load history from log: #{e}"
+      @history ||= {}
+    end
+    return @history
+  end
+
+  # remove this..
+  def _old_load_history_from_log_file(n_commands=1000)
     @history ||= {}
     @last_command_number ||= 0
 
@@ -659,8 +693,10 @@ class Morpheus::Cli::Shell
   end
 
   def log_history_command(cmd)
-    @history ||= {}
-    @last_command_number ||= 0
+    load_history_from_log_file if !@history
+    #todo: a fast log_history_command, that doesnt need to load the file..
+    #@history ||= {}
+    #@last_command_number ||= 0
     previous_cmd = @history[@last_command_number]
     # skip logging consecutive history commands.
     if previous_cmd && previous_cmd =~ /history/ && previous_cmd == cmd
@@ -674,7 +710,7 @@ class Morpheus::Cli::Shell
     return @last_command_number
   end
 
-  def last_command(n=25)
+  def last_command
     if @history && @last_command_number
       @history[@last_command_number]
     else
@@ -686,49 +722,54 @@ class Morpheus::Cli::Shell
   # the most recent 25 are returned by default.
   # @return Hash like {:commands => [], :command_count => total}
   def load_history_commands(options={})
-    options[:phrase] ||= nil
-    options[:sort] = options[:sort] ? options[:sort].to_sym : :number
-    options[:direction] ||= 'asc'
-    options[:offset] = options[:offset].to_i > 0 ? options[:offset].to_i : 0
-    options[:max] = options[:max].to_i > 0 ? options[:max].to_i : 25
+    phrase = options[:phrase]
+    sort = options[:sort] ? options[:sort].to_sym : :number
+    direction = options[:direction] == 'desc' ? 'desc' : 'asc'
+    offset = options[:offset].to_i > 0 ? options[:offset].to_i : 0
+    max = options[:max].to_i > 0 ? options[:max].to_i : 25
     
-    load_history_from_log_file if !@history
+    if !@history
+      load_history_from_log_file
+    end
+    
     
     # collect records as [{:number => 1, :command => "instances list"}, etc]
     history_records = []
     history_count = 0
-    if options[:sort].to_sym == :command
+    
+    # sort is a bit different for this command, the default sort is by number
+    # it sorts oldest -> newest, but shows the very last page by default.
+    sort_key = :number
+    if sort.to_sym == :command
       sort_key = :command
-    else
-      sort_key = :number
     end
-    if options[:phrase] || sort_key != :number
+    
+    if phrase || sort_key != :number
       # this could be a large object...need to index our shell_history file lol
       history_records = @history.keys.collect { |k| {number: k, command: @history[k]} }
-      history_records = history_records.sort {|x,y| x[sort_key] <=> y[sort_key] }
-      if options[:phrase]
-        history_records = history_records.select {|it| it[:command].include?(options[:phrase]) || it[:number].to_s == options[:phrase] }
+      if direction == 'desc'
+        history_records = history_records.sort {|x,y| y[sort_key] <=> x[sort_key] }
+      else
+        history_records = history_records.sort {|x,y| x[sort_key] <=> y[sort_key] }
       end
-      # get count and then slice it
+      if phrase
+        history_records = history_records.select {|it| it[:command].include?(phrase) || it[:number].to_s == phrase }
+      end
       command_count = history_records.size
-      history_records = history_records[options[:offset]..options[:max]-1]
+      history_records = history_records[offset..max-1]
     else
       # default should try to be as fast as possible..
       # no searching or sorting, default order by :number works
       # desc here means show oldest commands
-      if options[:direction] == 'desc'
-        if options[:offset]
-          cmd_numbers = @history.keys.first(options[:max] + options[:offset]).first(options[:max])
-        else
-          cmd_numbers = @history.keys.first(options[:max])
-        end
-        cmd_count = @history.keys.size
+      cmd_count = @history.keys.size
+      cmd_numbers = []
+      if direction == 'desc'
+        cmd_numbers = @history.keys[offset..(offset + max-1)]
       else
-        cmd_numbers = []
-        if options[:offset]
-          cmd_numbers = @history.keys.last(options[:max] + options[:offset]).first(options[:max])
+        if offset != 0
+          cmd_numbers = @history.keys.last(max + offset).first(max)
         else
-          cmd_numbers = @history.keys.last(options[:max])
+          cmd_numbers = @history.keys.last(max)
         end
         history_records = cmd_numbers.collect { |k| {number: k, command: @history[k]} }
         command_count = @history.size
@@ -741,12 +782,22 @@ class Morpheus::Cli::Shell
     history_result = load_history_commands(options)
     history_records = history_result[:commands]
     command_count = history_result[:command_count]
-    print cyan
-    history_records.each do |history_record|
-      puts "#{history_record[:number].to_s.rjust(3, ' ')}  #{history_record[:command]}"
+    if history_records.size == 0
+      if options[:phrase]
+        print cyan,"0 commands found matching '#{options[:phrase]}'.",reset,"\n"
+      else
+        print cyan,"0 commands found.",reset,"\n"
+      end
+    else
+      print cyan
+      history_records.each do |history_record|
+        puts "#{history_record[:number].to_s.rjust(3, ' ')}  #{history_record[:command]}"
+      end
+      if options[:show_pagination]
+        print_results_pagination({size:history_records.size,total:command_count.to_i})
+        print reset, "\n"
+      end
     end
-    #print_results_pagination({size:history_records.size,total:command_count.to_i}, {:label => "command", :n_label => "commands"})
-    print reset
     #print "\n"
     return 0
   end

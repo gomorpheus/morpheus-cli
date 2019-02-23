@@ -82,11 +82,11 @@ class Morpheus::Cli::AccountGroupsCommand
       title = "Morpheus Groups - Tenant: #{account['name']}"
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
+      print_h1 title, subtitles, options
       if groups.empty?
         print yellow,"No groups currently configured.",reset,"\n"
       else
-        print_groups_table(groups)
+        print_groups_table(groups, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -145,7 +145,7 @@ class Morpheus::Cli::AccountGroupsCommand
         return 0
       end
 
-      print_h1 "Group Details"
+      print_h1 "Group Details", options
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -454,13 +454,10 @@ class Morpheus::Cli::AccountGroupsCommand
 
   protected
 
-  def print_groups_table(groups, opts={})
-    table_color = opts[:color] || cyan
-    active_group_id = @active_group_id # Morpheus::Cli::Groups.active_group
+  def print_groups_table(groups, options={})
+    table_color = options[:color] || cyan
     rows = groups.collect do |group|
-      is_active = @active_group_id && (@active_group_id == group['id'])
       {
-        active: (is_active ? "=>" : ""),
         id: group['id'],
         name: group['name'],
         location: group['location'],
@@ -469,7 +466,6 @@ class Morpheus::Cli::AccountGroupsCommand
       }
     end
     columns = [
-      {:active => {:display_name => ""}},
       {:id => {:width => 10}},
       {:name => {:width => 16}},
       {:location => {:width => 32}},
@@ -477,7 +473,7 @@ class Morpheus::Cli::AccountGroupsCommand
       {:server_count => {:display_name => "Hosts"}}
     ]
     print table_color
-    tp rows, columns
+    puts as_pretty_table(rows, columns, options)
     print reset
   end
 
