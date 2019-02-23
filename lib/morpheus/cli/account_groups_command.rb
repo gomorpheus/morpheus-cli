@@ -20,7 +20,7 @@ class Morpheus::Cli::AccountGroupsCommand
   # lives under image-builder domain right now
   set_command_hidden
   def command_name
-    "account groups"
+    "tenants groups"
   end
 
   def initialize()
@@ -44,18 +44,19 @@ class Morpheus::Cli::AccountGroupsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:account, :list, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List groups for a tenant account."
+      opts.banner = subcommand_usage("[tenant]")
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List tenant groups."
     end
     optparse.parse!(args)
+    if args.count == 1
+      options[:account] = args[0]
+    else
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
     begin
       # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
@@ -78,7 +79,7 @@ class Morpheus::Cli::AccountGroupsCommand
         return 0
       end
       groups = json_response['groups']
-      title = "Morpheus Groups - Account: #{account['name']}"
+      title = "Morpheus Groups - Tenant: #{account['name']}"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
@@ -98,41 +99,39 @@ class Morpheus::Cli::AccountGroupsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[group]")
-      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "This outputs details about a specific group for a tenant account."
+      opts.banner = subcommand_usage("[tenant] [group]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a tenant group."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count == 2
+      options[:account] = args[0]
+      options[:group] = args[1]
+    else
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
+
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
       if options[:dry_run]
         @account_groups_interface.setopts(options)
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @account_groups_interface.dry.get(account_id, args[0].to_i)
+        if options[:group].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @account_groups_interface.dry.get(account_id, options[:group].to_i)
         else
-          print_dry_run @account_groups_interface.dry.get(account_id, {name: args[0]})
+          print_dry_run @account_groups_interface.dry.get(account_id, {name: options[:group]})
         end
         return
       end
 
-      group = find_account_group_by_name_or_id(account_id, args[0])
+      group = find_account_group_by_name_or_id(account_id, options[:group])
       @account_groups_interface.setopts(options)
       return 1 if group.nil?
       # skip redundant request
-      # json_response = @account_groups_interface.dry.get(account_id, args[0].to_i)
+      # json_response = @account_groups_interface.dry.get(account_id, options[:group].to_i)
       json_response = {"group" => group}
       
       if options[:json]
@@ -179,35 +178,34 @@ class Morpheus::Cli::AccountGroupsCommand
     params = {}
     use_it = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[tenant] [name]")
       build_option_type_options(opts, options, add_group_option_types())
       # opts.on( '-l', '--location LOCATION', "Location" ) do |val|
       #   params[:location] = val
       # end
 
-      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
-      opts.footer = "Create a new group for a tenant account."
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.footer = "Create a new tenant group."
     end
     optparse.parse!(args)
-    # if args.count < 1
-    #   puts optparse
-    #   exit 1
-    # end
+    if args.count == 1
+      options[:account] = args[0]
+    elsif args.count == 2
+      options[:account] = args[0]
+      options[:group] = args[1]
+    else
+      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
       group_payload = {}
-      if args[0]
-        group_payload[:name] = args[0]
-        options[:options]['name'] = args[0] # to skip prompt
+      if options[:group]
+        group_payload[:name] = options[:group]
+        options[:options]['name'] = options[:group] # to skip prompt
       end
       if params[:location]
         group_payload[:name] = params[:location]
@@ -242,31 +240,28 @@ class Morpheus::Cli::AccountGroupsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[group] [options]")
+      opts.banner = subcommand_usage("[tenant] [group] [options]")
       build_option_type_options(opts, options, update_group_option_types())
       # opts.on( '-l', '--location LOCATION', "Location" ) do |val|
       #   params[:location] = val
       # end
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
-      opts.footer = "Update an existing group for a tenant account."
+      opts.footer = "Update an existing tenant group."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count == 2
+      options[:account] = args[0]
+      options[:group] = args[1]
+    else
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
-      group = find_account_group_by_name_or_id(account_id, args[0])
+      group = find_account_group_by_name_or_id(account_id, options[:group])
       return 1 if group.nil?
 
       group_payload = {id: group['id']}
@@ -303,32 +298,30 @@ class Morpheus::Cli::AccountGroupsCommand
   def add_cloud(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[group]", "[cloud]")
+      opts.banner = subcommand_usage("[tenant] [group] [cloud]")
       build_common_options(opts, options, [:account, :json, :dry_run, :remote])
-      opts.footer = "Add a cloud to a group."
+      opts.footer = "Add a cloud to a tenant group."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
+    if args.count == 3
+      options[:account] = args[0]
+      options[:group] = args[1]
+      options[:cloud] = args[2]
+    else
+      raise_command_error "wrong number of arguments, expected 3 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
-      group = find_account_group_by_name_or_id(account_id, args[0])
+      group = find_account_group_by_name_or_id(account_id, options[:group])
       return 1 if group.nil?
 
       # err, this is going to find public clouds only, not those in the subaccount
       # good enough for now?
-      cloud = find_cloud_by_name_or_id(args[1])
+      cloud = find_cloud_by_name_or_id(options[:cloud])
       current_zones = group['zones']
       found_zone = current_zones.find {|it| it["id"] == cloud["id"] }
       if found_zone
@@ -360,32 +353,30 @@ class Morpheus::Cli::AccountGroupsCommand
   def remove_cloud(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[group]", "[cloud]")
+      opts.banner = subcommand_usage("[tenant] [group] [cloud]")
       build_common_options(opts, options, [:account, :json, :dry_run, :remote])
-      opts.footer = "Remove a cloud from a group."
+      opts.footer = "Remove a cloud from a tenant group."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
+    if args.count == 3
+      options[:account] = args[0]
+      options[:group] = args[1]
+      options[:cloud] = args[2]
+    else
+      raise_command_error "wrong number of arguments, expected 3 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
-      group = find_account_group_by_name_or_id(account_id, args[0])
+      group = find_account_group_by_name_or_id(account_id, options[:group])
       return 1 if group.nil?
 
       # err, this is going to find public clouds only, not those in the subaccount
       # good enough for now?
-      cloud = find_cloud_by_name_or_id(args[1])
+      cloud = find_cloud_by_name_or_id(options[:cloud])
       current_zones = group['zones']
       found_zone = current_zones.find {|it| it["id"] == cloud["id"] }
       if !found_zone
@@ -417,29 +408,25 @@ class Morpheus::Cli::AccountGroupsCommand
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[group]")
-      build_common_options(opts, options, [:account, :json, :dry_run, :auto_confirm, :remote])
-      opts.footer = "Delete a group."
-      # more info to display here
+      opts.banner = subcommand_usage("[tenant] [group]")
+      build_common_options(opts, options, [:json, :dry_run, :auto_confirm, :remote])
+      opts.footer = "Delete a tenant group."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count == 2
+      options[:account] = args[0]
+      options[:group] = args[1]
+    else
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
     begin
-      # load account
-      if options[:account].nil? && options[:account_id].nil? && options[:account_name].nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: -a [account]\n#{optparse}"
-        return 1
-      end
       account = find_account_from_options(options)
       return 1 if account.nil?
       account_id = account['id']
 
-      group = find_account_group_by_name_or_id(account_id, args[0])
+      group = find_account_group_by_name_or_id(account_id, options[:group])
       return 1 if group.nil?
       
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the group #{group['name']}?")
