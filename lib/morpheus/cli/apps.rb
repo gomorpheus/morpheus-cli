@@ -1512,16 +1512,12 @@ class Morpheus::Cli::Apps
       :containers,
       #:account,
       :status,
-      #{:dateCreated => {:display_name => "Date Created"} }
+      #{:dateCreated => {:display_name => "Date Created"} },
+      {:cpu => {:display_name => "MAX CPU"} },
+      :memory,
+      :storage
     ]
-    term_width = current_terminal_width()
-    if term_width > 120
-      columns += [
-        {:cpu => {:display_name => "MAX CPU"} },
-        :memory,
-        :storage
-      ]
-    end
+    
     # custom pretty table columns ...
     # if options[:include_fields]
     #   columns = options[:include_fields]

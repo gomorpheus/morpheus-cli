@@ -213,10 +213,7 @@ class Morpheus::Cli::Hosts
           if multi_tenant
             columns.insert(4, :tenant)
           end
-          term_width = current_terminal_width()
-          if term_width > 170
-            columns += [:cpu, :memory, :storage]
-          end
+          columns += [:cpu, :memory, :storage]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]

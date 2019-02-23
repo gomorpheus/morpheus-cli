@@ -131,11 +131,7 @@ class Morpheus::Cli::ArchivesCommand
             :visibility,
             {:isPublic => {label: 'Public URL'.upcase}}
           ]
-          term_width = current_terminal_width()
-          # if term_width > 170
-          #   columns += [:cpu, :memory, :storage]
-          # end
-          # custom pretty table columns ...
+          
           if options[:include_fields]
             columns = options[:include_fields]
           end

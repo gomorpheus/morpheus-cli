@@ -116,10 +116,6 @@ class Morpheus::Cli::ImageBuilderCommand
           }
           columns = [:id, :name, :type, {:lastRunDate => {label: 'Last Run Date'.upcase}}, 
                       :status, {:result => {max_width: 60}}]
-          term_width = current_terminal_width()
-          # if term_width > 170
-          #   columns += [:cpu, :memory, :storage]
-          # end
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]

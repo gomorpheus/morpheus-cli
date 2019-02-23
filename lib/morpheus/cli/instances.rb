@@ -175,11 +175,8 @@ class Morpheus::Cli::Instances
             }
             row
           }
-          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, :type, :version, :environment, :nodes, {:connection => {:max_width => 30}}, :status]
-          term_width = current_terminal_width()
-          if term_width > 190
-            columns += [:cpu, :memory, :storage]
-          end
+          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, :type, :version, :environment, 
+              :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
@@ -950,11 +947,7 @@ class Morpheus::Cli::Instances
             }
             row
           }
-          columns = [:id, :status, :name, :type, :cloud, :location]
-          term_width = current_terminal_width()
-          if term_width > 190
-            columns += [:cpu, :memory, :storage]
-          end
+          columns = [:id, :status, :name, :type, :cloud, :location, :cpu, :memory, :storage]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]
@@ -1067,11 +1060,7 @@ class Morpheus::Cli::Instances
           }
           row
         }
-        columns = [:id, :status, :name, :type, :cloud, :location]
-        term_width = current_terminal_width()
-        if term_width > 190
-          columns += [:cpu, :memory, :storage]
-        end
+        columns = [:id, :status, :name, :type, :cloud, :location, :cpu, :memory, :storage]
         # custom pretty table columns ...
         if options[:include_fields]
           columns = options[:include_fields]

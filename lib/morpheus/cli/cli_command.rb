@@ -534,6 +534,10 @@ module Morpheus
             opts.on('-F', '--fields x,y,z', Array, "Filter Output to a limited set of fields. Default is all fields.") do |val|
               options[:include_fields] = val
             end
+            opts.on(nil, '--all-fields', "Show all fields. Useful for showing hidden columns on wide tables.") do
+              options[:all_fields] = true
+            end
+            opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :thin
             opts.on( '--thin', '--thin', "Format headers and columns with thin borders." ) do |val|

@@ -623,6 +623,57 @@ module Morpheus::Cli::PrintHelper
       end
     end
 
+    # responsive tables
+    # pops columns off end until they all fit on the terminal
+    # could use some options[:preferred_columns] logic here to throw away in some specified order
+    # --all fields disables this
+    trimmed_columns = []
+    if options[:responsive_table] != false && options[:include_fields].nil? && options[:all_fields] != true
+
+      begin
+        term_width = current_terminal_width()
+        table_width = columns.inject(0) {|acc, column_def| acc + (column_def.width || 0) }
+        table_width += ((columns.size-0) * (3)) # col border width
+        if term_width && table_width
+          # leave 1 column always...
+          while table_width > term_width && columns.size > 1
+            column_index = columns.size - 1
+            removed_column = columns.pop
+            trimmed_columns << removed_column
+            if removed_column.width
+              table_width -= removed_column.width
+              table_width -= 3 # col border width
+            end
+            
+            # clear from data_matrix
+            # wel, nvm it just gets regenerated
+
+          end
+        end
+      rescue => ex
+        Morpheus::Logging::DarkPrinter.puts "Encountered error while applying responsive table sizing: (#{ex.class}) #{ex}"
+      end
+
+      if trimmed_columns.size > 0
+        # data_matrix = generate_table_data(data, columns, options)
+        header_row = []
+        columns.each do |column_def|
+          header_row << column_def.label
+        end
+        rows = []
+        data.each do |row_data|
+          row = []
+          columns.each do |column_def|
+            # r << column_def.display_method.respond_to?(:call) ? column_def.display_method.call(row_data) : get_object_value(row_data, column_def.display_method)
+            value = column_def.display_method.call(row_data)        
+            row << value
+          end
+          rows << row
+        end
+        data_matrix = [header_row] + rows
+      end
+    end
+
     # format header row
     header_cells = []
     columns.each_with_index do |column_def, column_index|
