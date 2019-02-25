@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 
@@ -553,9 +552,7 @@ class Morpheus::Cli::NetworkDomainsCommand
       rows = network_domains.collect do |network_domain|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return network_domains[0]

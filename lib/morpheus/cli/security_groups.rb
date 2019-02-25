@@ -3,7 +3,6 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::SecurityGroups

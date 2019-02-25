@@ -385,14 +385,14 @@ class Morpheus::Cli::KeyPairs
         dateCreated: format_local_dt(key_pair['dateCreated'])
       }
     end
-    print table_color
-    tp rows, [
+    columns = [
       :id,
       :name,
       {:fingerprint => {:width => 47} },
       # {:md5 => {:width => 32} },
       {:dateCreated => {:display_name => "Date Created"} }
     ]
+    print as_pretty_table(rows, columns, opts)
     print reset
   end
 

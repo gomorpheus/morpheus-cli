@@ -1,4 +1,3 @@
-require 'table_print'
 require 'morpheus/cli/mixins/print_helper'
 
 # Mixin for Morpheus::Cli command classes
@@ -198,16 +197,16 @@ module Morpheus::Cli::AccountsHelper
         dateCreated: format_local_dt(account['dateCreated'])
       }
     end
-    print table_color
-    tp rows, [
+    print table_color if table_color
+    print as_pretty_table(rows, [
       :id,
       :name,
       :description,
       :role,
       {:dateCreated => {:display_name => "Date Created"} },
       :status
-    ]
-    print reset
+    ], options.merge({color:table_color}))
+    print reset if table_color
   end
 
   def format_role_type(role)
@@ -231,13 +230,6 @@ module Morpheus::Cli::AccountsHelper
 
   def print_roles_table(roles, options={})
     table_color = options.key?(:color) ? options[:color] : cyan
-    # tp roles, [
-    #   'id',
-    #   'name',
-    #   'description',
-    #   'scope',
-    #   {'dateCreated' => {:display_name => "Date Created", :display_method => lambda{|it| format_local_dt(it['dateCreated']) } } }
-    # ]
     rows = roles.collect do |role|
       {
         id: role['id'],

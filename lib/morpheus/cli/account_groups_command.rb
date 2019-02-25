@@ -3,7 +3,6 @@ require 'yaml'
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/infrastructure_helper'
@@ -525,13 +524,9 @@ class Morpheus::Cli::AccountGroupsCommand
       return nil
     elsif account_groups.size > 1
       print_red_alert "#{account_groups.size} group found by name #{name}"
-      # print_account_groups_table(account_groups, {color: red})
-      rows = account_groups.collect do |account_group|
-        {id: it['id'], name: it['name']}
-      end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      rows = account_groups.collect { |it| {id: it['id'], name: it['name']} }
+      print "\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       account_group = account_groups[0]

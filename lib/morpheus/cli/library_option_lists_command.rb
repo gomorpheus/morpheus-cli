@@ -55,7 +55,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
       option_type_lists = json_response['optionTypeLists']
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 "Morpheus Option Lists", subtitles
+      print_h1 "Morpheus Option Lists", subtitles, options
       if option_type_lists.empty?
         print cyan,"No option lists found.",reset,"\n"
       else
@@ -68,17 +68,16 @@ class Morpheus::Cli::LibraryOptionListsCommand
             size: option_type_list['listItems'] ? option_type_list['listItems'].size : ''
           }
         end
-        print cyan
-        tp rows, [
-          :id,
-          :name,
-          :description,
-          :type,
-          :size
-        ]
-        print reset
-        print_results_pagination(json_response)
       end
+      columns = [
+        :id,
+        :name,
+        :description,
+        :type,
+        :size
+      ]
+      print cyan
+      print as_pretty_table(rows, columns, options)
       print reset,"\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -118,7 +117,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         return
       end
 
-      print_h1 "Option List Details"
+      print_h1 "Option List Details", options
       print cyan
       if option_type_list['type'] == 'manual'
         print_description_list({
@@ -151,7 +150,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         if source_headers && !source_headers.empty?
           print cyan
           print_h2 "Source Headers"
-          print as_pretty_table(source_headers, [:name, :value, :masked])
+          print as_pretty_table(source_headers, [:name, :value, :masked], options)
         end
         if !option_type_list['initialDataset'].empty?
           print_h2 "Initial Dataset"
@@ -164,12 +163,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
       end
       print_h2 "List Items"
       if option_type_list['listItems']
-        # puts "\tNAME\tVALUE"
-        # option_type_list['listItems'].each do |list_item|
-        #   puts "\t#{list_item['name']}\t#{list_item['value']}"
-        # end
-        print cyan
-        tp option_type_list['listItems'], ['name', 'value']
+        print as_pretty_table(option_type_list['listItems'], ['name', 'value'], options)
       else
         puts "No data"
       end

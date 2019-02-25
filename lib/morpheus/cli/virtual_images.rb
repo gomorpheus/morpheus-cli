@@ -2,7 +2,6 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 # JD: I don't think a lot of this has ever worked, fix it up.
@@ -310,16 +309,14 @@ class Morpheus::Cli::VirtualImages
         if image_types.nil? || image_types.empty?
           print yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset,"\n"
         else
-          print cyan
-          lb_table_data = image_types.collect do |lb_type|
+          rows = image_types.collect do |lb_type|
             {name: lb_type['name'], code: lb_type['code']}
           end
-          tp lb_table_data, :name, :code
+          puts as_pretty_table(rows, [:name, :code], options)
         end
-
-        print reset,"\n"
+        return 0
       end
-                rescue RestClient::Exception => e
+    rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end

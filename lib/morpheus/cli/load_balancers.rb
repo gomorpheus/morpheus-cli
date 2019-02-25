@@ -2,7 +2,6 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::LoadBalancers
@@ -250,7 +249,7 @@ class Morpheus::Cli::LoadBalancers
           lb_table_data = lb_types.collect do |lb_type|
             {name: lb_type['name'], id: lb_type['id'], code: lb_type['code']}
           end
-          tp lb_table_data, :id, :name, :code
+          print as_pretty_table(lb_table_data, [:id, :name, :code], options)
         end
 
         print reset,"\n"

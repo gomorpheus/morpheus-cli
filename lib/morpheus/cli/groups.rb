@@ -3,7 +3,6 @@ require 'yaml'
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 require 'morpheus/logging'
@@ -59,13 +58,13 @@ class Morpheus::Cli::Groups
       if groups.empty?
         print yellow,"No groups currently configured.",reset,"\n"
       else
-        print_groups_table(groups)
+        print_groups_table(groups, options)
         print_results_pagination(json_response)
         if @active_group_id
           active_group = groups.find { |it| it['id'] == @active_group_id }
           active_group = active_group || find_group_by_name_or_id(@active_group_id)
           #unless @appliances.keys.size == 1
-            print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
+            print cyan, "\n# => Currently using group #{green}#{active_group['name']}#{reset}\n", reset
           #end
         else
           unless options[:remote]
@@ -487,23 +486,21 @@ class Morpheus::Cli::Groups
       {
         active: (is_active ? "=>" : ""),
         id: group['id'],
-        name: group['name'],
+        name: is_active ? "#{green}#{group['name']}#{reset}#{table_color}" : group['name'],
         location: group['location'],
         cloud_count: group['zones'] ? group['zones'].size : 0,
         server_count: group['serverCount']
       }
     end
     columns = [
-      {:active => {:display_name => ""}},
+      #{:active => {:display_name => ""}},
       {:id => {:width => 10}},
       {:name => {:width => 16}},
       {:location => {:width => 32}},
-      {:cloud_count => {:display_name => "Clouds"}},
-      {:server_count => {:display_name => "Hosts"}}
+      {:cloud_count => {:display_name => "CLOUDS"}},
+      {:server_count => {:display_name => "HOSTS"}}
     ]
-    print table_color
-    tp rows, columns
-    print reset
+    print as_pretty_table(rows, columns, opts)
   end
 
   def add_group_option_types()

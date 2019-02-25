@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::PreseedScriptsCommand
@@ -369,12 +368,10 @@ class Morpheus::Cli::PreseedScriptsCommand
     elsif preseed_scripts.size > 1
       print_red_alert "#{preseed_scripts.size} preseed scripts found by name #{name}"
       # print_preseed_scripts_table(preseed_scripts, {color: red})
-      rows = preseed_scripts.collect do |preseed_script|
+      rows = preseed_scripts.collect do |it|
         {id: it['id'], name: it['fileName']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return preseed_scripts[0]

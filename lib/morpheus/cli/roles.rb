@@ -200,7 +200,7 @@ class Morpheus::Cli::Roles
             access: get_access_string(it['access']),
           }
         end
-        tp rows, [:code, :name, :access]
+        print as_pretty_table(rows, [:code, :name, :access], options)
       else
         puts "Use --feature-access to list feature access"
       end
@@ -216,7 +216,7 @@ class Morpheus::Cli::Roles
               access: get_access_string(it['access']),
             }
           end
-          tp rows, [:name, :access]
+          print as_pretty_table(rows, [:name, :access], options)
         else
           puts "Use --group-access to list custom access"
         end
@@ -233,7 +233,7 @@ class Morpheus::Cli::Roles
               access: get_access_string(it['access']),
             }
           end
-          tp rows, [:name, :access]
+          print as_pretty_table(rows, [:name, :access], options)
         else
           puts "Use --cloud-access to list custom access"
         end
@@ -250,7 +250,7 @@ class Morpheus::Cli::Roles
               access: get_access_string(it['access']),
             }
           end
-          tp rows, [:name, :access]
+          print as_pretty_table(rows, [:name, :access], options)
         else
           puts "Use --instance-type-access to list custom access"
         end
@@ -269,7 +269,7 @@ class Morpheus::Cli::Roles
               access: get_access_string(it['access']),
             }
           end
-          tp rows, [:name, :access]
+          print as_pretty_table(rows, [:name, :access], options)
         else
           puts "Use --blueprint-access to list custom access"
         end

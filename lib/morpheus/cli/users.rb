@@ -223,7 +223,7 @@ class Morpheus::Cli::Users
             rows = user_feature_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }
             end
-            tp rows, [:code, :access]
+            print as_pretty_table(rows, [:name, :access], options)
           else
             puts yellow,"No permissions found.",reset
           end

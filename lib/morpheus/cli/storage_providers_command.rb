@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 
@@ -1277,12 +1276,10 @@ class Morpheus::Cli::StorageProvidersCommand
       return nil
     elsif storage_providers.size > 1
       print_red_alert "#{storage_providers.size} storage buckets found by name #{name}"
-      rows = storage_providers.collect do |storage_provider|
+      rows = storage_providers.collect do |it|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return storage_providers[0]

@@ -3,7 +3,6 @@ require 'yaml'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 require 'morpheus/cli/mixins/accounts_helper'
@@ -908,9 +907,7 @@ class Morpheus::Cli::PoliciesCommand
       rows = policies.collect do |policy|
         {id: policy['id'], name: policy['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       policy = policies[0]

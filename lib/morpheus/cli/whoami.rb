@@ -191,7 +191,7 @@ class Morpheus::Cli::Whoami
             rows = @user_permissions.collect do |code, access|
               {code: code, access: get_access_string(access) }
             end
-            tp rows, [:code, :access]
+            print as_pretty_table(rows, [:code, :access], options)
           else
             puts yellow,"No permissions found.",reset
           end

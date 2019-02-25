@@ -90,7 +90,7 @@ class Morpheus::Cli::Clouds
         if clouds.empty?
           print cyan,"No clouds found.",reset,"\n"
         else
-          print_clouds_table(clouds)
+          print_clouds_table(clouds, options)
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -623,10 +623,9 @@ class Morpheus::Cli::Clouds
       end
       cloud_types = get_available_cloud_types() # @clouds_interface.dry.cloud_types({})['zoneTypes']
       if options[:json]
-        print JSON.pretty_generate({zoneTypes: cloud_types})
-        print "\n"
+        puts as_json({zoneTypes: cloud_types}, options)
       else
-        print_h1 "Morpheus Cloud Types"
+        print_h1 "Morpheus Cloud Types", options
         if cloud_types.empty?
           print yellow,"No instances found.",reset,"\n"
         else
@@ -635,9 +634,12 @@ class Morpheus::Cli::Clouds
           rows = cloud_types.collect do |cloud_type|
             {id: cloud_type['id'], name: cloud_type['name'], code: cloud_type['code']}
           end
-          tp rows, :id, :name, :code
+          #print "\n"
+          puts as_pretty_table(rows, [:id, :name, :code], options)
+          #print_results_pagination({size:rows.size,total:rows.size})
+          #print "\n"
         end
-        print reset,"\n"
+        #print reset,"\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -664,10 +666,7 @@ class Morpheus::Cli::Clouds
     columns = [
       :id, :name, :type, :location, :groups, :servers, :status
     ]
-    print table_color
-    tp rows, columns
-    print reset
-
+    print as_pretty_table(rows, columns, opts)
   end
 
   def add_cloud_option_types(cloud_type)

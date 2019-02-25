@@ -2,7 +2,6 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
@@ -158,6 +157,12 @@ class Morpheus::Cli::Instances
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            # if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+            #   memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(7, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            # end
+            # if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+            #   storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(7, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+            # end
             row = {
               id: instance['id'],
               name: instance['name'],
@@ -170,7 +175,7 @@ class Morpheus::Cli::Instances
               cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil,
               version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
               cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
+              memory: memory_usage_str + cyan, 
               storage: storage_usage_str + cyan
             }
             row
@@ -934,6 +939,12 @@ class Morpheus::Cli::Instances
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+              memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(7, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            end
+            if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+              storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(7, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+            end
             row = {
               id: container['id'],
               status: format_container_status(container),
@@ -942,7 +953,7 @@ class Morpheus::Cli::Instances
               cloud: container['cloud'] ? container['cloud']['name'] : '',
               location: format_container_connection_string(container),
               cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
+              memory: memory_usage_str + cyan, 
               storage: storage_usage_str + cyan
             }
             row
@@ -1047,6 +1058,12 @@ class Morpheus::Cli::Instances
           cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
           memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
           storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+            memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(7, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+          end
+          if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+            storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(7, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+          end
           row = {
             id: container['id'],
             status: format_container_status(container),
@@ -1268,10 +1285,9 @@ class Morpheus::Cli::Instances
       if json_response['readOnlyEnvs']
         envs += json_response['readOnlyEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value'], :export => true}}
       end
-      tp envs, :name, :value, :export
+      columns = [:name, :value, :export]
       print_h2 "Imported Envs", options
-      imported_envs = json_response['importedEnvs'].map { |k,v| {:name => k, :value => k.downcase.include?("password") || v['masked'] ? "********" : v['value']}}
-      tp imported_envs
+      print as_pretty_table(envs, columns, options)
       print reset, "\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -3213,25 +3229,6 @@ private
     end
   end
 
-  # def print_instances_table(instances, opts={})
-  #   table_color = opts[:color] || cyan
-  #   rows = instances.collect {|instance| 
-  #     {
-  #       id: instance['id'],
-  #       name: instance['name'],
-  #       connection: format_instance_connection_string(instance),
-  #       environment: instance['instanceContext'],
-  #       nodes: instance['containers'].count,
-  #       status: format_instance_status(instance, table_color),
-  #       type: instance['instanceType']['name'],
-  #       group: !instance['group'].nil? ? instance['group']['name'] : nil,
-  #       cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil
-  #     }
-  #   }
-  #   print table_color
-  #   tp rows, :id, :name, :group, :cloud, :type, :environment, :nodes, :connection, :status
-  #   print reset
-  # end
 
   def format_instance_status(instance, return_color=cyan)
     out = ""

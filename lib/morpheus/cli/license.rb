@@ -1,7 +1,6 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::License

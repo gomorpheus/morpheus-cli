@@ -3,7 +3,6 @@ require 'io/console'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
@@ -1487,6 +1486,12 @@ class Morpheus::Cli::Apps
       cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage'] || stats['cpuUsagePeak']).to_f, 100, {max_bars: 10})
       memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
       storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+      # if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+      #   memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(7, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+      # end
+      # if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+      #   storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(7, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+      # end
       {
         id: app['id'],
         name: app['name'],
@@ -1524,7 +1529,7 @@ class Morpheus::Cli::Apps
     # end
     # print cyan
     print as_pretty_table(rows, columns, opts) #{color: table_color}
-    print reset
+    print reset,"\n"
   end
 
   def format_app_status(app, return_color=cyan)

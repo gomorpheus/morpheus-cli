@@ -1714,14 +1714,6 @@ class Morpheus::Cli::BlueprintsCommand
         if tiers.empty?
           print yellow,"No tiers found.",reset,"\n"
         else
-          # rows = tiers.collect do |tier|
-          #   {
-          #     id: tier['id'],
-          #     name: tier['name'],
-          #   }
-          # end
-          # print cyan
-          # tp rows, [:name]
           print cyan
           tiers.each do |tier_name|
             puts tier_name

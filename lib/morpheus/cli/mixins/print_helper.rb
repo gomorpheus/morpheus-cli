@@ -860,7 +860,7 @@ module Morpheus::Cli::PrintHelper
           if v[:min_width]
             column_def.min_width = v[:min_width]
           end
-          # tp uses width to behave like max_width
+          # tp uses width to behave like max_width, but tp() is gone, remove this?
           if v[:width]
             column_def.width = v[:width]
             column_def.max_width = v[:width]

@@ -3,7 +3,6 @@ require 'yaml'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/boot_scripts_command'
@@ -732,8 +731,7 @@ class Morpheus::Cli::ImageBuilderCommand
       rows = image_builds.collect do |it|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
+      print as_pretty_table(rows, [:id, :name], {color:red})
       print reset,"\n"
       return nil
     else

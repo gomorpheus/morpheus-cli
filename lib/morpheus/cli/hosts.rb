@@ -193,6 +193,12 @@ class Morpheus::Cli::Hosts
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            # if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+            #   memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(7, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            # end
+            # if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+            #   storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(7, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+            # end
             row = {
               id: server['id'],
               tenant: server['account'] ? server['account']['name'] : server['accountId'],

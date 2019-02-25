@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 
@@ -379,13 +378,11 @@ class Morpheus::Cli::CloudDatastoresCommand
       return nil
     elsif datastores.size > 1
       print_red_alert "#{datastores.size} datastores found by name #{name}"
-      # print_datastores_table(datastores, {color: red})
       rows = datastores.collect do |it|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      print "\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       datastore = datastores[0]

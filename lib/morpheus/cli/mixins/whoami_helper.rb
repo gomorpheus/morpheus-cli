@@ -1,4 +1,3 @@
-require 'table_print'
 require 'morpheus/cli/mixins/print_helper'
 
 # Mixin for Morpheus::Cli command classes

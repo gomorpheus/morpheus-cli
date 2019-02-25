@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
 
@@ -473,12 +472,10 @@ class Morpheus::Cli::NetworkPoolsCommand
     elsif network_pools.size > 1
       print_red_alert "#{network_pools.size} network pools found by name #{name}"
       # print_networks_table(networks, {color: red})
-      rows = network_pools.collect do |network_pool|
+      rows = network_pools.collect do |it|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return network_pools[0]

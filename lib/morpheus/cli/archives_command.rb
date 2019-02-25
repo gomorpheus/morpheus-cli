@@ -4,7 +4,6 @@ require 'yaml'
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::ArchivesCommand
@@ -1770,9 +1769,7 @@ class Morpheus::Cli::ArchivesCommand
       rows = archive_buckets.collect do |it|
         {id: it['id'], name: it['name']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return archive_buckets[0]

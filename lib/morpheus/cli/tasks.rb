@@ -2,7 +2,6 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Tasks
@@ -244,10 +243,10 @@ class Morpheus::Cli::Tasks
           print yellow,"No task types currently exist on this appliance. This could be a seed issue.",reset,"\n"
         else
           print cyan
-          tasks_table_data = task_types.collect do |task_type|
+          rows = task_types.collect do |task_type|
             {name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
           end
-          tp tasks_table_data, :id, :name, :code
+          puts as_pretty_table(rows, [:id, :name, :code], {color:red})
         end
 
         print reset,"\n"

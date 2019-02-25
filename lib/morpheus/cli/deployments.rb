@@ -1,7 +1,6 @@
 require 'io/console'
 require 'rest_client'
 require 'optparse'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Deployments
@@ -50,10 +49,11 @@ class Morpheus::Cli::Deployments
           print yellow,"No deployments currently configured.",reset,"\n"
         else
           print cyan
-          deployments_table_data = deployments.collect do |deployment|
+          rows = deployments.collect do |deployment|
             {name: deployment['name'], id: deployment['id'], description: deployment['description'], updated: format_local_dt(deployment['lastUpdated'])}
           end
-          tp deployments_table_data, :id, :name, :description, :updated
+          columns = [:id, :name, :description, :updated]
+          print as_pretty_table(rows, columns, options)
         end
         print reset,"\n"
       end
@@ -98,10 +98,11 @@ class Morpheus::Cli::Deployments
           print yellow,"No deployment versions currently exist.",reset,"\n"
         else
           print cyan
-          versions_table_data = versions.collect do |version|
+          rows = versions.collect do |version|
             {version: version['userVersion'], type: version['deployType'], updated: format_local_dt(version['lastUpdated'])}
           end
-          tp versions_table_data, :version, :type, :updated
+          coumns = [:version, :type, :updated]
+          print as_pretty_table(rows, columns, options)
         end
         print reset,"\n"
       end

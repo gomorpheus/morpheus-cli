@@ -71,7 +71,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
           }
         end
         print cyan
-        tp rows, [
+        print as_pretty_table(rows, [
           :id,
           :name,
           :type,
@@ -79,7 +79,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
           {:fieldName => {:display_name => "Field Name"} },
           :default,
           :required
-        ]
+        ], options)
         print reset
         print_results_pagination(json_response)
       end

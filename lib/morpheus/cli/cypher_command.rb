@@ -1,6 +1,4 @@
 require 'json'
-require 'yaml'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::CypherCommand

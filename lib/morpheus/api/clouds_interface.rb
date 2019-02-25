@@ -8,9 +8,9 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def cloud_types()
+  def cloud_types(params={})
     url = "#{@base_url}/api/zone-types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end

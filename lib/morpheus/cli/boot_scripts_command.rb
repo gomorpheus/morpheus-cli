@@ -1,7 +1,6 @@
 require 'rest_client'
 require 'optparse'
 require 'filesize'
-require 'table_print'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::BootScriptsCommand
@@ -369,13 +368,11 @@ class Morpheus::Cli::BootScriptsCommand
       return nil
     elsif boot_scripts.size > 1
       print_red_alert "#{boot_scripts.size} boot scripts found by name #{name}"
-      # print_boot_scripts_table(boot_scripts, {color: red})
-      rows = boot_scripts.collect do |boot_script|
+      rows = boot_scripts.collect do |it|
         {id: it['id'], name: it['fileName']}
       end
-      print red
-      tp rows, [:id, :name]
-      print reset,"\n"
+      print "\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
     else
       return boot_scripts[0]
