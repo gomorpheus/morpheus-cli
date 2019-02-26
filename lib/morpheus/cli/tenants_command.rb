@@ -229,8 +229,12 @@ class Morpheus::Cli::TenantsCommand
 
   def update(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
+      opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
+        params['active'] = val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true'
+      end
       build_option_type_options(opts, options, update_account_option_types)
       build_common_options(opts, options, [:options, :json, :remote, :dry_run])
     end
@@ -246,7 +250,7 @@ class Morpheus::Cli::TenantsCommand
       exit 1 if account.nil?
 
       #params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params])
-      params = options[:options] || {}
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
       if params.empty?
         puts optparse
@@ -254,15 +258,15 @@ class Morpheus::Cli::TenantsCommand
       end
 
       #puts "parsed params is : #{params.inspect}"
-      account_keys = ['name', 'description', 'currency', 'instanceLimits']
-      account_payload = params.select {|k,v| account_keys.include?(k) }
+      #account_keys = ['name', 'description', 'currency', 'instanceLimits']
+      account_payload = params
       account_payload['currency'] = account_payload['currency'].upcase unless account_payload['currency'].to_s.empty?
-      if !account_payload['instanceLimits']
-        account_payload['instanceLimits'] = {}
-        account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-        account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-        account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
-      end
+      # if !account_payload['instanceLimits']
+      #   account_payload['instanceLimits'] = {}
+      #   account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
+      #   account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
+      #   account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
+      # end
       if params['role'].to_s != ''
         role = find_role_by_name(nil, params['role'])
         exit 1 if role.nil?
