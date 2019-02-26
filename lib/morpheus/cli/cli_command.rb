@@ -933,43 +933,7 @@ module Morpheus
         return output
       end
 
-      def parse_command_result(cmd_result)
-        self.class.parse_command_result(cmd_result)
-      end
-
       module ClassMethods
-
-        # Parse exit_code and err from a command result (object of some type)
-        # returns [exit_code, err]
-        def parse_command_result(cmd_result)
-          exit_code, err = nil, nil
-          if cmd_result.is_a?(Array)
-            exit_code, err = cmd_result[0], cmd_result[1]
-          elsif cmd_result.is_a?(Hash)
-            exit_code, err = cmd_result[:exit_code], (cmd_result[:error] || cmd_result[:err])
-          end
-          if cmd_result == nil || cmd_result == true
-            exit_code = 0
-          elsif cmd_result == false
-            exit_code = 1
-          elsif cmd_result.is_a?(Integer)
-            exit_code = cmd_result
-          elsif cmd_result.is_a?(Float)
-            exit_code = cmd_result.to_i
-          elsif cmd_result.is_a?(String)
-            exit_code = cmd_result.to_i
-          else
-            if cmd_result.respond_to?(:to_i)
-              exit_code = cmd_result.to_i
-            else
-              # happens for aliases right now.. and execution flow probably, need to handle Array
-              # uncomment to track them down, proceed with exit 0 for now
-              #Morpheus::Logging::DarkPrinter.puts "debug: command #{command_name} produced an unexpected result: (#{cmd_result.class}) #{cmd_result}" if Morpheus::Logging.debug?
-              exit_code = 0
-            end
-          end
-          return exit_code, err
-        end
 
         def set_command_name(cmd_name)
           @command_name = cmd_name

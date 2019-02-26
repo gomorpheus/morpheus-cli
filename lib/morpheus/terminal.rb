@@ -382,17 +382,7 @@ module Morpheus
         else
           result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
         end
-        # todo: clean up CliCommand return values, handle a few diff types for now
-        if result == nil || result == true || result == 0
-          exit_code = 0
-        elsif result == false
-          exit_code = 1
-        elsif result.is_a?(Array) # exit_code, err
-          exit_code = result[0] #.to_i
-          err = result[1]
-        else
-          exit_code = result #.to_i
-        end
+        exit_code, err = Morpheus::Cli.parse_command_result(result)
       rescue => e
         exit_code = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
         err = e

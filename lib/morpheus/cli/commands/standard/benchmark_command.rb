@@ -322,7 +322,7 @@ EOT
     # exit_code, err = my_terminal.execute(cmd)
     # do this way until terminal supports expressions
     cmd_result = execute_commands_as_expression(cmd)
-    exit_code, err = parse_command_result(cmd_result)
+    exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
   
     benchmark_record = stop_benchmark(exit_code, err)
     Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
@@ -373,13 +373,13 @@ EOT
             if flow_cmd == '&&'
               # AND operator
               current_operator = flow_cmd
-              exit_code, cmd_err = parse_command_result(previous_command_result)
+              exit_code, cmd_err = Morpheus::Cli.parse_command_result(previous_command_result)
               if exit_code != 0
                 still_executing = false
               end
             elsif flow_cmd == '||' # or with previous command
               current_operator = flow_cmd
-              exit_code, err = parse_command_result(previous_command_result)
+              exit_code, err = Morpheus::Cli.parse_command_result(previous_command_result)
               if exit_code == 0
                 still_executing = false
               end

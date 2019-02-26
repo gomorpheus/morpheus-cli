@@ -72,8 +72,9 @@ EOT
     else
       print cyan
       columns = [
-        #{:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
-        {:name => {display_method: lambda {|it| it[:active] ? "#{green}#{it[:name]}#{reset}#{cyan}" : it[:name] }, :width => 16 } },
+        {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
+        # {:name => {display_method: lambda {|it| it[:active] ? "#{green}#{it[:name]}#{reset}#{cyan}" : it[:name] }, :width => 16 } },
+        {:name => {display_method: lambda {|it| it[:name] }, :width => 16 } },
         {:url => {display_method: lambda {|it| it[:host] || it[:url] }, :width => 40 } },
         {:version => lambda {|it| it[:build_version] } },
         {:status => lambda {|it| format_appliance_status(it, cyan) } },
@@ -85,7 +86,7 @@ EOT
       print reset
       if @appliance_name
         #unless appliances.keys.size == 1
-          print cyan, "\n# => Currently using remote #{green}#{@appliance_name}#{reset}\n", reset
+          print cyan, "\n# => Currently using remote #{@appliance_name}\n", reset
         #end
       else
         print "\n# => No current remote appliance, see `remote use`\n", reset

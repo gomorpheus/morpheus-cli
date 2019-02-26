@@ -287,13 +287,13 @@ class Morpheus::Cli::Shell
             if flow_cmd == '&&'
               # AND operator
               current_operator = flow_cmd
-              exit_code, cmd_err = parse_command_result(previous_command_result)
+              exit_code, cmd_err = Morpheus::Cli.parse_command_result(previous_command_result)
               if exit_code != 0
                 still_executing = false
               end
             elsif flow_cmd == '||' # or with previous command
               current_operator = flow_cmd
-              exit_code, err = parse_command_result(previous_command_result)
+              exit_code, err = Morpheus::Cli.parse_command_result(previous_command_result)
               if exit_code == 0
                 still_executing = false
               end
@@ -536,7 +536,7 @@ class Morpheus::Cli::Shell
             end
           end
           cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
-          cmd_exit_code, cmd_err = parse_command_result(cmd_result)
+          cmd_exit_code, cmd_err = Morpheus::Cli.parse_command_result(cmd_result)
           benchmark_record = stop_benchmark(cmd_exit_code, cmd_err) # if benchmarking?
           Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
         else

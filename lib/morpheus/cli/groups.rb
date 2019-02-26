@@ -64,7 +64,7 @@ class Morpheus::Cli::Groups
           active_group = groups.find { |it| it['id'] == @active_group_id }
           active_group = active_group || find_group_by_name_or_id(@active_group_id)
           #unless @appliances.keys.size == 1
-            print cyan, "\n# => Currently using group #{green}#{active_group['name']}#{reset}\n", reset
+            print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
           #end
         else
           unless options[:remote]
@@ -399,12 +399,12 @@ class Morpheus::Cli::Groups
         "This sets the active group.\n" +
         "The active group will be auto-selected for use during provisioning.\n" +
         "You can still use the --group option to override this."
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
       puts optparse
-      exit 1
+      return 1
     end
     connect(options)
     begin
@@ -412,20 +412,24 @@ class Morpheus::Cli::Groups
       group = find_group_by_name_or_id(args[0])
       if !group
         print_red_alert "Group not found by name #{args[0]}"
-        exit 1
+        return 1
       end
-
       if @active_group_id == group['id']
-        print reset,"Already using the group #{group['name']}","\n",reset
+        unless options[:quiet]
+          print reset,"Already using the group #{group['name']}","\n",reset
+        end
       else
         ::Morpheus::Cli::Groups.set_active_group(@appliance_name, group['id'])
         # ::Morpheus::Cli::Groups.save_groups(@active_groups)
-        #print cyan,"Switched active group to #{group['name']}","\n",reset
+        unless options[:quiet]
+          print cyan,"Switched active group to #{group['name']}","\n",reset
+        end
         #list([])
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
 
   end
@@ -486,14 +490,15 @@ class Morpheus::Cli::Groups
       {
         active: (is_active ? "=>" : ""),
         id: group['id'],
-        name: is_active ? "#{green}#{group['name']}#{reset}#{table_color}" : group['name'],
+        # name: is_active ? "#{green}#{group['name']}#{reset}#{table_color}" : group['name'],
+        name: group['name'],
         location: group['location'],
         cloud_count: group['zones'] ? group['zones'].size : 0,
         server_count: group['serverCount']
       }
     end
     columns = [
-      #{:active => {:display_name => ""}},
+      {:active => {:display_name => ""}},
       {:id => {:width => 10}},
       {:name => {:width => 16}},
       {:location => {:width => 32}},

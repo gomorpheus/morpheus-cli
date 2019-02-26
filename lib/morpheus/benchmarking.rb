@@ -124,7 +124,7 @@ module Morpheus::Benchmarking
         start_benchmark(opts)
         if block_given?
           result = block.call()
-          # exit_code, err = Morpheus::Cli::CliCommand.parse_command_result(result)
+          # exit_code, err = Morpheus::Cli.parse_command_result(result)
           if result.is_a?(Array)
             exit_code = result[0]
             err = result[0]
