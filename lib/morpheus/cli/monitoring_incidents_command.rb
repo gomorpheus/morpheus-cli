@@ -12,7 +12,8 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_incidents_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.incidents
+    @monitoring_interface = @api_client.monitoring
+    @monitoring_incidents_interface = @api_client.monitoring.incidents
   end
 
   def handle(args)
@@ -30,7 +31,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on('--severity LIST', Array, "Filter by severity. critical, warning, info") do |list|
         params['severity'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)

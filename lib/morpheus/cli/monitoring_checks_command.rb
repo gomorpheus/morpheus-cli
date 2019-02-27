@@ -14,7 +14,8 @@ class Morpheus::Cli::MonitoringChecksCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_checks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.checks
+    @monitoring_interface = @api_client.monitoring
+    @monitoring_checks_interface = @api_client.monitoring.checks
   end
 
   def handle(args)
@@ -33,14 +34,12 @@ class Morpheus::Cli::MonitoringChecksCommand
       opts.on('--status VALUE', Array, "Filter by status. error,healthy,warning,muted") do |val|
         params['status'] = val
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :last_updated, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @monitoring_checks_interface.dry.list(params)
@@ -60,16 +59,8 @@ class Morpheus::Cli::MonitoringChecksCommand
       checks = json_response['checks']
       title = "Morpheus Monitoring Checks"
       subtitles = []
-      # if group
-      #   subtitles << "Group: #{group['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
-      print_h1 title, subtitles
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
       if checks.empty?
         print cyan,"No checks found.",reset,"\n"
       else

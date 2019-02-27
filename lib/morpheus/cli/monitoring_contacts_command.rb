@@ -21,7 +21,8 @@ class Morpheus::Cli::MonitoringContactsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_contacts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.contacts
+    @monitoring_interface = @api_client.monitoring
+    @monitoring_contacts_interface = @api_client.monitoring.contacts
   end
 
   def handle(args)
@@ -33,14 +34,12 @@ class Morpheus::Cli::MonitoringContactsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :csv, :yaml, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :csv, :yaml, :fields, :json, :dry_run])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       # JD: lastUpdated 500ing, contacts don't have that property ? =o  Fix it!
       @monitoring_contacts_interface.setopts(options)
       if options[:dry_run]
@@ -62,10 +61,8 @@ class Morpheus::Cli::MonitoringContactsCommand
       contacts = json_response['contacts']
       title = "Morpheus Monitoring Contacts"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
-      print_h1 title, subtitles
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
       if contacts.empty?
         print cyan,"No contacts found.",reset,"\n"
       else

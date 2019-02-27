@@ -13,7 +13,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.groups
+    @monitoring_interface = @api_client.monitoring
+    @monitoring_groups_interface = @api_client.monitoring.groups
   end
 
   def handle(args)
@@ -28,7 +29,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       opts.on('--status VALUE', Array, "Filter by status. error,healthy,warning,muted") do |val|
         params['status'] = val
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)

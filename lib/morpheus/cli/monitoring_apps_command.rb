@@ -14,7 +14,8 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @monitoring_apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).monitoring.apps 
+    @monitoring_interface = @api_client.monitoring
+    @monitoring_apps_interface = @api_client.monitoring.apps
   end
 
   def handle(args)
@@ -29,14 +30,12 @@ class Morpheus::Cli::MonitoringAppsCommand
       opts.on('--status LIST', Array, "Filter by status. error,healthy,warning,muted") do |list|
         params['status'] = list
       end
-      build_common_options(opts, options, [:list, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :last_updated, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @monitoring_apps_interface.dry.list(params)
@@ -57,15 +56,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       monitor_apps = json_response['monitorApps']
       title = "Morpheus Monitoring Apps"
       subtitles = []
-      # if app
-      #   subtitles << "App: #{app['name']}".strip
-      # end
-      # if cloud
-      #   subtitles << "Cloud: #{cloud['name']}".strip
-      # end
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if monitor_apps.empty?
         print cyan,"No monitoring apps found.",reset,"\n"
