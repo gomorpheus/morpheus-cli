@@ -1,4 +1,5 @@
 require 'rest-client'
+require 'uri'
 
 module Morpheus
   # A wrapper around rest_client so we can more easily deal with passing options (like turning on/off SSL verification)
@@ -31,8 +32,27 @@ module Morpheus
         opts[:headers] ||= {}
         opts[:headers][:user_agent] ||= self.user_agent
 
+        # serialize params oureselves, this way we get arrays without the [] suffix
+        params = nil
+        if opts[:params] && !opts[:params].empty?
+          params = opts.delete(:params)
+        elsif opts[:headers] && opts[:headers][:params]
+          # params inside headers for restclient reasons..
+          params = opts[:headers].delete(:params)
+        elsif opts[:query] && !opts[:query].empty?
+          params = opts.delete(:query)
+        end
+        query_string = params
+        if query_string.respond_to?(:map)
+          query_string = URI.encode_www_form(query_string)
+        end
+        if query_string && !query_string.empty?
+          opts[:url] = "#{opts[:url]}?#{query_string}"
+        end
+
         ::RestClient::Request.execute opts
       end
+
       def post(url, payload)
         execute url: url, payload: payload, method: :post
       end
