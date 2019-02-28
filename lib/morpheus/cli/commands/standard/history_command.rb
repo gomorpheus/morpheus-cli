@@ -46,7 +46,8 @@ EOT
       return 1
     end
     if options[:do_flush]
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to flush your command history?")
+      command_count = Morpheus::Cli::Shell.instance.history_commands_count
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to flush your command history (#{format_number(command_count)} #{command_count == 1 ? 'command' : 'commands'})?")
         return 9, "aborted command"
       end
       Morpheus::Cli::Shell.instance.flush_history

@@ -723,8 +723,8 @@ class Morpheus::Cli::Shell
   # @return Hash like {:commands => [], :command_count => total}
   def load_history_commands(options={})
     phrase = options[:phrase]
-    sort = options[:sort] ? options[:sort].to_sym : :number
-    direction = options[:direction] == 'desc' ? 'desc' : 'asc'
+    sort_key = options[:sort] ? options[:sort].to_sym : nil
+    
     offset = options[:offset].to_i > 0 ? options[:offset].to_i : 0
     max = options[:max].to_i > 0 ? options[:max].to_i : 25
     
@@ -739,15 +739,15 @@ class Morpheus::Cli::Shell
     
     # sort is a bit different for this command, the default sort is by number
     # it sorts oldest -> newest, but shows the very last page by default.
-    sort_key = :number
-    if sort.to_sym == :command
-      sort_key = :command
+    if options[:sort] && ![:number, :command].include?(options[:sort])
+      options[:sort] = nil
     end
     
-    if phrase || sort_key != :number
+
+    if options[:phrase] || sort_key || options[:direction] || options[:offset]
       # this could be a large object...need to index our shell_history file lol
       history_records = @history.keys.collect { |k| {number: k, command: @history[k]} }
-      if direction == 'desc'
+      if options[:direction] == 'desc'
         history_records = history_records.sort {|x,y| y[sort_key] <=> x[sort_key] }
       else
         history_records = history_records.sort {|x,y| x[sort_key] <=> y[sort_key] }
@@ -756,26 +756,20 @@ class Morpheus::Cli::Shell
         history_records = history_records.select {|it| it[:command].include?(phrase) || it[:number].to_s == phrase }
       end
       command_count = history_records.size
-      history_records = history_records[offset..max-1]
+      history_records = history_records[offset..(max-1)]
     else
       # default should try to be as fast as possible..
       # no searching or sorting, default order by :number works
-      # desc here means show oldest commands
-      cmd_count = @history.keys.size
-      cmd_numbers = []
-      if direction == 'desc'
-        cmd_numbers = @history.keys[offset..(offset + max-1)]
+      if offset != 0
+        cmd_numbers = @history.keys.last(max + offset).first(max)
       else
-        if offset != 0
-          cmd_numbers = @history.keys.last(max + offset).first(max)
-        else
-          cmd_numbers = @history.keys.last(max)
-        end
-        history_records = cmd_numbers.collect { |k| {number: k, command: @history[k]} }
-        command_count = @history.size
+        cmd_numbers = @history.keys.last(max)
       end
+      history_records = cmd_numbers.collect { |k| {number: k, command: @history[k]} }
+      command_count = @history.size
     end
-    return {:commands => history_records, :command_count => command_count}
+    meta = {size:history_records.size, total:command_count.to_i, max:max, offset:offset}
+    return {:commands => history_records, :command_count => command_count, :meta => meta}
   end
 
   def print_history(options={})
@@ -794,7 +788,12 @@ class Morpheus::Cli::Shell
         puts "#{history_record[:number].to_s.rjust(3, ' ')}  #{history_record[:command]}"
       end
       if options[:show_pagination]
-        print_results_pagination({size:history_records.size,total:command_count.to_i})
+        if options[:phrase] || options[:sort] || options[:direction] || options[:offset]
+          print_results_pagination({:meta => history_result[:meta]})
+        else
+          # default order is weird, it's the last page of results, 1-25 is misleading and showing the indexes is stranger
+          print_results_pagination({:meta => history_result[:meta]}, {:message =>"Viewing most recent %{size} of %{total} %{label}"})
+        end
         print reset, "\n"
       end
     end
@@ -816,7 +815,7 @@ class Morpheus::Cli::Shell
       @history = {}
       @last_command_number = 0
       @history_logger = load_history_logger
-      print cyan, "Command history flushed!", reset, "\n"
+      print green, "Command history flushed", reset, "\n"
       return 0
   end
 end
