@@ -740,12 +740,12 @@ class Morpheus::Cli::Shell
     # sort is a bit different for this command, the default sort is by number
     # it sorts oldest -> newest, but shows the very last page by default.
     if options[:sort] && ![:number, :command].include?(options[:sort])
-      options[:sort] = nil
+      sort_key = :number # nil
     end
-    
 
     if options[:phrase] || sort_key || options[:direction] || options[:offset]
       # this could be a large object...need to index our shell_history file lol
+      sort_key ||= :number
       history_records = @history.keys.collect { |k| {number: k, command: @history[k]} }
       if options[:direction] == 'desc'
         history_records = history_records.sort {|x,y| y[sort_key] <=> x[sort_key] }
