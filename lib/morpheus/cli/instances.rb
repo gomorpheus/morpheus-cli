@@ -173,6 +173,7 @@ class Morpheus::Cli::Instances
               name: instance['name'],
               connection: format_instance_connection_string(instance),
               environment: instance['instanceContext'],
+              user: instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'],
               nodes: instance['containers'].count,
               status: format_instance_status(instance, cyan),
               type: instance['instanceType']['name'],
@@ -185,7 +186,9 @@ class Morpheus::Cli::Instances
             }
             row
           }
-          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, :type, :version, :environment, 
+          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
+              :type, :version, :environment, 
+              {:user => {:display_name => "CREATED BY", :max_width => 20}}, 
               :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
           # custom pretty table columns ...
           if options[:include_fields]
