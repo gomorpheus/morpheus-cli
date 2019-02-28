@@ -521,7 +521,7 @@ EOT
       
       if appliance[:active]
         # print cyan
-        print cyan, " => This is the current appliance.", reset, "\n\n"
+        print cyan, "# => This is the current appliance.", reset, "\n\n"
       end
 
       return 0
