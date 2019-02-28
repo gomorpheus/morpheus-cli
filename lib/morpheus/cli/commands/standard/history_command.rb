@@ -22,7 +22,7 @@ class Morpheus::Cli::HistoryCommand
       opts.on( '-p', '--pagination', "Display pagination and count info eg. Viewing 1-M of N" ) do
         options[:show_pagination] = true
       end
-      opts.on( nil, '--flush', "Flush history, purges entire shell history file." ) do |val|
+      opts.on( nil, '--flush', "Flush history, purges entire shell history file." ) do
         options[:do_flush] = true
       end
       build_common_options(opts, options, [:list, :auto_confirm])
