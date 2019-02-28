@@ -15,7 +15,7 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProcessesHelper
   set_command_name :apps
   set_command_description "View and manage apps."
-  register_subcommands :list, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
+  register_subcommands :list, :count, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
@@ -75,11 +75,11 @@ class Morpheus::Cli::Apps
       end
       @apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.get(params)
+        print_dry_run @apps_interface.dry.list(params)
         return
       end
 
-      json_response = @apps_interface.get(params)
+      json_response = @apps_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "apps")
         return 0
@@ -102,7 +102,50 @@ class Morpheus::Cli::Apps
         print_apps_table(apps, options)
         print_results_pagination(json_response)
       end
-      print reset,"\n"
+     print reset,"\n"
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def count(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[options]")
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
+      opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+        options[:phrase] = phrase
+      end
+      build_common_options(opts, options, [:query, :remote, :dry_run])
+      opts.footer = "Get the number of apps."
+    end
+    optparse.parse!(args)
+    connect(options)
+    begin
+      params = {}
+      params.merge!(parse_list_options(options))
+      account = nil
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.list(params)
+        return
+      end
+      json_response = @apps_interface.list(params)
+      # print number only
+      if json_response['meta'] && json_response['meta']['total']
+        print cyan, json_response['meta']['total'], reset, "\n"
+      else
+        print yellow, "unknown", reset, "\n"
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1536,7 +1579,7 @@ class Morpheus::Cli::Apps
     # end
     # print cyan
     print as_pretty_table(rows, columns, options) #{color: table_color}
-    print reset,"\n"
+    print reset
   end
 
   def format_app_status(app, return_color=cyan)

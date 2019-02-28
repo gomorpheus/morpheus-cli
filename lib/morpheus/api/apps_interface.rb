@@ -23,6 +23,10 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list(params={})
+    get(params)
+  end
+
   def validate(payload)
     # url = "#{@base_url}/api/apps/validate-instance"
     url = "#{@base_url}/api/apps/validate"
