@@ -1349,13 +1349,16 @@ class Morpheus::Cli::Hosts
       opts.footer = "List host types."
     end
     optparse.parse!(args)
-    if options[:cloud]
-      return server_types_for_cloud(options[:cloud], options)
-    end
+    # if options[:cloud]
+    #   return server_types_for_cloud(options[:cloud], options)
+    # end
     connect(options)
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      if options[:cloud]
+
+      end
       @server_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @server_types_interface.dry.list(params)
@@ -1363,18 +1366,11 @@ class Morpheus::Cli::Hosts
       end
 
       json_response = @server_types_interface.list(params)
-      server_types = json_response['serverTypes']
+      
+      render_result = render_with_format(json_response, options, 'serverTypes')
+      return 0 if render_result
 
-      if options[:json]
-        puts as_json(json_response, options, "serverTypes")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['serverTypes'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "serverTypes")
-        return 0
-      end
+      server_types = json_response['serverTypes']
 
       title = "Morpheus Server Types"
       subtitles = []
@@ -1390,7 +1386,7 @@ class Morpheus::Cli::Hosts
             name: server_type['name']
           }
         end
-        columns = [:code, :name]
+        columns = [:id, :name, :code]
         print cyan
         print as_pretty_table(rows, columns, options)
         print reset

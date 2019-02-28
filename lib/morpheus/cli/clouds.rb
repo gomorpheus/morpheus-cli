@@ -611,36 +611,47 @@ class Morpheus::Cli::Clouds
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
+      params.merge!(parse_list_options(options))
       @clouds_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clouds_interface.dry.cloud_types({})
         return 0
       end
-      cloud_types = get_available_cloud_types() # @clouds_interface.dry.cloud_types({})['zoneTypes']
-      if options[:json]
-        puts as_json({zoneTypes: cloud_types}, options)
+      json_response = @clouds_interface.cloud_types(params)
+      
+      render_result = render_with_format(json_response, options, 'zoneTypes')
+      return 0 if render_result
+
+      #cloud_types = get_available_cloud_types()
+      cloud_types = json_response['zoneTypes']
+
+      title = "Morpheus Cloud Types"
+      subtitles = []
+        
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+
+      if cloud_types.empty?
+        print yellow,"No cloud types found.",reset,"\n"
       else
-        print_h1 "Morpheus Cloud Types", options
-        if cloud_types.empty?
-          print yellow,"No instances found.",reset,"\n"
-        else
-          print cyan
-          cloud_types = cloud_types.select {|it| it['enabled'] }
-          rows = cloud_types.collect do |cloud_type|
-            {id: cloud_type['id'], name: cloud_type['name'], code: cloud_type['code']}
-          end
-          #print "\n"
-          puts as_pretty_table(rows, [:id, :name, :code], options)
-          #print_results_pagination({size:rows.size,total:rows.size})
-          #print "\n"
+        print cyan
+        cloud_types = cloud_types.select {|it| it['enabled'] }
+        rows = cloud_types.collect do |cloud_type|
+          {id: cloud_type['id'], name: cloud_type['name'], code: cloud_type['code']}
         end
-        #print reset,"\n"
+        #print "\n"
+        columns = [:id, :name, :code]
+        columns = options[:include_fields] if options[:include_fields]
+        print as_pretty_table(rows, columns, options)
+        print_results_pagination(json_response)
+        print reset,"\n"
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
