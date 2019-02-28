@@ -14,7 +14,8 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::ProvisioningHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent, :server_types
+  register_subcommands :list, :count, :get, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent
+  register_subcommands :'types' => :list_types
   register_subcommands :exec => :execution_request
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -32,6 +33,7 @@ class Morpheus::Cli::Hosts
     @tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
     @task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
     @servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
+    @server_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).server_types
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
     @active_group_id = Morpheus::Cli::Groups.active_group
@@ -86,7 +88,6 @@ class Morpheus::Cli::Hosts
       opts.on( '', '--status STATUS', "Filter by Status" ) do |val|
         params[:status] = val
       end
-
       opts.on( '', '--agent', "Show only Servers with the agent installed" ) do |val|
         params[:agentInstalled] = true
       end
@@ -243,17 +244,97 @@ class Morpheus::Cli::Hosts
   end
 
   def count(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
+      opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+        options[:cloud] = val
+      end
+      opts.on( '-M', '--managed', "Show only Managed Servers" ) do |val|
+        params[:managed] = true
+      end
+      opts.on( '-U', '--unmanaged', "Show only Unmanaged Servers" ) do |val|
+        params[:managed] = false
+      end
+      opts.on( '-t', '--type TYPE', "Show only Certain Server Types" ) do |val|
+        params[:serverType] = val
+      end
+      opts.on( '-p', '--power STATE', "Filter by Power Status" ) do |val|
+        params[:powerState] = val
+      end
+      opts.on( '-i', '--ip IPADDRESS', "Filter by IP Address" ) do |val|
+        params[:ip] = val
+      end
+      opts.on( '', '--vm', "Show only virtual machines" ) do |val|
+        params[:vm] = true
+      end
+      opts.on( '', '--hypervisor', "Show only VM Hypervisors" ) do |val|
+        params[:vmHypervisor] = true
+      end
+      opts.on( '', '--container', "Show only Container Hypervisors" ) do |val|
+        params[:containerHypervisor] = true
+      end
+      opts.on( '', '--baremetal', "Show only Baremetal Servers" ) do |val|
+        params[:bareMetalHost] = true
+      end
+      opts.on( '', '--status STATUS', "Filter by Status" ) do |val|
+        params[:status] = val
+      end
+      opts.on( '', '--agent', "Show only Servers with the agent installed" ) do |val|
+        params[:agentInstalled] = true
+      end
+      opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
+        params[:agentInstalled] = false
+      end
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
+      opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
+        options[:details] = true
+      end
+      opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+        options[:phrase] = phrase
+      end
       build_common_options(opts, options, [:query, :remote, :dry_run])
       opts.footer = "Get the number of hosts."
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = {}
       params.merge!(parse_list_options(options))
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          params['accountId'] = account['id']
+        end
+      end
+      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+      if group
+        params['siteId'] = group['id']
+      end
+
+      # argh, this doesn't work because group_id is required for options/clouds
+      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+      if cloud
+        params['zoneId'] = cloud['id']
+      end
+
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
       @servers_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @servers_interface.dry.list(params)
@@ -266,6 +347,7 @@ class Morpheus::Cli::Hosts
       else
         print yellow, "unknown", reset, "\n"
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -497,41 +579,6 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def server_types(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cloud]")
-      build_common_options(opts, options, [:json, :remote])
-    end
-    optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    options[:zone] = args[0]
-    connect(options)
-    params = {}
-
-    zone = find_zone_by_name_or_id(nil, options[:zone])
-    cloud_type = cloud_type_for_id(zone['zoneTypeId'])
-    cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true}
-    cloud_server_types = cloud_server_types.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
-    if options[:json]
-      print JSON.pretty_generate(cloud_server_types)
-      print "\n"
-    else
-      print_h1 "Morpheus Server Types - Cloud: #{zone['name']}", [], options
-      if cloud_server_types.nil? || cloud_server_types.empty?
-        print yellow,"No server types found for the selected cloud",reset,"\n"
-      else
-        cloud_server_types.each do |server_type|
-          print cyan, "[#{server_type['code']}]".ljust(20), " - ", "#{server_type['name']}", "\n"
-        end
-      end
-      print reset,"\n"
-    end
-  end
-
   def add(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -608,7 +655,7 @@ class Morpheus::Cli::Hosts
         end
         server_type = cloud_server_types.find {|it| it['code'] == server_type_code }
         if server_type.nil?
-          print_red_alert "Server Type #{server_type_code} not found cloud #{cloud['name']}"
+          print_red_alert "Server Type #{server_type_code} not found for cloud #{cloud['name']}"
           exit 1
         end
 
@@ -1263,6 +1310,95 @@ class Morpheus::Cli::Hosts
         Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']])
       end
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def server_types_for_cloud(cloud_id, options)
+    connect(options)
+    zone = find_zone_by_name_or_id(nil, cloud_id)
+    cloud_type = cloud_type_for_id(zone['zoneTypeId'])
+    cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true}
+    cloud_server_types = cloud_server_types.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
+    if options[:json]
+      print JSON.pretty_generate(cloud_server_types)
+      print "\n"
+    else
+      print_h1 "Morpheus Server Types - Cloud: #{zone['name']}", [], options
+      if cloud_server_types.nil? || cloud_server_types.empty?
+        print yellow,"No server types found for the selected cloud",reset,"\n"
+      else
+        cloud_server_types.each do |server_type|
+          print cyan, "[#{server_type['code']}]".ljust(20), " - ", "#{server_type['name']}", "\n"
+        end
+      end
+      print reset,"\n"
+    end
+  end
+
+  def list_types(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+        options[:cloud] = val
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List host types."
+    end
+    optparse.parse!(args)
+    if options[:cloud]
+      return server_types_for_cloud(options[:cloud], options)
+    end
+    connect(options)
+    begin
+      params = {}
+      params.merge!(parse_list_options(options))
+      @server_types_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @server_types_interface.dry.list(params)
+        return
+      end
+
+      json_response = @server_types_interface.list(params)
+      server_types = json_response['serverTypes']
+
+      if options[:json]
+        puts as_json(json_response, options, "serverTypes")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['serverTypes'], options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "serverTypes")
+        return 0
+      end
+
+      title = "Morpheus Server Types"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if server_types.empty?
+        print cyan,"No server types found.",reset,"\n"
+      else
+        rows = server_types.collect do |server_type|
+          {
+            id: server_type['id'],
+            code: server_type['code'],
+            name: server_type['name']
+          }
+        end
+        columns = [:code, :name]
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

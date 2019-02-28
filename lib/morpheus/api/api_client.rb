@@ -232,6 +232,10 @@ class Morpheus::APIClient
     Morpheus::InstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def server_types
+    Morpheus::ServerTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def provision_types
     Morpheus::ProvisionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end

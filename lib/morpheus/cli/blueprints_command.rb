@@ -1740,9 +1740,7 @@ class Morpheus::Cli::BlueprintsCommand
     connect(options)
     begin
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       @blueprints_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @blueprints_interface.dry.list_types(params)
@@ -1766,9 +1764,7 @@ class Morpheus::Cli::BlueprintsCommand
       
       title = "Morpheus Blueprint Types"
       subtitles = []
-      if params[:phrase]
-        subtitles << "Search: #{params[:phrase]}".strip
-      end
+      subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if blueprint_types.empty?
         print cyan,"No blueprint types found.",reset,"\n"

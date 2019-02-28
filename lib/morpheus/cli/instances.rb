@@ -211,6 +211,21 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
+      opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
+        options[:cloud] = val
+      end
+      opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
+        options[:host] = val
+      end
+      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+        options[:created_by] = val
+      end
+      opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+        options[:phrase] = phrase
+      end
       build_common_options(opts, options, [:query, :remote, :dry_run])
       opts.footer = "Get the number of instances."
     end
@@ -219,6 +234,30 @@ class Morpheus::Cli::Instances
     begin
       params = {}
       params.merge!(parse_list_options(options))
+      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+      if group
+        params['siteId'] = group['id']
+      end
+
+      # argh, this doesn't work because group_id is required for options/clouds
+      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+      if cloud
+        params['zoneId'] = cloud['id']
+      end
+
+      host = options[:host] ? find_host_by_name_or_id(options[:host]) : options[:host]
+      if host
+        params['serverId'] = host['id']
+      end
+
+      account = nil
+      if options[:created_by]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+        return if created_by_ids.nil?
+        params['createdBy'] = created_by_ids
+      end
+      
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
@@ -231,6 +270,7 @@ class Morpheus::Cli::Instances
       else
         print yellow, "unknown", reset, "\n"
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
