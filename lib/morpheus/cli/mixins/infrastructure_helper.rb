@@ -83,7 +83,7 @@ module Morpheus::Cli::InfrastructureHelper
 
   def get_available_cloud_types(refresh=false)
     if !@available_cloud_types || refresh
-      @available_cloud_types = clouds_interface.cloud_types['zoneTypes']
+      @available_cloud_types = clouds_interface.cloud_types({max:1000})['zoneTypes']
     end
     return @available_cloud_types
   end

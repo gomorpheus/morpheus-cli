@@ -1349,22 +1349,21 @@ class Morpheus::Cli::Hosts
       opts.footer = "List host types."
     end
     optparse.parse!(args)
-    # if options[:cloud]
-    #   return server_types_for_cloud(options[:cloud], options)
-    # end
     connect(options)
     begin
       params = {}
       params.merge!(parse_list_options(options))
       if options[:cloud]
-
+        #return server_types_for_cloud(options[:cloud], options)
+        zone = find_zone_by_name_or_id(nil, options[:cloud])
+        params["zoneTypeId"] = zone['zoneTypeId']
+        params["creatable"] = true
       end
       @server_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @server_types_interface.dry.list(params)
         return
       end
-
       json_response = @server_types_interface.list(params)
       
       render_result = render_with_format(json_response, options, 'serverTypes')
@@ -1375,6 +1374,9 @@ class Morpheus::Cli::Hosts
       title = "Morpheus Server Types"
       subtitles = []
       subtitles += parse_list_subtitles(options)
+      if options[:cloud]
+        subtitles << "Cloud: #{options[:cloud]}"
+      end
       print_h1 title, subtitles
       if server_types.empty?
         print cyan,"No server types found.",reset,"\n"
@@ -1468,7 +1470,7 @@ class Morpheus::Cli::Hosts
   end
 
   def cloud_type_for_id(id)
-    cloud_types = @clouds_interface.cloud_types['zoneTypes']
+    cloud_types = @clouds_interface.cloud_types({max:1000})['zoneTypes']
     cloud_type = cloud_types.find { |z| z['id'].to_i == id.to_i}
     if cloud_type.nil?
       print_red_alert "Cloud Type not found by id #{id}"
