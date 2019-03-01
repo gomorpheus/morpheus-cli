@@ -449,12 +449,6 @@ class Morpheus::Cli::Apps
               print_green_success "New app '#{payload['name']}' validation passed. #{json_response['msg']}".strip
             else
               print_red_alert "New app '#{payload['name']}' validation failed. #{json_response['msg']}".strip
-              # a default way to print errors
-              (json_response['errors'] || {}).each do |error_key, error_msg|
-                if error_key != 'instances'
-                  print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
-                end
-              end
               # looks for special error format like instances.instanceErrors 
               if json_response['errors'] && json_response['errors']['instances']
                 json_response['errors']['instances'].each do |error_obj|
@@ -466,6 +460,13 @@ class Morpheus::Cli::Apps
                     instance_errors.each do |err_key, err_msg|
                       print_error red, " * #{err_key} : #{err_msg}", reset, "\n"
                     end
+                  end
+                end
+              else
+                # a default way to print errors
+                (json_response['errors'] || {}).each do |error_key, error_msg|
+                  if error_key != 'instances'
+                    print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
                   end
                 end
               end
@@ -511,7 +512,35 @@ class Morpheus::Cli::Apps
       end
       return 0
     rescue RestClient::Exception => e
-      print_rest_exception(e, options)
+      #print_rest_exception(e, options)
+      json_response = nil
+      begin
+        json_response = JSON.parse(e.response.to_s)
+      rescue TypeError, JSON::ParserError => ex
+        print_error red, "Failed to parse JSON response: #{ex}", reset, "\n"
+      end
+
+      # looks for special error format like instances.instanceErrors 
+      if json_response['errors'] && json_response['errors']['instances']
+        json_response['errors']['instances'].each do |error_obj|
+          tier_name = error_obj['tier']
+          instance_index = error_obj['index']
+          instance_errors = error_obj['instanceErrors']
+          print_error red, "#{tier_name} : #{instance_index}", reset, "\n"
+          if instance_errors
+            instance_errors.each do |err_key, err_msg|
+              print_error red, " * #{err_key} : #{err_msg}", reset, "\n"
+            end
+          end
+        end
+      else
+        # a default way to print errors
+        (json_response['errors'] || {}).each do |error_key, error_msg|
+          if error_key != 'instances'
+            print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
+          end
+        end
+      end
       exit 1
     end
   end
