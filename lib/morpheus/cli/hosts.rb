@@ -392,8 +392,14 @@ class Morpheus::Cli::Hosts
         end
         return
       end
-      server = find_host_by_name_or_id(arg)
-      json_response = @servers_interface.get(server['id'])
+      json_response = nil
+      if arg.to_s =~ /\A\d{1,}\Z/
+        json_response = @servers_interface.get(arg.to_i)
+      else
+        server = find_host_by_name_or_id(arg)
+        json_response = @servers_interface.get(server['id'])
+        # json_response = {"server" => server} need stats
+      end
       if options[:json]
         json_response.delete('stats') if options[:include_fields]
         puts as_json(json_response, options, "server")
