@@ -293,10 +293,16 @@ EOT
   end
 
   def execute(args)
+    n = 1
     benchmark_name = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[command...]")
+      opts.on('-n', '--iterations NUMBER', Integer, "Number of iterations to run. The default is 1.") do |val|
+        if val.to_i > 1
+          n = val.to_i
+        end
+      end
       opts.on('--name NAME', String, "Name for the benchmark. Default is the command itself.") do |val|
         benchmark_name = val
       end
@@ -315,19 +321,66 @@ EOT
     end
     
     cmd = args.join(' ')
+    benchmark_name ||= cmd
+    if n == 1
+      start_benchmark(benchmark_name)
+      # exit_code, err = my_terminal.execute(cmd)
+      cmd_result = execute_commands_as_expression(cmd)
+      exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
+      benchmark_record = stop_benchmark(exit_code, err)
+      Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
+    else
+      benchmark_records = []
+      n.times do |iteration_index|
+        start_benchmark(benchmark_name)
+        # exit_code, err = my_terminal.execute(cmd)
+        cmd_result = execute_commands_as_expression(cmd)
+        exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
+        benchmark_record = stop_benchmark(exit_code, err)
+        #Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
+        benchmark_records << benchmark_record
+      end
+      # calc total and mean and print it
+      all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
+      total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
+      avg_duration = total_duration / all_durations.size
 
-    #previous_terminal_benchmarking = my_terminal.benchmarking
-    start_benchmark(benchmark_name || cmd)
-    
-    # exit_code, err = my_terminal.execute(cmd)
-    # do this way until terminal supports expressions
-    cmd_result = execute_commands_as_expression(cmd)
-    exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
-  
-    benchmark_record = stop_benchmark(exit_code, err)
-    Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
-    
-    #my_terminal.benchmarking = previous_terminal_benchmarking
+      total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)} seconds"
+      avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)} seconds"
+      out = ""
+      # <benchmark name or command>
+      out << "#{benchmark_name.ljust(30, ' ')}"
+      # exit: 0
+      exit_str = "0"
+      bad_benchmark = benchmark_records.find {|benchmark_record| benchmark_record.exit_code && benchmark_record.exit_code != 0 }
+      if bad_benchmark
+        bad_benchmark.exit_code.to_s
+        out << "\texit: #{bad_benchmark.exit_code.to_s.ljust(2, ' ')}"
+        out << "\terror: #{bad_benchmark.error.to_s.ljust(12, ' ')}"
+      else
+        out << "\texit: 0 "
+      end
+
+      # n: 10
+      out << "\tn: #{n}"
+
+      # average: 0.00125 seconds
+      out << "\taverage: #{avg_time_str.ljust(15, ' ')}"
+
+      # 0.00125 seconds
+      out << "\ttotal: #{total_time_str.ljust(15, ' ')}"
+
+
+      if bad_benchmark
+        print red,out,reset,"\n"
+        return 1
+      else
+        print green,out,reset,"\n"
+        return 0
+      end
+      
+    end
+
     return 0 
   end
 
