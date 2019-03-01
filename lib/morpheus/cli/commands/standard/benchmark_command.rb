@@ -337,16 +337,40 @@ EOT
         cmd_result = execute_commands_as_expression(cmd)
         exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
         benchmark_record = stop_benchmark(exit_code, err)
-        #Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
         benchmark_records << benchmark_record
       end
       # calc total and mean and print it
-      all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
-      total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
-      avg_duration = total_duration / all_durations.size
+      # all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
+      # total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
+      # avg_duration = total_duration / all_durations.size
+      # total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)}s"
+      # avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)}s"
 
-      total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)} seconds"
-      avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)} seconds"
+      all_durations = []
+      stats = {total: 0, avg: nil, min: nil, max: nil}
+      benchmark_records.each do |benchmark_record| 
+        duration = benchmark_record.duration
+        if duration
+          all_durations << duration
+          stats[:total] += duration
+          if stats[:min].nil? || stats[:min] > duration
+            stats[:min] = duration
+          end
+          if stats[:max].nil? || stats[:max] < duration
+            stats[:max] = duration
+          end
+        end
+      end
+      if all_durations.size > 0
+        stats[:avg] = stats[:total].to_f / all_durations.size
+      end
+
+      total_time_str = "#{stats[:total].round((stats[:total] > 0.002) ? 3 : 6)}s"
+      min_time_str = stats[:min] ? "#{stats[:min].round((stats[:min] > 0.002) ? 3 : 6)}s" : ""
+      max_time_str = stats[:max] ? "#{stats[:max].round((stats[:max] > 0.002) ? 3 : 6)}s" : ""
+      avg_time_str = stats[:avg] ? "#{stats[:avg].round((stats[:avg] > 0.002) ? 3 : 6)}s" : ""
+
       out = ""
       # <benchmark name or command>
       out << "#{benchmark_name.ljust(30, ' ')}"
@@ -361,21 +385,18 @@ EOT
         out << "\texit: 0 "
       end
 
-      # n: 10
-      out << "\tn: #{n}"
-
-      # average: 0.00125 seconds
-      out << "\taverage: #{avg_time_str.ljust(15, ' ')}"
-
-      # 0.00125 seconds
-      out << "\ttotal: #{total_time_str.ljust(15, ' ')}"
+      out << "\tn: #{n.to_s.ljust(4, ' ')}"
+      out << "\ttotal: #{total_time_str.ljust(9, ' ')}"
+      out << "\tmin: #{min_time_str.ljust(9, ' ')}"
+      out << "\tmax: #{max_time_str.ljust(9, ' ')}"
+      out << "\tavg: #{avg_time_str.ljust(9, ' ')}"
 
 
       if bad_benchmark
         print red,out,reset,"\n"
         return 1
       else
-        print green,out,reset,"\n"
+        print cyan,out,reset,"\n"
         return 0
       end
       
