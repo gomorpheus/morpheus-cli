@@ -42,11 +42,12 @@ module Morpheus
     def self.parse_command_result(cmd_result)
       exit_code, err = nil, nil
       if cmd_result.is_a?(Array)
-        exit_code, err = cmd_result[0], cmd_result[1]
+        exit_code = cmd_result[0] || 0
+        err = cmd_result[1]
       elsif cmd_result.is_a?(Hash)
-        exit_code, err = cmd_result[:exit_code], (cmd_result[:error] || cmd_result[:err])
-      end
-      if cmd_result == nil || cmd_result == true
+        exit_code = cmd_result[:exit_code] || 0
+        err = cmd_result[:error] || cmd_result[:err]
+      elsif cmd_result == nil || cmd_result == true
         exit_code = 0
       elsif cmd_result == false
         exit_code = 1
