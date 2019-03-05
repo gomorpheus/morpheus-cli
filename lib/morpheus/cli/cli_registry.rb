@@ -1,5 +1,10 @@
 require 'term/ansicolor'
+require 'shellwords'
 require 'morpheus/logging'
+require 'morpheus/cli/command_error'
+require 'morpheus/cli/error_handler'
+require 'morpheus/cli/expression_parser'
+
 module Morpheus
   module Cli
     class CliRegistry
@@ -57,8 +62,6 @@ module Morpheus
 
       class << self
         include Term::ANSIColor
-        
-        ALIAS_SPLIT_REGEX=/(\;)(?=(?:[^"']|"[^'"]*")*$)/
 
         def instance
           @instance ||= CliRegistry.new
@@ -72,43 +75,97 @@ module Morpheus
         def exec_command(command_name, args)
           #puts "exec_command(#{command_name}, #{args})"
           found_alias_command = instance.get_alias(command_name)
-          if found_alias_command
+          if has_alias?(command_name)
             exec_alias(command_name, args)
-          else
-            #puts "running regular command #{command_name} with arguments #{args.join(' ')}"
+          elsif has_command?(command_name)
             instance.get(command_name).new.handle(args)
+          else
+            raise Morpheus::Cli::CommandError.new("'#{command_name}' is not a command. See 'morpheus --help'.")
           end
         end
 
         def exec_alias(alias_name, args)
-          #puts "exec_alias(#{alias_name}, #{args})"
           found_alias_command = instance.get_alias(alias_name)
-          # support aliases of multiple commands, semicolon delimiter
-          # todo: 
-          all_commands = found_alias_command.gsub(ALIAS_SPLIT_REGEX, '__ALIAS_SPLIT_REGEX__').split('__ALIAS_SPLIT_REGEX__').collect {|it| it.to_s.strip }.select {|it| !it.empty?  }.compact
-          Morpheus::Logging::DarkPrinter.puts "executing alias #{alias_name} as #{all_commands.join('; ')}" if Morpheus::Logging.debug?
-          all_commands.each do |a_command_string|
-            alias_args = a_command_string.to_s.split(/\s+/) # or just ' '
-            command_name = alias_args.shift
-            command_args = alias_args + args
-            if command_name == alias_name
-              # needs to be better than this
-              print Term::ANSIColor.red,"alias '#{alias_name}' is calling itself? '#{found_alias_command}'", Term::ANSIColor.reset, "\n"
-              exit 1
-            end
-            # this allows aliases to use other aliases
-            # todo: prevent recursion infinite loop
-            if has_alias?(command_name)
-              exec_alias(command_name, command_args)
-            elsif has_command?(command_name)
-              #puts "executing alias #{found_alias_command} as #{command_name} with args #{args.join(' ')}"
-              instance.get(command_name).new.handle(alias_args + args)
-            else
-              # raise UnrecognizedCommandError.new(command_name)
-              print Term::ANSIColor.red,"alias '#{alias_name}' uses and unknown command: '#{command_name}'", Term::ANSIColor.reset, "\n"
-              exit 1
+          if !found_alias_command
+            raise Morpheus::Cli::CommandError.new("'#{alias_name}' is not a defined alias.")
+          end
+          # if !is_valid_expression(found_alias_command)
+          #   raise Morpheus::Cli::CommandError.new("alias '#{alias_name}' is not a valid expression: #{found_alias_command}")
+          # end
+          input = found_alias_command
+          if args && !args.empty?
+            input = "#{found_alias_command} " + args.collect {|arg| arg.include?(" ") ? "\"#{arg}\"" : "#{arg}" }.join(" ")
+          end
+          exec_expression(input)
+        end
+
+        def exec_expression(input)
+          # puts "exec_expression(#{input})"
+          flow = input
+          if input.is_a?(String)
+            begin
+              flow = Morpheus::Cli::ExpressionParser.parse(input)
+            rescue Morpheus::Cli::ExpressionParser::InvalidExpression => e
+              raise e
             end
           end
+          # puts "executing flow: #{flow.inspect}"
+          final_command_result = nil
+          if flow.size == 0
+            # no input eh?
+          else
+            last_command_result = nil
+            if ['&&','||', '|'].include?(flow.first)
+              raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "#{Morpheus::Terminal.angry_prompt}invalid command format, begins with an operator: #{input}"
+            elsif ['&&','||', '|'].include?(flow.last)
+              raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "#{Morpheus::Terminal.angry_prompt}invalid command format, ends with an operator: #{input}"
+            # elsif ['&&','||', '|'].include?(flow.last)
+            #   raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "invalid command format, consecutive operators: #{cmd}"
+            else
+              #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
+              previous_command = nil
+              previous_command_result = nil
+              current_operator = nil
+              still_executing = true
+              flow.each do |flow_cmd|
+                if still_executing
+                  if flow_cmd == '&&'
+                    # AND operator
+                    current_operator = flow_cmd
+                    exit_code, cmd_err = parse_command_result(previous_command_result)
+                    if exit_code != 0
+                      still_executing = false
+                    end
+                  elsif flow_cmd == '||' # or with previous command
+                    current_operator = flow_cmd
+                    exit_code, err = parse_command_result(previous_command_result)
+                    if exit_code == 0
+                      still_executing = false
+                    end
+                  elsif flow_cmd == '|' # or with previous command
+                    raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "The PIPE (|) operator is not yet supported =["
+                    previous_command_result = nil
+                    still_executing = false
+                    # or just continue?
+                  elsif flow_cmd.is_a?(Array)
+                    # this is a subexpression, execute it as such
+                    current_operator = nil
+                    previous_command_result = exec_expression(flow_cmd)
+                  else # it's a command, not an operator
+                    current_operator = nil
+                    flow_argv = Shellwords.shellsplit(flow_cmd)
+                    previous_command_result = exec_command(flow_argv[0], flow_argv[1..-1])
+                  end
+                  previous_command = flow_cmd
+                else
+                  #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
+                end
+                # previous_command = flow_cmd
+              end
+              final_command_result = previous_command_result
+            end
+          end
+          return final_command_result
         end
 
         def add(klass, command_name=nil)
@@ -164,6 +221,42 @@ module Morpheus
           command_string = chunks.compact.reject {|it| it.empty? }.join('=')
           command_string = command_string.strip.sub(/^'/, "").sub(/'\Z/, "").strip
           return alias_name, command_string
+        end
+
+        # parse any object into a command result [exit_code, error]
+        # 0 means success.
+        # This treats nil, true, or an object success.
+        # 0 or
+        # @return [Array] exit_code, error. Success returns [0, nil].
+        def parse_command_result(cmd_result)
+          exit_code, err = nil, nil
+          if cmd_result.is_a?(Array)
+            exit_code = cmd_result[0] || 0
+            err = cmd_result[1]
+          elsif cmd_result.is_a?(Hash)
+            exit_code = cmd_result[:exit_code] || 0
+            err = cmd_result[:error] || cmd_result[:err]
+          elsif cmd_result == nil || cmd_result == true
+            exit_code = 0
+          elsif cmd_result == false
+            exit_code = 1
+          elsif cmd_result.is_a?(Integer)
+            exit_code = cmd_result
+          elsif cmd_result.is_a?(Float)
+            exit_code = cmd_result.to_i
+          elsif cmd_result.is_a?(String)
+            exit_code = cmd_result.to_i
+          else
+            if cmd_result.respond_to?(:to_i)
+              exit_code = cmd_result.to_i
+            else
+              # happens for aliases right now.. and execution flow probably, need to handle Array
+              # uncomment to track them down, proceed with exit 0 for now
+              #Morpheus::Logging::DarkPrinter.puts "debug: command #{command_name} produced an unexpected result: (#{cmd_result.class}) #{cmd_result}" if Morpheus::Logging.debug?
+              exit_code = 0
+            end
+          end
+          return exit_code, err
         end
 
       end

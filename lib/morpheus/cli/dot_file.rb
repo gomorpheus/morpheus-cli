@@ -53,53 +53,28 @@ class Morpheus::Cli::DotFile
       next if line.empty?
       next if line =~ /^\#/ # skip comments
       
-      # print "#{dark} #=> executing source file line #{line_num}: #{line}#{reset}\n" if Morpheus::Logging.debug?
-
-      # allow semicolons inside arguments too..
-      #command_list = line.strip.split(';').compact
-      command_list = line.split(/(;)(?=(?:[^"']|["|'][^"']*")*$)/).reject {|it| it.to_s.strip.empty? || it.to_s.strip == ";" }
-      command_list.each do |input|
-        input = input.strip
-        if input.empty?
-          next
-        end
-        argv = nil
-        begin
-          argv = Shellwords.shellsplit(input)
-        rescue => err
-          cmd_result = false
-          puts "#{red} Unparsable source file: #{@filename} line: #{line_num} '#{input}' #{reset} - #{err}"
-        end
-        if argv[0] && Morpheus::Cli::CliRegistry.has_command?(argv[0]) || Morpheus::Cli::CliRegistry.has_alias?(argv[0])
-          #log_history_command(input)
-          cmd_result = nil
-          begin
-            cmd_result = Morpheus::Cli::CliRegistry.exec(argv[0], argv[1..-1])
-          rescue SystemExit => err
-            if err.success?
-              cmd_result = true
-            else
-              puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: exited non zero - #{err}"
-              cmd_result = false
-            end
-          rescue => err
-            # raise err
-            puts "#{red} source file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset} error: unexpected error - #{err}"
-            cmd_result = false
-          end
-          cmd_results << cmd_result
-          # next command please!
+      cmd_exit_code = 0
+      cmd_err = nil
+      cmd_result = nil
+      begin
+        cmd_result = Morpheus::Cli::CliRegistry.exec_expression(line)
+      rescue SystemExit => err
+        if err.success?
+          cmd_result = true
         else
-          puts "#{red}Unrecognized source command file: #{@filename} line: #{line_num} command: #{argv[0]}#{reset}"
+          puts "#{red} source file: #{@filename} line: #{line_num} command: #{line}#{reset} error: exited non zero - #{err}"
           cmd_result = false
         end
-        if cmd_result == false
-          if stop_on_failure
-            return cmd_results
-          end
+      rescue => err
+        # raise err
+        puts "#{red} source file: #{@filename} line: #{line_num} command: #{line}#{reset} error: unexpected error - #{err}"
+        cmd_result = false
+      end
+      if cmd_result == false
+        if stop_on_failure
+          return cmd_results
         end
       end
-
     end
     return cmd_results
   end
@@ -130,6 +105,8 @@ class Morpheus::Cli::DotFile
     new_config_lines = []
     existing_alias_definitions = {}
     header_line_index = config_lines.index {|line| line.strip.include?(EXPORTED_ALIASES_HEADER) }
+    # JD: there's some bad bug here where it can clear all your aliases!
+    # it would be safer to export to another file at .morpheus/aliases or something.
     if header_line_index
       # keep everything before the exported alias section
       new_config_lines = config_lines[0..header_line_index-1]

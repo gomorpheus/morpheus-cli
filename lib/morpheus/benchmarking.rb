@@ -1,5 +1,6 @@
 require 'securerandom'
 require 'morpheus/logging'
+require 'morpheus/cli/cli_registry.rb'
 
 # Provides global Benchmarking functionality
 # This provides a store of benchmarking records which can be looked up by name.
@@ -124,25 +125,16 @@ module Morpheus::Benchmarking
         start_benchmark(opts)
         if block_given?
           result = block.call()
-          # exit_code, err = Morpheus::Cli.parse_command_result(result)
-          if result.is_a?(Array)
-            exit_code = result[0]
-            err = result[0]
-          elsif result == true || result == nil
-            exit_code = 0
-          elsif result == false
-            exit_code = 1
-          else
-            exit_code = result
-          end
+          exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
         end
       rescue => ex
         raise ex
-        # exit_code = 1
-        # err = ex.msg
+        exit_code = 1
+        err = ex.msg
       ensure
         stop_benchmark(exit_code, err)
       end
+      #return result
       return exit_code, err
     end
 

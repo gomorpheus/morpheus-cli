@@ -70,6 +70,9 @@ class Morpheus::Cli::Instances
     end
     optparse.parse!(args)
     connect(options)
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     begin
       params = {}
       params.merge!(parse_list_options(options))
@@ -811,9 +814,11 @@ class Morpheus::Cli::Instances
       opts.on( nil, '--nodes', "Alias for --containers" ) do
         options[:include_containers] = true
       end
+      # opts.add_hidden_option('--nodes')
       opts.on( nil, '--vms', "Alias for --containers" ) do
         options[:include_containers] = true
       end
+      # opts.add_hidden_option('--vms')
       opts.on( nil, '--scaling', "Display Instance Scaling Settings" ) do
         options[:include_scaling] = true
       end

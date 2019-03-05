@@ -6,6 +6,7 @@ require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
+require 'morpheus/cli/expression_parser'
 require 'morpheus/logging'
 require 'morpheus/benchmarking'
 require 'morpheus/cli'
@@ -48,7 +49,7 @@ module Morpheus
     end
 
     # DEFAULT_TERMINAL_WIDTH = 80
-    
+
     def self.default_color
       Term::ANSIColor.cyan
     end
@@ -216,9 +217,9 @@ module Morpheus
       # maybe OptionParser's recover() instance method will do the trick
       optparse = Morpheus::Cli::OptionParser.new do|opts|
         opts.banner = "Options:" # hack alert
-        opts.on('-v','--version', "Print the version.") do
-          @stdout.puts Morpheus::Cli::VERSION
-          # exit
+        opts.on('-e','--exec EXPRESSION', "Execute the command(s) expression. This is an alternative to passing [command] [options]") do |val|
+          @execute_mode = true
+          @execute_mode_command = val
         end
         opts.on('--noprofile','--noprofile', "Do not read and execute the personal initialization script .morpheus_profile") do
           @noprofile = true
@@ -235,6 +236,10 @@ module Morpheus
           @terminal_log_level = Morpheus::Logging::Logger::DEBUG
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
+        end
+        opts.on('-v','--version', "Print the version.") do
+          @stdout.puts Morpheus::Cli::VERSION
+          # exit
         end
         opts.on( '-h', '--help', "Print this help" ) do
           @stdout.puts opts
@@ -317,7 +322,6 @@ module Morpheus
         end
       end
       
-
       # process global options
 
       # raise log level right away
@@ -336,7 +340,7 @@ module Morpheus
       # ok, execute the command (or alias)
       result = nil
       begin
-      
+        
         # execute startup script .morpheus_profile  unless --noprofile is passed
         # todo: this should happen in initialize..
         noprofile = false
@@ -351,38 +355,69 @@ module Morpheus
           end
         end
 
-        # not enough arguments?
-        if args.count == 0
-          @stderr.puts "#{@angry_prompt}[command] argument is required."
-          #@stderr.puts "No command given, here's some help:"
-          @stderr.print usage
-          return 2, nil # CommandError.new("morpheus requires a command")
-        end
-        
-        cmd_name = args[0]
-        cmd_args = args[1..-1]
-
-        # unknown command?
-        # all commands should be registered commands or aliases
-        if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
-          @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not recognized. See 'morpheus --help'."
-          #@stderr.puts usage
-          return 127, nil
-        end
-        
-        if @benchmarking || args.include?('-B') || args.include?('--benchmark')
-          benchmark_name = "morpheus " + args.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
-          #benchmark_name = args.reject {|it| it == '-B' || it == '--benchmark' }.join(' ')
-          start_benchmark(benchmark_name)
+        # execute startup script .morpheus_profile  unless --noprofile is passed
+        # todo: this should happen in initialize..
+        @execute_mode = false
+        @execute_mode_command = nil
+        args.size.times do |i|
+          if args[i] == '-e' || args[i] == '--exec'
+            @execute_mode = true
+            # delete switch and value (command)
+            deleted_option = args.delete_at(i)
+            @execute_mode_command = args.delete_at(i)
+            if @execute_mode_command.nil?
+              raise ::OptionParser::MissingArgument.new(deleted_option)
+              #@stderr.puts "#{@angry_prompt}missing argument: #{deleted_option}."
+              #@stderr.puts "No command given, here's some help:"
+              #@stderr.print usage
+              return 1
+            end
+            break
+          end
         end
 
-        # shell is a Singleton command class
-        if args[0] == "shell"
-          result = Morpheus::Cli::Shell.instance.handle(args[1..-1])
+        if @execute_mode_command
+          # execute a single command and exit
+          result = Morpheus::Cli::CliRegistry.exec_expression(@execute_mode_command)
+          @execute_mode_command = nil
         else
-          result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+          # not enough arguments?
+          if args.count == 0
+            @stderr.puts "#{@angry_prompt}[command] argument is required."
+            #@stderr.puts "No command given, here's some help:"
+            @stderr.print usage
+            return 1, nil # CommandError.new("morpheus requires a command")
+          end
+          
+          cmd_name, *cmd_args = args
+
+          formatted_cmd = args.collect {|arg| arg.include?(' ') ? "\"#{arg}\"" : "#{arg}" }.join(" ")
+
+          # unknown command?
+          # all commands should be registered commands or aliases
+          # ahh, but it could support expressions (), use -e for that ..
+          # if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
+          #   @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not recognized. See 'morpheus --help'."
+          #   #@stderr.puts usage
+          #   return 127, nil
+          # end
+
+          if @benchmarking || args.include?('-B') || args.include?('--benchmark')
+            benchmark_name = "morpheus #{formatted_cmd}"
+            benchmark_name.sub!(' -B', '')
+            benchmark_name.sub!(' --benchmark', '')
+            start_benchmark(benchmark_name)
+          end
+
+          # shell is a Singleton command class
+          if args[0] == "shell"
+            result = Morpheus::Cli::Shell.instance.handle(args[1..-1])
+          else
+            #result = Morpheus::Cli::CliRegistry.exec_expression(formatted_cmd)
+            result = Morpheus::Cli::CliRegistry.exec(args[0], args[1..-1])
+          end
         end
-        exit_code, err = Morpheus::Cli.parse_command_result(result)
+        exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
       rescue => e
         exit_code = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
         err = e

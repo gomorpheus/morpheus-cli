@@ -1,6 +1,7 @@
 require 'morpheus/logging'
 require 'morpheus/benchmarking'
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/cli_registry'
 
 class Morpheus::Cli::BenchmarkCommand
   include Morpheus::Cli::CliCommand
@@ -325,8 +326,8 @@ EOT
     if n == 1
       start_benchmark(benchmark_name)
       # exit_code, err = my_terminal.execute(cmd)
-      cmd_result = execute_commands_as_expression(cmd)
-      exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
+      cmd_result = Morpheus::Cli::CliRegistry.exec_expression(cmd)
+      exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
       benchmark_record = stop_benchmark(exit_code, err)
       Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
     else
@@ -334,8 +335,8 @@ EOT
       n.times do |iteration_index|
         start_benchmark(benchmark_name)
         # exit_code, err = my_terminal.execute(cmd)
-        cmd_result = execute_commands_as_expression(cmd)
-        exit_code, err = Morpheus::Cli.parse_command_result(cmd_result)
+        cmd_result = Morpheus::Cli::CliRegistry.exec_expression(cmd)
+        exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
         benchmark_record = stop_benchmark(exit_code, err)
         Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
         benchmark_records << benchmark_record
@@ -403,83 +404,6 @@ EOT
     end
 
     return 0 
-  end
-
-  protected
-
-  # copied these over from shell, consolidate to terminal plz
-
-  def execute_command(cmd)
-    my_terminal.execute(cmd)
-  end
-
-  def execute_commands_as_expression(input)
-    flow = input
-    if input.is_a?(String)
-      begin
-        flow = Morpheus::Cli::ExpressionParser.parse(input)
-      rescue Morpheus::Cli::ExpressionParser::InvalidExpression => e
-        @history_logger.error "#{e.message}" if @history_logger
-        return Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
-      end
-    end
-    final_command_result = nil
-    if flow.size == 0
-      # no input eh?
-    else
-      last_command_result = nil
-      if ['&&','||', '|'].include?(flow.first)
-        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, begins with an operator: #{input}"
-        return 99
-      elsif ['&&','||', '|'].include?(flow.last)
-        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, ends with an operator: #{input}"
-        return 99
-      # elsif ['&&','||', '|'].include?(flow.last)
-      #   puts_error "invalid command format, consecutive operators: #{cmd}"
-      else
-        #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
-        previous_command = nil
-        previous_command_result = nil
-        current_operator = nil
-        still_executing = true
-        flow.each do |flow_cmd|
-          if still_executing
-            if flow_cmd == '&&'
-              # AND operator
-              current_operator = flow_cmd
-              exit_code, cmd_err = Morpheus::Cli.parse_command_result(previous_command_result)
-              if exit_code != 0
-                still_executing = false
-              end
-            elsif flow_cmd == '||' # or with previous command
-              current_operator = flow_cmd
-              exit_code, err = Morpheus::Cli.parse_command_result(previous_command_result)
-              if exit_code == 0
-                still_executing = false
-              end
-            elsif flow_cmd == '|' # or with previous command
-              puts_error "The PIPE (|) operator is not yet supported =["
-              previous_command_result = nil
-              still_executing = false
-              # or just continue?
-            elsif flow_cmd.is_a?(Array)
-              # this is a subexpression, execute it as such
-              current_operator = nil
-              previous_command_result = execute_commands_as_expression(flow_cmd)
-            else # it's a command, not an operator
-              current_operator = nil
-              previous_command_result = execute_command(flow_cmd)
-            end
-            previous_command = flow_cmd
-          else
-            #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
-          end
-          # previous_command = flow_cmd
-        end
-        final_command_result = previous_command_result
-      end
-    end
-    return final_command_result
   end
 
 end

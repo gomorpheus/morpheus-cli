@@ -339,12 +339,20 @@ module Morpheus
             end
 
           when :list
-            opts.on( '-m', '--max MAX', "Max Results" ) do |max|
-              options[:max] = max.to_i
+            opts.on( '-m', '--max MAX', "Max Results" ) do |val|
+              max = val.to_i
+              if max <= 0
+                raise ::OptionParser::InvalidArgument.new("must be a positive integer")
+              end
+              options[:max] = max
             end
 
-            opts.on( '-o', '--offset OFFSET', "Offset Results" ) do |offset|
-              options[:offset] = offset.to_i.abs
+            opts.on( '-o', '--offset OFFSET', "Offset Results" ) do |val|
+              offset = val.to_i
+              if offset <= 0
+                raise ::OptionParser::InvalidArgument.new("must be a positive integer")
+              end
+              options[:offset] = offset
             end
 
             opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
@@ -719,7 +727,8 @@ module Morpheus
         cmd_method = subcommands[subcommand_name]
         if !cmd_method
           print_error Morpheus::Terminal.angry_prompt
-          puts_error "'#{subcommand_name}' is not recognized. See '#{my_help_command}'"
+          #puts_error "'#{subcommand_name}' is not recognized. See '#{my_help_command}'"
+          puts_error "'#{subcommand_name}' is not recognized.\n#{full_command_usage}"
           return 127
         end
         self.send(cmd_method, args[1..-1])

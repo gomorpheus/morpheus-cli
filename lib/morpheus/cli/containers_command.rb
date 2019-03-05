@@ -122,7 +122,7 @@ class Morpheus::Cli::ContainersCommand
       if options[:include_available_actions]
         if (container["availableActions"])
           print_h2 "Available Actions"
-          print as_pretty_table(container["availableActions"], [:id, :name])
+          print as_pretty_table(container["availableActions"], [:name, :code])
           print reset, "\n"
         else
           print "#{yellow}No available actions#{reset}\n\n"

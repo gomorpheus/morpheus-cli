@@ -6,6 +6,7 @@ require "shellwords"
 require 'readline'
 require 'logger'
 require 'fileutils'
+require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
@@ -117,7 +118,7 @@ class Morpheus::Cli::Shell
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       # change to a temporary home directory, delete it afterwards.
-      opts.on('-e','--exec COMMAND', "Execute the provided morpheus commands and exit.") do |val|
+      opts.on('-e','--exec EXPRESSION', "Execute the command(s) expression and exit.") do |val|
         @execute_mode = true
         @execute_mode_command = val
       end
@@ -249,80 +250,6 @@ class Morpheus::Cli::Shell
     unless input.strip.empty? || input.strip[0] == "!"
       log_history_command(input.strip)
     end
-    result = execute_commands_as_expression(input)
-    return result
-  end
-
-  def execute_commands_as_expression(input)
-    flow = input
-    if input.is_a?(String)
-      begin
-        flow = Morpheus::Cli::ExpressionParser.parse(input)
-      rescue Morpheus::Cli::ExpressionParser::InvalidExpression => e
-        @history_logger.error "#{e.message}" if @history_logger
-        return Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
-      end
-    end
-    final_command_result = nil
-    if flow.size == 0
-      # no input eh?
-    else
-      last_command_result = nil
-      if ['&&','||', '|'].include?(flow.first)
-        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, begins with an operator: #{input}"
-        return 99
-      elsif ['&&','||', '|'].include?(flow.last)
-        puts_error "#{Morpheus::Terminal.angry_prompt}invalid command format, ends with an operator: #{input}"
-        return 99
-      # elsif ['&&','||', '|'].include?(flow.last)
-      #   puts_error "invalid command format, consecutive operators: #{cmd}"
-      else
-        #Morpheus::Logging::DarkPrinter.puts "Executing command flow: #{flow.inspect}" if Morpheus::Logging.debug?
-        previous_command = nil
-        previous_command_result = nil
-        current_operator = nil
-        still_executing = true
-        flow.each do |flow_cmd|
-          if still_executing
-            if flow_cmd == '&&'
-              # AND operator
-              current_operator = flow_cmd
-              exit_code, cmd_err = Morpheus::Cli.parse_command_result(previous_command_result)
-              if exit_code != 0
-                still_executing = false
-              end
-            elsif flow_cmd == '||' # or with previous command
-              current_operator = flow_cmd
-              exit_code, err = Morpheus::Cli.parse_command_result(previous_command_result)
-              if exit_code == 0
-                still_executing = false
-              end
-            elsif flow_cmd == '|' # or with previous command
-              puts_error "The PIPE (|) operator is not yet supported =["
-              previous_command_result = nil
-              still_executing = false
-              # or just continue?
-            elsif flow_cmd.is_a?(Array)
-              # this is a subexpression, execute it as such
-              current_operator = nil
-              previous_command_result = execute_commands_as_expression(flow_cmd)
-            else # it's a command, not an operator
-              current_operator = nil
-              previous_command_result = execute_command(flow_cmd)
-            end
-            previous_command = flow_cmd
-          else
-            #Morpheus::Logging::DarkPrinter.puts "operator skipped command: #{flow_cmd}" if Morpheus::Logging.debug?
-          end
-          # previous_command = flow_cmd
-        end
-        final_command_result = previous_command_result
-      end
-    end
-    return final_command_result
-  end
-
-  def execute_command(input)
 
     #Morpheus::Logging::DarkPrinter.puts "Shell command: #{input}"
     input = input.to_s.strip
@@ -525,7 +452,7 @@ class Morpheus::Cli::Shell
         @return_to_coloring = ["coloring"].include?(cmd_name) ? nil : Term::ANSIColor::coloring?
         @return_to_benchmarking = ["benchmark"].include?(cmd_name) ? nil : Morpheus::Benchmarking.enabled?
         
-        if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
+        #if Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name)
           #log_history_command(input)
           # start a benchmark, unless the command is benchmark of course
           if my_terminal.benchmarking || cmd_args.include?("-B") || cmd_args.include?("--benchmark")
@@ -535,15 +462,16 @@ class Morpheus::Cli::Shell
               start_benchmark(benchmark_name)
             end
           end
-          cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
-          cmd_exit_code, cmd_err = Morpheus::Cli.parse_command_result(cmd_result)
+          cmd_exit_code, cmd_err = Morpheus::Cli::CliRegistry.exec_expression(input)
+          #cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
+          #cmd_exit_code, cmd_err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
           benchmark_record = stop_benchmark(cmd_exit_code, cmd_err) # if benchmarking?
           Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
-        else
-          puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not recognized. Use 'help' to see the list of available commands."
-          @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
-          cmd_result = -1
-        end
+        # else
+        #   puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not recognized. Use 'help' to see the list of available commands."
+        #   @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
+        #   cmd_result = -1
+        # end
       rescue Interrupt
         # nothing to do
         @history_logger.warn "shell interrupt" if @history_logger
@@ -795,6 +723,8 @@ class Morpheus::Cli::Shell
           print_results_pagination({:meta => history_result[:meta]}, {:message =>"Viewing most recent %{size} of %{total} %{label}"})
         end
         print reset, "\n"
+      else
+        print reset
       end
     end
     #print "\n"

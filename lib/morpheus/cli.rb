@@ -25,6 +25,7 @@ module Morpheus
       end
     end
 
+    # check if this is a Windows environment.
     def self.windows?
       if defined?(@@is_windows)
         return @@is_windows
@@ -37,37 +38,6 @@ module Morpheus
         # $stderr.puts "unable to determine if this is a Windows machine."
       end
       return @@is_windows
-    end
-
-    def self.parse_command_result(cmd_result)
-      exit_code, err = nil, nil
-      if cmd_result.is_a?(Array)
-        exit_code = cmd_result[0] || 0
-        err = cmd_result[1]
-      elsif cmd_result.is_a?(Hash)
-        exit_code = cmd_result[:exit_code] || 0
-        err = cmd_result[:error] || cmd_result[:err]
-      elsif cmd_result == nil || cmd_result == true
-        exit_code = 0
-      elsif cmd_result == false
-        exit_code = 1
-      elsif cmd_result.is_a?(Integer)
-        exit_code = cmd_result
-      elsif cmd_result.is_a?(Float)
-        exit_code = cmd_result.to_i
-      elsif cmd_result.is_a?(String)
-        exit_code = cmd_result.to_i
-      else
-        if cmd_result.respond_to?(:to_i)
-          exit_code = cmd_result.to_i
-        else
-          # happens for aliases right now.. and execution flow probably, need to handle Array
-          # uncomment to track them down, proceed with exit 0 for now
-          #Morpheus::Logging::DarkPrinter.puts "debug: command #{command_name} produced an unexpected result: (#{cmd_result.class}) #{cmd_result}" if Morpheus::Logging.debug?
-          exit_code = 0
-        end
-      end
-      return exit_code, err
     end
 
     # load all the well known commands and utilties they need
