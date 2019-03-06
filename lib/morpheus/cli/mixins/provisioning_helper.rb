@@ -284,6 +284,16 @@ module Morpheus::Cli::ProvisioningHelper
     # allow arbitrary -O values passed by the user
     if options[:options]
       arbitrary_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+      # remove some things that are being prompted for
+      arbitrary_options.delete('group')
+      arbitrary_options.delete('cloud')
+      arbitrary_options.delete('type')
+      arbitrary_options.delete('name')
+      arbitrary_options.delete('layout')
+      arbitrary_options.delete('servicePlan')
+      arbitrary_options.delete('description')
+      arbitrary_options.delete('instanceContext')
+      arbitrary_options.delete('tags')
       payload.deep_merge!(arbitrary_options)
     end
 
@@ -347,9 +357,13 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
+    # plan_info has this property already..
+    # has_datastore = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasDatastore"]
+    # service_plan['hasDatastore'] = has_datastore
+
     # prompt for volumes
     # if payload['volumes'].nil?
-      volumes = prompt_volumes(service_plan, options, api_client, {})
+      volumes = prompt_volumes(service_plan, options, api_client, {zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
       if !volumes.empty?
         payload['volumes'] = volumes
       end
@@ -464,6 +478,13 @@ module Morpheus::Cli::ProvisioningHelper
             datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
           end
         end
+      end
+    end
+    # api does not always return datastores, so go get them if needed..
+    if plan_info['hasDatastore'] && datastore_options.empty?
+      option_results = options_interface.options_for_source('datastores', api_params)
+      option_results['data'].each do |it|
+          datastore_options << {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
       end
     end
 
