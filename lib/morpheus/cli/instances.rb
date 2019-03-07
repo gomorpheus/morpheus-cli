@@ -1075,6 +1075,7 @@ class Morpheus::Cli::Instances
   end
 
   def _list_containers(arg, options)
+    params = {}
     begin
       instance = find_instance_by_name_or_id(arg)
       return 1 if instance.nil?
@@ -1083,7 +1084,7 @@ class Morpheus::Cli::Instances
         print_dry_run @instances_interface.dry.containers(instance['id'], params)
         return
       end
-      json_response = @instances_interface.containers(instance['id'])
+      json_response = @instances_interface.containers(instance['id'], params)
       if options[:json]
         puts as_json(json_response, options, "containers")
         return 0
