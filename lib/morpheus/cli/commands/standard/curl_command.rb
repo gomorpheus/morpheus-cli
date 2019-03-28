@@ -50,7 +50,7 @@ EOT
     # curry --insecure to curl
     if options[:insecure] || !Morpheus::RestClient.ssl_verification_enabled?
       #curl_args.unshift "-k"
-      curl_args.unshift "--inescure"
+      curl_args.unshift "--insecure"
     end
 
     if !@appliance_url
