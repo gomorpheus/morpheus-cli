@@ -20,7 +20,9 @@ class Morpheus::Cli::CurlCommand
       opts.on( '-p', '--pretty', "Print result as parsed JSON." ) do
         options[:pretty] = true
       end
-      build_common_options(opts, options, [:remote])
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.add_hidden_option('--curl')
+      #opts.add_hidden_option('--scrub')
       opts.footer = <<-EOT
 This invokes the `curl` command with url "appliance_url/api/$0
 and includes the authorization header -H "Authorization: Bearer access_token"
@@ -78,8 +80,17 @@ EOT
     end
     
     # Morpheus::Logging::DarkPrinter.puts "#{curl_cmd}" if Morpheus::Logging.debug?
+    curl_cmd_str = options[:scrub] ? Morpheus::Logging.scrub_message(curl_cmd) : curl_cmd
+
+    if options[:dry_run]
+      print cyan
+      print "#{cyan}#{curl_cmd_str}#{reset}"
+      print "\n\n"
+      print reset
+      return 0
+    end
     print cyan
-    print "#{cyan}#{curl_cmd}#{reset}"
+    print "#{cyan}#{curl_cmd_str}#{reset}"
     print "\n\n"
     print reset
     # print result

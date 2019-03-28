@@ -167,7 +167,7 @@ module Morpheus::Cli::PrintHelper
       print "\n"
       puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
       print format_curl_command(http_method, url, headers, payload, options)
-      print "\n",reset
+      print "\n"
       return
     end
 
