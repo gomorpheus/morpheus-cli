@@ -289,6 +289,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('cloud')
       arbitrary_options.delete('type')
       arbitrary_options.delete('name')
+      arbitrary_options.delete('version')
       arbitrary_options.delete('layout')
       arbitrary_options.delete('servicePlan')
       arbitrary_options.delete('description')
@@ -314,7 +315,25 @@ module Morpheus::Cli::ProvisioningHelper
 
     # Version and Layout
 
-    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+    available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
+    default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
+    default_layout_value = payload['instance']['layout'] ? payload['instance']['layout']['id'] : nil
+    # JD: version is always nil because it is not stored in the blueprint or config !!
+    # so for now, infer the version from the layout
+    # requires api 3.6.2 to get "layouts" from /options/versions
+    if default_layout_value && default_version_value.to_s.empty?
+      available_versions.each do |available_version|
+        if available_version["layouts"]
+          selected_layout = available_version["layouts"].find {|it| it["value"].to_s == default_layout_value.to_s || it["id"].to_s == default_layout_value.to_s || it["code"].to_s == default_layout_value.to_s }
+          if selected_layout
+            default_version_value = available_version["value"]
+            break
+          end
+        end
+      end
+    end
+    #version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'selectOptions' => available_versions, 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
     default_layout_value = payload['instance']['layout'] ? payload['instance']['layout']['id'] : nil
     layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
     layout_id = layout_prompt['layout']
