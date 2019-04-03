@@ -239,7 +239,7 @@ class Morpheus::Cli::Apps
         else
           blueprint = find_blueprint_by_name_or_id(blueprint_id)
           if blueprint.nil?
-            print_red_alert "Blueprint not found by name or id '#{blueprint_id}'"
+            #print_red_alert "Blueprint not found by name or id '#{blueprint_id}'"
             return 1
           end
         end
