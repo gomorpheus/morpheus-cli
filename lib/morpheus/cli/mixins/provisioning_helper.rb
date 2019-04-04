@@ -530,11 +530,11 @@ module Morpheus::Cli::ProvisioningHelper
       storage_type_id = nil
       storage_type = nil
     else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => volume['storageType']}], options[:options])
       storage_type_id = v_prompt[field_context]['storageType']
       storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
+      volume['storageType'] = storage_type_id
     end
-    volume['storageType'] = storage_type_id
 
     # sometimes the user chooses sizeId from a list of size options (AccountPrice) and other times it is free form
     root_custom_size_options = []
