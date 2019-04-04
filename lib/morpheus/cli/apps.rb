@@ -371,9 +371,9 @@ class Morpheus::Cli::Apps
                       instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
-                      instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
+                      #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
-                      instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
+                      #instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
                       instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
 
                       # also allow arbritrary options passed as tierName.instanceIndex like Web.0.instance.layout.id=75
