@@ -334,16 +334,19 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # prompt custom options for the selected provision type
         provision_type_custom_option_types = provision_type['customOptionTypes']
+        provision_type_v_prompt = nil
         if (!provision_type_custom_option_types || provision_type_custom_option_types.empty?)
-          print yellow,"Sorry, no options were found for provision type #{provision_type['name']}.","\n",reset
-          return 1
+          # print yellow,"Sorry, no options were found for provision type #{provision_type['name']}.","\n",reset
+          # return 1
+        else
+        
+          field_group_name = provision_type_custom_option_types.first['fieldGroup'] || "#{provision_type['name']} Options"
+          field_group_name = "#{provision_type['name']} Options"
+          # print "\n"
+          puts field_group_name
+          puts "==============="
+          provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypCode: params['provisionTypeCode']})
         end
-        field_group_name = provision_type_custom_option_types.first['fieldGroup'] || "#{provision_type['name']} Options"
-        field_group_name = "#{provision_type['name']} Options"
-        # print "\n"
-        puts field_group_name
-        puts "==============="
-        provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypCode: params['provisionTypeCode']})
         
         # payload.deep_merge!(provision_type_v_prompt)
         
@@ -372,8 +375,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         # payload = {'containerType' => params}
         payload['containerType'] ||= {}
         payload['containerType'].deep_merge!(params)
-        payload.deep_merge!(provision_type_v_prompt)
-        
+        if provision_type_v_prompt
+          payload.deep_merge!(provision_type_v_prompt)
+        end
 
       end
       @library_container_types_interface.setopts(options)
