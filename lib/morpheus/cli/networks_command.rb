@@ -231,10 +231,25 @@ class Morpheus::Cli::NetworksCommand
         options['pool'] = val.to_i
       end
       opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
-        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true'
+        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
-        options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true'
+        options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--domain VALUE', String, "Network Domain ID") do |val|
+        options['domain'] = val
+      end
+      opts.on('--scan-network [on|off]', String, "Scan Network") do |val|
+        options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--proxy VALUE', String, "Network Proxy ID") do |val|
+        options['proxy'] = val
+      end
+      opts.on('--proxy-bypass [on|off]', String, "Bypass Proxy for Appliance URL") do |val|
+        options['applianceUrlProxyBypass'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--no-proxy LIST', String, "No Proxy Addresses") do |val|
+        options['noProxy'] = val
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
@@ -416,7 +431,47 @@ class Morpheus::Cli::NetworksCommand
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
           payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
         end
-      
+        
+        # Network Domain
+        if options['domain']
+          payload['network']['networkDomain'] = {'id' => options['domain'].to_i}
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
+          payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+        end
+
+        # Scan Network
+        if options['scanNetwork'] != nil
+          payload['network']['scanNetwork'] = options['scanNetwork']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scanNetwork', 'fieldLabel' => 'Scan Network', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => false}], options)
+          payload['network']['scanNetwork'] = v_prompt['scanNetwork']
+        end
+
+        # Proxy
+        if options['networkProxy']
+          payload['network']['networkProxy'] = {'id' => options['networkProxy'].to_i}
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkProxy', 'fieldLabel' => 'Network Proxy', 'type' => 'select', 'optionSource' => 'networkProxies', 'required' => false, 'description' => ''}], options, @api_client)
+          payload['network']['networkProxy'] = {'id' => v_prompt['networkProxy'].to_i} unless v_prompt['networkProxy'].to_s.empty?
+        end
+
+        # ByPass Proxy for Appliance URL 
+        if options['applianceUrlProxyBypass'] != nil
+          payload['network']['applianceUrlProxyBypass'] = options['applianceUrlProxyBypass']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'applianceUrlProxyBypass', 'fieldLabel' => 'Bypass Proxy for Appliance URL', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => true}], options)
+          payload['network']['applianceUrlProxyBypass'] = v_prompt['applianceUrlProxyBypass']
+        end
+
+        # No Proxy
+        if options['noProxy']
+          payload['network']['noProxy'] = options['noProxy']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'noProxy', 'fieldLabel' => 'No Proxy', 'type' => 'text', 'required' => false, 'description' => 'List of ip addresses or name servers to exclude proxy traversal for. Typically locally routable servers are excluded.'}], options)
+          payload['network']['noProxy'] = v_prompt['noProxy']
+        end
+
         # Group Access
         # Group Access (default is All)
         if group_access_all.nil?
@@ -518,10 +573,25 @@ class Morpheus::Cli::NetworksCommand
         options['pool'] = val.to_i
       end
       opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
-        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true'
+        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
-        options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true'
+        options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--domain VALUE', String, "Network Domain ID") do |val|
+        options['domain'] = val
+      end
+      opts.on('--scan-network [on|off]', String, "Scan Network") do |val|
+        options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--proxy VALUE', String, "Network Proxy ID") do |val|
+        options['proxy'] = val
+      end
+      opts.on('--proxy-bypass [on|off]', String, "Bypass Proxy for Appliance URL") do |val|
+        options['applianceUrlProxyBypass'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--no-proxy LIST', String, "No Proxy Addresses") do |val|
+        options['noProxy'] = val
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
@@ -701,7 +771,47 @@ class Morpheus::Cli::NetworksCommand
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
           # payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
         end
-      
+        
+        # Network Domain
+        if options['domain']
+          payload['network']['networkDomain'] = {'id' => options['domain'].to_i}
+        else
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
+          #payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+        end
+
+        # Scan Network
+        if options['scanNetwork'] != nil
+          payload['network']['scanNetwork'] = options['scanNetwork']
+        else
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scanNetwork', 'fieldLabel' => 'Scan Network', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => false}], options)
+          #payload['network']['scanNetwork'] = v_prompt['scanNetwork']
+        end
+
+        # Proxy
+        if options['networkProxy']
+          payload['network']['networkProxy'] = {'id' => options['networkProxy'].to_i}
+        else
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkProxy', 'fieldLabel' => 'Network Proxy', 'type' => 'select', 'optionSource' => 'networkProxies', 'required' => false, 'description' => ''}], options, @api_client)
+          #payload['network']['networkProxy'] = {'id' => v_prompt['networkProxy'].to_i} unless v_prompt['networkProxy'].to_s.empty?
+        end
+
+        # ByPass Proxy for Appliance URL 
+        if options['applianceUrlProxyBypass'] != nil
+          payload['network']['applianceUrlProxyBypass'] = options['applianceUrlProxyBypass']
+        else
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'applianceUrlProxyBypass', 'fieldLabel' => 'Bypass Proxy for Appliance URL', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => true}], options)
+          #payload['network']['applianceUrlProxyBypass'] = v_prompt['applianceUrlProxyBypass']
+        end
+
+        # No Proxy
+        if options['noProxy']
+          payload['network']['noProxy'] = options['noProxy']
+        else
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'noProxy', 'fieldLabel' => 'No Proxy', 'type' => 'text', 'required' => false, 'description' => 'List of ip addresses or name servers to exclude proxy traversal for. Typically locally routable servers are excluded.'}], options)
+          #payload['network']['noProxy'] = v_prompt['noProxy']
+        end
+
         # Group Access
         if group_access_all != nil
           payload['resourcePermissions'] ||= {}
