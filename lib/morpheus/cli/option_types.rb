@@ -56,9 +56,13 @@ module Morpheus
           #   end
           # end
 
-          if option_type['fieldContext']
+          field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+          namespaces = field_key.split(".")
+          field_name = namespaces.pop
+
+          if field_key.include?(".")
             cur_namespace = options
-            namespaces = option_type['fieldContext'].split(".")
+
             namespaces.each do |ns|
               next if ns.empty?
               cur_namespace[ns.to_s] ||= {}
@@ -67,8 +71,8 @@ module Morpheus
               context_map = context_map[ns.to_s]
             end
             # use the value passed in the options map
-            if cur_namespace.key?(option_type['fieldName'])
-              value = cur_namespace[option_type['fieldName']]
+            if cur_namespace.key?(field_name)
+              value = cur_namespace[field_name]
               if option_type['type'] == 'number'
                 value = value.to_s.include?('.') ? value.to_f : value.to_i
               elsif option_type['type'] == 'select'
@@ -81,8 +85,8 @@ module Morpheus
             end
           else
             # no fieldContext
-            if value_found == false && options.key?(option_type['fieldName'])
-              value = options[option_type['fieldName']]
+            if value_found == false && options.key?(field_key)
+              value = options[field_key]
               if option_type['type'] == 'number'
                 value = value.to_s.include?('.') ? value.to_f : value.to_i
               end
@@ -119,7 +123,7 @@ module Morpheus
                 if !value_found
                   if option_type['required']
                     print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
-                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
                     print "\n"
                     exit 1
                   else
@@ -163,7 +167,7 @@ module Morpheus
             value = generic_prompt(option_type)
           end
         end
-        context_map[option_type['fieldName']] = value
+        context_map[field_name] = value
       end
 
       return results
