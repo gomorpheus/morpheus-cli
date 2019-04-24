@@ -156,6 +156,7 @@ class Morpheus::Cli::NetworksCommand
         "Primary DNS" => 'dnsPrimary',
         "Secondary DNS" => 'dnsSecondary',
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
+        "VPC" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' },
         "DHCP" => lambda {|it| it['dhcpServer'] ? 'Yes' : 'No' },
         "Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
