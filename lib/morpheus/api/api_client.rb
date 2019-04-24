@@ -370,6 +370,10 @@ class Morpheus::APIClient
     Morpheus::NetworksInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def network_types
+    Morpheus::NetworkTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def network_groups
     Morpheus::NetworkGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
