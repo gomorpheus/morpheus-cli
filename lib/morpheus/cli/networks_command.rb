@@ -390,7 +390,7 @@ class Morpheus::Cli::NetworksCommand
           payload['network'].deep_merge!(network_type_params)
 
         #todo: special handling of type: 'aciVxlan'
-        
+
         else
           # DEFAULT INPUTS
 
@@ -434,16 +434,6 @@ class Morpheus::Cli::NetworksCommand
             payload['network']['vlanId'] = v_prompt['vlanId']
           end
 
-          # Network Pool
-          if options['pool']
-            payload['network']['pool'] = options['pool'].to_i
-          else
-            # todo: select dropdown
-            # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
-          end
-
           # DHCP Server
           if options['dhcpServer'] != nil
             payload['network']['dhcpServer'] = options['dhcpServer']
@@ -462,8 +452,20 @@ class Morpheus::Cli::NetworksCommand
 
         end
 
+        ## IPAM Options
+
+        # Network Pool
+        if options['pool']
+          payload['network']['pool'] = options['pool'].to_i
+        else
+          # todo: select dropdown
+          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+          payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
+        end
         
-        
+        ## Advanced Options
+
         # Network Domain
         if options['domain']
           payload['network']['networkDomain'] = {'id' => options['domain'].to_i}
