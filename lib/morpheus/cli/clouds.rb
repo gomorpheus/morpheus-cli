@@ -201,6 +201,8 @@ class Morpheus::Cli::Clouds
         "Location" => 'location',
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
+        #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
+        "Tenant" => lambda {|it| it['account'].instance_of?(Hash) ? it['account']['name'] : it['accountId'] },
         "Enabled" => lambda {|it| format_boolean(it['enabled']) },
         "Status" => lambda {|it| format_cloud_status(it) }
       }
