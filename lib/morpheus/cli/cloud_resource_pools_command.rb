@@ -620,6 +620,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
       return 1 if resource_pool.nil?
 
+      zone_type = cloud['zoneType'] ? cloud['zoneType']['code'] : ''
       if zone_type == ['amazon','azure','cloudFoundry','bluemixCloudFoundry','standard'].include?(zone_type)
       else
         #raise_command_error "Cloud type '#{zone_type}' does not allow deleting resource pools"
