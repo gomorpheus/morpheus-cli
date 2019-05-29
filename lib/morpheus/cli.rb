@@ -82,6 +82,8 @@ module Morpheus
       load 'morpheus/cli/groups.rb'
       load 'morpheus/cli/clouds.rb'
       load 'morpheus/cli/cloud_datastores_command.rb'
+      load 'morpheus/cli/cloud_resource_pools_command.rb'
+      load 'morpheus/cli/cloud_folders_command.rb'
       load 'morpheus/cli/hosts.rb'
       load 'morpheus/cli/load_balancers.rb'
       load 'morpheus/cli/shell.rb'

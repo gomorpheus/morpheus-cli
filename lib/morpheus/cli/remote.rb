@@ -86,7 +86,7 @@ EOT
       print reset
       if @appliance_name
         #unless appliances.keys.size == 1
-          print cyan, "\n# => Currently using remote #{@appliance_name}\n", reset
+          print cyan, "\n# => #{@appliance_name} is the current remote appliance\n", reset
         #end
       else
         print "\n# => No current remote appliance, see `remote use`\n", reset
@@ -447,6 +447,9 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on( '-u', '--url', "Print only the url." ) do
+        options[:url_only] = true
+      end
       build_common_options(opts, options, [:json,:csv, :fields, :quiet])
     end
     optparse.parse!(args)
@@ -485,6 +488,10 @@ EOT
         return
       end
 
+      if options[:url_only]
+        print cyan, appliance[:host],"\n",reset
+        return 0
+      end
       # expando
       # appliance = OStruct.new(appliance)
 
@@ -494,9 +501,9 @@ EOT
 
       if appliance[:active]
         # print_h1 "Current Remote Appliance: #{appliance[:name]}"
-        print_h1 "Remote Appliance: #{appliance[:name]}", [], options
+        print_h1 "Morpheus Appliance", [], options
       else
-        print_h1 "Remote Appliance: #{appliance[:name]}", [], options
+        print_h1 "Morpheus Appliance", [], options
       end
       print cyan
       description_cols = {
@@ -521,7 +528,7 @@ EOT
       
       if appliance[:active]
         # print cyan
-        print cyan, "# => This is the current appliance.", reset, "\n\n"
+        print cyan, "# => #{appliance[:name]} is the current remote appliance.", reset, "\n\n"
       end
 
       return 0
@@ -637,10 +644,14 @@ EOT
   def current(args)
     options = {}
     name_only = false
+    url_only = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       opts.on( '-n', '--name', "Print only the name." ) do
         name_only = true
+      end
+      opts.on( '-u', '--url', "Print only the url." ) do
+        url_only = true
       end
       build_common_options(opts, options, [])
       opts.footer = "Print details about the current remote appliance." +
@@ -648,35 +659,22 @@ EOT
     end
     optparse.parse!(args)
 
+    if !@appliance_name
+      print yellow, "No current appliance, see `remote use`\n", reset
+      return 1
+    end
+
     if name_only
-      return print_current(args)
-    else
-      return _get("current", {})
-    end
-
-    if @appliance_name
       print cyan, @appliance_name,"\n",reset
+      return 0
+    elsif url_only
+      print cyan, @appliance_url,"\n",reset
+      return 0
     else
-      print yellow, "No active appliance, see `remote use`\n", reset
-      return false
+      return _get("current", options)
     end
-  end
 
-  def print_current(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [])
-      opts.footer = "Print the name of the current remote appliance"
-    end
-    optparse.parse!(args)
-
-    if @appliance_name
-      print cyan, @appliance_name,"\n",reset
-    else
-      print yellow, "No active appliance, see `remote use`\n", reset
-      return false
-    end
+    
   end
 
   # this is a wizard that walks through the /api/setup controller

@@ -35,8 +35,8 @@ class Morpheus::Cli::NetworkServicesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
-      opts.footer = "List network services."
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List network services (Integrations)."
     end
     optparse.parse!(args)
     connect(options)
@@ -81,7 +81,11 @@ class Morpheus::Cli::NetworkServicesCommand
         print cyan
         print as_pretty_table(rows, columns, options)
         print reset
-        print_results_pagination(json_response, {:label => "network service", :n_label => "network services"})
+        if json_response['meta']
+          print_results_pagination(json_response, {:label => "network service", :n_label => "network services"})
+        else
+          print_results_pagination({'meta'=>{'total'=>rows.size,'size'=>rows.size,'max'=>options[:max] || rows.size,'offset'=>0}}, {:label => "network service", :n_label => "network services"})
+        end
       end
       print reset,"\n"
       return 0

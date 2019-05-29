@@ -216,6 +216,14 @@ class Morpheus::APIClient
     Morpheus::CloudDatastoresInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def cloud_resource_pools
+    Morpheus::CloudResourcePoolsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def cloud_folders
+    Morpheus::CloudFoldersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def servers
     Morpheus::ServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
