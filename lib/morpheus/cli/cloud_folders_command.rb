@@ -382,6 +382,10 @@ class Morpheus::Cli::CloudFoldersCommand
           payload['folder']['visibility'] = options['visibility']
         end
 
+        if payload['folder'].empty? && payload['resourcePermissions'].nil? && payload['tenantPermissions'].nil?
+          raise_command_error "Specify atleast one option to update.\n#{optparse}"
+        end
+
       end
       @cloud_folders_interface.setopts(options)
       if options[:dry_run]

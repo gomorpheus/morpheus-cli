@@ -358,6 +358,10 @@ class Morpheus::Cli::CloudDatastoresCommand
           payload['datastore']['visibility'] = options['visibility']
         end
 
+        if payload['datastore'].empty? && payload['resourcePermissions'].nil? && payload['tenantPermissions'].nil?
+          raise_command_error "Specify atleast one option to update.\n#{optparse}"
+        end
+
       end
       @cloud_datastores_interface.setopts(options)
       if options[:dry_run]
