@@ -11,7 +11,7 @@ class Morpheus::Cli::CloudFoldersCommand
   #set_command_name :'cloud-folders'
   set_command_name :'resource-folders'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :update
   
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
