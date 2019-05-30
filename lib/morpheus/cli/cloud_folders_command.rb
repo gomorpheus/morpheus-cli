@@ -213,7 +213,7 @@ class Morpheus::Cli::CloudFoldersCommand
         print as_pretty_table(rows, group_columns)
       end
 
-      if folder['resourcePermission'] && folder['resourcePermission']['plans']
+      if folder['resourcePermission'] && folder['resourcePermission']['plans'] && folder['resourcePermission']['plans'].size > 0
         print_h2 "Service Plan Access"
         rows = []
         if folder['resourcePermission']['allPlans']

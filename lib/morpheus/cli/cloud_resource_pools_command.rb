@@ -214,7 +214,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         print as_pretty_table(rows, group_columns)
       end
 
-      if resource_pool['resourcePermission'] && resource_pool['resourcePermission']['plans']
+      if resource_pool['resourcePermission'] && resource_pool['resourcePermission']['plans'] && resource_pool['resourcePermission']['plans'].size > 0
         print_h2 "Service Plan Access"
         rows = []
         if resource_pool['resourcePermission']['allPlans']

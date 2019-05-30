@@ -17,6 +17,7 @@ class Morpheus::Cli::SecurityGroups
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @security_groups_interface = @api_client.security_groups
+    @security_group_rules_interface = @api_client.security_group_rules
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
@@ -304,6 +305,44 @@ class Morpheus::Cli::SecurityGroups
     end
   end
 
+  def remove(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      security_group = find_security_group_by_name_or_id(args[0])
+      return 1 if security_group.nil?
+
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the security group: #{security_group['name']}?")
+        return 9, "aborted command"
+      end
+
+      @security_groups_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @security_groups_interface.dry.delete(security_group['id'])
+        return
+      end
+      json_response = @security_groups_interface.delete(security_group['id'])
+      if options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+      #list([])
+      print_green_success "Removed security group #{args[0]}"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def add_location(args)
     cloud_id = nil
     resource_pool_id = nil
@@ -425,6 +464,11 @@ class Morpheus::Cli::SecurityGroups
         print_red_alert "Security group location not found for cloud #{cloud['name']}"
         return 1
       end
+
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the security group location #{security_group['name']} - #{cloud['name']}?")
+        return 9, "aborted command"
+      end
+
       @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.delete_location(security_group['id'], security_group_location['id'])
@@ -444,11 +488,13 @@ class Morpheus::Cli::SecurityGroups
     end
   end
 
-  def remove(args)
-    options = {}
+
+  def add_rule(args)
+    params = {}
+    options = {:options => {}}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[security-group] [options]")
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -459,22 +505,78 @@ class Morpheus::Cli::SecurityGroups
       security_group = find_security_group_by_name_or_id(args[0])
       return 1 if security_group.nil?
 
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the security group: #{security_group['name']}?")
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'rule' => passed_options})  unless passed_options.empty?
+      else
+        # prompt for resource folder options
+        payload = {
+          'rule' => {
+          }
+        }
+        payload.deep_merge!({'rule' => passed_options})  unless passed_options.empty?
+
+        # prompt
+        
+      end
+
+      @security_group_rules_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @security_group_rules_interface.dry.create(security_group['id'], payload)
+        return 0
+      end
+      json_response = @security_group_rules_interface.create(security_group['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+      print_green_success "Created security group rule #{json_response['id']}"
+      #get([security_group['id']])
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_rule(args)
+    params = {}
+    options = {:options => {}}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[security-group] [id]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      security_group = find_security_group_by_name_or_id(args[0])
+      return 1 if security_group.nil?
+      
+      security_group_rule = find_security_group_rule_by_id(security_group['id'], args[1])
+      return 1 if security_group_rule.nil?
+
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the security group rule: #{security_group_rule['id']}?")
         return 9, "aborted command"
       end
 
       @security_groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @security_groups_interface.dry.delete(security_group['id'])
-        return
+        print_dry_run @security_groups_interface.dry.delete_location(security_group['id'], security_group_location['id'])
+        return 0
       end
-      json_response = @security_groups_interface.delete(security_group['id'])
+      json_response = @security_groups_interface.delete_location(security_group['id'], security_group_location['id'])
       if options[:json]
         puts as_json(json_response, options)
         return 0
       end
-      #list([])
-      print_green_success "Removed security group #{args[0]}"
+      print_green_success "Created security group location #{security_group['name']} - #{cloud['name']}"
+      get([security_group['id']])
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -597,6 +699,20 @@ class Morpheus::Cli::SecurityGroups
       return nil
     else
       return security_groups[0]
+    end
+  end
+
+  def find_security_group_rule_by_id(security_group_id, id)
+    begin
+      json_response = @security_groups_interface.get(security_group_id.to_i, id.to_i)
+      return json_response['rule']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Security Group Rule not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
     end
   end
 
