@@ -590,7 +590,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[pool]")
+      opts.banner = subcommand_usage("[cloud] [pool]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a resource pool." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud." + "\n"
