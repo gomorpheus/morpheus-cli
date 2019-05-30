@@ -383,7 +383,7 @@ class Morpheus::Cli::CloudFoldersCommand
         end
 
         if payload['folder'].empty? && payload['resourcePermissions'].nil? && payload['tenantPermissions'].nil?
-          raise_command_error "Specify atleast one option to update.\n#{optparse}"
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
       end

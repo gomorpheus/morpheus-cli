@@ -418,7 +418,7 @@ EOT
     
     if params.empty?
       print_error Morpheus::Terminal.angry_prompt
-      puts_error "Specify atleast one option to update"
+      puts_error "Specify at least one option to update"
       puts_error optparse
       return 1
     end

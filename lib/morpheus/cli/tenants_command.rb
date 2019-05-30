@@ -240,7 +240,7 @@ class Morpheus::Cli::TenantsCommand
     end
     optparse.parse!(args)
     if args.count < 1
-      print_red_alert "Specify atleast one option to update"
+      print_red_alert "Specify at least one option to update"
       puts optparse
       exit 1
     end

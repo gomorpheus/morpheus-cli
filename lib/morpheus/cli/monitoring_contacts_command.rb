@@ -231,7 +231,7 @@ class Morpheus::Cli::MonitoringContactsCommand
       contact = find_contact_by_name_or_id(args[0])
 
       if params.empty?
-        print_red_alert "Specify atleast one option to update"
+        print_red_alert "Specify at least one option to update"
         puts optparse
         exit 1
       end

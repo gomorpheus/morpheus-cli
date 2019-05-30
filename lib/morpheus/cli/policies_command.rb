@@ -568,7 +568,7 @@ class Morpheus::Cli::PoliciesCommand
 
       if params.empty?
         print_error Morpheus::Terminal.angry_prompt
-        puts_error  "Specify atleast one option to update\n#{optparse}"
+        puts_error  "Specify at least one option to update\n#{optparse}"
         return 1
       end
       payload['policy'].deep_merge!(params)

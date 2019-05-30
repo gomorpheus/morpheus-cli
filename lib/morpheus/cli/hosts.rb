@@ -804,7 +804,7 @@ class Morpheus::Cli::Hosts
         end
       else
         if params.empty?
-          print_red_alert "Specify atleast one option to update"
+          print_red_alert "Specify at least one option to update"
           puts optparse
           return 1
         end

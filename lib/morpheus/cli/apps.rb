@@ -766,7 +766,7 @@ class Morpheus::Cli::Apps
           params['group'] = {'id' => group['id'], 'name' => group['name']}
         end
         if params.empty?
-          print_red_alert "Specify atleast one option to update"
+          print_red_alert "Specify at least one option to update"
           puts optparse
           return 1
         end

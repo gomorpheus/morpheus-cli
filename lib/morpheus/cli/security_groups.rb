@@ -281,7 +281,7 @@ class Morpheus::Cli::SecurityGroups
         payload['securityGroup'].deep_merge!(passed_options)  unless passed_options.empty?
         
         if passed_options.empty?
-          raise_command_error "Specify atleast one option to update.\n#{optparse}"
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
       end

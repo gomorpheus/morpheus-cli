@@ -211,7 +211,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       #params = options[:options] || {}
       params = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client, options[:params])
       if params.empty?
-        print_red_alert "Specify atleast one option to update"
+        print_red_alert "Specify at least one option to update"
         puts optparse
         exit 1
       end
