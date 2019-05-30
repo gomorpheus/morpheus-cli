@@ -313,10 +313,10 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     optparse.parse!(args)
     if args.count == 2
       cloud_id = args[0]
-      options[:name] = args[1]
+      options['name'] = args[1]
     elsif args.count == 1 # && cloud_id
       if cloud_id
-        options[:name] = args[0]
+        options['name'] = args[0]
       else
         cloud_id = args[0]
       end
