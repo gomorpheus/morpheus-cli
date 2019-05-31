@@ -10,7 +10,10 @@ class Morpheus::Cli::SecurityGroupRules
 
   register_subcommands :list, :'add-custom-rule', :'add-instance-rule', :remove
   set_default_subcommand :list
-  
+
+  # replaced by security-groups add-rule  
+  set_command_hidden
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @security_group_rules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_group_rules
@@ -18,6 +21,7 @@ class Morpheus::Cli::SecurityGroupRules
   end
 
   def handle(args)
+    print_error "#{yellow}DEPRECATION WARNING: `security-group-rules` is deprecated. Please use `security-groups` instead.#{reset}\n"
     handle_subcommand(args)
   end
 
