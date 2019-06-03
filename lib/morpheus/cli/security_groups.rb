@@ -288,8 +288,24 @@ class Morpheus::Cli::SecurityGroups
 
         # Scoped Cloud
         # /api/options/clouds requires groupId...
-        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Scoped Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => false}], options[:options], @api_client)
-        # payload['securityGroup']['description'] = v_prompt['description']
+        
+        
+        begin
+          scoped_clouds = [{"name" => "All", "value" => "all"}]
+          clouds_response = @options_interface.options_for_source('cloudsForSecurityGroup',{})
+          if clouds_response['data']
+            clouds_response['data'].each do |it|
+              scoped_clouds << {"name" => it['name'], "value" => it['value']}
+            end
+          end
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Scoped Cloud', 'type' => 'select', 'selectOptions' => scoped_clouds, 'required' => false, 'defaultValue' => (payload['securityGroup']['zoneId'] || 'all')}], options[:options], @api_client)
+          #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Scoped Cloud', 'type' => 'select', 'optionSource' => 'cloudsForSecurityGroup', 'required' => false}], options[:options], @api_client)
+          if !v_prompt['zoneId'].to_s.empty? && v_prompt['zoneId'].to_s != 'all' && v_prompt['zoneId'].to_s != '-1'
+            payload['securityGroup']['zoneId'] = v_prompt['zoneId']
+          end
+        rescue => ex
+          print yellow,"Failed to determine the available scoped clouds.",reset,"\n"
+        end
 
       end
 
