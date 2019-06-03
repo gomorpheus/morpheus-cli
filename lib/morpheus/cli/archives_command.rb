@@ -62,7 +62,7 @@ class Morpheus::Cli::ArchivesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List archive buckets."
     end
     optparse.parse!(args)
@@ -151,7 +151,7 @@ class Morpheus::Cli::ArchivesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket:/path]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Display archive bucket details and files. " +
                     "\nThe [bucket] component of the argument is the name or id of an archive bucket." +
                     "\nThe [:/path] component is optional and can be used to display files under a sub-directory."
@@ -264,7 +264,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('--isPublic [on|off]', String, "Enabling Public URL allows files to be downloaded without any authentication.") do |val|
         options['isPublic'] = (val.to_s == 'on' || val.to_s == 'true')
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new archive bucket."
     end
     optparse.parse!(args)
@@ -342,7 +342,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('--isPublic [on|off]', String, "Enabling Public URL allows files to be downloaded without any authentication.") do |val|
         options['isPublic'] = (val.to_s == 'on' || val.to_s == 'true')
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update an existing archive bucket."
     end
     optparse.parse!(args)
@@ -394,7 +394,7 @@ class Morpheus::Cli::ArchivesCommand
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -460,7 +460,7 @@ class Morpheus::Cli::ArchivesCommand
                     "\nThe [:/path] component is optional and can be used to specify the destination of the uploaded file or folder." +
                     "\nThe default destination is the same name as the [local-file], under the root bucket directory '/'. " +
                     "\nThis will overwrite any existing remote files that match the destination /path."
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     
@@ -664,7 +664,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('-a', '--all', "Show all files, including subdirectories under the /path.") do
         params[:fullTree] = true
       end
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List files in an archive bucket. \nInclude [/path] to show files under a directory."
     end
     optparse.parse!(args)
@@ -749,7 +749,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('-1', '--oneline', "One file per line. The default delimiter is a single space.") do
         do_one_file_per_line = true
       end
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "Print filenames for a given archive location.\nPass archive location in the format bucket/path."
     end
     optparse.parse!(args)
@@ -904,7 +904,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('-H', '--all-history', "Display all history instead of only 10." ) do
         max_history = 10000
       end
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Get details about an archive file.\n" + 
                     "[bucket:/path] is required. This is the name of the bucket and /path the file or folder to be fetched." + "\n" +
                     "[id] can be passed instead of [bucket:/path]. This is the numeric File ID."
@@ -1038,7 +1038,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on( '-R', '--recursive', "Delete a directory and all of its files. This must be passed if specifying a directory." ) do
         do_recursive = true
       end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete an archive file or directory."
     end
     optparse.parse!(args)
@@ -1093,7 +1093,7 @@ class Morpheus::Cli::ArchivesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket:/path]")
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List history log events for an archive file."
     end
     optparse.parse!(args)
@@ -1156,7 +1156,7 @@ class Morpheus::Cli::ArchivesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket:/path]")
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List links for an archive file."
     end
     optparse.parse!(args)
@@ -1236,7 +1236,7 @@ class Morpheus::Cli::ArchivesCommand
         use_public_url = true
         # do_mkdir = true
       end
-      build_common_options(opts, options, [:dry_run, :quiet])
+      build_common_options(opts, options, [:dry_run, :quiet, :remote])
       opts.footer = "Download an archive file or directory.\n" + 
                     "[bucket:/path] is required. This is the name of the bucket and /path the file or folder to be downloaded.\n" +
                     "[local-file] is required. This is the full local filepath for the downloaded file.\n" +
@@ -1360,7 +1360,7 @@ class Morpheus::Cli::ArchivesCommand
     do_overwrite = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket:/path]")
-      build_common_options(opts, options, [:auto_confirm, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :dry_run, :remote])
       opts.footer = "Print the contents of an archive file.\n" + 
                     "[bucket:/path] is required. This is the name of the bucket and /path the file or folder to be downloaded.\n" +
                     "Confirmation is needed if the specified file is more than 1KB.\n" +
@@ -1407,7 +1407,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on('-e', '--expire SECONDS', "The time to live for this link. The default is 1200 (20 minutes). A value less than 1 means never expire.") do |val|
         expiration_seconds = val.to_i
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Create a public link to a file.\n" + 
                     "[bucket:/path] is required. This is the name of the bucket and /path the file or folder to be fetched."
     end
@@ -1452,7 +1452,7 @@ class Morpheus::Cli::ArchivesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[bucket:/path] [token]")
-      build_common_options(opts, options, [:auto_confirm, :dry_run, :quiet])
+      build_common_options(opts, options, [:auto_confirm, :dry_run, :quiet, :remote])
       opts.footer = "Delete a public link to a file.\n" + 
                     "[bucket:/path] is required. This is the name of the bucket and /path the file or folder to be fetched." +
                     "[token] is required. This is the secret access key that identifies the link."
@@ -1517,7 +1517,7 @@ class Morpheus::Cli::ArchivesCommand
       opts.on( '-p', '--mkdir', "Create missing directories for [local-file] if they do not exist." ) do
         do_mkdir = true
       end
-      build_common_options(opts, options, [:dry_run, :quiet])
+      build_common_options(opts, options, [:dry_run, :quiet, :remote])
       opts.footer = "Download an archive file link.\n" + 
                     "[link-key] is required. This is the secret access key for the archive file link.\n" +
                     "[local-file] is required. This is the full local filepath for the downloaded file."
@@ -1634,7 +1634,7 @@ class Morpheus::Cli::ArchivesCommand
       #   use_public_url = true
       #   # do_mkdir = true
       # end
-      build_common_options(opts, options, [:dry_run, :quiet])
+      build_common_options(opts, options, [:dry_run, :quiet, :remote])
       opts.footer = "Download an entire archive bucket as a .zip file.\n" + 
                     "[bucket] is required. This is the name of the bucket.\n" +
                     "[local-file] is required. This is the full local filepath for the downloaded file.\n" +

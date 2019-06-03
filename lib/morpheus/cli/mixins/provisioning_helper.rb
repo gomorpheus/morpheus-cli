@@ -341,6 +341,12 @@ module Morpheus::Cli::ProvisioningHelper
       version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'selectOptions' => available_versions, 'required' => version_is_required, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
       version_value = version_prompt['version']
     end
+    # JD: there is a bug here, the version needs to be passed perhaps? or the optionSource methods need updating...
+    # could just allow for now ...
+    # if options[:options]["layout"]
+    #   layout_id = options[:options]["layout"]
+    #   ...
+    # end
     layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})
     layout_id = layout_prompt['layout']
     layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}

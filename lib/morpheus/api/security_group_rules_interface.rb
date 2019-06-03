@@ -28,6 +28,12 @@ class Morpheus::SecurityGroupRulesInterface < Morpheus::APIClient
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def update(security_group_id, id, payload)
+    url = "#{@base_url}/api/security-groups/#{security_group_id}/rules/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def delete(security_group_id, id)
     url = "#{@base_url}/api/security-groups/#{security_group_id}/rules/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

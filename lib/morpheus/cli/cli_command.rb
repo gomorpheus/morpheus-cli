@@ -197,6 +197,10 @@ module Morpheus
         # unless command_name == "shell"
         #   option_keys << :quiet unless option_keys.include?(:quiet)
         # end
+
+        # ensure commands can always access options[:options], until we can deprecate it...
+        options[:options] ||= {}
+
         while (option_key = option_keys.shift) do
           case option_key.to_sym
 

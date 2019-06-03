@@ -142,6 +142,7 @@ module Morpheus
       load 'morpheus/cli/file_copy_request_command.rb'
       load 'morpheus/cli/processes_command.rb'
       load 'morpheus/cli/packages_command.rb'
+      load 'morpheus/cli/reports_command.rb'
 
       # Your new commands go here...
 

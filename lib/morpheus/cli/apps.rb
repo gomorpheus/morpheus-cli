@@ -986,7 +986,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
       opts.footer = "List logs for an app.\n" +
                     "[app] is required. This is the name or id of an app."
     end

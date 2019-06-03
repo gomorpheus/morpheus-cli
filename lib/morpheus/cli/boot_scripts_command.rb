@@ -36,7 +36,7 @@ class Morpheus::Cli::BootScriptsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -94,7 +94,7 @@ class Morpheus::Cli::BootScriptsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[boot-script]")
-      build_common_options(opts, options, [:json, :dry_run])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -150,7 +150,7 @@ class Morpheus::Cli::BootScriptsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[fileName]")
       build_option_type_options(opts, options, add_boot_script_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -210,7 +210,7 @@ class Morpheus::Cli::BootScriptsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[boot-script] [options]")
       build_option_type_options(opts, options, update_boot_script_option_types(false))
-      build_common_options(opts, options, [:options, :json, :dry_run])
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -279,7 +279,7 @@ class Morpheus::Cli::BootScriptsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[boot-script]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 

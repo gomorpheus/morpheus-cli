@@ -12,7 +12,7 @@ class Morpheus::Cli::SecurityGroups
 
   register_subcommands :list, :get, :add, :update, :remove, :use, :unuse
   register_subcommands :'add-location', :'remove-location'
-  register_subcommands :'add-rule', :'remove-rule'
+  register_subcommands :'add-rule', :'update-rule', :'remove-rule'
   set_default_subcommand :list
   
   def connect(opts)
@@ -34,6 +34,7 @@ class Morpheus::Cli::SecurityGroups
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List security groups."
     end
     optparse.parse!(args)
     if args.count != 0
@@ -115,6 +116,7 @@ class Morpheus::Cli::SecurityGroups
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Get details about a security group."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -172,7 +174,7 @@ class Morpheus::Cli::SecurityGroups
 
       if security_group['rules']
         if security_group['rules'].size == 0
-          print cyan,"No rules.",reset,"\n"
+          #print cyan,"No rules.",reset,"\n"
         else
           print_h2 "Rules"
           print cyan
@@ -235,6 +237,8 @@ class Morpheus::Cli::SecurityGroups
         options[:options]['description'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Create a security group." + "\n" +
+                    "[name] is required. This is the name of the security group."
     end
     optparse.parse!(args)
     if args.count > 1
@@ -302,6 +306,8 @@ class Morpheus::Cli::SecurityGroups
         options[:options]['description'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a security group." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -357,6 +363,8 @@ class Morpheus::Cli::SecurityGroups
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Delete a security group." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -404,6 +412,8 @@ class Morpheus::Cli::SecurityGroups
         resource_pool_id = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Add security group to a location (cloud)." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -484,6 +494,8 @@ class Morpheus::Cli::SecurityGroups
         cloud_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove security group from a location (cloud)." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -581,6 +593,9 @@ class Morpheus::Cli::SecurityGroups
       opts.on( '--destination-tier VALUE', String, "Destination Tier" ) do |val|
         options[:options]['destinationTier'] = val
       end
+      opts.footer = "Create a security group rule." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group." + "\n"
+                    "[name] is required. This is the name of the security group rule."
     end
     optparse.parse!(args)
     if args.count < 1 || args.count > 2
@@ -692,6 +707,9 @@ class Morpheus::Cli::SecurityGroups
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[security-group] [id]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Delete a security group rule." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group." + "\n"
+                    "[rule] is required. This is the name or id of the security group rule."
     end
     optparse.parse!(args)
     if args.count != 2
@@ -745,6 +763,131 @@ class Morpheus::Cli::SecurityGroups
       end
       display_name = (security_group_rule['name'].to_s != '') ? security_group_rule['name'] : security_group_rule['id'].to_s
       print_green_success "Deleted security group rule #{display_name}"
+      get([security_group['id']])
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_rule(args)
+    params = {}
+    options = {:options => {}}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[security-group] [rule]")
+      opts.on( '--name VALUE', String, "Name of the rule" ) do |val|
+        options[:options]['name'] = val
+      end
+      opts.on( '--direction VALUE', String, "Direction" ) do |val|
+        options[:options]['direction'] = val
+      end
+      opts.on( '--rule-type VALUE', String, "Rule Type" ) do |val|
+        options[:options]['ruleType'] = val
+      end
+      opts.on( '--protocol VALUE', String, "Protocol" ) do |val|
+        options[:options]['protocol'] = val
+      end
+      opts.on( '--port-range VALUE', String, "Port Range" ) do |val|
+        options[:options]['portRange'] = val
+      end
+      opts.on( '--source-type VALUE', String, "Source Type" ) do |val|
+        options[:options]['sourceType'] = val
+      end
+      opts.on( '--source VALUE', String, "Source" ) do |val|
+        options[:options]['source'] = val
+      end
+      opts.on( '--source-group VALUE', String, "Source Security Group" ) do |val|
+        options[:options]['sourceGroup'] = val
+      end
+      opts.on( '--source-tier VALUE', String, "Source Tier" ) do |val|
+        options[:options]['sourceTier'] = val
+      end
+      opts.on( '--destination-type VALUE', String, "Destination Type" ) do |val|
+        options[:options]['destinationType'] = val
+      end
+      opts.on( '--destination VALUE', String, "Destination" ) do |val|
+        options[:options]['destination'] = val
+      end
+      opts.on( '--destination-group VALUE', String, "Destination Security Group" ) do |val|
+        options[:options]['destinationGroup'] = val
+      end
+      opts.on( '--destination-tier VALUE', String, "Destination Tier" ) do |val|
+        options[:options]['destinationTier'] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a security group rule." + "\n" +
+                    "[security-group] is required. This is the name or id of the security group." + "\n"
+                    "[rule] is required. This is the name or id of the security group rule."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      security_group = find_security_group_by_name_or_id(args[0])
+      return 1 if security_group.nil?
+      
+      #security_group_rule = find_security_group_rule_by_id(security_group['id'], args[1])
+      #return 1 if security_group_rule.nil?
+
+      security_group_rule = nil
+      if security_group['rules']
+        matching_rules = []
+        if args[1].to_s =~ /\A\d{1,}\Z/
+          matching_rules = security_group['rules'].select {|it| it['id'].to_s == args[1].to_s }
+        else
+          matching_rules = security_group['rules'].select {|it| it['name'] == args[1].to_s }
+        end
+        if matching_rules.size > 1
+          print_red_alert "#{matching_rules.size} security group rules found by name '#{args[1]}'"
+          rows = matching_rules.collect do |it|
+            {id: it['id'], name: it['name']}
+          end
+          puts as_pretty_table(rows, [:id, :name], {color:red})
+          return 1
+        else
+          security_group_rule = matching_rules[0]
+        end
+      end
+      if security_group_rule.nil?
+        print_red_alert "Security group rule not found for '#{args[1]}'"
+        return 1
+      end
+
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'rule' => passed_options})  unless passed_options.empty?
+      else
+        # prompt for resource folder options
+        payload = {
+          'rule' => {
+          }
+        }
+        payload.deep_merge!({'rule' => passed_options})  unless passed_options.empty?
+
+        if passed_options.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+      end
+
+      @security_groups_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @security_group_rules_interface.dry.update(security_group['id'], security_group_rule['id'], payload)
+        return 0
+      end
+      json_response = @security_group_rules_interface.update(security_group['id'], security_group_rule['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+      security_group_rule = json_response['rule']
+      display_name = (security_group_rule['name'].to_s != '') ? security_group_rule['name'] : security_group_rule['id'].to_s
+      print_green_success "Updated security group rule #{display_name}"
       get([security_group['id']])
       return 0
     rescue RestClient::Exception => e

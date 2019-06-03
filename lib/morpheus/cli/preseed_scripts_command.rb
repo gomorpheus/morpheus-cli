@@ -35,7 +35,7 @@ class Morpheus::Cli::PreseedScriptsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run])
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
