@@ -10,7 +10,7 @@ class Morpheus::Cli::SecurityGroups
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
 
-  register_subcommands :list, :get, :add, :update, :remove, :use, :unuse
+  register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :'add-location', :'remove-location'
   register_subcommands :'add-rule', :'update-rule', :'remove-rule'
   set_default_subcommand :list
@@ -228,6 +228,7 @@ class Morpheus::Cli::SecurityGroups
   def add(args)
     params = {}
     options = {:options => {}}
+    cloud_id = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on( '--name Name', String, "Name of the security group" ) do |val|
@@ -235,6 +236,9 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on( '--description Description', String, "Description of the security group" ) do |val|
         options[:options]['description'] = val
+      end
+      opts.on( '-c', '--cloud CLOUD', "Scoped Cloud Name or ID" ) do |val|
+        cloud_id = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a security group." + "\n" +
@@ -249,6 +253,14 @@ class Morpheus::Cli::SecurityGroups
     end
     connect(options)
     begin
+
+      # load cloud
+      cloud = nil
+      if cloud_id
+        cloud = find_cloud_by_name_or_id(cloud_id)
+        return 1 if cloud.nil?
+        options[:options]['zoneId'] = cloud['id'].to_s
+      end
 
       # construct payload
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
@@ -273,6 +285,11 @@ class Morpheus::Cli::SecurityGroups
         # Description
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
         payload['securityGroup']['description'] = v_prompt['description']
+
+        # Scoped Cloud
+        # /api/options/clouds requires groupId...
+        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Scoped Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => false}], options[:options], @api_client)
+        # payload['securityGroup']['description'] = v_prompt['description']
 
       end
 
