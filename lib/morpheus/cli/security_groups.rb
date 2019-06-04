@@ -160,6 +160,7 @@ class Morpheus::Cli::SecurityGroups
         "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' }
       }
       print_description_list(description_cols, security_group)
+      # print reset,"\n"
 
       if security_group['locations'] && security_group['locations'].size > 0
         print_h2 "Locations"
@@ -171,6 +172,8 @@ class Morpheus::Cli::SecurityGroups
           "RESOURCE POOL" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' }
         }
         puts as_pretty_table(security_group['locations'], location_cols)
+      else
+        print reset,"\n"
       end
 
       if security_group['rules']
@@ -218,7 +221,6 @@ class Morpheus::Cli::SecurityGroups
         end
       end
 
-      #print reset,"\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

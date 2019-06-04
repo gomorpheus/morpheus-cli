@@ -102,7 +102,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           }
           row
         }
-        columns = [:id, :name, :active, :default, :visibility, :tenants]
+        columns = [:id, :name, :description, :active, :default, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
