@@ -348,7 +348,7 @@ class Morpheus::Cli::ReportsCommand
         return 0
       end
       json_response = @reports_interface.export(report_result['id'], outfile, params, report_format)
-      print_green_success "Exported report report result #{report_result['id']} to file #{outfile}"
+      print_green_success "Exported report result #{report_result['id']} to file #{outfile}"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
