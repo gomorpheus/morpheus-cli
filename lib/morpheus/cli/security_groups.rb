@@ -19,6 +19,7 @@ class Morpheus::Cli::SecurityGroups
     @api_client = establish_remote_appliance_connection(opts)
     @security_groups_interface = @api_client.security_groups
     @security_group_rules_interface = @api_client.security_group_rules
+    @cloud_resource_pools_interface = @api_client.cloud_resource_pools
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
@@ -441,7 +442,7 @@ class Morpheus::Cli::SecurityGroups
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         cloud_id = val
       end
-      opts.on( '--resource-pool ID', String, "ID of the resource pool (VPC)" ) do |val|
+      opts.on( '--resource-pool ID', String, "ID of the Resource Pool for Amazon VPC and Azure Resource Group" ) do |val|
         resource_pool_id = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -457,6 +458,19 @@ class Morpheus::Cli::SecurityGroups
       security_group = find_security_group_by_name_or_id(args[0])
       return 1 if security_group.nil?
 
+      # load cloud
+      if cloud_id.nil?
+        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [cloud]\n#{optparse}"
+        return 1
+      end
+      cloud = find_cloud_by_name_or_id(cloud_id)
+      return 1 if cloud.nil?
+
+      if resource_pool_id
+        resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
+        return 1 if resource_pool.nil?
+      end
+
       # construct payload
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       payload = nil
@@ -470,26 +484,20 @@ class Morpheus::Cli::SecurityGroups
           }
         }
         payload.deep_merge!({'securityGroupLocation' => passed_options})  unless passed_options.empty?
-        # load cloud
-        if cloud_id.nil?
-          puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [cloud]\n#{optparse}"
-          return 1
+        if cloud
+          payload['securityGroupLocation']['zoneId'] = cloud['id']
         end
-        cloud = find_cloud_by_name_or_id(cloud_id)
-        return 1 if cloud.nil?
-
-        payload['securityGroupLocation']['zoneId'] = cloud['id']
 
         if cloud['securityServer']
           if cloud['securityServer']['type'] == 'amazon'
-            if resource_pool_id
-              payload['securityGroupLocation']['customOptions'] = {'vpc' => resource_pool_id}
+            if resource_pool
+              payload['securityGroupLocation']['customOptions'] = {'vpc' => resource_pool['externalId']}
             elsif cloud['config'] && cloud['config']['vpc']
               payload['securityGroupLocation']['customOptions'] = {'vpc' => cloud['config']['vpc']}
             end
           elsif cloud['securityServer']['type'] == 'azure'
-            if resource_pool_id
-              payload['securityGroupLocation']['customOptions'] = {'resourceGroup' => resource_pool_id}
+            if resource_pool
+              payload['securityGroupLocation']['customOptions'] = {'resourceGroup' => resource_pool['externalId']}
             elsif cloud['config'] && cloud['config']['resourceGroup']
               payload['securityGroupLocation']['customOptions'] = {'resourceGroup' => cloud['config']['resourceGroup']}
             end
@@ -1058,6 +1066,56 @@ class Morpheus::Cli::SecurityGroups
       else
         raise e
       end
+    end
+  end
+
+  def find_resource_pool_by_name_or_id(cloud_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_resource_pool_by_id(cloud_id, val)
+    else
+      return find_resource_pool_by_name(cloud_id, val)
+    end
+  end
+
+  def find_resource_pool_by_id(cloud_id, id)
+    begin
+      json_response = @cloud_resource_pools_interface.get(cloud_id, id.to_i)
+      return json_response['resourcePool']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Resource Pool not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_resource_pool_by_name(cloud_id, name)
+    json_response = @cloud_resource_pools_interface.list(cloud_id, {name: name.to_s})
+    resource_pools = json_response['resourcePools']
+    if resource_pools.empty?
+      print_red_alert "Resource Pool not found by name #{name}"
+      return nil
+    elsif resource_pools.size > 1
+      matching_resource_pools = folders.select { |it| name && (it['name'] == name || it['externalId'] == name) }
+      if matching_resource_pools.size == 1
+        return matching_resource_pools[0]
+      end
+      print_red_alert "#{resource_pools.size} resource pools found by name #{name}"
+      rows = resource_pools.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      print "\n"
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      resource_pool = resource_pools[0]
+      # merge in tenants map
+      if json_response['tenants'] && json_response['tenants'][resource_pool['id']]
+        resource_pool['tenants'] = json_response['tenants'][resource_pool['id']]
+      end
+      return resource_pool
     end
   end
 
