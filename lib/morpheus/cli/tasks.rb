@@ -246,7 +246,7 @@ class Morpheus::Cli::Tasks
           rows = task_types.collect do |task_type|
             {name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
           end
-          puts as_pretty_table(rows, [:id, :name, :code], {color:red})
+          puts as_pretty_table(rows, [:id, :name, :code], options)
         end
 
         print reset,"\n"
