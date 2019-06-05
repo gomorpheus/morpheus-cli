@@ -83,10 +83,23 @@ class Morpheus::Cli::ReportsCommand
   end
 
   def get(args)
+    original_args = args.dup
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is ready,failed. Default interval is 5 seconds.") do |val|
+        options[:refresh_until_status] ||= "ready,failed"
+        if !val.to_s.empty?
+          options[:refresh_interval] = val.to_f
+        end
+      end
+      opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
+        options[:refresh_until_status] = val.to_s.downcase
+      end
+      opts.on('--rows', '--rows', "Print Report Data rows too.") do
+        options[:show_data_rows] = true
+      end
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
       opts.footer = "Get details about a report result." + "\n"
                   + "[id] is required. This is the id of the report result."
     end
@@ -114,39 +127,67 @@ class Morpheus::Cli::ReportsCommand
       #   puts as_json(json_response, options)
       #   return 0
       # end
-
-
+      # render_with_format() handles json,yaml,csv,outfile,etc
       render_result = render_with_format(json_response, options, 'reportResult')
-      return 0 if render_result
-
-      print_h1 "Morpheus Report Details"
-      print cyan
-      
-      description_cols = {
-        "ID" => 'id',
-        "Title" => lambda {|it| it['reportTitle'] },
-        "Filters" => lambda {|it| it['filterTitle'] },
-        "Report Type" => lambda {|it| it['type'].is_a?(Hash) ? it['type']['name'] : it['type'] },
-        "Date Run" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Created By" => lambda {|it| it['createdBy'].is_a?(Hash) ? it['createdBy']['username'] : it['createdBy'] },
-        "Status" => lambda {|it| format_report_status(it) }
-      }
-      print_description_list(description_cols, report_result)
-
-      # todo: 
-      # 1. format raw output better.  
-      # 2. write rendering methods for all the various types...
-      if options[:show_data]
-        print_h2 "Report Data"
+      if render_result
+        #return render_result
+      else
+        print_h1 "Morpheus Report Details"
         print cyan
-        if report_result['rows']
-          puts report_result['rows']
-        else
-          print yellow, "No report data found.", reset, "\n"
+        
+        description_cols = {
+          "ID" => 'id',
+          "Title" => lambda {|it| it['reportTitle'] },
+          "Filters" => lambda {|it| it['filterTitle'] },
+          "Report Type" => lambda {|it| it['type'].is_a?(Hash) ? it['type']['name'] : it['type'] },
+          "Date Run" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Created By" => lambda {|it| it['createdBy'].is_a?(Hash) ? it['createdBy']['username'] : it['createdBy'] },
+          "Status" => lambda {|it| format_report_status(it) }
+        }
+        print_description_list(description_cols, report_result)
+
+        # todo: 
+        # 1. format raw output better.  
+        # 2. write rendering methods for all the various types...
+        if options[:show_data_rows]
+          print_h2 "Report Data Rows"
+          print cyan
+          if report_result['rows']
+            # report_result['rows'].each_with_index do |row, index|
+            #   print "#{index}: ", row, "\n"
+            # end
+            term_width = current_terminal_width()
+            data_width = term_width.to_i - 30
+            if data_width < 0
+              data_wdith = 10
+            end
+            puts as_pretty_table(report_result['rows'], {
+              "ID" => lambda {|it| it['id'] },
+              "SECTION" => lambda {|it| it['section'] },
+              "DATA" => lambda {|it| truncate_string(it['data'], data_width) }
+            })
+            
+          else
+            print yellow, "No report data found.", reset, "\n"
+          end
+        end
+        
+        print reset,"\n"
+      end
+
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = 5
+        end
+        statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+        if !statuses.include?(report_result['status'])
+          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
+          sleep_with_dots(options[:refresh_interval])
+          print "\n"
+          get(original_args)
         end
       end
-      
-      print reset,"\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -156,14 +197,18 @@ class Morpheus::Cli::ReportsCommand
 
   def run(args)
     params = {}
+    do_refresh = true
     options = {:options => {}}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type] [options]")
       opts.on( '--type CODE', String, "Report Type code" ) do |val|
         options[:options]['type'] = val
       end
-      opts.on( '--title TITLE', String, "Title for the report" ) do |val|
-        options[:options]['reportTitle'] = val
+      # opts.on( '--title TITLE', String, "Title for the report" ) do |val|
+      #   options[:options]['reportTitle'] = val
+      # end
+      opts.on(nil, '--no-refresh', "Do not refresh until finished" ) do
+        do_refresh = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Run a report to generate a new result." + "\n" +
@@ -228,8 +273,12 @@ class Morpheus::Cli::ReportsCommand
       end
 
       print_green_success "Created report result #{json_response['reportResult']['id']}"
-      #todo: support  --refresh
-      get([json_response['reportResult']['id']])
+      if do_refresh
+        get([json_response['reportResult']['id'], "--refresh"])
+      else
+        get([json_response['reportResult']['id']])
+      end
+      
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
