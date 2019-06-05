@@ -317,7 +317,10 @@ module Morpheus::Cli::ProvisioningHelper
 
     available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
     default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
-    default_layout_value = payload['instance']['layout'] ? payload['instance']['layout']['id'] : nil
+    default_layout_value = payload['instance']['layout'] ? payload['instance']['layout'] : payload['layout']
+    if default_layout_value && default_layout_value.is_a?(Hash)
+      default_layout_value = default_layout_value['id']
+    end
     # JD: version is always nil because it is not stored in the blueprint or config !!
     # so for now, infer the version from the layout
     # requires api 3.6.2 to get "layouts" from /options/versions
@@ -438,7 +441,7 @@ module Morpheus::Cli::ProvisioningHelper
       option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
     end
 
-    instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_prompt['version']})
+    instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})
     payload.deep_merge!(instance_config_payload)
 
     ## Advanced Options

@@ -117,7 +117,9 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if option_type['type'] == 'select'
-                  value = select_prompt(option_type, api_client, api_params, true)
+                  select_api_params = {}.merge(api_params || {}).merge(results)
+                  grails_select_api_params = grails_params(select_api_params)
+                  value = select_prompt(option_type, api_client, grails_select_api_params, true)
                   value_found = !!value
                 end
                 if !value_found
