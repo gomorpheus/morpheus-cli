@@ -128,7 +128,16 @@ class Morpheus::Cli::Tasks
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
+          "Code" => 'code',
           "Type" => lambda {|it| it['taskType']['name'] },
+          "Result Type" => 'resultType',
+          "Retryable" => lambda {|it| 
+            if it['retryable']
+              format_boolean(it['retryable']).to_s + " Count: #{it['retryCount']}, Delay: #{it['retryDelaySeconds']}" 
+            else
+              format_boolean(it['retryable'])
+            end
+            },
         }
         print_description_list(description_cols, task)
         
@@ -259,8 +268,9 @@ class Morpheus::Cli::Tasks
 
   def add(args)
     params = {}
-    options = {}
+    options = {:options => {}}
     task_name = nil
+    task_code = nil
     task_type_name = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t TASK_TYPE")
@@ -269,6 +279,25 @@ class Morpheus::Cli::Tasks
       end
       opts.on('--name NAME', String, "Task Name" ) do |val|
         task_name = val
+      end
+      opts.on('--code CODE', String, "Task Code" ) do |val|
+        task_code = val
+      end
+      opts.on('--result-type VALUE', String, "Result Type" ) do |val|
+        options[:options] ||= {}
+        options[:options]['resultType'] = val
+      end
+      opts.on('--retryable [on|off]', String, "Retryable" ) do |val|
+        options[:options] ||= {}
+        options[:options]['retryable'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
+      end
+      opts.on('--retry-count COUNT', String, "Retry Count" ) do |val|
+        options[:options] ||= {}
+        options[:options]['retryCount'] = val.to_i
+      end
+      opts.on('--retry-delay SECONDS', String, "Retry Delay Seconds" ) do |val|
+        options[:options] ||= {}
+        options[:options]['retryDelaySeconds'] = val.to_i
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --O taskOptions.script" ) do |filename|
         full_filename = File.expand_path(filename)
@@ -282,38 +311,137 @@ class Morpheus::Cli::Tasks
           exit 1
         end
         # use the filename as the name by default.
-        if !params['name']
+        if !options[:options]['name']
           options[:options] ||= {}
-          options[:options]['taskOptions'] ||= {}
-          options[:options]['taskOptions']['script'] = File.read(full_filename)
-          params['name'] = File.basename(full_filename)
+          options[:options]['name'] = File.basename(full_filename)
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
     if args[0]
       task_name = args[0]
     end
-
-    if task_name.nil? || task_type_name.nil?
-      puts optparse
-      exit 1
-    end
+    # if task_name.nil? || task_type_name.nil?
+    #   puts optparse
+    #   exit 1
+    # end
     connect(options)
     begin
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      if passed_options['type']
+        task_type_name = passed_options.delete('type')
+      end
       payload = nil
+      
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
       else
         # construct payload
+        payload = {
+          "task" => {
+            #"name" => task_name,
+            #"code" => task_code,
+            #"taskType" {"id" => task_type['id'], "code" => task_type['code']},
+            #"taskOptions" => {}
+          }
+        }
+        payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
+
+        
+        
+        # Name
+        if task_name
+          payload['task']['name'] = task_name
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name'}], options[:options], @api_client)
+          payload['task']['name'] = v_prompt['name'] unless v_prompt['name'].to_s.empty?
+        end
+
+        # Code
+        if task_code
+          payload['task']['code'] = task_code
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'description' => 'Code'}], options[:options], @api_client)
+          payload['task']['code'] = v_prompt['code'] unless v_prompt['code'].to_s.empty?
+        end
+
+        # Task Type
+        @all_task_types ||= @tasks_interface.task_types({max:1000})['taskTypes']
+        task_types_dropdown = @all_task_types.collect {|it| {"name" => it["name"], "value" => it["code"]}}
+        
+        if task_type_name
+          #payload['task']['taskType'] = task_code
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => task_types_dropdown}], options[:options], @api_client)
+          task_type_name = v_prompt['type']
+        end
+
         task_type = find_task_type_by_name(task_type_name)
         if task_type.nil?
-          puts "Task Type not found by id '#{task_type_name}'!"
+          print_red_alert "Task Type not found by code '#{task_type_name}'"
           return 1
         end
-        input_options = Morpheus::Cli::OptionTypes.prompt(task_type['optionTypes'],options[:options],@api_client, options[:params])
-        payload = {task: {name: task_name, taskOptions: input_options['taskOptions'], taskType: {code: task_type['code'], id: task_type['id']}}}
+
+        payload['task']['taskType'] = {"id" => task_type['id'], "code" => task_type['code']}
+
+
+        # Result Type
+        if task_code
+          payload['task']['resultType'] = task_code
+        else
+          result_types_dropdown = [{"name" => "Value", "value" => "value"}, {"name" => "Exit Code", "value" => "exitCode"}, {"name" => "Key Value", "value" => "keyValue"}, {"name" => "JSON", "value" => "json"}]
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resultType', 'fieldLabel' => 'Result Type', 'type' => 'select', 'selectOptions' => result_types_dropdown}], options[:options], @api_client)
+          payload['task']['resultType'] = v_prompt['resultType'] unless v_prompt['resultType'].to_s.empty?
+        end
+
+        # Task Type Option Types
+
+        # JD: uhh some of these are missing a fieldContext?
+        # containerScript just points to a library script  via Id now??
+        task_option_types = task_type['optionTypes'] || []
+        task_option_types.each do |it|
+          if it['fieldContext'].nil? || it['fieldContext'] == ''
+            it['fieldContext'] = 'taskOptions'
+          end
+        end
+        input_options = Morpheus::Cli::OptionTypes.prompt(task_option_types, options[:options],@api_client, options[:params])
+        payload.deep_merge!({'task' => input_options})  unless input_options.empty?
+        
+
+
+        # Retryable
+        if options[:options]['retryable'] != nil
+          payload['task']['retryable'] = options[:options]['retryable']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retryable', 'fieldLabel' => 'Retryable', 'type' => 'checkbox', 'defaultValue' => false}], options[:options], @api_client)
+          payload['task']['retryable'] = ['true','on'].include?(v_prompt['retryable'].to_s) unless v_prompt['retryable'].nil?
+        end
+
+        if payload['task']['retryable']
+          # Retry Count
+          if options[:options]['retryCount']
+            payload['task']['retryCount'] = options[:options]['retryCount'].to_i
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retryCount', 'fieldLabel' => 'Retry Count', 'type' => 'number', 'defaultValue' => 5}], options[:options], @api_client)
+            payload['task']['retryCount'] = v_prompt['retryCount'].to_i unless v_prompt['retryCount'].nil?
+          end
+          # Retry Delay
+          if options[:options]['retryDelay']
+            payload['task']['retryDelay'] = options[:options]['retryDelay'].to_i
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retryDelay', 'fieldLabel' => 'Retry Delay', 'type' => 'number', 'defaultValue' => 10}], options[:options], @api_client)
+            payload['task']['retryDelay'] = v_prompt['retryDelay'].to_i unless v_prompt['retryDelay'].nil?
+          end
+        end
+
+
+       
+
       end
       @tasks_interface.setopts(options)
       if options[:dry_run]
@@ -415,19 +543,26 @@ class Morpheus::Cli::Tasks
 
   def find_task_type_by_name(val)
     raise "find_task_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
-    results = @tasks_interface.task_types(val)
-    result = nil
-    if !results['taskTypes'].nil? && !results['taskTypes'].empty?
-      result = results['taskTypes'][0]
-    elsif val.to_i.to_s == val
-      results = @tasks_interface.task_types(val.to_i)
-      result = results['taskType']
-    end
-    if result.nil?
-      print_red_alert "Task Type not found by '#{val}'"
+    @all_task_types ||= @tasks_interface.task_types({max:1000})['taskTypes']
+
+    if @all_task_types.nil? && !@all_task_types.empty?
+      print_red_alert "No task types found"
       return nil
     end
-    return result
+    matching_task_types = @all_task_types.select { |it| val && (it['name'] == val || it['code'] == val ||  it['id'].to_s == val.to_s) }
+    if matching_task_types.size == 1
+      return matching_task_types[0]
+    elsif matching_task_types.size == 0
+      print_red_alert "Task Type not found by '#{val}'"
+    else
+      print_red_alert "#{matching_task_types.size} task types found by name #{name}"
+      rows = matching_task_types.collect do |it|
+        {id: it['id'], name: it['name'], code: it['code']}
+      end
+      print "\n"
+      puts as_pretty_table(rows, [:name, :code], {color:red})
+      return nil
+    end
   end
 
   def update_task_option_types(task_type)
