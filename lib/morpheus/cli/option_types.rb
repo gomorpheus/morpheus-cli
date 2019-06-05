@@ -77,7 +77,7 @@ module Morpheus
                 value = value.to_s.include?('.') ? value.to_f : value.to_i
               elsif option_type['type'] == 'select'
                 # this should just fall down through below, with the extra params no_prompt, use_value
-                value = select_prompt(option_type, api_client, api_params, true, value)
+                value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true, value)
               end
               if options[:always_prompt] != true
                 value_found = true
@@ -117,9 +117,7 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if option_type['type'] == 'select'
-                  select_api_params = {}.merge(api_params || {}).merge(results)
-                  grails_select_api_params = grails_params(select_api_params)
-                  value = select_prompt(option_type, api_client, grails_select_api_params, true)
+                  value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true)
                   value_found = !!value
                 end
                 if !value_found
@@ -156,10 +154,7 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              select_api_params = {}.merge(api_params || {}).merge(results)
-              grails_select_api_params = grails_params(select_api_params)
-              
-            value = select_prompt(option_type,api_client, grails_select_api_params)
+              value = select_prompt(option_type,api_client, (api_params || {}).merge(results))
           elsif option_type['type'] == 'hidden'
             value = option_type['defaultValue']
             input = value
@@ -254,7 +249,7 @@ module Morpheus
           if option_type['optionSource'] == 'list'
             select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})
           else
-            select_options = load_source_options(option_type['optionSource'], api_client, api_params)
+            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
           end          
         else
           raise "select_prompt() requires selectOptions or optionSource!"
