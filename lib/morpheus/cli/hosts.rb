@@ -1173,7 +1173,7 @@ class Morpheus::Cli::Hosts
 
     host = find_host_by_name_or_id(args[0])
     return 1 if host.nil?
-    workflow = find_workflow_by_name(args[1])
+    workflow = find_workflow_by_name_or_id(args[1])
     return 1 if workflow.nil?
 
     # support -O options as arbitrary params
@@ -1485,16 +1485,41 @@ class Morpheus::Cli::Hosts
     return cloud_type
   end
 
-  def find_workflow_by_name(name)
-    task_set_results = @task_sets_interface.get(name)
-    if !task_set_results['taskSets'].nil? && !task_set_results['taskSets'].empty?
-      return task_set_results['taskSets'][0]
+  def find_workflow_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_workflow_by_id(val)
     else
-      print_red_alert "Workflow not found by name #{name}"
-      exit 1
+      return find_workflow_by_name(val)
     end
   end
 
+  def find_workflow_by_id(id)
+    begin
+      json_response = @task_sets_interface.get(id.to_i)
+      return json_response['taskSet']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Workflow not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_workflow_by_name(name)
+    workflows = @task_sets_interface.get({name: name.to_s})['taskSets']
+    if workflows.empty?
+      print_red_alert "Workflow not found by name #{name}"
+      return nil
+    elsif workflows.size > 1
+      print_red_alert "#{workflows.size} workflows by name #{name}"
+      print_workflows_table(workflows, {color: red})
+      print reset,"\n\n"
+      return nil
+    else
+      return workflows[0]
+    end
+  end
 
   def format_server_power_state(server, return_color=cyan)
     out = ""
