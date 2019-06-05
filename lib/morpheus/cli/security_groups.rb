@@ -1100,7 +1100,7 @@ class Morpheus::Cli::SecurityGroups
       print_red_alert "Resource Pool not found by name #{name}"
       return nil
     elsif resource_pools.size > 1
-      matching_resource_pools = folders.select { |it| name && (it['name'] == name || it['externalId'] == name) }
+      matching_resource_pools = resource_pools.select { |it| name && (it['name'] == name || it['externalId'] == name) }
       if matching_resource_pools.size == 1
         return matching_resource_pools[0]
       end
