@@ -23,17 +23,19 @@ class Morpheus::Cli::ReportsCommand
 
   def list(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on( '--type CODE', String, "Report Type code(s)" ) do |val|
+        params['reportType'] = val.to_s.split(",").compact.collect {|it| it.strip }
+      end
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
+      
       @reports_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @reports_interface.dry.list(params)
@@ -47,9 +49,11 @@ class Morpheus::Cli::ReportsCommand
       end
       report_results = json_response['reportResults']
       
-      
       title = "Morpheus Report History"
       subtitles = []
+      if params['type']
+        subtitles << "Type: #{params[:type]}".strip
+      end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
 
