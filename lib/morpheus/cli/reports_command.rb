@@ -30,6 +30,7 @@ class Morpheus::Cli::ReportsCommand
         params['reportType'] = val.to_s.split(",").compact.collect {|it| it.strip }
       end
       build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      opts.footer = "List report history."
     end
     optparse.parse!(args)
     connect(options)
