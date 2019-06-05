@@ -215,6 +215,9 @@ class Morpheus::Cli::ReportsCommand
       opts.on(nil, '--no-refresh', "Do not refresh until finished" ) do
         do_refresh = false
       end
+      opts.on('--rows', '--rows', "Print Report Data rows too.") do
+        options[:show_data_rows] = true
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Run a report to generate a new result." + "\n" +
                     "[type] is required. This is code of the report type."
@@ -278,12 +281,10 @@ class Morpheus::Cli::ReportsCommand
       end
 
       print_green_success "Created report result #{json_response['reportResult']['id']}"
-      if do_refresh
-        get([json_response['reportResult']['id'], "--refresh"])
-      else
-        get([json_response['reportResult']['id']])
-      end
-      
+      print_args = [json_response['reportResult']['id']]
+      print_args << "--refresh" if do_refresh
+      print_args << "--rows" if options[:show_data_rows]
+      get(print_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
