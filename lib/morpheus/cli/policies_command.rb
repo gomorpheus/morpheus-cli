@@ -33,6 +33,7 @@ class Morpheus::Cli::PoliciesCommand
     @clouds_interface = @api_client.clouds
     @groups_interface = @api_client.groups
     @users_interface = @api_client.users
+    @roles_interface = @api_client.roles
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
@@ -54,6 +55,9 @@ class Morpheus::Cli::PoliciesCommand
       opts.on( '-u', '--user USER', "Username or ID" ) do |val|
         options[:user] = val
       end
+      opts.on( '--role ROLE', String, "Role Authority or ID" ) do |val|
+        options[:role] = val
+      end
       opts.on( '-G', '--global', "Global policies only" ) do
         params[:global] = true
       end
@@ -71,11 +75,18 @@ class Morpheus::Cli::PoliciesCommand
       elsif options[:user]
         user = find_user_by_username_or_id(nil, options[:user])
         return 1 if user.nil?
+      elsif options[:role]
+        role = find_role_by_name_or_id(nil, options[:role])
+        return 1 if role.nil?
       end
       params.merge!(parse_list_options(options))
       if user
         params['refType'] = 'User'
         params['refId'] = user['id']
+      end
+      if role
+        params['refType'] = 'Role'
+        params['refId'] = role['id']
       end
       @policies_interface.setopts(options)
       @group_policies_interface.setopts(options)
@@ -86,11 +97,6 @@ class Morpheus::Cli::PoliciesCommand
         elsif cloud
           print_dry_run @cloud_policies_interface.dry.list(cloud['id'], params)
         else
-          # global
-          if user
-            params['refType'] = 'User'
-            params['refId'] = user['id']
-          end
           print_dry_run @policies_interface.dry.list(params)
         end
         return 0
@@ -125,6 +131,9 @@ class Morpheus::Cli::PoliciesCommand
       if user
         subtitles << "User: #{user['username']}".strip
       end
+      if role
+        subtitles << "Role: #{role['authority']}".strip
+      end
       if params[:global]
         subtitles << "(Global)".strip
       end
@@ -152,13 +161,14 @@ class Morpheus::Cli::PoliciesCommand
             group: policy['site'] ? policy['site']['name'] : '',
             cloud: policy['zone'] ? policy['zone']['name'] : '',
             user: policy['user'] ? policy['user']['username'] : '',
+            role: policy['role'] ? policy['role']['authority'] : '',
             tenants: truncate_string(format_tenants(policy['accounts']), 15),
             config: truncate_string(config_str, 50),
             enabled: policy['enabled'] ? 'Yes' : 'No',
           }
           row
         }
-        columns = [:id, :name, :description, :group, :cloud, :user, :tenants, :type, :config, :enabled]
+        columns = [:id, :name, :description, :group, :cloud, :user, :role, :tenants, :type, :config, :enabled]
         if group || cloud || user
           columns = columns - [:group, :cloud, :user]
         end
@@ -261,6 +271,22 @@ class Morpheus::Cli::PoliciesCommand
         "Type" => lambda {|it| it['policyType'] ? it['policyType']['name'] : '' },
         "Group" => lambda {|it| it['site'] ? it['site']['name'] : '' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
+        "User" => lambda {|it| it['user'] ? it['user']['username'] : '' },
+        "Role" => lambda {|it| 
+          str = ""
+          if it['role']
+            str << it['role']['authority']
+          end
+          str
+        },
+        "Each User" => lambda {|it| 
+          #format_boolean it['eachUser']
+          if it['eachUser']
+            'Yes, Apply individually to each user in role'
+          else
+            'No'
+          end
+        },
         # "All Accounts" => lambda {|it| it['allAccounts'] ? 'Yes' : 'No' },
         # "Ref Type" => 'refType',
         # "Ref ID" => 'refId',
@@ -268,6 +294,19 @@ class Morpheus::Cli::PoliciesCommand
         "Tenants" => lambda {|it| format_tenants(policy["accounts"]) },
         "Enabled" => lambda {|it| it['enabled'] ? 'Yes' : 'No' }
       }
+      if policy['site'].nil?
+        description_cols.delete("Group")
+      end
+      if policy['zone'].nil?
+        description_cols.delete("Cloud")
+      end
+      if policy['user'].nil?
+        description_cols.delete("User")
+      end
+      if policy['role'].nil?
+        description_cols.delete("Role")
+        description_cols.delete("Each User")
+      end
       print_description_list(description_cols, policy)
       # print reset,"\n"
 
@@ -296,6 +335,13 @@ class Morpheus::Cli::PoliciesCommand
       opts.on( '-u', '--user USER', "Username or ID, for scoping the policy to a user" ) do |val|
         options[:user] = val
       end
+      opts.on( '--role ROLE', String, "Role Authority or ID, for scoping the policy to a user" ) do |val|
+        options[:role] = val
+      end
+      opts.on('--each-user [on|off]', String, "Apply individually to each user in role, for use with policy scoped by role.") do |val|
+        options['eachUser'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      end
+      
       opts.on('-t', '--type ID', "Policy Type Name or ID") do |val|
         options['type'] = val
       end
@@ -313,7 +359,7 @@ class Morpheus::Cli::PoliciesCommand
         end
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
-        options['enabled'] = val.to_s == 'on' || val.to_s == 'true'
+        options['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       opts.on('--config JSON', String, "Policy Config JSON") do |val|
         options['config'] = JSON.parse(val.to_s)
@@ -342,7 +388,7 @@ class Morpheus::Cli::PoliciesCommand
         # support -O OPTION switch on top of --payload
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       else
-        group, cloud, user = nil, nil, nil
+        group, cloud, user, role = nil, nil, nil, nil
         if options[:group]
           group = find_group_by_name_or_id(options[:group])
         elsif options[:cloud]
@@ -350,6 +396,9 @@ class Morpheus::Cli::PoliciesCommand
         elsif options[:user]
           user = find_user_by_username_or_id(nil, options[:user])
           return 1 if user.nil?
+        elsif options[:role]
+          role = find_role_by_name_or_id(nil, options[:role])
+          return 1 if role.nil?
         end
 
         # merge -O options into normally parsed options
@@ -402,7 +451,21 @@ class Morpheus::Cli::PoliciesCommand
         if user
           payload['policy']['refType'] = 'User'
           payload['policy']['refId'] = user['id']
+        elsif role
+          payload['policy']['refType'] = 'Role'
+          payload['policy']['refId'] = role['id']
         end
+        
+        # Apply To aach user (Role only)
+        if payload['policy']['refType'] == 'Role'
+          if options['eachUser'] != nil
+            payload['policy']['eachUser'] = ['true','on'].include?(options['eachUser'].to_s)
+          else
+            #ref_apply_dropdown = [{'name' => 'Apply cumulatively to all users in role', 'value' => ''}, {'name' => "Apply individually to each user in role", 'value' => 'user'}]
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'eachUser', 'fieldLabel' => 'Apply individually to each user in role', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'Description' => 'Apply individually to each user in role. The default is to apply cumulatively to all users in the role.'}], options)
+            payload['policy']['eachUser'] = ['true','on'].include?(v_prompt['eachUser'].to_s)
+          end
+        end        
 
         # Name (this is not even used at the moment!)
         if options['name']
@@ -527,6 +590,9 @@ class Morpheus::Cli::PoliciesCommand
           options['accounts'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--each-user [on|off]', String, "Apply individually to each user in role, for use with policy scoped by role.") do |val|
+        options['eachUser'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      end
       opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
         options['enabled'] = val.to_s == 'on' || val.to_s == 'true'
       end
@@ -573,6 +639,7 @@ class Morpheus::Cli::PoliciesCommand
       end
       payload['policy'].deep_merge!(params)
 
+      
       # Config
       if options['config']
         payload['policy']['config'] = options['config']
