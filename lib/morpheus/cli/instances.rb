@@ -2102,7 +2102,7 @@ class Morpheus::Cli::Instances
       #payload[:servicePlanId] = new_plan_id
       payload[:instance][:plan] = {id: service_plan["id"]}
 
-      volumes_response = @instances_interface.volumes(instance['id'], options)
+      volumes_response = @instances_interface.volumes(instance['id'])
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
