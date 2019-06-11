@@ -335,7 +335,7 @@ class Morpheus::Cli::PoliciesCommand
       opts.on( '-u', '--user USER', "Username or ID, for scoping the policy to a user" ) do |val|
         options[:user] = val
       end
-      opts.on( '--role ROLE', String, "Role Authority or ID, for scoping the policy to a user" ) do |val|
+      opts.on( '--role ROLE', String, "Role Authority or ID, for scoping the policy to a role" ) do |val|
         options[:role] = val
       end
       opts.on('--each-user [on|off]', String, "Apply individually to each user in role, for use with policy scoped by role.") do |val|
@@ -639,7 +639,7 @@ class Morpheus::Cli::PoliciesCommand
       end
       payload['policy'].deep_merge!(params)
 
-      
+
       # Config
       if options['config']
         payload['policy']['config'] = options['config']
