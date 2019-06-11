@@ -42,7 +42,7 @@ class Morpheus::Cli::TenantsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :remote, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List tenants (accounts)."
     end
     optparse.parse!(args)
@@ -56,23 +56,21 @@ class Morpheus::Cli::TenantsCommand
         return
       end
       json_response = @accounts_interface.list(params)
+      render_result = render_with_format(json_response, options, 'accounts')
+      return 0 if render_result
       accounts = json_response['accounts']
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+      title = "Morpheus Tenants"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if accounts.empty?
+        puts yellow,"No tenants found.",reset
       else
-        title = "Morpheus Tenants"
-        subtitles = []
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
-        if accounts.empty?
-          puts yellow,"No tenants found.",reset
-        else
-          print_accounts_table(accounts)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+        print_accounts_table(accounts)
+        print_results_pagination(json_response)
       end
+      print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -113,7 +111,7 @@ class Morpheus::Cli::TenantsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :remote, :dry_run])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -132,36 +130,35 @@ class Morpheus::Cli::TenantsCommand
       end
       account = find_account_by_name_or_id(args[0])
       exit 1 if account.nil?
-      if options[:json]
-        print JSON.pretty_generate({account: account})
-        print "\n"
-      else
-        print_h1 "Tenant Details"
-        print cyan
-        puts "ID: #{account['id']}"
-        puts "Name: #{account['name']}"
-        puts "Description: #{account['description']}"
-        puts "Subdomain: #{account['subdomain']}" if !account['subdomain'].to_s.empty?
-        puts "Currency: #{account['currency']}"
-        # puts "# Users: #{account['usersCount']}"
-        # puts "# Instances: #{account['instancesCount']}"
-        puts "Date Created: #{format_local_dt(account['dateCreated'])}"
-        puts "Last Updated: #{format_local_dt(account['lastUpdated'])}"
-        status_state = nil
-        if account['active']
-          status_state = "#{green}ACTIVE#{cyan}"
-        else
-          status_state = "#{red}INACTIVE#{cyan}"
-        end
-        puts "Status: #{status_state}"
-        # JD: pretty sure this is deprecated
-        # print_h2 "Tenant Instance Limits"
-        # print cyan
-        # puts "Max Storage (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxStorage'] : 0}"
-        # puts "Max Memory (bytes): #{account['instanceLimits'] ? account['instanceLimits']['maxMemory'] : 0}"
-        # puts "CPU Count: #{account['instanceLimits'] ? account['instanceLimits']['maxCpu'] : 0}"
-        print reset,"\n"
-      end
+
+      json_response = {'account' => account}
+      render_result = render_with_format(json_response, options, 'account')
+      return 0 if render_result
+
+      print_h1 "Tenant Details", [], options
+      
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Description" => 'description',
+        "Subdomain" => 'subdomain',
+        "Currency" => 'currency',
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+        "Status" => lambda {|it| 
+          status_state = nil
+          if account['active']
+            status_state = "#{green}ACTIVE#{cyan}"
+          else
+            status_state = "#{red}INACTIVE#{cyan}"
+          end
+          status_state
+        },
+      }
+      print_description_list(description_cols, account)
+
+      print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
