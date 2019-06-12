@@ -74,7 +74,7 @@ EOT
       columns = [
         {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
         # {:name => {display_method: lambda {|it| it[:active] ? "#{green}#{it[:name]}#{reset}#{cyan}" : it[:name] }, :width => 16 } },
-        {:name => {display_method: lambda {|it| it[:name] }, :width => 16 } },
+        {:name => {display_method: lambda {|it| it[:name] } } },
         {:url => {display_method: lambda {|it| it[:host] || it[:url] }, :width => 40 } },
         {:version => lambda {|it| it[:build_version] } },
         {:status => lambda {|it| format_appliance_status(it, cyan) } },
