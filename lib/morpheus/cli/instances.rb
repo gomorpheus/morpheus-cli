@@ -1243,52 +1243,88 @@ class Morpheus::Cli::Instances
   end
 
   def clone(args)
-    options = {}
+    options = {:options => {}}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance] -g GROUP")
-      build_option_type_options(opts, options, clone_instance_option_types(false))
+      opts.on('--name VALUE', String, "Name") do |val|
+        options[:options]['name'] = val
+      end
       opts.on( '-g', '--group GROUP', "Group Name or ID for the new instance" ) do |val|
         options[:group] = val
       end
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID for the new instance" ) do |val|
         options[:cloud] = val
       end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
+    if args.count < 1 || args.count > 2
+      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
     end
-    # if !options[:group]
-    #   print_red_alert "GROUP is required."
-    #   puts optparse
-    #   exit 1
-    # end
+
     connect(options)
     begin
-      options[:options] ||= {}
-      # use the -g GROUP or active group by default
-      options[:options]['group'] ||= options[:group] || @active_group_id
-      # support [new-name] 
-      # if args[1]
-      #   options[:options]['name'] = args[1]
-      # end
-      payload = {
-
-      }
-      params = Morpheus::Cli::OptionTypes.prompt(clone_instance_option_types, options[:options], @api_client, options[:params])
-      group = find_group_by_name_or_id_for_provisioning(params.delete('group'))
-      payload.merge!(params)
-      payload['group'] = {id: group['id']}
-
-      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
-      if cloud
-        payload['cloud'] = {id: cloud['id']}
-      end
       instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance '#{instance['name']}'?", options)
-        exit 1
+      return 1 if instance.nil?
+
+      options[:options] ||= {}
+      
+      # use the -g GROUP or active group by default
+      #options[:options]['group'] ||= (options[:group] || @active_group_id)
+      # support [new-name] 
+      if args[1]
+        options[:options]['name'] = args[1]
+      end
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+      else
+        payload = {
+
+        }
+
+        # Name
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for the new instance'}], options[:options], @api_client, options[:params])
+        payload['name'] = v_prompt['name'] unless v_prompt['name'].to_s.empty?
+        
+        # Group
+        group = nil
+        if options[:group].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'defaultValue' => instance['group']['id']}], options[:options], @api_client, options[:params])
+          options[:group] = v_prompt['group'] unless v_prompt['group'].to_s.empty?
+        else
+          #options[:group] = instance['group']['id']
+        end
+        if options[:group]
+          group = find_group_by_name_or_id_for_provisioning(options[:group])
+          return 1 if group.nil?
+          payload['group'] = {id: group['id']}
+        end
+        # Cloud
+        cloud = nil
+        if group
+          if options[:cloud].nil?
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => get_available_clouds(group['id']), 'defaultValue' => instance['cloud']['id']}], options[:options], @api_client, options[:params])
+            options[:cloud] = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
+          else
+            #options[:cloud] = instance['cloud']['id']
+          end
+          cloud = find_zone_by_name_or_id(nil, options[:cloud])
+          return 1 if cloud.nil?
+          if cloud
+            payload['cloud'] = {id: cloud['id']}
+          end
+        end
+        
+      end
+      unless passed_options.empty?
+        passed_options.delete('cloud')
+        passed_options.delete('group')
+        payload.deep_merge!(passed_options)
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance #{instance['name']} as '#{payload['name']}'?", options)
+        return 9, "aborted command"
       end
       @instances_interface.setopts(options)
       if options[:dry_run]
@@ -3352,13 +3388,6 @@ private
       # eh? more logic needed here i think, see taglib morph:containerLocationMenu
       connection_string = "#{container['ip']}"
     end
-  end
-
-  def clone_instance_option_types(connected=true)
-    [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for the new instance'},
-      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => (connected ? get_available_groups() : []), 'required' => true},
-    ]
   end
 
   def instance_scaling_option_types(instance=nil)
