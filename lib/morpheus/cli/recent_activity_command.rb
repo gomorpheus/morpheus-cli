@@ -31,12 +31,12 @@ class Morpheus::Cli::RecentActivityCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
-        options[:start] = parse_time(val).iso8601
+        options[:start] = parse_time(val).utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        options[:end] = parse_time(val).iso8601
+        options[:end] = parse_time(val).utc.iso8601
       end
-      build_common_options(opts, options, [:account, :list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:account, :query, :list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -45,6 +45,12 @@ class Morpheus::Cli::RecentActivityCommand
       account_id = account ? account['id'] : nil
       params = {}
       params.merge!(parse_list_options(options))
+      if options[:start]
+        params['start'] = options[:start]
+      end
+      if options[:end]
+        params['end'] = options[:end]
+      end
       @dashboard_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @dashboard_interface.dry.recent_activity(account_id, params)
