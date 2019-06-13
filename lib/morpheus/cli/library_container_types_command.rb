@@ -445,14 +445,16 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         return 1
       end
       # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'containerType' => passed_options}) unless passed_options.empty?
       else
-        payload = {}
+        payload = {'containerType' =>  {} }
         # option_types = update_layout_option_types(instance_type)
         # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload.deep_merge!({'containerType' => passed_options}) unless passed_options.empty?
         
         # ENVIRONMENT VARIABLES
         if evars
@@ -475,9 +477,8 @@ class Morpheus::Cli::LibraryContainerTypesCommand
           # prompt
         end
 
-        if params.empty?
-          puts optparse
-          exit 1
+        if params.empty? && passed_options.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
         # payload = {'containerType' => params}
