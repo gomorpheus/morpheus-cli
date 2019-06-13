@@ -2550,7 +2550,7 @@ class Morpheus::Cli::Instances
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[instance]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Show scaling threshold information for an instance."
     end
     optparse.parse!(args)
@@ -2567,6 +2567,8 @@ class Morpheus::Cli::Instances
   end
 
   def _scaling(arg, options)
+    params = {}
+    params.merge!(parse_list_options(options))
     instance = find_instance_by_name_or_id(arg)
     return 1 if instance.nil?
     @instances_interface.setopts(options)
