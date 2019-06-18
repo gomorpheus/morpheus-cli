@@ -36,6 +36,9 @@ class Morpheus::Cli::NetworksCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
+        options[:cloud] = val
+      end
       opts.on('--cidr VALUE', String, "Filter by cidr, matches beginning of value.") do |val|
         params['cidr'] = val
       end
@@ -46,6 +49,12 @@ class Morpheus::Cli::NetworksCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      cloud = nil
+      if options[:cloud]
+        cloud = find_cloud_by_name_or_id(options[:cloud])
+        return 1 if cloud.nil?
+        params['zoneId'] = cloud['id']
+      end
       @networks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @networks_interface.dry.list(params)
@@ -65,6 +74,9 @@ class Morpheus::Cli::NetworksCommand
       end
       title = "Morpheus Networks"
       subtitles = []
+      if cloud
+        subtitles << "Cloud: #{cloud['id']}"
+      end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if networks.empty?
