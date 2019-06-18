@@ -166,11 +166,11 @@ class Morpheus::Cli::ReportsCommand
             if data_width < 0
               data_wdith = 10
             end
-            puts as_pretty_table(report_result['rows'], {
+            puts as_pretty_table(report_result['rows'], options[:include_fields] || {
               "ID" => lambda {|it| it['id'] },
               "SECTION" => lambda {|it| it['section'] },
               "DATA" => lambda {|it| truncate_string(it['data'], data_width) }
-            })
+            }, options.merge({:responsive_table => false}))
             
           else
             print yellow, "No report data found.", reset, "\n"
@@ -259,14 +259,22 @@ class Morpheus::Cli::ReportsCommand
 
         # Report Types need to tell us what the available filters are...
 
+        report_option_types = report_type['optionTypes'] || []
+        # start_option = report_option_types.find {|opt| opt['fieldName'] == 'startDate' }
+        # report_option_types.delete_if {|opt| opt['fieldName'] == 'startDate' }
+        # end_option = report_option_types.find {|opt| opt['fieldName'] == 'endDate' }
+        # report_option_types.delete_if {|opt| opt['fieldName'] == 'endDate' }
+
         # Start Date
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => false}], options[:options])
-        payload['report']['startDate'] = v_prompt['startDate'] unless v_prompt['startDate'].to_s.empty?
+        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => false}], options[:options])
+        # payload['report']['startDate'] = v_prompt['startDate'] unless v_prompt['startDate'].to_s.empty?
 
-        # End Date
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => false}], options[:options])
-        payload['report']['endDate'] = v_prompt['endDate'] unless v_prompt['endDate'].to_s.empty?
+        # # End Date
+        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => false}], options[:options])
+        # payload['report']['endDate'] = v_prompt['endDate'] unless v_prompt['endDate'].to_s.empty?
 
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(report_option_types, options[:options], @api_client)
+        payload.deep_merge!({'report' => v_prompt})
       end
 
       @reports_interface.setopts(options)
