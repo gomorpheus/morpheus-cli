@@ -104,6 +104,9 @@ class Morpheus::Cli::ReportsCommand
       opts.on('--rows', '--rows', "Print Report Data rows too.") do
         options[:show_data_rows] = true
       end
+      opts.on('--view', '--view', "View report result in web browser too.") do
+        options[:view_report] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
       opts.footer = "Get details about a report result." + "\n"
                   + "[id] is required. This is the id of the report result."
@@ -193,6 +196,9 @@ class Morpheus::Cli::ReportsCommand
           get(original_args)
         end
       end
+      if options[:view_report]
+        view([report_result['id']])
+      end
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -217,6 +223,9 @@ class Morpheus::Cli::ReportsCommand
       end
       opts.on('--rows', '--rows', "Print Report Data rows too.") do
         options[:show_data_rows] = true
+      end
+      opts.on('--view', '--view', "View report result in web browser when it is finished.") do
+        options[:view_report] = true
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Run a report to generate a new result." + "\n" +
@@ -273,8 +282,10 @@ class Morpheus::Cli::ReportsCommand
         # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => false}], options[:options])
         # payload['report']['endDate'] = v_prompt['endDate'] unless v_prompt['endDate'].to_s.empty?
 
+        # could pluck out optionTypes like the UI does..
         v_prompt = Morpheus::Cli::OptionTypes.prompt(report_option_types, options[:options], @api_client)
-        payload.deep_merge!({'report' => v_prompt})
+        # payload.deep_merge!({'report' => v_prompt}) unless v_prompt.empty?
+        payload.deep_merge!(v_prompt) unless v_prompt.empty?
       end
 
       @reports_interface.setopts(options)
@@ -292,6 +303,7 @@ class Morpheus::Cli::ReportsCommand
       print_args = [json_response['reportResult']['id']]
       print_args << "--refresh" if do_refresh
       print_args << "--rows" if options[:show_data_rows]
+      print_args << "--view" if options[:view_report]
       get(print_args)
       return 0
     rescue RestClient::Exception => e
