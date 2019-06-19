@@ -266,24 +266,25 @@ class Morpheus::Cli::ReportsCommand
         return 1 if report_type.nil?
         payload['report']['type'] = report_type['code']
 
-        # Report Types need to tell us what the available filters are...
-
+        # Report Types tell us what the available filters are...
         report_option_types = report_type['optionTypes'] || []
-        # start_option = report_option_types.find {|opt| opt['fieldName'] == 'startDate' }
-        # report_option_types.delete_if {|opt| opt['fieldName'] == 'startDate' }
-        # end_option = report_option_types.find {|opt| opt['fieldName'] == 'endDate' }
-        # report_option_types.delete_if {|opt| opt['fieldName'] == 'endDate' }
+        # pluck out optionTypes like the UI does..
+        metadata_option_type = nil
+        if report_option_types.find {|it| it['fieldName'] == 'metadata' }
+          metadata_option_type = report_option_types.delete_if {|it| it['fieldName'] == 'metadata' }
+        end
 
-        # Start Date
-        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => false}], options[:options])
-        # payload['report']['startDate'] = v_prompt['startDate'] unless v_prompt['startDate'].to_s.empty?
-
-        # # End Date
-        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => false}], options[:options])
-        # payload['report']['endDate'] = v_prompt['endDate'] unless v_prompt['endDate'].to_s.empty?
-
-        # could pluck out optionTypes like the UI does..
         v_prompt = Morpheus::Cli::OptionTypes.prompt(report_option_types, options[:options], @api_client)
+
+        if metadata_option_type
+          if !options[:options]['metadata']
+            metadata_filter = prompt_metadata(options)
+            if metadata_filter && !metadata_filter.empty?
+              payload['report']['metadata'] = metadata_filter
+            end
+          end
+        end
+
         # payload.deep_merge!({'report' => v_prompt}) unless v_prompt.empty?
         payload.deep_merge!(v_prompt) unless v_prompt.empty?
       end
@@ -608,6 +609,34 @@ class Morpheus::Cli::ReportsCommand
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
     out
+  end
+
+  # Prompts user for metadata for report filter
+  # returns array of metadata objects {id: null, name: "MYTAG", value: "myvalue"}
+  def prompt_metadata(options={})
+    #puts "Configure Environment Variables:"
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    metadata_filter = {}
+    metadata_index = 0
+    has_another_metadata = options[:options] && options[:options]["metadata#{metadata_index}"]
+    add_another_metadata = has_another_metadata || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a metadata tag filter?", {default: false}))
+    while add_another_metadata do
+      field_context = "metadata#{metadata_index}"
+      metadata = {}
+      metadata['id'] = nil
+      metadata_label = metadata_index == 0 ? "Metadata Tag" : "Metadata Tag [#{metadata_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{metadata_label} Name", 'required' => true, 'description' => 'Metadata Tag Name.', 'defaultValue' => metadata['name']}], options[:options])
+      # todo: metadata.type ?
+      metadata['name'] = v_prompt[field_context]['name'].to_s
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => "#{metadata_label} Value", 'required' => true, 'description' => 'Metadata Tag Value', 'defaultValue' => metadata['value']}], options[:options])
+      metadata['value'] = v_prompt[field_context]['value'].to_s
+      metadata_filter[metadata['name']] = metadata['value']
+      metadata_index += 1
+      has_another_metadata = options[:options] && options[:options]["metadata#{metadata_index}"]
+      add_another_metadata = has_another_metadata || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another metadata tag filter?", {default: false}))
+    end
+
+    return metadata_filter
   end
 
 end
