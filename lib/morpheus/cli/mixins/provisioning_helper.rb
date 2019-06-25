@@ -293,6 +293,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('layout')
       arbitrary_options.delete('servicePlan')
       arbitrary_options.delete('description')
+      arbitrary_options.delete('environment')
       arbitrary_options.delete('instanceContext')
       arbitrary_options.delete('tags')
       payload.deep_merge!(arbitrary_options)
@@ -307,9 +308,11 @@ module Morpheus::Cli::ProvisioningHelper
 
     # Environment
     if options[:environment]
-      options[:options]['instanceContext'] = options[:environment]
+      options[:options]['environment'] = options[:environment]
+    elsif options[:options]['instanceContext'] && !options[:options]['environment']
+      options[:options]['environment'] = options[:options]['instanceContext']
     end
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()}], options[:options])
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments()}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['instanceContext'] if !v_prompt['instanceContext'].empty?
 
     # Tags
@@ -1188,7 +1191,26 @@ module Morpheus::Cli::ProvisioningHelper
     }
   end
 
-  def instance_context_options
+  def get_available_environments(refresh=false)
+    if !@available_environments || refresh
+      begin
+        option_results = options_interface.options_for_source('environments',{})
+        @available_environments = option_results['data'].collect {|it|
+          {"code" => (it["code"] || it["value"]), "name" => it["name"], "value" => it["value"]}
+        }
+      rescue RestClient::Exception => e
+        # if e.response && e.response.code == 404
+          Morpheus::Logging::DarkPrinter.puts "Unable to determine available environments, using default options" if Morpheus::Logging.debug?
+          @available_environments = get_static_environments()
+        # else
+        #   raise e
+        # end
+      end
+    end
+    return @available_environments
+  end
+
+  def get_static_environments
     [{'name' => 'Dev', 'value' => 'dev'}, {'name' => 'Test', 'value' => 'qa'}, {'name' => 'Staging', 'value' => 'staging'}, {'name' => 'Production', 'value' => 'production'}]
   end
 
