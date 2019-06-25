@@ -10,7 +10,8 @@ class Morpheus::Cli::Clouds
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
 
-  register_subcommands :list, :count, :get, :add, :update, :remove, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :types => :list_cloud_types
+  register_subcommands :list, :count, :get, :add, :update, :remove, :security_groups, :apply_security_groups, :types => :list_cloud_types
+  #register_subcommands :firewall_disable, :firewall_enable
   alias_subcommand :details, :get
   set_default_subcommand :list
 

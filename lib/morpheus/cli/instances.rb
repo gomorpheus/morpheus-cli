@@ -15,8 +15,9 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::ProcessesHelper
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :firewall_enable, :firewall_disable, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   register_subcommands :exec => :execution_request
+  #register_subcommands :firewall_disable, :firewall_enable
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
   set_default_subcommand :list

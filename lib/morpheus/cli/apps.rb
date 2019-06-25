@@ -15,8 +15,9 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProcessesHelper
   set_command_name :apps
   set_command_description "View and manage apps."
-  register_subcommands :list, :count, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :firewall_disable, :firewall_enable, :security_groups, :apply_security_groups, :history
+  register_subcommands :list, :count, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
+  #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
   set_default_subcommand :list
