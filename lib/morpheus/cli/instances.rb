@@ -301,6 +301,9 @@ class Morpheus::Cli::Instances
       opts.on("--description [TEXT]", String, "Description") do |val|
         options[:description] = val.to_s
       end
+      opts.on("--environment ENV", String, "Environment code") do |val|
+        options[:environment] = val.to_s
+      end
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
       end
@@ -379,6 +382,12 @@ class Morpheus::Cli::Instances
       payload['instance'] ||= {}
       if options[:instance_name]
         payload['instance']['name'] = options[:instance_name]
+      end
+      if options[:description] && !payload['instance']['description']
+        payload['instance']['description'] = options[:description]
+      end
+      if options[:environment] && !payload['instance']['instanceContext']
+        payload['instance']['instanceContext'] = options[:environment]
       end
       payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
       payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor

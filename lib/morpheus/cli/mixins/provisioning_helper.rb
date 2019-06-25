@@ -306,6 +306,9 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['description'] = v_prompt['description'] if !v_prompt['description'].empty?
 
     # Environment
+    if options[:environment]
+      options[:options]['instanceContext'] = options[:environment]
+    end
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceContext', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => instance_context_options()}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['instanceContext'] if !v_prompt['instanceContext'].empty?
 
