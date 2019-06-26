@@ -474,6 +474,10 @@ class Morpheus::APIClient
     Morpheus::ReportsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def environments
+    Morpheus::EnvironmentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   # new interfaces get added here
 
 end
