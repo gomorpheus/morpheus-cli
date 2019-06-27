@@ -52,7 +52,7 @@ class Morpheus::Cli::EnvironmentsCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if environments.empty?
-          puts yellow,"No Environments found.",reset
+          print yellow,"No Environments found.",reset
         else
           print_environments_table(environments)
           print_results_pagination(json_response)
