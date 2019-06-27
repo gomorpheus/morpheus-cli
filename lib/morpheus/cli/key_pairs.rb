@@ -94,10 +94,10 @@ class Morpheus::Cli::KeyPairs
 
       @key_pairs_interface.setopts(options)
       if options[:dry_run]
-        if val.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @key_pairs_interface.dry.get(account_id, id.to_i)
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @key_pairs_interface.dry.get(account_id, args[0])
         else
-          print_dry_run @key_pairs_interface.dry.list(account_id, {name: name.to_s})
+          print_dry_run @key_pairs_interface.dry.list(account_id, {name: args[0]})
         end
         return 0
       end

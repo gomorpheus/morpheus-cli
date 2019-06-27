@@ -83,10 +83,10 @@ class Morpheus::Cli::EnvironmentsCommand
     begin
       @environments_interface.setopts(options)
       if options[:dry_run]
-        if val.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @environments_interface.dry.get(id)
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @environments_interface.dry.get(args[0])
         else
-          print_dry_run @environments_interface.dry.list({name: name.to_s})
+          print_dry_run @environments_interface.dry.list({name: args[0].to_s})
         end
         return 0
       end
@@ -124,6 +124,7 @@ class Morpheus::Cli::EnvironmentsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
+      build_option_type_options(opts, options, add_environment_option_types)
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
