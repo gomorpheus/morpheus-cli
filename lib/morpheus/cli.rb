@@ -144,6 +144,7 @@ module Morpheus
       load 'morpheus/cli/packages_command.rb'
       load 'morpheus/cli/reports_command.rb'
       load 'morpheus/cli/environments_command.rb'
+      load 'morpheus/cli/wiki_command.rb'
 
       # Your new commands go here...
 
