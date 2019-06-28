@@ -427,8 +427,7 @@ class Morpheus::Cli::Instances
         instance_id = json_response["instance"]["id"]
         instance_name = json_response["instance"]["name"]
         print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
-        get([instance_id])
-        #list([])
+        get([instance_id] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -538,7 +537,7 @@ class Morpheus::Cli::Instances
       else
         print_green_success "Updated instance #{instance['name']}"
         #list([])
-        get([instance['id']])
+        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -615,7 +614,7 @@ class Morpheus::Cli::Instances
       else
         print_green_success "Updated notes for instance #{instance['name']}"
         #list([])
-        get([instance['id']])
+        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -692,7 +691,7 @@ class Morpheus::Cli::Instances
       print reset,"\n"
 
       if open_wiki_link
-        return view_wiki([args[0]])
+        return view_wiki([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
 
       return 0
@@ -814,7 +813,8 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
       else
         print_green_success "Updated wiki page for instance #{instance['name']}"
-        wiki([instance['id']])
+
+        wiki([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -1695,7 +1695,7 @@ class Morpheus::Cli::Instances
         return
       end
       if !options[:quiet]
-        envs([args[0]])
+        envs([args[0]] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1728,7 +1728,7 @@ class Morpheus::Cli::Instances
         return
       end
       if !options[:quiet]
-        envs([args[0]])
+        envs([args[0]] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2540,7 +2540,7 @@ class Morpheus::Cli::Instances
         return
       elsif !options[:quiet]
         print_green_success "Removing instance #{instance['name']}"
-        #list([])
+        #list([] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2572,7 +2572,7 @@ class Morpheus::Cli::Instances
         print as_json(json_response, options), "\n"
         return
       elsif !options[:quiet]
-        security_groups([args[0]])
+        security_groups([args[0]] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2604,7 +2604,7 @@ class Morpheus::Cli::Instances
         print as_json(json_response, options), "\n"
         return
       elsif !options[:quiet]
-        security_groups([args[0]])
+        security_groups([args[0]] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2698,7 +2698,7 @@ class Morpheus::Cli::Instances
         return
       end
       if !options[:quiet]
-        security_groups([args[0]])
+        security_groups([args[0]] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

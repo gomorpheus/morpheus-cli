@@ -125,8 +125,9 @@ class Morpheus::Cli::WikiCommand
           "ID" => 'id',
           "Name" => 'name',
           "Category" => 'category',
-          "Ref Type" => 'refType',
-          "Ref ID" => 'refId',
+          # "Ref Type" => 'refType',
+          # "Ref ID" => 'refId',
+          "Reference" => lambda {|it| it['refType'] ? "#{it['refType']}: #{it['refId']}" : '' },
           #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
@@ -141,7 +142,7 @@ class Morpheus::Cli::WikiCommand
       end
       print reset,"\n"
       if open_wiki_link
-        return view([page['id']])
+        return view([page['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -239,7 +240,7 @@ class Morpheus::Cli::WikiCommand
       else
         display_name = json_response['page']  ? json_response['page']['name'] : ''
         print_green_success "Wiki page #{display_name} added"
-        get([json_response['page']['id']])
+        get([json_response['page']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -304,7 +305,7 @@ class Morpheus::Cli::WikiCommand
       else
         display_name = json_response['page'] ? json_response['page']['name'] : ''
         print_green_success "Wiki page #{display_name} updated"
-        get([json_response['page']['id']])
+        get([json_response['page']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -344,7 +345,7 @@ class Morpheus::Cli::WikiCommand
         print "\n"
       else
         print_green_success "Wiki page #{page['name']} removed"
-        # list([])
+        # list([] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e

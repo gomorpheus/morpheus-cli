@@ -167,7 +167,7 @@ class Morpheus::Cli::EnvironmentsCommand
       else
         display_name = json_response['environment']  ? json_response['environment']['name'] : ''
         print_green_success "Environment #{display_name} added"
-        get([json_response['environment']['id']])
+        get([json_response['environment']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -230,7 +230,7 @@ class Morpheus::Cli::EnvironmentsCommand
       else
         display_name = json_response['environment'] ? json_response['environment']['name'] : ''
         print_green_success "Environment #{display_name} updated"
-        get([json_response['environment']['id']])
+        get([json_response['environment']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -312,7 +312,7 @@ class Morpheus::Cli::EnvironmentsCommand
       else
         display_name = json_response['environment'] ? json_response['environment']['name'] : ''
         print_green_success "Environment #{display_name} updated"
-        get([json_response['environment']['id']])
+        get([json_response['environment']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
