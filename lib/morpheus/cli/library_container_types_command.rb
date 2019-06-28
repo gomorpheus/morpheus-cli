@@ -380,6 +380,10 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         end
 
       end
+      # avoid API bug in 3.6.3
+      if payload['containerType']
+        payload['containerType']['config'] ||= {}
+      end
       @library_container_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_container_types_interface.dry.create(layout_id, payload)
