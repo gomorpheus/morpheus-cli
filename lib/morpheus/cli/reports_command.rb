@@ -317,9 +317,9 @@ class Morpheus::Cli::ReportsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:dry_run, :remote])
       opts.footer = "View a report result in a web browser" + "\n" +
-                    "[id] is required. This is id of the report result."
+                    "[id] is required. This is the id of the report result."
     end
     optparse.parse!(args)
     if args.count != 1

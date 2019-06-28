@@ -259,6 +259,7 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  # deprecated in 4.0
   def update_notes(id, payload)
     url = "#{@base_url}/api/instances/#{id}/notes"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -284,6 +285,20 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     url = "#{@base_url}/api/instances/#{id}/history/events/#{process_event_id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def wiki(id, params)
+    url = "#{@base_url}/api/instances/#{id}/wiki"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def update_wiki(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/wiki"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

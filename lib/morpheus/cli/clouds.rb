@@ -11,6 +11,7 @@ class Morpheus::Cli::Clouds
   include Morpheus::Cli::InfrastructureHelper
 
   register_subcommands :list, :count, :get, :add, :update, :remove, :security_groups, :apply_security_groups, :types => :list_cloud_types
+  register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -661,6 +662,205 @@ class Morpheus::Cli::Clouds
     end
   end
 
+  def wiki(args)
+    options = {}
+    params = {}
+    open_wiki_link = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cloud]")
+      opts.on('--view', '--view', "View wiki page in web browser.") do
+        open_wiki_link = true
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "View wiki page details for a cloud." + "\n" +
+                    "[cloud] is required. This is the name or id of a cloud."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+
+
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.wiki(cloud["id"], params)
+        return
+      end
+      json_response = @clouds_interface.wiki(cloud["id"], params)
+      page = json_response['page']
+  
+      render_result = render_with_format(json_response, options, 'page')
+      return 0 if render_result
+
+      if page
+
+        # my_terminal.exec("wiki get #{page['id']}")
+
+        print_h1 "Cloud Wiki Page: #{cloud['name']}"
+        # print_h1 "Wiki Page Details"
+        print cyan
+
+        print_description_list({
+          "Page ID" => 'id',
+          "Name" => 'name',
+          #"Category" => 'category',
+          #"Ref Type" => 'refType',
+          #"Ref ID" => 'refId',
+          #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+          "Updated By" => lambda {|it| it['updatedBy'] ? it['updatedBy']['username'] : '' }
+        }, page)
+        print reset,"\n"
+
+        print_h2 "Page Content"
+        print cyan, page['content'], reset, "\n"
+
+      else
+        print "\n"
+        print cyan, "No wiki page found.", reset, "\n"
+      end
+      print reset,"\n"
+
+      if open_wiki_link
+        return view_wiki([args[0]])
+      end
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view_wiki(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View cloud wiki page in a web browser" + "\n" +
+                    "[cloud] is required. This is the name or id of a cloud."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/infrastructure/clouds/#{cloud['id']}#!wiki"
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_wiki(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cloud] [options]")
+      build_option_type_options(opts, options, update_wiki_page_option_types)
+      opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      opts.on(nil, '--clear', "Clear current page content") do |val|
+        params['content'] = ""
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+      else
+        payload = {
+          'page' => {
+          }
+        }
+        # allow arbitrary -O options
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+        # prompt for options
+        #params = Morpheus::Cli::OptionTypes.prompt(update_wiki_page_option_types, options[:options], @api_client, options[:params])
+        #params = passed_options
+        params.deep_merge!(passed_options)
+
+        if params.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+        payload.deep_merge!({'page' => params}) unless params.empty?
+      end
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.update_wiki(cloud["id"], payload)
+        return
+      end
+      json_response = @clouds_interface.update_wiki(cloud["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated wiki page for cloud #{cloud['name']}"
+        wiki([cloud['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
 
   def print_clouds_table(clouds, opts={})
@@ -743,4 +943,11 @@ class Morpheus::Cli::Clouds
     out
   end
 
+  def update_wiki_page_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1, 'description' => 'The name of the wiki page for this instance. Default is the instance name.'},
+      #{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
+    ]
+  end
 end

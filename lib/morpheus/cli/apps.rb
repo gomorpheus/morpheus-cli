@@ -17,6 +17,7 @@ class Morpheus::Cli::Apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
+  register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
@@ -1488,6 +1489,205 @@ class Morpheus::Cli::Apps
     end
   end
 
+  def wiki(args)
+    options = {}
+    params = {}
+    open_wiki_link = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
+      opts.on('--view', '--view', "View wiki page in web browser.") do
+        open_wiki_link = true
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "View wiki page details for an app." + "\n" +
+                    "[app] is required. This is the name or id of an app."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+
+
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.wiki(app["id"], params)
+        return
+      end
+      json_response = @apps_interface.wiki(app["id"], params)
+      page = json_response['page']
+  
+      render_result = render_with_format(json_response, options, 'page')
+      return 0 if render_result
+
+      if page
+
+        # my_terminal.exec("wiki get #{page['id']}")
+
+        print_h1 "App Wiki Page: #{app['name']}"
+        # print_h1 "Wiki Page Details"
+        print cyan
+
+        print_description_list({
+          "Page ID" => 'id',
+          "Name" => 'name',
+          #"Category" => 'category',
+          #"Ref Type" => 'refType',
+          #"Ref ID" => 'refId',
+          #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+          "Updated By" => lambda {|it| it['updatedBy'] ? it['updatedBy']['username'] : '' }
+        }, page)
+        print reset,"\n"
+
+        print_h2 "Page Content"
+        print cyan, page['content'], reset, "\n"
+
+      else
+        print "\n"
+        print cyan, "No wiki page found.", reset, "\n"
+      end
+      print reset,"\n"
+
+      if open_wiki_link
+        return view_wiki([args[0]])
+      end
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view_wiki(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View app wiki page in a web browser" + "\n" +
+                    "[app] is required. This is the name or id of an app."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/provisioning/apps/#{app['id']}#!wiki"
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_wiki(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
+      build_option_type_options(opts, options, update_wiki_page_option_types)
+      opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      opts.on(nil, '--clear', "Clear current page content") do |val|
+        params['content'] = ""
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+      else
+        payload = {
+          'page' => {
+          }
+        }
+        # allow arbitrary -O options
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+        # prompt for options
+        #params = Morpheus::Cli::OptionTypes.prompt(update_wiki_page_option_types, options[:options], @api_client, options[:params])
+        #params = passed_options
+        params.deep_merge!(passed_options)
+
+        if params.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+        payload.deep_merge!({'page' => params}) unless params.empty?
+      end
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.update_wiki(app["id"], payload)
+        return
+      end
+      json_response = @apps_interface.update_wiki(app["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated wiki page for app #{app['name']}"
+        wiki([app['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
 
   def extract_app_tiers(app)
@@ -1722,7 +1922,6 @@ class Morpheus::Cli::Apps
 
   # lookup scoped instance config in a blueprint
   # this only finds one right now
-  # def tmplCfg = getConfigMap(appTemplateConfig?.tiers?.getAt(tierName)?.instances?.getAt(index), opts.environment, opts.group, instanceOpts.instance.cloud?: opts?.defaultCloud?.name)
   def get_scoped_instance_config(instance_config, env_name, group_name, cloud_name)
       config = instance_config.clone
       if env_name.to_s != '' && config['environments'] && config['environments'][env_name]
@@ -1742,23 +1941,11 @@ class Morpheus::Cli::Apps
       return config
   end
 
-  # def getConfigMap(instance, env, group, cloud) {
-  #   def  configMap = instance
-  #   if(env && instance?.environments) {
-  #     def envName = (env instanceof String? env : env?.name)
-  #     configMap = instance?.environments?.getAt(envName) ?: instance
-  #   }
-  #   if(group && configMap?.groups) {
-  #     if (group instanceof String) {
-  #       configMap = configMap?.groups?.getAt(group) ?: configMap
-  #     }
-  #     else {
-  #       configMap = configMap?.groups?.getAt(group?.name) ?: configMap
-  #     }
-  #   }
-  #   if(cloud && configMap?.clouds) {
-  #     return configMap?.clouds?.getAt(cloud) ?: configMap
-  #   }
-  #   return configMap
-  # }
+  def update_wiki_page_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1, 'description' => 'The name of the wiki page for this instance. Default is the instance name.'},
+      #{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
+    ]
+  end
 end

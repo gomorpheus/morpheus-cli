@@ -8,7 +8,7 @@ require 'json'
 class Morpheus::Cli::WikiCommand
   include Morpheus::Cli::CliCommand
   set_command_name :wiki
-  register_subcommands :list, :get, :add, :update, :remove, :'categories'
+  register_subcommands :list, :get, :view, :add, :update, :remove, :'categories'
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -63,6 +63,7 @@ class Morpheus::Cli::WikiCommand
           columns = [
             {"ID" => lambda {|page| page['id'] } },
             {"NAME" => lambda {|page| page['name'] } },
+            {"CATEGORY" => lambda {|page| page['category'] } },
             {"AUTHOR" => lambda {|page| page['updatedBy'] ? page['updatedBy']['username'] : '' } },
             {"CREATED" => lambda {|page| format_local_dt(page['dateCreated']) } },
             {"UPDATED" => lambda {|page| format_local_dt(page['lastUpdated']) } },
@@ -85,8 +86,12 @@ class Morpheus::Cli::WikiCommand
   def get(args)
     options = {}
     params = {}
+    open_wiki_link = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--view', '--view', "View wiki page in web browser too.") do
+        open_wiki_link = true
+      end
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -111,7 +116,7 @@ class Morpheus::Cli::WikiCommand
       json_response = {'page' => page}
       render_result = render_with_format(json_response, options, 'page')
       return 0 if render_result
-      
+
       unless options[:quiet]
         print_h1 "Wiki Page Details"
         print cyan
@@ -135,6 +140,51 @@ class Morpheus::Cli::WikiCommand
 
       end
       print reset,"\n"
+      if open_wiki_link
+        return view([page['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View a wiki page in a web browser" + "\n" +
+                    "[id] is required. This is name or id of the wiki page."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      page = find_wiki_page_by_name_or_id(args[0])
+      return 1 if page.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/operations/wiki/#{page['urlName']}"
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

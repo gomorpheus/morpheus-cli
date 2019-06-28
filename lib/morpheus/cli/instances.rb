@@ -15,7 +15,8 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::ProcessesHelper
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :view, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :wiki, :update_wiki
   register_subcommands :exec => :execution_request
   #register_subcommands :firewall_disable, :firewall_enable
   # register_subcommands {:'lb-update' => :load_balancer_update}
@@ -547,6 +548,7 @@ class Morpheus::Cli::Instances
   end
 
   def update_notes(args)
+    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
     usage = "Usage: morpheus instances update-notes [instance] [options]"
     options = {}
     params = {}
@@ -614,6 +616,205 @@ class Morpheus::Cli::Instances
         print_green_success "Updated notes for instance #{instance['name']}"
         #list([])
         get([instance['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def wiki(args)
+    options = {}
+    params = {}
+    open_wiki_link = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      opts.on('--view', '--view', "View wiki page in web browser.") do
+        open_wiki_link = true
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "View wiki page details for an instance." + "\n" +
+                    "[instance] is required. This is the name or id of an instance."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+
+
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.wiki(instance["id"], params)
+        return
+      end
+      json_response = @instances_interface.wiki(instance["id"], params)
+      page = json_response['page']
+  
+      render_result = render_with_format(json_response, options, 'page')
+      return 0 if render_result
+
+      if page
+
+        # my_terminal.exec("wiki get #{page['id']}")
+
+        print_h1 "Instance Wiki Page: #{instance['name']}"
+        # print_h1 "Wiki Page Details"
+        print cyan
+
+        print_description_list({
+          "Page ID" => 'id',
+          "Name" => 'name',
+          #"Category" => 'category',
+          #"Ref Type" => 'refType',
+          #"Ref ID" => 'refId',
+          #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+          "Updated By" => lambda {|it| it['updatedBy'] ? it['updatedBy']['username'] : '' }
+        }, page)
+        print reset,"\n"
+
+        print_h2 "Page Content"
+        print cyan, page['content'], reset, "\n"
+
+      else
+        print "\n"
+        print cyan, "No wiki page found.", reset, "\n"
+      end
+      print reset,"\n"
+
+      if open_wiki_link
+        return view_wiki([args[0]])
+      end
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view_wiki(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View instance wiki page in a web browser" + "\n" +
+                    "[instance] is required. This is the name or id of an instance."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/provisioning/instances/#{instance['id']}#!wiki"
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_wiki(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [options]")
+      build_option_type_options(opts, options, update_wiki_page_option_types)
+      opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      opts.on(nil, '--clear', "Clear current page content") do |val|
+        params['content'] = ""
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+      else
+        payload = {
+          'page' => {
+          }
+        }
+        # allow arbitrary -O options
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+        # prompt for options
+        #params = Morpheus::Cli::OptionTypes.prompt(update_wiki_page_option_types, options[:options], @api_client, options[:params])
+        #params = passed_options
+        params.deep_merge!(passed_options)
+
+        if params.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+        payload.deep_merge!({'page' => params}) unless params.empty?
+      end
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.update_wiki(instance["id"], payload)
+        return
+      end
+      json_response = @instances_interface.update_wiki(instance["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated wiki page for instance #{instance['name']}"
+        wiki([instance['id']])
       end
       return 0
     rescue RestClient::Exception => e
@@ -737,6 +938,65 @@ class Morpheus::Cli::Instances
       elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
         system "xdg-open #{link}"
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      opts.on('-w','--wiki', "Open the wiki tab for this instance") do
+        options[:link_tab] = "wiki"
+      end
+      opts.on('--tab VALUE', String, "Open a specific tab") do |val|
+        options[:link_tab] = val.to_s
+      end
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View an instance in a web browser" + "\n" +
+                    "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _view(arg, options)
+    end
+  end
+
+
+  def _view(arg, options={})
+    begin
+      instance = find_instance_by_name_or_id(arg)
+      return 1 if instance.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/provisioning/instances/#{instance['id']}"
+      if options[:link_tab]
+        link << "#!#{options[:link_tab]}"
+      end
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -962,6 +1222,12 @@ class Morpheus::Cli::Instances
       if !instance['notes'].to_s.empty?
         print_h2 "Instance Notes", options
         print cyan, instance['notes'], reset, "\n"
+      end
+      wiki_page = instance['wikiPage']
+      if wiki_page && wiki_page['content']
+        print_h2 "Instance Wiki", options
+        print cyan, truncate_string(wiki_page['content'], 100), reset, "\n"
+        print "  Last updated by #{wiki_page['updatedBy'] ? wiki_page['updatedBy']['username'] : ''} on #{format_local_dt(wiki_page['lastUpdated'])}", reset, "\n"
       end
       if stats
         print_h2 "Instance Usage", options
@@ -3553,5 +3819,12 @@ private
     end
   end
   
+  def update_wiki_page_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1, 'description' => 'The name of the wiki page for this instance. Default is the instance name.'},
+      #{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
+    ]
+  end
 
 end

@@ -54,4 +54,19 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
+
+  def wiki(id, params)
+    url = "#{@base_url}/api/groups/#{id}/wiki"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
   end
+
+  def update_wiki(id, payload)
+    url = "#{@base_url}/api/groups/#{id}/wiki"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+  
+end
