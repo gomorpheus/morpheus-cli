@@ -120,20 +120,23 @@ class Morpheus::Cli::WikiCommand
       unless options[:quiet]
         print_h1 "Wiki Page Details"
         print cyan
-
-        print_description_list({
+        wiki_columns = {
           "ID" => 'id',
           "Name" => 'name',
           "Category" => 'category',
           # "Ref Type" => 'refType',
           # "Ref ID" => 'refId',
-          "Reference" => lambda {|it| it['refType'] ? "#{it['refType']}: #{it['refId']}" : '' },
+          "Reference" => lambda {|it| it['refType'] ? "#{it['refType']} (#{it['refId']})" : '' },
           #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
           "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
           "Updated By" => lambda {|it| it['updatedBy'] ? it['updatedBy']['username'] : '' }
-        }, page)
+        }
+        if page['refType'].nil?
+          wiki_columns.delete("Reference")
+        end
+        print_description_list(wiki_columns, page)
         print reset,"\n"
 
         print_h2 "Page Content"
