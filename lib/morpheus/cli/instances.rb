@@ -2099,7 +2099,7 @@ class Morpheus::Cli::Instances
   end
 
   def start_service(args)
-    params = {'server' => true} # server is true eh? so start-service is the same as start
+    params = {'server' => false}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
