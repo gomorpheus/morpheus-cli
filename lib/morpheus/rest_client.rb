@@ -32,7 +32,7 @@ module Morpheus
         opts[:headers] ||= {}
         opts[:headers][:user_agent] ||= self.user_agent
 
-        # serialize params oureselves, this way we get arrays without the [] suffix
+        # serialize params ourselves, this way we get arrays without the [] suffix
         params = nil
         if opts[:params] && !opts[:params].empty?
           params = opts.delete(:params)

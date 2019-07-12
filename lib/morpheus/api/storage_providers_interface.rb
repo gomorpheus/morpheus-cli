@@ -121,8 +121,7 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
         end
       }
       opts[:block_response] = block
-      http_response = RestClient::Request.new(opts).execute
-      # RestClient::Request.execute(opts)
+      http_response = Morpheus::RestClient.execute(opts)
     }
     return http_response
   end
@@ -151,8 +150,7 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
         end
       }
       opts[:block_response] = block
-      http_response = RestClient::Request.new(opts).execute
-      # RestClient::Request.execute(opts)
+      http_response = Morpheus::RestClient.execute(opts)
     }
     return http_response
   end

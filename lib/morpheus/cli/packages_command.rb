@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/library_helper'
 require 'morpheus/morpkg'
 
-class Morpheus::Cli::LibraryPackagesCommand
+class Morpheus::Cli::PackagesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LibraryHelper
 
