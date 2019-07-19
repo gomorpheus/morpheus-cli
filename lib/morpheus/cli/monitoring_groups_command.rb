@@ -154,10 +154,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
       open_incidents = json_response["openIncidents"]
       if open_incidents && !open_incidents.empty?
         print_h2 "Open Incidents"
-        # puts "\n(table coming soon...)\n"
-        puts JSON.pretty_generate(open_incidents)
-        # todo: move this to MonitoringHelper ?
-        # print_incidents_table(issues, options)
+        print_incidents_table(open_incidents)
+        # print_results_pagination(size: open_incidents.size, total: open_incidents.size)
       else
         print "\n", cyan
         puts "No open incidents for this check group"
