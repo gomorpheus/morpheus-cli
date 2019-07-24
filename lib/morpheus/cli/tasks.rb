@@ -130,6 +130,30 @@ class Morpheus::Cli::Tasks
           "Name" => 'name',
           "Code" => 'code',
           "Type" => lambda {|it| it['taskType']['name'] },
+          "Execute Target" => lambda {|it| 
+            if it['executeTarget'] == 'local'
+              git_info = []
+              if it['taskOptions']
+                if it['taskOptions']['localScriptGitId']
+                  git_info << "Git Repo: #{it['taskOptions']['localScriptGitId']}"
+                end
+                if it['taskOptions']['localScriptGitRef']
+                  git_info << "Git Ref: #{it['taskOptions']['localScriptGitRef']}"
+                end
+              end
+              "Local #{git_info.join(', ')}"
+            elsif it['executeTarget'] == 'remote'
+              remote_url = ""
+              if it['taskOptions']
+                remote_url = "#{it['taskOptions']['username']}@#{it['taskOptions']['host']}:#{it['taskOptions']['port']}"
+              end
+              "Remote #{remote_url}"
+            elsif it['executeTarget'] == 'resource'
+              "Resource"
+            else
+              it['executeTarget']
+            end
+          },
           "Result Type" => 'resultType',
           "Retryable" => lambda {|it| 
             if it['retryable']
@@ -137,7 +161,7 @@ class Morpheus::Cli::Tasks
             else
               format_boolean(it['retryable'])
             end
-            },
+          },
         }
         print_description_list(description_cols, task)
         
@@ -218,7 +242,7 @@ class Morpheus::Cli::Tasks
           exit 1
         end
       else
-        print "\n", cyan, "Task #{response['task']['name']} updated", reset, "\n\n"
+        print_green_success "Task #{response['task']['name']} updated"
         get([task['id']])
       end
     rescue RestClient::Exception => e
@@ -284,25 +308,50 @@ class Morpheus::Cli::Tasks
         task_code = val
       end
       opts.on('--result-type VALUE', String, "Result Type" ) do |val|
-        options[:options] ||= {}
         options[:options]['resultType'] = val
       end
+      opts.on('--result-type VALUE', String, "Result Type" ) do |val|
+        options[:options]['executeTarget'] = val
+      end
+      opts.on('--execute-target VALUE', String, "Execute Target" ) do |val|
+        options[:options]['executeTarget'] = val
+      end
+      opts.on('--target-host VALUE', String, "Target Host" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['host'] = val
+      end
+      opts.on('--target-port VALUE', String, "Target Port" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['port'] = val
+      end
+      opts.on('--target-username VALUE', String, "Target Username" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['username'] = val
+      end
+      opts.on('--target-password VALUE', String, "Target Password" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['password'] = val
+      end
+      opts.on('--git-repo VALUE', String, "Git Repo ID" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['localScriptGitId'] = val
+      end
+      opts.on('--git-ref VALUE', String, "Git Ref" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['localScriptGitRef'] = val
+      end
       opts.on('--retryable [on|off]', String, "Retryable" ) do |val|
-        options[:options] ||= {}
         options[:options]['retryable'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
       opts.on('--retry-count COUNT', String, "Retry Count" ) do |val|
-        options[:options] ||= {}
         options[:options]['retryCount'] = val.to_i
       end
       opts.on('--retry-delay SECONDS', String, "Retry Delay Seconds" ) do |val|
-        options[:options] ||= {}
         options[:options]['retryDelaySeconds'] = val.to_i
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --O taskOptions.script" ) do |filename|
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
-          options[:options] ||= {}
           options[:options]['taskOptions'] ||= {}
           options[:options]['taskOptions']['script'] = File.read(full_filename)
           # params['script'] = File.read(full_filename)
@@ -312,7 +361,6 @@ class Morpheus::Cli::Tasks
         end
         # use the filename as the name by default.
         if !options[:options]['name']
-          options[:options] ||= {}
           options[:options]['name'] = File.basename(full_filename)
         end
       end
@@ -375,9 +423,9 @@ class Morpheus::Cli::Tasks
         task_types_dropdown = @all_task_types.collect {|it| {"name" => it["name"], "value" => it["code"]}}
         
         if task_type_name
-          #payload['task']['taskType'] = task_code
+          #payload['task']['taskType'] = task_type_name
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => task_types_dropdown}], options[:options], @api_client)
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => task_types_dropdown, 'required' => true}], options[:options], @api_client)
           task_type_name = v_prompt['type']
         end
 
@@ -391,8 +439,8 @@ class Morpheus::Cli::Tasks
 
 
         # Result Type
-        if task_code
-          payload['task']['resultType'] = task_code
+        if options[:options]['resultType']
+          payload['task']['resultType'] = options[:options]['resultType']
         else
           result_types_dropdown = [{"name" => "Value", "value" => "value"}, {"name" => "Exit Code", "value" => "exitCode"}, {"name" => "Key Value", "value" => "keyValue"}, {"name" => "JSON", "value" => "json"}]
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resultType', 'fieldLabel' => 'Result Type', 'type' => 'select', 'selectOptions' => result_types_dropdown}], options[:options], @api_client)
@@ -412,6 +460,72 @@ class Morpheus::Cli::Tasks
         input_options = Morpheus::Cli::OptionTypes.prompt(task_option_types, options[:options],@api_client, options[:params])
         payload.deep_merge!({'task' => input_options})  unless input_options.empty?
         
+
+        # Target Options
+
+        if options[:options]['executeTarget'] != nil
+          payload['task']['executeTarget'] = options[:options]['executeTarget']
+        else
+          default_target = nil
+          execute_targets_dropdown = []
+          if task_type['allowExecuteLocal']
+            default_target = 'local'
+            execute_targets_dropdown << {"name" => "Local", "value" => "local"}
+          end
+          if task_type['allowExecuteRemote']
+            default_target = 'remote'
+            execute_targets_dropdown << {"name" => "Remote", "value" => "remote"}
+          end
+          if task_type['allowExecuteResource']
+            default_target = 'resource'
+            execute_targets_dropdown << {"name" => "Resource", "value" => "resource"}
+          end
+          if !execute_targets_dropdown.empty?
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'executeTarget', 'fieldLabel' => 'Execute Target', 'type' => 'select', 'selectOptions' => execute_targets_dropdown, 'defaultValue' => default_target}], options[:options], @api_client)
+            payload['task']['executeTarget'] = v_prompt['executeTarget'].to_s unless v_prompt['executeTarget'].to_s.empty?
+          end
+        end
+
+        if payload['task']['executeTarget'] == 'local'
+          # Git Repo
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitId', 'fieldLabel' => 'Git Repo', 'type' => 'text', 'description' => 'Git Repo ID'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitId'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['localScriptGitId'] = v_prompt['taskOptions']['localScriptGitId']
+          end
+          # Git Ref
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitRef', 'fieldLabel' => 'Git Ref', 'type' => 'text', 'description' => 'Git Ref eg. master'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitRef'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['localScriptGitRef'] = v_prompt['taskOptions']['localScriptGitRef']
+          end
+
+        elsif payload['task']['executeTarget'] == 'remote'
+          # Host
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'host', 'fieldLabel' => 'IP Address', 'type' => 'text', 'description' => 'IP Address / Host for remote execution'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['host'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['host'] = v_prompt['taskOptions']['host']
+          end
+          # Port
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'port', 'fieldLabel' => 'Port', 'type' => 'text', 'description' => 'Port for remote execution', 'defaultValue' => '22'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['port'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['port'] = v_prompt['taskOptions']['port']
+          end
+          # Host
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'description' => 'Username for remote execution'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['username'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['username'] = v_prompt['taskOptions']['username']
+          end
+          # Host
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Password for remote execution'}], options[:options], @api_client)
+          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['password'].to_s.empty?
+            payload['task']['taskOptions'] ||= {}
+            payload['task']['taskOptions']['password'] = v_prompt['taskOptions']['password']
+          end
+        end
 
 
         # Retryable
@@ -454,7 +568,7 @@ class Morpheus::Cli::Tasks
         print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
         task = json_response['task']
-        print "\n", cyan, "Task #{task['name']} created successfully", reset, "\n\n"
+        print_green_success "Task #{task['name']} created successfully"
         get([task['id']])
       end
     rescue RestClient::Exception => e
@@ -495,7 +609,7 @@ class Morpheus::Cli::Tasks
       if options[:json]
         print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
-        print "\n", cyan, "Task #{task['name']} removed", reset, "\n\n"
+        print_green_success "Task #{task['name']} removed"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
