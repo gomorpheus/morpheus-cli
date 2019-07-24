@@ -481,7 +481,7 @@ class Morpheus::Cli::Tasks
             execute_targets_dropdown << {"name" => "Resource", "value" => "resource"}
           end
           if !execute_targets_dropdown.empty?
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'executeTarget', 'fieldLabel' => 'Execute Target', 'type' => 'select', 'selectOptions' => execute_targets_dropdown, 'defaultValue' => default_target}], options[:options], @api_client)
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'executeTarget', 'fieldLabel' => 'Execute Target', 'type' => 'select', 'selectOptions' => execute_targets_dropdown, 'defaultValue' => default_target, 'required' => true}], options[:options], @api_client)
             payload['task']['executeTarget'] = v_prompt['executeTarget'].to_s unless v_prompt['executeTarget'].to_s.empty?
           end
         end
