@@ -370,7 +370,16 @@ class Morpheus::Cli::VirtualImages
 
     if image_type_name
       image_type = virtual_image_type_for_name_or_code(image_type_name)
-      exit 1 if image_type.nil?
+      # fix issue with api returning imageType vmware instead of vmdk
+      if image_type.nil? && image_type_name == 'vmware'
+        image_type = virtual_image_type_for_name_or_code('vmdk')
+      elsif image_type.nil? && image_type_name == 'vmdk'
+        image_type = virtual_image_type_for_name_or_code('vmware')
+      end
+      if image_type.nil?
+        print_red_alert "Virtual Image Type not found by code '#{image_type_name}'"
+        return 1
+      end
       # options[:options] ||= {}
       # options[:options]['imageType'] ||= image_type['code']
     else
@@ -398,6 +407,10 @@ class Morpheus::Cli::VirtualImages
       end
       if tenants_list
         virtual_image_payload['accounts'] = tenants_list
+      end
+      # fix issue with api returning imageType vmware instead of vmdk
+      if virtual_image_payload && virtual_image_payload['imageType'] == 'vmware'
+        virtual_image_payload['imageType'] == 'vmdk'
       end
       payload = {virtualImage: virtual_image_payload}
       @virtual_images_interface.setopts(options)
@@ -652,7 +665,8 @@ class Morpheus::Cli::VirtualImages
     end
     return @available_virtual_image_types
   end
-    def virtual_image_type_for_name_or_code(name)
+  
+  def virtual_image_type_for_name_or_code(name)
     return get_available_virtual_image_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
   end
 
