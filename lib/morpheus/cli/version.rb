@@ -1,6 +1,6 @@
 
 module Morpheus
   module Cli
-    VERSION = "4.0.0"
+    VERSION = "3.6.38"
   end
 end
