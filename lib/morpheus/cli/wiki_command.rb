@@ -10,9 +10,6 @@ class Morpheus::Cli::WikiCommand
   set_command_name :wiki
   register_subcommands :list, :get, :view, :add, :update, :remove, :'categories'
 
-  # hide until this is released
-  set_command_hidden
-
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
