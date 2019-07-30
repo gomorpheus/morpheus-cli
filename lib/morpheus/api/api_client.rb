@@ -390,6 +390,10 @@ class Morpheus::APIClient
     Morpheus::NetworkPoolsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def network_pool_ips
+    Morpheus::NetworkPoolIpsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def network_services
     Morpheus::NetworkServicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
@@ -400,6 +404,10 @@ class Morpheus::APIClient
 
   def network_domains
     Morpheus::NetworkDomainsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def network_domain_records
+    Morpheus::NetworkDomainRecordsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def network_proxies

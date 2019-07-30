@@ -11,8 +11,7 @@ class Morpheus::Cli::NetworkPoolsCommand
   set_command_name :'network-pools'
 
   register_subcommands :list, :get, :add, :update, :remove #, :generate_pool
-  
-  # set_default_subcommand :list
+  register_subcommands :list_ips, :get_ip, :add_ip, :update_ip, :remove_ip
   
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -21,6 +20,7 @@ class Morpheus::Cli::NetworkPoolsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @network_pools_interface = @api_client.network_pools
+    @network_pool_ips_interface = @api_client.network_pool_ips
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
   end
@@ -34,7 +34,7 @@ class Morpheus::Cli::NetworkPoolsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List network pools."
     end
     optparse.parse!(args)
@@ -438,10 +438,339 @@ class Morpheus::Cli::NetworkPoolsCommand
     end
   end
 
+  def list_ips(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network-pool]")
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      opts.footer = "List network pool IP addresses.\n" +
+                    "[network-pool] is required. This is the name or id of a network pool."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    begin
+      network_pool = find_network_pool_by_name_or_id(args[0])
+      return 1 if network_pool.nil?
+      network_pool_id = network_pool['id']
+
+      params.merge!(parse_list_options(options))
+      @network_pool_ips_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_pool_ips_interface.dry.list(network_pool_id, params)
+        return
+      end
+      json_response = @network_pool_ips_interface.list(network_pool_id, params)
+      network_pool_ips = json_response["networkPoolIps"]
+      if options[:json]
+        puts as_json(json_response, options, "networkPoolIps")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "networkPoolIps")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(network_pool_ips, options)
+        return 0
+      end
+      title = "Morpheus Network Pool IPs"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if network_pool_ips.empty?
+        print cyan,"No network pool IPs found.",reset,"\n"
+      else
+        columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          {"IP ADDRESS" => lambda {|it| it['ipAddress'] } },
+          {"HOSTNAME" => lambda {|it| it['hostname'] } },
+          {"TYPE" => lambda {|it| it['ipType'] } },
+          #{"CREATED BY" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' } },
+          {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
+        ]
+        if options[:include_fields]
+          columns = options[:include_fields]
+        end
+        print as_pretty_table(network_pool_ips, columns, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def get_ip(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network-pool] [ip]")
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a network pool IP address.\n" +
+                    "[network-pool] is required. This is the name or id of a network pool.\n" +
+                    "[ip] is required. This is the ip address or id of a network pool IP."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    begin
+      network_pool = find_network_pool_by_name_or_id(args[0])
+      return 1 if network_pool.nil?
+      network_pool_id = network_pool['id']
+
+      params.merge!(parse_list_options(options))
+      @network_pool_ips_interface.setopts(options)
+      if options[:dry_run]
+        if args[1].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_pool_ips_interface.dry.get(network_pool_id, args[1].to_i)
+        else
+          print_dry_run @network_pool_ips_interface.dry.list(network_pool_id, {ipAddress:args[1]})
+        end
+        return
+      end
+      network_pool_ip = find_network_pool_ip_by_address_or_id(network_pool_id, args[1])
+      return 1 if network_pool_ip.nil?
+      json_response = {'networkPoolIp' => network_pool_ip}  # skip redundant request
+      # json_response = @network_pool_ips_interface.get(network_pool_id, args[1])
+      #network_pool_ip = json_response['networkPoolIp']
+      if options[:json]
+        puts as_json(json_response, options, "networkPoolIp")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "networkPoolIp")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([network_pool_ip], options)
+        return 0
+      end
+      print_h1 "Network Pool IP Details"
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "IP Address" => lambda {|it| it['ipAddress'] },
+        "Hostname" => lambda {|it| it['hostname'] },
+        "Type" => lambda {|it| it['ipType'] ? it['ipType'] : '' },
+        # "Gateway" => lambda {|it| network_pool['gatewayAddress'] },
+        # "Subnet Mask" => lambda {|it| network_pool['subnetMask'] },
+        # "DNS Server" => lambda {|it| network_pool['dnsServer'] },
+        "Pool" => lambda {|it| network_pool['name'] },
+        #"Pool" => lambda {|it| it['networkPool'] ? it['networkPool']['name'] : '' },
+        "Interface" => lambda {|it| network_pool['interfaceName'] },
+        "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+      }
+      print_description_list(description_cols, network_pool_ip)
+
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def add_ip(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network-pool] [ip]")
+      opts.on('--ip-address VALUE', String, "IP Address for this network pool IP") do |val|
+        options[:options]['ipAddress'] = val
+      end
+      opts.on('--hostname VALUE', String, "Hostname for this network pool IP") do |val|
+        options[:options]['hostname'] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Create a new network pool IP." + "\n" +
+                    "[network-pool] is required. This is the name or id of a network pool.\n" +
+                    "[ip] is required and can be passed as --ip-address instead."
+    end
+    optparse.parse!(args)
+    if args.count < 1 || args.count > 2
+      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      network_pool = find_network_pool_by_name_or_id(args[0])
+      return 1 if network_pool.nil?
+      network_pool_id = network_pool['id']
+
+      # support [ip] as first argument
+      if args[1]
+        options[:options]['ipAddress'] = args[1]
+      end
+
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        # prompt for network options
+        payload = {
+          'networkPoolIp' => {
+          }
+        }
+        
+        # allow arbitrary -O options
+        payload['networkPoolIp'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        # IP Address
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipAddress', 'fieldLabel' => 'IP Address', 'type' => 'text', 'required' => true, 'description' => 'IP Address for this network pool IP.'}], options[:options])
+        payload['networkPoolIp']['ipAddress'] = v_prompt['ipAddress'] unless v_prompt['ipAddress'].to_s.empty?
+
+        # Hostname
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname for this network pool IP.'}], options[:options])
+        payload['networkPoolIp']['hostname'] = v_prompt['hostname'] unless v_prompt['hostname'].to_s.empty?
+
+      end
+
+      @network_pool_ips_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_pool_ips_interface.dry.create(network_pool_id, payload)
+        return
+      end
+      json_response = @network_pool_ips_interface.create(network_pool_id, payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        network_pool_ip = json_response['networkPoolIp']
+        print_green_success "Added network pool IP #{network_pool_ip['ipAddress']}"
+        get_ip([network_pool['id'], network_pool_ip['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_ip(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network-pool] [ip] [options]")
+      opts.on('--hostname VALUE', String, "Hostname for this network pool IP") do |val|
+        options[:options]['hostname'] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Update a network pool IP." + "\n" +
+                    "[network-pool] is required. This is the name or id of a network pool.\n" +
+                    "[ip] is required. This is the ip address or id of a network pool IP."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      network_pool = find_network_pool_by_name_or_id(args[0])
+      return 1 if network_pool.nil?
+      network_pool_id = network_pool['id']
+
+      network_pool_ip = find_network_pool_ip_by_address_or_id(network_pool_id, args[1])
+      return 1 if network_pool_ip.nil?
+
+      # merge -O options into normally parsed options
+      options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        # prompt for network options
+        payload = {
+          'networkPoolIp' => {
+          }
+        }
+        
+        # allow arbitrary -O options
+        payload['networkPoolIp'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        if payload['networkPoolIp'].empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+      end
+
+      @network_pool_ips_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_pool_ips_interface.dry.update(network_pool_id, network_pool_ip['id'], payload)
+        return
+      end
+      json_response = @network_pool_ips_interface.update(network_pool_id, network_pool_ip['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        network_pool_ip = json_response['networkPoolIp']
+        print_green_success "Updated network pool IP #{network_pool_ip['ipAddress']}"
+        get_ip([network_pool['id'], network_pool_ip['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_ip(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network-pool] [ip]")
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Delete a network pool IP." + "\n" +
+                    "[network-pool] is required. This is the name or id of a network pool.\n" +
+                    "[ip] is required. This is the ip address or id of a network pool IP."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      network_pool = find_network_pool_by_name_or_id(args[0])
+      return 1 if network_pool.nil?
+      network_pool_id = network_pool['id']
+
+      network_pool_ip = find_network_pool_ip_by_address_or_id(network_pool_id, args[1])
+      return 1 if network_pool_ip.nil?
+
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the network pool IP: #{network_pool_ip['ipAddress']} (#{network_pool_ip['hostname']})?")
+        return 9, "aborted command"
+      end
+      @network_pool_ips_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_pool_ips_interface.dry.destroy(network_pool['id'], network_pool_ip['id'])
+        return 0
+      end
+      json_response = @network_pool_ips_interface.destroy(network_pool['id'], network_pool_ip['id'])
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Removed network pool IP #{network_pool_ip['ipAddress']} (#{network_pool_ip['hostname']})"
+        # list([])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
   private
 
 
- def find_network_pool_by_name_or_id(val)
+  def find_network_pool_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_network_pool_by_id(val)
     else
@@ -479,6 +808,49 @@ class Morpheus::Cli::NetworkPoolsCommand
       return nil
     else
       return network_pools[0]
+    end
+  end
+
+  def find_network_pool_ip_by_address_or_id(network_pool_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_pool_ip_by_id(network_pool_id, val)
+    else
+      return find_network_pool_ip_by_address(network_pool_id, val)
+    end
+  end
+
+  def find_network_pool_ip_by_id(network_pool_id, id)
+    begin
+      json_response = @network_pool_ips_interface.get(network_pool_id, id.to_i)
+      return json_response['networkPoolIp']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network Pool IP not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_network_pool_ip_by_address(network_pool_id, address)
+    json_response = @network_pool_ips_interface.list(network_pool_id, {ipAddress: address.to_s})
+    network_pool_ips = json_response['networkPoolIps']
+    if network_pool_ips.empty?
+      print_red_alert "Network Pool IP not found by address #{address}"
+      return nil
+    elsif network_pool_ips.size > 1
+      print_red_alert "#{network_pool_ips.size} network pool IPs found by address #{address}"
+      columns = [
+        {"ID" => lambda {|it| it['id'] } },
+        {"IP ADDRESS" => lambda {|it| it['ipAddress'] } },
+        {"HOSTNAME" => lambda {|it| it['hostname'] } },
+        {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } }
+      ]
+      puts as_pretty_table(network_pool_ips, columns, {color:red})
+      return nil
+    else
+      return network_pool_ips[0]
     end
   end
 
