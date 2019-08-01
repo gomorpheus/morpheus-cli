@@ -772,7 +772,7 @@ class Morpheus::Cli::Hosts
       elsif !options[:quiet]
         server_id = json_response["server"]["id"]
         server_name = json_response["server"]["name"]
-        print_green_success "Provisioning instance [#{server_id}] #{server_name}"
+        print_green_success "Provisioning server [#{server_id}] #{server_name}"
         get([server_id] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
