@@ -436,9 +436,24 @@ class Morpheus::Cli::Hosts
         "Power" => lambda {|it| format_server_power_state(it) },
       }, server)
       
+      if server['statusMessage']
+        print_h2 "Status Message", options
+        if server['status'] == 'failed'
+          print red, server['statusMessage'], reset
+        else
+          print server['statusMessage']
+        end
+        print "\n"
+      end
+      if server['errorMessage']
+        print_h2 "Error Message", options
+        print red, server['errorMessage'], reset, "\n"
+      end
+
       print_h2 "Host Usage", options
       print_stats_usage(stats)
       print reset, "\n"
+
 
       # refresh until a status is reached
       if options[:refresh_until_status]
@@ -604,9 +619,12 @@ class Morpheus::Cli::Hosts
     optparse.parse!(args)
     connect(options)
     begin
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        #payload.deep_merge!({'server' => passed_options}) unless passed_options.empty?
+        payload.deep_merge!(passed_options) unless passed_options.empty?
       else
         # support old format of `hosts add CLOUD NAME`
         if args[0]
@@ -619,7 +637,6 @@ class Morpheus::Cli::Hosts
         options[:group] ||= @active_group_id
 
         params = {}
-
         # Group
         group_id = nil
         group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -683,12 +700,16 @@ class Morpheus::Cli::Hosts
         plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
         service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['plan'].to_i }
 
-        payload['server'] = {
+        # uh ok, this actually expects config at root level, sibling of server 
+        # payload.deep_merge!({'server' => passed_options}) unless passed_options.empty?
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+        payload.deep_merge!({'server' => {
           'name' => host_name,
           'zone' => {'id' => cloud['id']},
           'computeServerType' => {'id' => server_type['id']},
           'plan' => {'id' => service_plan["id"]}
-        }
+          }
+        })
 
         # prompt for resource pool
         has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
@@ -749,8 +770,10 @@ class Morpheus::Cli::Hosts
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Provisioning Server..." 
-        list([])
+        server_id = json_response["server"]["id"]
+        server_name = json_response["server"]["name"]
+        print_green_success "Provisioning instance [#{server_id}] #{server_name}"
+        get([server_id] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -794,7 +817,8 @@ class Morpheus::Cli::Hosts
       server = find_host_by_name_or_id(args[0])
       return 1 if server.nil?
       new_group = nil
-      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      params.deep_merge!(passed_options) unless passed_options.empty?
       payload = nil
       if options[:payload]
         payload = options[:payload]
