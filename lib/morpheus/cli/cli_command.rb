@@ -556,11 +556,7 @@ module Morpheus
               options[:border_style] = :thin
             end
             
-          when :outfile
-            opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
-              # could validate directory is writable..
-              options[:outfile] = val
-            end
+          
 
           when :dry_run
             opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
@@ -586,7 +582,25 @@ module Morpheus
             opts.on(nil,'--scrub', "Mask secrets in output, such as the Authorization header. For use with --curl and --dry-run.") do
               options[:scrub] = true
             end
+            # dry run comes with hidden outfile options
             #opts.add_hidden_option('--scrub') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
+              # could validate directory is writable..
+              options[:outfile] = val
+            end
+            opts.add_hidden_option('--out') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.on('--overwrite', '--overwrite', "Overwrite output file if it already exists.") do
+              options[:overwrite] = true
+            end
+            opts.add_hidden_option('--overwrite') if opts.is_a?(Morpheus::Cli::OptionParser)
+
+          when :outfile
+            opts.on('--out FILE', String, "Write standard output to a file instead of the terminal.") do |val|
+              options[:outfile] = val
+            end
+            opts.on('--overwrite', '--overwrite', "Overwrite output file if it already exists.") do |val|
+              options[:overwrite] = true
+            end
           when :quiet
             opts.on('-q','--quiet', "No Output, do not print to stdout") do
               options[:quiet] = true
@@ -909,21 +923,6 @@ module Morpheus
         return subtitles
       end
 
-      def print_to_file(txt, filename)
-        Morpheus::Logging::DarkPrinter.puts "Writing #{txt.to_s.bytesize} bytes to file #{filename}" if Morpheus::Logging.debug?
-        outfile = nil
-        begin
-          outfile = File.open(File.expand_path(filename), 'w')
-          outfile.print(txt)
-          return 0
-        rescue => ex
-          puts_error "Error printing to outfile '#{filename}'. Error: #{ex}"
-          return 1
-        ensure
-          outfile.close if outfile
-        end
-      end
-
       # basic rendering for options :json, :yaml, :csv, :fields, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
       def render_with_format(json_response, options, object_key=nil)
@@ -938,7 +937,7 @@ module Morpheus
         end
         if output
           if options[:outfile]
-            print_to_file(output, options[:outfile])
+            print_to_file(output, options[:outfile], options[:overwrite])
           else
             puts output
           end
