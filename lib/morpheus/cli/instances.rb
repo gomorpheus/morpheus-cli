@@ -1279,6 +1279,7 @@ class Morpheus::Cli::Instances
               status: format_container_status(container),
               name: container['server'] ? container['server']['name'] : '(no server)', # there is a server.displayName too?
               type: container['containerType'] ? container['containerType']['name'] : '',
+              host: container['server'] ? container['server']['name'] : '',
               cloud: container['cloud'] ? container['cloud']['name'] : '',
               location: format_container_connection_string(container),
               cpu: cpu_usage_str + cyan,
@@ -1287,7 +1288,7 @@ class Morpheus::Cli::Instances
             }
             row
           }
-          columns = [:id, :status, :name, :type, :cloud, :location, :cpu, :memory, :storage]
+          columns = [:id, :status, :name, :type, :cloud, :host, :location, :cpu, :memory, :storage]
           # custom pretty table columns ...
           if options[:include_fields]
             columns = options[:include_fields]

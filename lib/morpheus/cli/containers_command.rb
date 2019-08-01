@@ -97,6 +97,7 @@ class Morpheus::Cli::ContainersCommand
         "Type" => lambda {|it| it['containerType'] ? it['containerType']['name'] : '' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Instance" => lambda {|it| it['instance'] ? it['instance']['name'] : '' },
+        "Host" => lambda {|it| it['server'] ? it['server']['name'] : '' },
         "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
         "Location" => lambda {|it| format_container_connection_string(it) },
         # "Description" => 'description',
