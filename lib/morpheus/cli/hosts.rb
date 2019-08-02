@@ -724,6 +724,18 @@ class Morpheus::Cli::Hosts
           end
         end
 
+        # prompt for resource pool
+        has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
+        if has_zone_pools
+          # pluck out the resourcePoolId option type to prompt for..why the heck is this even needed? 
+          resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+          option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+          resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
+          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})
+          resource_pool_prompt.deep_compact!
+          payload.deep_merge!(resource_pool_prompt)
+        end
+
         # prompt for volumes
         volumes = prompt_volumes(service_plan, options, @api_client, {})
         if !volumes.empty?
