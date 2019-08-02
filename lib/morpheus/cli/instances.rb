@@ -22,8 +22,6 @@ class Morpheus::Cli::Instances
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
   set_default_subcommand :list
-  
-  DEFAULT_REFRESH_SECONDS = 30
 
   def initialize()
     #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -335,8 +333,8 @@ class Morpheus::Cli::Instances
       opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
         options[:create_backup] = ['on','true','1',''].include?(val.to_s.downcase) ? 'on' : 'off'
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
-        options[:refresh_interval] = val.to_s.empty? ? DEFAULT_REFRESH_SECONDS : val.to_f
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new instance." + "\n" +
@@ -1099,7 +1097,7 @@ class Morpheus::Cli::Instances
       opts.on( nil, '--scaling', "Display Instance Scaling Settings" ) do
         options[:include_scaling] = true
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -1322,7 +1320,7 @@ class Morpheus::Cli::Instances
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
+          options[:refresh_interval] = default_refresh_interval
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(instance['status'])

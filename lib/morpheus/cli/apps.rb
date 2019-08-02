@@ -22,8 +22,6 @@ class Morpheus::Cli::Apps
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
   set_default_subcommand :list
-  
-  DEFAULT_REFRESH_SECONDS = 30
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -186,8 +184,8 @@ class Morpheus::Cli::Apps
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating it.") do
         options[:validate_only] = true
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
-        options[:refresh_interval] = val.to_s.empty? ? DEFAULT_REFRESH_SECONDS : val.to_f
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :yaml, :dry_run, :quiet])
       opts.footer = "Create a new app.\n" +
@@ -550,7 +548,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -693,7 +691,7 @@ class Morpheus::Cli::Apps
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
+          options[:refresh_interval] = default_refresh_interval
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(app['status'])

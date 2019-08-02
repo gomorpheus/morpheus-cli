@@ -13,8 +13,7 @@ class Morpheus::Cli::ExecutionRequestCommand
   #register_subcommands :'execute-against-lease' => :execute_against_lease
   
   # set_default_subcommand :list
-  
-  DEFAULT_REFRESH_SECONDS = 30
+
   
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -39,7 +38,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[uid]")
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_finished] = true
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -80,7 +79,7 @@ class Morpheus::Cli::ExecutionRequestCommand
       # refresh until a status is reached
       if options[:refresh_until_finished]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
+          options[:refresh_interval] = default_refresh_interval
         end
         if execution_request['exitCode'] || ['complete','failed','expired'].include?(execution_request['status'])
           # it is finished

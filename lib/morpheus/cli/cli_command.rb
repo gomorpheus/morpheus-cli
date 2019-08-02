@@ -676,6 +676,10 @@ module Morpheus
         self.class.default_subcommand
       end
 
+      def default_refresh_interval
+        self.class.default_refresh_interval
+      end
+
       def usage
         if !subcommands.empty?
           "Usage: morpheus #{command_name} [command] [options]"
@@ -966,7 +970,8 @@ module Morpheus
         def set_command_hidden(val=true)
           @hidden_command = val
         end
-        
+        # alias :command_name= :set_command_name
+
         def hidden_command
           !!@hidden_command
         end
@@ -978,9 +983,17 @@ module Morpheus
         def set_command_description(val)
           @command_description = val
         end
-
-        # alias :command_name= :set_command_name
         # alias :command_description= :set_command_description
+
+        def default_refresh_interval
+          @default_refresh_interval ||= 30
+        end
+
+        def set_default_refresh_interval(seconds)
+          @default_refresh_interval = seconds
+        end
+        #alias :default_refresh_interval= :set_default_refresh_interval
+        
 
         # construct map of command name => instance method
         def register_subcommands(*cmds)

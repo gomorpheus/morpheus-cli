@@ -21,8 +21,6 @@ class Morpheus::Cli::Hosts
   alias_subcommand :details, :get
   set_default_subcommand :list
 
-  DEFAULT_REFRESH_SECONDS = 30
-
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -361,7 +359,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "provisioned,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -460,7 +458,7 @@ class Morpheus::Cli::Hosts
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
+          options[:refresh_interval] = default_refresh_interval
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(server['status'])
@@ -616,8 +614,8 @@ class Morpheus::Cli::Hosts
       opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
         options[:server_type_code] = val
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
-        options[:refresh_interval] = val.to_s.empty? ? DEFAULT_REFRESH_SECONDS : val.to_f
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
@@ -761,7 +759,14 @@ class Morpheus::Cli::Hosts
         # remove cpu and memory option types, which now come from the plan
         server_type_option_types = reject_service_plan_option_types(server_type_option_types)
 
-        params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
+        api_params = {}
+        api_params['zoneId'] = cloud['id']
+        api_params['poolId'] = payload['config']['resourcePool'] if (payload['config'] && payload['config']['resourcePool'])
+        if payload['config']
+          api_params.deep_merge!(payload['config'])
+        end
+        #api_params.deep_merge(payload)
+        params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, api_params)
         payload.deep_merge!(params)
         
       end
