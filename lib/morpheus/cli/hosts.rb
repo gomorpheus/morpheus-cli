@@ -714,15 +714,18 @@ class Morpheus::Cli::Hosts
           }
         })
 
-        # prompt for resource pool
-        has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
-        if has_zone_pools
-          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client,{groupId: group_id, zoneId: cloud_id, cloudId: cloud_id, planId: service_plan["id"]})
-          if resource_pool_prompt['config'] && resource_pool_prompt['config']['resourcePool']
-            payload['config'] ||= {}
-            payload['config']['resourcePool'] = resource_pool_prompt['config']['resourcePool']
-          end
+        option_type_list = server_type['optionTypes']
+        # remove volume options if volumes were configured
+        if !payload['volumes'].empty?
+          option_type_list = reject_volume_option_types(option_type_list)
         end
+        # remove networkId option if networks were configured above
+        if !payload['networkInterfaces'].empty?
+          option_type_list = reject_networking_option_types(option_type_list)
+        end
+
+        # remove cpu and memory option types, which now come from the plan
+        option_type_list = reject_service_plan_option_types(option_type_list)
 
         # prompt for resource pool
         has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
@@ -731,7 +734,7 @@ class Morpheus::Cli::Hosts
           resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
           option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
           resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
-          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})
+          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, planId: service_plan["id"], serverTypeId: server_type['id']})
           resource_pool_prompt.deep_compact!
           payload.deep_merge!(resource_pool_prompt)
         end
@@ -755,22 +758,6 @@ class Morpheus::Cli::Hosts
           end
         end
 
-        server_type_option_types = server_type['optionTypes']
-        # remove volume options if volumes were configured
-        if !payload['volumes'].empty?
-          server_type_option_types = reject_volume_option_types(server_type_option_types)
-        end
-        # remove networkId option if networks were configured above
-        if !payload['networkInterfaces'].empty?
-          server_type_option_types = reject_networking_option_types(server_type_option_types)
-        end
-        # remove resourcePoolId if it was configured above
-        if has_zone_pools
-          server_type_option_types = server_type_option_types.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-        end
-        # remove cpu and memory option types, which now come from the plan
-        server_type_option_types = reject_service_plan_option_types(server_type_option_types)
-
         api_params = {}
         api_params['zoneId'] = cloud['id']
         api_params['poolId'] = payload['config']['resourcePool'] if (payload['config'] && payload['config']['resourcePool'])
@@ -778,7 +765,7 @@ class Morpheus::Cli::Hosts
           api_params.deep_merge!(payload['config'])
         end
         #api_params.deep_merge(payload)
-        params = Morpheus::Cli::OptionTypes.prompt(server_type_option_types,options[:options],@api_client, api_params)
+        params = Morpheus::Cli::OptionTypes.prompt(option_type_list,options[:options],@api_client, api_params)
         payload.deep_merge!(params)
         
       end
