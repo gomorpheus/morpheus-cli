@@ -6,6 +6,8 @@ class Morpheus::Cli::ReportsCommand
   include Morpheus::Cli::CliCommand
   set_command_name :reports
 
+  DEFAULT_REFRESH_SECONDS = 30
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -92,7 +94,7 @@ class Morpheus::Cli::ReportsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is ready,failed. Default interval is 5 seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is ready,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
         options[:refresh_until_status] ||= "ready,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -186,11 +188,11 @@ class Morpheus::Cli::ReportsCommand
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = 5
+          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(report_result['status'])
-          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
+          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
           get(original_args)

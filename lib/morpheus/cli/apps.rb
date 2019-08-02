@@ -23,6 +23,8 @@ class Morpheus::Cli::Apps
   alias_subcommand :details, :get
   set_default_subcommand :list
   
+  DEFAULT_REFRESH_SECONDS = 30
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -184,8 +186,8 @@ class Morpheus::Cli::Apps
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating it.") do
         options[:validate_only] = true
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
-        options[:refresh_interval] = val.to_s.empty? ? 5 : val.to_f
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? DEFAULT_REFRESH_SECONDS : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :yaml, :dry_run, :quiet])
       opts.footer = "Create a new app.\n" +
@@ -506,11 +508,8 @@ class Morpheus::Cli::Apps
           end
         end
         # print details
-        if options[:refresh_interval]
-          get([app['id'], '--refresh', options[:refresh_interval].to_s])
-        else
-          get([app['id']])
-        end
+        get_args = [app['id']] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+        get(get_args)
       end
       return 0
     rescue RestClient::Exception => e
@@ -551,7 +550,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -694,11 +693,11 @@ class Morpheus::Cli::Apps
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = 5
+          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(app['status'])
-          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
+          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
           _get(arg, options)
@@ -790,9 +789,9 @@ class Morpheus::Cli::Apps
         print "\n"
       else
         print_green_success "Updated app #{app['name']}"
-        list([])
-        # details_options = [payload['app']['name']]
-        # details(details_options)
+        # print details
+        get_args = [app['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get(get_args)
       end
 
     rescue RestClient::Exception => e

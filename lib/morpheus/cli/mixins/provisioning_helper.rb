@@ -450,6 +450,10 @@ module Morpheus::Cli::ProvisioningHelper
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})
     payload.deep_merge!(instance_config_payload)
 
+    # Security Groups
+    # ((opt['code'] == 'provisionType.amazon.securityId') ||(opt['name'] == 'config.securityId'))
+
+
     ## Advanced Options
 
     # scale factor
@@ -1188,6 +1192,13 @@ module Morpheus::Cli::ProvisioningHelper
   def reject_service_plan_option_types(option_types)
     option_types.reject {|opt|
       ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
+    }
+  end
+
+  # reject old security group option types
+  def reject_security_group_option_types(option_types)
+    option_types.reject {|opt|
+      opt['code'] == 'provisionType.amazon.securityId' || opt['fieldName'] == 'securityId'
     }
   end
 

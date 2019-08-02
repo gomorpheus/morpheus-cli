@@ -21,6 +21,8 @@ class Morpheus::Cli::Hosts
   alias_subcommand :details, :get
   set_default_subcommand :list
 
+  DEFAULT_REFRESH_SECONDS = 30
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -359,7 +361,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
         options[:refresh_until_status] ||= "provisioned,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -458,12 +460,12 @@ class Morpheus::Cli::Hosts
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = 5
+          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(server['status'])
           print cyan
-          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
+          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
           _get(arg, options)
@@ -613,6 +615,9 @@ class Morpheus::Cli::Hosts
       end
       opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
         options[:server_type_code] = val
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? DEFAULT_REFRESH_SECONDS : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
@@ -772,8 +777,10 @@ class Morpheus::Cli::Hosts
       elsif !options[:quiet]
         server_id = json_response["server"]["id"]
         server_name = json_response["server"]["name"]
-        print_green_success "Provisioning server [#{server_id}] #{server_name}"
-        get([server_id] + (options[:remote] ? ["-r",options[:remote]] : []))
+        print_green_success "Provisioning host [#{server_id}] #{server_name}"
+        # print details
+        get_args = [server_id] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+        get(get_args)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

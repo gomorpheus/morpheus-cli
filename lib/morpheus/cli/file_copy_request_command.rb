@@ -14,6 +14,8 @@ class Morpheus::Cli::FileCopyRequestCommand
   
   # set_default_subcommand :list
   
+  DEFAULT_REFRESH_SECONDS = 30
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -37,7 +39,7 @@ class Morpheus::Cli::FileCopyRequestCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[uid]")
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is 5 seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
         options[:refresh_until_finished] = true
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -78,7 +80,7 @@ class Morpheus::Cli::FileCopyRequestCommand
       # refresh until a status is reached
       if options[:refresh_until_finished]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = 5
+          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
         end
         if ['complete','failed','expired'].include?(file_copy_request['status'])
           # it is finished

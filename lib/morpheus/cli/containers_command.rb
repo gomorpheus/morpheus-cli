@@ -15,6 +15,8 @@ class Morpheus::Cli::ContainersCommand
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions
   register_subcommands :exec => :execution_request
 
+  DEFAULT_REFRESH_SECONDS = 30
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @containers_interface = @api_client.containers
@@ -32,7 +34,7 @@ class Morpheus::Cli::ContainersCommand
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is 5 seconds.") do |val|
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{DEFAULT_REFRESH_SECONDS} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
           options[:refresh_interval] = val.to_f
@@ -135,12 +137,12 @@ class Morpheus::Cli::ContainersCommand
       # refresh until a status is reached
       if options[:refresh_until_status]
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = 5
+          options[:refresh_interval] = DEFAULT_REFRESH_SECONDS
         end
         statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
         if !statuses.include?(container['status'])
           print cyan
-          print cyan, "Refreshing in #{options[:refresh_interval]} seconds"
+          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
           _get(arg, options)
