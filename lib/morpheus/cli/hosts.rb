@@ -14,7 +14,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::ProvisioningHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent
   register_subcommands :'types' => :list_types
   register_subcommands :exec => :execution_request
   register_subcommands :wiki, :update_wiki
@@ -1439,6 +1439,64 @@ class Morpheus::Cli::Hosts
       print reset,"\n"
       return 0
 
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      opts.on('-w','--wiki', "Open the wiki tab for this host") do
+        options[:link_tab] = "wiki"
+      end
+      opts.on('--tab VALUE', String, "Open a specific tab") do |val|
+        options[:link_tab] = val.to_s
+      end
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View a host in a web browser" + "\n" +
+                    "[host] is required. This is the name or id of a host. Supports 1-N [host] arguments."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _view(arg, options)
+    end
+  end
+
+  def _view(arg, options={})
+    begin
+      host = find_host_by_name_or_id(arg)
+      return 1 if host.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/infrastructure/servers/#{host['id']}"
+      if options[:link_tab]
+        link << "#!#{options[:link_tab]}"
+      end
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

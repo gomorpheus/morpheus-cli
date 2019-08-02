@@ -15,7 +15,7 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProcessesHelper
   set_command_name :apps
   set_command_description "View and manage apps."
-  register_subcommands :list, :count, :get, :add, :update, :remove, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
@@ -1480,6 +1480,64 @@ class Morpheus::Cli::Apps
           return 0
         end
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
+      opts.on('-w','--wiki', "Open the wiki tab for this app") do
+        options[:link_tab] = "wiki"
+      end
+      opts.on('--tab VALUE', String, "Open a specific tab") do |val|
+        options[:link_tab] = val.to_s
+      end
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View an app in a web browser" + "\n" +
+                    "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _view(arg, options)
+    end
+  end
+
+  def _view(arg, options={})
+    begin
+      app = find_app_by_name_or_id(arg)
+      return 1 if app.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/provisioning/apps/#{app['id']}"
+      if options[:link_tab]
+        link << "#!#{options[:link_tab]}"
+      end
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
