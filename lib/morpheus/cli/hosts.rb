@@ -614,6 +614,9 @@ class Morpheus::Cli::Hosts
       opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
         options[:server_type_code] = val
       end
+      opts.on("--security-groups LIST", Integer, "Security Groups, comma sepearated list of security group IDs") do |val|
+        options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
@@ -728,6 +731,7 @@ class Morpheus::Cli::Hosts
         option_type_list = reject_service_plan_option_types(option_type_list)
 
         # prompt for resource pool
+        pool_id = nil
         has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
         if has_zone_pools
           # pluck out the resourcePoolId option type to prompt for..why the heck is this even needed? 
@@ -737,6 +741,11 @@ class Morpheus::Cli::Hosts
           resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, planId: service_plan["id"], serverTypeId: server_type['id']})
           resource_pool_prompt.deep_compact!
           payload.deep_merge!(resource_pool_prompt)
+          if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
+            pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
+          elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
+            pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
+          end
         end
 
         # prompt for volumes
@@ -748,7 +757,7 @@ class Morpheus::Cli::Hosts
         # prompt for network interfaces (if supported)
         if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
           begin
-            network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
+            network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], pool_id, options)
             if !network_interfaces.empty?
               payload['networkInterfaces'] = network_interfaces
             end
@@ -758,6 +767,28 @@ class Morpheus::Cli::Hosts
           end
         end
 
+        # Security Groups
+        # prompt for multiple security groups
+        sg_option_type = option_type_list.find {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
+        option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
+        # ok.. seed data has changed and serverTypes do not have this optionType anymore...
+        if sg_option_type.nil?
+          if server_type["provisionType"] && (server_type["provisionType"]["code"] == 'amazon')
+            sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.'}
+          end
+        end
+        has_security_groups = !!sg_option_type
+        if options[:security_groups]
+          payload['securityGroups'] = options[:security_groups].collect {|sg_id| {'id' => sg_id} }
+        else
+          if has_security_groups
+            security_groups_array = prompt_security_groups(sg_option_type, {zoneId: cloud_id, poolId: pool_id}, options)
+            if !security_groups_array.empty?
+              payload['securityGroups'] = security_groups_array.collect {|sg_id| {'id' => sg_id} }
+            end
+          end
+        end
+    
         api_params = {}
         api_params['zoneId'] = cloud['id']
         api_params['poolId'] = payload['config']['resourcePool'] if (payload['config'] && payload['config']['resourcePool'])
@@ -1074,7 +1105,7 @@ class Morpheus::Cli::Hosts
       # prompt for network interfaces (if supported)
       # if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
       #   begin
-      #     network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], options)
+      #     network_interfaces = prompt_network_interfaces(cloud['id'], server_type["provisionType"]["id"], null, options)
       #     if !network_interfaces.empty?
       #       payload[:networkInterfaces] = network_interfaces
       #     end

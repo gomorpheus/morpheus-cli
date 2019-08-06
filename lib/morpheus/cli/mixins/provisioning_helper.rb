@@ -409,6 +409,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # prompt for resource pool
+    pool_id = nil
     has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
     if has_zone_pools
       # pluck out the resourcePoolId option type to prompt for..why the heck is this even needed? 
@@ -418,6 +419,11 @@ module Morpheus::Cli::ProvisioningHelper
       resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})
       resource_pool_prompt.deep_compact!
       payload.deep_merge!(resource_pool_prompt)
+      if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
+        pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
+      elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
+        pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
+      end
     end
 
     # plan_info has this property already..
@@ -436,7 +442,7 @@ module Morpheus::Cli::ProvisioningHelper
       if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
         # prompt for network interfaces (if supported)
         begin
-          network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], options)
+          network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], pool_id, options)
           if !network_interfaces.empty?
             payload['networkInterfaces'] = network_interfaces
           end
@@ -447,6 +453,27 @@ module Morpheus::Cli::ProvisioningHelper
       end
     # end
 
+    # Security Groups
+    # prompt for multiple security groups
+    sg_option_type = option_type_list.find {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
+    option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
+    # ok.. seed data has changed and serverTypes do not have this optionType anymore...
+    if sg_option_type.nil?
+      if layout["provisionType"] && (layout["provisionType"]["code"] == 'amazon')
+        sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.'}
+      end
+    end
+    has_security_groups = !!sg_option_type
+    if options[:security_groups]
+      payload['securityGroups'] = options[:security_groups].collect {|sg_id| {'id' => sg_id} }
+    else
+      if has_security_groups
+        security_groups_array = prompt_security_groups(sg_option_type, {zoneId: cloud_id, poolId: pool_id}, options)
+        if !security_groups_array.empty?
+          payload['securityGroups'] = security_groups_array.collect {|sg_id| {'id' => sg_id} }
+        end
+      end
+    end
 
 
     # prompt for option types
@@ -457,14 +484,9 @@ module Morpheus::Cli::ProvisioningHelper
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params)
     payload.deep_merge!(instance_config_payload)
 
-    # Security Groups
-    # ((opt['code'] == 'provisionType.amazon.securityId') ||(opt['name'] == 'config.securityId'))
-
-
     ## Advanced Options
 
     # scale factor
-
 
     # prompt for environment variables
     evars = prompt_evars(options)
@@ -493,10 +515,9 @@ module Morpheus::Cli::ProvisioningHelper
     if plan_info['maxStorage']
       plan_size = plan_info['maxStorage'].to_i / (1024 * 1024 * 1024)
     end
-
     root_storage_types = []
     if plan_info['rootStorageTypes']
-      plan_info['rootStorageTypes'].each do |opt|
+      plan_info['rootStorageTypes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }.each do |opt|
         if !opt.nil?
           root_storage_types << {'name' => opt['name'], 'value' => opt['id']}
         end
@@ -505,7 +526,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     storage_types = []
     if plan_info['storageTypes']
-      plan_info['storageTypes'].each do |opt|
+      plan_info['storageTypes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }.each do |opt|
         if !opt.nil?
           storage_types << {'name' => opt['name'], 'value' => opt['id']}
         end
@@ -967,12 +988,15 @@ module Morpheus::Cli::ProvisioningHelper
   # This recreates the behavior of multi_networks.js
   # This is used by both `instances add` and `hosts add`
   # returns array of networkInterfaces based on provision type and cloud settings
-  def prompt_network_interfaces(zone_id, provision_type_id, options={})
+  def prompt_network_interfaces(zone_id, provision_type_id, pool_id, options={})
     #puts "Configure Networks:"
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
     network_interfaces = []
-
-    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', {zoneId: zone_id, provisionTypeId: provision_type_id})
+    api_params = {zoneId: zone_id, provisionTypeId: provision_type_id}
+    if pool_id.to_s =~ /\A\d{1,}\Z/
+      api_params[:poolId] = pool_id 
+    end
+    zone_network_options_json = api_client.options.options_for_source('zoneNetworkOptions', api_params)
     # puts "zoneNetworkOptions JSON"
     # puts JSON.pretty_generate(zone_network_options_json)
     zone_network_data = zone_network_options_json['data'] || {}
@@ -1133,6 +1157,37 @@ module Morpheus::Cli::ProvisioningHelper
     return metadata_array
   end
 
+  def prompt_security_groups(sg_option_type, api_params, options)
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    security_groups_array = []
+
+    sg_required = sg_option_type['required']
+    sg_index = 0
+    add_another_sg = sg_required || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a security group?", {default: false}))
+    while add_another_sg do
+      cur_sg_option_type = sg_option_type.merge({'required' => (sg_index == 0 ? sg_required : false)})
+      field_context = cur_sg_option_type['fieldContext']
+      field_name = cur_sg_option_type['fieldName']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([cur_sg_option_type], options[:options], api_client, api_params)
+      has_another_sg = false
+      if field_context
+        if v_prompt[field_context] && !v_prompt[field_context][field_name].to_s.empty?
+          security_groups_array << v_prompt[field_context][field_name]
+        end
+        has_another_sg = options[:options] && options[:options][field_context] && options[:options][field_context]["#{field_name}#{sg_index+2}"]
+      else
+        if !v_prompt[field_name].to_s.empty?
+          security_groups_array << v_prompt[field_name]
+        end
+        has_another_sg = options[:options] && options[:options]["#{field_name}#{sg_index+2}"]
+      end
+      add_another_sg = has_another_sg || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another security group?", {default: false}))
+      sg_index += 1
+    end
+
+    return security_groups_array
+  end
+
   # Prompts user for load balancer settings
   # returns Hash of parameters like {loadBalancerId: "-1", etc}
   def prompt_instance_load_balancer(instance, default_lb_id, options)
@@ -1199,13 +1254,6 @@ module Morpheus::Cli::ProvisioningHelper
   def reject_service_plan_option_types(option_types)
     option_types.reject {|opt|
       ['cpuCount', 'memorySize', 'memory'].include?(opt['fieldName'])
-    }
-  end
-
-  # reject old security group option types
-  def reject_security_group_option_types(option_types)
-    option_types.reject {|opt|
-      opt['code'] == 'provisionType.amazon.securityId' || opt['fieldName'] == 'securityId'
     }
   end
 

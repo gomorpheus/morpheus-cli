@@ -333,6 +333,9 @@ class Morpheus::Cli::Instances
       opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
         options[:create_backup] = ['on','true','1',''].include?(val.to_s.downcase) ? 'on' : 'off'
       end
+      opts.on("--security-groups LIST", Integer, "Security Groups, comma sepearated list of security group IDs") do |val|
+        options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
