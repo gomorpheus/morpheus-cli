@@ -555,7 +555,6 @@ class Morpheus::Cli::Instances
   end
 
   def update_notes(args)
-    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
     usage = "Usage: morpheus instances update-notes [instance] [options]"
     options = {}
     params = {}
@@ -588,7 +587,7 @@ class Morpheus::Cli::Instances
       return 1
     end
     connect(options)
-
+    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
     begin
       instance = find_instance_by_name_or_id(args[0])
       return 1 if instance.nil?
