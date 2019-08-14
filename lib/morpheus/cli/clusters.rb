@@ -459,7 +459,7 @@ class Morpheus::Cli::Clusters
         end
 
         group = @groups_interface.get(group_id)['group']
-        payload['group'] = group['code']
+        payload['group'] = {'id' => group['id']}
 
         # Cloud / Zone
         cloud_id = nil
@@ -483,7 +483,7 @@ class Morpheus::Cli::Clusters
         end
 
         cloud['zoneType'] = @clouds_interface.cloud_type(cloud['zoneType']['id'])['zoneType']
-        payload['cloud'] = cloud['code']
+        payload['cloud'] = {'id' => cloud['id']}
 
         # Layout
         layout_id = nil
