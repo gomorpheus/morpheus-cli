@@ -15,6 +15,21 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def cloud_type(params)
+    url = "#{@base_url}/api/zone-types"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+    if params.is_a?(Hash)
+      headers[:params].merge!(params)
+    elsif params.is_a?(Numeric)
+      url = "#{@base_url}/api/zone-types/#{params}"
+    elsif params.is_a?(String)
+      headers[:params]['name'] = params
+    end
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def get(params=nil)
     url = "#{@base_url}/api/zones"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }

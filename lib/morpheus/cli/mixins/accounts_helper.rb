@@ -21,6 +21,12 @@ module Morpheus::Cli::AccountsHelper
     @users_interface
   end
 
+  def user_groups_interface
+    # @api_client.users
+    raise "#{self.class} has not defined @user_groups_interface" if @user_groups_interface.nil?
+    @user_groups_interface
+  end
+
   def roles_interface
     # @api_client.roles
     raise "#{self.class} has not defined @roles_interface" if @roles_interface.nil?
@@ -177,6 +183,43 @@ module Morpheus::Cli::AccountsHelper
       end
     end
     user_ids
+  end
+
+  def find_user_group_by_name_or_id(account_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_user_group_by_id(account_id, val)
+    else
+      return find_user_group_by_name(account_id, val)
+    end
+  end
+
+  def find_user_group_by_id(account_id, id)
+    begin
+      json_response = @user_groups_interface.get(account_id, id.to_i)
+      return json_response['userGroup']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "User Group not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_user_group_by_name(account_id, name)
+    user_groups = @user_groups_interface.list(account_id, {name: name.to_s})['userGroups']
+    if user_groups.empty?
+      print_red_alert "User Group not found by name #{name}"
+      return nil
+    elsif user_groups.size > 1
+      print_red_alert "#{user_groups.size} user groups found by name #{name}"
+      print_user_groups_table(user_groups, {color: red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return user_groups[0]
+    end
   end
 
   def print_accounts_table(accounts, options={})

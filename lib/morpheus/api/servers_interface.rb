@@ -122,6 +122,21 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def service_plan(options)
+    url = "#{@base_url}/api/service-plans"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+    if options.is_a?(Hash)
+      headers[:params].merge!(options)
+    elsif options.is_a?(Numeric)
+      url = "#{url}/#{options}"
+    elsif options.is_a?(String)
+      headers[:params]['name'] = options
+    end
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def volumes(id)
     url = "#{@base_url}/api/servers/#{id}/volumes"
     headers = { :params => {},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

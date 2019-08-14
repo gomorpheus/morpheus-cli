@@ -15,9 +15,18 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
   end
 
   def get(id, params={})
-    url = "#{@base_url}/api/security-groups/#{id}"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    execute(method: :get, url: url, headers: headers)
+    url = "#{@base_url}/api/security-groups"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+    if options.is_a?(Hash)
+      headers[:params].merge!(options)
+    elsif options.is_a?(Numeric)
+      url = "#{url}/#{options}"
+    elsif options.is_a?(String)
+      headers[:params]['name'] = options
+    end
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
   end
 
   def create(payload)

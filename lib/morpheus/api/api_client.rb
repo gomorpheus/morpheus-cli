@@ -126,7 +126,7 @@ class Morpheus::APIClient
     if options[:timeout]
       opts[:timeout] = options[:timeout].to_f
     end
-    
+
     # add extra headers, eg. from --header option
     # headers should be a Hash and not an Array, dont make me split you here!
     if options[:headers]
@@ -288,6 +288,10 @@ class Morpheus::APIClient
     Morpheus::SecurityGroupRulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def clusters
+    Morpheus::ClustersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def accounts
     Morpheus::AccountsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
@@ -347,7 +351,7 @@ class Morpheus::APIClient
   def setup
     Morpheus::SetupInterface.new(@base_url).setopts(@options).setopts(@options)
   end
-  
+
   def monitoring
     Morpheus::MonitoringInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
@@ -454,6 +458,11 @@ class Morpheus::APIClient
     Morpheus::LibraryContainerTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+
+  def library_compute_type_layouts
+    Morpheus::LibraryComputeTypeLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def packages
     Morpheus::PackagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
@@ -465,7 +474,7 @@ class Morpheus::APIClient
   def old_cypher
     Morpheus::OldCypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
-  
+
   def execution_request
     Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
