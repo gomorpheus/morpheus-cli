@@ -12,10 +12,7 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :count, :get, :add, :update, :remove
-  #register_subcommands :'add-location', :'remove-location'
-  #register_subcommands :'add-rule', :'update-rule', :'remove-rule'
-  set_default_subcommand :list
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -118,29 +115,47 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_until_status] ||= "provisioned,failed"
+        if !val.to_s.empty?
+          options[:refresh_interval] = val.to_f
+        end
+      end
+      opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
+        options[:refresh_until_status] = val.to_s.downcase
+      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Get details about a cluster."
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    if args.count < 1
+      puts optparse
+      exit 1
     end
     connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+
+  def _get(arg, options={})
+    
     begin
       @clusters_interface.setopts(options)
 
       if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @clusters_interface.dry.get(args[0].to_i)
+        if arg.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @clusters_interface.dry.get(arg.to_i)
         else
-          print_dry_run @clusters_interface.dry.list({name:args[0]})
+          print_dry_run @clusters_interface.dry.list({name:arg})
         end
         return 0
       end
-      cluster = find_cluster_by_name_or_id(args[0])
+      cluster = find_cluster_by_name_or_id(arg)
       return 1 if cluster.nil?
       json_response = nil
-      if args[0].to_s =~ /\A\d{1,}\Z/
+      if arg.to_s =~ /\A\d{1,}\Z/
         json_response = {'cluster' => cluster}  # skip redundant request
       else
         json_response = @clusters_interface.get(cluster['id'])
@@ -199,6 +214,80 @@ class Morpheus::Cli::Clusters
 
       print reset,"\n"
 
+      # refresh until a status is reached
+      if options[:refresh_until_status]
+        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+          options[:refresh_interval] = default_refresh_interval
+        end
+        statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+        if !statuses.include?(cluster['status'])
+          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
+          sleep_with_dots(options[:refresh_interval])
+          print "\n"
+          _get(arg, options)
+        end
+      end
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      opts.on('-w','--wiki', "Open the wiki tab for this cluster") do
+        options[:link_tab] = "wiki"
+      end
+      opts.on('--tab VALUE', String, "Open a specific tab") do |val|
+        options[:link_tab] = val.to_s
+      end
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View a cluster in a web browser" + "\n" +
+                    "[cluster] is required. This is the name or id of a cluster. Supports 1-N [cluster] arguments."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _view(arg, options)
+    end
+  end
+
+
+  def _view(arg, options={})
+    begin
+      cluster = find_cluster_by_name_or_id(arg)
+      return 1 if cluster.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/infrastructure/clusters/#{cluster['id']}"
+      if options[:link_tab]
+        link << "#!#{options[:link_tab]}"
+      end
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -335,6 +424,9 @@ class Morpheus::Cli::Clusters
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options[:visibility] = val
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
@@ -685,8 +777,8 @@ class Morpheus::Cli::Clusters
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif json_response['success']
-        print_green_success json_response
-        get([json_response["cluster"]["id"]])
+        get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+        get(get_args)
       else
         print_rest_errors(json_response, options)
       end
