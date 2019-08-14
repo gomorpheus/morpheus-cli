@@ -168,6 +168,7 @@ class Morpheus::Cli::Clusters
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
           #"Tenant" => lambda {|it| it['account'].instance_of?(Hash) ? it['account']['name'] : it['accountId'] },
+          "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
           "Enabled" => lambda { |it| format_boolean(it['enabled']) },
           "Status" => lambda { |it| format_cluster_status(it) }
       }
