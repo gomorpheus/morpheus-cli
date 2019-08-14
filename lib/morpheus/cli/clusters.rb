@@ -178,7 +178,8 @@ class Morpheus::Cli::Clusters
           "Name" => 'name',
           "Type" => lambda { |it| it['type']['name'] },
           "Code" => 'code',
-          "Location" => lambda { |it| it['zone']['name'] },
+          "Group" => lambda { |it| it['site']['name'] },
+          "Cloud" => lambda { |it| it['zone']['name'] },
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
@@ -204,15 +205,17 @@ class Morpheus::Cli::Clusters
       print "\n"
 
       if worker_stats
-        print_h2 "Worker Stats"
+        print_h2 "Worker Usage"
         print cyan
-        print "CPU Usage: #{worker_stats['cpuUsage']}".center(20)
-        print "Memory: #{worker_stats['usedMemory']}".center(20)
-        print "Storage: #{worker_stats['usedStorage']}".center(20)
+        # print "CPU Usage: #{worker_stats['cpuUsage']}".center(20)
+        # print "Memory: #{worker_stats['usedMemory']}".center(20)
+        # print "Storage: #{worker_stats['usedStorage']}".center(20)
+        print_stats_usage(worker_stats)
         print "\n"
       end
-
+      
       print reset,"\n"
+
 
       # refresh until a status is reached
       if options[:refresh_until_status]
@@ -892,11 +895,12 @@ class Morpheus::Cli::Clusters
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
           workers: cluster['workerCount'],
+          cloud: (cluster['zone']['name'] rescue ''),
           status: format_cluster_status(cluster)
       }
     end
     columns = [
-        :id, :name, :type, :layout, :workers, :status
+        :id, :name, :type, :layout, :workers, :cloud, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end
