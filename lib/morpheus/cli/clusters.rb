@@ -178,7 +178,8 @@ class Morpheus::Cli::Clusters
           "Name" => 'name',
           "Type" => lambda { |it| it['type']['name'] },
           "Code" => 'code',
-          "Location" => lambda { |it| it['zone']['name'] },
+          "Group" => lambda { |it| it['site']['name'] },
+          "Cloud" => lambda { |it| it['zone']['name'] },
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
@@ -799,11 +800,12 @@ class Morpheus::Cli::Clusters
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
           workers: cluster['workerCount'],
+          cloud: (cluster['zone']['name'] rescue ''),
           status: format_cluster_status(cluster)
       }
     end
     columns = [
-        :id, :name, :type, :layout, :workers, :status
+        :id, :name, :type, :layout, :workers, :cloud, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end
