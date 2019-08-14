@@ -205,15 +205,17 @@ class Morpheus::Cli::Clusters
       print "\n"
 
       if worker_stats
-        print_h2 "Worker Stats"
+        print_h2 "Worker Usage"
         print cyan
-        print "CPU Usage: #{worker_stats['cpuUsage']}".center(20)
-        print "Memory: #{worker_stats['usedMemory']}".center(20)
-        print "Storage: #{worker_stats['usedStorage']}".center(20)
+        # print "CPU Usage: #{worker_stats['cpuUsage']}".center(20)
+        # print "Memory: #{worker_stats['usedMemory']}".center(20)
+        # print "Storage: #{worker_stats['usedStorage']}".center(20)
+        print_stats_usage(worker_stats)
         print "\n"
       end
-
+      
       print reset,"\n"
+
 
       # refresh until a status is reached
       if options[:refresh_until_status]
