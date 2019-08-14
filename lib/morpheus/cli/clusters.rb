@@ -768,6 +768,9 @@ class Morpheus::Cli::Clusters
         # Host / Domain
         payload['server']['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
         payload['server']['hostname'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'description' => 'Hostname'}], options[:options], @api_client)['hostname']
+
+        # Envelop it
+        payload = {'cluster' => payload}
       end
       @clusters_interface.setopts(options)
       if options[:dry_run]
