@@ -296,7 +296,6 @@ class Morpheus::Cli::Clusters
 
   def add(args)
     options = {}
-    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[name] [description]")
       opts.on("--description [TEXT]", String, "Description") do |val|
@@ -626,7 +625,7 @@ class Morpheus::Cli::Clusters
           # custom max memory
           if service_plan['customMaxMemory']
             if !options[:maxMemory]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'number' => 'text', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'type' => 'number', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
               payload['server']['plan']['options']['maxMemory'] = v_prompt['maxMemory'] * 1024 * 1024 if v_prompt['maxMemory']
             else
               payload['server']['plan']['options']['maxMemory'] = options[:maxMemory]
@@ -636,17 +635,17 @@ class Morpheus::Cli::Clusters
           # custom cores: max cpu, max cores, cores per socket
           if service_plan['customCores']
             if !options[:cpuCount]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'number' => 'text', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'type' => 'number', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
               payload['server']['plan']['options']['cpuCount'] = v_prompt['cpuCount'] if v_prompt['cpuCount']
             else
               payload['server']['plan']['options']['cpuCount']
             end
             if !options[:coreCount]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'number' => 'text', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'type' => 'number', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
               payload['server']['plan']['options']['coreCount'] = v_prompt['coreCount'] if v_prompt['coreCount']
             end
             if !options[:coresPerSocket] && service_plan['coresPerSocket']
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'number' => 'text', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
               payload['server']['plan']['options']['coresPerSocket'] = v_prompt['coresPerSocket'] if v_prompt['coresPerSocket']
             end
           end
@@ -788,6 +787,100 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def update(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[name] --name --description --active")
+      opts.on("--name NAME", String, "Updates Cluster Name") do |val|
+        options[:name] = val.to_s
+      end
+      opts.on("--description [TEXT]", String, "Updates Cluster Description") do |val|
+        options[:description] = val.to_s
+      end
+      opts.on('--active [on|off]', String, "Can be used to enable / disable the cluster. Default is on") do |val|
+        options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    begin
+      payload = nil
+      cluster = nil
+
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['cluster'] ||= {}
+          payload['cluster'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+
+        if !payload['cluster'].empty?
+          cluster = find_cluster_by_name_or_id(payload['cluster']['id'] || payload['cluster']['name'])
+        end
+      else
+        if !args.empty?
+          cluster = find_cluster_by_name_or_id(args[0])
+
+          if !cluster
+            print_red_alert "Cluster not found"
+            exit 1
+          end
+        elsif !options[:no_prompt]
+          available_clusters = @clusters_interface.list['clusters'].collect { |it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id']} }
+
+          if available_clusters.count
+            existing_cluster_names = available_clusters.collect {|it| it['name']}
+            cluster = find_cluster_by_id(Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'clusterId', 'type' => 'select', 'fieldLabel' => 'Cluster', 'selectOptions' => available_clusters.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Cluster.'}], options[:options], @api_client, {})['clusterId'])
+          end
+        else
+          print_red_alert "No cluster specified"
+          exit 1
+        end
+
+        cluster_payload = {}
+        cluster_payload['name'] = options[:name] if !options[:name].empty?
+        cluster_payload['description'] = options[:description] if !options[:description].empty?
+        cluster_payload['enabled'] = options[:active] if !options[:active].nil?
+        payload = {"cluster" => cluster_payload}
+      end
+
+      if !cluster
+        print_red_alert "No clusters available for update"
+        exit 1
+      end
+
+      if !['name', 'description', 'enabled'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
+        print_green_success "Nothing to update"
+        exit 1
+      end
+
+      print_red_alert payload
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.update(cluster['id'], payload)
+        return
+      end
+      json_response = @clusters_interface.update(cluster['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif json_response['success']
+        get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+        get(get_args)
+      else
+        print_rest_errors(json_response, options)
+      end
+    end
+  end
+
   private
 
   def print_clusters_table(clusters, opts={})
@@ -843,12 +936,12 @@ class Morpheus::Cli::Clusters
   end
 
   def find_cluster_by_name(name)
-    json_results = @clusters_interface.get({name: name})
-    if json_results['cluster'].empty?
+    json_results = @clusters_interface.list({name: name})
+    if json_results['clusters'].empty? || json_results['clusters'].count > 1
       print_red_alert "Cluster not found by name #{name}"
       exit 1
     end
-    json_results['cluster'][0]
+    json_results['clusters'][0]
   end
 
   def find_cluster_type_by_name_or_id(val)
