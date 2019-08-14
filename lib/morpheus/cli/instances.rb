@@ -333,6 +333,9 @@ class Morpheus::Cli::Instances
       opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
         options[:create_backup] = ['on','true','1',''].include?(val.to_s.downcase) ? 'on' : 'off'
       end
+      opts.on("--security-groups LIST", Integer, "Security Groups, comma sepearated list of security group IDs") do |val|
+        options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
@@ -552,7 +555,6 @@ class Morpheus::Cli::Instances
   end
 
   def update_notes(args)
-    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
     usage = "Usage: morpheus instances update-notes [instance] [options]"
     options = {}
     params = {}
@@ -585,7 +587,7 @@ class Morpheus::Cli::Instances
       return 1
     end
     connect(options)
-
+    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
     begin
       instance = find_instance_by_name_or_id(args[0])
       return 1 if instance.nil?

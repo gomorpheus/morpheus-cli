@@ -35,9 +35,9 @@ module Morpheus
             is_hidden = (@hidden_options || []).find { |hidden_switch|
               # opt_description.include?("--#{hidden_switch}")
               if hidden_switch.start_with?("-")
-                opt_description.to_s.strip.start_with?(hidden_switch)
+                opt_description.to_s.strip.start_with?("#{hidden_switch} ")
               else
-                opt_description.to_s.strip.start_with?("--#{hidden_switch}")
+                opt_description.to_s.strip.start_with?("--#{hidden_switch} ")
               end
             }
             if !is_hidden
