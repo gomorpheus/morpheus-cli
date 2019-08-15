@@ -180,6 +180,7 @@ class Morpheus::Cli::Clusters
           "Code" => 'code',
           "Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
+          "Location" => lambda { |it| it['location'] },
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
