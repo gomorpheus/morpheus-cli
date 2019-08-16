@@ -301,6 +301,9 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[name] [description]")
+      opts.on( '--name NAME', "Cluster Name" ) do |val|
+        options[:name] = val.to_s
+      end
       opts.on("--description [TEXT]", String, "Description") do |val|
         options[:description] = val.to_s
       end
@@ -441,9 +444,26 @@ class Morpheus::Cli::Clusters
       if options[:payload]
         payload = options[:payload]
         # support -O OPTION switch on top of --payload
+        payload['cluster'] ||= {}
         if options[:options]
-          payload['cluster'] ||= {}
           payload['cluster'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+        if args[0]
+          payload['cluster']['name'] = args[0]
+        elsif options[:name]
+          payload['cluster']['name'] = options[:name]
+        end
+        if args[1]
+          payload['cluster']['description'] = args[1]
+        elsif options[:description]
+          payload['cluster']['description'] = options[:description]
+        end
+        payload['cluster']['server'] ||= {}
+        if options[:resourceName]
+          payload['cluster']['server']['name'] = options[:resourceName]
+        end
+        if options[:resourceDescription]
+          payload['cluster']['server']['description'] = options[:resourceDescription]
         end
       else
         payload = {"server" => {}, "config" => {}}
@@ -476,6 +496,8 @@ class Morpheus::Cli::Clusters
           exit 1
         elsif !args.empty?
           payload['name'] = args[0]
+        elsif !options[:name]
+          payload['name'] = options[:name]
         else
           existing_cluster_names = @clusters_interface.list()['clusters'].collect { |cluster| cluster['name'] }
           while payload['name'].empty?
@@ -506,7 +528,7 @@ class Morpheus::Cli::Clusters
             print_red_alert "No resource name provided"
             exit 1
           else
-            resourceName = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Resource Name', 'required' => true, 'description' => 'Resource Name.'}],options[:options],@api_client,{})['name']
+            resourceName = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourceName', 'type' => 'text', 'fieldLabel' => 'Resource Name', 'required' => true, 'description' => 'Resource Name.'}],options[:options],@api_client,{})['resourceName']
           end
         end
 
