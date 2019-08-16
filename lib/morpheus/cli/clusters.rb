@@ -965,7 +965,7 @@ class Morpheus::Cli::Clusters
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Cluster #{server['name']} is being removed..."
+        print_green_success "Cluster #{cluster['name']} is being removed..."
         #list([])
       end
     rescue RestClient::Exception => e
