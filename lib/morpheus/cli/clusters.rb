@@ -177,7 +177,6 @@ class Morpheus::Cli::Clusters
           "ID" => 'id',
           "Name" => 'name',
           "Type" => lambda { |it| it['type']['name'] },
-          "Code" => 'code',
           #"Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
           "Location" => lambda { |it| it['location'] },
