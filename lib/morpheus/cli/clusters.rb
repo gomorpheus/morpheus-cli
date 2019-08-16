@@ -629,23 +629,26 @@ class Morpheus::Cli::Clusters
 
         # Plan
         service_plan_id = nil
-        service_plan = options[:servicePlan] ? find_service_plan_by_name_or_id(options[:servicePlan]) : nil
+        service_plan = nil
+        #service_plan = options[:servicePlan] ? find_service_plan_by_name_or_id(options[:servicePlan]) : nil
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_cloud(cloud)
-
+        available_service_plans = service_plans_for_dropdown(cloud['id'], provision_type['id'])
+        if available_service_plans.empty?
+          print_red_alert "Cloud #{cloud['name']} has no available plans"
+          exit 1
+        end
         if service_plan
           service_plan_id = service_plan['id']
+        elsif options[:servicePlan]
+          available_service_plans.find {|sp| sp['id'] == options[:servicePlan].to_i || sp['name'] == options[:servicePlan] || sp['code'] == options[:servicePlan] } 
         else
-          available_service_plans = service_plans_for_dropdown(cloud['id'], provision_type['id'])
-
-          if available_service_plans.empty?
-            print_red_alert "Cloud #{cloud['name']} has no available plans"
-            exit 1
-          elsif available_service_plans.count > 1 && !options[:no_prompt]
-            service_plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => available_service_plans, 'required' => true, 'description' => 'Select Plan.'}],options[:options],@api_client,{})['servicePlan']
+          if available_service_plans.count > 1 && !options[:no_prompt]
+            service_plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => available_service_plans, 'required' => true, 'description' => 'Select Plan.'}],options[:options],@api_client,{})['servicePlan'].to_i
           else
             service_plan_id = available_service_plans.first['id']
           end
-          service_plan = find_service_plan_by_id(service_plan_id)
+          #service_plan = find_service_plan_by_id(service_plan_id)
+          service_plan = available_service_plans.find {|sp| sp['id'] == service_plan_id.to_i || sp['name'] == service_plan_id.to_s || sp['code'] == service_plan_id.to_s } 
         end
 
         # service plan options
@@ -717,7 +720,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(controller_provision_type, options, @api_client, {})
+        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {})
 
         if !volumes.empty?
           payload['volumes'] = volumes
