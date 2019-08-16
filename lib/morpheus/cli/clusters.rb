@@ -89,6 +89,9 @@ class Morpheus::Cli::Clusters
       opts.footer = "Get the number of clusters."
     end
     optparse.parse!(args)
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
     begin
       params = {}
@@ -129,8 +132,7 @@ class Morpheus::Cli::Clusters
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      exit 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -253,8 +255,8 @@ class Morpheus::Cli::Clusters
                     "[cluster] is required. This is the name or id of a cluster. Supports 1-N [cluster] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    if args.count < 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -437,6 +439,9 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
+    if args.count > 2
+      raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
 
     begin
@@ -835,6 +840,9 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
 
     begin
@@ -936,9 +944,8 @@ class Morpheus::Cli::Clusters
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
@@ -978,6 +985,9 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
     connect(options)
 
     begin
