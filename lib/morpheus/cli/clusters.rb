@@ -501,7 +501,7 @@ class Morpheus::Cli::Clusters
           exit 1
         elsif !args.empty?
           payload['name'] = args[0]
-        elsif !options[:name]
+        elsif options[:name]
           payload['name'] = options[:name]
         else
           existing_cluster_names = @clusters_interface.list()['clusters'].collect { |cluster| cluster['name'] }
