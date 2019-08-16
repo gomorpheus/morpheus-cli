@@ -12,7 +12,7 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :add_worker
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -906,6 +906,117 @@ class Morpheus::Cli::Clusters
       else
         print_rest_errors(json_response, options)
       end
+    end
+  end
+
+  #removeResources, removeInstances, force, removeVolumes, releeaseEIPs
+  def remove(args)
+    options = {}
+    query_params = {:removeResources => 'on'}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
+      #   query_params[:removeResources] = 'off'
+      # end
+      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
+        query_params[:removeResources] = val.nil? ? 'on' : val
+      end
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
+        query_params[:preserveVolumes] = val.nil? ? 'on' : val
+      end
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
+        query_params[:removeInstances] = val.nil? ? 'on' : val
+      end
+      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
+        params[:releaseEIPs] = val.nil? ? 'on' : val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster '#{cluster['name']}'?", options)
+        exit 1
+      end
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy(cluster['id'], query_params)
+        return
+      end
+      json_response = @clusters_interface.destroy(cluster['id'], query_params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Cluster #{server['name']} is being removed..."
+        #list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def add_worker(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] [options]")
+      opts.on("--name NAME", String, "Worker Name") do |val|
+        options[:name] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['worker'] ||= {}
+          payload['worker'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        # TODO: prompt for worker params
+        worker_payload = {}
+        worker_payload['name'] = options[:name] if !options[:name].empty?
+        # worker_payload['description'] = options[:description] if !options[:description].empty?
+        # worker_payload['enabled'] = options[:active] if !options[:active].nil?
+        payload = {"worker" => worker_payload}
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.add_worker(cluster['id'], payload)
+        return
+      end
+      json_response = @clusters_interface.add_worker(cluster['id'], payload)
+      if options[:json]
+        puts as_json(json_response)
+      elsif json_response['success']
+        print_green_success "Added worker to cluster #{cluster['name']}"
+        #get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
+        #get(get_args)
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
     end
   end
 

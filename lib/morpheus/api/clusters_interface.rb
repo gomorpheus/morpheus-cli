@@ -41,9 +41,9 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def delete(id)
+  def destroy(id, params={})
     url = "#{@api_url}/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :delete, url: url, headers: headers)
   end
 
@@ -53,4 +53,11 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
+
+  def add_worker(id, payload)
+    url = "#{@api_url}/#{id}/workers"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
 end
