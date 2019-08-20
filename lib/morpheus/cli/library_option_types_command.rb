@@ -162,17 +162,27 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_option_type_options(opts, options, new_option_type_option_types)
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client, options[:params])
-      if params.key?('required')
-        params['required'] = ['on','true'].include?(params['required'].to_s)
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['optionType'] ||= {}
+          payload['optionType'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        params = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client, options[:params])
+        if params.key?('required')
+          params['required'] = ['on','true'].include?(params['required'].to_s)
+        end
+        option_type_payload = params
+        payload = {optionType: option_type_payload}
       end
-      option_type_payload = params
-      payload = {optionType: option_type_payload}
       @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.create(payload)
@@ -186,7 +196,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       option_type = json_response['optionType']
       print_green_success "Added Option Type #{option_type['name']}"
       #list([])
-      get([option_type['id']])
+      get([option_type['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -200,7 +210,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_option_type_option_types)
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
@@ -208,18 +218,27 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       option_type = find_option_type_by_name_or_id(args[0])
       exit 1 if option_type.nil?
 
-      #params = options[:options] || {}
-      params = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client, options[:params])
-      if params.empty?
-        print_red_alert "Specify at least one option to update"
-        puts optparse
-        exit 1
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['optionType'] ||= {}
+          payload['optionType'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        #params = options[:options] || {}
+        params = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client, options[:params])
+        if params.empty?
+          print_red_alert "Specify at least one option to update"
+          puts optparse
+          exit 1
+        end
+        if params.key?('required')
+          params['required'] = ['on','true'].include?(params['required'].to_s)
+        end
+        option_type_payload = params
+        payload = {optionType: option_type_payload}
       end
-      if params.key?('required')
-        params['required'] = ['on','true'].include?(params['required'].to_s)
-      end
-      option_type_payload = params
-      payload = {optionType: option_type_payload}
       @option_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @option_types_interface.dry.update(option_type['id'], payload)
@@ -232,7 +251,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       end
       print_green_success "Updated Option Type #{option_type_payload['name']}"
       #list([])
-      get([option_type['id']])
+      get([option_type['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

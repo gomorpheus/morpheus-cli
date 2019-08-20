@@ -193,11 +193,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
     end
     optparse.parse!(args)
     
-    if !list_type
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true}], options[:options], @api_client, {})
-      list_type = v_prompt['type']
-    end
-
+    
     connect(options)
     begin
       payload = nil
@@ -209,6 +205,10 @@ class Morpheus::Cli::LibraryOptionListsCommand
           payload['optionTypeList'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
         end
       else
+        if !list_type
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true}], options[:options], @api_client, {})
+          list_type = v_prompt['type']
+        end
         params = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
         params['type'] = list_type
         if params['type'] == 'rest'
@@ -235,12 +235,10 @@ class Morpheus::Cli::LibraryOptionListsCommand
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print_green_success "Added Option List #{list_payload['name']}"
-      #list([])
       option_type_list = json_response['optionTypeList']
-      if option_type_list
-        get([option_type_list['id']])
-      end
+      print_green_success "Added Option List #{option_type_list['name']}"
+      get([option_type_list['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -306,8 +304,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         return
       end
       print_green_success "Updated Option List #{list_payload['name']}"
-      #list([])
-      get([option_type_list['id']])
+      get([option_type_list['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
