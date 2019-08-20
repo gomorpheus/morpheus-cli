@@ -861,25 +861,7 @@ class Morpheus::Cli::Clusters
           cluster = find_cluster_by_name_or_id(payload['cluster']['id'] || payload['cluster']['name'])
         end
       else
-        if !args.empty?
-          cluster = find_cluster_by_name_or_id(args[0])
-
-          if !cluster
-            print_red_alert "Cluster not found"
-            exit 1
-          end
-        elsif !options[:no_prompt]
-          available_clusters = @clusters_interface.list['clusters'].collect { |it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id']} }
-
-          if available_clusters.count
-            existing_cluster_names = available_clusters.collect {|it| it['name']}
-            cluster = find_cluster_by_id(Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'clusterId', 'type' => 'select', 'fieldLabel' => 'Cluster', 'selectOptions' => available_clusters.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Cluster.'}], options[:options], @api_client, {})['clusterId'])
-          end
-        else
-          print_red_alert "No cluster specified"
-          exit 1
-        end
-
+        cluster = find_cluster_by_name_or_id(args[0])
         cluster_payload = {}
         cluster_payload['name'] = options[:name] if !options[:name].empty?
         cluster_payload['description'] = options[:description] if !options[:description].empty?
