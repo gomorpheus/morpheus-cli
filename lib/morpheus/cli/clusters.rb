@@ -1060,10 +1060,12 @@ class Morpheus::Cli::Clusters
           all_stats = json_response['stats'] || {} 
           servers.each do |it|
             found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if !it['stats']
-              it['stats'] = found_stats # || {}
-            else
-              it['stats'] = found_stats.merge!(it['stats'])
+            if found_stats
+              if !it['stats']
+                it['stats'] = found_stats # || {}
+              else
+                it['stats'] = found_stats.merge!(it['stats'])
+              end
             end
           end
 
@@ -1341,10 +1343,12 @@ class Morpheus::Cli::Clusters
           all_stats = json_response['stats'] || {} 
           servers.each do |it|
             found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if !it['stats']
-              it['stats'] = found_stats # || {}
-            else
-              it['stats'] = found_stats.merge!(it['stats'])
+            if found_stats
+              if !it['stats']
+                it['stats'] = found_stats # || {}
+              else
+                it['stats'] = found_stats.merge!(it['stats'])
+              end
             end
           end
 
