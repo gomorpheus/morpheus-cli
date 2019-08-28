@@ -47,6 +47,8 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
+  alias :delete :destroy
+
   def cluster_types(params={})
     url = "#{@base_url}/api/cluster-types"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
@@ -59,5 +61,54 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
+
+  # this supports multiple ids
+  def destroy_volume(id, volume_id=nil, params={}, payload={})
+    url = nil
+    if volume_id.is_a?(Array)
+      url = "#{@api_url}/#{id}/volumes"
+      params['volumeId'] = volume_id
+    elsif volume_id.is_a?(Number) || volume_id.is_a?(String)
+      url = "#{@api_url}/#{id}/volumes/#{volume_id}"
+    else
+      raise "passed a bad volume_id: #{volume_id || '(none)'}" # lazy
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  alias :delete_volume :destroy_volume
+
+  def list_namespaces(id, params={})
+    url = "#{@api_url}/#{id}/namespaces"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def get_namespace(id, namespace_id, params={})
+    url = "#{@api_url}/#{id}/namespaces/#{namespace_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def create_namespace(id, payload)
+    url = "#{@api_url}/#{id}/namespaces"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def update_namespace(id, namespace_id, payload)
+    url = "#{@api_url}/#{id}/namespaces/#{namespace_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def destroy_namespace(id, namespace_id, params={})
+    url = "#{@api_url}/#{id}/namespaces/#{namespace_id}"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
+  end
+  
+  alias :delete_namespace :destroy_namespace
 
 end

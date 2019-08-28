@@ -12,7 +12,10 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :add_worker
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove
+  register_subcommands :add_worker
+  register_subcommands :remove_volume
+  register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -436,6 +439,8 @@ class Morpheus::Cli::Clusters
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Create a cluster.\n" +
+                    "[name] is required. This is the name of the new cluster."
     end
 
     optparse.parse!(args)
@@ -826,7 +831,7 @@ class Morpheus::Cli::Clusters
   def update(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage( "[name] --name --description --active")
+      opts.banner = subcommand_usage( "[cluster] --name --description --active")
       opts.on("--name NAME", String, "Updates Cluster Name") do |val|
         options[:name] = val.to_s
       end
@@ -840,6 +845,8 @@ class Morpheus::Cli::Clusters
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
     end
 
     optparse.parse!(args)
@@ -902,15 +909,11 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  #removeResources, removeInstances, force, removeVolumes, releeaseEIPs
   def remove(args)
     options = {}
     query_params = {:removeResources => 'on'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
-      #   query_params[:removeResources] = 'off'
-      # end
+      opts.banner = subcommand_usage("[cluster]")
       opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
         query_params[:removeResources] = val.nil? ? 'on' : val
       end
@@ -927,6 +930,8 @@ class Morpheus::Cli::Clusters
         query_params[:force] = 'on'
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -938,7 +943,7 @@ class Morpheus::Cli::Clusters
       cluster = find_cluster_by_name_or_id(args[0])
       
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster '#{cluster['name']}'?", options)
-        exit 1
+        return 9, "aborted command"
       end
       @clusters_interface.setopts(options)
       if options[:dry_run]
@@ -967,6 +972,9 @@ class Morpheus::Cli::Clusters
         options[:name] = val.to_s
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Add worker to a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" + 
+                    "[name] is required. This is the name of the new worker."
     end
 
     optparse.parse!(args)
@@ -1009,6 +1017,363 @@ class Morpheus::Cli::Clusters
         #get(get_args)
       end
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_volume(args)
+    options = {}
+    query_params = {:removeResources => 'on'}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
+      #   query_params[:removeResources] = 'off'
+      # end
+      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
+        query_params[:removeResources] = val.nil? ? 'on' : val
+      end
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
+        query_params[:preserveVolumes] = val.nil? ? 'on' : val
+      end
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
+        query_params[:removeInstances] = val.nil? ? 'on' : val
+      end
+      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
+        params[:releaseEIPs] = val.nil? ? 'on' : val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a volume within a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[volume] is required. This is the name or id of an existing volume."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      volume_id = args[0]
+      #volume_id = args.count > 1 ? args : args[0] # support multiple
+      # todo: look it up
+      #volume = cluster['volumes'].find {|vol| vol['name'] == volume_id.to_s || vol['id'] == volume_id.to_i }
+      volume = {"id" => volume_id}
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster volume '#{volume['name'] || volume['id']}'?", options)
+        return 9, "aborted command"
+      end
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume_id, query_params)
+        return
+      end
+      json_response = @clusters_interface.destroy_volume(cluster['id'], volume_id, query_params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Cluster #{cluster['name']} is being removed..."
+        #list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def add_namespace(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] [name] [options]")
+      opts.on("--name NAME", String, "Name of the new namespace") do |val|
+        options[:name] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Create a cluster namespace.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[name] is required. This is the name of the new namespace."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['namespace'] ||= {}
+          payload['namespace'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        # TODO: prompt for namespace params
+        namespace_payload = {}
+        namespace_payload['name'] = options[:name] if !options[:name].empty?
+        # namespace_payload['description'] = options[:description] if !options[:description].empty?
+        # namespace_payload['enabled'] = options[:active] if !options[:active].nil?
+        payload = {"namespace" => namespace_payload}
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.create_namespace(cluster['id'], payload)
+        return
+      end
+      json_response = @clusters_interface.create_namespace(cluster['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        namespace = json_response['namespace']
+        print_green_success "Added namespace #{namespace}"
+        #get_args = [cluster["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
+        #get(get_args)
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_namespaces(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List namespaces for a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_namespaces(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_namespaces(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options, 'namespaces')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Namespaces: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      namespaces = json_response['namespaces']
+      if namespaces.empty?
+        print yellow,"No namespaces found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = namespaces.collect do |cluster|
+          {
+              id: cluster['id'],
+              name: cluster['name']
+          }
+        end
+        columns = [
+            :id, :name
+        ]
+        print as_pretty_table(rows, columns, opts)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def get_namespace(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] [namespace]")
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a cluster namespace.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[namespace] is required. This is the name or id of an existing namespace."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      # this finds the namespace in the cluster api response, then fetches it by ID
+      namespaces = cluster['namespaces'] || []
+      namespace = namespaces.find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      if namespace.nil?
+        print_red_alert "Namespace not found for '#{args[1]}'"
+        exit 1
+      end
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.get_namespace(cluster['id'], namespace['id'], params)
+        return
+      end
+      json_response = @clusters_interface.get_namespace(cluster['id'], namespace['id'], params)
+      
+      render_result = render_with_format(json_response, options, 'namespace')
+      return 0 if render_result
+
+      print_h1 "Morpheus Cluster Namespace"
+      print cyan
+      description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Description" => 'description',
+          "Status" => 'status',
+          "Cluster" => lambda { |it| cluster['name'] }
+          # more stuff to show here
+      }
+      print_description_list(description_cols, namespace)
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_namespace(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] [namespace] [options]")
+      opts.on("--name NAME", String, "Namespace Name") do |val|
+        options[:name] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a cluster namespace.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[namespace] is required. This is the name or id of an existing namespace."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      namespace = cluster['namespaces'].find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      if namespace.nil?
+        print_red_alert "Namespace not found by '#{args[1]}'"
+        exit 1
+      end
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of everything
+        if options[:options]
+          payload.deep_merge!({'namespace' => options[:options].reject {|k,v| k.is_a?(Symbol) }})
+        end
+      else
+        # TODO: prompt for namespace params
+        namespace_payload = {}
+        namespace_payload['name'] = options[:name] if !options[:name].empty?
+        # namespace_payload['description'] = options[:description] if !options[:description].empty?
+        # namespace_payload['enabled'] = options[:active] if !options[:active].nil?
+        payload = {"namespace" => namespace_payload}
+
+        # support -O OPTION switch on top of everything
+        if options[:options]
+          payload.deep_merge!({'namespace' => options[:options].reject {|k,v| k.is_a?(Symbol) }})
+        end
+
+        if payload['namespace'].nil? || payload['namespace'].empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.update_namespace(cluster['id'], namespace['id'], payload)
+        return
+      end
+      json_response = @clusters_interface.update_namespace(cluster['id'], namespace['id'], payload)
+      if options[:json]
+        puts as_json(json_response)
+      elsif !options[:quiet]
+        namespace = json_response['namespace']
+        print_green_success "Updated namespace #{namespace}"
+        #get_args = [cluster["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
+        #get(get_args)
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_namespace(args)
+    options = {}
+    query_params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [namespace]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a namespace within a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      namespace = cluster['namespaces'].find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      if namespace.nil?
+        print_red_alert "Namespace not found by '#{args[1]}'"
+        exit 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster namespace '#{namespace['name']}'?", options)
+        return 9, "aborted command"
+      end
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_namespace(cluster['id'], namespace['id'], query_params)
+        return
+      end
+      json_response = @clusters_interface.destroy_namespace(cluster['id'], namespace['id'], query_params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Removed cluster namespace #{namespace['name']}"
+        #list([])
+      end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
