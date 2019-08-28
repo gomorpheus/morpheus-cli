@@ -13,7 +13,8 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::AccountsHelper
 
   register_subcommands :list, :count, :get, :view, :add, :update, :remove
-  register_subcommands :add_worker
+  register_subcommands :list_workers, :add_worker
+  register_subcommands :list_masters
   register_subcommands :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
   
@@ -121,6 +122,16 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on( nil, '--hosts', "Display masters and workers" ) do
+        options[:show_masters] = true
+        options[:show_workers] = true
+      end
+      opts.on( nil, '--masters', "Display masters" ) do
+        options[:show_masters] = true
+      end
+      opts.on( nil, '--workers', "Display workers" ) do
+        options[:show_workers] = true
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "provisioned,failed"
         if !val.to_s.empty?
@@ -209,6 +220,47 @@ class Morpheus::Cli::Clusters
       print "Deployments: #{cluster['deploymentCount']}".center(20) if cluster['deployments']
       print "\n"
 
+      if options[:show_masters]
+        masters = cluster['masters']
+        if masters.nil? || masters.empty?
+          print_h2 "Masters"
+          print yellow,"No masters found.",reset,"\n"
+        else
+          print_h2 "Masters"
+          rows = masters.collect do |server|
+            {
+              id: server['id'],
+              name: server['name'],
+              type: (server['type']['name'] rescue server['type']),
+              status: format_server_status(server),
+              power: format_server_power_state(server, cyan)
+            }
+          end
+          columns = [:id, :name, :status, :power]
+          puts as_pretty_table(rows, columns, options)
+        end
+      end
+      if options[:show_workers]
+        workers = cluster['workers']
+        if workers.nil? || workers.empty?
+          print_h2 "Workers"
+          print yellow,"No workers found.",reset,"\n"
+        else
+          print_h2 "Workers"
+          rows = workers.collect do |server|
+            {
+              id: server['id'],
+              name: server['name'],
+              type: (server['type']['name'] rescue server['type']),
+              status: format_server_status(server),
+              power: format_server_power_state(server, cyan)
+            }
+          end
+          columns = [:id, :name, :status, :power]
+          puts as_pretty_table(rows, columns, options)
+        end
+      end
+
       if worker_stats
         print_h2 "Worker Usage"
         print cyan
@@ -216,11 +268,8 @@ class Morpheus::Cli::Clusters
         # print "Memory: #{worker_stats['usedMemory']}".center(20)
         # print "Storage: #{worker_stats['usedStorage']}".center(20)
         print_stats_usage(worker_stats)
-        print "\n"
+        print reset,"\n"
       end
-      
-      print reset,"\n"
-
 
       # refresh until a status is reached
       if options[:refresh_until_status]
@@ -642,10 +691,8 @@ class Morpheus::Cli::Clusters
           print_red_alert "Cloud #{cloud['name']} has no available plans"
           exit 1
         end
-        if service_plan
-          service_plan_id = service_plan['id']
-        elsif options[:servicePlan]
-          available_service_plans.find {|sp| sp['id'] == options[:servicePlan].to_i || sp['name'] == options[:servicePlan] || sp['code'] == options[:servicePlan] } 
+        if options[:servicePlan]
+          service_plan = available_service_plans.find {|sp| sp['id'] == options[:servicePlan].to_i || sp['name'] == options[:servicePlan] || sp['code'] == options[:servicePlan] } 
         else
           if available_service_plans.count > 1 && !options[:no_prompt]
             service_plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => available_service_plans, 'required' => true, 'description' => 'Select Plan.'}],options[:options],@api_client,{})['servicePlan'].to_i
@@ -964,6 +1011,228 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def list_workers(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List workers for a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_workers(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_workers(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options, 'workers')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Workers: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      workers = json_response['workers']
+      if workers.empty?
+        print yellow,"No workers found.",reset,"\n"
+      else
+        # more stuff to show here
+        
+        servers = workers
+        multi_tenant = false
+
+        # print_servers_table(servers)
+          # server returns stats in a separate key stats => {"id" => {} }
+          # the id is a string right now..for some reason..
+          all_stats = json_response['stats'] || {} 
+          servers.each do |it|
+            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+            if !it['stats']
+              it['stats'] = found_stats # || {}
+            else
+              it['stats'] = found_stats.merge!(it['stats'])
+            end
+          end
+
+          rows = servers.collect {|server| 
+            stats = server['stats']
+            
+            if !stats['maxMemory']
+              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+            end
+            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            if options[:details]
+              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+              end
+              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+              end
+            end
+            row = {
+              id: server['id'],
+              tenant: server['account'] ? server['account']['name'] : server['accountId'],
+              name: server['name'],
+              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+              cloud: server['zone'] ? server['zone']['name'] : '',
+              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+              nodes: server['containers'] ? server['containers'].size : '',
+              status: format_server_status(server, cyan),
+              power: format_server_power_state(server, cyan),
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+            }
+            row
+          }
+          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+          if multi_tenant
+            columns.insert(4, :tenant)
+          end
+          columns += [:cpu, :memory, :storage]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
+          print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_workers(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List workers for a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_workers(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_workers(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options, 'workers')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Workers: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      workers = json_response['workers']
+      if workers.empty?
+        print yellow,"No workers found.",reset,"\n"
+      else
+        # more stuff to show here
+        
+        servers = workers
+        multi_tenant = false
+
+        # print_servers_table(servers)
+          # server returns stats in a separate key stats => {"id" => {} }
+          # the id is a string right now..for some reason..
+          all_stats = json_response['stats'] || {} 
+          servers.each do |it|
+            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+            if !it['stats']
+              it['stats'] = found_stats # || {}
+            else
+              it['stats'] = found_stats.merge!(it['stats'])
+            end
+          end
+
+          rows = servers.collect {|server| 
+            stats = server['stats']
+            
+            if !stats['maxMemory']
+              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+            end
+            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            if options[:details]
+              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+              end
+              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+              end
+            end
+            row = {
+              id: server['id'],
+              tenant: server['account'] ? server['account']['name'] : server['accountId'],
+              name: server['name'],
+              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+              cloud: server['zone'] ? server['zone']['name'] : '',
+              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+              nodes: server['containers'] ? server['containers'].size : '',
+              status: format_server_status(server, cyan),
+              power: format_server_power_state(server, cyan),
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+            }
+            row
+          }
+          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+          if multi_tenant
+            columns.insert(4, :tenant)
+          end
+          columns += [:cpu, :memory, :storage]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
+          print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def add_worker(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1016,6 +1285,117 @@ class Morpheus::Cli::Clusters
         #get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
         #get(get_args)
       end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_masters(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List masters for a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_masters(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_masters(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options, 'masters')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Masters: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      masters = json_response['masters']
+      if masters.empty?
+        print yellow,"No masters found.",reset,"\n"
+      else
+        # more stuff to show here
+        
+        servers = masters
+        multi_tenant = false
+
+        # print_servers_table(servers)
+          # server returns stats in a separate key stats => {"id" => {} }
+          # the id is a string right now..for some reason..
+          all_stats = json_response['stats'] || {} 
+          servers.each do |it|
+            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+            if !it['stats']
+              it['stats'] = found_stats # || {}
+            else
+              it['stats'] = found_stats.merge!(it['stats'])
+            end
+          end
+
+          rows = servers.collect {|server| 
+            stats = server['stats']
+            
+            if !stats['maxMemory']
+              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+            end
+            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+            if options[:details]
+              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+              end
+              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+              end
+            end
+            row = {
+              id: server['id'],
+              tenant: server['account'] ? server['account']['name'] : server['accountId'],
+              name: server['name'],
+              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+              cloud: server['zone'] ? server['zone']['name'] : '',
+              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+              nodes: server['containers'] ? server['containers'].size : '',
+              status: format_server_status(server, cyan),
+              power: format_server_power_state(server, cyan),
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+            }
+            row
+          }
+          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+          if multi_tenant
+            columns.insert(4, :tenant)
+          end
+          columns += [:cpu, :memory, :storage]
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(rows, columns, options)
+          print reset
+          print_results_pagination(json_response)
+      end
+      print reset,"\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1404,17 +1784,37 @@ class Morpheus::Cli::Clusters
   def format_cluster_status(cluster, return_color=cyan)
     out = ""
     status_string = cluster['status']
-    if cluster['enabled'] == false || status_string == 'error'
-      out << "#{red}DISABLED#{return_color}"
+    if cluster['enabled'] == false
+      out << "#{red}DISABLED#{cluster['statusMessage'] ? "#{return_color} - #{cluster['statusMessage']}" : ''}#{return_color}"
     elsif status_string.nil? || status_string.empty? || status_string == "unknown"
-      out << "#{white}UNKNOWN#{return_color}"
+      out << "#{white}UNKNOWN#{cluster['statusMessage'] ? "#{return_color} - #{cluster['statusMessage']}" : ''}#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'syncing' || status_string.include?('provision')
+    elsif status_string == 'syncing' || status_string == 'removing' || status_string.include?('provision')
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     else
       out << "#{red}#{status_string ? status_string.upcase : 'N/A'}#{cluster['statusMessage'] ? "#{return_color} - #{cluster['statusMessage']}" : ''}#{return_color}"
     end
+    out
+  end
+
+  def format_server_power_state(server, return_color=cyan)
+    out = ""
+    if server['powerState'] == 'on'
+      out << "#{green}ON#{return_color}"
+    elsif server['powerState'] == 'off'
+      out << "#{red}OFF#{return_color}"
+    else
+      out << "#{white}#{server['powerState'].to_s.upcase}#{return_color}"
+    end
+    out
+  end
+
+  def format_server_status(server, return_color=cyan)
+    out = ""
+    status_string = server['status']
+    # todo: colorize, upcase?
+    out << status_string.to_s
     out
   end
 

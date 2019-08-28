@@ -56,10 +56,34 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list_jobs(id, params={})
+    url = "#{@api_url}/#{id}/jobs"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def list_masters(id, params={})
+    url = "#{@api_url}/#{id}/masters"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def list_workers(id, params={})
+    url = "#{@api_url}/#{id}/workers"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
   def add_worker(id, payload)
     url = "#{@api_url}/#{id}/workers"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def list_volumes(id, params={})
+    url = "#{@api_url}/#{id}/volumes"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
   end
 
   # this supports multiple ids
@@ -110,5 +134,17 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
   end
   
   alias :delete_namespace :destroy_namespace
+
+  def list_containers(id, params={})
+    url = "#{@api_url}/#{id}/containers"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  # def list_pods(id, params={})
+  #   url = "#{@api_url}/#{id}/pods"
+  #   headers = { params: params, authorization: "Bearer #{@access_token}" }
+  #   execute(method: :get, url: url, headers: headers)
+  # end
 
 end

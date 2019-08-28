@@ -39,6 +39,7 @@ class Morpheus::Cli::Hosts
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
     @active_group_id = Morpheus::Cli::Groups.active_group
     @execution_request_interface = @api_client.execution_request
+    @clusters_interface = @api_client.clusters
   end
 
   def handle(args)
@@ -73,6 +74,10 @@ class Morpheus::Cli::Hosts
       end
       opts.on( '-i', '--ip IPADDRESS', "Filter by IP Address" ) do |val|
         params[:ip] = val
+      end
+      opts.on( '--cluster CLUSTER', '--cluster CLUSTER', "Filter by Cluster Name or ID" ) do |val|
+        # params[:clusterId] = val
+        options[:cluster] = val
       end
       opts.on( '', '--vm', "Show only virtual machines" ) do |val|
         params[:vm] = true
@@ -134,6 +139,17 @@ class Morpheus::Cli::Hosts
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
       end
+      
+      cluster = nil
+      if options[:cluster]
+        if options[:cluster].to_s =~ /\A\d{1,}\Z/
+          params['clusterId'] = options[:cluster]
+        else
+          cluster = find_cluster_by_name_or_id(options[:cluster])
+          return 1 if cluster.nil?
+          params['clusterId'] = cluster['id']
+        end
+      end
 
       @servers_interface.setopts(options)
       if options[:dry_run]
@@ -170,6 +186,11 @@ class Morpheus::Cli::Hosts
         end
         if cloud
           subtitles << "Cloud: #{cloud['name']}".strip
+        end
+        if cluster
+          subtitles << "Cluster: #{cluster['name']}".strip
+        elsif params['clusterId']
+          subtitles << "Cluster: #{params['clusterId']}".strip
         end
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
@@ -214,7 +235,7 @@ class Morpheus::Cli::Hosts
               cloud: server['zone'] ? server['zone']['name'] : '',
               type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
               nodes: server['containers'] ? server['containers'].size : '',
-              status: format_host_status(server, cyan),
+              status: format_server_status(server, cyan),
               power: format_server_power_state(server, cyan),
               cpu: cpu_usage_str + cyan,
               memory: memory_usage_str + cyan,
@@ -431,7 +452,7 @@ class Morpheus::Cli::Hosts
         "Platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Agent" => lambda {|it| it['agentInstalled'] ? "#{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}" : '(not installed)' },
-        "Status" => lambda {|it| format_host_status(it) },
+        "Status" => lambda {|it| format_server_status(it) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
         "Power" => lambda {|it| format_server_power_state(it) },
       }, server)
@@ -524,7 +545,7 @@ class Morpheus::Cli::Hosts
       title = "Host Stats: #{server['name']} (#{server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged'})"
       print_h1 title, [], options
       puts cyan + "Power: ".rjust(12) + format_server_power_state(server).to_s
-      puts cyan + "Status: ".rjust(12) + format_host_status(server).to_s
+      puts cyan + "Status: ".rjust(12) + format_server_status(server).to_s
       puts cyan + "Nodes: ".rjust(12) + (server['containers'] ? server['containers'].size : '').to_s
       #print_h2 "Host Usage", options
       print_stats_usage(stats, {label_width: 10})
@@ -1845,6 +1866,32 @@ class Morpheus::Cli::Hosts
     end
   end
 
+  def find_cluster_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      find_cluster_by_id(val)
+    else
+      find_cluster_by_name(val)
+    end
+  end
+
+  def find_cluster_by_id(id)
+    json_results = @clusters_interface.get(id.to_i)
+    if json_results['cluster'].empty?
+      print_red_alert "Cluster not found by id #{id}"
+      exit 1
+    end
+    json_results['cluster']
+  end
+
+  def find_cluster_by_name(name)
+    json_results = @clusters_interface.list({name: name})
+    if json_results['clusters'].empty? || json_results['clusters'].count > 1
+      print_red_alert "Cluster not found by name #{name}"
+      exit 1
+    end
+    json_results['clusters'][0]
+  end
+
   def format_server_power_state(server, return_color=cyan)
     out = ""
     if server['powerState'] == 'on'
@@ -1852,12 +1899,12 @@ class Morpheus::Cli::Hosts
     elsif server['powerState'] == 'off'
       out << "#{red}OFF#{return_color}"
     else
-      out << "#{white}#{server['powerState'].upcase}#{return_color}"
+      out << "#{white}#{server['powerState'].to_s.upcase}#{return_color}"
     end
     out
   end
 
-  def format_host_status(server, return_color=cyan)
+  def format_server_status(server, return_color=cyan)
     out = ""
     status_string = server['status']
     # todo: colorize, upcase?
