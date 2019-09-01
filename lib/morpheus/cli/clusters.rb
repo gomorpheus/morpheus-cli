@@ -1055,177 +1055,52 @@ class Morpheus::Cli::Clusters
         multi_tenant = false
 
         # print_servers_table(servers)
-          # server returns stats in a separate key stats => {"id" => {} }
-          # the id is a string right now..for some reason..
-          all_stats = json_response['stats'] || {} 
-          servers.each do |it|
-            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if found_stats
-              if !it['stats']
-                it['stats'] = found_stats # || {}
-              else
-                it['stats'] = found_stats.merge!(it['stats'])
-              end
+        rows = servers.collect {|server|
+          stats = server['stats']
+
+          if !stats['maxMemory']
+            stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+          end
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+          storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          if options[:details]
+            if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+              memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            end
+            if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+              storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
             end
           end
-
-          rows = servers.collect {|server| 
-            stats = server['stats']
-            
-            if !stats['maxMemory']
-              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
-            end
-            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
-            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
-            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details]
-              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
-                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
-              end
-              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
-                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
-              end
-            end
-            row = {
-              id: server['id'],
-              tenant: server['account'] ? server['account']['name'] : server['accountId'],
-              name: server['name'],
-              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-              cloud: server['zone'] ? server['zone']['name'] : '',
-              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
-              nodes: server['containers'] ? server['containers'].size : '',
-              status: format_server_status(server, cyan),
-              power: format_server_power_state(server, cyan),
-              cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
-              storage: storage_usage_str + cyan
-            }
-            row
+          row = {
+            id: server['id'],
+            tenant: server['account'] ? server['account']['name'] : server['accountId'],
+            name: server['name'],
+            platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+            cloud: server['zone'] ? server['zone']['name'] : '',
+            type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+            nodes: server['containers'] ? server['containers'].size : '',
+            status: format_server_status(server, cyan),
+            power: format_server_power_state(server, cyan),
+            cpu: cpu_usage_str + cyan,
+            memory: memory_usage_str + cyan,
+            storage: storage_usage_str + cyan
           }
-          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-          if multi_tenant
-            columns.insert(4, :tenant)
-          end
-          columns += [:cpu, :memory, :storage]
-          # custom pretty table columns ...
-          if options[:include_fields]
-            columns = options[:include_fields]
-          end
-          print cyan
-          print as_pretty_table(rows, columns, options)
-          print reset
-          print_results_pagination(json_response)
-      end
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def list_workers(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage( "[cluster]")
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List workers for a cluster.\n" +
-                    "[cluster] is required. This is the name or id of an existing cluster."
-    end
-
-    optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
-    connect(options)
-    begin
-      cluster = find_cluster_by_name_or_id(args[0])
-      return 1 if cluster.nil?
-
-      params = {}
-      params.merge!(parse_list_options(options))
-      @clusters_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @clusters_interface.dry.list_workers(cluster['id'], params)
-        return
-      end
-      json_response = @clusters_interface.list_workers(cluster['id'], params)
-      
-      render_result = render_with_format(json_response, options, 'workers')
-      return 0 if render_result
-
-      title = "Morpheus Cluster Workers: #{cluster['name']}"
-      subtitles = []
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-      workers = json_response['workers']
-      if workers.empty?
-        print yellow,"No workers found.",reset,"\n"
-      else
-        # more stuff to show here
-        
-        servers = workers
-        multi_tenant = false
-
-        # print_servers_table(servers)
-          # server returns stats in a separate key stats => {"id" => {} }
-          # the id is a string right now..for some reason..
-          all_stats = json_response['stats'] || {} 
-          servers.each do |it|
-            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if !it['stats']
-              it['stats'] = found_stats # || {}
-            else
-              it['stats'] = found_stats.merge!(it['stats'])
-            end
-          end
-
-          rows = servers.collect {|server| 
-            stats = server['stats']
-            
-            if !stats['maxMemory']
-              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
-            end
-            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
-            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
-            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details]
-              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
-                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
-              end
-              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
-                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
-              end
-            end
-            row = {
-              id: server['id'],
-              tenant: server['account'] ? server['account']['name'] : server['accountId'],
-              name: server['name'],
-              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-              cloud: server['zone'] ? server['zone']['name'] : '',
-              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
-              nodes: server['containers'] ? server['containers'].size : '',
-              status: format_server_status(server, cyan),
-              power: format_server_power_state(server, cyan),
-              cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
-              storage: storage_usage_str + cyan
-            }
-            row
-          }
-          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-          if multi_tenant
-            columns.insert(4, :tenant)
-          end
-          columns += [:cpu, :memory, :storage]
-          # custom pretty table columns ...
-          if options[:include_fields]
-            columns = options[:include_fields]
-          end
-          print cyan
-          print as_pretty_table(rows, columns, options)
-          print reset
-          print_results_pagination(json_response)
+          row
+        }
+        columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+        if multi_tenant
+          columns.insert(4, :tenant)
+        end
+        columns += [:cpu, :memory, :storage]
+        # custom pretty table columns ...
+        if options[:include_fields]
+          columns = options[:include_fields]
+        end
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        print_results_pagination(json_response)
       end
       print reset,"\n"
       return 0
@@ -1338,66 +1213,52 @@ class Morpheus::Cli::Clusters
         multi_tenant = false
 
         # print_servers_table(servers)
-          # server returns stats in a separate key stats => {"id" => {} }
-          # the id is a string right now..for some reason..
-          all_stats = json_response['stats'] || {} 
-          servers.each do |it|
-            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if found_stats
-              if !it['stats']
-                it['stats'] = found_stats # || {}
-              else
-                it['stats'] = found_stats.merge!(it['stats'])
-              end
-            end
-          end
+        rows = servers.collect {|server|
+          stats = server['stats']
 
-          rows = servers.collect {|server| 
-            stats = server['stats']
-            
-            if !stats['maxMemory']
-              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+          if !stats['maxMemory']
+            stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+          end
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+          storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          if options[:details]
+            if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+              memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
             end
-            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
-            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
-            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details]
-              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
-                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
-              end
-              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
-                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
-              end
+            if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+              storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
             end
-            row = {
-              id: server['id'],
-              tenant: server['account'] ? server['account']['name'] : server['accountId'],
-              name: server['name'],
-              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-              cloud: server['zone'] ? server['zone']['name'] : '',
-              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
-              nodes: server['containers'] ? server['containers'].size : '',
-              status: format_server_status(server, cyan),
-              power: format_server_power_state(server, cyan),
-              cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
-              storage: storage_usage_str + cyan
-            }
-            row
+          end
+          row = {
+            id: server['id'],
+            tenant: server['account'] ? server['account']['name'] : server['accountId'],
+            name: server['name'],
+            platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+            cloud: server['zone'] ? server['zone']['name'] : '',
+            type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+            nodes: server['containers'] ? server['containers'].size : '',
+            status: format_server_status(server, cyan),
+            power: format_server_power_state(server, cyan),
+            cpu: cpu_usage_str + cyan,
+            memory: memory_usage_str + cyan,
+            storage: storage_usage_str + cyan
           }
-          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-          if multi_tenant
-            columns.insert(4, :tenant)
-          end
-          columns += [:cpu, :memory, :storage]
-          # custom pretty table columns ...
-          if options[:include_fields]
-            columns = options[:include_fields]
-          end
-          print cyan
-          print as_pretty_table(rows, columns, options)
-          print reset
-          print_results_pagination(json_response)
+          row
+        }
+        columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
+        if multi_tenant
+          columns.insert(4, :tenant)
+        end
+        columns += [:cpu, :memory, :storage]
+        # custom pretty table columns ...
+        if options[:include_fields]
+          columns = options[:include_fields]
+        end
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        print_results_pagination(json_response)
       end
       print reset,"\n"
       return 0
