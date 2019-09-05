@@ -601,7 +601,7 @@ class Morpheus::Cli::Clusters
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
 
         # Visibility
-        # payload['server']['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
+        server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
         # Options / Custom Config
         option_type_list = ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
@@ -990,6 +990,9 @@ class Morpheus::Cli::Clusters
         # Security Groups
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
 
+        # Visibility
+        server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
+
         # Host / Domain
         server_payload['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
         server_payload['hostname'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'description' => 'Hostname'}], options[:options], @api_client)['hostname']
@@ -999,7 +1002,7 @@ class Morpheus::Cli::Clusters
           task_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {'phase' => 'postProvision', 'taskSetType' => 'provision'})['taskSet']
 
           if task_set_id
-            server_payload['taskSetId'] = task_set_id
+            server_payload['taskSet'] = {'id' => task_set_id}
           end
         end
         payload = {'server' => server_payload}
@@ -1750,6 +1753,9 @@ class Morpheus::Cli::Clusters
   end
 
   def add_common_server_options(opts, options)
+    opts.on('--visibility [private|public]', String, "Visibility") do |val|
+      options[:visibility] = val
+    end
     opts.on( '--resource-pool ID', String, "ID of the Resource Pool for Amazon VPC and Azure Resource Group" ) do |val|
       options[:resourcePool] = val
     end
