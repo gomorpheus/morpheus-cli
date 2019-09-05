@@ -74,8 +74,8 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def add_worker(id, payload)
-    url = "#{@api_url}/#{id}/workers"
+  def add_server(id, payload)
+    url = "#{@api_url}/#{id}/servers"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end

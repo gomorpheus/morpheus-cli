@@ -382,111 +382,16 @@ class Morpheus::Cli::Clusters
       opts.on( '-l', '--layout LAYOUT', "Layout Name or ID" ) do |val|
         options[:layout] = val
       end
-      opts.on( '--resource-pool ID', String, "ID of the Resource Pool for Amazon VPC and Azure Resource Group" ) do |val|
-        options[:resourcePool] = val
-      end
-      opts.on( '-p', '--plan PLAN', "Service Plan") do |val|
-        options[:servicePlan] = val
-      end
-      opts.on('--max-memory VALUE', String, "Maximum Memory (MB)") do |val|
-        options[:maxMemory] = val
-      end
-      opts.on('--cpu-count VALUE', String, "CPU Count") do |val|
-        options[:cpuCount]
-      end
-      opts.on('--core-count VALUE', String, "Core Count") do |val|
-        options[:coreCount]
-      end
-      opts.on('--cores-per-socket VALUE', String, "Cores Per Socket") do |val|
-        options[:coresPerSocket]
-      end
-      opts.on('--volumes JSON', String, "Volumes Config JSON") do |val|
-        begin
-          volumes = JSON.parse(val.to_s)
-        rescue JSON::ParserError => e
-          print_red_alert "Unable to parse volumes JSON"
-          exit 1
-        end
-        options[:volumes] = volumes.kind_of?(Array) ? volumes : [volumes]
-      end
-      opts.on('--volumes-file FILE', String, "Volumes Config from a local JSON or YAML file") do |val|
-        config_file = File.expand_path(val)
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "Specified volumes file not found: #{config_file}"
-          exit 1
-        end
-        if config_file =~ /\.ya?ml\Z/
-          begin
-            volumes = YAML.load_file(config_file)
-          rescue YAML::ParseError
-            print_red_alert "Unable to parse volumes YAML from: #{config_file}"
-            exit 1
-          end
-        else
-          volumes =
-          begin
-            volumes = JSON.parse(File.read(config_file))
-          rescue JSON::ParserError
-            print_red_alert "Unable to parse volumes JSON from: #{config_file}"
-            exit 1
-          end
-        end
-        options[:volumes] = volumes.kind_of?(Array) ? volumes : [volumes]
-      end
-      opts.on('--config-file FILE', String, "Instance Config from a local JSON or YAML file") do |val|
-        options['configFile'] = val.to_s
-      end
-      opts.on('--network-interfaces JSON', String, "Network Interfaces Config JSON") do |val|
-        begin
-          networkInterfaces = JSON.parse(val.to_s)
-        rescue JSON::ParserError => e
-          print_red_alert "Unable to parse volumes JSON"
-          exit 1
-        end
-        options[:networkInterfaces] = networkInterfaces.kind_of?(Array) ? networkInterfaces : [networkInterfaces]
-      end
-      opts.on('--network-interfaces-file FILE', String, "Network Interfaces Config from a local JSON or YAML file") do |val|
-        config_file = File.expand_path(val)
-        if !File.exists?(config_file) || !File.file?(config_file)
-          print_red_alert "Specified network interfaces file not found: #{config_file}"
-          exit 1
-        end
-        if config_file =~ /\.ya?ml\Z/
-          begin
-            volumes = YAML.load_file(config_file)
-          rescue YAML::ParseError
-            print_red_alert "Unable to parse volumes YAML from: #{config_file}"
-            exit 1
-          end
-        else
-          volumes =
-              begin
-                volumes = JSON.parse(File.read(config_file))
-              rescue JSON::ParserError
-                print_red_alert "Unable to parse volumes JSON from: #{config_file}"
-                exit 1
-              end
-        end
-        options[:networkInterfaces] = volumes.kind_of?(Array) ? networkInterfaces : [networkInterfaces]
-      end
-      opts.on('--security-groups LIST', Array, "Security Groups") do |list|
-        options[:securityGroups] = list
-      end
-      opts.on('--visibility [private|public]', String, "Visibility") do |val|
-        options[:visibility] = val
-      end
       opts.on("--create-user on|off", String, "User Config: Create Your User. Default is off") do |val|
         options[:createUser] = ['true','on','1'].include?(val.to_s)
       end
       opts.on("--user-group USERGROUP", String, "User Config: User Group") do |val|
         options[:userGroup] = val
       end
-      opts.on('--visibility [private|public]', String, "Visibility") do |val|
-        options[:visibility] = val
-      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
+      add_common_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a cluster.\n" +
                     "[name] is required. This is the name of the new cluster."
@@ -525,7 +430,8 @@ class Morpheus::Cli::Clusters
           payload['cluster']['server']['description'] = options[:resourceDescription]
         end
       else
-        payload = {"server" => {}, "config" => {}}
+        cluster_payload = {}
+        server_payload = {"config" => {}}
 
         # Cluster Type
         cluster_type_id = nil
@@ -547,36 +453,36 @@ class Morpheus::Cli::Clusters
           cluster_type = get_cluster_types.find { |ct| ct['code'] == cluster_type_code }
         end
 
-        payload['type'] = cluster_type['code'] # {'id' => cluster_type['id']}
+        cluster_payload['type'] = cluster_type['code'] # {'id' => cluster_type['id']}
 
         # Cluster Name
         if args.empty? && options[:no_prompt]
           print_red_alert "No cluster name provided"
           exit 1
         elsif !args.empty?
-          payload['name'] = args[0]
+          cluster_payload['name'] = args[0]
         elsif options[:name]
-          payload['name'] = options[:name]
+          cluster_payload['name'] = options[:name]
         else
           existing_cluster_names = @clusters_interface.list()['clusters'].collect { |cluster| cluster['name'] }
-          while payload['name'].empty?
+          while cluster_payload['name'].empty?
             name = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Cluster Name', 'required' => true, 'description' => 'Cluster Name.'}],options[:options],@api_client,{})['name']
 
             if existing_cluster_names.include?(name)
               print_red_alert "Name must be unique, #{name} already exists"
             else
-              payload['name'] = name
+              cluster_payload['name'] = name
             end
           end
         end
 
         # Cluster Description
         if !args.empty? && args.count > 1
-          payload['description'] = args[1]
+          cluster_payload['description'] = args[1]
         elsif options[:description]
-          payload['description'] = options[:description]
+          cluster_payload['description'] = options[:description]
         elsif !options[:no_prompt]
-          payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['desc']
+          cluster_payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['desc']
         end
 
         # Resource Name
@@ -591,7 +497,7 @@ class Morpheus::Cli::Clusters
           end
         end
 
-        payload['server']['name'] = resourceName
+        server_payload['name'] = resourceName
 
         # Resource Description
         resourceDescription = options[:resourceDescription]
@@ -600,7 +506,7 @@ class Morpheus::Cli::Clusters
           resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Resource Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['desc']
         end
 
-        payload['server']['description'] = resourceDescription if resourceDescription
+        server_payload['description'] = resourceDescription if resourceDescription
 
         tags = options[:tags]
 
@@ -608,33 +514,11 @@ class Morpheus::Cli::Clusters
           tags = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'type' => 'text', 'fieldLabel' => 'Resource Tags', 'required' => false, 'description' => 'Resource Tags.'}],options[:options],@api_client,{})['tags']
         end
 
-        payload['server']['tags'] = tags if tags
+        server_payload['tags'] = tags if tags
 
         # Group / Site
-        group_id = nil
-        group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
-
-        if group
-          group_id = group["id"]
-        else
-          if @active_group_id
-            group_id = @active_group_id
-          else
-            available_groups = get_available_groups
-
-            if available_groups.empty?
-              print_red_alert "No available groups"
-              exit 1
-            elsif available_groups.count > 1 && !options[:no_prompt]
-              group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})['group']
-            else
-              group_id = available_groups.first['id']
-            end
-          end
-        end
-
-        group = @groups_interface.get(group_id)['group']
-        payload['group'] = {'id' => group['id']}
+        group = load_group(options)
+        cluster_payload['group'] = {'id' => group['id']}
 
         # Cloud / Zone
         cloud_id = nil
@@ -657,16 +541,13 @@ class Morpheus::Cli::Clusters
           cloud = @clouds_interface.get(cloud_id)['zone']
         end
 
-        cloud['zoneType'] = @clouds_interface.cloud_type(cloud['zoneType']['id'])['zoneType']
-        payload['cloud'] = {'id' => cloud['id']}
+        cloud['zoneType'] = get_cloud_type(cloud['zoneType']['id'])
+        cluster_payload['cloud'] = {'id' => cloud['id']}
 
         # Layout
-        layout_id = nil
         layout = options[:layout] ? find_layout_by_name_or_id(options[:layout]) : nil
 
-        if layout
-          layout_id = layout['id']
-        else
+        if !layout
           available_layouts = layouts_for_dropdown(cloud['id'], cluster_type['id'])
 
           if !available_layouts.empty?
@@ -675,65 +556,18 @@ class Morpheus::Cli::Clusters
             else
               layout_id = available_layouts.first['id']
             end
-            layout = find_layout_by_name_or_id(layout_id)['layout']
+            layout = find_layout_by_name_or_id(layout_id)
           end
         end
 
-        payload['layout'] = layout['code']
+        cluster_payload['layout'] = layout['code']
 
         # Plan
-        service_plan_id = nil
-        service_plan = nil
-        #service_plan = options[:servicePlan] ? find_service_plan_by_name_or_id(options[:servicePlan]) : nil
-        provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_cloud(cloud)
-        available_service_plans = service_plans_for_dropdown(cloud['id'], provision_type['id'])
-        if available_service_plans.empty?
-          print_red_alert "Cloud #{cloud['name']} has no available plans"
-          exit 1
-        end
-        if options[:servicePlan]
-          service_plan = available_service_plans.find {|sp| sp['id'] == options[:servicePlan].to_i || sp['name'] == options[:servicePlan] || sp['code'] == options[:servicePlan] } 
-        else
-          if available_service_plans.count > 1 && !options[:no_prompt]
-            service_plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => available_service_plans, 'required' => true, 'description' => 'Select Plan.'}],options[:options],@api_client,{})['servicePlan'].to_i
-          else
-            service_plan_id = available_service_plans.first['id']
-          end
-          #service_plan = find_service_plan_by_id(service_plan_id)
-          service_plan = available_service_plans.find {|sp| sp['id'] == service_plan_id.to_i || sp['name'] == service_plan_id.to_s || sp['code'] == service_plan_id.to_s } 
-        end
+        provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+        service_plan = prompt_service_plan(cloud['id'], provision_type, options)
 
-        # service plan options
         if service_plan
-          payload['server']['plan'] = {'code' => service_plan['code'], 'options' => {}}
-
-          # custom max memory
-          if service_plan['customMaxMemory']
-            if !options[:maxMemory]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'type' => 'number', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
-              payload['server']['plan']['options']['maxMemory'] = v_prompt['maxMemory'] * 1024 * 1024 if v_prompt['maxMemory']
-            else
-              payload['server']['plan']['options']['maxMemory'] = options[:maxMemory]
-            end
-          end
-
-          # custom cores: max cpu, max cores, cores per socket
-          if service_plan['customCores']
-            if !options[:cpuCount]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'type' => 'number', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
-              payload['server']['plan']['options']['cpuCount'] = v_prompt['cpuCount'] if v_prompt['cpuCount']
-            else
-              payload['server']['plan']['options']['cpuCount']
-            end
-            if !options[:coreCount]
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'type' => 'number', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
-              payload['server']['plan']['options']['coreCount'] = v_prompt['coreCount'] if v_prompt['coreCount']
-            end
-            if !options[:coresPerSocket] && service_plan['coresPerSocket']
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
-              payload['server']['plan']['options']['coresPerSocket'] = v_prompt['coresPerSocket'] if v_prompt['coresPerSocket']
-            end
-          end
+          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
         end
 
         # Controller type
@@ -745,29 +579,8 @@ class Morpheus::Cli::Clusters
           controller_type = server_types.first
           controller_provision_type = controller_type['provisionType'] ? (@provision_types_interface.get(controller_type['provisionType']['id'])['provisionType'] rescue nil) : nil
 
-          if controller_provision_type && controller_provision_type['hasZonePools']
-            # Resource pool
-            if ! ['resourcePoolId', 'resourceGroup', 'vpc'].find { |it| cloud['config'][it] && cloud['config'][it].length > 0 }
-              resource_pool_id = nil
-              resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
-
-              if resource_pool
-                resource_pool_id = resource_pool['id']
-              else
-                resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id'], planId: (service_plan['id'] rescue nil)})['data']
-
-                if resource_pool_options.empty?
-                  print_red_alert "Cloud #{cloud['name']} has no available resource pools"
-                  exit 1
-                elsif resource_pool_options.count > 1 && !options[:no_prompt]
-                  resource_pool_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client, {})['resourcePool']
-                else
-                  resource_pool_id = resource_pool_options.first['id']
-                end
-                resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
-              end
-              payload['config']['resourcePool'] = resource_pool['externalId']
-            end
+          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, service_plan, controller_provision_type, options)
+              server_payload['config']['resourcePool'] = resource_pool['externalId']
           end
         end
 
@@ -775,84 +588,64 @@ class Morpheus::Cli::Clusters
         volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {})
 
         if !volumes.empty?
-          payload['volumes'] = volumes
+          server_payload['volumes'] = volumes
         end
 
         # Networks
         # NOTE: You must choose subnets in the same availability zone
-        if controller_provision_type['hasNetworks'] && cloud['zoneType']['code'] != 'esxi'
-          payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], provision_type['id'], options)
+        if controller_provision_type && controller_provision_type['hasNetworks'] && cloud['zoneType']['code'] != 'esxi'
+          server_payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], provision_type['id'], options)
         end
 
         # Security Groups
-        if cloud['zoneType']['hasSecurityGroups'] && ['amazon', 'rds'].include?(provision_type['code']) && resource_pool
-          # Require at least 1 security group
-          security_groups = options[:securityGroups] || []
-
-          if security_groups.empty?
-            available_security_groups = @api_client.options.options_for_source('zoneSecurityGroup', {zoneId: cloud['id'], poolId: resource_pool['id']})['data']
-
-            if available_security_groups.empty?
-              #print_red_alert "Cloud #{cloud['name']} has no available plans"
-              #exit 1
-            elsif available_security_groups.count > 1 && !options[:no_prompt]
-              while !available_security_groups.empty? && (security_groups.empty? || Morpheus::Cli::OptionTypes.confirm("Add security group?", {:default => false}))
-                security_group = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'securityGroup', 'type' => 'select', 'fieldLabel' => 'Security Group', 'selectOptions' => available_security_groups, 'required' => true, 'description' => 'Select Security Group.'}], options[:options], @api_client, {})['securityGroup']
-                security_groups << security_group
-                available_security_groups.reject! { |sg| sg['value'] == security_group }
-              end
-            else
-              security_groups << available_security_groups[0]
-            end
-          end
-          payload['securityGroups'] = security_groups
-        end
+        server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
 
         # Visibility
-        payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
+        # payload['server']['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
         # Options / Custom Config
         option_type_list = ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
           (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
 
         # remove volume options if volumes were configured
-        if !payload['volumes'].empty?
+        if !server_payload['volumes'].empty?
           option_type_list = reject_volume_option_types(option_type_list)
         end
         # remove networkId option if networks were configured above
-        if !payload['networkInterfaces'].empty?
+        if !server_payload['networkInterfaces'].empty?
           option_type_list = reject_networking_option_types(option_type_list)
         end
 
-        payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id']}))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id']}))
 
         # Create User
         if !options[:createUser].nil?
-          payload['config']['createUser'] = options[:createUser]
+          server_payload['config']['createUser'] = options[:createUser]
         elsif !options[:no_prompt]
           current_user['windowsUsername'] || current_user['linuxUsername']
-          payload['config']['createUser'] = (current_user['windowsUsername'] || current_user['linuxUsername']) && Morpheus::Cli::OptionTypes.confirm("Create Your User?", {:default => false})
+          server_payload['config']['createUser'] = (current_user['windowsUsername'] || current_user['linuxUsername']) && Morpheus::Cli::OptionTypes.confirm("Create Your User?", {:default => false})
         end
 
         # User Groups
         userGroup = options[:userGroup] ? find_user_group_by_name_or_id(current_user, options[:userGroup]) : nil
 
         if userGroup
-          payload['server']['userGroup'] = userGroup
+          server_payload['userGroup'] = userGroup
         elsif !options[:no_prompt]
           userGroupId = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'userGroupId', 'fieldLabel' => 'User Group', 'type' => 'select', 'required' => false, 'optionSource' => 'userGroups'}], options[:options], @api_client, {})['userGroupId']
 
           if userGroupId
-            payload['server']['userGroup'] = {'id' => userGroupId}
+            server_payload['userGroup'] = {'id' => userGroupId}
           end
         end
 
         # Host / Domain
-        payload['server']['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
-        payload['server']['hostname'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'description' => 'Hostname'}], options[:options], @api_client)['hostname']
+        server_payload['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
+        server_payload['hostname'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'description' => 'Hostname'}], options[:options], @api_client)['hostname']
+        cluster_payload['server'] = server_payload
 
         # Envelop it
-        payload = {'cluster' => payload}
+        payload = {'cluster' => cluster_payload}
       end
       @clusters_interface.setopts(options)
       if options[:dry_run]
@@ -1117,6 +910,7 @@ class Morpheus::Cli::Clusters
       opts.on("--name NAME", String, "Worker Name") do |val|
         options[:name] = val.to_s
       end
+      add_common_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Add worker to a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster.\n" + 
@@ -1137,24 +931,86 @@ class Morpheus::Cli::Clusters
         payload = options[:payload]
         # support -O OPTION switch on top of --payload
         if options[:options]
-          payload['worker'] ||= {}
-          payload['worker'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+          payload['server'] ||= {}
+          payload['server'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
         end
       else
-        # TODO: prompt for worker params
-        worker_payload = {}
-        worker_payload['name'] = options[:name] if !options[:name].empty?
-        # worker_payload['description'] = options[:description] if !options[:description].empty?
-        # worker_payload['enabled'] = options[:active] if !options[:active].nil?
-        payload = {"worker" => worker_payload}
+        server_payload = {'config' => {}}
+        server_payload['name'] = options[:name] if !options[:name].empty?
+
+        # Look for server type that can be added
+        server_type = options[:serverType] ? find_server_type_by_name_or_id(options[:serverType]) : nil
+
+        if !server_type
+          layout = find_layout_by_id(cluster['layout']['id'])
+          # currently limiting to just worker types
+          available_server_types = layout['computeServers'].reject {|typeSet| !typeSet['dynamicCount']}.collect {|typeSet| typeSet['computeServerType']}.uniq
+
+          if available_server_types.empty?
+            print_red_alert "Cluster #{cluster['name']} has no available server types to add"
+            exit 1
+          elsif available_server_types.count > 1 && !options[:no_prompt]
+            server_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'serverType', 'type' => 'select', 'fieldLabel' => 'Server Type', 'selectOptions' => available_server_types, 'required' => true, 'description' => 'Select Server Type.'}],options[:options],@api_client,{})['serverType']
+          else
+            server_type = available_server_types[0]
+          end
+          server_type = find_server_type_by_id(server_type['id'])
+        end
+
+        server_payload['serverType'] = {'code': server_type['code']}
+        service_plan = prompt_service_plan(cluster['zone']['id'], server_type['provisionType'], options)
+
+        if service_plan
+          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+        end
+
+        # resources (zone pools)
+        cloud = @clouds_interface.get(cluster['zone']['id'])['zone']
+        cloud['zoneType'] = get_cloud_type(cloud['zoneType']['id'])
+        group = @groups_interface.get(cluster['site']['id'])['group']
+
+        if resource_pool = prompt_resource_pool(group, cloud, service_plan, server_type['provisionType'], options)
+          server_payload['config']['resourcePool'] = resource_pool['externalId']
+        end
+
+        # Multi-disk / prompt for volumes
+        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {})
+
+        if !volumes.empty?
+          server_payload['volumes'] = volumes
+        end
+
+        # Networks
+        # NOTE: You must choose subnets in the same availability zone
+        provision_type = server_type['provisionType'] || {}
+        if provision_type && cloud['zoneType']['code'] != 'esxi'
+          server_payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], server_type['provisionType']['id'], options)
+        end
+
+        # Security Groups
+        server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
+
+        # Host / Domain
+        server_payload['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
+        server_payload['hostname'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'description' => 'Hostname'}], options[:options], @api_client)['hostname']
+
+        # Workflow / Automation
+        if !options[:no_prompt]
+          task_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {'phase' => 'postProvision', 'taskSetType' => 'provision'})['taskSet']
+
+          if task_set_id
+            server_payload['taskSetId'] = task_set_id
+          end
+        end
+        payload = {'server' => server_payload}
       end
 
       @clusters_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clusters_interface.dry.add_worker(cluster['id'], payload)
+        print_dry_run @clusters_interface.dry.add_server(cluster['id'], payload)
         return
       end
-      json_response = @clusters_interface.add_worker(cluster['id'], payload)
+      json_response = @clusters_interface.add_server(cluster['id'], payload)
       if options[:json]
         puts as_json(json_response)
       elsif json_response['success']
@@ -1737,7 +1593,7 @@ class Morpheus::Cli::Clusters
   end
 
   def find_layout_by_id(id)
-    @compute_type_layouts_interface.get(id)
+    @compute_type_layouts_interface.get(id)['layout'] rescue nil
   end
 
   def find_layout_by_name(name)
@@ -1783,6 +1639,18 @@ class Morpheus::Cli::Clusters
     @cloud_resource_pools
   end
 
+  def find_server_type_by_name_or_id(val)
+    (val.to_s =~ /\A\d{1,}\Z/) ? find_server_type_by_name(val) : find_server_type_by_id(val)
+  end
+
+  def find_server_type_by_name(val)
+    @server_types_interface.list({name: val})['serverTypes'][0] rescue nil
+  end
+
+  def find_server_type_by_id(val)
+    @server_types_interface.get(val)['serverType']
+  end
+
   def service_plans_for_dropdown(zone_id, provision_type_id)
     @servers_interface.service_plans({zoneId: zone_id, provisionTypeId: provision_type_id})['plans'] rescue []
   end
@@ -1791,8 +1659,8 @@ class Morpheus::Cli::Clusters
     @clouds_interface.cloud_type(id)['zoneType']
   end
 
-  def get_provision_type_for_cloud(cloud)
-    @clouds_interface.cloud_type(cloud['zoneTypeId'])['zoneType']['provisionTypes'].first rescue nil
+  def get_provision_type_for_zone_type(zone_type_id)
+    @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
   def current_user(refresh=false)
@@ -1800,5 +1668,229 @@ class Morpheus::Cli::Clusters
       load_whoami
     end
     @current_user
+  end
+
+  def load_group(options)
+    # Group / Site
+    group_id = nil
+    group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+
+    if group
+      group_id = group["id"]
+    else
+      if @active_group_id
+        group_id = @active_group_id
+      else
+        available_groups = get_available_groups
+
+        if available_groups.empty?
+          print_red_alert "No available groups"
+          exit 1
+        elsif available_groups.count > 1 && !options[:no_prompt]
+          group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})['group']
+        else
+          group_id = available_groups.first['id']
+        end
+      end
+    end
+    @groups_interface.get(group_id)['group']
+  end
+
+  def prompt_service_plan(zone_id, provision_type, options)
+    available_service_plans = service_plans_for_dropdown(zone_id, provision_type['id'])
+    if available_service_plans.empty?
+      print_red_alert "Cloud #{zone_id} has no available plans"
+      exit 1
+    end
+    if options[:servicePlan]
+      service_plan = available_service_plans.find {|sp| sp['id'] == options[:servicePlan].to_i || sp['name'] == options[:servicePlan] || sp['code'] == options[:servicePlan] }
+    else
+      if available_service_plans.count > 1 && !options[:no_prompt]
+        service_plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => available_service_plans, 'required' => true, 'description' => 'Select Plan.'}],options[:options],@api_client,{})['servicePlan'].to_i
+      else
+        service_plan_id = available_service_plans.first['id']
+      end
+      #service_plan = find_service_plan_by_id(service_plan_id)
+      service_plan = available_service_plans.find {|sp| sp['id'] == service_plan_id.to_i || sp['name'] == service_plan_id.to_s || sp['code'] == service_plan_id.to_s }
+    end
+    service_plan
+  end
+
+  def prompt_service_plan_options(service_plan, options)
+    plan_options = {}
+
+    # custom max memory
+    if service_plan['customMaxMemory']
+      if !options[:maxMemory]
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'type' => 'number', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
+        plan_options['maxMemory'] = v_prompt['maxMemory'] * 1024 * 1024 if v_prompt['maxMemory']
+      else
+        plan_options['maxMemory'] = options[:maxMemory]
+      end
+    end
+
+    # custom cores: max cpu, max cores, cores per socket
+    if service_plan['customCores']
+      if !options[:cpuCount]
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'type' => 'number', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
+        plan_options['cpuCount'] = v_prompt['cpuCount'] if v_prompt['cpuCount']
+      else
+        plan_options['cpuCount']
+      end
+      if !options[:coreCount]
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'type' => 'number', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
+        plan_options['coreCount'] = v_prompt['coreCount'] if v_prompt['coreCount']
+      end
+      if !options[:coresPerSocket] && service_plan['coresPerSocket']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
+        plan_options['coresPerSocket'] = v_prompt['coresPerSocket'] if v_prompt['coresPerSocket']
+      end
+    end
+    plan_options
+  end
+
+  def add_common_server_options(opts, options)
+    opts.on( '--resource-pool ID', String, "ID of the Resource Pool for Amazon VPC and Azure Resource Group" ) do |val|
+      options[:resourcePool] = val
+    end
+    opts.on( '-p', '--plan PLAN', "Service Plan") do |val|
+      options[:servicePlan] = val
+    end
+    opts.on('--max-memory VALUE', String, "Maximum Memory (MB)") do |val|
+      options[:maxMemory] = val
+    end
+    opts.on('--cpu-count VALUE', String, "CPU Count") do |val|
+      options[:cpuCount]
+    end
+    opts.on('--core-count VALUE', String, "Core Count") do |val|
+      options[:coreCount]
+    end
+    opts.on('--cores-per-socket VALUE', String, "Cores Per Socket") do |val|
+      options[:coresPerSocket]
+    end
+    opts.on('--volumes JSON', String, "Volumes Config JSON") do |val|
+      begin
+        volumes = JSON.parse(val.to_s)
+      rescue JSON::ParserError => e
+        print_red_alert "Unable to parse volumes JSON"
+        exit 1
+      end
+      options[:volumes] = volumes.kind_of?(Array) ? volumes : [volumes]
+    end
+    opts.on('--volumes-file FILE', String, "Volumes Config from a local JSON or YAML file") do |val|
+      config_file = File.expand_path(val)
+      if !File.exists?(config_file) || !File.file?(config_file)
+        print_red_alert "Specified volumes file not found: #{config_file}"
+        exit 1
+      end
+      if config_file =~ /\.ya?ml\Z/
+        begin
+          volumes = YAML.load_file(config_file)
+        rescue YAML::ParseError
+          print_red_alert "Unable to parse volumes YAML from: #{config_file}"
+          exit 1
+        end
+      else
+        volumes =
+            begin
+              volumes = JSON.parse(File.read(config_file))
+            rescue JSON::ParserError
+              print_red_alert "Unable to parse volumes JSON from: #{config_file}"
+              exit 1
+            end
+      end
+      options[:volumes] = volumes.kind_of?(Array) ? volumes : [volumes]
+    end
+    opts.on('--config-file FILE', String, "Instance Config from a local JSON or YAML file") do |val|
+      options['configFile'] = val.to_s
+    end
+    opts.on('--network-interfaces JSON', String, "Network Interfaces Config JSON") do |val|
+      begin
+        networkInterfaces = JSON.parse(val.to_s)
+      rescue JSON::ParserError => e
+        print_red_alert "Unable to parse network interfaces JSON"
+        exit 1
+      end
+      options[:networkInterfaces] = networkInterfaces.kind_of?(Array) ? networkInterfaces : [networkInterfaces]
+    end
+    opts.on('--network-interfaces-file FILE', String, "Network Interfaces Config from a local JSON or YAML file") do |val|
+      config_file = File.expand_path(val)
+      if !File.exists?(config_file) || !File.file?(config_file)
+        print_red_alert "Specified network interfaces file not found: #{config_file}"
+        exit 1
+      end
+      if config_file =~ /\.ya?ml\Z/
+        begin
+          networkInterfaces = YAML.load_file(config_file)
+        rescue YAML::ParseError
+          print_red_alert "Unable to parse network interfaces YAML from: #{config_file}"
+          exit 1
+        end
+      else
+        networkInterfaces =
+            begin
+              networkInterfaces = JSON.parse(File.read(config_file))
+            rescue JSON::ParserError
+              print_red_alert "Unable to parse network interfaces JSON from: #{config_file}"
+              exit 1
+            end
+      end
+      options[:networkInterfaces] = networkInterfaces.kind_of?(Array) ? networkInterfaces : [networkInterfaces]
+    end
+    opts.on('--security-groups LIST', Array, "Security Groups") do |list|
+      options[:securityGroups] = list
+    end
+    opts.on('--visibility [private|public]', String, "Visibility") do |val|
+      options[:visibility] = val
+    end
+  end
+
+  def prompt_resource_pool(group, cloud, service_plan, provision_type, options)
+    resource_pool = nil
+
+    if provision_type && provision_type['hasZonePools']
+      # Resource pool
+      if !['resourcePoolId', 'resourceGroup', 'vpc'].find { |it| cloud['config'][it] && cloud['config'][it].length > 0 }
+        resource_pool_id = nil
+        resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
+
+        if !resource_pool
+          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id'], planId: (service_plan['id'] rescue nil)})['data']
+
+          if resource_pool_options.empty?
+            print_red_alert "Cloud #{cloud['name']} has no available resource pools"
+            exit 1
+          elsif resource_pool_options.count > 1 && !options[:no_prompt]
+            resource_pool_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client, {})['resourcePool']
+          else
+            resource_pool_id = resource_pool_options.first['id']
+          end
+          resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
+        end
+      end
+    end
+    resource_pool
+  end
+
+  def prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
+    security_groups = options[:securityGroups] || []
+
+    if security_groups.empty? && cloud['zoneType']['hasSecurityGroups'] && ['amazon', 'rds'].include?(provision_type['code']) && resource_pool
+      available_security_groups = @api_client.options.options_for_source('zoneSecurityGroup', {zoneId: cloud['id'], poolId: resource_pool['id']})['data']
+
+      if available_security_groups.empty?
+        #print_red_alert "Cloud #{cloud['name']} has no available plans"
+        #exit 1
+      elsif available_security_groups.count > 1 && !options[:no_prompt]
+        while !available_security_groups.empty? && (security_groups.empty? || Morpheus::Cli::OptionTypes.confirm("Add security group?", {:default => false}))
+          security_group = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'securityGroup', 'type' => 'select', 'fieldLabel' => 'Security Group', 'selectOptions' => available_security_groups, 'required' => true, 'description' => 'Select Security Group.'}], options[:options], @api_client, {})['securityGroup']
+          security_groups << security_group
+          available_security_groups.reject! { |sg| sg['value'] == security_group }
+        end
+      else
+        security_groups << available_security_groups[0]
+      end
+    end
+    security_groups
   end
 end
