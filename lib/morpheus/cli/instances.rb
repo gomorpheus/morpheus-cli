@@ -3457,7 +3457,7 @@ class Morpheus::Cli::Instances
         subtitles = []
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
-        print_process_event_details(process_event)
+        print_process_event_details(process_event, options)
         print reset, "\n"
         return 0
       end
@@ -3804,7 +3804,7 @@ private
     end
   end
 
-  def print_process_event_details(process_event)
+  def print_process_event_details(process_event, options={})
     # process_event =~ process
     description_cols = {
       "Process ID" => lambda {|it| it['processId'] },
