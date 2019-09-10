@@ -1,6 +1,6 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::ProvisionTypesInterface < Morpheus::APIClient
+class Morpheus::ServicePlansInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
     @access_token = access_token
     @refresh_token = refresh_token
@@ -9,19 +9,19 @@ class Morpheus::ProvisionTypesInterface < Morpheus::APIClient
   end
 
   def list(params={})
-    url = "#{@base_url}/api/provision-types"
+    url = "#{@base_url}/api/service-plans"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get(options=nil)
-    url = "#{@base_url}/api/provision-types"
+    url = "#{@base_url}/api/service-plans"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
     if options.is_a?(Hash)
       headers[:params].merge!(options)
     elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/provision-types/#{options}"
+      url = "#{@base_url}/api/service-plans/#{options}"
     elsif options.is_a?(String)
       headers[:params]['name'] = options
     end

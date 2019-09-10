@@ -32,6 +32,7 @@ class Morpheus::Cli::Clusters
     @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_group
     @provision_types_interface = @api_client.provision_types
+    @service_plans_interface = @api_client.service_plans
     @user_groups_interface = @api_client.user_groups
     #@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
@@ -1198,6 +1199,32 @@ class Morpheus::Cli::Clusters
       opts.on("--name NAME", String, "Name of the new namespace") do |val|
         options[:name] = val.to_s
       end
+      opts.on("--description [TEXT]", String, "Description") do |val|
+        options[:description] = val.to_s
+      end
+      opts.on('--active [on|off]', String, "Enable namespace") do |val|
+        options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        options[:groupAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:groupAccessList] = []
+        else
+          options[:groupAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-access-all [on|off]', String, "Toggle Access for all service plans.") do |val|
+        options[:planAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--plan-access LIST', Array, "Service Plan Access, comma separated list of plan IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:planAccessList] = []
+        else
+          options[:planAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a cluster namespace.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster.\n" +
@@ -1205,8 +1232,8 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count < 1 || args.count > 3
+      raise_command_error "wrong number of arguments, expected 1 to 3 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
@@ -1222,11 +1249,8 @@ class Morpheus::Cli::Clusters
           payload['namespace'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
         end
       else
-        # TODO: prompt for namespace params
-        namespace_payload = {}
-        namespace_payload['name'] = options[:name] if !options[:name].empty?
-        # namespace_payload['description'] = options[:description] if !options[:description].empty?
-        # namespace_payload['enabled'] = options[:active] if !options[:active].nil?
+        namespace_payload = {'name' => options[:name] || (args.length > 1 ? args[1] : nil) || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'description' => 'Namespace Name', 'required' => true}], options[:options], @api_client)['name']}
+        namespace_payload.deep_merge!(prompt_update_namespace(options).reject {|k,v| k.is_a?(Symbol)})
         payload = {"namespace" => namespace_payload}
       end
 
@@ -1290,16 +1314,19 @@ class Morpheus::Cli::Clusters
         print yellow,"No namespaces found.",reset,"\n"
       else
         # more stuff to show here
-        rows = namespaces.collect do |cluster|
+        rows = namespaces.collect do |ns|
           {
-              id: cluster['id'],
-              name: cluster['name']
+              id: ns['id'],
+              name: ns['name'],
+              description: ns['description'],
+              status: ns['status'],
+              cluster: cluster['name']
           }
         end
         columns = [
-            :id, :name
+            :id, :name, :description, :status, :cluster => lambda { |it| cluster['name'] }
         ]
-        print as_pretty_table(rows, columns, opts)
+        print as_pretty_table(rows, columns, options)
       end
       print reset,"\n"
       return 0
@@ -1378,15 +1405,16 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count < 1 || args.count > 3
+      raise_command_error "wrong number of arguments, expected 1 to 3 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      namespace = cluster['namespaces'].find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      namespace_name = options[:name] || (args.count > 1 ? args[1].to_s : nil)
+      namespace = cluster['namespaces'].find {|ns| ns['name'] == namespace_name || ns['id'] == "#{namespace_name}" }
       if namespace.nil?
         print_red_alert "Namespace not found by '#{args[1]}'"
         exit 1
@@ -1399,12 +1427,7 @@ class Morpheus::Cli::Clusters
           payload.deep_merge!({'namespace' => options[:options].reject {|k,v| k.is_a?(Symbol) }})
         end
       else
-        # TODO: prompt for namespace params
-        namespace_payload = {}
-        namespace_payload['name'] = options[:name] if !options[:name].empty?
-        # namespace_payload['description'] = options[:description] if !options[:description].empty?
-        # namespace_payload['enabled'] = options[:active] if !options[:active].nil?
-        payload = {"namespace" => namespace_payload}
+        payload = {'namespace' => prompt_update_namespace(options)}
 
         # support -O OPTION switch on top of everything
         if options[:options]
@@ -1449,8 +1472,8 @@ class Morpheus::Cli::Clusters
       opts.footer = "Delete a namespace within a cluster."
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
@@ -1656,6 +1679,10 @@ class Morpheus::Cli::Clusters
 
   def service_plans_for_dropdown(zone_id, provision_type_id)
     @servers_interface.service_plans({zoneId: zone_id, provisionTypeId: provision_type_id})['plans'] rescue []
+  end
+
+  def namespace_service_plans
+    @service_plans_interface.list({'provisionable' => 'any', 'provisionTypeId' => @provision_types_interface.list({'code' => 'docker'})['provisionTypes'].first['id']})['servicePlans'] rescue []
   end
 
   def get_cloud_type(id)
@@ -1898,5 +1925,101 @@ class Morpheus::Cli::Clusters
       end
     end
     security_groups
+  end
+
+  def prompt_update_namespace(options)
+    description = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Namespace Description', 'required' => false}], options[:options], @api_client)['description']
+    active = options[:active].nil? ? (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'description' => 'Namespace Active', 'defaultValue' => true}], options[:options], @api_client))['active'] == 'on' : options[:active]
+    all_groups = false
+    group_access = []
+    all_plans = false
+    plan_access = []
+
+    # Group Access
+    if options[:groupAccessAll]
+      all_groups = true
+    end
+
+    if !options[:groupAccess].empty?
+      group_access = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_id}} || []
+    else
+      available_groups = get_available_groups
+
+      if available_groups.empty?
+        #print_red_alert "No available groups"
+        #exit 1
+      elsif available_groups.count > 1 && !options[:no_prompt]
+        available_groups.unshift({"id" => '0', "name" => "All", "value" => "all"})
+
+        # default to all
+        group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group Access', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Add Group Access.', 'defaultValue' => 'all'}], options[:options], @api_client, {})['group']
+
+        if group_id == 'all'
+          all_groups = true
+        else
+          group_access = [{'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}]
+        end
+        available_groups = available_groups.reject {|it| it['value'] == group_id}
+
+        while !available_groups.empty? && Morpheus::Cli::OptionTypes.confirm("Add another group access?", {:default => false})
+          group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group Access', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Add Group Access.'}], options[:options], @api_client, {})['group']
+
+          if group_id == 'all'
+            all_groups = true
+          else
+            group_access << {'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}
+          end
+          available_groups = available_groups.reject {|it| it['value'] == group_id}
+        end
+      end
+    end
+
+    # Plan Access
+    if options[:planAccessAll]
+      all_plans = true
+    end
+
+    if !options[:planAccess].empty?
+      plan_access = options[:planAccessList].collect {|plan_id| {'id' => plan_id.to_id}}
+    else
+      available_plans = namespace_service_plans.collect {|it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id']} }
+
+      if available_plans.empty?
+        #print_red_alert "No available plans"
+        #exit 1
+      elsif !available_plans.empty? && !options[:no_prompt]
+        available_plans.unshift({"id" => '0', "name" => "All", "value" => "all"})
+
+        # default to all
+        plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Service Plan Access', 'selectOptions' => available_plans, 'required' => true, 'description' => 'Add Service Plan Access.', 'defaultValue' => 'all'}], options[:options], @api_client, {})['plan']
+
+        if plan_id == 'all'
+          all_plans = true
+        else
+          plan_access = [{'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}]
+        end
+
+        available_plans = available_plans.reject {|it| it['value'] == plan_id}
+
+        while !available_plans.empty? && Morpheus::Cli::OptionTypes.confirm("Add another service plan access?", {:default => false})
+          plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Service Plan Access', 'selectOptions' => available_plans, 'required' => true, 'description' => 'Add Service Plan Access.'}], options[:options], @api_client, {})['plan']
+
+          if plan_id == 'all'
+            all_plans = true
+          else
+            plan_access << {'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}
+          end
+          available_plans = available_plans.reject {|it| it['value'] == plan_id}
+        end
+      end
+    end
+
+    resource_perms = {}
+    resource_perms['all'] = true if all_groups
+    resource_perms['sites'] = group_access if !group_access.empty?
+    resource_perms['allPlans'] = true if all_plans
+    resource_perms['plans'] = plan_access if !plan_access.empty?
+
+    {'description' => description, 'active' => active, 'resourcePermissions' => resource_perms}
   end
 end
