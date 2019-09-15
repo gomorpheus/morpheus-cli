@@ -92,7 +92,7 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     if volume_id.is_a?(Array)
       url = "#{@api_url}/#{id}/volumes"
       params['volumeId'] = volume_id
-    elsif volume_id.is_a?(Number) || volume_id.is_a?(String)
+    elsif volume_id.is_a?(Numeric) || volume_id.is_a?(String)
       url = "#{@api_url}/#{id}/volumes/#{volume_id}"
     else
       raise "passed a bad volume_id: #{volume_id || '(none)'}" # lazy

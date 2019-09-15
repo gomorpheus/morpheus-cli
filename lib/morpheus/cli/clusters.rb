@@ -682,9 +682,6 @@ class Morpheus::Cli::Clusters
       opts.on('--active [on|off]', String, "Can be used to enable / disable the cluster. Default is on") do |val|
         options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
-        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
-      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster."
@@ -1129,27 +1126,26 @@ class Morpheus::Cli::Clusters
   end
 
   def remove_volume(args)
-    options = {}
-    query_params = {:removeResources => 'on'}
+    options = {:removeResources => 'on'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
       # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
       #   query_params[:removeResources] = 'off'
       # end
       opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
-        query_params[:removeResources] = val.nil? ? 'on' : val
+        options[:removeResources] = val.nil? ? 'on' : val
       end
       opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
-        query_params[:preserveVolumes] = val.nil? ? 'on' : val
+        options[:preserveVolumes] = val.nil? ? 'on' : val
       end
       opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
-        query_params[:removeInstances] = val.nil? ? 'on' : val
+        options[:removeInstances] = val.nil? ? 'on' : val
       end
       opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
-        params[:releaseEIPs] = val.nil? ? 'on' : val
+        options[:releaseEIPs] = val.nil? ? 'on' : val
       end
       opts.on( '-f', '--force', "Force Delete" ) do
-        query_params[:force] = 'on'
+        options[:force] = 'on'
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a volume within a cluster.\n" +
@@ -1157,33 +1153,36 @@ class Morpheus::Cli::Clusters
                     "[volume] is required. This is the name or id of an existing volume."
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count < 1 || args.count > 2
+      raise_command_error "wrong number of arguments, expected 1 or 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      volume_id = args[0]
-      #volume_id = args.count > 1 ? args : args[0] # support multiple
-      # todo: look it up
-      #volume = cluster['volumes'].find {|vol| vol['name'] == volume_id.to_s || vol['id'] == volume_id.to_i }
-      volume = {"id" => volume_id}
+      volume_id = options[:volume] || (args.count > 1 ? args[1] : nil)
+
+      if volume_id.empty?
+        raise_command_error "missing required volume parameter"
+      end
+
+      volume = cluster['volumes'].find {|it| it['id'].to_s == volume_id.to_s || it['name'].casecmp(volume_id).zero? }
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster volume '#{volume['name'] || volume['id']}'?", options)
         return 9, "aborted command"
       end
+
       @clusters_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume_id, query_params)
+        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume['id'], options)
         return
       end
-      json_response = @clusters_interface.destroy_volume(cluster['id'], volume_id, query_params)
+      json_response = @clusters_interface.destroy_volume(cluster['id'], volume['id'], options)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Cluster #{cluster['name']} is being removed..."
+        print_green_success "Volume #{volume['name']} is being removed from cluster #{cluster['name']}..."
         #list([])
       end
     rescue RestClient::Exception => e
