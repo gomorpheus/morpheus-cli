@@ -772,7 +772,7 @@ class Morpheus::Cli::Hosts
         end
 
         # prompt for volumes
-        volumes = prompt_volumes(service_plan, options, @api_client, {})
+        volumes = prompt_volumes(service_plan, options, @api_client, {zoneId: cloud_id, serverTypeId: server_type['id'], siteId: group_id})
         if !volumes.empty?
           payload['volumes'] = volumes
         end
