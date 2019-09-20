@@ -15,7 +15,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :list, :count, :get, :view, :add, :update, :remove
   register_subcommands :list_workers, :add_worker
   register_subcommands :list_masters
-  register_subcommands :remove_volume
+  register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
   
   def connect(opts)
@@ -561,14 +561,14 @@ class Morpheus::Cli::Clusters
           end
         end
 
-        cluster_payload['layout'] = layout['code']
+        cluster_payload['layout'] = {id: layout['id']}
 
         # Plan
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
         service_plan = prompt_service_plan(cloud['id'], provision_type, options)
 
         if service_plan
-          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
         end
 
         # Controller type
@@ -1125,6 +1125,68 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def list_volumes(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List volumes for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_volumes(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_volumes(cluster['id'], params)
+
+      render_result = render_with_format(json_response, options, 'volumes')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Volumes: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      volumes = json_response['volumes']
+      if volumes.empty?
+        print yellow,"No volumes found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = volumes.collect do |ns|
+          {
+              id: ns['id'],
+              name: ns['name'],
+              description: ns['description'],
+              status: ns['status'],
+              active: ns['active'],
+              cluster: cluster['name']
+          }
+        end
+        columns = [
+            :id, :name, :description, :status, :active, :cluster => lambda { |it| cluster['name'] }
+        ]
+        print as_pretty_table(rows, columns, options)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def remove_volume(args)
     options = {:removeResources => 'on'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1413,7 +1475,7 @@ class Morpheus::Cli::Clusters
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
       namespace_name = options[:name] || (args.count > 1 ? args[1].to_s : nil)
-      namespace = cluster['namespaces'].find {|ns| ns['name'] == namespace_name || ns['id'] == "#{namespace_name}" }
+      namespace = cluster['namespaces'].find {|ns| ns['name'] == namespace_name || ns['id'].to_s == namespace_name}
       if namespace.nil?
         print_red_alert "Namespace not found by '#{args[1]}'"
         exit 1
