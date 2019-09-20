@@ -535,7 +535,7 @@ class Morpheus::Cli::Clusters
             print_red_alert "Group #{group['name']} has no available clouds"
             exit 1
           elsif available_clouds.count > 1 && !options[:no_prompt]
-            cloud_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => available_clouds, 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group_id})['cloud']
+            cloud_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => available_clouds, 'required' => true, 'description' => 'Select Cloud.'}],options[:options],@api_client,{groupId: group['id']})['cloud']
           else
             cloud_id = available_clouds.first["id"]
           end
@@ -586,7 +586,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {})
+        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {zoneId: cloud['id'], siteId: group['id']})
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
@@ -972,7 +972,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {})
+        volumes = options[:volumes] || prompt_volumes(service_plan, options, @api_client, {zoneId: cloud['id'], siteId: group['id']})
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
