@@ -1129,7 +1129,7 @@ class Morpheus::Cli::Clusters
   def remove_volume(args)
     options = {:removeResources => 'on'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cluster]")
+      opts.banner = subcommand_usage("[cluster] [volume]")
       # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
       #   query_params[:removeResources] = 'off'
       # end
@@ -1154,7 +1154,7 @@ class Morpheus::Cli::Clusters
                     "[volume] is required. This is the name or id of an existing volume."
     end
     optparse.parse!(args)
-    if args.count < 1 || args.count > 2
+    if args.count != 2
       raise_command_error "wrong number of arguments, expected 1 or 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
@@ -1162,13 +1162,17 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      volume_id = options[:volume] || (args.count > 1 ? args[1] : nil)
+      volume_id = args[1]
 
       if volume_id.empty?
         raise_command_error "missing required volume parameter"
       end
 
       volume = cluster['volumes'].find {|it| it['id'].to_s == volume_id.to_s || it['name'].casecmp(volume_id).zero? }
+      if volume.nil?
+        print_red_alert "Volume not found by id '#{volume_id}'"
+        return 1
+      end
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster volume '#{volume['name'] || volume['id']}'?", options)
         return 9, "aborted command"
       end
