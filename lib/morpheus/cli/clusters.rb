@@ -853,7 +853,7 @@ class Morpheus::Cli::Clusters
           if !stats['maxMemory']
             stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
           end
-          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage']).to_f, 100, {max_bars: 10})
           memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
           storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
           if options[:details]
@@ -1077,7 +1077,7 @@ class Morpheus::Cli::Clusters
           if !stats['maxMemory']
             stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
           end
-          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage']).to_f, 100, {max_bars: 10})
           memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
           storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
           if options[:details]
