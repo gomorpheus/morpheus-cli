@@ -511,6 +511,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
   end
 
   def remove(args)
+    layout_id = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
@@ -525,7 +526,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
     connect(options)
 
     begin
-      container_type = find_container_type_by_name_or_id(layout_id, id)
+      container_type = find_container_type_by_name_or_id(layout_id, args[0])
       if container_type.nil?
         return 1
       end
