@@ -618,7 +618,7 @@ class Morpheus::Cli::Clusters
           option_type_list = reject_networking_option_types(option_type_list)
         end
 
-        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id']}))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id']}))
 
         # Create User
         if !options[:createUser].nil?
