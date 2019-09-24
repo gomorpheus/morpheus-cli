@@ -1127,6 +1127,7 @@ class Morpheus::Cli::Clusters
   end
 
   def remove_volume(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster] [volume]")
@@ -1161,10 +1162,10 @@ class Morpheus::Cli::Clusters
 
       @clusters_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume['id'], options)
+        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume['id'], params)
         return
       end
-      json_response = @clusters_interface.destroy_volume(cluster['id'], volume['id'], options)
+      json_response = @clusters_interface.destroy_volume(cluster['id'], volume['id'], params)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
