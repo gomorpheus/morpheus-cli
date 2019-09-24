@@ -618,7 +618,7 @@ class Morpheus::Cli::Clusters
           option_type_list = reject_networking_option_types(option_type_list)
         end
 
-        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id']}))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
 
         # Create User
         if !options[:createUser].nil?
@@ -2229,5 +2229,5 @@ class Morpheus::Cli::Clusters
       {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
     ]
   end
-  
+
 end
