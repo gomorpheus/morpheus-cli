@@ -477,7 +477,7 @@ module Morpheus::Cli::PrintHelper
     end
     opts[:include] ||= [:memory, :storage, :cpu]
     if opts[:include].include?(:cpu)
-      cpu_usage = (stats['usedCpu'] || stats['cpuUsage'])
+      cpu_usage = (stats['cpuUsage'] || stats['usedCpu'])
       out << cyan + "CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
     if opts[:include].include?(:memory)

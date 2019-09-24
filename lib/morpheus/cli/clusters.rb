@@ -17,7 +17,8 @@ class Morpheus::Cli::Clusters
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
-  
+  register_subcommands :wiki, :update_wiki
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @clusters_interface = @api_client.clusters
@@ -355,7 +356,7 @@ class Morpheus::Cli::Clusters
   def add(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage( "[name] [description]")
+      opts.banner = subcommand_usage( "[name]")
       opts.on( '--name NAME', "Cluster Name" ) do |val|
         options[:name] = val.to_s
       end
@@ -365,9 +366,9 @@ class Morpheus::Cli::Clusters
       opts.on( '--resource-name NAME', "Resource Name" ) do |val|
         options[:resourceName] = val.to_s
       end
-      opts.on( '--resource-description DESCRIPTION', "Resource Description" ) do |val|
-        options[:resourceDescription] = val
-      end
+      # opts.on( '--resource-description DESCRIPTION', "Resource Description" ) do |val|
+      #   options[:resourceDescription] = val
+      # end
       opts.on('--tags LIST', String, "Tags") do |val|
         options[:tags] = val
       end
@@ -399,7 +400,7 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
-    if args.count > 2
+    if args.count > 1
       raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
@@ -418,17 +419,17 @@ class Morpheus::Cli::Clusters
         elsif options[:name]
           payload['cluster']['name'] = options[:name]
         end
-        if args[1]
-          payload['cluster']['description'] = args[1]
-        elsif options[:description]
-          payload['cluster']['description'] = options[:description]
-        end
+        # if args[1]
+        #   payload['cluster']['description'] = args[1]
+        # elsif options[:description]
+        #   payload['cluster']['description'] = options[:description]
+        # end
         payload['cluster']['server'] ||= {}
         if options[:resourceName]
           payload['cluster']['server']['name'] = options[:resourceName]
         end
-        if options[:resourceDescription]
-          payload['cluster']['server']['description'] = options[:resourceDescription]
+        if options[:description]
+          payload['cluster']['server']['description'] = options[:description]
         end
       else
         cluster_payload = {}
@@ -478,13 +479,13 @@ class Morpheus::Cli::Clusters
         end
 
         # Cluster Description
-        if !args.empty? && args.count > 1
-          cluster_payload['description'] = args[1]
-        elsif options[:description]
-          cluster_payload['description'] = options[:description]
-        elsif !options[:no_prompt]
-          cluster_payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['desc']
-        end
+        # if !args.empty? && args.count > 1
+        #   cluster_payload['description'] = args[1]
+        # elsif options[:description]
+        #   cluster_payload['description'] = options[:description]
+        # elsif !options[:no_prompt]
+        #   cluster_payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['description']
+        # end
 
         # Resource Name
         resourceName = options[:resourceName]
@@ -501,10 +502,10 @@ class Morpheus::Cli::Clusters
         server_payload['name'] = resourceName
 
         # Resource Description
-        resourceDescription = options[:resourceDescription]
+        resourceDescription = options[:description]
 
         if !resourceDescription && !options[:no_prompt]
-          resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Resource Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['desc']
+          resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
         end
 
         server_payload['description'] = resourceDescription if resourceDescription
@@ -617,7 +618,7 @@ class Morpheus::Cli::Clusters
           option_type_list = reject_networking_option_types(option_type_list)
         end
 
-        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id']}))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
 
         # Create User
         if !options[:createUser].nil?
@@ -852,7 +853,7 @@ class Morpheus::Cli::Clusters
           if !stats['maxMemory']
             stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
           end
-          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage']).to_f, 100, {max_bars: 10})
           memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
           storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
           if options[:details]
@@ -989,7 +990,7 @@ class Morpheus::Cli::Clusters
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
 
         # Visibility
-        server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
+        #server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
         # Host / Domain
         server_payload['networkDomain'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
@@ -1076,7 +1077,7 @@ class Morpheus::Cli::Clusters
           if !stats['maxMemory']
             stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
           end
-          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage']).to_f, 100, {max_bars: 10})
           memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
           storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
           if options[:details]
@@ -1188,58 +1189,45 @@ class Morpheus::Cli::Clusters
   end
 
   def remove_volume(args)
-    options = {:removeResources => 'on'}
+    params = {}
+    options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cluster]")
-      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
-      #   query_params[:removeResources] = 'off'
-      # end
-      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
-        options[:removeResources] = val.nil? ? 'on' : val
-      end
-      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
-        options[:preserveVolumes] = val.nil? ? 'on' : val
-      end
-      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
-        options[:removeInstances] = val.nil? ? 'on' : val
-      end
-      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
-        options[:releaseEIPs] = val.nil? ? 'on' : val
-      end
-      opts.on( '-f', '--force', "Force Delete" ) do
-        options[:force] = 'on'
-      end
+      opts.banner = subcommand_usage("[cluster] [volume]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a volume within a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster.\n" +
                     "[volume] is required. This is the name or id of an existing volume."
     end
     optparse.parse!(args)
-    if args.count < 1 || args.count > 2
-      raise_command_error "wrong number of arguments, expected 1 or 2 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      volume_id = options[:volume] || (args.count > 1 ? args[1] : nil)
+      volume_id = args[1]
 
       if volume_id.empty?
         raise_command_error "missing required volume parameter"
       end
 
       volume = cluster['volumes'].find {|it| it['id'].to_s == volume_id.to_s || it['name'].casecmp(volume_id).zero? }
+      if volume.nil?
+        print_red_alert "Volume not found by id '#{volume_id}'"
+        return 1
+      end
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster volume '#{volume['name'] || volume['id']}'?", options)
         return 9, "aborted command"
       end
 
       @clusters_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume['id'], options)
+        print_dry_run @clusters_interface.dry.destroy_volume(cluster['id'], volume['id'], params)
         return
       end
-      json_response = @clusters_interface.destroy_volume(cluster['id'], volume['id'], options)
+      json_response = @clusters_interface.destroy_volume(cluster['id'], volume['id'], params)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -1562,6 +1550,205 @@ class Morpheus::Cli::Clusters
         print_green_success "Removed cluster namespace #{namespace['name']}"
         #list([])
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def wiki(args)
+    options = {}
+    params = {}
+    open_wiki_link = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      opts.on('--view', '--view', "View wiki page in web browser.") do
+        open_wiki_link = true
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "View wiki page details for a cluster." + "\n" +
+                    "[cluster] is required. This is the name or id of a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.wiki(cluster["id"], params)
+        return
+      end
+      json_response = @clusters_interface.wiki(cluster["id"], params)
+      page = json_response['page']
+  
+      render_result = render_with_format(json_response, options, 'page')
+      return 0 if render_result
+
+      if page
+
+        # my_terminal.exec("wiki get #{page['id']}")
+
+        print_h1 "cluster Wiki Page: #{cluster['name']}"
+        # print_h1 "Wiki Page Details"
+        print cyan
+
+        print_description_list({
+          "Page ID" => 'id',
+          "Name" => 'name',
+          #"Category" => 'category',
+          #"Ref Type" => 'refType',
+          #"Ref ID" => 'refId',
+          #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+          "Updated By" => lambda {|it| it['updatedBy'] ? it['updatedBy']['username'] : '' }
+        }, page)
+        print reset,"\n"
+
+        print_h2 "Page Content"
+        print cyan, page['content'], reset, "\n"
+
+      else
+        print "\n"
+        print cyan, "No wiki page found.", reset, "\n"
+      end
+      print reset,"\n"
+
+      if open_wiki_link
+        return view_wiki([args[0]])
+      end
+
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view_wiki(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "View cluster wiki page in a web browser" + "\n" +
+                    "[cluster] is required. This is the name or id of a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/infrastructure/clusters/#{cluster['id']}#!wiki"
+
+      open_command = nil
+      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+        open_command = "start #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+        open_command = "open #{link}"
+      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+        open_command = "xdg-open #{link}"
+      end
+
+      if options[:dry_run]
+        puts "system: #{open_command}"
+        return 0
+      end
+
+      system(open_command)
+      
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_wiki(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [options]")
+      build_option_type_options(opts, options, update_wiki_page_option_types)
+      opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        # use the filename as the name by default.
+        if !params['name']
+          params['name'] = File.basename(full_filename)
+        end
+      end
+      opts.on(nil, '--clear', "Clear current page content") do |val|
+        params['content'] = ""
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+      else
+        payload = {
+          'page' => {
+          }
+        }
+        # allow arbitrary -O options
+        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+        # prompt for options
+        #params = Morpheus::Cli::OptionTypes.prompt(update_wiki_page_option_types, options[:options], @api_client, options[:params])
+        #params = passed_options
+        params.deep_merge!(passed_options)
+
+        if params.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+
+        payload.deep_merge!({'page' => params}) unless params.empty?
+      end
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.update_wiki(cluster["id"], payload)
+        return
+      end
+      json_response = @clusters_interface.update_wiki(cluster["id"], payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated wiki page for cluster #{cluster['name']}"
+        wiki([cluster['id']])
+      end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -2083,4 +2270,13 @@ class Morpheus::Cli::Clusters
 
     {'description' => description, 'active' => active, 'resourcePermissions' => resource_perms}
   end
+
+  def update_wiki_page_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1, 'description' => 'The name of the wiki page for this instance. Default is the instance name.'},
+      #{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
+    ]
+  end
+
 end
