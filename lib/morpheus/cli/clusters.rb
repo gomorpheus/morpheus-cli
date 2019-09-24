@@ -356,7 +356,7 @@ class Morpheus::Cli::Clusters
   def add(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage( "[name] [description]")
+      opts.banner = subcommand_usage( "[name]")
       opts.on( '--name NAME', "Cluster Name" ) do |val|
         options[:name] = val.to_s
       end
@@ -366,9 +366,9 @@ class Morpheus::Cli::Clusters
       opts.on( '--resource-name NAME', "Resource Name" ) do |val|
         options[:resourceName] = val.to_s
       end
-      opts.on( '--resource-description DESCRIPTION', "Resource Description" ) do |val|
-        options[:resourceDescription] = val
-      end
+      # opts.on( '--resource-description DESCRIPTION', "Resource Description" ) do |val|
+      #   options[:resourceDescription] = val
+      # end
       opts.on('--tags LIST', String, "Tags") do |val|
         options[:tags] = val
       end
@@ -400,7 +400,7 @@ class Morpheus::Cli::Clusters
     end
 
     optparse.parse!(args)
-    if args.count > 2
+    if args.count > 1
       raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
@@ -419,17 +419,17 @@ class Morpheus::Cli::Clusters
         elsif options[:name]
           payload['cluster']['name'] = options[:name]
         end
-        if args[1]
-          payload['cluster']['description'] = args[1]
-        elsif options[:description]
-          payload['cluster']['description'] = options[:description]
-        end
+        # if args[1]
+        #   payload['cluster']['description'] = args[1]
+        # elsif options[:description]
+        #   payload['cluster']['description'] = options[:description]
+        # end
         payload['cluster']['server'] ||= {}
         if options[:resourceName]
           payload['cluster']['server']['name'] = options[:resourceName]
         end
-        if options[:resourceDescription]
-          payload['cluster']['server']['description'] = options[:resourceDescription]
+        if options[:description]
+          payload['cluster']['server']['description'] = options[:description]
         end
       else
         cluster_payload = {}
@@ -479,13 +479,13 @@ class Morpheus::Cli::Clusters
         end
 
         # Cluster Description
-        if !args.empty? && args.count > 1
-          cluster_payload['description'] = args[1]
-        elsif options[:description]
-          cluster_payload['description'] = options[:description]
-        elsif !options[:no_prompt]
-          cluster_payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['desc']
-        end
+        # if !args.empty? && args.count > 1
+        #   cluster_payload['description'] = args[1]
+        # elsif options[:description]
+        #   cluster_payload['description'] = options[:description]
+        # elsif !options[:no_prompt]
+        #   cluster_payload['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Cluster Description', 'required' => false, 'description' => 'Cluster Description.'}],options[:options],@api_client,{})['description']
+        # end
 
         # Resource Name
         resourceName = options[:resourceName]
@@ -502,10 +502,10 @@ class Morpheus::Cli::Clusters
         server_payload['name'] = resourceName
 
         # Resource Description
-        resourceDescription = options[:resourceDescription]
+        resourceDescription = options[:description]
 
         if !resourceDescription && !options[:no_prompt]
-          resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'desc', 'type' => 'text', 'fieldLabel' => 'Resource Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['desc']
+          resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
         end
 
         server_payload['description'] = resourceDescription if resourceDescription
