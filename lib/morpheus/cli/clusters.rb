@@ -1127,27 +1127,9 @@ class Morpheus::Cli::Clusters
   end
 
   def remove_volume(args)
-    options = {:removeResources => 'on'}
+    options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster] [volume]")
-      # opts.on( '-S', '--skip-remove-infrastructure', "Skip removal of underlying cloud infrastructure. Same as --remove-resources off" ) do
-      #   query_params[:removeResources] = 'off'
-      # end
-      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is on.") do |val|
-        options[:removeResources] = val.nil? ? 'on' : val
-      end
-      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off.") do |val|
-        options[:preserveVolumes] = val.nil? ? 'on' : val
-      end
-      opts.on('--remove-instances [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
-        options[:removeInstances] = val.nil? ? 'on' : val
-      end
-      opts.on('--release-eips [on|off]', ['on','off'], "Release EIPs, default is on. Amazon only.") do |val|
-        options[:releaseEIPs] = val.nil? ? 'on' : val
-      end
-      opts.on( '-f', '--force', "Force Delete" ) do
-        options[:force] = 'on'
-      end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a volume within a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster.\n" +
