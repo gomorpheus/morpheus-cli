@@ -2400,22 +2400,26 @@ class Morpheus::Cli::Clusters
         # default to all
         group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group Access', 'selectOptions' => available_groups, 'required' => false, 'description' => 'Add Group Access.'}], options[:options], @api_client, {})['group']
 
-        if group_id == 'all'
-          all_groups = true
-        else
-          group_access = [{'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}]
-        end
-        available_groups = available_groups.reject {|it| it['value'] == group_id}
-
-        while !available_groups.empty? && Morpheus::Cli::OptionTypes.confirm("Add another group access?", {:default => false})
-          group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group Access', 'selectOptions' => available_groups, 'required' => false, 'description' => 'Add Group Access.'}], options[:options], @api_client, {})['group']
-
+        if !group_id.nil?
           if group_id == 'all'
             all_groups = true
           else
-            group_access << {'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}
+            group_access = [{'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}]
           end
           available_groups = available_groups.reject {|it| it['value'] == group_id}
+
+          while !group_id.nil? && !available_groups.empty? && Morpheus::Cli::OptionTypes.confirm("Add another group access?", {:default => false})
+            group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group Access', 'selectOptions' => available_groups, 'required' => false, 'description' => 'Add Group Access.'}], options[:options], @api_client, {})['group']
+
+            if !group_id.nil?
+              if group_id == 'all'
+                all_groups = true
+              else
+                group_access << {'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}
+              end
+              available_groups = available_groups.reject {|it| it['value'] == group_id}
+            end
+          end
         end
       end
     end
@@ -2439,23 +2443,27 @@ class Morpheus::Cli::Clusters
         # default to all
         plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Service Plan Access', 'selectOptions' => available_plans, 'required' => false, 'description' => 'Add Service Plan Access.'}], options[:options], @api_client, {})['plan']
 
-        if plan_id == 'all'
-          all_plans = true
-        else
-          plan_access = [{'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}]
-        end
-
-        available_plans = available_plans.reject {|it| it['value'] == plan_id}
-
-        while !available_plans.empty? && Morpheus::Cli::OptionTypes.confirm("Add another service plan access?", {:default => false})
-          plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Service Plan Access', 'selectOptions' => available_plans, 'required' => false, 'description' => 'Add Service Plan Access.'}], options[:options], @api_client, {})['plan']
-
+        if !plan_id.nil?
           if plan_id == 'all'
             all_plans = true
           else
-            plan_access << {'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}
+            plan_access = [{'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}]
           end
+
           available_plans = available_plans.reject {|it| it['value'] == plan_id}
+
+          while !plan_id.nil? && !available_plans.empty? && Morpheus::Cli::OptionTypes.confirm("Add another service plan access?", {:default => false})
+            plan_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Service Plan Access', 'selectOptions' => available_plans, 'required' => false, 'description' => 'Add Service Plan Access.'}], options[:options], @api_client, {})['plan']
+
+            if !plan_id.nil?
+              if plan_id == 'all'
+                all_plans = true
+              else
+                plan_access << {'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}
+              end
+              available_plans = available_plans.reject {|it| it['value'] == plan_id}
+            end
+          end
         end
       end
     end
