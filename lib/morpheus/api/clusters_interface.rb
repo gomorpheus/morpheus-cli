@@ -56,6 +56,12 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def update_permissions(id, payload)
+    url = "#{@api_url}/#{id}/permissions"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def list_jobs(id, params={})
     url = "#{@api_url}/#{id}/jobs"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
