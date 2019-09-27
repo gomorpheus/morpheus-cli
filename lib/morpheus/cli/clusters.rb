@@ -203,10 +203,13 @@ class Morpheus::Cli::Clusters
           #"Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
           "Location" => lambda { |it| it['location'] },
+          "Layout" => lambda { |it| it['layout'] ? it['layout']['name'] : ''},
+          "API Url" => 'serviceUrl',
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
           #"Tenant" => lambda {|it| it['account'].instance_of?(Hash) ? it['account']['name'] : it['accountId'] },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
           "Enabled" => lambda { |it| format_boolean(it['enabled']) },
           "Status" => lambda { |it| format_cluster_status(it) }
@@ -267,10 +270,6 @@ class Morpheus::Cli::Clusters
           puts as_pretty_table(rows, columns, options)
         end
       end
-      if options[:show_perms]
-        permissions = cluster['permissions']
-        print_permissions(permissions)
-      end
 
       if worker_stats
         print_h2 "Worker Usage"
@@ -280,6 +279,11 @@ class Morpheus::Cli::Clusters
         # print "Storage: #{worker_stats['usedStorage']}".center(20)
         print_stats_usage(worker_stats)
         print reset,"\n"
+      end
+
+      if options[:show_perms]
+        permissions = cluster['permissions']
+        print_permissions(permissions)
       end
 
       # refresh until a status is reached
@@ -1426,9 +1430,9 @@ class Morpheus::Cli::Clusters
         puts as_json(json_response, options)
       elsif !options[:quiet]
         namespace = json_response['namespace']
-        print_green_success "Added namespace #{namespace}"
-        #get_args = [cluster["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
-        #get(get_args)
+        print_green_success "Added namespace #{namespace['name']}"
+        get_args = [cluster["id"], namespace["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get_namespace(get_args)
       end
       return 0
     rescue RestClient::Exception => e
@@ -1550,6 +1554,10 @@ class Morpheus::Cli::Clusters
       print_description_list(description_cols, namespace)
       print reset,"\n"
 
+      if options[:show_perms]
+        permissions = cluster['permissions']
+        print_permissions(permissions)
+      end
 
       return 0
     rescue RestClient::Exception => e
@@ -2542,7 +2550,7 @@ class Morpheus::Cli::Clusters
           print as_pretty_table(rows, columns)
         end
 
-        if !permissions['tenantPermissions'].nil? || !permissions['resourcePool'].nil?
+        if !permissions['tenantPermissions'].nil?
           print_h2 "Tenant Permissions"
           if !permissions['resourcePool'].nil?
             print cyan
@@ -2555,6 +2563,7 @@ class Morpheus::Cli::Clusters
             print "\n"
           end
         end
+        print "\n"
       end
     end
   end
