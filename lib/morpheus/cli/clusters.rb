@@ -696,6 +696,9 @@ class Morpheus::Cli::Clusters
       opts.on('--active [on|off]', String, "Can be used to enable / disable the cluster. Default is on") do |val|
         options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on( nil, '--refresh', "Refresh cluster" ) do
+        options[:refresh] = true
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster."
@@ -729,6 +732,7 @@ class Morpheus::Cli::Clusters
         cluster_payload['description'] = options[:description] if !options[:description].empty?
         cluster_payload['enabled'] = options[:active] if !options[:active].nil?
         cluster_payload['serviceUrl'] = options[:apiUrl] if !options[:apiUrl].nil?
+        cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
         payload = {"cluster" => cluster_payload}
       end
 
@@ -737,7 +741,7 @@ class Morpheus::Cli::Clusters
         exit 1
       end
 
-      has_field_updates = ['name', 'description', 'enabled', 'serviceUrl'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
+      has_field_updates = ['name', 'description', 'enabled', 'serviceUrl', 'refresh'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
 
       if !has_field_updates
         print_green_success "Nothing to update"
