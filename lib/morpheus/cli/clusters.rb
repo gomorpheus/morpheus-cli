@@ -12,11 +12,13 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs
   register_subcommands :list_workers, :add_worker
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
+  register_subcommands :list_jobs, :remove_job
+  register_subcommands :list_services, :remove_service
   register_subcommands :update_permissions
   register_subcommands :wiki, :update_wiki
 
@@ -37,6 +39,7 @@ class Morpheus::Cli::Clusters
     @service_plans_interface = @api_client.service_plans
     @user_groups_interface = @api_client.user_groups
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
+    @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
     #@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
 
@@ -397,6 +400,9 @@ class Morpheus::Cli::Clusters
       opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
+      opts.on('--workflow ID', String, "Workflow") do |val|
+        params['taskSetId'] = val.to_i
+      end
       add_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a cluster.\n" +
@@ -648,12 +654,10 @@ class Morpheus::Cli::Clusters
         server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client)['hostname']
 
         # Workflow / Automation
-        if !options[:no_prompt]
-          task_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {'phase' => 'postProvision', 'taskSetType' => 'provision'})['taskSet']
+        task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {'phase' => 'postProvision'})['taskSet']
 
-          if task_set_id
-            server_payload['taskSet'] = {'id' => task_set_id}
-          end
+        if !task_set_id.nil?
+          server_payload['taskSet'] = {'id' => task_set_id}
         end
 
         cluster_payload['server'] = server_payload
@@ -699,6 +703,9 @@ class Morpheus::Cli::Clusters
       opts.on( nil, '--refresh', "Refresh cluster" ) do
         options[:refresh] = true
       end
+      opts.on("--tenant ACCOUNT", String, "Account ID or Name" ) do |val|
+        options[:tenant] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster."
@@ -733,6 +740,7 @@ class Morpheus::Cli::Clusters
         cluster_payload['enabled'] = options[:active] if !options[:active].nil?
         cluster_payload['serviceUrl'] = options[:apiUrl] if !options[:apiUrl].nil?
         cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
+        cluster_payload['tenant'] = options[:tenant] if !options[:tenant].nil?
         payload = {"cluster" => cluster_payload}
       end
 
@@ -741,9 +749,9 @@ class Morpheus::Cli::Clusters
         exit 1
       end
 
-      has_field_updates = ['name', 'description', 'enabled', 'serviceUrl', 'refresh'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
+      has_field_updates = ['name', 'description', 'enabled', 'serviceUrl'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
 
-      if !has_field_updates
+      if !has_field_updates && cluster_payload['refresh'].nil? && cluster_payload['tenant'].nil?
         print_green_success "Nothing to update"
         exit 1
       end
@@ -815,6 +823,69 @@ class Morpheus::Cli::Clusters
         print_green_success "Cluster #{cluster['name']} is being removed..."
         #list([])
       end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def logs(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      params = {}
+      [:phrase, :offset, :max, :sort, :direction].each do |k|
+        params[k] = options[k] unless options[k].nil?
+      end
+      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @logs_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @logs_interface.dry.cluster_logs(cluster['id'], params)
+        return
+      end
+      logs = @logs_interface.cluster_logs(cluster['id'], params)
+      output = ""
+      if options[:json]
+        output << JSON.pretty_generate(logs)
+      else
+        title = "Cluster Logs: #{cluster['name']}"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
+        end
+        # todo: startMs, endMs, sorts insteaad of sort..etc
+        print_h1 title, subtitles, options
+        if logs['data'].empty?
+          output << "#{cyan}No logs found.#{reset}\n"
+        else
+          logs['data'].reverse.each do |log_entry|
+            log_level = ''
+            case log_entry['level']
+            when 'INFO'
+              log_level = "#{blue}#{bold}INFO#{reset}"
+            when 'DEBUG'
+              log_level = "#{white}#{bold}DEBUG#{reset}"
+            when 'WARN'
+              log_level = "#{yellow}#{bold}WARN#{reset}"
+            when 'ERROR'
+              log_level = "#{red}#{bold}ERROR#{reset}"
+            when 'FATAL'
+              log_level = "#{red}#{bold}FATAL#{reset}"
+            end
+            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}\n"
+          end
+        end
+      end
+      print output, reset, "\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1372,8 +1443,240 @@ class Morpheus::Cli::Clusters
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Volume #{volume['name']} is being removed from cluster #{cluster['name']}..."
-        #list([])
+        print_red_alert "Error removing volume #{volume['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Volume #{volume['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_services(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List services for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_services(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_services(cluster['id'], params)
+
+      render_result = render_with_format(json_response, options, 'volumes')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Services: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      services = json_response['services']
+      if services.empty?
+        print yellow,"No services found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = services.collect do |service|
+          {
+              id: service['id'],
+              name: service['name'],
+              type: service['type'],
+              externalIp: service['externalIp'],
+              externalPort: service['externalPort'],
+              internalPort: service['internalPort'],
+              status: service['status'],
+              cluster: cluster['name']
+          }
+        end
+        columns = [
+            :id, :name, :type, :externalIp, :externalPort, :internalPort, :status, :cluster => lambda { |it| cluster['name'] }
+        ]
+        print as_pretty_table(rows, columns, options)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_service(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [service]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a service within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[service] is required. This is the name or id of an existing service."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      service_id = args[1]
+
+      if service_id.empty?
+        raise_command_error "missing required service parameter"
+      end
+
+      service = cluster['services'].find {|it| it['id'].to_s == service_id.to_s || it['name'].casecmp(service_id).zero? }
+      if service.nil?
+        print_red_alert "Service not found by id '#{service_id}'"
+        return 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster servuce '#{service['name'] || service['id']}'?", options)
+        return 9, "aborted command"
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_service(cluster['id'], service['id'], params)
+        return
+      end
+      json_response = @clusters_interface.destroy_service(cluster['id'], service['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error removing service #{service['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Service #{service['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_jobs(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List jobs for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_jobs(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_jobs(cluster['id'], params)
+
+      render_result = render_with_format(json_response, options, 'volumes')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Jobs: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      jobs = json_response['jobs']
+      if jobs.empty?
+        print yellow,"No jobs found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = jobs.collect do |job|
+          {
+              id: job['id'],
+              status: job['type'],
+              namespace: job['namespace'],
+              name: job['name'],
+              lastRun: format_local_dt(job['lastRun']),
+              cluster: cluster['name']
+          }
+        end
+        columns = [
+            :id, :status, :namespace, :name, :lastRun, :cluster => lambda { |it| cluster['name'] }
+        ]
+        print as_pretty_table(rows, columns, options)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_job(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [job]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a job within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[job] is required. This is the name or id of an existing job."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      job_id = args[1]
+
+      if job_id.empty?
+        raise_command_error "missing required job parameter"
+      end
+
+      job = cluster['jobs'].find {|it| it['id'].to_s == job_id.to_s || it['name'].casecmp(job_id).zero? }
+      if job.nil?
+        print_red_alert "Job not found by id '#{job_id}'"
+        return 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster job '#{job['name'] || job['id']}'?", options)
+        return 9, "aborted command"
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_job(cluster['id'], job['id'], params)
+        return
+      end
+      json_response = @clusters_interface.destroy_job(cluster['id'], job['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error removing job #{job['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Job #{job['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

@@ -1832,42 +1832,6 @@ class Morpheus::Cli::Hosts
     return cloud_type
   end
 
-  def find_workflow_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_workflow_by_id(val)
-    else
-      return find_workflow_by_name(val)
-    end
-  end
-
-  def find_workflow_by_id(id)
-    begin
-      json_response = @task_sets_interface.get(id.to_i)
-      return json_response['taskSet']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Workflow not found by id #{id}"
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_workflow_by_name(name)
-    workflows = @task_sets_interface.get({name: name.to_s})['taskSets']
-    if workflows.empty?
-      print_red_alert "Workflow not found by name #{name}"
-      return nil
-    elsif workflows.size > 1
-      print_red_alert "#{workflows.size} workflows by name #{name}"
-      print_workflows_table(workflows, {color: red})
-      print reset,"\n\n"
-      return nil
-    else
-      return workflows[0]
-    end
-  end
-
   def find_cluster_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       find_cluster_by_id(val)

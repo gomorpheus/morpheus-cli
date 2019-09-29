@@ -20,6 +20,12 @@ class Morpheus::LogsInterface < Morpheus::APIClient
     execute({method: :get, url: url, headers: headers})
   end
 
+  def cluster_logs(id, params={})
+    url = "#{@base_url}/api/logs"
+    headers = { params: {'clusterId' => id}.merge(params), authorization: "Bearer #{@access_token}" }
+    execute({method: :get, url: url, headers: headers})
+  end
+
   def stats()
     url = "#{@base_url}/api/logs/log-stats"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }

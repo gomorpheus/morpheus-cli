@@ -68,6 +68,20 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def destroy_job(id, job_id=nil, params={}, payload={})
+    url = nil
+    if job_id.is_a?(Array)
+      url = "#{@api_url}/#{id}/jobs"
+      params['jobId'] = job_id
+    elsif job_id.is_a?(Numeric) || job_id.is_a?(String)
+      url = "#{@api_url}/#{id}/jobs/#{job_id}"
+    else
+      raise "passed a bad volume_id: #{job_id || '(none)'}" # lazy
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def list_masters(id, params={})
     url = "#{@api_url}/#{id}/masters"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
@@ -78,6 +92,27 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     url = "#{@api_url}/#{id}/workers"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
+  end
+
+  def list_services(id, params={})
+    url = "#{@api_url}/#{id}/services"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  # this supports multiple ids
+  def destroy_service(id, service_id=nil, params={}, payload={})
+    url = nil
+    if service_id.is_a?(Array)
+      url = "#{@api_url}/#{id}/services"
+      params['serviceId'] = service_id
+    elsif service_id.is_a?(Numeric) || service_id.is_a?(String)
+      url = "#{@api_url}/#{id}/services/#{service_id}"
+    else
+      raise "passed a bad volume_id: #{service_id || '(none)'}" # lazy
+    end
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers, payload: payload.to_json)
   end
 
   def add_server(id, payload)
