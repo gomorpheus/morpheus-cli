@@ -664,7 +664,7 @@ module Morpheus::Cli::ProvisioningHelper
     if plan_info['addVolumes']
       volume_index = 1
       has_another_volume = (options[:options] && options[:options]["dataVolume#{volume_index}"]) || (options[:options] && options[:options]['volumes'] && options[:options]['volumes'][volume_index])
-      add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?", {:default => false}))
+      add_another_volume = has_another_volume || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add data volume?", {:default => (options[:defaultAddFirstDataVolume] && volume_index == 1)}))
       while add_another_volume do
           #puts "Configure Data #{volume_index} Volume"
 
