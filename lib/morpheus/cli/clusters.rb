@@ -208,6 +208,8 @@ class Morpheus::Cli::Clusters
           "Location" => lambda { |it| it['location'] },
           "Layout" => lambda { |it| it['layout'] ? it['layout']['name'] : ''},
           "API Url" => 'serviceUrl',
+          "API Token" => 'serviceToken',
+          "API Access" => 'serviceAccess',
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
@@ -1424,9 +1426,9 @@ class Morpheus::Cli::Clusters
         raise_command_error "missing required volume parameter"
       end
 
-      volume = cluster['volumes'].find {|it| it['id'].to_s == volume_id.to_s || it['name'].casecmp(volume_id).zero? }
+      volume = find_volume_by_name_or_id(cluster['id'], volume_id)
       if volume.nil?
-        print_red_alert "Volume not found by id '#{volume_id}'"
+        print_red_alert "Volume not found for '#{volume_id}'"
         return 1
       end
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster volume '#{volume['name'] || volume['id']}'?", options)
@@ -1541,12 +1543,12 @@ class Morpheus::Cli::Clusters
         raise_command_error "missing required service parameter"
       end
 
-      service = cluster['services'].find {|it| it['id'].to_s == service_id.to_s || it['name'].casecmp(service_id).zero? }
+      service = find_service_by_name_or_id(cluster['id'], service_id)
       if service.nil?
         print_red_alert "Service not found by id '#{service_id}'"
         return 1
       end
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster servuce '#{service['name'] || service['id']}'?", options)
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster service '#{service['name'] || service['id']}'?", options)
         return 9, "aborted command"
       end
 
@@ -1656,7 +1658,7 @@ class Morpheus::Cli::Clusters
         raise_command_error "missing required job parameter"
       end
 
-      job = cluster['jobs'].find {|it| it['id'].to_s == job_id.to_s || it['name'].casecmp(job_id).zero? }
+      job = find_job_by_name_or_id(cluster['id'], job_id)
       if job.nil?
         print_red_alert "Job not found by id '#{job_id}'"
         return 1
@@ -1966,7 +1968,7 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      namespace = cluster['namespaces'].find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      namespace = find_namespace_by_name_or_id(cluster['id'], args[1])
       if namespace.nil?
         print_red_alert "Namespace not found by '#{args[1]}'"
         exit 1
@@ -2274,6 +2276,46 @@ class Morpheus::Cli::Clusters
       exit 1
     end
     json_results['clusters'][0]
+  end
+
+  def find_volume_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {volumeId: val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_volumes(cluster_id, params)
+    json_results['volumes'].empty? ? nil : json_results['volumes'][0]
+  end
+
+  def find_service_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {serviceId: val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_services(cluster_id, params)
+    json_results['services'].empty? ? nil : json_results['services'][0]
+  end
+
+  def find_namespace_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {namespaceId: val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_namespaces(cluster_id, params)
+    json_results['namespaces'].empty? ? nil : json_results['namespaces'][0]
+  end
+
+  def find_job_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {jobId: val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_jobs(cluster_id, params)
+    json_results['jobs'].empty? ? nil : json_results['jobs'][0]
   end
 
   def find_cluster_type_by_name_or_id(val)
