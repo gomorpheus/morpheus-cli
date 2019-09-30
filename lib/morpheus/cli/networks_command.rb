@@ -578,7 +578,8 @@ class Morpheus::Cli::NetworksCommand
       elsif !options[:quiet]
         network = json_response['network']
         print_green_success "Added network #{network['name']}"
-        get([network['id']])
+        get_args = [network['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get(get_args)
       end
       return 0
     rescue RestClient::Exception => e
@@ -910,7 +911,8 @@ class Morpheus::Cli::NetworksCommand
       else
         network = json_response['network']
         print_green_success "Updated network #{network['name']}"
-        get([network['id']])
+        get_args = [network['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get(get_args)
       end
       return 0
     rescue RestClient::Exception => e
@@ -1368,16 +1370,16 @@ class Morpheus::Cli::NetworksCommand
       }
       print_description_list(description_cols, subnet)
 
-      if network['resourcePermission'].nil?
+      if subnet['resourcePermission'].nil?
         print "\n", "No group access found", "\n"
       else
         print_h2 "Group Access"
         rows = []
-        if network['resourcePermission']['all']
+        if subnet['resourcePermission']['all']
           rows.push({"name" => 'All'})
         end
-        if network['resourcePermission']['sites']
-          network['resourcePermission']['sites'].each do |site|
+        if subnet['resourcePermission']['sites']
+          subnet['resourcePermission']['sites'].each do |site|
             rows.push(site)
           end
         end
@@ -1390,6 +1392,357 @@ class Morpheus::Cli::NetworksCommand
       end
 
       print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def add_subnet(args)
+    options = {}
+    subnet_type_id = nil
+    tenants = nil
+    group_access_all = nil
+    group_access_list = nil
+    group_defaults_list = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network]")
+      opts.on('-t', '--type ID', "Subnet Type Name or ID") do |val|
+        subnet_type_id = val
+      end
+      opts.on('--name VALUE', String, "Name for this subnet") do |val|
+        options[:options]['name'] = val
+      end
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_access_list = []
+        else
+          group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--accounts LIST', Array, "alias for --tenants") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--visibility [private|public]', String, "Visibility") do |val|
+        options['visibility'] = val
+      end
+      # opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
+      #   options['active'] = val.to_s == 'on' || val.to_s == 'true'
+      # end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Create a new subnet." + "\n" +
+                    "[network] is required. This is the name or id of a network." #+ "\n" +
+                    #"[name] is required and can be passed as --name instead."
+    end
+    optparse.parse!(args)
+    # if args.count < 1 || args.count > 2
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    if args[1]
+      options[:options]['name'] = args[1]
+    end
+    connect(options)
+    begin
+      network = find_network_by_name_or_id(args[0])
+      return 1 if network.nil?
+
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'subnet' => passed_options}) unless passed_options.empty?
+        
+      else
+        payload = {'subnet' => {}}
+        payload.deep_merge!({'subnet' => passed_options}) unless passed_options.empty?
+        
+        # Name
+        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this subnet.'}], options[:options])
+        # payload['subnet']['name'] = v_prompt['name']
+
+        # Subnet Type
+        if !subnet_type_id
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Subnet Type', 'type' => 'select', 'optionSource' => 'subnetTypes', 'required' => true, 'description' => 'Choose a subnet type.'}], options[:options], @api_client, {networkId: network['id']})
+          subnet_type_id = v_prompt['type']
+        end
+        subnet_type = find_subnet_type_by_name_or_id(subnet_type_id)
+        return 1 if subnet_type.nil?
+        payload['subnet']['type'] = {'id' => subnet_type['id'] }
+        #payload['subnet']['type'] = {'code' => subnet_type['code'] }
+
+        subnet_type_option_types = subnet_type['optionTypes']
+        if subnet_type_option_types && subnet_type_option_types.size > 0
+          # prompt for option types
+          subnet_type_params = Morpheus::Cli::OptionTypes.prompt(subnet_type_option_types,options[:options],@api_client, {networkId: network['id']})
+          payload['subnet'].deep_merge!(subnet_type_params)
+
+        else
+          # DEFAULT INPUTS
+
+          # CIDR
+          # if options['cidr']
+          #   payload['subnet']['cidr'] = options['cidr']
+          # else
+          #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+          #   payload['subnet']['cidr'] = v_prompt['cidr']
+          # end
+
+        end
+
+        # Group Access
+        # Group Access (default is All)
+        if group_access_all.nil?
+          if payload['resourcePermissions'].nil?
+            payload['resourcePermissions'] ||= {}
+            payload['resourcePermissions']['all'] = true
+          end
+        else
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = group_access_all
+        end
+        if group_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Tenants
+        if options['tenants']
+          payload['tenantPermissions'] = {}
+          payload['tenantPermissions']['accounts'] = options['tenants']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['subnet']['active'] = options['active']
+        end
+        
+        # Visibility
+        if options['visibility'] != nil
+          payload['subnet']['visibility'] = options['visibility']
+        end
+
+      end
+
+      @network_subnets_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_subnets_interface.dry.create(network['id'], payload)
+        return
+      end
+      json_response = @network_subnets_interface.create(network['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        subnet = json_response['subnet']
+        print_green_success "Added subnet #{subnet['name']}"
+        get_args = [network['id'], subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get_subnet(get_args)
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+
+  def update_subnet(args)
+    options = {}
+    tenants = nil
+    group_access_all = nil
+    group_access_list = nil
+    group_defaults_list = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network] [subnet]")
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_access_list = []
+        else
+          group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--accounts LIST', Array, "alias for --tenants") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--visibility [private|public]', String, "Visibility") do |val|
+        options['visibility'] = val
+      end
+      # opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
+      #   options['active'] = val.to_s == 'on' || val.to_s == 'true'
+      # end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a subnet." + "\n" +
+                    "[network] is required. This is the name or id of a network." + "\n" +
+                    "[subnet] is required. This is the name or id of a subnet."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      network = find_network_by_name_or_id(args[0])
+      return 1 if network.nil?
+
+      subnet = find_subnet_by_name_or_id(network['id'], args[1])
+      return 1 if subnet.nil?
+      
+      # merge -O options into normally parsed options
+      options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+      # construct payload
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        # prompt for network options
+        payload = {
+          'subnet' => {
+          }
+        }
+        
+        # allow arbitrary -O options
+        payload['subnet'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        # Group Access
+        if group_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = group_access_all
+        end
+        if group_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Tenants
+        if options['tenants']
+          payload['tenantPermissions'] = {}
+          payload['tenantPermissions']['accounts'] = options['tenants']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['subnet']['active'] = options['active']
+        end
+        
+        # Visibility
+        if options['visibility'] != nil
+          payload['subnet']['visibility'] = options['visibility']
+        end
+
+      end
+
+      @network_subnets_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_subnets_interface.dry.update(network['id'], subnet['id'], payload)
+        return
+      end
+      json_response = @network_subnets_interface.update(network['id'], subnet['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        subnet = json_response['subnet']
+        print_green_success "Updated subnet #{subnet['name']}"
+        get_args = [network['id'], subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get_subnet(get_args)
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def remove_subnet(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network] [subnet]")
+      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Delete a subnet." + "\n" +
+                    "[network] is required. This is the name or id of a network." + "\n" +
+                    "[subnet] is required. This is the name or id of a subnet."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      network = find_network_by_name_or_id(args[0])
+      return 1 if network.nil?
+
+      subnet = find_subnet_by_name_or_id(network['id'], args[1])
+      return 1 if subnet.nil?
+
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the subnet: #{subnet['name']}?")
+        return 9, "aborted command"
+      end
+      @network_subnets_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_subnets_interface.dry.destroy(network['id'], subnet['id'])
+        return 0
+      end
+      json_response = @network_subnets_interface.destroy(network['id'], subnet['id'])
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Removed subnet #{subnet['name']}"
+      end
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
