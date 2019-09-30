@@ -280,7 +280,7 @@ class Morpheus::Cli::Clusters
         # print "CPU Usage: #{worker_stats['cpuUsage']}".center(20)
         # print "Memory: #{worker_stats['usedMemory']}".center(20)
         # print "Storage: #{worker_stats['usedStorage']}".center(20)
-        print_stats_usage(worker_stats)
+        print_stats_usage(worker_stats, {include: [:max_cpu, :avg_cpu, :memory, :storage]})
         print reset,"\n"
       end
 
