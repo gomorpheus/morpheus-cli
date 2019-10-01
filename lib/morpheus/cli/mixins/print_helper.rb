@@ -475,9 +475,17 @@ module Morpheus::Cli::PrintHelper
       print out
       return
     end
-    opts[:include] ||= [:memory, :storage, :cpu]
+    opts[:include] ||= [:cpu, :memory, :storage]
+    if opts[:include].include?(:max_cpu)
+      cpu_usage = stats['cpuUsagePeak']
+      out << cyan + "Max CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
+    end
+    if opts[:include].include?(:avg_cpu)
+      cpu_usage = stats['cpuUsageAvg']
+      out << cyan + "Avg. CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
+    end
     if opts[:include].include?(:cpu)
-      cpu_usage = (stats['cpuUsage'] || stats['usedCpu'])
+      cpu_usage = stats['cpuUsage'] || stats['usedCpu']
       out << cyan + "CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
     if opts[:include].include?(:memory)
