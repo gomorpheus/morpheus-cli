@@ -182,6 +182,50 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def restart_container(id, container_id, params={})
+    url = "#{@api_url}/#{id}/containers/#{container_id}/restart"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :put, url: url, headers: headers)
+  end
+
+  def destroy_container(id, container_id, params={})
+    if container_id.is_a?(Array)
+      url = "#{@api_url}/#{id}/containers"
+      params['containerId'] = container_id
+    elsif container_id.is_a?(Numeric) || container_id.is_a?(String)
+      url = "#{@api_url}/#{id}/containers/#{container_id}"
+    else
+      raise "passed a bad container_id: #{container_id || '(none)'}" # lazy
+    end
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
+  def list_container_groups(id, resource_type, params={})
+    url = "#{@api_url}/#{id}/#{resource_type}s"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def restart_container_group(id, container_group_id, resource_type, params={})
+    url = "#{@api_url}/#{id}/#{resource_type}s/#{container_group_id}/restart"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :put, url: url, headers: headers)
+  end
+
+  def destroy_container_group(id, container_group_id, resource_type, params={})
+    if container_group_id.is_a?(Array)
+      url = "#{@api_url}/#{id}/#{resource_type}s"
+      params['containerGroupId'] = container_group_id
+    elsif container_group_id.is_a?(Numeric) || container_group_id.is_a?(String)
+      url = "#{@api_url}/#{id}/#{resource_type}s/#{container_group_id}"
+    else
+      raise "passed a bad container_group_id: #{container_group_id || '(none)'}" # lazy
+    end
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
   # def list_pods(id, params={})
   #   url = "#{@api_url}/#{id}/pods"
   #   headers = { params: params, authorization: "Bearer #{@access_token}" }

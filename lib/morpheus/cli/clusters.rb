@@ -17,6 +17,10 @@ class Morpheus::Cli::Clusters
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
+  register_subcommands :list_containers, :remove_container, :restart_container
+  register_subcommands :list_deployments, :remove_deployment, :restart_deployment
+  register_subcommands :list_stateful_sets, :remove_stateful_set, :restart_stateful_set
+  register_subcommands :list_pods, :remove_pod, :restart_pod
   register_subcommands :list_jobs, :remove_job
   register_subcommands :list_services, :remove_service
   register_subcommands :update_permissions
@@ -208,8 +212,6 @@ class Morpheus::Cli::Clusters
           "Location" => lambda { |it| it['location'] },
           "Layout" => lambda { |it| it['layout'] ? it['layout']['name'] : ''},
           "API Url" => 'serviceUrl',
-          "API Token" => 'serviceToken',
-          "API Access" => 'serviceAccess',
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
           #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
@@ -224,23 +226,24 @@ class Morpheus::Cli::Clusters
       print_h2 "Cluster Details"
       print cyan
 
-      print "Namespaces: #{cluster['namespaceCount']}".center(20) if cluster['namespaces']
-      print "Masters: #{cluster['masterCount']}".center(20) if clusterType['hasMasters']
-      print "Workers: #{cluster['workerCount']}".center(20) if clusterType['hasWorkers']
-      print "Volumes: #{cluster['volumeCount']}".center(20) if cluster['volumes']
-      print "Containers: #{cluster['containerCount']}".center(20) if cluster['containers']
-      print "Services: #{cluster['serviceCount']}".center(20) if cluster['services']
-      print "Jobs: #{cluster['jobCount']}".center(20) if cluster['jobs']
-      print "Pods: #{cluster['podCount']}".center(20) if cluster['pods']
-      print "Deployments: #{cluster['deploymentCount']}".center(20) if cluster['deployments']
+      print "Namespaces: #{cluster['namespacesCount']}".center(20) if !cluster['namespacesCount'].nil?
+      print "Masters: #{cluster['mastersCount']}".center(20) if !cluster['mastersCount'].nil?
+      print "Workers: #{cluster['workersCount']}".center(20) if !clusterType['workersCount'].nil?
+      print "Volumes: #{cluster['volumesCount']}".center(20) if !cluster['volumesCount'].nil?
+      print "Containers: #{cluster['containersCount']}".center(20) if !cluster['containersCount'].nil?
+      print "Services: #{cluster['servicesCount']}".center(20) if !cluster['servicesCount'].nil?
+      print "Jobs: #{cluster['jobsCount']}".center(20) if !cluster['jobsCount'].nil?
+      print "Pods: #{cluster['podsCount']}".center(20) if !cluster['podsCount'].nil?
+      print "Deployments: #{cluster['deploymentsCount']}".center(20) if !cluster['deploymentsCount'].nil?
       print "\n"
 
       if options[:show_masters]
-        masters = cluster['masters']
-        if masters.nil? || masters.empty?
+        masters_json = @clusters_interface.list_masters(cluster['id'], options)
+        if masters_json.nil? || masters_json['masters'].empty?
           print_h2 "Masters"
           print yellow,"No masters found.",reset,"\n"
         else
+          masters = masters_json['masters']
           print_h2 "Masters"
           rows = masters.collect do |server|
             {
@@ -256,11 +259,12 @@ class Morpheus::Cli::Clusters
         end
       end
       if options[:show_workers]
-        workers = cluster['workers']
-        if workers.nil? || workers.empty?
+        workers_json = @clusters_interface.list_workers(cluster['id'], options)
+        if workers_json.nil? || workers_json['workers'].empty?
           print_h2 "Workers"
           print yellow,"No workers found.",reset,"\n"
         else
+          workers = workers_json['workers']
           print_h2 "Workers"
           rows = workers.collect do |server|
             {
@@ -1092,6 +1096,7 @@ class Morpheus::Cli::Clusters
           type_set = available_type_sets[0]
         end
 
+        # find servers within cluster
         server_matches = cluster['servers'].reject {|server| server['typeSet']['id'] != type_set['id']}
         server_type = find_server_type_by_id(server_matches.count > 0 ? server_matches[0]['computeServerType']['id'] : type_set['computeServerType']['id'])
         server_payload['serverType'] = {'id' => server_type['id']}
@@ -1686,6 +1691,406 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def list_containers(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List containers for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      params['resourceLevel'] = options[:resourceLevel] if !options[:resourceLevel].nil?
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_containers(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.list_containers(cluster['id'], params)
+
+      render_result = render_with_format(json_response, options, 'containers')
+      return 0 if render_result
+
+      title = "Morpheus Cluster Containers: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      containers = json_response['containers']
+      if containers.empty?
+        print yellow,"No containers found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = containers.collect do |it|
+          {
+              id: it['id'],
+              status: it['status'],
+              name: it['name'],
+              instance: it['instance'].nil? ? '' : it['instance']['name'],
+              type: it['containerType'].nil? ? '' : it['containerType']['name'],
+              location: it['ip'],
+              cluster: cluster['name']
+          }
+        end
+        columns = [
+            :id, :status, :name, :instance, :type, :location, :cluster => lambda { |it| cluster['name'] }
+        ]
+        print as_pretty_table(rows, columns, options)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_container(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [container]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        options[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a container within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[container] is required. This is the name or id of an existing container."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      container_id = args[1]
+
+      if container_id.empty?
+        raise_command_error "missing required container parameter"
+      end
+
+      container = find_container_by_name_or_id(cluster['id'], container_id)
+      if container.nil?
+        print_red_alert "Container not found by id '#{container_id}'"
+        return 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster container '#{container['name'] || container['id']}'?", options)
+        return 9, "aborted command"
+      end
+
+      if !options[:force].nil?
+          params['force'] = options[:force]
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_container(cluster['id'], container['id'], params)
+        return
+      end
+      json_response = @clusters_interface.destroy_container(cluster['id'], container['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error removing container #{container['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "container #{container['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def restart_container(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [container]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart a container within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[container] is required. This is the name or id of an existing container."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      container_id = args[1]
+
+      if container_id.empty?
+        raise_command_error "missing required container parameter"
+      end
+
+      container = find_container_by_name_or_id(cluster['id'], container_id)
+      if container.nil?
+        print_red_alert "Container not found by id '#{container_id}'"
+        return 1
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.restart_container(cluster['id'], container['id'], params)
+        return
+      end
+      json_response = @clusters_interface.restart_container(cluster['id'], container['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error restarting container #{container['name']} for cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Container #{container['name']} is restarting for cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def _list_container_groups(args, resource_type)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List #{resource_type}s for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      params['resourceLevel'] = options[:resourceLevel] if !options[:resourceLevel].nil?
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.list_container_groups(cluster['id'], resource_type, params)
+        return
+      end
+      json_response = @clusters_interface.list_container_groups(cluster['id'], resource_type, params)
+
+      render_result = render_with_format(json_response, options, 'containers')
+      return 0 if render_result
+
+      title = "Morpheus Cluster #{resource_type.capitalize}s: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      container_groups = json_response["#{resource_type}s"]
+      if container_groups.empty?
+        print yellow,"No #{resource_type}s found.",reset,"\n"
+      else
+        # more stuff to show here
+        rows = container_groups.collect do |it|
+          stats = it['stats']
+          cpu_usage_str = generate_usage_bar((it['totalCpuUsage']).to_f, 100, {max_bars: 10})
+          memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+          storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          {
+              id: it['id'],
+              status: it['status'],
+              name: it['name'],
+              cpu: cpu_usage_str + cyan,
+              memory: memory_usage_str + cyan,
+              storage: storage_usage_str + cyan
+          }
+        end
+        columns = [
+            :id, :status, :name, :cpu, :memory, :storage
+        ]
+        print as_pretty_table(rows, columns, options)
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def _remove_container_group(args, resource_type)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        options[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      container_group_id = args[1]
+
+      if container_group_id.empty?
+        raise_command_error "missing required container parameter"
+      end
+
+      container_group = find_container_group_by_name_or_id(cluster['id'], resource_type, container_group_id)
+      if container_group.nil?
+        print_red_alert "#{resource_type.capitalize} not found by id '#{container_group_id}'"
+        return 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster #{resource_type} '#{container_group['name'] || container_group['id']}'?", options)
+        return 9, "aborted command"
+      end
+
+      params = {}
+      params.merge!(parse_list_options(options))
+
+      if !options[:force].nil?
+        params['force'] = options[:force]
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_container_group(cluster['id'], container_group['id'], resource_type, params)
+        return
+      end
+      json_response = @clusters_interface.destroy_container_group(cluster['id'], container_group['id'], resource_type, params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error removing #{resource_type} #{container_group['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "#{resource_type.capitalize} #{container_group['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def _restart_container_group(args, resource_type)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      container_group_id = args[1]
+
+      if container_group_id.empty?
+        raise_command_error "missing required container parameter"
+      end
+
+      container_group = find_container_group_by_name_or_id(cluster['id'], resource_type, container_group_id)
+      if container_group.nil?
+        print_red_alert "#{resource_type.capitalize} not found by id '#{container_group_id}'"
+        return 1
+      end
+
+      params = {}
+      params.merge!(parse_list_options(options))
+
+      if !options[:force].nil?
+        params['force'] = options[:force]
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.restart_container_group(cluster['id'], container_group['id'], resource_type, params)
+        return
+      end
+      json_response = @clusters_interface.restart_container_group(cluster['id'], container_group['id'], resource_type, params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error restarting #{resource_type} #{container_group['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "#{resource_type.capitalize} #{container_group['name']} is being restarted for cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_deployments(args)
+    _list_container_groups(args, 'deployment')
+  end
+
+  def remove_deployment(args)
+    _remove_container_group(args, 'deployment')
+  end
+
+  def restart_deployment(args)
+    _restart_container_group(args, 'deployment')
+  end
+
+  def list_stateful_sets(args)
+    _list_container_groups(args, 'statefulset')
+  end
+
+  def remove_stateful_set(args)
+    _remove_container_group(args, 'statefulset')
+  end
+
+  def restart_stateful_set(args)
+    _restart_container_group(args, 'statefulset')
+  end
+
+  def list_pods(args)
+    _list_container_groups(args, 'pod')
+  end
+
+  def remove_pod(args)
+    _remove_container_group(args, 'pod')
+  end
+
+  def restart_pod(args)
+    _restart_container_group(args, 'pod')
+  end
+
   def add_namespace(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1832,8 +2237,7 @@ class Morpheus::Cli::Clusters
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
       # this finds the namespace in the cluster api response, then fetches it by ID
-      namespaces = cluster['namespaces'] || []
-      namespace = namespaces.find {|ns| ns['name'] == args[1].to_s || ns['id'] == args[1].to_i }
+      namespace = find_namespace_by_name_or_id(cluster['id'], args[1])
       if namespace.nil?
         print_red_alert "Namespace not found for '#{args[1]}'"
         exit 1
@@ -1901,8 +2305,7 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-      namespace_name = args[1].to_s
-      namespace = cluster['namespaces'].find {|ns| ns['name'] == namespace_name || ns['id'].to_s == namespace_name}
+      namespace = find_namespace_by_name_or_id(cluster['id'], args[1])
       if namespace.nil?
         print_red_alert "Namespace not found by '#{args[1]}'"
         exit 1
@@ -2276,6 +2679,26 @@ class Morpheus::Cli::Clusters
       exit 1
     end
     json_results['clusters'][0]
+  end
+
+  def find_container_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {"containerId": val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_containers(cluster_id, params)
+    json_results["containers"].empty? ? nil : json_results["containers"][0]
+  end
+
+  def find_container_group_by_name_or_id(cluster_id, resource_type, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      params = {"#{resource_type}Id": val.to_i}
+    else
+      params = {phrase: val}
+    end
+    json_results = @clusters_interface.list_container_groups(cluster_id, resource_type, params)
+    json_results["#{resource_type}s"].empty? ? nil : json_results["#{resource_type}s"][0]
   end
 
   def find_volume_by_name_or_id(cluster_id, val)
