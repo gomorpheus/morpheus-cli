@@ -202,4 +202,10 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def api_config(id, params={})
+    url = "#{@api_url}/#{id}/api-config"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
 end

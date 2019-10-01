@@ -20,6 +20,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :list_jobs, :remove_job
   register_subcommands :list_services, :remove_service
   register_subcommands :update_permissions
+  register_subcommands :api_config, :api_token
   register_subcommands :wiki, :update_wiki
 
   def connect(opts)
@@ -1986,6 +1987,107 @@ class Morpheus::Cli::Clusters
       elsif !options[:quiet]
         print_green_success "Removed cluster namespace #{namespace['name']}"
         #list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def api_config(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get api configuration details about a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.api_config(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.api_config(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+
+      title = "Cluster API Config: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+
+      service_config = json_response
+      print cyan
+      description_cols = {
+          "Url" => 'serviceUrl',
+          "Username" => 'serviceUsername',
+          #"Password" => 'servicePassword',
+          "Token" => 'serviceToken',
+          "Access" => 'serviceAccess',
+          "Cert" => 'serviceCert',
+          "Config" => 'serviceConfig',
+          "Version" => 'serviceVersion',
+      }
+      print_description_list(description_cols, service_config)
+      print reset,"\n"
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def api_token(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.footer = "Display api token for a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.api_config(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.api_config(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+
+      # title = "Cluster API Token: #{cluster['name']}"
+      # subtitles = []
+      # subtitles += parse_list_subtitles(options)
+      # print_h1 title, subtitles, options
+
+      service_config = json_response
+      service_token = service_config['serviceToken']
+      if service_token.to_s.empty?
+        print yellow,"No api token found.",reset,"\n"
+        return 1
+      else
+        print cyan,service_token,reset,"\n"
+        return 0
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
