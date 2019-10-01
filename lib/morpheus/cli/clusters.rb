@@ -9,10 +9,11 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Clusters
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}
   register_subcommands :list_workers, :add_worker
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
@@ -2794,7 +2795,349 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def history(args)
+    raw_args = args.dup
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      opts.on( nil, '--events', "Display sub processes (events)." ) do
+        options[:show_events] = true
+      end
+      opts.on( nil, '--output', "Display process output." ) do
+        options[:show_output] = true
+      end
+      opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
+        options[:show_events] = true
+        options[:show_output] = true
+        options[:details] = true
+      end
+      opts.on('--process-id ID', String, "Display details about a specfic process only." ) do |val|
+        options[:process_id] = val
+      end
+      opts.on('--event-id ID', String, "Display details about a specfic process event only." ) do |val|
+        options[:event_id] = val
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List historical processes for a specific cluster.\n" +
+          "[cluster] is required. This is the name or id of an cluster."
+    end
+
+    optparse.parse!(args)
+
+    # shortcut to other actions
+    if options[:process_id]
+      return history_details(raw_args)
+    elsif options[:event_id]
+      return history_event_details(raw_args)
+    end
+
+    if args.count != 1
+      puts optparse
+      return 1
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.history(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.history(cluster['id'], params)
+      if options[:json]
+        puts as_json(json_response, options, "processes")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "processes")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['processes'], options)
+        return 0
+      else
+        title = "Cluster History: #{cluster['name']}"
+        subtitles = []
+        if params[:query]
+          subtitles << "Search: #{params[:query]}".strip
+        end
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles, options
+        if json_response['processes'].empty?
+          print "#{cyan}No process history found.#{reset}\n\n"
+        else
+          history_records = []
+          json_response["processes"].each do |process|
+            row = {
+                id: process['id'],
+                eventId: nil,
+                uniqueId: process['uniqueId'],
+                name: process['displayName'],
+                description: process['description'],
+                processType: process['processType'] ? (process['processType']['name'] || process['processType']['code']) : process['processTypeName'],
+                createdBy: process['createdBy'] ? (process['createdBy']['displayName'] || process['createdBy']['username']) : '',
+                startDate: format_local_dt(process['startDate']),
+                duration: format_process_duration(process),
+                status: format_process_status(process),
+                error: format_process_error(process, options[:details] ? nil : 20),
+                output: format_process_output(process, options[:details] ? nil : 20)
+            }
+            history_records << row
+            process_events = process['events'] || process['processEvents']
+            if options[:show_events]
+              if process_events
+                process_events.each do |process_event|
+                  event_row = {
+                      id: process['id'],
+                      eventId: process_event['id'],
+                      uniqueId: process_event['uniqueId'],
+                      name: process_event['displayName'], # blank like the UI
+                      description: process_event['description'],
+                      processType: process_event['processType'] ? (process_event['processType']['name'] || process_event['processType']['code']) : process['processTypeName'],
+                      createdBy: process_event['createdBy'] ? (process_event['createdBy']['displayName'] || process_event['createdBy']['username']) : '',
+                      startDate: format_local_dt(process_event['startDate']),
+                      duration: format_process_duration(process_event),
+                      status: format_process_status(process_event),
+                      error: format_process_error(process_event, options[:details] ? nil : 20),
+                      output: format_process_output(process_event, options[:details] ? nil : 20)
+                  }
+                  history_records << event_row
+                end
+              else
+
+              end
+            end
+          end
+          columns = [
+              {:id => {:display_name => "PROCESS ID"} },
+              :name,
+              :description,
+              {:processType => {:display_name => "PROCESS TYPE"} },
+              {:createdBy => {:display_name => "CREATED BY"} },
+              {:startDate => {:display_name => "START DATE"} },
+              {:duration => {:display_name => "ETA/DURATION"} },
+              :status,
+              :error
+          ]
+          if options[:show_events]
+            columns.insert(1, {:eventId => {:display_name => "EVENT ID"} })
+          end
+          if options[:show_output]
+            columns << :output
+          end
+          # custom pretty table columns ...
+          if options[:include_fields]
+            columns = options[:include_fields]
+          end
+          print cyan
+          print as_pretty_table(history_records, columns, options)
+          print_results_pagination(json_response, {:label => "process", :n_label => "processes"})
+          print reset, "\n"
+          return 0
+        end
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def history_details(args)
+    options = {}
+    process_id = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [process-id]")
+      opts.on('--process-id ID', String, "Display details about a specfic event." ) do |val|
+        options[:process_id] = val
+      end
+      opts.add_hidden_option('process-id')
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display history details for a specific process.\n" +
+          "[cluster] is required. This is the name or id of a cluster.\n" +
+          "[process-id] is required. This is the id of the process."
+    end
+    optparse.parse!(args)
+    if args.count == 2
+      process_id = args[1]
+    elsif args.count == 1 && options[:process_id]
+      process_id = options[:process_id]
+    else
+      puts_error optparse
+      return 1
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.history_details(cluster['id'], process_id, params)
+        return
+      end
+      json_response = @clusters_interface.history_details(cluster['id'], process_id, params)
+      if options[:json]
+        puts as_json(json_response, options, "process")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "process")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['process'], options)
+        return 0
+      else
+        process = json_response["process"]
+        title = "Cluster History Details"
+        subtitles = []
+        subtitles << " Process ID: #{process_id}"
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles, options
+        print_process_details(process)
+
+        print_h2 "Process Events", options
+        process_events = process['events'] || process['processEvents'] || []
+        history_records = []
+        if process_events.empty?
+          puts "#{cyan}No events found.#{reset}"
+        else
+          process_events.each do |process_event|
+            event_row = {
+                id: process_event['id'],
+                eventId: process_event['id'],
+                uniqueId: process_event['uniqueId'],
+                name: process_event['displayName'], # blank like the UI
+                description: process_event['description'],
+                processType: process_event['processType'] ? (process_event['processType']['name'] || process_event['processType']['code']) : process['processTypeName'],
+                createdBy: process_event['createdBy'] ? (process_event['createdBy']['displayName'] || process_event['createdBy']['username']) : '',
+                startDate: format_local_dt(process_event['startDate']),
+                duration: format_process_duration(process_event),
+                status: format_process_status(process_event),
+                error: format_process_error(process_event),
+                output: format_process_output(process_event)
+            }
+            history_records << event_row
+          end
+          columns = [
+              {:id => {:display_name => "EVENT ID"} },
+              :name,
+              :description,
+              {:processType => {:display_name => "PROCESS TYPE"} },
+              {:createdBy => {:display_name => "CREATED BY"} },
+              {:startDate => {:display_name => "START DATE"} },
+              {:duration => {:display_name => "ETA/DURATION"} },
+              :status,
+              :error,
+              :output
+          ]
+          print cyan
+          print as_pretty_table(history_records, columns, options)
+          print_results_pagination({size: process_events.size, total: process_events.size})
+          print reset, "\n"
+          return 0
+        end
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def history_event_details(args)
+    options = {}
+    process_event_id = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [event-id]")
+      opts.on('--event-id ID', String, "Display details about a specfic event." ) do |val|
+        options[:event_id] = val
+      end
+      opts.add_hidden_option('event-id')
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display history details for a specific process event.\n" +
+          "[cluster] is required. This is the name or id of an cluster.\n" +
+          "[event-id] is required. This is the id of the process event."
+    end
+    optparse.parse!(args)
+    if args.count == 2
+      process_event_id = args[1]
+    elsif args.count == 1 && options[:event_id]
+      process_event_id = options[:event_id]
+    else
+      puts_error optparse
+      return 1
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.history_event_details(cluster['id'], process_event_id, params)
+        return
+      end
+      json_response = @clusters_interface.history_event_details(cluster['id'], process_event_id, params)
+      if options[:json]
+        puts as_json(json_response, options, "processEvent")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "processEvent")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['processEvent'], options)
+        return 0
+      else
+        process_event = json_response['processEvent'] || json_response['event']
+        title = "Cluster History Event"
+        subtitles = []
+        subtitles += parse_list_subtitles(options)
+        print_h1 title, subtitles, options
+        print_process_event_details(process_event)
+        print reset, "\n"
+        return 0
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
+
+  def print_process_event_details(process_event, options={})
+    # process_event =~ process
+    description_cols = {
+        "Process ID" => lambda {|it| it['processId'] },
+        "Event ID" => lambda {|it| it['id'] },
+        "Name" => lambda {|it| it['displayName'] },
+        "Description" => lambda {|it| it['description'] },
+        "Process Type" => lambda {|it| it['processType'] ? (it['processType']['name'] || it['processType']['code']) : it['processTypeName'] },
+        "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['displayName'] || it['createdBy']['username']) : '' },
+        "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
+        "End Date" => lambda {|it| format_local_dt(it['endDate']) },
+        "Duration" => lambda {|it| format_process_duration(it) },
+        "Status" => lambda {|it| format_process_status(it) },
+    }
+    print_description_list(description_cols, process_event)
+
+    if process_event['error']
+      print_h2 "Error", options
+      print reset
+      #puts format_process_error(process_event)
+      puts process_event['error'].to_s.strip
+    end
+
+    if process_event['output']
+      print_h2 "Output", options
+      print reset
+      #puts format_process_error(process_event)
+      puts process_event['output'].to_s.strip
+    end
+  end
 
   def print_clusters_table(clusters, opts={})
     table_color = opts[:color] || cyan

@@ -252,4 +252,25 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def history(id, params={})
+    url = "#{@base_url}/api/clusters/#{id}/history"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def history_details(id, process_id, params={})
+    url = "#{@base_url}/api/clusters/#{id}/history/#{process_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def history_event_details(id, process_event_id, params={})
+    url = "#{@base_url}/api/clusters/#{id}/history/events/#{process_event_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end
