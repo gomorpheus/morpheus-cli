@@ -1132,13 +1132,9 @@ class Morpheus::Cli::Clusters
         end
 
         if !cloud_id
-          if available_clouds.count > 1
-            default_cloud = available_clouds.find {|it| it['value'] == cluster['zone']['id']}
-            cloud_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => available_clouds, 'description' => 'Cloud', 'required' => true, 'defaultValue' => (default_cloud ? default_cloud['name'] : nil)}], options[:options], @api_client)['cloud']
-            cloud_id = (default_cloud && cloud_id == default_cloud['name']) ? default_cloud['value'] : cloud_id
-          else
-            cloud_id = available_clouds[0]['value']
-          end
+          default_cloud = available_clouds.find {|it| it['value'] == cluster['zone']['id']}
+          cloud_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => available_clouds, 'description' => 'Cloud', 'required' => true, 'defaultValue' => (default_cloud ? default_cloud['name'] : nil)}], options[:options], @api_client)['cloud']
+          cloud_id = (default_cloud && cloud_id == default_cloud['name']) ? default_cloud['value'] : cloud_id
         end
 
         server_payload['cloud'] = {'id' => cloud_id}
