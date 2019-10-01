@@ -1869,22 +1869,7 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  def _list_container_groups(args, resource_type)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage( "[cluster]")
-      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
-        options[:resourceLevel] = val.to_s
-      end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List #{resource_type}s for a cluster.\n" +
-          "[cluster] is required. This is the name or id of an existing cluster."
-    end
-    optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
-    connect(options)
+  def _list_container_groups(args, options, resource_type)
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
@@ -1938,24 +1923,7 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  def _remove_container_group(args, resource_type)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
-      opts.on( '-f', '--force', "Force Delete" ) do
-        options[:force] = 'on'
-      end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Delete a #{resource_type} within a cluster.\n" +
-          "[cluster] is required. This is the name or id of an existing cluster.\n" +
-          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
-    end
-    optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
-    connect(options)
-
+  def _remove_container_group(args, options, resource_type)
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
@@ -2000,21 +1968,7 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  def _restart_container_group(args, resource_type)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Restart a #{resource_type} within a cluster.\n" +
-          "[cluster] is required. This is the name or id of an existing cluster.\n" +
-          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
-    end
-    optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
-    connect(options)
-
+  def _restart_container_group(args, options, resource_type)
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
@@ -2057,39 +2011,180 @@ class Morpheus::Cli::Clusters
   end
 
   def list_deployments(args)
-    _list_container_groups(args, 'deployment')
+    resource_type = 'deployment'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List #{resource_type}s for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _list_container_groups(args, options,resource_type)
   end
 
   def remove_deployment(args)
-    _remove_container_group(args, 'deployment')
+    resource_type = 'deployment'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        options[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _remove_container_group(args, options, resource_type)
   end
 
   def restart_deployment(args)
-    _restart_container_group(args, 'deployment')
+    resource_type = 'deployment'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _restart_container_group(args, options, resource_type)
   end
 
   def list_stateful_sets(args)
-    _list_container_groups(args, 'statefulset')
+    resource_type = 'statefulset'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List #{resource_type}s for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _list_container_groups(args, options, resource_type)
   end
 
   def remove_stateful_set(args)
-    _remove_container_group(args, 'statefulset')
+    resource_type = 'statefulset'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        options[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _remove_container_group(args, options, resource_type)
   end
 
   def restart_stateful_set(args)
-    _restart_container_group(args, 'statefulset')
+    resource_type = 'statefulset'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _restart_container_group(args, options, resource_type)
   end
 
   def list_pods(args)
-    _list_container_groups(args, 'pod')
+    resource_type = 'pod'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List #{resource_type}s for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _list_container_groups(args, options, resource_type)
   end
 
   def remove_pod(args)
-    _remove_container_group(args, 'pod')
+    resource_type = 'pod'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        options[:force] = 'on'
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _remove_container_group(args, options, resource_type)
   end
 
   def restart_pod(args)
-    _restart_container_group(args, 'pod')
+    resource_type = 'pod'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [#{resource_type}]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Restart a #{resource_type} within a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster.\n" +
+          "[#{resource_type}] is required. This is the name or id of an existing #{resource_type}."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    _restart_container_group(args, options, resource_type)
   end
 
   def add_namespace(args)
@@ -2457,7 +2552,7 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
-      build_common_options(opts, options, [:dry_run, :remote])
+      build_common_options(opts, options, [:dry_run, :json, :remote])
       opts.footer = "Display api token for a cluster."
     end
     optparse.parse!(args)
