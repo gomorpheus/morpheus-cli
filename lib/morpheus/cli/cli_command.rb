@@ -937,7 +937,11 @@ module Morpheus
           output = as_yaml(json_response, options, object_key)
         elsif options[:csv]
           row = object_key ? json_response[object_key] : json_response
-          output = records_as_csv([row], options)
+          if row.is_a?(Array)
+            output = records_as_csv(row, options)
+          else
+            output = records_as_csv([row], options)
+          end
         end
         if output
           if options[:outfile]

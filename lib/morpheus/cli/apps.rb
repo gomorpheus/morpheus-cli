@@ -985,7 +985,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List logs for an app.\n" +
                     "[app] is required. This is the name or id of an app."
     end
@@ -1005,27 +1005,28 @@ class Morpheus::Cli::Apps
         end
       end
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
-      @apps_interface.setopts(options)
+      @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(containers, params)
         return
       end
-      logs = @logs_interface.container_logs(containers, params)
-      if options[:json]
-        puts as_json(logs, options)
-        return 0
+      json_response = @logs_interface.container_logs(containers, params)
+      render_result = render_with_format(json_response, options, 'data')
+      return 0 if render_result
+
+      logs = json_response
+      title = "App Logs: #{app['name']}"
+      subtitles = parse_list_subtitles(options)
+      if params[:query]
+        subtitles << "Search: #{params[:query]}".strip
+      end
+      # todo: startMs, endMs, sorts insteaad of sort..etc
+      print_h1 title, subtitles, options
+      if logs['data'].empty?
+        puts "#{cyan}No logs found.#{reset}"
       else
-        title = "App Logs: #{app['name']}"
-        subtitles = []
-        if params[:query]
-          subtitles << "Search: #{params[:query]}".strip
-        end
-        # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles, options
         logs['data'].reverse.each do |log_entry|
           log_level = ''
           case log_entry['level']
@@ -1042,9 +1043,10 @@ class Morpheus::Cli::Apps
           end
           puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
         end
-        print reset,"\n"
-        return 0
+        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
       end
+      print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

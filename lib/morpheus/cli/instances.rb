@@ -1017,7 +1017,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      build_common_options(opts, options, [:list, :query, :json, :csv, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1039,42 +1039,42 @@ class Morpheus::Cli::Instances
         print_dry_run @logs_interface.dry.container_logs(container_ids, params)
         return
       end
-      logs = @logs_interface.container_logs(container_ids, params)
-      output = ""
-      if options[:json]
-        puts as_json(logs, options)
-        return 0
-      else
-        title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
-        subtitles = []
-        if params[:query]
-          subtitles << "Search: #{params[:query]}".strip
-        end
-        # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles, options
-        if logs['data'].empty?
-          puts "#{cyan}No logs found.#{reset}"
-        else
-          logs['data'].reverse.each do |log_entry|
-            log_level = ''
-            case log_entry['level']
-            when 'INFO'
-              log_level = "#{blue}#{bold}INFO#{reset}"
-            when 'DEBUG'
-              log_level = "#{white}#{bold}DEBUG#{reset}"
-            when 'WARN'
-              log_level = "#{yellow}#{bold}WARN#{reset}"
-            when 'ERROR'
-              log_level = "#{red}#{bold}ERROR#{reset}"
-            when 'FATAL'
-              log_level = "#{red}#{bold}FATAL#{reset}"
-            end
-            puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
-          end
-          print output, reset, "\n"
-          return 0
-        end
+      json_response = @logs_interface.container_logs(container_ids, params)
+      render_result = render_with_format(json_response, options, 'data')
+      return 0 if render_result
+      
+      logs = json_response
+      title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
+      subtitles = parse_list_subtitles(options)
+      if params[:query]
+        subtitles << "Search: #{params[:query]}".strip
       end
+      # todo: startMs, endMs, sorts insteaad of sort..etc
+      print_h1 title, subtitles, options
+      if logs['data'].empty?
+        puts "#{cyan}No logs found.#{reset}"
+      else
+        logs['data'].reverse.each do |log_entry|
+          log_level = ''
+          case log_entry['level']
+          when 'INFO'
+            log_level = "#{blue}#{bold}INFO#{reset}"
+          when 'DEBUG'
+            log_level = "#{white}#{bold}DEBUG#{reset}"
+          when 'WARN'
+            log_level = "#{yellow}#{bold}WARN#{reset}"
+          when 'ERROR'
+            log_level = "#{red}#{bold}ERROR#{reset}"
+          when 'FATAL'
+            log_level = "#{red}#{bold}FATAL#{reset}"
+          end
+          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
+        end
+        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+      end
+      print reset, "\n"
+      return 0
+      
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

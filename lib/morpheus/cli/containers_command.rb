@@ -12,12 +12,13 @@ class Morpheus::Cli::ContainersCommand
 
   set_command_name :containers
 
-  register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions
+  register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs
   register_subcommands :exec => :execution_request
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @containers_interface = @api_client.containers
+    @logs_interface = @api_client.logs
     @execution_request_interface = @api_client.execution_request
   end
   
@@ -28,7 +29,7 @@ class Morpheus::Cli::ContainersCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[id]")
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
@@ -502,6 +503,73 @@ class Morpheus::Cli::ContainersCommand
       print green, "Action #{action_display_name} performed on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}", reset, "\n"
     end
     return 0
+  end
+
+  def logs(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List logs for a container.\n" +
+                    "[id] is required. This is the id of a container."
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts_error "[id] argument is required"
+      puts_error optparse
+      return 1
+    end
+    connect(options)
+    id_list = parse_id_list(args)
+    begin
+      containers = id_list # heh
+      params = {}
+      params.merge!(parse_list_options(options))
+      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      @logs_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @logs_interface.dry.container_logs(containers, params)
+        return
+      end
+      json_response = @logs_interface.container_logs(containers, params)
+      render_result = render_with_format(json_response, options, 'data')
+      return 0 if render_result
+
+      logs = json_response
+      title = "Container Logs: #{containers.join(', ')}"
+      subtitles = parse_list_subtitles(options)
+      if params[:query]
+        subtitles << "Search: #{params[:query]}".strip
+      end
+      # todo: startMs, endMs, sorts insteaad of sort..etc
+      print_h1 title, subtitles, options
+      if logs['data'].empty?
+        puts "#{cyan}No logs found.#{reset}"
+      else
+        logs['data'].reverse.each do |log_entry|
+          log_level = ''
+          case log_entry['level']
+          when 'INFO'
+            log_level = "#{blue}#{bold}INFO#{reset}"
+          when 'DEBUG'
+            log_level = "#{white}#{bold}DEBUG#{reset}"
+          when 'WARN'
+            log_level = "#{yellow}#{bold}WARN#{reset}"
+          when 'ERROR'
+            log_level = "#{red}#{bold}ERROR#{reset}"
+          when 'FATAL'
+            log_level = "#{red}#{bold}FATAL#{reset}"
+          end
+          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
+        end
+        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 
   def execution_request(args)

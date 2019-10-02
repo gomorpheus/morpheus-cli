@@ -841,7 +841,7 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -851,49 +851,48 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       params = {}
-      [:phrase, :offset, :max, :sort, :direction].each do |k|
-        params[k] = options[k] unless options[k].nil?
-      end
+      params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.cluster_logs(cluster['id'], params)
         return
       end
-      logs = @logs_interface.cluster_logs(cluster['id'], params)
-      output = ""
-      if options[:json]
-        output << JSON.pretty_generate(logs)
-      else
-        title = "Cluster Logs: #{cluster['name']}"
-        subtitles = []
-        if params[:query]
-          subtitles << "Search: #{params[:query]}".strip
-        end
-        # todo: startMs, endMs, sorts insteaad of sort..etc
-        print_h1 title, subtitles, options
-        if logs['data'].empty?
-          output << "#{cyan}No logs found.#{reset}\n"
-        else
-          logs['data'].reverse.each do |log_entry|
-            log_level = ''
-            case log_entry['level']
-            when 'INFO'
-              log_level = "#{blue}#{bold}INFO#{reset}"
-            when 'DEBUG'
-              log_level = "#{white}#{bold}DEBUG#{reset}"
-            when 'WARN'
-              log_level = "#{yellow}#{bold}WARN#{reset}"
-            when 'ERROR'
-              log_level = "#{red}#{bold}ERROR#{reset}"
-            when 'FATAL'
-              log_level = "#{red}#{bold}FATAL#{reset}"
-            end
-            output << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}\n"
-          end
-        end
+      json_response = @logs_interface.cluster_logs(cluster['id'], params)
+      render_result = render_with_format(json_response, options, 'data')
+      return 0 if render_result
+
+      logs = json_response
+      title = "Cluster Logs: #{cluster['name']}"
+      subtitles = parse_list_subtitles(options)
+      if params[:query]
+        subtitles << "Search: #{params[:query]}".strip
       end
-      print output, reset, "\n"
+      # todo: startMs, endMs, sorts insteaad of sort..etc
+      print_h1 title, subtitles, options
+      if logs['data'].empty?
+        puts "#{cyan}No logs found.#{reset}"
+      else
+        logs['data'].reverse.each do |log_entry|
+          log_level = ''
+          case log_entry['level']
+          when 'INFO'
+            log_level = "#{blue}#{bold}INFO#{reset}"
+          when 'DEBUG'
+            log_level = "#{white}#{bold}DEBUG#{reset}"
+          when 'WARN'
+            log_level = "#{yellow}#{bold}WARN#{reset}"
+          when 'ERROR'
+            log_level = "#{red}#{bold}ERROR#{reset}"
+          when 'FATAL'
+            log_level = "#{red}#{bold}FATAL#{reset}"
+          end
+          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
+        end
+        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+      end
+      print reset, "\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1696,6 +1695,9 @@ class Morpheus::Cli::Clusters
       opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
         options[:resourceLevel] = val.to_s
       end
+      opts.on("--worker WORKER", String, "Worker") do |val|
+        options[:worker] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List containers for a cluster.\n" +
           "[cluster] is required. This is the name or id of an existing cluster."
@@ -1709,7 +1711,11 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
-
+      if options[:worker]
+        worker = find_host_by_name_or_id(options[:worker])
+        return 1 if worker.nil?
+        params['workerId'] = worker['id']
+      end
       params = {}
       params.merge!(parse_list_options(options))
       params['resourceLevel'] = options[:resourceLevel] if !options[:resourceLevel].nil?
