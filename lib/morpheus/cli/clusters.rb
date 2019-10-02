@@ -25,7 +25,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :list_jobs, :remove_job
   register_subcommands :list_services, :remove_service
   register_subcommands :update_permissions
-  register_subcommands :api_config, :api_token
+  register_subcommands :api_config, :view_api_token, :view_kube_config
   register_subcommands :wiki, :update_wiki
 
   def connect(opts)
@@ -2496,7 +2496,7 @@ class Morpheus::Cli::Clusters
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get api configuration details about a cluster."
+      opts.footer = "Display API service settings for a cluster."
     end
     optparse.parse!(args)
     if args.count != 1
@@ -2532,7 +2532,7 @@ class Morpheus::Cli::Clusters
           "Token" => 'serviceToken',
           "Access" => 'serviceAccess',
           "Cert" => 'serviceCert',
-          "Config" => 'serviceConfig',
+          #"Config" => 'serviceConfig',
           "Version" => 'serviceVersion',
       }
       print_description_list(description_cols, service_config)
@@ -2545,11 +2545,63 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  def api_token(args)
+  def view_kube_config(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
-      build_common_options(opts, options, [:dry_run, :json, :remote])
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display Kubernetes config for a cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.api_config(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.api_config(cluster['id'], params)
+      
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+
+      title = "Cluster Kube Config: #{cluster['name']}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+
+      service_config = json_response
+      service_access = service_config['serviceAccess']
+      if service_access.to_s.empty?
+        print yellow,"No kube config found.",reset,"\n\n"
+        return 1
+      else
+        print cyan,service_access,reset,"\n\n"
+        return 0
+      end
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def view_api_token(args)
+    print_token_only = false
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      build_common_options(opts, options, [:dry_run, :remote])
+      opts.on('-t','--token-only', "Print the api token only") do
+        print_token_only = true
+      end
       opts.footer = "Display api token for a cluster."
     end
     optparse.parse!(args)
@@ -2572,18 +2624,28 @@ class Morpheus::Cli::Clusters
       render_result = render_with_format(json_response, options)
       return 0 if render_result
 
-      # title = "Cluster API Token: #{cluster['name']}"
-      # subtitles = []
-      # subtitles += parse_list_subtitles(options)
-      # print_h1 title, subtitles, options
-
       service_config = json_response
       service_token = service_config['serviceToken']
+
+      if print_token_only
+        if service_token.to_s.empty?
+          print yellow,"No api token found.",reset,"\n"
+          return 1
+        else
+          print cyan,service_token,reset,"\n"
+          return 0
+        end
+      end
+
+      title = "Cluster API Token: #{cluster['name']}"
+      subtitles = []
+      print_h1 title, subtitles, options
+      
       if service_token.to_s.empty?
-        print yellow,"No api token found.",reset,"\n"
+        print yellow,"No api token found.",reset,"\n\n"
         return 1
       else
-        print cyan,service_token,reset,"\n"
+        print cyan,service_token,reset,"\n\n"
         return 0
       end
     rescue RestClient::Exception => e
