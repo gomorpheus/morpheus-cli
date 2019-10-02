@@ -240,6 +240,7 @@ module Morpheus
       def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil)
         value_found = false
         value = nil
+        default_value = option_type['defaultValue']
         # local array of options
         if option_type['selectOptions']
           select_options = option_type['selectOptions']
@@ -272,9 +273,15 @@ module Morpheus
             print "\n"
             exit 1
           end
-        elsif !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
-          value_found = true
-          value = select_options[0]['value']
+        # skipSingleOption is no longer supported
+        # elsif !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
+        #   value_found = true
+        #   value = select_options[0]['value']
+        # if there is just one option, use it as the defaultValue
+        elsif !select_options.nil? && select_options.count == 1 #&& option_type['defaultSingleOption'] == true
+          if option_type['required'] && default_value.nil?
+            default_value = select_options[0]['name'] # name is prettier than value
+          end
         end
 
         if no_prompt
@@ -314,18 +321,18 @@ module Morpheus
             }
             matches
           }
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''} ['?' for options]: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for options]: ", false).to_s
           input = input.chomp.strip
-          if input.empty?
-            value = option_type['defaultValue']
-          else
-            select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
-            if select_option
-              value = select_option['value']
-            elsif !input.nil?  && !input.empty?
-              input = '?'
-            end
+          if input.empty? && default_value
+            input = default_value
           end
+          select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
+          if select_option
+            value = select_option['value']
+          elsif !input.nil?  && !input.empty?
+            input = '?'
+          end
+          
           if input == '?'
             help_prompt(option_type)
             display_select_options(option_type, select_options)
