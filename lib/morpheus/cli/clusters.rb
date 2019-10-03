@@ -2299,11 +2299,12 @@ class Morpheus::Cli::Clusters
               name: ns['name'],
               description: ns['description'],
               status: ns['status'],
+              active: format_boolean(ns['active']),
               cluster: cluster['name']
           }
         end
         columns = [
-            :id, :name, :description, :status, :cluster => lambda { |it| cluster['name'] }
+            :id, :name, :description, :status, :active #, :cluster => lambda { |it| cluster['name'] }
         ]
         print as_pretty_table(rows, columns, options)
       end
@@ -2359,8 +2360,9 @@ class Morpheus::Cli::Clusters
           "ID" => 'id',
           "Name" => 'name',
           "Description" => 'description',
+          "Cluster" => lambda { |it| cluster['name'] },
           "Status" => 'status',
-          "Cluster" => lambda { |it| cluster['name'] }
+          "Active" => lambda {|it| format_boolean it['active'] }
           # more stuff to show here
       }
       print_description_list(description_cols, namespace)
