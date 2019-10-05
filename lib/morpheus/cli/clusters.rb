@@ -447,7 +447,7 @@ class Morpheus::Cli::Clusters
           payload['cluster']['server']['name'] = options[:resourceName]
         end
         if options[:description]
-          payload['cluster']['server']['description'] = options[:description]
+          payload['cluster']['description'] = options[:description]
         end
       else
         cluster_payload = {}
@@ -520,13 +520,8 @@ class Morpheus::Cli::Clusters
         server_payload['name'] = resourceName
 
         # Resource Description
-        resourceDescription = options[:description]
-
-        if !resourceDescription && !options[:no_prompt]
-          resourceDescription = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
-        end
-
-        server_payload['description'] = resourceDescription if resourceDescription
+        description = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
+        cluster_payload['description'] = description if description
 
         tags = options[:tags]
 
