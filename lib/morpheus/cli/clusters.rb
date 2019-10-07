@@ -3695,7 +3695,7 @@ class Morpheus::Cli::Clusters
         resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
 
         if !resource_pool
-          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id'], planId: (service_plan['id'] rescue nil)})['data']
+          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id'], planId: (service_plan['id'] rescue nil)})['data'].reject { |it| it['id'].nil? && it['name'].nil? }
 
           if resource_pool_options.empty?
             print_red_alert "Cloud #{cloud['name']} has no available resource pools"
