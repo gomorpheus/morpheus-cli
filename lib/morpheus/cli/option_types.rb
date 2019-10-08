@@ -5,7 +5,6 @@ module Morpheus
     module OptionTypes
       include Term::ANSIColor
 
-
       def self.confirm(message,options={})
         if options[:yes] == true
           return true
@@ -237,6 +236,15 @@ module Morpheus
         return value
       end
 
+
+      def self.set_last_select(obj)
+        Thread.current[:_last_select] = obj
+      end
+
+      def self.get_last_select()
+        Thread.current[:_last_select]
+      end
+
       def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil)
         value_found = false
         value = nil
@@ -329,6 +337,7 @@ module Morpheus
           select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
           if select_option
             value = select_option['value']
+            set_last_select(select_option)
           elsif !input.nil?  && !input.empty?
             input = '?'
           end

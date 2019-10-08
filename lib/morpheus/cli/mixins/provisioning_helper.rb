@@ -244,6 +244,10 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+  def get_provision_type_for_zone_type(zone_type_id)
+    @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
+  end
+
   # prompts user for all the configuartion options for a particular instance
   # returns payload of data for a new instance
   def prompt_new_instance(options={})
@@ -423,7 +427,8 @@ module Morpheus::Cli::ProvisioningHelper
     payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
     payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
 
-
+    # determine provision_type
+    # provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
 
     # build option types
     option_type_list = []
@@ -446,20 +451,29 @@ module Morpheus::Cli::ProvisioningHelper
 
     # prompt for resource pool
     pool_id = nil
+    resource_pool = nil
     has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
     if has_zone_pools
-      # pluck out the resourcePoolId option type to prompt for..why the heck is this even needed? 
+      # pluck out the resourcePoolId option type to prompt for
       resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
       option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
       resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
       resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})
       resource_pool_prompt.deep_compact!
       payload.deep_merge!(resource_pool_prompt)
+      resource_pool = Morpheus::Cli::OptionTypes.get_last_select()
       if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
         pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
       elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
         pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
       end
+    end
+
+    # remove host selection for kubernetes
+    if resource_pool && resource_pool['providerType'] == 'kubernetes'
+      option_type_list = option_types.reject {|opt|
+        ['provisionServerId'].include?(opt['fieldName'])
+      }
     end
 
     # plan_info has this property already..
