@@ -7,4 +7,4 @@ require 'morpheus/formatters'
 
 # load interfaces
 require 'morpheus/api/api_client.rb'
-Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
+Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| require file }
