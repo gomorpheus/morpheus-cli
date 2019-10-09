@@ -28,6 +28,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get your user settings."
     end
@@ -107,6 +110,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update your user settings."
     end
@@ -144,7 +150,8 @@ class Morpheus::Cli::UserSettingsCommand
       end
 
       print_green_success "Updated user settings"
-      get([])
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -157,6 +164,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[file]")
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Update your avatar profile image.\n" +
                     "[file] is required. This is the local path of a file to upload [png|jpg|svg]."
@@ -194,7 +204,8 @@ class Morpheus::Cli::UserSettingsCommand
       end
 
       print_green_success "Updated avatar"
-      get([])
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -207,6 +218,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[file]")
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Remove your avatar profile image."
     end
@@ -233,7 +247,8 @@ class Morpheus::Cli::UserSettingsCommand
       end
 
       print_green_success "Removed avatar"
-      get([])
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -247,6 +262,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:remote])
       opts.footer = "View your avatar profile image.\n" +
                     "This opens the avatar image url with a web browser."
@@ -291,6 +309,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[client-id]")
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = "Regenerate API access token for a specific client.\n" +
                     "[client-id] is required. This is the id of an api client."
@@ -326,7 +347,8 @@ class Morpheus::Cli::UserSettingsCommand
         return 0
       end
       print_green_success "Regenerated #{params['clientId']} access token: #{new_access_token}"
-      get([])
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -340,6 +362,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[client-id]")
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = "Clear API access token for a specific client.\n" +
                     "[client-id] is required. This is the id of an api client."
@@ -375,7 +400,8 @@ class Morpheus::Cli::UserSettingsCommand
       if params['clientId'] == 'morph-cli'
         print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
       end
-      #get([])
+      # get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      # get(get_args)
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -389,6 +415,9 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      # opts.on("--user-id ID", String, "User ID") do |val|
+      #   params['userId'] = val.to_s
+      # end
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List available api clients."
     end
