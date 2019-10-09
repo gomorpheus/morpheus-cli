@@ -471,7 +471,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     # remove host selection for kubernetes
     if resource_pool && resource_pool['providerType'] == 'kubernetes'
-      option_type_list = option_types.reject {|opt|
+      option_type_list = option_type_list.reject {|opt|
         ['provisionServerId'].include?(opt['fieldName'])
       }
     end
