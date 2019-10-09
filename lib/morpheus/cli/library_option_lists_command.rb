@@ -196,20 +196,23 @@ class Morpheus::Cli::LibraryOptionListsCommand
     
     connect(options)
     begin
+      passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
         # support -O OPTION switch on top of --payload
-        if options[:options]
+        if !passed_options.empty?
           payload['optionTypeList'] ||= {}
-          payload['optionTypeList'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+          payload['optionTypeList'].deep_merge!(passed_options)
         end
       else
         if !list_type
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true}], options[:options], @api_client, {})
           list_type = v_prompt['type']
         end
-        params = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
+        params = passed_options
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
+        params.deep_merge!(v_prompt)
         params['type'] = list_type
         if params['type'] == 'rest'
           # prompt for Source Headers
@@ -259,20 +262,22 @@ class Morpheus::Cli::LibraryOptionListsCommand
     begin
       option_type_list = find_option_type_list_by_name_or_id(args[0])
       exit 1 if option_type_list.nil?
-
+      passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
         # support -O OPTION switch on top of --payload
-        if options[:options]
+        if !passed_options.empty?
           payload['optionTypeList'] ||= {}
-          payload['optionTypeList'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+          payload['optionTypeList'].deep_merge!(passed_options)
         end
       else
         list_type = option_type_list['type']
         prompt_options = update_option_type_list_option_types(list_type)
-        #params = options[:options] || {}
-        params = Morpheus::Cli::OptionTypes.no_prompt(prompt_options, options[:options], @api_client, options[:params])
+        params = passed_options
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(prompt_options, options[:options], @api_client, options[:params])
+        params.deep_merge!(v_prompt)
+        
         if list_type == 'rest'
           # parse Source Headers
           source_headers = prompt_source_headers(options.merge({no_prompt: true}))
