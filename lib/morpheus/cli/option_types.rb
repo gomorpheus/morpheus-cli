@@ -286,9 +286,16 @@ module Morpheus
         #   value_found = true
         #   value = select_options[0]['value']
         # if there is just one option, use it as the defaultValue
-        elsif !select_options.nil? && select_options.count == 1 #&& option_type['defaultSingleOption'] == true
+        elsif !select_options.nil? && select_options.count == 1
           if option_type['required'] && default_value.nil?
             default_value = select_options[0]['name'] # name is prettier than value
+          end
+        elsif !select_options.nil?
+          if default_value.nil?
+            found_default_option = select_options.find {|opt| opt['isDefault'] == true }
+            if found_default_option
+              default_value = found_default_option['name'] # name is prettier than value
+            end
           end
         end
 
