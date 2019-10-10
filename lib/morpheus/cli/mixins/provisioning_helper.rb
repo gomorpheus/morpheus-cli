@@ -470,11 +470,12 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # remove host selection for kubernetes
-    if resource_pool && resource_pool['providerType'] == 'kubernetes'
-      option_type_list = option_type_list.reject {|opt|
-        ['provisionServerId'].include?(opt['fieldName'])
-      }
-    end
+    # jd: skip for now until we figure this bug out
+    # if resource_pool && resource_pool['providerType'] == 'kubernetes'
+    #   option_type_list = option_type_list.reject {|opt|
+    #     ['provisionServerId'].include?(opt['fieldName'])
+    #   }
+    # end
 
     # plan_info has this property already..
     # has_datastore = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasDatastore"]
