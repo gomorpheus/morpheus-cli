@@ -3,17 +3,48 @@ require 'uri'
 require 'rest-client'
 
 class Morpheus::APIClient
+  # Initialize a new APIClient
+  #   client = APIClient.new(url:"https://morpheus.yourcompany.com", verify_ssl:false)
+  # This old method signature is being deprecated:
+  #   client = APIClient.new(access_token, refresh_token, expires_in, base_url, verify_ssl, options={})
+  #
   def initialize(access_token, refresh_token=nil,expires_in = nil, base_url=nil, verify_ssl=true, options={})
+    if access_token.is_a?(Hash)
+      client_opts = access_token.clone()
+      access_token = client_opts[:access_token]
+      refresh_token = client_opts[:refresh_token]
+      base_url = client_opts[:url] || client_opts[:base_url]
+      expires_in = client_opts[:expires_in]
+      verify_ssl = client_opts.key?(:verify_ssl) ? client_opts[:verify_ssl] : true
+      options = refresh_token.is_a?(Hash) ? refresh_token.clone() : {}
+    end
     @access_token = access_token
     @refresh_token = refresh_token
     @base_url = base_url
+    if @base_url.to_s.empty?
+      raise "#{self.class} requires option :url"
+    end
+    @base_url = @base_url.chomp("/")
+    # todo: validate URI
     if expires_in != nil
-      @expires_at = DateTime.now + expires_in.seconds
+      @expires_at = Time.now + expires_in
     end
     set_ssl_verification_enabled(verify_ssl)
     setopts(options)
   end
 
+  def url
+    @base_url
+  end
+
+  def to_s
+    "<##{self.class}:#{self.object_id.to_s(8)} @url=#{@base_url} @verify_ssl=#{@verify_ssl} @access_token=#{@access_token ? '************' : nil} @refresh_token=#{@access_token ? '************' : nil} @expires_at=#{@expires_at} @options=#{@options}>"
+  end
+
+  def inspect
+    to_s
+  end
+  
   def dry_run(val=true)
     @dry_run = !!val
     self
@@ -182,6 +213,44 @@ class Morpheus::APIClient
     else
       return response
     end
+  end
+
+  def logged_in?
+    !!@access_token
+  end
+
+  def login(username, password)
+    @access_token, @refresh_token, @expires_at = nil, nil, nil
+    response = auth.login(username, password)
+    @access_token = response['access_token']
+    @refresh_token = response['refresh_token']
+    if response['expires_in'] != nil
+      @expires_at = Time.now + response['expires_in']
+    end
+    # return response
+    return self
+  end
+
+  def refresh_token()
+    if @refresh_token.nil?
+      raise "#{self.class} does not currently have a refresh_token"
+    end
+    response = auth.use_refresh_token(@refresh_token)
+    @access_token = response['access_token']
+    @refresh_token = response['refresh_token']
+    if response['expires_in'] != nil
+      @expires_at = Time.now + response['expires_in']
+    end
+    @access_token = response['access_token']
+    # return response
+    return self
+  end
+
+  def logout
+    @access_token = nil
+    @refresh_token = nil
+    @expires_at = nil
+    return self
   end
 
   def auth
