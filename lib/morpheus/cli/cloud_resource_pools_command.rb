@@ -193,7 +193,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       }
       print_description_list(description_cols, resource_pool)
 
-       if resource_pool['resourcePermission'].nil?
+      if resource_pool['resourcePermission'].nil?
         #print "\n", "No group access found", "\n"
       else
         print_h2 "Group Access"
@@ -267,6 +267,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     group_access_all = nil
     group_access_list = nil
     group_defaults_list = nil
+    plan_access_all = nil
+    plan_access_list = nil
+    plan_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cloud] [pool] [options]")
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
@@ -286,13 +289,30 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      # opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
-      #   if list.size == 1 && list[0] == 'null' # hacky way to clear it
-      #     group_defaults_list = []
-      #   else
-      #     group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-      #   end
-      # end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-access-all [on|off]', String, "Toggle Access for all plans.") do |val|
+        plan_access_all = val.to_s == 'on' || val.to_s == 'true'  || val.to_s == ''
+      end
+      opts.on('--plan-access LIST', Array, "Plan Access, comma separated list of plan IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          plan_access_list = []
+        else
+          plan_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-defaults LIST', Array, "Plan Default Selection, comma separated list of plan IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          plan_defaults_list = []
+        else
+          plan_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           options['tenants'] = []
@@ -365,12 +385,40 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         if group_access_all != nil
           payload['resourcePermissions'] ||= {}
           payload['resourcePermissions']['all'] = group_access_all
+        else
+          # default to all
+          if payload['resourcePermissions'].nil? || payload['resourcePermissions']['all'].nil?
+            payload['resourcePermissions'] ||= {}
+            payload['resourcePermissions']['all'] = true
+          end
         end
         if group_access_list != nil
           payload['resourcePermissions'] ||= {}
           payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
             site = {"id" => site_id.to_i}
             if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Service Plan Access
+        if plan_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['allPlans'] = plan_access_all
+        else
+          # default to all
+          if payload['resourcePermissions'].nil? || payload['resourcePermissions']['allPlans'].nil?
+            payload['resourcePermissions'] ||= {}
+            payload['resourcePermissions']['allPlans'] = true
+          end
+        end
+        if plan_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['plans'] = plan_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if plan_defaults_list && plan_defaults_list.include?(site_id)
               site["default"] = true
             end
             site
@@ -448,6 +496,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     group_access_all = nil
     group_access_list = nil
     group_defaults_list = nil
+    plan_access_all = nil
+    plan_access_list = nil
+    plan_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cloud] [pool] [options]")
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
@@ -464,13 +515,30 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      # opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
-      #   if list.size == 1 && list[0] == 'null' # hacky way to clear it
-      #     group_defaults_list = []
-      #   else
-      #     group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-      #   end
-      # end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-access-all [on|off]', String, "Toggle Access for all plans.") do |val|
+        plan_access_all = val.to_s == 'on' || val.to_s == 'true'  || val.to_s == ''
+      end
+      opts.on('--plan-access LIST', Array, "Plan Access, comma separated list of plan IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          plan_access_list = []
+        else
+          plan_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-defaults LIST', Array, "Plan Default Selection, comma separated list of plan IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          plan_defaults_list = []
+        else
+          plan_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           options['tenants'] = []
@@ -541,6 +609,22 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
             site = {"id" => site_id.to_i}
             if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Service Plan Access
+        if plan_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['allPlans'] = plan_access_all
+        end
+        if plan_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['plans'] = plan_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if plan_defaults_list && plan_defaults_list.include?(site_id)
               site["default"] = true
             end
             site
