@@ -3553,15 +3553,15 @@ private
   def find_zone_by_name_or_id(group_id, val)
     zone = nil
     if val.to_s =~ /\A\d{1,}\Z/
-      json_results = @clouds_interface.get(val.to_i)
-      zone = json_results['zone']
+      clouds = get_available_clouds(group_id)
+      zone = clouds.find {|it| it['id'] == val.to_i }
       if zone.nil?
         print_red_alert "Cloud not found by id #{val}"
         exit 1
       end
     else
-      json_results = @clouds_interface.get({groupId: group_id, name: val})
-      zone = json_results['zones'] ? json_results['zones'][0] : nil
+      clouds = get_available_clouds(group_id)
+      zone = clouds.find {|it| it['name'] == val.to_s }
       if zone.nil?
         print_red_alert "Cloud not found by name #{val}"
         exit 1
@@ -3569,6 +3569,7 @@ private
     end
     return zone
   end
+
   def find_host_by_id(id)
     begin
       json_response = @servers_interface.get(id.to_i)

@@ -339,13 +339,13 @@ module Morpheus
           input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for options]: ", false).to_s
           input = input.chomp.strip
           if input.empty? && default_value
-            input = default_value
+            input = default_value.to_s
           end
           select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
           if select_option
             value = select_option['value']
             set_last_select(select_option)
-          elsif !input.nil?  && !input.empty?
+          elsif !input.nil?  && !input.to_s.empty?
             input = '?'
           end
           
