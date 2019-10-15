@@ -880,7 +880,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.footer = "Update a blueprint, removing a specified instance config." + "\n" +
                     "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
-                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index (starting with 0." + "\n" +
+                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index starting with 0." + "\n" +
                     "The config scope is specified with the -g GROUP, -c CLOUD and -e ENV. The -g and -c options are required."
     end
     optparse.parse!(args)
@@ -1063,7 +1063,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.footer = "Update a blueprint, removing a specified instance." + "\n" +
                     "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
-                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index (starting with 0."
+                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index starting with 0."
     end
     
     optparse.parse!(args)
