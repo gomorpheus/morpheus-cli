@@ -593,9 +593,9 @@ class Morpheus::Cli::BlueprintsCommand
     end
     optparse.parse!(args)
 
-    if args.count < 1
+    if args.count < 1 || args.count > 3
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add-instance expects 3 arguments and received #{args.count}: #{args}\n#{optparse}"
+      puts_error  "#{command_name} add-instance expects 2-3 arguments and received #{args.count}: #{args}\n#{optparse}"
       return 1
     end
 
@@ -635,13 +635,9 @@ class Morpheus::Cli::BlueprintsCommand
       end
       tier_config = tiers[tier_name]
       
+      instance_config = {'instance' => {'type' => instance_type['code']} }
       tier_config['instances'] ||= []
-      instance_config = tier_config['instances'].find {|it| it["instance"] && it["instance"]["type"] && it["instance"]["type"] == instance_type["code"] }
-      if !instance_config
-        instance_config = {'instance' => {'type' => instance_type['code']} }
-        tier_config['instances'].push(instance_config)
-      end
-      instance_config['instance'] ||= {}
+      tier_config['instances'].push(instance_config)
 
       # just prompts for Instance Name (optional)
       instance_name = nil
@@ -680,9 +676,11 @@ class Morpheus::Cli::BlueprintsCommand
         if !options[:no_prompt]
           if ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a config now?", options.merge({default: true}))
             # todo: this needs to work by index, because you can have multiple instances of the same type
-            add_instance_config([blueprint['id'], tier_name, instance_type['code']])
+            # instance_identifier = instance_config['instance']['name'] # instance_type['code']
+            instance_identifier = tier_config['instances'].size - 1
+            add_instance_config([blueprint['id'], tier_name, instance_identifier])
             while ::Morpheus::Cli::OptionTypes::confirm("Add another config?", options.merge({default: false})) do
-              add_instance_config([blueprint['id'], tier_name, instance_type['code']])
+              add_instance_config([blueprint['id'], tier_name, instance_identifier])
             end
           else
             # print details
@@ -736,15 +734,13 @@ class Morpheus::Cli::BlueprintsCommand
 
       blueprint_name = args[0]
       tier_name = args[1]
-      instance_type_code = args[2]
-      # we also need consider when there is multiple instances of the same type in
-      # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
+      instance_identifier = args[2]
 
       blueprint = find_blueprint_by_name_or_id(blueprint_name)
       return 1 if blueprint.nil?
 
-      instance_type = find_instance_type_by_code(instance_type_code)
-      return 1 if instance_type.nil?
+      # instance_type = find_instance_type_by_code(instance_type_code)
+      # return 1 if instance_type.nil?
       
       tier_config = nil
       instance_config = nil
@@ -757,20 +753,38 @@ class Morpheus::Cli::BlueprintsCommand
         tiers[tier_name] = {}
       end
       tier_config = tiers[tier_name]
-      
       tier_config['instances'] ||= []
-      instance_config = tier_config['instances'].find {|it| it["instance"] && it["instance"]["type"] && it["instance"]["type"] == instance_type["code"] }
-      if !instance_config
-        instance_config = {'instance' => {'type' => instance_type['code']} }
-        tier_config['instances'].push(instance_config)
+      matching_instance_configs = []
+      if tier_config['instances']
+        if instance_identifier.to_s =~ /\A\d{1,}\Z/
+          matching_instance_configs = [tier_config['instances'][instance_identifier.to_i]].compact
+        else
+          tier_config['instances'] ||= []
+          matching_instance_configs = []
+          matching_instance_configs = (tier_config['instances'] || []).select {|instance_config| instance_config['instance'] && instance_config['instance']['name'] == instance_identifier }
+          if matching_instance_configs.empty?
+            matching_instance_configs = (tier_config['instances'] || []).select {|instance_config| instance_config['instance'] && instance_config['instance']['type'].to_s.downcase == instance_identifier.to_s.downcase }
+          end
+        end
       end
-      instance_config['instance'] ||= {}
+
+      if matching_instance_configs.size == 0
+        print_red_alert "Instance not found by tier: #{tier_name}, type: #{instance_identifier}"
+        return 1
+      elsif matching_instance_configs.size > 1
+        #print_error Morpheus::Terminal.angry_prompt
+        print_red_alert  "More than one instance found by tier: #{tier_name}, type: #{instance_identifier}"
+        puts_error "Try passing the name or index to identify the instance you wish to add a config to."
+        puts_error optparse
+        return 1
+      end
+
+      instance_config = matching_instance_configs[0]
 
       # group prompt
 
       # use active group by default
-      options[:group] ||= @active_group_id
-      
+      #options[:group] ||= @active_group_id      
 
       # available_groups = get_available_groups()
       # group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'required' => true, 'defaultValue' => @active_group_id}],options[:options],@api_client,{})
@@ -785,7 +799,7 @@ class Morpheus::Cli::BlueprintsCommand
       # look for existing config for group + cloud
 
       options[:name_required] = false
-      options[:instance_type_code] = instance_type["code"]
+      options[:instance_type_code] = instance_config['instance']['type'] #instance_type["code"]
       
       #options[:options].deep_merge!(specific_config)
       # this provisioning helper method handles all (most) of the parsing and prompting
@@ -866,12 +880,12 @@ class Morpheus::Cli::BlueprintsCommand
       opts.footer = "Update a blueprint, removing a specified instance config." + "\n" +
                     "[id] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
-                    "[instance] is required. This is the type of instance." + "\n" +
+                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index (starting with 0." + "\n" +
                     "The config scope is specified with the -g GROUP, -c CLOUD and -e ENV. The -g and -c options are required."
     end
     optparse.parse!(args)
     
-    if args.count < 3
+    if args.count != 3
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "Wrong number of arguments"
       puts_error optparse
@@ -885,7 +899,7 @@ class Morpheus::Cli::BlueprintsCommand
     end
     if !options[:cloud]
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "Missing required argument -g CLOUD"
+      puts_error  "Missing required argument -c CLOUD"
       puts_error optparse
       return 1
     end
@@ -895,15 +909,13 @@ class Morpheus::Cli::BlueprintsCommand
 
       blueprint_name = args[0]
       tier_name = args[1]
-      instance_type_code = args[2]
-      # we also need consider when there is multiple instances of the same type in
-      # a template/tier.. so maybe split instance_type_code as [type-code]:[index].. or...errr
+      instance_identifier = args[2]
 
       blueprint = find_blueprint_by_name_or_id(blueprint_name)
       return 1 if blueprint.nil?
 
-      instance_type = find_instance_type_by_code(instance_type_code)
-      return 1 if instance_type.nil?
+      # instance_type = find_instance_type_by_code(instance_type_code)
+      # return 1 if instance_type.nil?
       
       tier_config = nil
       # instance_config = nil
@@ -928,25 +940,27 @@ class Morpheus::Cli::BlueprintsCommand
 
       matching_indices = []
       if tier_config['instances']
-        if instance_index
-          matching_indices = [instance_index].compact
+        if instance_identifier.to_s =~ /\A\d{1,}\Z/
+          matching_indices = [instance_identifier.to_i].compact
         else
           tier_config['instances'].each_with_index do |instance_config, index|
-            is_match = instance_config['instance'] && instance_config['instance']['type'] == instance_type['code']
-            if is_match
+            if instance_config['instance'] && instance_config['instance']['type'].to_s.downcase == instance_identifier.to_s.downcase
+              matching_indices << index
+            elsif instance_config['instance'] && instance_config['instance']['name'] == instance_identifier
               matching_indices << index
             end
           end
         end
       end
 
+
       if matching_indices.size == 0
-        print_red_alert "Instance not found by tier: #{tier_name}, type: #{instance_type_code}"
+        print_red_alert "Instance not found by tier: #{tier_name}, type: #{instance_identifier}"
         return 1
       elsif matching_indices.size > 1
         #print_error Morpheus::Terminal.angry_prompt
-        print_red_alert  "More than one instance found by tier: #{tier_name}, type: #{instance_type_code}"
-        puts_error "Try using the --index option to identify the instance you wish to remove."
+        print_red_alert  "More than one instance found by tier: #{tier_name}, type: #{instance_identifier}"
+        puts_error "Try passing the name or index to identify the instance you wish to remove."
         puts_error optparse
         return 1
       end
@@ -957,7 +971,7 @@ class Morpheus::Cli::BlueprintsCommand
       current_config = instance_config
       delete_key = nil
 
-      config_description = "type: #{instance_type['code']}"
+      config_description = "type: #{instance_identifier}"
       config_description << " environment: #{options[:environment]}" if options[:environment]
       config_description << " group: #{options[:group]}" if options[:group]
       config_description << " cloud: #{options[:cloud]}" if options[:cloud]
@@ -1046,10 +1060,15 @@ class Morpheus::Cli::BlueprintsCommand
       #   instance_index = val.to_i
       # end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Update a blueprint, removing a specified instance." + "\n" +
+                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[tier] is required. This is the name of the tier." + "\n" +
+                    "[instance] is required. This is the instance identifier, which may be the type, the name, or the index (starting with 0."
     end
+    
     optparse.parse!(args)
     
-    if args.count < 3
+    if args.count != 3
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "Wrong number of arguments"
       puts_error optparse
@@ -1062,7 +1081,7 @@ class Morpheus::Cli::BlueprintsCommand
 
       blueprint_name = args[0]
       tier_name = args[1]
-      instance_identier = args[2]
+      instance_identifier = args[2]
 
       # instance_type_code = args[2]
       # we also need consider when there is multiple instances of the same type in
@@ -1095,25 +1114,25 @@ class Morpheus::Cli::BlueprintsCommand
       # find instance
       matching_indices = []
       if tier_config['instances']
-        if instance_identier.to_s =~ /\A\d{1,}\Z/
-          matching_indices = [instance_identier.to_i].compact
+        if instance_identifier.to_s =~ /\A\d{1,}\Z/
+          matching_indices = [instance_identifier.to_i].compact
         else
           tier_config['instances'].each_with_index do |instance_config, index|
-            if instance_config['instance'] && instance_config['instance']['type'] == instance_identier
+            if instance_config['instance'] && instance_config['instance']['type'].to_s.downcase == instance_identifier.to_s.downcase
               matching_indices << index
-            elsif instance_config['instance'] && instance_config['instance']['name'] == instance_identier
+            elsif instance_config['instance'] && instance_config['instance']['name'] == instance_identifier
               matching_indices << index
             end
           end
         end
       end
       if matching_indices.size == 0
-        print_red_alert "Instance not found by tier: #{tier_name}, instance: #{instance_identier}"
+        print_red_alert "Instance not found by tier: #{tier_name}, instance: #{instance_identifier}"
         return 1
       elsif matching_indices.size > 1
         #print_error Morpheus::Terminal.angry_prompt
-        print_red_alert "More than one instance matched tier: #{tier_name}, instance: #{instance_identier}"
-        puts_error "Instance can be identified type, name or index within the tier."
+        print_red_alert "More than one instance matched tier: #{tier_name}, instance: #{instance_identifier}"
+        puts_error "Try passing the name or index to identify the instance you wish to remove."
         puts_error optparse
         return 1
       end
@@ -1121,7 +1140,7 @@ class Morpheus::Cli::BlueprintsCommand
       # remove it
       tier_config['instances'].delete_at(matching_indices[0])
 
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete this instance #{instance_type_code} instance from tier: #{tier_name}?")
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete this instance #{instance_identifier} instance from tier: #{tier_name}?")
         return 9
       end
 
@@ -2104,7 +2123,7 @@ class Morpheus::Cli::BlueprintsCommand
                   puts "  * #{config_description}"
                 end
               else
-                print white,"  Instance has no configs, see `app-templates add-instance-config \"#{blueprint['name']}\" \"#{tier_name}\" \"#{instance_type_code}\"`",reset,"\n"
+                print white,"  Instance has no configs, use `blueprints add-instance-config \"#{blueprint['name']}\" \"#{tier_name}\" \"#{instance_name.to_s.empty? ? instance_type_code : instance_name}\"`",reset,"\n"
               end
             rescue => err
               #puts_error "Failed to parse instance scoped instance configs for blueprint #{blueprint['id']} #{blueprint['name']} Exception: #{err.class} #{err.message}"
@@ -2124,7 +2143,7 @@ class Morpheus::Cli::BlueprintsCommand
           end  
           
         else
-          print white,"  Tier is empty, see `app-templates add-instance \"#{blueprint['name']}\" \"#{tier_name}\"`",reset,"\n"
+          print white,"  Tier is empty, use `blueprints add-instance \"#{blueprint['name']}\" \"#{tier_name}\"`",reset,"\n"
         end
         # print "\n"
 
@@ -2132,7 +2151,7 @@ class Morpheus::Cli::BlueprintsCommand
       # print "\n"
 
     else
-      print white,"\nTemplate is empty, see `app-templates add-tier \"#{blueprint['name']}\"`",reset,"\n"
+      print white,"\nTemplate is empty, use `blueprints add-tier \"#{blueprint['name']}\"`",reset,"\n"
     end
   end
 

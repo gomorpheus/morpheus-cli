@@ -255,6 +255,7 @@ module Morpheus::Cli::ProvisioningHelper
     print reset # clear colors
     options[:options] ||= {}
     # Group
+    default_group = @active_group_id ? find_group_by_name_or_id_for_provisioning(@active_group_id) : nil
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
     if group
@@ -262,7 +263,7 @@ module Morpheus::Cli::ProvisioningHelper
     else
       # print_red_alert "Group not found or specified!"
       # exit 1
-      group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => get_available_groups(), 'required' => true, 'description' => 'Select Group.'}],options[:options],api_client,{})
+      group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => get_available_groups(), 'required' => true, 'description' => 'Select Group.', 'defaultValue' => (default_group ? default_group['name'] : nil)}],options[:options],api_client,{})
       group_id = group_prompt['group']
     end
 
