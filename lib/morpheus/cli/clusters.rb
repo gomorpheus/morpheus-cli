@@ -2621,7 +2621,7 @@ class Morpheus::Cli::Clusters
       opts.on('--active [on|off]', String, "Enable datastore") do |val|
         options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      add_perms_options(opts, options, ['planAccess'])
+      add_perms_options(opts, options, ['planAccess', 'groupAccessDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster datastore.\n" +
           "[cluster] is required. This is the name or id of an existing cluster.\n" +
@@ -3858,11 +3858,13 @@ class Morpheus::Cli::Clusters
           options[:groupAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
-          options[:groupDefaultsList] = []
-        else
-          options[:groupDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      if !excludes.include?('groupAccessDefaults')
+        opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+          if list.size == 1 && list[0] == 'null' # hacky way to clear it
+            options[:groupDefaultsList] = []
+          else
+            options[:groupDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          end
         end
       end
     end
