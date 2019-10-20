@@ -226,11 +226,23 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
-  # def list_pods(id, params={})
-  #   url = "#{@api_url}/#{id}/pods"
-  #   headers = { params: params, authorization: "Bearer #{@access_token}" }
-  #   execute(method: :get, url: url, headers: headers)
-  # end
+  def list_datastores(id, params={})
+    url = "#{@api_url}/#{id}/datastores"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def get_datastore(id, datastore_id, params={})
+    url = "#{@api_url}/#{id}/datastores/#{datastore_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def update_datastore(id, datastore_id, payload)
+    url = "#{@api_url}/#{id}/datastores/#{datastore_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
 
   def wiki(id, params)
     url = "#{@base_url}/api/clusters/#{id}/wiki"
