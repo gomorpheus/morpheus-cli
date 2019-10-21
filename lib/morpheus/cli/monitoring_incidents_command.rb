@@ -165,7 +165,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on("-c", "--comment STRING", String, "Comment on this incident") do |val|
+      opts.on("-c", "--comment STRING", String, "Comment on this incident. Updates summary field.") do |val|
         params['comment'] = val == 'null' ? nil : val
       end
       opts.on("--resolution STRING", String, "Description of the resolution to this incident") do |val|
@@ -465,7 +465,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on("-c", "--comment STRING", String, "Comment on this incident") do |val|
+      opts.on("-c", "--comment STRING", String, "Comment on this incident. Updates summary field.") do |val|
         params['comment'] = val == 'null' ? nil : val
       end
       opts.on("--resolution STRING", String, "Description of the resolution to this incident") do |val|
