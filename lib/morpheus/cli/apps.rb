@@ -1007,6 +1007,7 @@ class Morpheus::Cli::Apps
       params = {}
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(containers, params)
@@ -1027,7 +1028,7 @@ class Morpheus::Cli::Apps
       if logs['data'].empty?
         puts "#{cyan}No logs found.#{reset}"
       else
-        logs['data'].reverse.each do |log_entry|
+        logs['data'].each do |log_entry|
           log_level = ''
           case log_entry['level']
           when 'INFO'

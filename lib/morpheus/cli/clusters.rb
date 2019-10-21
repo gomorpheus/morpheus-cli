@@ -869,7 +869,7 @@ class Morpheus::Cli::Clusters
       if logs['data'].empty?
         puts "#{cyan}No logs found.#{reset}"
       else
-        logs['data'].reverse.each do |log_entry|
+        logs['data'].each do |log_entry|
           log_level = ''
           case log_entry['level']
           when 'INFO'
