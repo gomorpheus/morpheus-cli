@@ -6,7 +6,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
   include Morpheus::Cli::MonitoringHelper
 
   set_command_name :'monitor-incidents'
-  register_subcommands :list, :stats, :get, :history, :notifications, :update, :close, :reopen, :mute, :unmute
+  register_subcommands :list, :stats, :get, :history, :notifications, :update, :close, :reopen, :mute, :unmute, :add
   register_subcommands :'mute-all' => :mute_all
   register_subcommands :'unmute-all' => :unmute_all
 
@@ -159,7 +159,76 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       exit 1
     end
   end
-  
+
+  def add(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      opts.on("-c", "--comment STRING", String, "Comment on this incident") do |val|
+        params['comment'] = val == 'null' ? nil : val
+      end
+      opts.on("--resolution STRING", String, "Description of the resolution to this incident") do |val|
+        params['resolution'] = val == 'null' ? nil : val
+      end
+      opts.on("--status STATUS", String, "Set status (open or closed)") do |val|
+        params['status'] = val
+      end
+      opts.on("--severity STATUS", String, "Set severity (critical, warning or info)") do |val|
+        params['severity'] = val
+      end
+      opts.on("--name STRING", String, "Set display name (subject)") do |val|
+        params['name'] = val == 'null' ? nil : val
+      end
+      opts.on("--startDate TIME", String, "Set start time") do |val|
+        begin
+          params['startDate'] = parse_time(val).utc.iso8601
+        rescue => e
+          raise OptionParser::InvalidArgument.new "Failed to parse --startDate '#{val}'. Error: #{e}"
+        end
+      end
+      opts.on("--endDate TIME", String, "Set end time") do |val|
+        begin
+          params['endDate'] = parse_time(val).utc.iso8601
+        rescue => e
+          raise OptionParser::InvalidArgument.new "Failed to parse --endDate '#{val}'. Error: #{e}"
+        end
+      end
+      opts.on("--inUptime BOOL", String, "Set 'In Availability'") do |val|
+        params['inUptime'] = ['true','on'].include?(val.to_s.strip)
+      end
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    begin
+      params['name'] = params['name'] || 'No subject'
+      params['startDate'] = params['startDate'] || Time.now.utc.iso8601
+      payload = { 'incident' => params }
+
+      @monitoring_incidents_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @monitoring_incidents_interface.dry.create(payload)
+        return
+      end
+
+      json_response = @monitoring_incidents_interface.create(payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        print_green_success "Created incident #{json_response['incident']['id']}"
+        _get(json_response['incident']['id'], {})
+      end
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
