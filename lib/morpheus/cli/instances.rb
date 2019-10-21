@@ -1011,6 +1011,7 @@ class Morpheus::Cli::Instances
   end
 
   def logs(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
@@ -1031,9 +1032,9 @@ class Morpheus::Cli::Instances
       if options[:node_id] && container_ids.include?(options[:node_id])
         container_ids = [options[:node_id]]
       end
-      params = {}
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(container_ids, params)
@@ -1054,7 +1055,7 @@ class Morpheus::Cli::Instances
       if logs['data'].empty?
         puts "#{cyan}No logs found.#{reset}"
       else
-        logs['data'].reverse.each do |log_entry|
+        logs['data'].each do |log_entry|
           log_level = ''
           case log_entry['level']
           when 'INFO'
