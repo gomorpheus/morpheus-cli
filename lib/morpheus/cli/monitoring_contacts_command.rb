@@ -34,7 +34,8 @@ class Morpheus::Cli::MonitoringContactsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :csv, :yaml, :fields, :json, :dry_run])
+      build_common_options(opts, options, [:list, :query, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
+      opts.footer = "List monitoring contacts."
     end
     optparse.parse!(args)
     connect(options)
@@ -79,7 +80,7 @@ class Morpheus::Cli::MonitoringContactsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
+      opts.banner = subcommand_usage("[contact]")
       opts.on(nil,'--history', "Display History") do |val|
         options[:show_history] = true
       end
@@ -87,11 +88,12 @@ class Morpheus::Cli::MonitoringContactsCommand
         options[:show_notifications] = true
       end
       build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a monitoring contact." + "\n" +
+                    "[contact] is required. This is the name or ID of the contact. Supports 1-N [contact] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      exit 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -109,8 +111,10 @@ class Morpheus::Cli::MonitoringContactsCommand
         print_dry_run @monitoring_contacts_interface.dry.get(contact['id'])
         return
       end
-      json_response = @monitoring_contacts_interface.get(contact['id'])
-      contact = json_response['contact']
+      # save a request
+      # json_response = @monitoring_contacts_interface.get(contact['id'])
+      # contact = json_response['contact']
+      json_response = {'contact' => contact}
       
       if options[:json]
         puts as_json(json_response, options, "contact")
@@ -130,16 +134,16 @@ class Morpheus::Cli::MonitoringContactsCommand
         "Name" => 'name',
         "Email" => 'emailAddress',
         "Mobile" => 'smsAddress',
-        # "Slack Hook" => 'slackHook'
+        "Slack Hook" => 'slackHook'
       }
-      description_cols["Slack Hook"] = 'slackHook' if !contact['slackHook'].empty?
+      description_cols.delete("Slack Hook") if contact['slackHook'].to_s.empty?
       puts as_description_list(contact, description_cols)
      
       ## Notifications
       # show notify events here...
 
-      print reset,"\n"
-
+      print reset
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -163,7 +167,9 @@ class Morpheus::Cli::MonitoringContactsCommand
       opts.on("--slackHook STRING", String, "Contact slack hook") do |val|
         params['slackHook'] = val == 'null' ? nil : val
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Create a monitoring contact." + "\n" +
+                    "[name] is required. This is the name of the new contact."
     end
     optparse.parse!(args)
     connect(options)
@@ -192,7 +198,7 @@ class Morpheus::Cli::MonitoringContactsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Created contact (#{contact['id']}) #{contact['name']}"
-        #_get(contact['id'], {})
+        #_get(contact['id'], options)
       end
 
     rescue RestClient::Exception => e
@@ -205,7 +211,7 @@ class Morpheus::Cli::MonitoringContactsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
+      opts.banner = subcommand_usage("[contact]")
       opts.on("--name STRING", String, "Contact name") do |val|
         params['name'] = val
       end
@@ -218,12 +224,13 @@ class Morpheus::Cli::MonitoringContactsCommand
       opts.on("--slackHook STRING", String, "Contact slack hook") do |val|
         params['slackHook'] = val == 'null' ? nil : val
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Update a monitoring contact." + "\n" +
+                    "[contact] is required. This is the name or ID of the contact."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
 
@@ -247,11 +254,12 @@ class Morpheus::Cli::MonitoringContactsCommand
       end
 
       json_response = @monitoring_contacts_interface.update(contact["id"], payload)
+      contact = json_response['contact']
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_green_success "Updated contact #{contact['id']}"
-        _get(contact['id'], {})
+        print_green_success "Updated contact (#{contact['id']}) #{contact['name']}"
+        _get(contact['id'], options)
       end
 
     rescue RestClient::Exception => e
@@ -264,13 +272,14 @@ class Morpheus::Cli::MonitoringContactsCommand
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
+      opts.banner = subcommand_usage("[contact]")
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Delete a monitoring contact." + "\n" +
+                    "[contact] is required. This is the name or ID of the contact. Supports 1-N [contact] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      exit 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -296,55 +305,6 @@ class Morpheus::Cli::MonitoringContactsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success json_response["msg"] || "Contact (#{contact['id']}) #{contact['name']} deleted"
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def reopen(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    connect(options)
-    id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to reopen #{id_list.size == 1 ? 'contact' : 'contacts'} #{anded_list(id_list)}?", options)
-      exit 1
-    end
-    return run_command_for_each_arg(id_list) do |arg|
-      _reopen(arg, options)
-    end
-  end
-
-  def _reopen(id, options)
-
-    begin
-      contact = find_contact_by_name_or_id(id)
-      already_open = contact['status'] == 'open'
-      if already_open
-        print bold,yellow,"contact #{contact['id']} is already open",reset,"\n"
-        return false
-      end
-      @monitoring_contacts_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @monitoring_contacts_interface.dry.reopen(contact['id'])
-        return
-      end
-      json_response = @monitoring_contacts_interface.reopen(contact['id'])
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        print_green_success json_response["msg"] || "contact #{contact['id']} is now open"
-        # _get(contact['id'] {})
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

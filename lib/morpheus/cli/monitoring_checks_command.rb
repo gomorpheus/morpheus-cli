@@ -348,6 +348,25 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         # todo: load option types based on type and prompt
+        # merge in arbitrary option values
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this alert rule.'}], options[:options])
+          params['name'] = v_prompt['name']
+        end
+        if params['minSeverity'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'minSeverity', 'type' => 'select', 'fieldLabel' => 'Min. Severity', 'required' => false, 'selectOptions' => available_severities, 'defaultValue' => 'critical', 'description' => 'Trigger when severity level is reached.'}], options[:options])
+          params['minSeverity'] = v_prompt['minSeverity'].to_s unless v_prompt['minSeverity'].nil?
+        else
+          params['minSeverity'] = v_prompt['minSeverity'].to_s.downcase
+        end
+        if options[:options]
+          options[:options].each do |k,v|
+            if k.is_a?(String) && params[k].nil?
+              params[k] = v
+            end
+          end
+        end
+        params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
         payload = {'check' => params}
       end
       @monitoring_checks_interface.setopts(options)
@@ -721,8 +740,6 @@ class Morpheus::Cli::MonitoringChecksCommand
     end
   end
 
-  private
-
-  
+  private  
 
 end

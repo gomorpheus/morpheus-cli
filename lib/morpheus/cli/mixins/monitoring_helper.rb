@@ -362,6 +362,47 @@ module Morpheus::Cli::MonitoringHelper
     end
   end
 
+  # Monitoring Alerts
+
+  def find_alert_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_alert_by_id(val)
+    else
+      return find_alert_by_name(val)
+    end
+  end
+
+  def find_alert_by_id(id)
+    begin
+      json_response = monitoring_interface.alerts.get(id.to_i)
+      return json_response['alert']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Alert not found by id #{id}"
+        exit 1 # return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_alert_by_name(name)
+    json_results = monitoring_interface.alerts.list({name: name})
+    alerts = json_results["alerts"]
+    if alerts.empty?
+      print_red_alert "Alert not found by name #{name}"
+      exit 1 # return nil
+    elsif alerts.size > 1
+      print_red_alert "#{alerts.size} Alerts found by name #{name}"
+      print "\n"
+      puts as_pretty_table(alerts, [{"ID" => "id" }, {"NAME" => "name"}], {color: red})
+      print_red_alert "Try passing ID instead"
+      print reset,"\n"
+      exit 1 # return nil
+    else
+      return alerts[0]
+    end
+  end
 
   # Monitoring Check Groups
 
@@ -495,6 +536,48 @@ module Morpheus::Cli::MonitoringHelper
       columns = opts[:include_fields]
     end
     print as_pretty_table(apps, columns, opts)
+  end
+
+  def available_severities
+    [
+      [name:'Critical', code:'critical', value:'critical'],
+      [name:'Warning', code:'warning', value:'warning'],
+      [name:'Info', code:'info', value:'info']
+    ]
+  end
+
+  def format_recipient_method(recipient)
+    meth = recipient['method'].to_s
+    alert_method_names = []
+    if meth =~ /email/i
+      alert_method_names << "Email"
+    end
+    if meth =~ /sms/i
+      alert_method_names << "SMS"
+    end
+    if meth =~ /apn/i
+      alert_method_names << "APN"
+    end
+    # if alert_method_names.empty?
+    #   alert_method_names << "None"
+    # end
+    anded_list(alert_method_names)
+  end
+
+  # server expects "emailAddress" or "smsAddress" or "emailAddress,smsAddress"
+  def parse_recipient_method(meth)
+    requested_methods = meth.to_s
+    alert_methods = []
+    if meth =~ /email/i
+      alert_methods << "emailAddress"
+    end
+    if meth =~ /sms/i
+      alert_methods << "smsAddress"
+    end
+    if meth =~ /apn/i
+      alert_methods << "apns"
+    end
+    alert_methods.join(',')
   end
 
 end

@@ -122,6 +122,7 @@ module Morpheus
       load 'morpheus/cli/monitoring_incidents_command.rb'
       load 'morpheus/cli/monitoring_checks_command.rb'
       load 'morpheus/cli/monitoring_contacts_command.rb'
+      load 'morpheus/cli/monitoring_alerts_command.rb'
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
       load 'morpheus/cli/policies_command.rb'
