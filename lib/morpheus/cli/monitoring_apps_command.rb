@@ -105,8 +105,10 @@ class Morpheus::Cli::MonitoringAppsCommand
         print_dry_run @monitoring_apps_interface.dry.get(monitor_app['id'])
         return
       end
-      json_response = @monitoring_apps_interface.get(monitor_app['id'])
-      monitor_app = json_response['monitorApp']
+      # save a request, same thing is returned
+      # json_response = @monitoring_apps_interface.get(monitor_app['id'])
+      # monitor_app = json_response['monitorApp']
+      json_response = {'monitorApp' => monitor_app}
       if options[:json]
         puts as_json(json_response, options, "monitorApp")
         return 0
@@ -427,11 +429,12 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def mute(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on(nil, "--disable", "Unmute instead, the same as the unmute command") do
         params['enabled'] = false
+        params['muted'] = false
       end
       opts.footer = "Mute a monitoring app. This prevents it from creating new incidents." + "\n" +
                     "[name] is required. This is the name or id of a monitoring app."
@@ -477,7 +480,7 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def unmute(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
@@ -521,10 +524,11 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def mute_all(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Unmute instead, the same as the unmute-all command") do
+        params['muted'] = false
         params['enabled'] = false
       end
       opts.footer = "Mute all monitoring apps. This prevents the creation of new incidents."
@@ -569,7 +573,7 @@ class Morpheus::Cli::MonitoringAppsCommand
 
   def unmute_all(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])

@@ -107,7 +107,9 @@ class Morpheus::Cli::MonitoringChecksCommand
         print_dry_run @monitoring_checks_interface.dry.get(check['id'])
         return
       end
-      json_response = @monitoring_checks_interface.get(check['id'])
+      # save a request, same thing is returned
+      # json_response = @monitoring_checks_interface.get(check['id'])
+      json_response = {'check' => check}
       check = json_response['check']
       if options[:json]
         puts as_json(json_response, options, 'check')
@@ -359,7 +361,7 @@ class Morpheus::Cli::MonitoringChecksCommand
       elsif !options[:quiet]
         check = json_response['check']
         print_green_success "Added check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -425,7 +427,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Updated check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -437,11 +439,12 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def mute(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute") do
         params['enabled'] = false
+        params['muted'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Mute a check. This prevents it from creating new incidents." + "\n" +
@@ -476,7 +479,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         else
           print_green_success "Unmuted check #{check['name']}"
         end
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -520,7 +523,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Unmuted check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -531,10 +534,11 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def mute_all(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
+        params['muted'] = false
         params['enabled'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -579,7 +583,7 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def unmute_all(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])

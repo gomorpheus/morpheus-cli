@@ -133,12 +133,18 @@ module Morpheus::Cli::MonitoringHelper
   end
 
   def format_monitoring_incident_status(incident)
+    out = ""
+    muted = incident['inUptime'] == false
     status_string = incident['status']
     if status_string == 'closed'
-      "closed ✓"
+      out << "closed ✓"
     else
-      status_string
+      out << status_string.to_s
+      if muted
+        out << " (MUTED)"
+      end
     end
+    out
   end
 
   def format_monitoring_issue_status(issue)
