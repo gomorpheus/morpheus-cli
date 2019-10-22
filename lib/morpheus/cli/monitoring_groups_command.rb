@@ -441,7 +441,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         else
           print_green_success "Unmuted group #{check_group['name']}"
         end
-        _get(monitor_app['id'], {})
+        _get(check_group['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
