@@ -589,7 +589,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
