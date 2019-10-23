@@ -167,9 +167,9 @@ class Morpheus::Cli::MonitoringChecksCommand
       
       check_groups = json_response["groups"]
       if check_groups && !check_groups.empty?
-        print_h2 "Groups"
-        #print as_pretty_table(check_groups, [:id, :name], options)
-        print_check_groups_table(check_groups, options)
+        print_h2 "Check Groups"
+        print as_pretty_table(check_groups, [:id, :name], options)
+        #print_check_groups_table(check_groups, options)
       else
         # print "\n"
         # puts "This check is not in any check groups."
@@ -187,15 +187,14 @@ class Morpheus::Cli::MonitoringChecksCommand
       ## Open Incidents
 
       open_incidents = json_response["openIncidents"]
+
       if open_incidents && !open_incidents.empty?
         print_h2 "Open Incidents"
-        # puts "\n(table coming soon...)\n"
-        puts JSON.pretty_generate(open_incidents)
-        # todo: move this to MonitoringHelper ?
-        # print_incidents_table(issues, options)
+        print_incidents_table(open_incidents)
+        # print_results_pagination(size: open_incidents.size, total: open_incidents.size)
       else
         print "\n", cyan
-        puts "No open incidents for this check"
+        puts "No open incidents for this monitoring app"
       end
 
       ## History (plain old Hash)
