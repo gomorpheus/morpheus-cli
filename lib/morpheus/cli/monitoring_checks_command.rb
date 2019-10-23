@@ -295,15 +295,12 @@ class Morpheus::Cli::MonitoringChecksCommand
   def add(args)
     options = {:skip_booleanize => true}
     params = {'inUptime' => true, 'severity' => 'critical'}
+    check_type_code = nil
     check_type = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t CODE")
-      opts.on('-t', '--type CODE', "Check Type Code or ID") do |val|
-        if val.to_s =~ /\A\d{1,}\Z/
-          params['checkType'] = {'id' => val.to_i}
-        else
-          params['checkType'] = {'code' => val}
-        end
+      opts.on('-t', '--type CODE', "Check Type Code") do |val|
+        check_type_code = val
       end
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
@@ -347,26 +344,36 @@ class Morpheus::Cli::MonitoringChecksCommand
         payload = options[:payload]
       else
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # todo: load option types based on type and prompt
         # merge in arbitrary option values
         if params['name'].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this alert rule.'}], options[:options])
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this check.'}], options[:options])
           params['name'] = v_prompt['name']
         end
-        if params['minSeverity'].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'minSeverity', 'type' => 'select', 'fieldLabel' => 'Min. Severity', 'required' => false, 'selectOptions' => available_severities, 'defaultValue' => 'critical', 'description' => 'Trigger when severity level is reached.'}], options[:options])
-          params['minSeverity'] = v_prompt['minSeverity'].to_s unless v_prompt['minSeverity'].nil?
-        else
-          params['minSeverity'] = v_prompt['minSeverity'].to_s.downcase
+
+        # Check Type
+        # rescue pre 3.6.5 error with maxResults.toLong()
+        available_check_types = []
+        begin
+          available_check_types = @monitoring_checks_interface.list_check_types({max:1000})['checkTypes']
+        rescue RestClient::Exception => e
+          available_check_types = @monitoring_checks_interface.list_check_types({})['checkTypes']
         end
-        if options[:options]
-          options[:options].each do |k,v|
-            if k.is_a?(String) && params[k].nil?
-              params[k] = v
-            end
-          end
+        if available_check_types && available_check_types.size > 0
+          options[:options]['type'] = check_type_code if check_type_code
+          check_types_dropdown = available_check_types.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'selectOptions' => check_types_dropdown, 'fieldLabel' => 'Check Type', 'required' => true, 'description' => 'The check type code.'}], options[:options])
+          check_type_code = v_prompt['type']
         end
-        params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
+        if check_type_code
+          params['checkType'] = {'code' => check_type_code}
+        end
+
+        # todo: load check type optionTypes and prompt accordingly..
+
+        # include arbitrary -O options
+        extra_passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) || ['type'].include?(k)}
+        params.deep_merge!(extra_passed_options)
+
         payload = {'check' => params}
       end
       @monitoring_checks_interface.setopts(options)
