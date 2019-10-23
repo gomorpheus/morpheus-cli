@@ -73,6 +73,7 @@ module Morpheus
       load 'morpheus/cli/logout.rb'
       load 'morpheus/cli/whoami.rb'
       # load 'morpheus/cli/auth_command.rb'
+      load 'morpheus/cli/appliance_settings_command.rb'
       load 'morpheus/cli/access_token_command.rb'
       load 'morpheus/cli/user_settings_command.rb'
       load 'morpheus/cli/dashboard_command.rb'

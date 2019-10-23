@@ -301,6 +301,10 @@ class Morpheus::APIClient
     Morpheus::InstancesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def appliance_settings
+    Morpheus::ApplianceSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def containers
     Morpheus::ContainersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
