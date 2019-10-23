@@ -14,7 +14,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
   set_command_name :'monitor-alerts'
 
   register_subcommands :list, :get, :add, :update, :remove
-  
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -38,7 +38,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :last_updated, :query, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
       opts.footer = "List monitoring alert rules."
     end
     optparse.parse!(args)
