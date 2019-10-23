@@ -353,7 +353,7 @@ module Morpheus::Cli::MonitoringHelper
     elsif contacts.size > 1
       print_red_alert "#{contacts.size} Contacts found by name #{name}"
       print "\n"
-      puts as_pretty_table(contacts, [{"ID" => "id" }, {"NAME" => "name"}], {color: red})
+      puts as_pretty_table(contacts, [{"ID" => "id" }, {"NAME" => "name"}, {"EMAIL" => "emailAddress"}], {color: red})
       print_red_alert "Try passing ID instead"
       print reset,"\n"
       exit 1 # return nil
@@ -571,7 +571,7 @@ module Morpheus::Cli::MonitoringHelper
     if meth =~ /email/i
       alert_methods << "emailAddress"
     end
-    if meth =~ /sms/i
+    if meth =~ /sms/i || meth =~ /phone/i || meth =~ /mobile/i
       alert_methods << "smsAddress"
     end
     if meth =~ /apn/i

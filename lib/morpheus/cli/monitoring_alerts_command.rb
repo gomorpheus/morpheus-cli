@@ -561,6 +561,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           parts = it.split(":").collect { |part| part.strip }
           #recipient_id = parts[0]
           recipient_id = contact_ids[index]
+
           recipient_method = parts[1] ? parts[1].to_s : "emailAddress"
           recipient_notify = parts[2] ? ['on','true'].include?(parts[2].to_s.downcase) : true
           recipient_close = parts[3] ? ['on','true'].include?(parts[3].to_s.downcase) : true
@@ -802,20 +803,31 @@ class Morpheus::Cli::MonitoringAlertsCommand
           end
           recipient_records = []
           # parse recipient string as Contact ID:method:notifyOnClose:notifyOnChange
-          # todo: should be smarter and try to merge changes with existing recipient record
+          existing_recipients = alert['contacts'] || []
           recipient_list.each_with_index do |it, index|
             parts = it.split(":").collect { |part| part.strip }
             #recipient_id = parts[0]
             recipient_id = contact_ids[index]
-            recipient_method = parts[1] ? parts[1].to_s : "emailAddress"
-            recipient_notify = parts[2] ? ['on','true'].include?(parts[2].to_s.downcase) : true
-            recipient_close = parts[3] ? ['on','true'].include?(parts[3].to_s.downcase) : true
             recipient_record = {
-              "id" => recipient_id, 
-              "method" => parse_recipient_method(recipient_method), 
-              "notify" => recipient_notify,
-              "close" => recipient_close
+              "id" => recipient_id
             }
+            # preserve existing values for these settings
+            existing_recipient = existing_recipients.find {|rec| rec['id'] == recipient_id.to_i }
+            if parts[1]
+              recipient_record["method"] = parse_recipient_method(parts[1].to_s)
+            elsif existing_recipient
+              recipient_record["method"] = existing_recipient["method"]
+            end
+            if parts[2]
+              recipient_record["notify"] = ['on','true'].include?(parts[2].to_s.downcase)
+            elsif existing_recipient
+              recipient_record["notify"] = existing_recipient["notify"]
+            end
+            if parts[3]
+              recipient_record["close"] = ['on','true'].include?(parts[3].to_s.downcase)
+            elsif existing_recipient
+              recipient_record["close"] = existing_recipient["close"]
+            end
             recipient_records << recipient_record
           end
           params['contacts'] = recipient_records

@@ -147,8 +147,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
         # print as_pretty_table(check_groups, [:id, {"Check Group" => :name}], options)
         print_checks_table(checks, options)
       else
-        # print "\n"
-        # puts "No checks found..."
+        print "\n", yellow
+        puts "This check group is empty, it contains no checks."
       end
 
       ## Open Incidents
@@ -255,7 +255,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
   def add(args)
     options = {}
-    params = {'inUptime' => true, 'severity' => 'critical'}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -268,7 +268,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         params['minHappy'] = val.to_i
       end
       opts.on('--severity VALUE', String, "Max Severity. Determines the maximum severity level this group can incur on an incident when failing. Default is critical") do |val|
-        params['severity'] = val
+        params['severity'] = val.to_s.downcase
       end
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
@@ -303,28 +303,78 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # find the checks by name, but allow any ID without searching
-        if params['checks']
-          found_check_ids = []
-          bad_ids = []
-          params['checks'].each do |check_id|
-            if check_id.to_s =~ /\A\d{1,}\Z/
-              found_check_ids << check_id
-            else
-              check = find_check_by_name_or_id(check_id)
-              if check
-                found_check_ids << check['id']
-              else
-                bad_ids << check_id
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this contact.'}], options[:options])
+          params['name'] = v_prompt['name']
+        end
+        if params['description'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Contact email address.'}], options[:options])
+          params['description'] = v_prompt['description'] unless v_prompt['description'].to_s.empty?
+        end
+        if params['minHappy'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'minHappy', 'type' => 'text', 'fieldLabel' => 'Min. Checks', 'required' => false, 'description' => 'Min Checks. This specifies the minimum number of checks within the group that must be happy to keep the group from becoming unhealthy.', 'defaultValue' => 1}], options[:options])
+          params['minHappy'] = v_prompt['minHappy'] unless v_prompt['minHappy'].to_s.empty?
+        end
+        if params['severity'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'severity', 'type' => 'text', 'fieldLabel' => 'Severity', 'required' => false, 'description' => 'Max Severity. Determines the maximum severity level this group can incur on an incident when failing. Default is critical', 'defaultValue' => 'critical'}], options[:options])
+          params['severity'] = v_prompt['severity'] unless v_prompt['severity'].to_s.empty?
+        end
+        if params['inUptime'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'inUptime', 'type' => 'checkbox', 'fieldLabel' => 'Affects Availability', 'required' => false, 'description' => 'Affects Availability. Default is on.', 'defaultValue' => true}], options[:options])
+          params['inUptime'] = v_prompt['inUptime'] unless v_prompt['inUptime'].to_s.empty?
+        end
+
+        # Checks
+        check_list = nil
+        check_ids = []
+        still_prompting = true
+        while still_prompting
+          if params['checks'].nil?
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include in group, comma comma separated list of names or IDs.'}], options[:options])
+            unless v_prompt['checks'].to_s.empty?
+              check_list = v_prompt['checks'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+            end
+            bad_ids = []
+            if check_list && check_list.size > 0
+              check_list.each do |it|
+                found_check = nil
+                begin
+                  found_check = find_check_by_name_or_id(it)
+                rescue SystemExit => cmdexit
+                end
+                if found_check
+                  check_ids << found_check['id']
+                else
+                  bad_ids << it
+                end
               end
             end
+            still_prompting = bad_ids.empty? ? false : true
+          else
+            check_list = params['checks']
+            still_prompting = false
+            bad_ids = []
+            if check_list && check_list.size > 0
+              check_list.each do |it|
+                found_check = nil
+                begin
+                  found_check = find_check_by_name_or_id(it)
+                rescue SystemExit => cmdexit
+                end
+                if found_check
+                  check_ids << found_check['id']
+                else
+                  bad_ids << it
+                end
+              end
+            end
+            if !bad_ids.empty?
+              return 1
+            end
           end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
-            return 1
-          end
-          params['checks'] = found_check_ids.collect {|it| it.to_i }
         end
+        params['checks'] = check_ids
+        
         # todo: prompt?
         payload = {'checkGroup' => params}
       end

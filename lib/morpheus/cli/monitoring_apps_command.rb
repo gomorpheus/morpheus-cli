@@ -155,6 +155,12 @@ class Morpheus::Cli::MonitoringAppsCommand
         # puts "No check groups in this monitoring app"
       end
 
+      ## Checks in this check group
+      if (!checks || checks.empty?) && (check_groups || check_groups.empty?)
+        print "\n", yellow
+        puts "This monitor app is empty, it contains no checks or groups."
+      end
+
       ## Open Incidents
       open_incidents = json_response["openIncidents"]
       if open_incidents && !open_incidents.empty?
