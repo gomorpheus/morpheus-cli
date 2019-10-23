@@ -680,7 +680,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
   end
 
   def find_instance_by_name(name)
-    instances = @instances_interface.get({name: name.to_s})['instances']
+    instances = @instances_interface.list({name: name.to_s})['instances']
     if instances.empty?
       print_red_alert "Instance not found by name #{name}"
       return nil

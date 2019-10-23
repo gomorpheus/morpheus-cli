@@ -64,11 +64,11 @@ class Morpheus::Cli::Clouds
       params.merge!(parse_list_options(options))
       @clouds_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clouds_interface.dry.get(params)
+        print_dry_run @clouds_interface.dry.list(params)
         return 0
       end
 
-      json_response = @clouds_interface.get(params)
+      json_response = @clouds_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "zones")
         return 0
@@ -117,10 +117,10 @@ class Morpheus::Cli::Clouds
       params.merge!(parse_list_options(options))
       @clouds_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @clouds_interface.dry.get(params)
+        print_dry_run @clouds_interface.dry.list(params)
         return
       end
-      json_response = @clouds_interface.get(params)
+      json_response = @clouds_interface.list(params)
       # print number only
       if json_response['meta'] && json_response['meta']['total']
         print cyan, json_response['meta']['total'], reset, "\n"
@@ -160,16 +160,11 @@ class Morpheus::Cli::Clouds
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @clouds_interface.dry.get(arg.to_i)
         else
-          print_dry_run @clouds_interface.dry.get({name:arg})
+          print_dry_run @clouds_interface.dry.list({name:arg})
         end
         return
       end
       cloud = find_cloud_by_name_or_id(arg)
-      #json_response = {'zone' => cloud}
-      # if options[:dry_run]
-      #   print_dry_run @clouds_interface.dry.get(cloud['id'])
-      #   return
-      # end
       @clouds_interface.setopts(options)
       json_response = @clouds_interface.get(cloud['id'])
       cloud = json_response['zone']
@@ -278,7 +273,7 @@ class Morpheus::Cli::Clouds
         else
           # print_red_alert "Group not found or specified!"
           # exit 1
-          groups_dropdown = @groups_interface.get({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
+          groups_dropdown = @groups_interface.list({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
           group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
           group_id = group_prompt['group']
         end

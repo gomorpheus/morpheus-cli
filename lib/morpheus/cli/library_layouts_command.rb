@@ -331,7 +331,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['description'] = v_prompt['description'] if v_prompt['description']
         end
 
-        provision_types = @provision_types_interface.get({customSupported: true})['provisionTypes']
+        provision_types = @provision_types_interface.list({customSupported: true})['provisionTypes']
         if provision_types.empty?
           print_red_alert "No available provision types found!"
           exit 1

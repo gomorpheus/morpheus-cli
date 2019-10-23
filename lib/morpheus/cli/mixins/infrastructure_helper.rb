@@ -44,7 +44,7 @@ module Morpheus::Cli::InfrastructureHelper
   end
 
   def find_group_by_name(name)
-    json_results = groups_interface.get({name: name})
+    json_results = groups_interface.list({name: name})
     if json_results['groups'].empty?
       print_red_alert "Group not found by name #{name}"
       exit 1
@@ -72,7 +72,7 @@ module Morpheus::Cli::InfrastructureHelper
   end
 
   def find_cloud_by_name(name)
-    json_results = clouds_interface.get({name: name})
+    json_results = clouds_interface.list({name: name})
     if json_results['zones'].empty?
       print_red_alert "Cloud not found by name #{name}"
       exit 1

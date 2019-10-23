@@ -1794,7 +1794,7 @@ class Morpheus::Cli::Apps
   end
 
   def find_app_by_name(name)
-    app_results = @apps_interface.get({name: name})
+    app_results = @apps_interface.list({name: name})
     if app_results['apps'].empty?
       print_red_alert "App not found by name #{name}"
       exit 1

@@ -45,6 +45,13 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list(params={})
+    url = "#{@base_url}/api/zones"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def create(payload)
     url = "#{@base_url}/api/zones"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

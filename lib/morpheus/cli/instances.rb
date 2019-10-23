@@ -3627,7 +3627,7 @@ private
   end
 
   def find_workflow_by_name(name)
-    workflows = @task_sets_interface.get({name: name.to_s})['taskSets']
+    workflows = @task_sets_interface.list({name: name.to_s})['taskSets']
     if workflows.empty?
       print_red_alert "Workflow not found by name #{name}"
       return nil
