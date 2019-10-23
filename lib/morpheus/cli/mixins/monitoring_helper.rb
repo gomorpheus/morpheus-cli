@@ -476,7 +476,7 @@ module Morpheus::Cli::MonitoringHelper
   def find_monitoring_app_by_id(id)
     begin
       json_response = monitoring_interface.apps.get(id.to_i)
-      return json_response["monitorApp"] || json_response["app"]
+      return json_response['monitorApp'] || json_response['app']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Monitor App not found by id #{id}"

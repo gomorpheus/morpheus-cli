@@ -115,10 +115,9 @@ class Morpheus::Cli::MonitoringAlertsCommand
         print_dry_run @monitoring_alerts_interface.dry.get(alert['id'])
         return
       end
-      # save a request
-      #json_response = @monitoring_alerts_interface.get(alert['id'])
-      #alert = json_response['alert']
-      json_response = {'alert' => alert}
+      # get by ID to sideload associated checks,groups,apps
+      json_response = @monitoring_alerts_interface.get(alert['id'])
+      alert = json_response['alert']
       if options[:json]
         puts as_json(json_response, options, "alert")
         return 0
@@ -193,14 +192,16 @@ class Morpheus::Cli::MonitoringAlertsCommand
 
 
       ## Checks in this Alert
-      checks = alert["checks"]
+      #checks = alert["checks"]
+      checks = json_response["checks"]
       if checks && !checks.empty?
         print_h2 "Checks"
         print_checks_table(checks, options)
       end
 
       ## Check Groups in this Alert
-      check_groups = alert["checkGroups"]
+      # check_groups = alert["checkGroups"]
+      check_groups = json_response["checkGroups"]
       if check_groups && !check_groups.empty?
         print_h2 "Check Groups"
         print_check_groups_table(check_groups, options)
@@ -208,6 +209,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
 
       ## Apps in this Alert
       monitor_apps = alert["apps"]
+      monitor_apps = json_response["apps"]
       if monitor_apps && !monitor_apps.empty?
         print_h2 "Apps"
         print_monitoring_apps_table(monitor_apps, options)
@@ -218,7 +220,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       if recipients && !recipients.empty?
         print_h2 "Recipients"
         columns = [
-          {"CONTACT" => lambda {|recipient| recipient['name'] } },
+          {"CONTACT ID" => lambda {|recipient| recipient['id'] } },
+          {"CONTACT NAME" => lambda {|recipient| recipient['name'] } },
           {"METHOD" => lambda {|recipient| format_recipient_method(recipient) } },
           {"NOTIFY ON CHANGE" => lambda {|recipient| format_boolean(recipient['notify']) } },
           {"NOTIFY ON CLOSE" => lambda {|recipient| format_boolean(recipient['close']) } }
@@ -253,8 +256,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-checks [on|off]', String, "Toggle trigger for all checks.") do |val|
         params['allChecks'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--checks LIST', Array, "Checks, comma separated list of check IDs or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -263,8 +266,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-groups [on|off]', String, "Toggle trigger for all check groups.") do |val|
         params['allGroups'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--groups LIST', Array, "Check Groups, comma separated list of check group ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--groups LIST', Array, "Check Groups, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checkGroups'] = []
         else
           params['checkGroups'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -273,15 +276,15 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-apps [on|off]', String, "Toggle trigger for all check groups.") do |val|
         params['allApps'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of monitor app ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['apps'] = []
         else
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--recipients LIST', Array, "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--recipients LIST', Array, "Recipients, comma separated list of Contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['recipients'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -335,7 +338,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           still_prompting = true
           while still_prompting
             if params['checks'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include in this alert rule, comma separated list of Check ID or Name'}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include in this alert rule, comma comma separated list of names or IDs.'}], options[:options])
               unless v_prompt['checks'].to_s.empty?
                 check_list = v_prompt['checks'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
               end
@@ -395,7 +398,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           still_prompting = true
           while still_prompting
             if params['checkGroups'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checkGroups', 'type' => 'text', 'fieldLabel' => 'Check Groups', 'required' => false, 'description' => 'Check Groups to include in this alert rule, comma separated list of Check Group ID or Name'}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checkGroups', 'type' => 'text', 'fieldLabel' => 'Check Groups', 'required' => false, 'description' => 'Check Groups to include in this alert rule, comma separated list of names or IDs.'}], options[:options])
               unless v_prompt['checkGroups'].to_s.empty?
                 check_group_list = v_prompt['checkGroups'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
               end
@@ -455,7 +458,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           still_prompting = true
           while still_prompting
             if params['apps'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'apps', 'type' => 'text', 'fieldLabel' => 'Apps', 'required' => false, 'description' => 'Monitor Apps to include in this alert rule, comma separated list of Monitor App ID or Name'}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'apps', 'type' => 'text', 'fieldLabel' => 'Apps', 'required' => false, 'description' => 'Monitor Apps to include in this alert rule, comma separated list of names or IDs.'}], options[:options])
               unless v_prompt['apps'].to_s.empty?
                 monitor_app_list = v_prompt['apps'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
               end
@@ -508,7 +511,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
         if params['recipients'].nil?
           still_prompting = true
           while still_prompting
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'recipients', 'type' => 'text', 'fieldLabel' => 'Recipients', 'required' => false, 'description' => "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'recipients', 'type' => 'text', 'fieldLabel' => 'Recipients', 'required' => false, 'description' => "Recipients, comma separated list of contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
             unless v_prompt['recipients'].to_s.empty?
               recipient_list = v_prompt['recipients'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
             end
@@ -615,8 +618,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-checks [on|off]', String, "Toggle trigger for all checks.") do |val|
         params['allChecks'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--checks LIST', Array, "Checks, comma separated list of check IDs or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -626,7 +629,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
         params['allGroups'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
       opts.on('--groups LIST', Array, "Check Groups, comma separated list of check group ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checkGroups'] = []
         else
           params['checkGroups'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -636,14 +639,14 @@ class Morpheus::Cli::MonitoringAlertsCommand
         params['allApps'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
       opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of monitor app ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['apps'] = []
         else
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--recipients LIST', Array, "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['recipients'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq

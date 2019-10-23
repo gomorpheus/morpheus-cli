@@ -106,10 +106,10 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_dry_run @monitoring_groups_interface.dry.get(check_group['id'])
         return
       end
-      # save a request, same thing is returned
-      # json_response = @monitoring_groups_interface.get(check_group['id'])
-      json_response = {'checkGroup' => check_group}
+      # get by ID to sideload associated checks
+      json_response = @monitoring_groups_interface.get(check_group['id'])
       check_group = json_response['checkGroup']
+      
       if options[:json]
         puts as_json(json_response, options, "checkGroup")
         return 0
@@ -273,8 +273,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -303,8 +303,27 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # find the checks by name, but allow any ID without searching
         if params['checks']
-          params['checks'] = params['checks'].collect {|it| it.to_i }
+          found_check_ids = []
+          bad_ids = []
+          params['checks'].each do |check_id|
+            if check_id.to_s =~ /\A\d{1,}\Z/
+              found_check_ids << check_id
+            else
+              check = find_check_by_name_or_id(check_id)
+              if check
+                found_check_ids << check['id']
+              else
+                bad_ids << check_id
+              end
+            end
+          end
+          if bad_ids && bad_ids.size > 0
+            # already printed here
+            return 1
+          end
+          params['checks'] = found_check_ids.collect {|it| it.to_i }
         end
         # todo: prompt?
         payload = {'checkGroup' => params}
@@ -350,8 +369,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -377,8 +396,27 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # find the checks by name, but allow any ID without searching
         if params['checks']
-          params['checks'] = params['checks'].collect {|it| it.to_i }
+          found_check_ids = []
+          bad_ids = []
+          params['checks'].each do |check_id|
+            if check_id.to_s =~ /\A\d{1,}\Z/
+              found_check_ids << check_id
+            else
+              check = find_check_by_name_or_id(check_id)
+              if check
+                found_check_ids << check['id']
+              else
+                bad_ids << check_id
+              end
+            end
+          end
+          if bad_ids && bad_ids.size > 0
+            # already printed here
+            return 1
+          end
+          params['checks'] = found_check_ids.collect {|it| it.to_i }
         end
         # todo: prompt?
         payload = {'checkGroup' => params}

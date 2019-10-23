@@ -107,10 +107,11 @@ class Morpheus::Cli::MonitoringChecksCommand
         print_dry_run @monitoring_checks_interface.dry.get(check['id'])
         return
       end
-      # save a request, same thing is returned
-      # json_response = @monitoring_checks_interface.get(check['id'])
-      json_response = {'check' => check}
+
+      # get by ID to sideload associated checks
+      json_response = @monitoring_checks_interface.get(check['id'])
       check = json_response['check']
+      
       if options[:json]
         puts as_json(json_response, options, 'check')
         return 0
