@@ -866,7 +866,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
     end
     connect(options)
     id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete alert #{id_list.size == 1 ? 'alert' : 'alerts'} #{anded_list(id_list)}?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete #{id_list.size == 1 ? 'alert' : 'alerts'} #{anded_list(id_list)}?", options)
       exit 1
     end
     return run_command_for_each_arg(id_list) do |arg|
