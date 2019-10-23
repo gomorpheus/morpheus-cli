@@ -106,7 +106,9 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_dry_run @monitoring_groups_interface.dry.get(check_group['id'])
         return
       end
-      json_response = @monitoring_groups_interface.get(check_group['id'])
+      # save a request, same thing is returned
+      # json_response = @monitoring_groups_interface.get(check_group['id'])
+      json_response = {'checkGroup' => check_group}
       check_group = json_response['checkGroup']
       if options[:json]
         puts as_json(json_response, options, "checkGroup")
@@ -318,7 +320,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       elsif !options[:quiet]
         check_group = json_response['checkGroup']
         print_green_success "Added check group #{check_group['name']}"
-        _get(check_group['id'], {})
+        _get(check_group['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -391,7 +393,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Updated check group #{check_group['name']}"
-        _get(check_group['id'], {})
+        _get(check_group['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -441,7 +443,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         else
           print_green_success "Unmuted group #{check_group['name']}"
         end
-        _get(monitor_app['id'], {})
+        _get(check_group['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -485,7 +487,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Unmuted group #{check_group['name']}"
-        _get(check_group['id'], {})
+        _get(check_group['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -496,10 +498,11 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
   def mute_all(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Disable mute, the same as unmute-all") do
+        params['muted'] = false
         params['enabled'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
@@ -544,7 +547,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
   def unmute_all(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
@@ -589,7 +592,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1

@@ -220,7 +220,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Created incident #{json_response['incident']['id']}"
-        _get(json_response['incident']['id'], {})
+        _get(json_response['incident']['id'], options)
       end
 
     rescue RestClient::Exception => e
@@ -262,9 +262,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         print_dry_run @monitoring_incidents_interface.dry.get(incident['id'])
         return
       end
-      json_response = @monitoring_incidents_interface.get(incident['id'])
-      incident = json_response['incident']
-      
+      # save a request, same thing is returned
+      # json_response = @monitoring_incidents_interface.get(incident['id'])
+      # incident = json_response['incident']
+      json_response = {'incident' => incident}
       if options[:json]
         puts as_json(json_response, options, "incident")
         return 0
@@ -536,7 +537,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Updated incident #{incident['id']}"
-        _get(incident['id'], {})
+        _get(incident['id'], options)
       end
 
     rescue RestClient::Exception => e
@@ -548,10 +549,11 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def mute(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute") do
+        params['muted'] = false
         params['enabled'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -587,7 +589,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         else
           print_green_success "Unmuted incident #{incident['id']}"
         end
-        _get(incident['id'], {})
+        _get(incident['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -598,7 +600,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def unmute(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false} # enabled was used pre 3.6.5
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
@@ -631,7 +633,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Unmuted incident #{incident['id']}"
-        _get(incident['id'], {})
+        _get(incident['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -642,7 +644,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def mute_all(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
@@ -690,7 +692,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   def unmute_all(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
@@ -767,7 +769,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         print "\n"
       elsif !options[:quiet]
         print_green_success json_response["msg"] || "Incident #{incident['id']} is now closed"
-        # _get(incident['id'] {})
+        # _get(incident['id'] options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -816,7 +818,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         print "\n"
       elsif !options[:quiet]
         print_green_success json_response["msg"] || "Incident #{incident['id']} is now open"
-        # _get(incident['id'] {})
+        # _get(incident['id'] options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

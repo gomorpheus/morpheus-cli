@@ -107,7 +107,9 @@ class Morpheus::Cli::MonitoringChecksCommand
         print_dry_run @monitoring_checks_interface.dry.get(check['id'])
         return
       end
-      json_response = @monitoring_checks_interface.get(check['id'])
+      # save a request, same thing is returned
+      # json_response = @monitoring_checks_interface.get(check['id'])
+      json_response = {'check' => check}
       check = json_response['check']
       if options[:json]
         puts as_json(json_response, options, 'check')
@@ -346,6 +348,25 @@ class Morpheus::Cli::MonitoringChecksCommand
       else
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         # todo: load option types based on type and prompt
+        # merge in arbitrary option values
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this alert rule.'}], options[:options])
+          params['name'] = v_prompt['name']
+        end
+        if params['minSeverity'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'minSeverity', 'type' => 'select', 'fieldLabel' => 'Min. Severity', 'required' => false, 'selectOptions' => available_severities, 'defaultValue' => 'critical', 'description' => 'Trigger when severity level is reached.'}], options[:options])
+          params['minSeverity'] = v_prompt['minSeverity'].to_s unless v_prompt['minSeverity'].nil?
+        else
+          params['minSeverity'] = v_prompt['minSeverity'].to_s.downcase
+        end
+        if options[:options]
+          options[:options].each do |k,v|
+            if k.is_a?(String) && params[k].nil?
+              params[k] = v
+            end
+          end
+        end
+        params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types, options[:options], @api_client, options[:params])
         payload = {'check' => params}
       end
       @monitoring_checks_interface.setopts(options)
@@ -359,7 +380,7 @@ class Morpheus::Cli::MonitoringChecksCommand
       elsif !options[:quiet]
         check = json_response['check']
         print_green_success "Added check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -425,7 +446,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Updated check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -437,11 +458,12 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def mute(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute") do
         params['enabled'] = false
+        params['muted'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Mute a check. This prevents it from creating new incidents." + "\n" +
@@ -476,7 +498,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         else
           print_green_success "Unmuted check #{check['name']}"
         end
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -520,7 +542,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Unmuted check #{check['name']}"
-        _get(check['id'], {})
+        _get(check['id'], options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -531,10 +553,11 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def mute_all(args)
     options = {}
-    params = {'enabled' => true}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
+        params['muted'] = false
         params['enabled'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -579,7 +602,7 @@ class Morpheus::Cli::MonitoringChecksCommand
 
   def unmute_all(args)
     options = {}
-    params = {'enabled' => false}
+    params = {'muted' => false, 'enabled' => false}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:payload, :json, :dry_run, :quiet, :remote])
@@ -624,7 +647,7 @@ class Morpheus::Cli::MonitoringChecksCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -717,8 +740,6 @@ class Morpheus::Cli::MonitoringChecksCommand
     end
   end
 
-  private
-
-  
+  private  
 
 end

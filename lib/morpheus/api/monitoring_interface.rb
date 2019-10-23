@@ -1,9 +1,10 @@
 require 'morpheus/api/api_client'
 require 'morpheus/api/monitoring_checks_interface'
-require 'morpheus/api/monitoring_incidents_interface'
-require 'morpheus/api/monitoring_contacts_interface'
 require 'morpheus/api/monitoring_groups_interface'
 require 'morpheus/api/monitoring_apps_interface'
+require 'morpheus/api/monitoring_incidents_interface'
+require 'morpheus/api/monitoring_contacts_interface'
+require 'morpheus/api/monitoring_alerts_interface'
 
 class Morpheus::MonitoringInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
@@ -17,6 +18,14 @@ class Morpheus::MonitoringInterface < Morpheus::APIClient
     Morpheus::MonitoringChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
+  def groups
+    Morpheus::MonitoringGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
+  def apps
+    Morpheus::MonitoringAppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  end
+
   def incidents
     Morpheus::MonitoringIncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
@@ -25,12 +34,8 @@ class Morpheus::MonitoringInterface < Morpheus::APIClient
     Morpheus::MonitoringContactsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
 
-  def groups
-    Morpheus::MonitoringGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
-  end
-
-  def apps
-    Morpheus::MonitoringAppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+  def alerts
+    Morpheus::MonitoringAlertsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
   end
   
 end
