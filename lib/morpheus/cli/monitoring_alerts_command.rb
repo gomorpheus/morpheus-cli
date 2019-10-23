@@ -175,8 +175,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
             monitor_apps.size.to_s
           end
         },
-        "Recipients" => lambda {|alert| 
-          recipients = alert['recipients'] || []
+        "Contacts" => lambda {|alert| 
+          recipients = alert['contacts'] || alert['recipients'] || []
           # if recipients.size > 3
           #   recipients.first(3).collect {|r| r['name'] }.join(", ") + ", (#{recipients.size - 3} more)"
           # else
@@ -216,9 +216,9 @@ class Morpheus::Cli::MonitoringAlertsCommand
       end
 
       ## Recipients in this Alert
-      recipients = alert["recipients"]
+      recipients = alert['contacts'] || alert['recipients'] || []
       if recipients && !recipients.empty?
-        print_h2 "Recipients"
+        print_h2 "Contacts"
         columns = [
           {"CONTACT ID" => lambda {|recipient| recipient['id'] } },
           {"CONTACT NAME" => lambda {|recipient| recipient['name'] } },
@@ -283,12 +283,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--recipients LIST', Array, "Recipients, comma separated list of Contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange.") do |list|
+      opts.on('--contacts LIST', Array, "Contacts, comma separated list of Contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange.") do |list|
         if list.size == 1 && ('[]' == list[0]) # clear array
-          params['recipients'] = []
+          params['contacts'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          params['recipients'] = recipient_list
+          params['contacts'] = recipient_list
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -508,12 +508,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
         recipient_list = []
         contact_ids = []
           
-        if params['recipients'].nil?
+        if params['contacts'].nil?
           still_prompting = true
           while still_prompting
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'recipients', 'type' => 'text', 'fieldLabel' => 'Recipients', 'required' => false, 'description' => "Recipients, comma separated list of contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
-            unless v_prompt['recipients'].to_s.empty?
-              recipient_list = v_prompt['recipients'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'contacts', 'type' => 'text', 'fieldLabel' => 'Contacts', 'required' => false, 'description' => "Contacts, comma separated list of contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
+            unless v_prompt['contacts'].to_s.empty?
+              recipient_list = v_prompt['contacts'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
             end
             bad_ids = []
             if recipient_list && recipient_list.size > 0
@@ -534,7 +534,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
             still_prompting = bad_ids.empty? ? false : true
           end
         else
-          recipient_list = params['recipients']
+          recipient_list = params['contacts']
           bad_ids = []
           if recipient_list && recipient_list.size > 0
             recipient_list.each do |it|
@@ -572,7 +572,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           }
           recipient_records << recipient_record
         end
-        params['recipients'] = recipient_records
+        params['contacts'] = recipient_records
         
         payload = {'alert' => params}
       end
@@ -645,12 +645,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--recipients LIST', Array, "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
+      opts.on('--contacts LIST', Array, "Contacts, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
         if list.size == 1 && ('[]' == list[0]) # clear array
-          params['recipients'] = []
+          params['contacts'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          params['recipients'] = recipient_list
+          params['contacts'] = recipient_list
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -777,9 +777,9 @@ class Morpheus::Cli::MonitoringAlertsCommand
         end
 
         # Recipients (Contacts)
-        if params['recipients']
+        if params['contacts']
           
-          recipient_list = params['recipients']
+          recipient_list = params['contacts']
           contact_ids = []
           bad_ids = []
           if recipient_list && recipient_list.size > 0
@@ -818,7 +818,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
             }
             recipient_records << recipient_record
           end
-          params['recipients'] = recipient_records
+          params['contacts'] = recipient_records
         end
         
         payload = {'alert' => params}
@@ -942,8 +942,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
           monitor_apps.size.to_s
         end
       } },
-      {"RECIPIENTS" => lambda {|alert| 
-        recipients = alert['recipients'] || []
+      {"CONTACTS" => lambda {|alert| 
+        recipients = alert['contacts'] || alert['recipients'] || []
         # if recipients.size > 3
         #   recipients.first(3).collect {|r| r['name'] }.join(", ") + ", (#{recipients.size - 3} more)"
         # else
