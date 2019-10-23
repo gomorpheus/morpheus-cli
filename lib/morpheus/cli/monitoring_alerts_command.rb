@@ -85,12 +85,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[alert]")
-      opts.on(nil,'--history', "Display History") do |val|
-        options[:show_history] = true
-      end
-      opts.on(nil,'--notifications', "Display Notifications") do |val|
-        options[:show_notifications] = true
-      end
+      # opts.on(nil,'--history', "Display History") do |val|
+      #   options[:show_history] = true
+      # end
+      # opts.on(nil,'--notifications', "Display Notifications") do |val|
+      #   options[:show_notifications] = true
+      # end
       build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a monitoring alert rule." + "\n" +
                     "[alert] is required. This is the name or ID of the alert rule. Supports 1-N [alert] arguments."
