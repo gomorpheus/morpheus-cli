@@ -966,7 +966,7 @@ class Morpheus::Cli::Instances
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
+    if args.count < 1
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)

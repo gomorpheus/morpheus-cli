@@ -1504,7 +1504,7 @@ class Morpheus::Cli::Apps
                     "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
+    if args.count < 1
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
