@@ -933,6 +933,16 @@ module Morpheus
         return subtitles
       end
 
+      def parse_payload(options={})
+        payload = nil
+        if options[:payload]
+          payload = options[:payload]
+          # support -O OPTION switch on top of --payload
+          payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        end
+        payload
+      end
+
       # basic rendering for options :json, :yaml, :csv, :fields, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
       def render_with_format(json_response, options, object_key=nil)

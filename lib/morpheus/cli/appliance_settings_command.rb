@@ -35,13 +35,13 @@ class Morpheus::Cli::ApplianceSettingsCommand
     end
     
     begin
-      params = parse_list_options(options)
       @appliance_settings_interface.setopts(options)
+
       if options[:dry_run]
-        print_dry_run @appliance_settings_interface.dry.get(params)
+        print_dry_run @appliance_settings_interface.dry.get()
         return
       end
-      json_response = @appliance_settings_interface.get(params)
+      json_response = @appliance_settings_interface.get()
       if options[:json]
         puts as_json(json_response, options, "applianceSettings")
         return 0
@@ -195,14 +195,17 @@ class Morpheus::Cli::ApplianceSettingsCommand
       opts.on("--currency-key STRING", String, "Currency provider API key") do |val|
         params['currencyKey'] = val == 'null' ? nil : val
       end
-      opts.on("--enable-all-zone-types", "Set all cloud types enabled status on, overrides --enable-zone-types and --disable-zone-types options") do
-        options[:enableAllZoneTypes] = true
+      opts.on("--enable-all-clouds", "Set all cloud types enabled status on, can be used in conjunction with --disable-clouds") do
+        params['enableAllZoneTypes'] = true
       end
-      opts.on("--enable-zone-types LIST", Array, "List of cloud types to set enabled status on, each item can be either name or ID") do |list|
+      opts.on("--enable-clouds LIST", Array, "List of cloud types to set enabled status on, each item can be either name or ID") do |list|
         options[:enableZoneTypes] = list
       end
-      opts.on("--disable-zone-types LIST", Array, "List of cloud types to set enabled status off, each item can be either name or ID") do |list|
+      opts.on("--disable-clouds LIST", Array, "List of cloud types to set enabled status off, each item can be either name or ID") do |list|
         options[:disableZoneTypes] = list
+      end
+      opts.on("--disable-all-clouds", "Set all cloud types enabled status off, can be used in conjunction with --enable-clouds options") do
+        params['disableAllZoneTypes'] = true
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
     end
@@ -215,11 +218,11 @@ class Morpheus::Cli::ApplianceSettingsCommand
     end
 
     begin
-      available_zone_types = @appliance_settings_interface.cloud_types['zoneTypes']
+      payload = parse_payload(options)
 
-      if options[:enableAllZoneTypes]
-        params['enableAllZoneTypes'] = true
-      else
+      if !payload
+        available_zone_types = @appliance_settings_interface.cloud_types['zoneTypes']
+
         if options[:enableZoneTypes]
           params['enableZoneTypes'] = options[:enableZoneTypes].collect do |zone_type_id|
             zone_type = available_zone_types.find { |it| it['id'] == zone_type_id || it['name'] == zone_type_id }
@@ -240,36 +243,36 @@ class Morpheus::Cli::ApplianceSettingsCommand
             zone_type['id']
           end
         end
-      end
 
-      if options[:defaultTenantRole]
-        role = find_role_by_name_or_id(nil, options[:defaultTenantRole])
-        if role.nil?
-          exit 1
+        if options[:defaultTenantRole]
+          role = find_role_by_name_or_id(nil, options[:defaultTenantRole])
+          if role.nil?
+            exit 1
+          end
+          params['defaultRoleId'] = role['id']
         end
-        params['defaultRoleId'] = role['id']
-      end
 
-      if options[:defaultUserRole]
-        role = find_role_by_name_or_id(nil, options[:defaultUserRole])
-        if role.nil?
-          print_red_alert "Default user role #{options[:defaultUserRole]} not found"
-          exit 1
+        if options[:defaultUserRole]
+          role = find_role_by_name_or_id(nil, options[:defaultUserRole])
+          if role.nil?
+            print_red_alert "Default user role #{options[:defaultUserRole]} not found"
+            exit 1
+          end
+          params['defaultUserRoleId'] = role['id']
         end
-        params['defaultUserRoleId'] = role['id']
-      end
 
-      if params['currencyProvider']
-        currency_providers = @api_client.options.options_for_source('currencyProviders')['data']
-        currency_provider = currency_providers.find {|it| it['name'] == params['currencyProvider'] || it['value'] == params['currencyProvider']}
+        if params['currencyProvider']
+          currency_providers = @api_client.options.options_for_source('currencyProviders')['data']
+          currency_provider = currency_providers.find {|it| it['name'] == params['currencyProvider'] || it['value'] == params['currencyProvider']}
 
-        if currency_provider.nil?
-          print_red_alert "Invalid currency provider #{params['currencyProvider']}, valid options: #{currency_providers.collect {|it| it['value']}.join('|')}"
-          exit 1
+          if currency_provider.nil?
+            print_red_alert "Invalid currency provider #{params['currencyProvider']}, valid options: #{currency_providers.collect {|it| it['value']}.join('|')}"
+            exit 1
+          end
         end
-      end
 
-      payload = {'applianceSettings' => params}
+        payload = {'applianceSettings' => params}
+      end
 
       @appliance_settings_interface.setopts(options)
       if options[:dry_run]

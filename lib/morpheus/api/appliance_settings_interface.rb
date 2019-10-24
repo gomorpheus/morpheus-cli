@@ -9,17 +9,9 @@ class Morpheus::ApplianceSettingsInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(params={})
+  def get()
     url = @api_url
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-    if params.is_a?(Hash)
-      headers[:params].merge!(params)
-    elsif params.is_a?(Numeric)
-      url = "#{@api_url}/#{params}"
-    elsif params.is_a?(String)
-      headers[:params]['name'] = params
-    end
     execute(method: :get, url: url, headers: headers)
   end
 
