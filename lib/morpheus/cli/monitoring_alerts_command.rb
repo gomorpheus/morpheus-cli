@@ -384,7 +384,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           while still_prompting
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'contacts', 'type' => 'text', 'fieldLabel' => 'Contacts', 'required' => false, 'description' => "Contacts, comma separated list of contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
             unless v_prompt['contacts'].to_s.empty?
-              recipient_list = v_prompt['contacts'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+              recipient_list = v_prompt['contacts'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
             end
             bad_ids = []
             if recipient_list && recipient_list.size > 0
