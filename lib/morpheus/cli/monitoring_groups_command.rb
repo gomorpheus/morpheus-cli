@@ -83,6 +83,11 @@ class Morpheus::Cli::MonitoringGroupsCommand
       # opts.on(nil,'--statistics', "Display Statistics") do |val|
       #   options[:show_statistics] = true
       # end
+      opts.on('-a','--all', "Display All Details (History, Notifications)") do
+        options[:show_history] = true
+        options[:show_notifications] = true
+        options[:show_statistics] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -148,7 +153,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_checks_table(checks, options)
       else
         print "\n", yellow
-        puts "This check group is empty, it contains no checks."
+        puts "No Checks"
       end
 
       ## Open Incidents
@@ -159,8 +164,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_incidents_table(open_incidents)
         # print_results_pagination(size: open_incidents.size, total: open_incidents.size)
       else
-        print "\n", cyan
-        puts "No open incidents for this check group"
+        # print "\n", cyan
+        # puts "No open incidents for this check group"
       end
 
       ## History (plain old Hash)

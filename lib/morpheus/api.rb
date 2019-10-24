@@ -1,6 +1,6 @@
-require "morpheus/cli/version"
+require 'morpheus/cli/version'
 require 'morpheus/cli/command_error'
-require "morpheus/rest_client"
+require 'morpheus/rest_client'
 require 'morpheus/formatters'
 #require 'morpheus/logging'
 #require 'term/ansicolor'

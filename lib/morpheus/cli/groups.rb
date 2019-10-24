@@ -69,7 +69,7 @@ class Morpheus::Cli::Groups
           #end
         else
           unless options[:remote]
-            print "\n# => No active group, see `groups use`\n", reset
+            print cyan, "\n# => No active group, see `groups use`\n", reset
           end
         end
       end

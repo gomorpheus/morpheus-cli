@@ -131,7 +131,7 @@ module Morpheus
               return nil
             end
             begin
-              auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
               auth_interface.setopts(options)
               if options[:dry_run]
                 print_dry_run auth_interface.dry.login(username, password)
@@ -270,7 +270,7 @@ module Morpheus
         username = wallet['username']
 
         begin
-          auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+          auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
           auth_interface.setopts(options)
           if options[:dry_run]
             print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'])

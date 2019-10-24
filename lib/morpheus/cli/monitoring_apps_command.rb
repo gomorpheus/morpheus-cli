@@ -83,6 +83,11 @@ class Morpheus::Cli::MonitoringAppsCommand
       # opts.on(nil,'--statistics', "Display Statistics") do |val|
       #   options[:show_statistics] = true
       # end
+      opts.on('-a','--all', "Display All Details (History, Notifications)") do
+        options[:show_history] = true
+        options[:show_notifications] = true
+        options[:show_statistics] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -120,7 +125,7 @@ class Morpheus::Cli::MonitoringAppsCommand
         return 0
       end
 
-      print_h1 "Monitoring App Details"
+      print_h1 "Monitoring App Details", [], options
       print cyan
       description_cols = {
         "ID" => lambda {|it| it['id'] },
@@ -131,7 +136,7 @@ class Morpheus::Cli::MonitoringAppsCommand
         "Availability" => lambda {|it| it['availability'] ? "#{it['availability'].to_f.round(3).to_s}%" : "N/A"},
         "Response Time" => lambda {|it| it['lastTimer'] ? "#{it['lastTimer']}ms" : "N/A" }
       }
-      print_description_list(description_cols, monitor_app)
+      print_description_list(description_cols, monitor_app, options)
 
       ## Chart Stats
 
@@ -139,7 +144,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       ## Checks in this app
       checks = json_response["checks"]
       if checks && !checks.empty?
-        print_h2 "Checks"
+        print_h2 "Checks", options
         print_checks_table(checks, options)
       else
         # print "\n"
@@ -149,7 +154,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       ## Check Groups in this app
       check_groups = json_response["checkGroups"]
       if check_groups && !check_groups.empty?
-        print_h2 "Groups"
+        print_h2 "Groups", options
         print_check_groups_table(check_groups, options)
       else
         # print "\n"

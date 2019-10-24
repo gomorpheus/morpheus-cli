@@ -126,7 +126,7 @@ class Morpheus::Cli::AccessTokenCommand
 
     connect(options)
     if options[:dry_run]
-      print_dry_run Morpheus::AuthInterface.new(@appliance_url).setopts(options).use_refresh_token(@wallet['refresh_token'])
+      print_dry_run Morpheus::AuthInterface.new({url:@appliance_url}).setopts(options).use_refresh_token(@wallet['refresh_token'])
       return 0
     end
     unless options[:quiet]

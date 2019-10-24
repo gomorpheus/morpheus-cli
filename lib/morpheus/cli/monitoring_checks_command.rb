@@ -84,6 +84,11 @@ class Morpheus::Cli::MonitoringChecksCommand
       # opts.on(nil,'--statistics', "Display Statistics") do |val|
       #   options[:show_statistics] = true
       # end
+      opts.on('-a','--all', "Display All Details (History, Notifications)") do
+        options[:show_history] = true
+        options[:show_notifications] = true
+        options[:show_statistics] = true
+      end
       build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -197,7 +202,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts "No open incidents for this monitoring app"
       end
 
-      ## History (plain old Hash)
+      ## History
       if options[:show_history]
         # history_items = json_response["history"]
         # gotta go get it

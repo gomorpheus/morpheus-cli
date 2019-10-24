@@ -239,7 +239,11 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       opts.on(nil,'--notifications', "Display Incident Notifications") do |val|
         options[:show_notifications] = true
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on('-a','--all', "Display All Details (History, Notifications)") do
+        options[:show_history] = true
+        options[:show_notifications] = true
+      end
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :query, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -262,8 +266,6 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         print_dry_run @monitoring_incidents_interface.dry.get(incident['id'])
         return
       end
-      # save a request, same thing is returned
-      # json_response = {'incident' => incident}
       json_response = @monitoring_incidents_interface.get(incident['id'])
       incident = json_response['incident']
       
@@ -307,7 +309,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       issues = json_response["issues"]
       if issues && !issues.empty?
         print_h2 "Issues"
-        print_incident_history_table(issues, options)
+        print_incident_issues_table(issues, options)
       else
         print "\n"
         puts "No checks involved in this incident"
@@ -336,7 +338,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         # gotta go get it
         notifications_json_response = @monitoring_incidents_interface.notifications(incident["id"], {max: 10})
         notification_items = notifications_json_response["notifications"]
-        if notification_items && notification_items.empty?
+        if notification_items && !notification_items.empty?
           print_h2 "Notifications"
           print_incident_notifications_table(notification_items, options)
           print_results_pagination(notifications_json_response, {:label => "notification", :n_label => "notifications"})
@@ -445,14 +447,14 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         return 0
       end
       notification_items = json_response['notifications']
-      title = "Incident Notifications: #{incident['id']}: #{incident['displayName'] || incident['name']}"
+      title = "Incident Notifications [#{incident['id']}] #{incident['displayName'] || incident['name']}"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if notification_items.empty?
         print cyan,"No notifications found.",reset,"\n"
       else
-        print_incident_history_table(notification_items, options)
+        print_incident_notifications_table(notification_items, options)
         print_results_pagination(json_response, {:label => "notification", :n_label => "notifications"})
       end
       print reset,"\n"
@@ -829,58 +831,5 @@ class Morpheus::Cli::MonitoringIncidentsCommand
 
   private
 
-  def print_incidents_table(incidents, opts={})
-    columns = [
-      {"ID" => lambda {|incident| incident['id'] } },
-      {"SEVERITY" => lambda {|incident| format_severity(incident['severity']) } },
-      {"NAME" => lambda {|incident| incident['displayName'] || incident['name'] || 'No Subject' } },
-      {"TIME" => lambda {|incident| format_local_dt(incident['startDate']) } },
-      {"STATUS" => lambda {|incident| format_monitoring_incident_status(incident) } },
-      {"DURATION" => lambda {|incident| format_duration(incident['startDate'], incident['endDate']) } }
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(incidents, columns, opts)
-  end
-
-  def print_incident_history_table(history_items, opts={})
-    columns = [
-      # {"ID" => lambda {|issue| issue['id'] } },
-      {"SEVERITY" => lambda {|issue| format_severity(issue['severity']) } },
-      {"AVAILABLE" => lambda {|issue| format_boolean issue['available'] } },
-      {"TYPE" => lambda {|issue| issue["attachmentType"] } },
-      {"NAME" => lambda {|issue| issue['name'] } },
-      {"DATE CREATED" => lambda {|issue| format_local_dt(issue['startDate']) } }
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(history_items, columns, opts)
-  end
-
-  def print_incident_notifications_table(notifications, opts={})
-    columns = [
-      {"NAME" => lambda {|notification| notification['recipient'] ? notification['recipient']['name'] : '' } },
-      {"DELIVERY TYPE" => lambda {|notification| notification['addressTypes'].to_s } },
-      {"NOTIFIED ON" => lambda {|notification| format_local_dt(notification['dateCreated']) } },
-      # {"AVAILABLE" => lambda {|notification| format_boolean notification['available'] } },
-      # {"TYPE" => lambda {|notification| notification["attachmentType"] } },
-      # {"NAME" => lambda {|notification| notification['name'] } },
-      {"DATE CREATED" => lambda {|notification| 
-        date_str = format_local_dt(notification['startDate']).to_s
-        if notification['pendingUtil']
-          "(pending) #{date_str}"
-        else
-          date_str
-        end
-      } }
-    ]
-    #event['pendingUntil']
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(notifications, columns, opts)
-  end
 
 end

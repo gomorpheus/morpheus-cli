@@ -115,11 +115,10 @@ module Morpheus::Cli::MonitoringHelper
     elsif status_string == 'info'
       out << "#{cyan}#{status_string.upcase}#{return_color}"
     else
-      out << "#{cyan}#{status_string.upcase}#{return_color}"
+      out << "#{cyan}#{status_string.to_s.upcase}#{return_color}"
     end
     out
   end
-
 
   def format_health_status(item, return_color=cyan)
     out = ""
@@ -185,7 +184,7 @@ module Morpheus::Cli::MonitoringHelper
     columns = [
       {"ID" => lambda {|incident| incident['id'] } },
       {"SEVERITY" => lambda {|incident| format_severity(incident['severity']) } },
-      {"NAME" => lambda {|incident| incident['name'] || 'No Subject' } },
+      {"NAME" => lambda {|incident| incident['displayName'] || incident['name'] || 'No Subject' } },
       {"TIME" => lambda {|incident| format_local_dt(incident['startDate']) } },
       {"STATUS" => lambda {|incident| format_monitoring_incident_status(incident) } },
       {"DURATION" => lambda {|incident| format_duration(incident['startDate'], incident['endDate']) } }
@@ -196,9 +195,25 @@ module Morpheus::Cli::MonitoringHelper
     print as_pretty_table(incidents, columns, opts)
   end
 
+  def print_incident_issues_table(history_items, opts={})
+    columns = [
+      # {"ID" => lambda {|issue| issue['id'] } },
+      {"SEVERITY" => lambda {|issue| format_severity(issue['severity']) } },
+      {"AVAILABLE" => lambda {|issue| format_boolean issue['available'] } },
+      {"TYPE" => lambda {|issue| issue["attachmentType"] } },
+      {"NAME" => lambda {|issue| issue['name'] } },
+      {"DATE CREATED" => lambda {|issue| format_local_dt(issue['startDate']) } }
+    ]
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(history_items, columns, opts)
+  end
+
   def print_incident_history_table(history_items, opts={})
     columns = [
       # {"ID" => lambda {|issue| issue['id'] } },
+      # {"SEVERITY" => lambda {|issue| format_health_status(issue) } },
       {"SEVERITY" => lambda {|issue| format_severity(issue['severity']) } },
       {"AVAILABLE" => lambda {|issue| format_boolean issue['available'] } },
       {"TYPE" => lambda {|issue| issue["attachmentType"] } },
@@ -214,21 +229,9 @@ module Morpheus::Cli::MonitoringHelper
   def print_incident_notifications_table(notifications, opts={})
     columns = [
       {"NAME" => lambda {|notification| notification['recipient'] ? notification['recipient']['name'] : '' } },
-      {"DELIVERY TYPE" => lambda {|notification| notification['addressTypes'].to_s } },
+      {"DELIVERY TYPE" => lambda {|recipient| format_recipient_method(recipient['method'] || recipient['addressTypes']) } },
       {"NOTIFIED ON" => lambda {|notification| format_local_dt(notification['dateCreated']) } },
-      # {"AVAILABLE" => lambda {|notification| format_boolean notification['available'] } },
-      # {"TYPE" => lambda {|notification| notification["attachmentType"] } },
-      # {"NAME" => lambda {|notification| notification['name'] } },
-      {"DATE CREATED" => lambda {|notification| 
-        date_str = format_local_dt(notification['startDate']).to_s
-        if notification['pendingUtil']
-          "(pending) #{date_str}"
-        else
-          date_str
-        end
-      } }
     ]
-    #event['pendingUntil']
     if opts[:include_fields]
       columns = opts[:include_fields]
     end
@@ -607,16 +610,16 @@ module Morpheus::Cli::MonitoringHelper
     ]
   end
 
-  def format_recipient_method(recipient)
-    meth = recipient['method'].to_s
+  def format_recipient_method(address_types)
+    address_types = address_types.to_s
     alert_method_names = []
-    if meth =~ /email/i
+    if address_types =~ /email/i
       alert_method_names << "Email"
     end
-    if meth =~ /sms/i
+    if address_types =~ /sms/i
       alert_method_names << "SMS"
     end
-    if meth =~ /apn/i
+    if address_types =~ /apn/i
       alert_method_names << "APN"
     end
     # if alert_method_names.empty?
@@ -626,16 +629,17 @@ module Morpheus::Cli::MonitoringHelper
   end
 
   # server expects "emailAddress" or "smsAddress" or "emailAddress,smsAddress"
-  def parse_recipient_method(meth)
-    requested_methods = meth.to_s
+  # todo: just use array, expect server to parse it.
+  def parse_recipient_method(address_types)
+    requested_methods = address_types.to_s
     alert_methods = []
-    if meth =~ /email/i
+    if address_types =~ /email/i
       alert_methods << "emailAddress"
     end
-    if meth =~ /sms/i || meth =~ /phone/i || meth =~ /mobile/i
+    if address_types =~ /sms/i || address_types =~ /phone/i || address_types =~ /mobile/i
       alert_methods << "smsAddress"
     end
-    if meth =~ /apn/i
+    if address_types =~ /apn/i
       alert_methods << "apns"
     end
     alert_methods.join(',')

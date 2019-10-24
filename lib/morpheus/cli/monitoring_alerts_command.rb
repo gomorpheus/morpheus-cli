@@ -222,7 +222,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
         columns = [
           {"CONTACT ID" => lambda {|recipient| recipient['id'] } },
           {"CONTACT NAME" => lambda {|recipient| recipient['name'] } },
-          {"METHOD" => lambda {|recipient| format_recipient_method(recipient) } },
+          {"METHOD" => lambda {|recipient| format_recipient_method(recipient['method'] || recipient['addressTypes']) } },
           {"NOTIFY ON CHANGE" => lambda {|recipient| format_boolean(recipient['notify']) } },
           {"NOTIFY ON CLOSE" => lambda {|recipient| format_boolean(recipient['close']) } }
         ]
@@ -737,7 +737,19 @@ class Morpheus::Cli::MonitoringAlertsCommand
     columns = [
       {"ID" => "id" },
       {"NAME" => "name" },
-      {"MIN. SEVERITY" => "minSeverity" },
+      {"APPS" => lambda {|alert| 
+        if alert['allApps']
+          "All"
+        else
+          monitor_apps = alert['apps'] || []
+          # if monitor_apps.size > 3
+          #   monitor_apps.first(3).collect {|r| r['name'] }.join(", ") + ", (#{monitor_apps.size - 3} more)"
+          # else
+          #   monitor_apps.collect {|r| r['name'] }.join(", ")
+          # end
+          monitor_apps.size.to_s
+        end
+      } },
       {"CHECKS" => lambda {|alert| 
         if alert['allChecks']
           "All"
@@ -765,19 +777,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           check_groups.size.to_s
         end
       } },
-      {"APPS" => lambda {|alert| 
-        if alert['allApps']
-          "All"
-        else
-          monitor_apps = alert['apps'] || []
-          # if monitor_apps.size > 3
-          #   monitor_apps.first(3).collect {|r| r['name'] }.join(", ") + ", (#{monitor_apps.size - 3} more)"
-          # else
-          #   monitor_apps.collect {|r| r['name'] }.join(", ")
-          # end
-          monitor_apps.size.to_s
-        end
-      } },
+      {"MIN. SEVERITY" => "minSeverity" },
       {"CONTACTS" => lambda {|alert| 
         recipients = alert['contacts'] || alert['recipients'] || []
         # if recipients.size > 3
