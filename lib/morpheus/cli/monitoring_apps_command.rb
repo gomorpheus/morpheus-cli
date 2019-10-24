@@ -8,9 +8,10 @@ class Morpheus::Cli::MonitoringAppsCommand
   set_command_name :'monitor-apps'
 
   register_subcommands :list, :get, :add, :update, :remove
-  register_subcommands :mute, :unmute #, :history, :statistics
+  register_subcommands :mute, :unmute
   register_subcommands :'mute-all' => :mute_all
   register_subcommands :'unmute-all' => :unmute_all
+  #register_subcommands :history
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -181,7 +182,7 @@ class Morpheus::Cli::MonitoringAppsCommand
         issues = history_items
         if history_items && !history_items.empty?
           print_h2 "History"
-          print_check_history_table(history_items, options)
+          print_monitor_app_history_table(history_items, options)
           print_results_pagination(history_json_response, {:label => "event", :n_label => "events"})
         else
           print "\n"
@@ -254,7 +255,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       if history_items.empty?
         print cyan,"No history found.",reset,"\n"
       else
-        print_check_history_table(history_items, options)
+        print_monitor_app_history_table(history_items, options)
         print_results_pagination(json_response, {:label => "event", :n_label => "events"})
       end
       print reset,"\n"
@@ -284,15 +285,18 @@ class Morpheus::Cli::MonitoringAppsCommand
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.on('--muted [on|off]', String, "Muted, Turns Affects Availability off.") do |val|
+        params['muted'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       opts.on('--checks LIST', Array, "Checks to include in this app, comma separated list of names or IDs.") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--groups LIST', Array, "Check Groups to include in this app, comma separated list of names or IDs.") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checkGroups'] = []
         else
           params['checkGroups'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -321,51 +325,35 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # find the checks by name, but allow any ID without searching
-        if params['checks']
-          found_check_ids = []
-          bad_ids = []
-          params['checks'].each do |check_id|
-            if check_id.to_s =~ /\A\d{1,}\Z/
-              found_check_ids << check_id
-            else
-              check = find_check_by_name_or_id(check_id)
-              if check
-                found_check_ids << check['id']
-              else
-                bad_ids << check_id
-              end
-            end
-          end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
-            return 1
-          end
-          params['checks'] = found_check_ids.collect {|it| it.to_i }
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this alert rule.'}], options[:options])
+          params['name'] = v_prompt['name']
         end
-        # find the checksGroups by name, but allow any ID without searching
-        if params['checkGroups']
-          found_check_group_ids = []
-          bad_ids = []
-          params['checkGroups'].each do |check_group_id|
-            if check_group_id.to_s =~ /\A\d{1,}\Z/
-              found_check_group_ids << check_group_id
-            else
-              check_group = find_check_group_by_name_or_id(check_group_id)
-              if check_group
-                found_check_group_ids << check_group['id']
-              else
-                bad_ids << check_group_id
-              end
-            end
-          end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
-            return 1
-          end
-          params['checkGroups'] = found_check_group_ids.collect {|it| it.to_i }
+        if params['severity'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'severity', 'type' => 'text', 'fieldLabel' => 'Severity', 'required' => false, 'description' => 'Max Severity. Determines the maximum severity level this app can incur on an incident when failing. Default is critical', 'defaultValue' => 'critical'}], options[:options])
+          params['severity'] = v_prompt['severity'] unless v_prompt['severity'].to_s.empty?
         end
-        # todo: prompt?
+        if params['inUptime'].nil? && params['muted'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'inUptime', 'type' => 'checkbox', 'fieldLabel' => 'Affects Availability', 'required' => false, 'description' => 'Affects Availability. Default is on.', 'defaultValue' => true}], options[:options])
+          params['inUptime'] = v_prompt['inUptime'] unless v_prompt['inUptime'].to_s.empty?
+        end
+
+        # Checks
+        prompt_results = prompt_for_checks(params, options, @api_client)
+        if prompt_results[:success]
+          params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
+        end
+
+        # Check Groups
+        prompt_results = prompt_for_check_groups(params, options, @api_client)
+        if prompt_results[:success]
+          params['checkGroups'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
+        end
+
         payload = {'monitorApp' => params}
       end
       @monitoring_apps_interface.setopts(options)
@@ -408,6 +396,9 @@ class Morpheus::Cli::MonitoringAppsCommand
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.on('--muted [on|off]', String, "Muted, Turns Affects Availability off.") do |val|
+        params['muted'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
+      end
       opts.on('--checks LIST', Array, "Checks to include in this app, comma separated list of names or IDs.") do |list|
         if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
@@ -442,51 +433,27 @@ class Morpheus::Cli::MonitoringAppsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # find the checks by name, but allow any ID without searching
+
+        # Checks
         if params['checks']
-          found_check_ids = []
-          bad_ids = []
-          params['checks'].each do |check_id|
-            if check_id.to_s =~ /\A\d{1,}\Z/
-              found_check_ids << check_id
-            else
-              check = find_check_by_name_or_id(check_id)
-              if check
-                found_check_ids << check['id']
-              else
-                bad_ids << check_id
-              end
-            end
-          end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
+          prompt_results = prompt_results(params, options, @api_client)
+          if prompt_results[:success]
+            params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          params['checks'] = found_check_ids.collect {|it| it.to_i }
         end
-        # find the checksGroups by name, but allow any ID without searching
+
+        # Check Groups
         if params['checkGroups']
-          found_check_group_ids = []
-          bad_ids = []
-          params['checkGroups'].each do |check_group_id|
-            if check_group_id.to_s =~ /\A\d{1,}\Z/
-              found_check_group_ids << check_group_id
-            else
-              check_group = find_check_group_by_name_or_id(check_group_id)
-              if check_group
-                found_check_group_ids << check_group['id']
-              else
-                bad_ids << check_group_id
-              end
-            end
-          end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
+          prompt_results = prompt_for_check_groups(params, options, @api_client)
+          if prompt_results[:success]
+            params['checkGroups'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          params['checkGroups'] = found_check_group_ids.collect {|it| it.to_i }
         end
-        # todo: prompt?
+
         payload = {'monitorApp' => params}
       end
       @monitoring_apps_interface.setopts(options)

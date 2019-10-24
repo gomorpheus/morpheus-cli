@@ -172,7 +172,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         issues = history_items
         if history_items && !history_items.empty?
           print_h2 "History"
-          print_check_history_table(history_items, options)
+          print_check_group_history_table(history_items, options)
           print_results_pagination(history_json_response, {:label => "event", :n_label => "events"})
         else
           print "\n"
@@ -243,7 +243,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       if history_items.empty?
         print cyan,"No history found.",reset,"\n"
       else
-        print_check_history_table(history_items, options)
+        print_check_group_history_table(history_items, options)
         print_results_pagination(json_response, {:label => "event", :n_label => "events"})
       end
       print reset,"\n"
@@ -325,55 +325,12 @@ class Morpheus::Cli::MonitoringGroupsCommand
         end
 
         # Checks
-        check_list = nil
-        check_ids = []
-        still_prompting = true
-        while still_prompting
-          if params['checks'].nil?
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include in group, comma comma separated list of names or IDs.'}], options[:options])
-            unless v_prompt['checks'].to_s.empty?
-              check_list = v_prompt['checks'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-            end
-            bad_ids = []
-            if check_list && check_list.size > 0
-              check_list.each do |it|
-                found_check = nil
-                begin
-                  found_check = find_check_by_name_or_id(it)
-                rescue SystemExit => cmdexit
-                end
-                if found_check
-                  check_ids << found_check['id']
-                else
-                  bad_ids << it
-                end
-              end
-            end
-            still_prompting = bad_ids.empty? ? false : true
-          else
-            check_list = params['checks']
-            still_prompting = false
-            bad_ids = []
-            if check_list && check_list.size > 0
-              check_list.each do |it|
-                found_check = nil
-                begin
-                  found_check = find_check_by_name_or_id(it)
-                rescue SystemExit => cmdexit
-                end
-                if found_check
-                  check_ids << found_check['id']
-                else
-                  bad_ids << it
-                end
-              end
-            end
-            if !bad_ids.empty?
-              return 1
-            end
-          end
+        prompt_results = prompt_for_checks(params, options, @api_client)
+        if prompt_results[:success]
+          params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
         end
-        params['checks'] = check_ids
         
         # todo: prompt?
         payload = {'checkGroup' => params}
@@ -446,29 +403,15 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # find the checks by name, but allow any ID without searching
+        # Checks
         if params['checks']
-          found_check_ids = []
-          bad_ids = []
-          params['checks'].each do |check_id|
-            if check_id.to_s =~ /\A\d{1,}\Z/
-              found_check_ids << check_id
-            else
-              check = find_check_by_name_or_id(check_id)
-              if check
-                found_check_ids << check['id']
-              else
-                bad_ids << check_id
-              end
-            end
-          end
-          if bad_ids && bad_ids.size > 0
-            # already printed here
+          prompt_results = prompt_for_checks(params, options, @api_client)
+          if prompt_results[:success]
+            params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          params['checks'] = found_check_ids.collect {|it| it.to_i }
         end
-        # todo: prompt?
         payload = {'checkGroup' => params}
       end
       @monitoring_groups_interface.setopts(options)

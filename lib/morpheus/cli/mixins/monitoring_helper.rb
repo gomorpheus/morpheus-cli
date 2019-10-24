@@ -109,13 +109,39 @@ module Morpheus::Cli::MonitoringHelper
     out = ""
     status_string = severity
     if status_string == 'critical'
-      out << "#{red}#{status_string.capitalize}#{return_color}"
+      out << "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'warning'
-      out << "#{yellow}#{status_string.capitalize}#{return_color}"
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
     elsif status_string == 'info'
-      out << "#{cyan}#{status_string.capitalize}#{return_color}"
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
     else
-      out << "#{cyan}#{status_string}#{return_color}"
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+
+
+  def format_health_status(item, return_color=cyan)
+    out = ""
+    if item
+      attrs = {}
+      attrs[:unknown] = item['lastRunDate'] ? false : true
+      attrs[:muted] = item['createIncident'] == false
+      attrs[:failure] = item['lastCheckStatus'] == 'error'
+      attrs[:health] = item['health'] ? item['health'].to_i : 0
+      
+      if attrs[:unknown]
+        out << "#{cyan}UNKNOWN#{return_color}"
+      elsif attrs[:health] >= 10
+        out << "#{green}HEALTHY#{return_color}"
+      elsif attrs[:failure]
+        out << "#{red}ERROR#{return_color}"
+      else
+        out << "#{yellow}CAUTION#{return_color}"
+      end
+      if attrs[:muted]
+        out << "#{cyan} (Muted)#{return_color}"
+      end
     end
     out
   end
@@ -137,9 +163,9 @@ module Morpheus::Cli::MonitoringHelper
     muted = incident['inUptime'] == false
     status_string = incident['status']
     if status_string == 'closed'
-      out << "closed ✓"
+      out << "CLOSED ✓"
     else
-      out << status_string.to_s
+      out << status_string.to_s.upcase
       if muted
         out << " (MUTED)"
       end
@@ -283,17 +309,52 @@ module Morpheus::Cli::MonitoringHelper
 
   def print_check_history_table(history_items, opts={})
     columns = [
-      # {"ID" => lambda {|issue| issue['id'] } },
-      {"SEVERITY" => lambda {|issue| format_severity(issue['severity']) } },
-      {"AVAILABLE" => lambda {|issue| format_boolean issue['available'] } },
-      {"TYPE" => lambda {|issue| issue["attachmentType"] } },
-      {"NAME" => lambda {|issue| issue['name'] } },
-      {"DATE CREATED" => lambda {|issue| format_local_dt(issue['startDate']) } }
+      {"STATUS" => lambda {|issue| format_health_status(issue) } },
+      {"DATE CHECKED" => lambda {|issue| format_local_dt(issue['lastRunDate']) } },
+      # {"NAME" => lambda {|issue| issue['name'] } },
+      # {"AVAILABLE" => lambda {|issue| format_boolean issue['createIncident'] } },
+      {"RESPONSE TIME" => lambda {|issue| issue["lastTimer"] ? "#{issue['lastTimer']}ms" : "" } }, 
+      {"LAST METRIC" => lambda {|issue| issue["lastMetric"] } }, 
+      {"MESSAGE" => lambda {|issue| 
+        # issue["lastError"].to_s.empty? ? issue["lastMessage"] : issue["lastError"]
+        if issue['lastCheckStatus'] == 'error'
+          issue["lastError"].to_s
+        else
+          issue["lastMessage"]
+        end
+      } },
     ]
     if opts[:include_fields]
       columns = opts[:include_fields]
     end
     print as_pretty_table(history_items, columns, opts)
+  end
+
+  def print_check_group_history_table(history_items, opts={})
+    columns = [
+      {"STATUS" => lambda {|issue| format_health_status(issue) } },
+      {"DATE CHECKED" => lambda {|issue| format_local_dt(issue['lastRunDate']) } },
+      {"CHECK" => lambda {|issue| issue['name'] } },
+      # {"AVAILABLE" => lambda {|issue| format_boolean issue['createIncident'] } },
+      {"RESPONSE TIME" => lambda {|issue| issue["lastTimer"] ? "#{issue['lastTimer']}ms" : "" } }, 
+      {"LAST METRIC" => lambda {|issue| issue["lastMetric"] } }, 
+      {"MESSAGE" => lambda {|issue| 
+        # issue["lastError"].to_s.empty? ? issue["lastMessage"] : issue["lastError"]
+        if issue['lastCheckStatus'] == 'error'
+          issue["lastError"].to_s
+        else
+          issue["lastMessage"]
+        end
+      } },
+    ]
+    if opts[:include_fields]
+      columns = opts[:include_fields]
+    end
+    print as_pretty_table(history_items, columns, opts)
+  end
+
+  def print_monitor_app_history_table(history_items, opts={})
+    print_check_group_history_table(history_items, opts)
   end
 
   def print_check_notifications_table(notifications, opts={})
@@ -580,4 +641,232 @@ module Morpheus::Cli::MonitoringHelper
     alert_methods.join(',')
   end
 
+  def prompt_for_recipients(params, options={})
+    #todo
+  end
+
+  def prompt_for_check_groups(params, options={}, api_client=nil, api_params={})
+  # def prompt_for_check_groups(params, options={})
+    # Check Groups
+    check_group_list = nil
+    check_group_ids = []
+    still_prompting = true
+    
+    if params['checkGroups'].nil?
+      while still_prompting
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checkGroups', 'type' => 'text', 'fieldLabel' => 'Check Groups', 'required' => false, 'description' => 'Check Groups to include in this alert rule, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['checkGroups'].to_s.empty?
+          check_group_list = v_prompt['checkGroups'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        bad_ids = []
+        if check_group_list && check_group_list.size > 0
+          check_group_list.each do |it|
+            found_check = nil
+            begin
+              found_check = find_check_group_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_check
+              check_group_ids << found_check['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      check_group_list = params['checkGroups']
+      still_prompting = false
+      bad_ids = []
+      if check_group_list && check_group_list.size > 0
+        check_group_list.each do |it|
+          found_check = nil
+          begin
+            found_check = find_check_group_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_check
+            check_group_ids << found_check['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Check Groups not found: #{bad_ids}"}
+      end
+      # return check_group_ids
+      # payload = {'checkGroups':check_group_ids}
+      # return payload
+      return {success:true, data: check_group_ids}
+    end
+  end
+
+  def prompt_for_checks(params, options={}, api_client=nil, api_params={})
+    # Checks
+    check_list = nil
+    check_ids = nil
+    still_prompting = true
+    if params['checks'].nil?
+      still_prompting = true
+      while still_prompting do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['checks'].to_s.empty?
+          check_list = v_prompt['checks'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        check_ids = []
+        bad_ids = []
+        if check_list && check_list.size > 0
+          check_list.each do |it|
+            found_check = nil
+            begin
+              found_check = find_check_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_check
+              check_ids << found_check['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      check_list = params['checks']
+      still_prompting = false
+      check_ids = []
+      bad_ids = []
+      if check_list && check_list.size > 0
+        check_list.each do |it|
+          found_check = nil
+          begin
+            found_check = find_check_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_check
+            check_ids << found_check['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Checks not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: check_ids}
+  end
+
+  def prompt_for_check_groups(params, options={}, api_client=nil, api_params={})
+  # def prompt_for_check_groups(params, options={})
+    # Check Groups
+    check_group_list = nil
+    check_group_ids = nil
+    bad_ids = []
+    if params['checkGroups'].nil?
+      still_prompting = true
+      while still_prompting do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checkGroups', 'type' => 'text', 'fieldLabel' => 'Check Groups', 'required' => false, 'description' => 'Check Groups to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['checkGroups'].to_s.empty?
+          check_group_list = v_prompt['checkGroups'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        check_group_ids = []
+        bad_ids = []
+        if check_group_list && check_group_list.size > 0
+          check_group_list.each do |it|
+            found_check = nil
+            begin
+              found_check = find_check_group_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_check
+              check_group_ids << found_check['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      check_group_list = params['checkGroups']
+      check_group_ids = []
+      bad_ids = []
+      if check_group_list && check_group_list.size > 0
+        check_group_list.each do |it|
+          found_check = nil
+          begin
+            found_check = find_check_group_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_check
+            check_group_ids << found_check['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Check Groups not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: check_group_ids}
+  end
+
+  def prompt_for_monitor_apps(params, options={}, api_client=nil, api_params={})
+    # Apps
+      
+    monitor_app_list = nil
+    monitor_app_ids = nil
+    if params['apps'].nil?
+      still_prompting = true
+      while still_prompting
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'apps', 'type' => 'text', 'fieldLabel' => 'Apps', 'required' => false, 'description' => 'Monitor Apps to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['apps'].to_s.empty?
+          monitor_app_list = v_prompt['apps'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        check_group_ids = []
+        bad_ids = []
+        if monitor_app_list && monitor_app_list.size > 0
+          monitor_app_list.each do |it|
+            found_monitor_app = nil
+            begin
+              found_monitor_app = find_monitoring_app_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_monitor_app
+              monitor_app_ids << found_monitor_app['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      monitor_app_list = params['apps']
+      check_group_ids = []
+      bad_ids = []
+      if monitor_app_list && monitor_app_list.size > 0
+        monitor_app_list.each do |it|
+          found_monitor_app = nil
+          begin
+            found_monitor_app = find_monitoring_app_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_monitor_app
+            monitor_app_ids << found_monitor_app['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Monitor Apps not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: monitor_app_ids}
+  end
 end

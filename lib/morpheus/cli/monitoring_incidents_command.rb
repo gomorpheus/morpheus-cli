@@ -263,9 +263,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         return
       end
       # save a request, same thing is returned
-      # json_response = @monitoring_incidents_interface.get(incident['id'])
-      # incident = json_response['incident']
-      json_response = {'incident' => incident}
+      # json_response = {'incident' => incident}
+      json_response = @monitoring_incidents_interface.get(incident['id'])
+      incident = json_response['incident']
+      
       if options[:json]
         puts as_json(json_response, options, "incident")
         return 0
