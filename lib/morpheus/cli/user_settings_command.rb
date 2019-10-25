@@ -87,9 +87,10 @@ class Morpheus::Cli::UserSettingsCommand
         print_h2 "API Access Tokens"
         cols = {
           #"ID" => lambda {|it| it['id'] },
-          "Client ID" => lambda {|it| it['clientId'] },
-          "Username" => lambda {|it| it['username'] },
-          "Expiration" => lambda {|it| format_local_dt(it['expiration']) }
+          "CLIENT ID" => lambda {|it| it['clientId'] },
+          "USERNAME" => lambda {|it| it['username'] },
+          "EXPIRATION" => lambda {|it| format_local_dt(it['expiration']) },
+          "TTL" => lambda {|it| it['expiration'] ? (format_duration(it['expiration']) rescue '') : '' }
         }
         print cyan
         puts as_pretty_table(access_tokens, cols)
@@ -451,7 +452,11 @@ class Morpheus::Cli::UserSettingsCommand
       clients = json_response['clients'] || json_response['apiClients']
       print_h1 "Morpheus API Clients"
       columns = {
-        "Client ID" => lambda {|it| it['clientId'] }
+        "CLIENT ID" => lambda {|it| it['clientId'] },
+        "NAME" => lambda {|it| it['name'] },
+        "TTL" => lambda {|it| it['accessTokenValiditySeconds'] ? "#{it['accessTokenValiditySeconds']}" : '' },
+        "DURATION" => lambda {|it| it['accessTokenValiditySeconds'] ? (format_duration_seconds(it['accessTokenValiditySeconds']) rescue '') : '' },
+        "USABLE" => lambda {|it| format_boolean(it['usable']) }
       }
       print cyan
       puts as_pretty_table(clients, columns)
