@@ -333,12 +333,15 @@ class Morpheus::Cli::UserSettingsCommand
         return
       end
       json_response = @user_settings_interface.regenerate_access_token(params, payload)
-      new_access_token = json_response['token']
+      new_access_token = json_response['access_token'] || json_response['token']
       # update credentials if regenerating cli token
-      if params['clientId'] == 'morph-cli'
-        if new_access_token
-          login_opts = {:remote_token => new_access_token}
-          login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(login_opts)
+      if params['clientId'] == Morpheus::APIClient::CLIENT_ID
+        if params['userId'].nil? # should check against current user id
+          if new_access_token
+            # this sux, need to save refresh_token too.. just save to wallet and refresh shell maybe?
+            login_opts = {:remote_token => new_access_token}
+            login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(login_opts)
+          end
         end
       end
       if options[:quiet]

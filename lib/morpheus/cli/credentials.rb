@@ -106,11 +106,18 @@ module Morpheus
             unless options[:quiet] || options[:no_prompt]
               # if username.empty? || password.empty?
                 if options[:test_only]
-                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
                 else
-                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
                 end
               # end
+              if options[:client_id].empty?
+                  # print "Client ID: #{required_blue_prompt} morph-cli", "\n", reset
+              else
+                if options[:client_id] != Morpheus::APIClient::CLIENT_ID
+                  print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset
+                end
+              end
               if username.empty?
                 print "Username: #{required_blue_prompt} "
                 username = $stdin.gets.chomp!
@@ -131,7 +138,7 @@ module Morpheus
               return nil
             end
             begin
-              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
+              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url, client_id: options[:client_id]})
               auth_interface.setopts(options)
               if options[:dry_run]
                 print_dry_run auth_interface.dry.login(username, password)
