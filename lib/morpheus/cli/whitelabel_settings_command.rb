@@ -100,21 +100,21 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       trunc_len = 80
       if !(content = whitelabel_settings['overrideCss']).nil? && content.length
         title = "Override CSS"
-        title = title + ' (truncated, see --details option)' if content && content.length > trunc_len
+        title = title + ' (truncated, use --details for all content)' if content && content.length > trunc_len && !options[:details]
         print_h2 title
         print cyan
         print options[:details] ? content : truncate_string(content, trunc_len), "\n"
       end
       if !(content = whitelabel_settings['termsOfUse']).nil? && content.length
         title = "Terms of Use"
-        title = title + ' (truncated, see --details option)' if content && content.length > trunc_len
+        title = title + ' (truncated, use --details for all content)' if content && content.length > trunc_len && !options[:details]
         print_h2 title
         print cyan
         print options[:details] ? content : truncate_string(content, trunc_len), "\n"
       end
       if !(content = whitelabel_settings['privacyPolicy']).nil? && content.length
         title = "Privacy Policy"
-        title = title + ' (truncated, see --details option)' if content && content.length > trunc_len
+        title = title + ' (truncated, use --details for all content)' if content && content.length > trunc_len && !options[:details]
         print_h2 title
         print cyan
         print options[:details] ? content : truncate_string(content, trunc_len), "\n"
