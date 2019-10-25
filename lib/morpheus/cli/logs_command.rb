@@ -54,17 +54,14 @@ class Morpheus::Cli::LogsCommand
         params['clusters'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
       end
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
-        options[:start] = parse_time(val).utc.iso8601
+        options[:start] = parse_time(val) #.utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        options[:end] = parse_time(val).utc.iso8601
+        options[:end] = parse_time(val) #.utc.iso8601
       end
-      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        options[:end] = parse_time(val).utc.iso8601
-      end
-      opts.on('--interval TIME','--interval TIME', "Interval of time to include, in seconds. Default is 30 days ago.") do |val|
-        options[:interval] = parse_time(val).utc.iso8601
-      end
+      # opts.on('--interval TIME','--interval TIME', "Interval of time to include, in seconds. Default is 30 days ago.") do |val|
+      #   options[:interval] = parse_time(val).utc.iso8601
+      # end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List logs for a container.\n" +
                     "[id] is required. This is the id of a container."
@@ -78,8 +75,8 @@ class Morpheus::Cli::LogsCommand
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
-      params['startMs'] = options[:start].to_s if options[:start]
-      params['endMs'] = options[:end].to_s if options[:end]
+      params['startMs'] = (options[:start].to_i * 1000) if options[:start]
+      params['endMs'] = (options[:end].to_i * 1000) if options[:end]
       params['interval'] = options[:interval].to_s if options[:interval]
       # could find_by_name_or_id for params['servers'] and params['containers']
       @logs_interface.setopts(options)
