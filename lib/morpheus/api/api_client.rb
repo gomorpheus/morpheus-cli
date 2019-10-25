@@ -580,6 +580,10 @@ class Morpheus::APIClient
     Morpheus::EnvironmentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def whitelabel_settings
+    Morpheus::WhitelabelSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def wiki
     Morpheus::WikiInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
