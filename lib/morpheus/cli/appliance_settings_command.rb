@@ -284,9 +284,14 @@ class Morpheus::Cli::ApplianceSettingsCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        print_red_alert "Error updating appliance settings: #{json_response['msg'] || json_response['errors']}" if json_response['success'] == false
-        print_green_success "Updated appliance settings" if json_response['success'] == true
+        if json_response['success']
+          print_green_success  "Updated appliance settings"
+          get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        else
+          print_red_alert "Error updating appliance settings: #{json_response['msg'] || json_response['errors']}"
+        end
       end
+      return 0
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
