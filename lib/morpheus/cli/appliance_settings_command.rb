@@ -225,7 +225,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
 
         if options[:enableZoneTypes]
           params['enableZoneTypes'] = options[:enableZoneTypes].collect do |zone_type_id|
-            zone_type = available_zone_types.find { |it| it['id'] == zone_type_id || it['name'] == zone_type_id }
+            zone_type = available_zone_types.find { |it| it['id'] == zone_type_id || it['id'].to_s == zone_type_id || it['name'] == zone_type_id }
             if zone_type.nil?
               print_red_alert "Cloud type #{zone_type_id} not found"
               exit 1
@@ -235,7 +235,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
         end
         if options[:disableZoneTypes]
           params['disableZoneTypes'] = options[:disableZoneTypes].collect do |zone_type_id|
-            zone_type = available_zone_types.find { |it| it['id'] == zone_type_id || it['name'] == zone_type_id }
+            zone_type = available_zone_types.find { |it| it['id'] == zone_type_id || it['id'].to_s == zone_type_id || it['name'] == zone_type_id }
             if zone_type.nil?
               print_red_alert "Cloud type #{zone_type_id} not found"
               exit 1
