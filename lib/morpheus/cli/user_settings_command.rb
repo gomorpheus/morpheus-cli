@@ -217,7 +217,7 @@ class Morpheus::Cli::UserSettingsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[file]")
+      opts.banner = subcommand_usage()
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
