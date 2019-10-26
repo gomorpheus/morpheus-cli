@@ -58,7 +58,13 @@ class Morpheus::Cli::License
             "Account" => 'accountName',
             "Product Tier" => lambda {|it| format_product_tier(it) },
             "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
-            "End Date" => lambda {|it| format_local_dt(it['endDate']) },
+            "End Date" => lambda {|it| 
+              if it['endDate']
+                format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+              else
+                'None'
+              end
+              },
             "Memory" => lambda {|it| "#{used_memory} / #{max_memory}" },
             "Max Storage" => lambda {|it| "#{max_storage}" },
             "Max Instances" => lambda {|it| it["maxInstances"].to_i == 0 ? 'Unlimited' : it["maxInstances"] },
