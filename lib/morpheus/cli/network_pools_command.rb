@@ -284,29 +284,29 @@ class Morpheus::Cli::NetworkPoolsCommand
       opts.on('--name VALUE', String, "Name for this network pool") do |val|
         options['name'] = val
       end
+      opts.on('--code VALUE', String, "Code") do |val|
+        options['code'] = val
+      end
+      opts.on('--category VALUE', String, "Category") do |val|
+        options['category'] = val
+      end
       # todo all of these
-      # if (opts.networkPool.containsKey('category')) networkPool.category = opts.networkPool.category
-      # if (opts.networkPool.containsKey('code')) networkPool.code = opts.networkPool.code
-      # if (opts.networkPool.containsKey('name')) networkPool.name = opts.networkPool.name
-      # if (opts.networkPool.containsKey('internalId')) networkPool.internalId = opts.networkPool.internalId
-      # if (opts.networkPool.containsKey('externalId')) networkPool.externalId = opts.networkPool.externalId
-      # if (opts.networkPool.containsKey('dnsDomain')) networkPool.dnsDomain = opts.networkPool.dnsDomain
-      # if (opts.networkPool.containsKey('dnsSearchPath')) networkPool.dnsSearchPath = opts.networkPool.dnsSearchPath
-      # if (opts.networkPool.containsKey('hostPrefix')) networkPool.hostPrefix = opts.networkPool.hostPrefix
-      # if (opts.networkPool.containsKey('httpProxy')) networkPool.httpProxy = opts.networkPool.httpProxy
-      # if (opts.networkPool.containsKey('dnsServers')) networkPool.dnsServers = opts.networkPool.dnsServers
-      # if (opts.networkPool.containsKey('dnsSuffixList')) networkPool.dnsSuffixList = opts.networkPool.dnsSuffixList
-      # // ipRanges is parsed up above, so just bind it here
-      # // if (opts.networkPool.containsKey('ipRanges')) opts.networkPool.ipRanges.each {networkPool.addToIpRanges(it)}
-      # if (opts.networkPool.containsKey('ipRanges')) opts.networkPool.ipRanges = opts.networkPool.ipRanges
-      # if (opts.networkPool.containsKey('dhcpServer')) networkPool.dhcpServer = opts.networkPool.dhcpServer // ?: false
-      # if (opts.networkPool.containsKey('dhcpIp')) networkPool.dhcpIp = opts.networkPool.dhcpIp
-      # if (opts.networkPool.containsKey('gateway')) networkPool.gateway = opts.networkPool.gateway
-      # if (opts.networkPool.containsKey('netmask')) networkPool.netmask = opts.networkPool.netmask
-      # if (opts.networkPool.containsKey('subnetAddress')) networkPool.subnetAddress = opts.networkPool.subnetAddress
-      # if (opts.networkPool.containsKey('poolEnabled')) networkPool.poolEnabled = opts.networkPool.poolEnabled // ?: true
-      # if (opts.networkPool.containsKey('tftpServer')) networkPool.tftpServer = opts.networkPool.tftpServer
-      # if (opts.networkPool.containsKey('bootFile')) networkPool.bootFile = opts.networkPool.bootFile
+      # internalId
+      # externalId
+      # dnsDomain
+      # dnsSearchPath
+      # hostPrefix
+      # httpProxy
+      # dnsServers
+      # dnsSuffixList
+      # dhcpServer
+      # dhcpIp
+      # gateway
+      # netmask
+      # subnetAddress
+      # poolEnabled
+      # tftpServer
+      # bootFile
       opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
@@ -354,22 +354,12 @@ class Morpheus::Cli::NetworkPoolsCommand
         # Name
         if options['name']
           payload['networkPool']['name'] = options['name']
-        else
-          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network pool.'}], options)
-          # payload['networkPool']['name'] = v_prompt['name']
         end
-        
-        # Network Pool Type
-        # network_type_id = nil
-        # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Pool Type', 'type' => 'select', 'optionSource' => 'networkPoolTypes', 'required' => true, 'description' => 'Choose a network pool type.'}], options, @api_client, {})
-        # network_type_id = v_prompt['type']
-        # if network_type_id.nil? || network_type_id.to_s.empty?
-        #   print_red_alert "Pool Type not found by id '#{options['type']}'"
-        #   return 1
-        # end
-        # payload['networkPool']['type'] = {'id' => network_type_id.to_i }
-        if options['type']
-          payload['networkPool']['type'] = {'id' => options['type'].to_i }
+        if options['category']
+          payload['networkPool']['category'] = options['category']
+        end
+        if options['code']
+          payload['networkPool']['code'] = options['code']
         end
 
         # IP Ranges
