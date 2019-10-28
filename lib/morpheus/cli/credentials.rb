@@ -112,7 +112,7 @@ module Morpheus
                 end
               # end
               if options[:client_id].empty?
-                  # print "Client ID: #{required_blue_prompt} morph-cli", "\n", reset
+                # print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset
               else
                 if options[:client_id] != Morpheus::APIClient::CLIENT_ID
                   print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset

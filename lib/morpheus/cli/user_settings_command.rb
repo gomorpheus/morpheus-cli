@@ -397,11 +397,11 @@ class Morpheus::Cli::UserSettingsCommand
       end
       new_access_token = json_response['token']
       # update credentials if regenerating cli token
-      # if params['clientId'] == 'morph-cli'
+      # if params['clientId'] == Morpheus::APIClient::CLIENT_ID
       #   logout_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).logout
       # end
       print_green_success "Cleared #{params['clientId']} access token"
-      if params['clientId'] == 'morph-cli'
+      if params['clientId'] == Morpheus::APIClient::CLIENT_ID
         print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
       end
       # get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
