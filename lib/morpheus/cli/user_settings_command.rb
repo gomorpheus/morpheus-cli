@@ -459,7 +459,7 @@ class Morpheus::Cli::UserSettingsCommand
         "NAME" => lambda {|it| it['name'] },
         "TTL" => lambda {|it| it['accessTokenValiditySeconds'] ? "#{it['accessTokenValiditySeconds']}" : '' },
         "DURATION" => lambda {|it| it['accessTokenValiditySeconds'] ? (format_duration_seconds(it['accessTokenValiditySeconds']) rescue '') : '' },
-        "USABLE" => lambda {|it| format_boolean(it['usable']) }
+        # "USABLE" => lambda {|it| format_boolean(it['usable']) }
       }
       print cyan
       puts as_pretty_table(clients, columns)
