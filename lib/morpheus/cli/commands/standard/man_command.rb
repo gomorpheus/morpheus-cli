@@ -294,7 +294,7 @@ You can use this to create isolated environments (sandboxes), within which to ex
 
 ```shell
 export MORPHEUS_CLI_HOME=~/morpheus_test
-morpheus remote add myremote https://testmorpheusappliance.mycompany.com --insecure
+morpheus remote add demo https://demo.mymorpheus.com --insecure
 morpheus instances list
 ```
 

@@ -181,6 +181,10 @@ module Morpheus
       @stderr
     end
 
+    def home_directory=(homedir)
+      set_home_directory(homedir)
+    end
+
     def set_home_directory(homedir)
       full_homedir = File.expand_path(homedir)
       # if !Dir.exists?(full_homedir)

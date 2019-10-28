@@ -11,19 +11,20 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :add, :get, :update, :remove, :use, :unuse, :current, :setup, :check
+  register_subcommands :list, :add, :get, :update, :remove, :use, :unuse, :current, :setup, :check, :'check-all'
   set_default_subcommand :list
 
   def initialize()
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
+  def connect(opts={})
+    connect_opts = {:skip_verify_access_token => true}.merge(opts)
+    @api_client = establish_remote_appliance_connection(connect_opts)
+    @setup_interface = @api_client.setup
+  end
+
   def handle(args)
-    # if args.count == 0
-    #   list(args)
-    # else
-    #   handle_subcommand(args)
-    # end
     handle_subcommand(args)
   end
 
@@ -44,9 +45,9 @@ EOT
     end
     optparse.parse!(args)
     if args.count > 0
-      raise ::OptionParser::NeedlessArgument.new("#{args.join(' ')}")
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
-    @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
+    #connect(options)
     appliances = ::Morpheus::Cli::Remote.load_all_remotes({})
     # if appliances.empty?
     #   raise_command_error "You have no appliances configured. See the `remote add` command."
@@ -64,12 +65,11 @@ EOT
       return 0
     end
 
-    print_h1 "Morpheus Appliances", [], options
+    
     if appliances.empty?
-      print yellow
-      puts "You have no appliances configured. See the `remote add` command."
-      print reset, "\n"
+      print yellow,"You have no appliances configured. See the `remote add` command.", reset, "\n"
     else
+      print_h1 "Morpheus Appliances", [], options
       print cyan
       columns = [
         {:active => {:display_name => "", :display_method => lambda {|it| it[:active] ? "=>" : "" } } },
@@ -102,12 +102,12 @@ EOT
     params = {}
     new_appliance_map = {}
     use_it = false
-    is_insecure = nil
+    secure = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       banner = subcommand_usage("[name] [url]")
       banner_args = <<-EOT
     [name]                           The name for your appliance. eg. mymorph
-    [url]                            The url of your appliance eg. https://morpheus.mycompany.com
+    [url]                            The url of your appliance eg. https://demo.mymorpheus.com
 EOT
       opts.banner = banner + "\n" + banner_args
       opts.on(nil, '--use', "Make this the current appliance" ) do
@@ -120,26 +120,23 @@ EOT
         new_appliance_map[:active] = true
       end
       opts.on(nil, "--secure", "Prevent insecure HTTPS communication.  This is enabled by default.") do
-        params[:secure] = true
+        secure = true
       end
       opts.on(nil, "--insecure", "Allow insecure HTTPS communication.  i.e. Ignore SSL errors.") do
-        params[:insecure] = true
+        secure = false
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
 This will add a new remote appliance to your morpheus client configuration.
-If the new remote is your one and only, --use is automatically applied and 
-it will be made the current remote appliance.
+If this is your first remote, --use is automatically applied so
+it will become the current remote appliance.
 This command will prompt you to login and/or setup a fresh appliance.
-Prompting can be skipped with use of the --quiet option.
+To skip login/setup, use the --quiet option.
 EOT
     end
     optparse.parse!(args)
-    if args.count < 2
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add expects 2 arguments: [name] [url]"
-      puts_error optparse
-      return 1
+    if args.count > 2
+      raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
 
     # load current appliances
@@ -150,40 +147,74 @@ EOT
       new_appliance_map[:active] = true
     end
 
-    # validate options
-    # construct new appliance map
-    # and save it in the config file
-    new_appliance_name = args[0].to_sym
+    new_appliance_name = args[0] if args[0]
+    url = args[1] if args[1]
 
-    # for the sake of sanity
-    if [:current, :all].include?(new_appliance_name)
-      raise_command_error "The specified appliance name is invalid: '#{args[0]}'"
-    end
-    # unique name
-    if appliances[new_appliance_name] != nil
-      raise_command_error "Remote appliance already configured with the name '#{args[0]}'"
-    end
-    new_appliance_map[:name] = new_appliance_name
+    # Name
+    still_prompting = true
+    while still_prompting do
+      if new_appliance_name.to_s.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'A unique name for the remote Morpheus appliance. Example: local'}], options[:options])
+        new_appliance_name = v_prompt['name']
+      end
 
-    if params[:insecure]
-      new_appliance_map[:insecure] = true
-    elsif params[:secure]
-      new_appliance_map.delete(:insecure)
-    end
-    if params[:url] || params[:host]
-      url = params[:url] || params[:host]
+      # for the sake of sanity
+      if [:current, :all].include?(new_appliance_name.to_sym)
+        puts_angry_error "The specified appliance name '#{new_appliance_name}' is invalid.",reset,"\n"
+        new_appliance_name = nil
+      end
+      # unique name
+      existing_appliance = appliances[new_appliance_name.to_sym]
+      if existing_appliance
+        print_error red,"The specified appliance name '#{new_appliance_name}' already exists with the URL #{existing_appliance[:url] || existing_appliance[:host]}",reset,"\n"
+        new_appliance_name = nil
+      end
+
+      if new_appliance_name.to_s.empty?
+        if options[:no_prompt]
+          return 1
+        end
+        still_prompting = true
+      else
+        still_prompting = false
+      end
     end
 
-    url = args[1]
-    if url !~ /^https?\:\/\/.+/
-      raise_command_error "The specified appliance url is invalid: '#{args[1]}'"
-      #puts optparse
-      return 1
+    new_appliance_map[:name] = new_appliance_name.to_sym
+
+    # URL
+    still_prompting = true
+    while still_prompting do
+      if !url
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true, 'description' => 'The URL of the remote Morpheus appliance. Example: https://10.0.2.2'}], options[:options])
+        url = v_prompt['url']
+      end
+
+      if url !~ /^https?\:\/\/.+/
+        print_error red,"The specified appliance url '#{url}' is invalid.",reset,"\n"
+        still_prompting = true
+        url = nil
+      else
+        still_prompting = false
+      end
     end
+
+    # let's replace :host with :url
     new_appliance_map[:host] = url
+    new_appliance_map[:url] = url
+
+    # Insecure?
+    if url.include?('https:') && secure.nil?
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'secure', 'fieldLabel' => 'Secure', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'description' => 'Prevent insecure HTTPS communication.  This is enabled by default.'}], options[:options])
+      secure = v_prompt['secure'].to_s == 'true' || v_prompt['secure'].to_s == 'on'
+    end
+
+    if secure == false
+      new_appliance_map[:insecure] = true
+    end
 
     # save it
-    appliance = ::Morpheus::Cli::Remote.save_remote(new_appliance_name, new_appliance_map)
+    appliance = ::Morpheus::Cli::Remote.save_remote(new_appliance_name.to_sym, new_appliance_map)
 
     if !options[:quiet]
       # print_green_success "Added remote #{new_appliance_name}"
@@ -195,7 +226,7 @@ EOT
       print cyan
       puts "Inspecting remote appliance url: #{appliance[:host]} ..."
     end
-    appliance = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name)
+    appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     if !options[:quiet]
       print cyan
       puts "Status is: #{format_appliance_status(appliance)}"
@@ -212,6 +243,11 @@ EOT
     end
 
     if options[:quiet]
+      return exit_code, err
+    end
+
+    if options[:json]
+      puts as_json(check_json_response, options)
       return exit_code, err
     end
 
@@ -274,32 +310,18 @@ EOT
     options = {}
     checkall = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = <<-EOT
-#{subcommand_usage("[name]")}
-    [name] is required. This is the name of the remote. Use 'current' to check the active appliance."
-EOT
-      #opts.banner = "#{opts.banner}\n" + "    " + "[name] is required. This is the name of the remote. Use 'current' to check the active appliance."
-      opts.on("-a",'--all', "Refresh all appliances") do
-        checkall = true
-      end
-      build_common_options(opts, options, [:quiet])
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :quiet, :dry_run, :remote])
       opts.footer = <<-EOT
-This can be used to refresh a remote appliance.
-It makes an api request to the configured appliance url to check the status and version.
-[name] is required. This is the name of the remote. Use 'current' to check the active appliance."
+Check the status of a remote appliance.
+[name] is optional. This is the name of a remote.  Default is the current remote.
+This makes a request to the configured appliance url and updates the status and version.
 EOT
     end
     optparse.parse!(args)
-    id_list = nil
-    checkall = true if args[0] == "all" and args.size == 1 # sure, why not
-    if checkall
-      # id_list = ::Morpheus::Cli::Remote.appliances.keys # sort ?
-      return _check_all_appliances()
-    elsif args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} update expects argument [name] or option --all"
-      puts_error optparse
-      return 1
+    
+    if args.count == 0
+      id_list = ['current']
     else
       id_list = parse_id_list(args)
     end
@@ -309,23 +331,8 @@ EOT
     end
   end
 
-  def _check_all_appliances()
-    # reresh all appliances and then display the list view
-    id_list = ::Morpheus::Cli::Remote.appliances.keys # sort ?
-    if id_list.size > 1
-      print cyan
-      print "Checking #{id_list.size} appliances "
-    end
-    id_list.each do |appliance_name|
-      print "."
-      ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
-    end
-    print "\n"
-    list([])
-
-  end
-
   def _check_appliance(appliance_name, options)
+    exit_code, err = 0, nil
     begin
       appliance = nil
       if appliance_name == "current"
@@ -337,41 +344,85 @@ EOT
       else
         appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
         if !appliance
-          raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
+          raise_command_error "Remote not found by the name '#{appliance_name}'"
         end
       end
 
-      # found appliance
-      # now refresh it
+      # found appliance, now refresh it
       
       start_time = Time.now
   
-      Morpheus::Logging::DarkPrinter.puts "checking remote appliance url: #{appliance[:host]} ..." if Morpheus::Logging.debug?      
+      # print cyan
+      # print "Checking remote url: #{appliance[:host]} ..."
 
-      appliance = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
+      appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
 
       took_sec = (Time.now - start_time)
 
-      if options[:quiet]
-        return 0
+      exit_code = (appliance[:status] == 'ready' || appliance[:status] == 'fresh') ? 0 : 1
+
+      if exit_code == 0
+        if appliance[:error]
+          exit_code = 1
+          err = "Check Failed: #{appliance[:error]}"
+        end
       end
 
-      Morpheus::Logging::DarkPrinter.puts "remote appliance check completed in #{took_sec.round(3)}s" if Morpheus::Logging.debug?
+      render_result = render_with_format(check_json_response, options)
+      return exit_code if render_result
 
-      # puts "remote #{appliance[:name]} status: #{format_appliance_status(appliance)}"
+      print_green_success "Completed remote check of #{appliance_name} in #{took_sec.round(3)}s"
 
-      # if options[:json]
-      #   print JSON.pretty_generate(json_response), "\n"
-      #   return
-      # end
-
-      # show user latest info
       return _get(appliance[:name], {})
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def check_all(args)
+    options = {}
+    checkall = false
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:quiet])
+      opts.footer = <<-EOT
+Refresh all remote appliances.
+This makes a request to each of the configured appliance urls and updates the status and version.
+EOT
+    end
+    optparse.parse!(args)
+
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect() # needed?
+    _check_all_appliances(options)
+  end
+  
+  def _check_all_appliances(options)
+    start_time = Time.now
+    # reresh all appliances and then display the list view
+    id_list = ::Morpheus::Cli::Remote.appliances.keys # sort ?
+    if id_list.size > 1
+      print cyan
+      puts "Checking #{id_list.size} appliances"
+    elsif id_list.size == 1
+      puts "Checking #{Morpheus::Cli::Remote.appliances.keys.first}"
+    end
+    id_list.each do |appliance_name|
+      #print "."
+      appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
+    end
+    took_sec = (Time.now - start_time)
+    print_green_success "Completed remote check of #{id_list.size} #{id_list.size == 1 ? 'appliance' : 'appliances'} in #{took_sec.round(3)}s"
+    
+    if options[:quiet]
+      return 0
+    end
+    list([])
+    return 0
   end
 
   def update(args)
@@ -437,7 +488,7 @@ EOT
     print_green_success "Updated remote #{appliance_name}"
     # todo: just go ahead and refresh it now...
     # _check(appliance_name, {:quiet => true})
-    appliance = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
+    appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
     # print new appliance details
     _get(appliance[:name], {})
     return 0, nil
@@ -467,37 +518,56 @@ EOT
   end
 
   def _get(appliance_name, options)
+    exit_code, err = 0, nil
     begin
       appliance = nil
       if appliance_name == "current"
         appliance = ::Morpheus::Cli::Remote.load_active_remote()
         if !appliance
-          raise_command_error "No current appliance, see `remote use`."
+          err = "No current appliance, see `remote use`."
+          exit_code = 1
         end
         appliance_name = appliance[:name]
       else
         appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
         if !appliance
-          raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
+          err = "Remote appliance not found by the name '#{appliance_name}'"
+          exit_code = 1
         end
       end
 
-      if options[:json]
-        json_response = {remote_appliance: appliance} # mock payload
-        puts as_json(json_response, options)
-        return
+      if options[:quiet]
+        return exit_code, err
       end
+
+      if options[:json]
+        json_response = {'appliance' => appliance} # mock payload
+        puts as_json(json_response, options, "appliance")
+        return exit_code, err
+      end
+
+      if options[:yaml]
+        json_response = {'appliance' => appliance} # mock payload
+        puts as_yaml(json_response, options, "appliance")
+        return exit_code, err
+      end
+
+      
 
       if options[:url_only]
-        print cyan, appliance[:host],"\n",reset
-        return 0
+        if appliance
+          print cyan, (appliance[:url] || appliance[:host]),"\n",reset
+          return exit_code, err
+        else
+          print_error red, err,"\n",reset
+          return exit_code, err
+        end
       end
-      # expando
-      # appliance = OStruct.new(appliance)
-
-      # todo: just go ahead and refresh it now...
-      # _check(appliance_name, {:quiet => true})
-      # appliance = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
+      
+      if exit_code != 0
+        print_error red, err,"\n",reset
+        return exit_code, err
+      end
 
       if appliance[:active]
         # print_h1 "Current Remote Appliance: #{appliance[:name]}"
@@ -549,12 +619,8 @@ EOT
       build_common_options(opts, options, [:auto_confirm, :quiet])
     end
     optparse.parse!(args)
-    if args.count < 1
-      #raise_command_error "#{command_name} remove requires argument [name].", optparse
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} remove requires argument [name]."
-      puts_error optparse
-      return 1, nil
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     appliance_name = args[0].to_sym
     appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
@@ -570,11 +636,11 @@ EOT
 
     # return result
     if options[:quiet]
-      return 0, nil
+      return 0
     end
     print_green_success "Deleted remote #{appliance_name}"
-    list([])
-    return 0, nil
+    # list([])
+    return 0
   end
 
   def use(args)
@@ -587,36 +653,37 @@ EOT
                     "You may override this with the --remote option in your commands."
     end
     optparse.parse!(args)
-    if args.count < 1
+    if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} use expects argument [name]."
       puts_error optparse
       return 1
     end
+    current_appliance_name, current_appliance_url = @appliance_name, @appliance_url 
     appliance_name = args[0].to_sym
     appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
     if !appliance
       raise_command_error "Remote appliance not found by the name '#{appliance_name}'"
     end
     
-    if appliance[:active] == true
-      if !options[:quiet]
-        print cyan
-        puts "Using remote #{appliance_name} (still)"
-      end
-      return true
-    end
     # appliance = ::Morpheus::Cli::Remote.set_active_appliance(appliance_name)
     appliance[:active] = true
     appliance = ::Morpheus::Cli::Remote.save_remote(appliance_name, appliance)
+
+    if options[:quiet]
+      return 0
+    end
+
+    if current_appliance_name.to_s == appliance_name.to_s
+      print green, "Using remote #{appliance_name} (still)", reset, "\n"
+    else
+      print green, "Using remote #{appliance_name}", reset, "\n"
+    end
     
     # recalculate session variables
     ::Morpheus::Cli::Remote.recalculate_variable_map()
 
-    if !options[:quiet]
-      puts "#{cyan}Using remote #{appliance_name}#{reset}"
-    end
-    return true
+    return 0
   end
 
   def unuse(args)
@@ -624,18 +691,21 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       opts.footer = "" +
-        "This clears the current remote appliance.\n" +
-        "You will need to use an appliance, or pass the --remote option to your commands."
+        "This clears the current remote appliance.\n"
       build_common_options(opts, options, [])
     end
     optparse.parse!(args)
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    #connect(options)
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
     if !@appliance_name
-      puts "You are not using any appliance"
-      return false
+      print yellow,"You are not using any appliance",reset,"\n"
+      return 0
     end
     Morpheus::Cli::Remote.clear_active_appliance()
-    puts "You are no longer using the appliance #{@appliance_name}"
+    print cyan, "You are no longer using the appliance #{@appliance_name}", reset, "\n"
     # recalculate session variables
     ::Morpheus::Cli::Remote.recalculate_variable_map()
     return true
@@ -658,12 +728,15 @@ EOT
                     "The default behavior is the same as 'remote get current'."
     end
     optparse.parse!(args)
-
-    if !@appliance_name
-      print yellow, "No current appliance, see `remote use`\n", reset
-      return 1
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
-
+    connect(options)
+    # if !@appliance_name
+    #   print yellow, "No current appliance, see `remote use`\n", reset
+    #   return 1
+    # end
+    #connect(options)
     if name_only
       print cyan, @appliance_name,"\n",reset
       return 0
@@ -683,67 +756,210 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:options, :json, :dry_run])
-      opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
-        options[:insecure] = true
-        Morpheus::RestClient.enable_ssl_verification = false
+      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
+      opts.on('--hubmode MODE','--hubmode MODE', "Choose an option for hub registration possible values are login, register, skip.") do |val|
+        options[:hubmode] = val.to_s.downcase
       end
-      opts.footer = "This can be used to initialize a new appliance.\n" + 
-                    "You will be prompted to create the master account.\n" + 
-                    "This is only available on a new, freshly installed, remote appliance."
+      opts.footer = "Initialize a fresh appliance.\n" + 
+                    "You will be prompted to create the master tenant and admin user.\n" + 
+                    "If Morpheus Hub registration is enabled, you may login or register to retrieve a license key.\n" + 
+                    "Setup is only available on a new, freshly installed, remote appliance\n" + 
+                    "and it may only be used successfully once."
     end
     optparse.parse!(args)
+    
+    # first arg as remote name otherwise the active appliance is connected to
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    if args[0]
+      options[:remote] = args[0]
+    end
+    connect(options)
 
     if !@appliance_name
       print yellow, "No active appliance, see `remote use`\n", reset
       return false
     end
 
-    # this works without any authentication!
-    # it will allow anyone to use it, if there are no users/accounts in the system.
-    #@api_client = establish_remote_appliance_connection(options)
-    #@setup_interface = @api_client.setup
-    @setup_interface = Morpheus::SetupInterface.new(@appliance_url)
-    appliance_status_json = nil
-    begin
-      appliance_status_json = @setup_interface.get()
-      if appliance_status_json['success'] != true
-        print red, "Setup not available for appliance #{@appliance_name} - #{@appliance_url}.\n", reset
-        print red, "#{appliance_status_json['msg']}\n", reset
+    # construct payload
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+    else
+      params = {}
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+      # this works without any authentication!
+      # it will allow anyone to use it, if there are no users/accounts in the system.
+      #@api_client = establish_remote_appliance_connection(options)
+      #@setup_interface = @api_client.setup
+      @setup_interface = Morpheus::SetupInterface.new(@appliance_url)
+      appliance_status_json = nil
+      begin
+        appliance_status_json = @setup_interface.get()
+        if appliance_status_json['success'] != true
+          print_error red, "Setup not available for appliance #{@appliance_name} - #{@appliance_url}.\n", reset
+          print_error red, "#{appliance_status_json['msg']}\n", reset
+          return false
+        end
+      rescue RestClient::Exception => e
+        print_rest_exception(e, options)
         return false
       end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return false
-    end
-    
-    payload = {}
 
-    if appliance_status_json['hubRegistrationEnabled']
-      link = File.join(@appliance_url, '/setup')
-      print red, "Sorry, setup with hub registration is not yet available.\n", reset
-      print "You can use the UI to setup your appliance.\n"
-      print "Go to #{link}\n", reset
-      # if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-      #   system "start #{link}"
-      # elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-      #   system "open #{link}"
-      # elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-      #   system "xdg-open #{link}"
-      # end
-      return false
-    else
-      print_h1 "Morpheus Appliance Setup", [], options
+      # retrieved hub.enabled and hub.url 
+      hub_settings = appliance_status_json['hubSettings'] || appliance_status_json['hub'] || {}
 
+      # store login/registration info in here, for prompt default values
+      hub_info = nil
+      print cyan
       puts "It looks like you're the first one here."
-      puts "Let's initialize your remote appliance at #{@appliance_url}"
 
+      #puts "Initializing your remote appliance at #{@appliance_url}"
+
+      if hub_settings['enabled']
+
+        # Hub Registration
+          hub_action_dropdown = [
+            {'name' => 'Login to existing hub account', 'value' => 'login', 'isDefault' => true}, 
+            {'name' => 'Register new hub account', 'value' => 'register'}, 
+            {'name' => 'Skip this step and install license manually later', 'value' => 'skip'},
+            {'name' => 'Abort', 'value' => 'abort'}
+          ]
+          
+
+        print cyan
+        puts "Your appliance has Morpheus Hub registration enabled."
+        puts "This step will connect to the Morpheus Hub at #{hub_settings['url']}"
+        puts "You have several options for how to proceed:"
+        hub_action_dropdown.each_with_index do |hub_action, idx|
+          puts "#{idx+1}. #{hub_action['name']} [#{hub_action['value']}]"
+        end
+        print "\n"
+        # puts "How do you want to proceed?"
+
+        hubmode = nil
+        while hubmode == nil do
+          
+          options[:options]['hubmode'] = options[:hubmode] if options.key?(:hubmode)
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hubmode', 'fieldLabel' => 'Hub Mode', 'type' => 'select', 'selectOptions' => hub_action_dropdown, 'required' => true, 'defaultValue' => 'login'}], options[:options])
+          hubmode = v_prompt['hubmode']
+
+          if hubmode == 'login'
+
+            # print cyan
+            # puts "MORPHEUS HUB"
+            # puts "The Command Center for DevOps"
+            # print "\n"
+            # print reset
+
+            # Hub Login
+            print_h2 "Morpheus Hub Login @ #{hub_settings['url']}", options
+            hub_login_option_types = [
+              {'fieldContext' => 'hub', 'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true},
+              {'fieldContext' => 'hub', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true},
+            ]
+            v_prompt = Morpheus::Cli::OptionTypes.prompt(hub_login_option_types, options[:options])
+            hub_login_payload = v_prompt['hub']
+            begin
+              hub_login_response = @setup_interface.hub_login(hub_login_payload)
+              hub_info = {'email' => hub_login_payload['email'], 'password' => hub_login_payload['password'] }
+              hub_info.deep_merge!(hub_login_response['data']['info']) if (hub_login_response['data'] && hub_login_response['data']['info'])
+              print_green_success "Logged into Morpheus Hub as #{hub_info['email']}"
+            rescue RestClient::Exception => e
+              hub_login_response = parse_rest_exception(e)
+              error_msg = hub_login_response["msg"] || "Hub login failed."
+              print_error red,error_msg,reset,"\n"
+              hubmode = nil
+              #print_rest_exception(e, options)
+              #exit 1
+            end
+            
+            # DEBUG
+            print_h2 "JSON response for hub login"
+            Morpheus::Logging::DarkPrinter.puts as_json(hub_login_response)
+
+
+          elsif hubmode == 'register'
+            # Hub Registration
+            print_h2 "Morpheus Hub Registration", options
+            hub_register_option_types = [
+              {'fieldContext' => 'hub', 'fieldName' => 'companyName', 'fieldLabel' => 'Company Name', 'type' => 'text', 'required' => true},
+              {'fieldContext' => 'hub', 'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => true},
+              {'fieldContext' => 'hub', 'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => true},
+              {'fieldContext' => 'hub', 'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true},
+              # {'fieldContext' => 'hub', 'fieldName' => 'password', 'fieldLabel' => 'Create Password', 'type' => 'password', 'required' => true},
+              # {'fieldContext' => 'hub', 'fieldName' => 'confirmPassword', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true}
+            ]
+            v_prompt = Morpheus::Cli::OptionTypes.prompt(hub_register_option_types, options[:options])
+            hub_register_payload = v_prompt['hub']
+
+            # Password prompt with re-prompting if no match
+            need_password = true
+            if options[:no_prompt]
+              if options[:options]['hub'] && options[:options]['hub']['password']
+                options[:options]['hub']['confirmPassword'] = options[:options]['hub']['password']
+              end
+            end
+            while need_password do
+              password_option_types = [
+                {'fieldContext' => 'hub', 'fieldName' => 'password', 'fieldLabel' => 'Create Password', 'type' => 'password', 'required' => true},
+                {'fieldContext' => 'hub', 'fieldName' => 'confirmPassword', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true}
+              ]
+              v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+              if v_prompt['hub']['password'] == v_prompt['hub']['confirmPassword']
+                hub_register_payload.deep_merge!(v_prompt['hub'])
+                need_password = false
+              else
+                print_error red, "Password confirmation does not match. Re-enter your new password.", reset, "\n"
+              end
+            end
+
+            begin
+              hub_register_response = @setup_interface.hub_register(hub_register_payload)
+              hub_info = {'email' => hub_register_payload['email'], 'password' => hub_register_payload['password'] }
+              #hub_info.deep_merge!(hub_register_response['data']['info']) if (hub_register_response['data'] && hub_register_response['data']['info'])
+              hub_info.deep_merge!(hub_register_payload)
+              print_green_success "Registered with Morpheus Hub as #{hub_info['email']}"
+            rescue RestClient::Exception => e
+              hub_register_response = parse_rest_exception(e)
+              error_msg = hub_register_response["msg"] || "Hub Registration failed."
+              print_error red,error_msg,reset,"\n"
+              hubmode = nil
+              #print_rest_exception(e, options)
+              #exit 1
+            end
+            
+            # DEBUG
+            #print_h2 "JSON response for hub registration"
+            #Morpheus::Logging::DarkPrinter.puts as_json(hub_register_response)
+            
+          elsif hubmode == 'skip'
+            print cyan,"Skipping hub registraton for now...",reset,"\n"
+            # puts "You may enter a license key later."
+          elsif hubmode == 'abort'
+            return 9, "aborted command"
+          else
+            hubmode = nil
+          end
+        end
+      end
+
+      # ok, we're done with the hub.
+      # now build the payload for POST /api/setup/init
+
+      payload = {}
+      payload.deep_merge!(params)
+
+      puts "Initializing remote appliance at URL: #{@appliance_url}"
+      print_h1 "Morpheus Appliance Setup", [], options
 
       
       # Master Account
-      print_h2 "Create Master Account", options
+      print_h2 "Create Master Tenant", options
       account_option_types = [
-        {'fieldName' => 'accountName', 'fieldLabel' => 'Master Account Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+        {'fieldName' => 'accountName', 'fieldLabel' => 'Master Tenant Name', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['companyName'] : nil)},
       ]
       v_prompt = Morpheus::Cli::OptionTypes.prompt(account_option_types, options[:options])
       payload.merge!(v_prompt)
@@ -751,88 +967,111 @@ EOT
       # Master User
       print_h2 "Create Master User", options
       user_option_types = [
-        {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'displayOrder' => 1},
-        {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-        {'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'displayOrder' => 3},
-        {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'displayOrder' => 4},
+        {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['firstName'] : nil)},
+        {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['lastName'] : nil)},
+        {'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true},
+        {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['email'] : nil)}
       ]
       v_prompt = Morpheus::Cli::OptionTypes.prompt(user_option_types, options[:options])
       payload.merge!(v_prompt)
 
       # Password prompt with re-prompting if no match
-      password_option_types = [
-        {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
-        {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 7},
-      ]
-      v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
-      while v_prompt['passwordConfirmation'] != v_prompt['password']
-        print red, "Password confirmation does not match. Re-enter your new password.", reset, "\n"
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+      need_password = true
+      if options[:no_prompt]
+        options[:options]['confirmPassword'] = payload['password']
+        payload['confirmPassword'] = payload['password'] if payload['password']
       end
-      payload.merge!(v_prompt)
+      while need_password do
+        password_option_types = [
+          {'fieldName' => 'password', 'fieldLabel' => 'Create Password', 'type' => 'password', 'required' => true},
+          {'fieldName' => 'confirmPassword', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true},
+        ]
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+        if v_prompt['password'] == v_prompt['confirmPassword']
+          payload.deep_merge!(v_prompt)
+          need_password = false
+        else
+          print_error red, "Password confirmation does not match. Re-enter your new password.", reset, "\n"
+        end
+      end
 
-      # Extra settings
+      # Appliance Settings
+      default_appliance_url = appliance_status_json['applianceUrl']
+      if default_appliance_url && default_appliance_url.include?('10.0.2.2:8080') # ignore this default value.
+        default_appliance_url = @appliance_url
+      end
+      default_appliance_name = appliance_status_json['applianceName']
+      if default_appliance_name.nil?
+        default_appliance_name = @appliance_name
+      end
       print_h2 "Initial Setup", options
       extra_option_types = [
-        {'fieldName' => 'applianceName', 'fieldLabel' => 'Appliance Name', 'type' => 'text', 'required' => true, 'defaultValue' => nil},
-        {'fieldName' => 'applianceUrl', 'fieldLabel' => 'Appliance URL', 'type' => 'text', 'required' => true, 'defaultValue' => appliance_status_json['applianceUrl']},
+        {'fieldName' => 'applianceName', 'fieldLabel' => 'Appliance Name', 'type' => 'text', 'required' => true, 'defaultValue' => default_appliance_name},
+        {'fieldName' => 'applianceUrl', 'fieldLabel' => 'Appliance URL', 'type' => 'text', 'required' => true, 'defaultValue' => default_appliance_url},
         {'fieldName' => 'backups', 'fieldLabel' => 'Enable Backups', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'off'},
         {'fieldName' => 'monitoring', 'fieldLabel' => 'Enable Monitoring', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'on'},
         {'fieldName' => 'logs', 'fieldLabel' => 'Enable Logs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => 'on'}
       ]
       v_prompt = Morpheus::Cli::OptionTypes.prompt(extra_option_types, options[:options])
       payload.merge!(v_prompt)
+    end
 
-      begin
-        @setup_interface.setopts(options)
-        if options[:dry_run]
-          print_dry_run @setup_interface.dry.init(payload)
-          return
-        end
-        if !options[:json]
-          print "Initializing the appliance...\n"
-        end
-        json_response = @setup_interface.init(payload)
-      rescue RestClient::Exception => e
-        print_rest_exception(e, options)
-        return false
-      end
+    # include hubmode and hub params for login or registration
+    if hubmode
+      payload['hubmode'] = hubmode
+    end
+    if hub_info
+      payload['hub'] = hub_info
+    end
+      
+    # ok, make the api request
+    @setup_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @setup_interface.dry.init(payload)
+      return
+    end
 
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
+    json_response = @setup_interface.init(payload)
+
+    render_result = render_with_format(json_response, options)
+    return 0 if render_result
+
+    if options[:json]
+      print JSON.pretty_generate(json_response)
       print "\n"
-      print cyan, "You have successfully setup the appliance.\n"
-      #print cyan, "You may now login with the command `login`.\n"
-      # uh, just use Credentials.login(username, password, {save: true})
-      cmd_res = Morpheus::Cli::Login.new.login(['--username', payload['username'], '--password', payload['password'], '-q'])
-      # print "\n"
-      print cyan, "You are now logged in as the System Admin #{payload['username']}.\n"
-      print reset
-      #print "\n"
+      return
+    end
+    print "\n"
+    print cyan, "You have successfully setup the appliance at #{@appliance_url}.\n"
+    #print cyan, "You may now login with the command `login`.\n"
+    # uh, just use Credentials.login(username, password, {save: true})
+    cmd_res = Morpheus::Cli::Login.new.login(['--username', payload['username'], '--password', payload['password'], '-q'] + (options[:remote] ? ["-r",options[:remote]] : []))
+    # print "\n"
+    print cyan, "You are now logged in as the System Admin #{payload['username']}.\n"
+    print reset
+    #print "\n"
 
+    if hubmode == 'skip'
       if ::Morpheus::Cli::OptionTypes::confirm("Would you like to apply your License Key now?", options.merge({:default => true}))
-        cmd_res = Morpheus::Cli::License.new.apply([])
+        cmd_res = Morpheus::Cli::License.new.apply([] + (options[:remote] ? ["-r",options[:remote]] : []))
         # license_is_valid = cmd_res != false
       end
-
-      if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first group now?", options.merge({:default => true}))
-        cmd_res = Morpheus::Cli::Groups.new.add(['--use'])
-
-        #print "\n"
-
-        # if cmd_res !=
-          if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first cloud now?", options.merge({:default => true}))
-            cmd_res = Morpheus::Cli::Clouds.new.add([])
-            #print "\n"
-          end
-        # end
-      end
-      print "\n",reset
-
     end
+
+    if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first group now?", options.merge({:default => true}))
+      cmd_res = Morpheus::Cli::Groups.new.add(['--use'] + (options[:remote] ? ["-r",options[:remote]] : []))
+
+      #print "\n"
+
+      # if cmd_res !=
+        if ::Morpheus::Cli::OptionTypes::confirm("Do you want to create the first cloud now?", options.merge({:default => true}))
+          cmd_res = Morpheus::Cli::Clouds.new.add([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          #print "\n"
+        end
+      # end
+    end
+    print "\n",reset
+
   end
 
   def format_appliance_status(app_map, return_color=cyan)
@@ -846,7 +1085,7 @@ EOT
       out << "#{green}#{status_str.upcase}#{return_color}"
     elsif status_str == "unreachable"
       out << "#{red}#{status_str.upcase}#{return_color}"
-    elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable']
+    elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable'].include?(status_str)
       out << "#{red}#{status_str.upcase.gsub('-',' ')}#{return_color}"
     elsif status_str == "fresh" 
       # cold appliance, needs setup
@@ -1150,6 +1389,7 @@ EOT
       end
       # Morpheus::RestClient.enable_http = app_map[:insecure].to_s == 'true'
       setup_interface = Morpheus::SetupInterface.new(app_url)
+      check_json_response = nil
       begin
         now = Time.now.to_i
         app_map[:last_check] = {}
@@ -1198,7 +1438,7 @@ EOT
         # fallback to /ping for older appliance versions (pre 2.10.5)
         begin
           Morpheus::Logging::DarkPrinter.puts "falling back to remote check via /ping ..." if Morpheus::Logging.debug?
-          setup_interface.ping()
+          check_json_response = @setup_interface.ping()
           app_map[:last_check][:ping_fallback] = true
           app_map[:last_check][:http_status] = 200
           app_map[:last_check][:success] = true
@@ -1228,7 +1468,7 @@ EOT
       save_remote(app_name, app_map)
 
       # return the updated data
-      return app_map
+      return app_map, check_json_response
 
     end
 

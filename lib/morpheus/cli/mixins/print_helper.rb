@@ -125,6 +125,16 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  def parse_rest_exception(e, options={})
+    data = {}
+    begin
+      data = JSON.parse(e.response.to_s)
+    rescue => ex
+      # Morpheus::Logging::DarkPrinter.puts "Failed to parse error response as JSON: #{ex}" if Morpheus::Logging.debug?
+    end
+    return data
+  end
+  
   def print_dry_run(api_request, options={})
     # 2nd argument used to be command_string (String)
     command_string = nil

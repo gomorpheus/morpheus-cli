@@ -26,16 +26,28 @@ class Morpheus::SetupInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers, timeout: timeout)
   end
 
-  def get(params={}, timeout=30)
+  def get(params={})
     url = "#{@base_url}/api/setup"
     headers = {:params => params, 'Content-Type' => 'application/json' }
-    execute(method: :get, url: url, headers: headers, timeout: timeout)
+    execute(method: :get, url: url, headers: headers)
   end
 
-  def init(payload={}, timeout=60)
+  def init(payload={})
     url = "#{@base_url}/api/setup/init"
     headers = { 'Content-Type' => 'application/json' }
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json, timeout: timeout)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
+
+  def hub_register(payload={})
+    url = "#{@base_url}/api/setup/hub-register"
+    headers = { 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def hub_login(payload={})
+    url = "#{@base_url}/api/setup/hub-login"
+    headers = { 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end  
 
 end

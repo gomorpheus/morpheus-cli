@@ -778,8 +778,16 @@ module Morpheus
           end
           cmd_results << cur_result
         end
-        failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
-        return failed_cmd ? failed_cmd : 0
+        # find a bad result and return it
+        cmd_results = cmd_results.collect do |cmd_result| 
+          if cmd_result.is_a?(Array)
+            cmd_result
+          else
+            [cmd_result, nil]
+          end
+        end
+        failed_result = cmd_results.find {|cmd_result| cmd_result[0] == false || (cmd_result[0].is_a?(Integer) && cmd_result[0] != 0) }
+        return failed_result ? failed_result : cmd_results.last
       end
 
       # This supports the simple remote option eg. `instances add --remote "qa"`
