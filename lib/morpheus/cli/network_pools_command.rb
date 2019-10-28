@@ -284,9 +284,29 @@ class Morpheus::Cli::NetworkPoolsCommand
       opts.on('--name VALUE', String, "Name for this network pool") do |val|
         options['name'] = val
       end
-      opts.on('--type VALUE', String, "Type of network pool") do |val|
-        options['description'] = val
-      end
+      # todo all of these
+      # if (opts.networkPool.containsKey('category')) networkPool.category = opts.networkPool.category
+      # if (opts.networkPool.containsKey('code')) networkPool.code = opts.networkPool.code
+      # if (opts.networkPool.containsKey('name')) networkPool.name = opts.networkPool.name
+      # if (opts.networkPool.containsKey('internalId')) networkPool.internalId = opts.networkPool.internalId
+      # if (opts.networkPool.containsKey('externalId')) networkPool.externalId = opts.networkPool.externalId
+      # if (opts.networkPool.containsKey('dnsDomain')) networkPool.dnsDomain = opts.networkPool.dnsDomain
+      # if (opts.networkPool.containsKey('dnsSearchPath')) networkPool.dnsSearchPath = opts.networkPool.dnsSearchPath
+      # if (opts.networkPool.containsKey('hostPrefix')) networkPool.hostPrefix = opts.networkPool.hostPrefix
+      # if (opts.networkPool.containsKey('httpProxy')) networkPool.httpProxy = opts.networkPool.httpProxy
+      # if (opts.networkPool.containsKey('dnsServers')) networkPool.dnsServers = opts.networkPool.dnsServers
+      # if (opts.networkPool.containsKey('dnsSuffixList')) networkPool.dnsSuffixList = opts.networkPool.dnsSuffixList
+      # // ipRanges is parsed up above, so just bind it here
+      # // if (opts.networkPool.containsKey('ipRanges')) opts.networkPool.ipRanges.each {networkPool.addToIpRanges(it)}
+      # if (opts.networkPool.containsKey('ipRanges')) opts.networkPool.ipRanges = opts.networkPool.ipRanges
+      # if (opts.networkPool.containsKey('dhcpServer')) networkPool.dhcpServer = opts.networkPool.dhcpServer // ?: false
+      # if (opts.networkPool.containsKey('dhcpIp')) networkPool.dhcpIp = opts.networkPool.dhcpIp
+      # if (opts.networkPool.containsKey('gateway')) networkPool.gateway = opts.networkPool.gateway
+      # if (opts.networkPool.containsKey('netmask')) networkPool.netmask = opts.networkPool.netmask
+      # if (opts.networkPool.containsKey('subnetAddress')) networkPool.subnetAddress = opts.networkPool.subnetAddress
+      # if (opts.networkPool.containsKey('poolEnabled')) networkPool.poolEnabled = opts.networkPool.poolEnabled // ?: true
+      # if (opts.networkPool.containsKey('tftpServer')) networkPool.tftpServer = opts.networkPool.tftpServer
+      # if (opts.networkPool.containsKey('bootFile')) networkPool.bootFile = opts.networkPool.bootFile
       opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
