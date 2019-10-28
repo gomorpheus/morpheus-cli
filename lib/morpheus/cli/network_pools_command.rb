@@ -229,14 +229,15 @@ class Morpheus::Cli::NetworkPoolsCommand
         end
         
         # Network Pool Type
-        network_type_id = nil
+        network_type_code = nil
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Pool Type', 'type' => 'select', 'optionSource' => 'networkPoolTypes', 'required' => true, 'description' => 'Choose a network pool type.'}], options, @api_client, {})
-        network_type_id = v_prompt['type']
-        if network_type_id.nil? || network_type_id.to_s.empty?
-          print_red_alert "Pool Type not found by id '#{options['type']}'"
+        network_type_code = v_prompt['type']
+        if network_type_code.nil? || network_type_code.to_s.empty?
+          print_red_alert "Pool Type not found by code '#{options['type']}'"
           return 1
         end
-        payload['networkPool']['type'] = {'id' => network_type_id.to_i }
+        payload['networkPool']['type'] = {'code' => network_type_code }
+        # payload['networkPool']['type'] = network_type_code # this works too, simpler
 
         # IP Ranges
         if ip_range_list
