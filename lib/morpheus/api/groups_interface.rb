@@ -10,7 +10,7 @@ class Morpheus::GroupsInterface < Morpheus::APIClient
 
 
   def list(params={})
-    url = "#{@base_url}/api/environments"
+    url = "#{@base_url}/api/groups"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
