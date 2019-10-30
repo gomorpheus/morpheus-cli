@@ -90,7 +90,7 @@ class Morpheus::Cli::License
           if it['endDate']
             format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
           else
-            'None'
+            'Never'
           end
           },
         "Memory" => lambda {|it| "#{used_memory} / #{max_memory}" },
