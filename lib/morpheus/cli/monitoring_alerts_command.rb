@@ -15,6 +15,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
 
   register_subcommands :list, :get, :add, :update, :remove
 
+  set_command_hidden # hiding until 4.1.1 release
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
