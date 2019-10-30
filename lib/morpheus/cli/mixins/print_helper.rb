@@ -125,6 +125,16 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  def parse_rest_exception(e, options={})
+    data = {}
+    begin
+      data = JSON.parse(e.response.to_s)
+    rescue => ex
+      # Morpheus::Logging::DarkPrinter.puts "Failed to parse error response as JSON: #{ex}" if Morpheus::Logging.debug?
+    end
+    return data
+  end
+  
   def print_dry_run(api_request, options={})
     # 2nd argument used to be command_string (String)
     command_string = nil
@@ -212,14 +222,14 @@ module Morpheus::Cli::PrintHelper
     # curl output?
     if api_request[:curl] || options[:curl]
       print "\n"
-      puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
+      puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}"
       print format_curl_command(http_method, url, headers, payload, options)
       print "\n"
       return
     end
 
     print "\n"
-    puts "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
+    puts "#{cyan}#{bold}#{dark}REQUEST#{reset}"
     request_string = "#{http_method.to_s.upcase} #{url}".strip
     print request_string, "\n"
     print cyan
@@ -233,7 +243,7 @@ module Morpheus::Cli::PrintHelper
             #payload = "(unparsable) #{payload}"
           end
         end
-        puts "#{cyan}#{bold}#{dark}JSON#{reset}\n"
+        puts "#{cyan}#{bold}#{dark}JSON#{reset}"
         print JSON.pretty_generate(payload)
       else
         print "Content-Type: #{content_type}", "\n"
@@ -277,7 +287,7 @@ module Morpheus::Cli::PrintHelper
     options ||= {}
     # build curl [options]
     out = ""
-    out << "curl -X#{http_method.to_s.upcase} '#{url}'"
+    out << "curl -X#{http_method.to_s.upcase} \"#{url}\""
     if headers
       headers.each do |k,v|
         # avoid weird [:headers][:params]

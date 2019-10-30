@@ -222,7 +222,7 @@ class Morpheus::Cli::Whoami
           print reset,"\n"
         else
           print "\n", reset
-          print "No active group. See `groups use`\n",reset
+          print cyan, "No active group. See `groups use`\n",reset
           print reset,"\n"
         end
 

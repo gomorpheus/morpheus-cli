@@ -8,6 +8,13 @@ class Morpheus::DeploymentsInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
+  def list(params={})
+    url = "#{@base_url}/api/deployments"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+  
   def get(options=nil)
     url = "#{@base_url}/api/deployments"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }

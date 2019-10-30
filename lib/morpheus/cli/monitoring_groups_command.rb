@@ -83,6 +83,11 @@ class Morpheus::Cli::MonitoringGroupsCommand
       # opts.on(nil,'--statistics', "Display Statistics") do |val|
       #   options[:show_statistics] = true
       # end
+      opts.on('-a','--all', "Display All Details (History, Notifications)") do
+        options[:show_history] = true
+        options[:show_notifications] = true
+        options[:show_statistics] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -106,10 +111,10 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_dry_run @monitoring_groups_interface.dry.get(check_group['id'])
         return
       end
-      # save a request, same thing is returned
-      # json_response = @monitoring_groups_interface.get(check_group['id'])
-      json_response = {'checkGroup' => check_group}
+      # get by ID to sideload associated checks
+      json_response = @monitoring_groups_interface.get(check_group['id'])
       check_group = json_response['checkGroup']
+      
       if options[:json]
         puts as_json(json_response, options, "checkGroup")
         return 0
@@ -147,8 +152,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
         # print as_pretty_table(check_groups, [:id, {"Check Group" => :name}], options)
         print_checks_table(checks, options)
       else
-        # print "\n"
-        # puts "No checks found..."
+        print "\n", yellow
+        puts "No Checks"
       end
 
       ## Open Incidents
@@ -159,8 +164,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
         print_incidents_table(open_incidents)
         # print_results_pagination(size: open_incidents.size, total: open_incidents.size)
       else
-        print "\n", cyan
-        puts "No open incidents for this check group"
+        # print "\n", cyan
+        # puts "No open incidents for this check group"
       end
 
       ## History (plain old Hash)
@@ -172,7 +177,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         issues = history_items
         if history_items && !history_items.empty?
           print_h2 "History"
-          print_check_history_table(history_items, options)
+          print_check_group_history_table(history_items, options)
           print_results_pagination(history_json_response, {:label => "event", :n_label => "events"})
         else
           print "\n"
@@ -243,7 +248,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       if history_items.empty?
         print cyan,"No history found.",reset,"\n"
       else
-        print_check_history_table(history_items, options)
+        print_check_group_history_table(history_items, options)
         print_results_pagination(json_response, {:label => "event", :n_label => "events"})
       end
       print reset,"\n"
@@ -255,7 +260,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
 
   def add(args)
     options = {}
-    params = {'inUptime' => true, 'severity' => 'critical'}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -268,13 +273,13 @@ class Morpheus::Cli::MonitoringGroupsCommand
         params['minHappy'] = val.to_i
       end
       opts.on('--severity VALUE', String, "Max Severity. Determines the maximum severity level this group can incur on an incident when failing. Default is critical") do |val|
-        params['severity'] = val
+        params['severity'] = val.to_s.downcase
       end
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -303,9 +308,35 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        if params['checks']
-          params['checks'] = params['checks'].collect {|it| it.to_i }
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this contact.'}], options[:options])
+          params['name'] = v_prompt['name']
         end
+        if params['description'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Contact email address.'}], options[:options])
+          params['description'] = v_prompt['description'] unless v_prompt['description'].to_s.empty?
+        end
+        if params['minHappy'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'minHappy', 'type' => 'text', 'fieldLabel' => 'Min. Checks', 'required' => false, 'description' => 'Min Checks. This specifies the minimum number of checks within the group that must be happy to keep the group from becoming unhealthy.', 'defaultValue' => 1}], options[:options])
+          params['minHappy'] = v_prompt['minHappy'] unless v_prompt['minHappy'].to_s.empty?
+        end
+        if params['severity'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'severity', 'type' => 'text', 'fieldLabel' => 'Severity', 'required' => false, 'description' => 'Max Severity. Determines the maximum severity level this group can incur on an incident when failing. Default is critical', 'defaultValue' => 'critical'}], options[:options])
+          params['severity'] = v_prompt['severity'] unless v_prompt['severity'].to_s.empty?
+        end
+        if params['inUptime'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'inUptime', 'type' => 'checkbox', 'fieldLabel' => 'Affects Availability', 'required' => false, 'description' => 'Affects Availability. Default is on.', 'defaultValue' => true}], options[:options])
+          params['inUptime'] = v_prompt['inUptime'] unless v_prompt['inUptime'].to_s.empty?
+        end
+
+        # Checks
+        prompt_results = prompt_for_checks(params, options, @api_client)
+        if prompt_results[:success]
+          params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
+        end
+        
         # todo: prompt?
         payload = {'checkGroup' => params}
       end
@@ -350,8 +381,8 @@ class Morpheus::Cli::MonitoringGroupsCommand
       opts.on('--inUptime [on|off]', String, "Affects Availability. Default is on.") do |val|
         params['inUptime'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks to include in this group, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -377,10 +408,15 @@ class Morpheus::Cli::MonitoringGroupsCommand
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # Checks
         if params['checks']
-          params['checks'] = params['checks'].collect {|it| it.to_i }
+          prompt_results = prompt_for_checks(params, options, @api_client)
+          if prompt_results[:success]
+            params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
         end
-        # todo: prompt?
         payload = {'checkGroup' => params}
       end
       @monitoring_groups_interface.setopts(options)

@@ -45,10 +45,10 @@ class Morpheus::Cli::Groups
       params.merge!(parse_list_options(options))
       @groups_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @groups_interface.get(params)
+        print_dry_run @groups_interface.list(params)
         return 0
       end
-      json_response = @groups_interface.get(params)
+      json_response = @groups_interface.list(params)
       render_result = render_with_format(json_response, options, 'groups')
       return 0 if render_result
 
@@ -69,7 +69,7 @@ class Morpheus::Cli::Groups
           #end
         else
           unless options[:remote]
-            print "\n# => No active group, see `groups use`\n", reset
+            print cyan, "\n# => No active group, see `groups use`\n", reset
           end
         end
       end
@@ -107,7 +107,7 @@ class Morpheus::Cli::Groups
         if arg.to_s =~ /\A\d{1,}\Z/
           print_dry_run @groups_interface.dry.get(arg.to_i)
         else
-          print_dry_run @groups_interface.dry.get({name:arg})
+          print_dry_run @groups_interface.dry.list({name:arg})
         end
         return 0
       end

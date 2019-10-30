@@ -739,27 +739,6 @@ class Morpheus::Cli::ImageBuilderCommand
     end
   end
 
-  # def find_group_by_name(name)
-  #   group_results = @groups_interface.get(name)
-  #   if group_results['groups'].empty?
-  #     print_red_alert "Group not found by name #{name}"
-  #     return nil
-  #   end
-  #   return group_results['groups'][0]
-  # end
-
-  # def find_cloud_by_name(group_id, name)
-  #   option_results = @options_interface.options_for_source('clouds',{groupId: group_id})
-  #   match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-  #   if match.nil?
-  #     print_red_alert "Cloud not found by name #{name}"
-  #     return nil
-  #   else
-  #     return match['value']
-  #   end
-  # end
-
-
   def format_image_build_status(image_build, return_color=cyan)
     out = ""
     return out if !image_build

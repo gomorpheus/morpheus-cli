@@ -39,6 +39,10 @@ class Morpheus::Cli::Login
       opts.on( '-t', '--test', "Test credentials only, does not update stored credentials for the appliance." ) do
         options[:test_only] = true
       end
+      opts.on( '--client-id CLIENT', "Used to test authentication with a client_id other than #{Morpheus::APIClient::CLIENT_ID}. Currently behaves like --test, credentials are not stored." ) do |val|
+        options[:client_id] = val.to_s
+        options[:test_only] = true
+      end
       opts.on( '-T', '--token ACCESS_TOKEN', "Use an existing access token to login instead of authenticating with a username and password." ) do |val|
         options[:remote_token] = val
       end

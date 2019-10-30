@@ -14,7 +14,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
   set_command_name :'monitor-alerts'
 
   register_subcommands :list, :get, :add, :update, :remove
-  
+
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -38,7 +38,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :last_updated, :query, :json, :csv, :yaml, :fields, :json, :dry_run, :remote])
       opts.footer = "List monitoring alert rules."
     end
     optparse.parse!(args)
@@ -85,12 +85,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[alert]")
-      opts.on(nil,'--history', "Display History") do |val|
-        options[:show_history] = true
-      end
-      opts.on(nil,'--notifications', "Display Notifications") do |val|
-        options[:show_notifications] = true
-      end
+      # opts.on(nil,'--history', "Display History") do |val|
+      #   options[:show_history] = true
+      # end
+      # opts.on(nil,'--notifications', "Display Notifications") do |val|
+      #   options[:show_notifications] = true
+      # end
       build_common_options(opts, options, [:json, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a monitoring alert rule." + "\n" +
                     "[alert] is required. This is the name or ID of the alert rule. Supports 1-N [alert] arguments."
@@ -115,10 +115,9 @@ class Morpheus::Cli::MonitoringAlertsCommand
         print_dry_run @monitoring_alerts_interface.dry.get(alert['id'])
         return
       end
-      # save a request
-      #json_response = @monitoring_alerts_interface.get(alert['id'])
-      #alert = json_response['alert']
-      json_response = {'alert' => alert}
+      # get by ID to sideload associated checks,groups,apps
+      json_response = @monitoring_alerts_interface.get(alert['id'])
+      alert = json_response['alert']
       if options[:json]
         puts as_json(json_response, options, "alert")
         return 0
@@ -176,8 +175,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
             monitor_apps.size.to_s
           end
         },
-        "Recipients" => lambda {|alert| 
-          recipients = alert['recipients'] || []
+        "Contacts" => lambda {|alert| 
+          recipients = alert['contacts'] || alert['recipients'] || []
           # if recipients.size > 3
           #   recipients.first(3).collect {|r| r['name'] }.join(", ") + ", (#{recipients.size - 3} more)"
           # else
@@ -193,14 +192,16 @@ class Morpheus::Cli::MonitoringAlertsCommand
 
 
       ## Checks in this Alert
-      checks = alert["checks"]
+      #checks = alert["checks"]
+      checks = json_response["checks"]
       if checks && !checks.empty?
         print_h2 "Checks"
         print_checks_table(checks, options)
       end
 
       ## Check Groups in this Alert
-      check_groups = alert["checkGroups"]
+      # check_groups = alert["checkGroups"]
+      check_groups = json_response["checkGroups"]
       if check_groups && !check_groups.empty?
         print_h2 "Check Groups"
         print_check_groups_table(check_groups, options)
@@ -208,18 +209,20 @@ class Morpheus::Cli::MonitoringAlertsCommand
 
       ## Apps in this Alert
       monitor_apps = alert["apps"]
+      monitor_apps = json_response["apps"]
       if monitor_apps && !monitor_apps.empty?
         print_h2 "Apps"
         print_monitoring_apps_table(monitor_apps, options)
       end
 
       ## Recipients in this Alert
-      recipients = alert["recipients"]
+      recipients = alert['contacts'] || alert['recipients'] || []
       if recipients && !recipients.empty?
-        print_h2 "Recipients"
+        print_h2 "Contacts"
         columns = [
-          {"CONTACT" => lambda {|recipient| recipient['name'] } },
-          {"METHOD" => lambda {|recipient| format_recipient_method(recipient) } },
+          {"CONTACT ID" => lambda {|recipient| recipient['id'] } },
+          {"CONTACT NAME" => lambda {|recipient| recipient['name'] } },
+          {"METHOD" => lambda {|recipient| format_recipient_method(recipient['method'] || recipient['addressTypes']) } },
           {"NOTIFY ON CHANGE" => lambda {|recipient| format_boolean(recipient['notify']) } },
           {"NOTIFY ON CLOSE" => lambda {|recipient| format_boolean(recipient['close']) } }
         ]
@@ -253,8 +256,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-checks [on|off]', String, "Toggle trigger for all checks.") do |val|
         params['allChecks'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--checks LIST', Array, "Checks, comma separated list of check IDs or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -263,8 +266,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-groups [on|off]', String, "Toggle trigger for all check groups.") do |val|
         params['allGroups'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--groups LIST', Array, "Check Groups, comma separated list of check group ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--groups LIST', Array, "Check Groups, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checkGroups'] = []
         else
           params['checkGroups'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -273,19 +276,19 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-apps [on|off]', String, "Toggle trigger for all check groups.") do |val|
         params['allApps'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of monitor app ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['apps'] = []
         else
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--recipients LIST', Array, "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
-          params['recipients'] = []
+      opts.on('--contacts LIST', Array, "Contacts, comma separated list of Contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
+          params['contacts'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          params['recipients'] = recipient_list
+          params['contacts'] = recipient_list
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -330,55 +333,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
         if params['allChecks'] == true
           params.delete('checks')
         else
-          check_list = nil
-          check_ids = []
-          still_prompting = true
-          while still_prompting
-            if params['checks'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checks', 'type' => 'text', 'fieldLabel' => 'Checks', 'required' => false, 'description' => 'Checks to include in this alert rule, comma separated list of Check ID or Name'}], options[:options])
-              unless v_prompt['checks'].to_s.empty?
-                check_list = v_prompt['checks'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-              end
-              bad_ids = []
-              if check_list && check_list.size > 0
-                check_list.each do |it|
-                  found_check = nil
-                  begin
-                    found_check = find_check_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_check
-                    check_ids << found_check['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              still_prompting = bad_ids.empty? ? false : true
-            else
-              check_list = params['checks']
-              still_prompting = false
-              bad_ids = []
-              if check_list && check_list.size > 0
-                check_list.each do |it|
-                  found_check = nil
-                  begin
-                    found_check = find_check_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_check
-                    check_ids << found_check['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              if !bad_ids.empty?
-                return 1
-              end
-            end
+          prompt_results = prompt_for_checks(params, options, @api_client)
+          if prompt_results[:success]
+            params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
           end
-          params['checks'] = check_ids
         end
 
         # All Check Groups?
@@ -390,55 +350,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
         if params['allGroups'] == true
           params.delete('checkGroups')
         else
-          check_group_list = nil
-          check_group_ids = []
-          still_prompting = true
-          while still_prompting
-            if params['checkGroups'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'checkGroups', 'type' => 'text', 'fieldLabel' => 'Check Groups', 'required' => false, 'description' => 'Check Groups to include in this alert rule, comma separated list of Check Group ID or Name'}], options[:options])
-              unless v_prompt['checkGroups'].to_s.empty?
-                check_group_list = v_prompt['checkGroups'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-              end
-              bad_ids = []
-              if check_group_list && check_group_list.size > 0
-                check_group_list.each do |it|
-                  found_check = nil
-                  begin
-                    found_check = find_check_group_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_check
-                    check_group_ids << found_check['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              still_prompting = bad_ids.empty? ? false : true
-            else
-              check_group_list = params['checkGroups']
-              still_prompting = false
-              bad_ids = []
-              if check_group_list && check_group_list.size > 0
-                check_group_list.each do |it|
-                  found_check = nil
-                  begin
-                    found_check = find_check_group_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_check
-                    check_group_ids << found_check['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              if !bad_ids.empty?
-                return 1
-              end
-            end
+          prompt_results = prompt_for_check_groups(params, options, @api_client)
+          if prompt_results[:success]
+            params['checkGroups'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
           end
-          params['checkGroups'] = check_group_ids
         end
 
         # All Apps?
@@ -450,67 +367,24 @@ class Morpheus::Cli::MonitoringAlertsCommand
         if params['allApps'] == true
           params.delete('apps')
         else
-          monitor_app_list = nil
-          monitor_app_ids = []
-          still_prompting = true
-          while still_prompting
-            if params['apps'].nil?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'apps', 'type' => 'text', 'fieldLabel' => 'Apps', 'required' => false, 'description' => 'Monitor Apps to include in this alert rule, comma separated list of Monitor App ID or Name'}], options[:options])
-              unless v_prompt['apps'].to_s.empty?
-                monitor_app_list = v_prompt['apps'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-              end
-              bad_ids = []
-              if monitor_app_list && monitor_app_list.size > 0
-                monitor_app_list.each do |it|
-                  found_monitor_app = nil
-                  begin
-                    found_monitor_app = find_monitoring_app_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_monitor_app
-                    monitor_app_ids << found_monitor_app['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              still_prompting = bad_ids.empty? ? false : true
-            else
-              monitor_app_list = params['apps']
-              still_prompting = false
-              bad_ids = []
-              if monitor_app_list && monitor_app_list.size > 0
-                monitor_app_list.each do |it|
-                  found_monitor_app = nil
-                  begin
-                    found_monitor_app = find_monitoring_app_by_name_or_id(it)
-                  rescue SystemExit => cmdexit
-                  end
-                  if found_monitor_app
-                    monitor_app_ids << found_monitor_app['id']
-                  else
-                    bad_ids << it
-                  end
-                end
-              end
-              if !bad_ids.empty?
-                return 1
-              end
-            end
+          prompt_results = prompt_for_monitor_apps(params, options, @api_client)
+          if prompt_results[:success]
+            params['apps'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
           end
-          params['apps'] = monitor_app_ids
         end
 
         # Recipients (Contacts)
         recipient_list = []
         contact_ids = []
           
-        if params['recipients'].nil?
+        if params['contacts'].nil?
           still_prompting = true
           while still_prompting
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'recipients', 'type' => 'text', 'fieldLabel' => 'Recipients', 'required' => false, 'description' => "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
-            unless v_prompt['recipients'].to_s.empty?
-              recipient_list = v_prompt['recipients'].split.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'contacts', 'type' => 'text', 'fieldLabel' => 'Contacts', 'required' => false, 'description' => "Contacts, comma separated list of contact names or IDs. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange"}], options[:options])
+            unless v_prompt['contacts'].to_s.empty?
+              recipient_list = v_prompt['contacts'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
             end
             bad_ids = []
             if recipient_list && recipient_list.size > 0
@@ -531,7 +405,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
             still_prompting = bad_ids.empty? ? false : true
           end
         else
-          recipient_list = params['recipients']
+          recipient_list = params['contacts']
           bad_ids = []
           if recipient_list && recipient_list.size > 0
             recipient_list.each do |it|
@@ -558,6 +432,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           parts = it.split(":").collect { |part| part.strip }
           #recipient_id = parts[0]
           recipient_id = contact_ids[index]
+
           recipient_method = parts[1] ? parts[1].to_s : "emailAddress"
           recipient_notify = parts[2] ? ['on','true'].include?(parts[2].to_s.downcase) : true
           recipient_close = parts[3] ? ['on','true'].include?(parts[3].to_s.downcase) : true
@@ -569,7 +444,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
           }
           recipient_records << recipient_record
         end
-        params['recipients'] = recipient_records
+        params['contacts'] = recipient_records
         
         payload = {'alert' => params}
       end
@@ -615,8 +490,8 @@ class Morpheus::Cli::MonitoringAlertsCommand
       opts.on('--all-checks [on|off]', String, "Toggle trigger for all checks.") do |val|
         params['allChecks'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
-      opts.on('--checks LIST', Array, "Checks, comma separated list of check IDs or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+      opts.on('--checks LIST', Array, "Checks, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checks'] = []
         else
           params['checks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -626,7 +501,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
         params['allGroups'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
       opts.on('--groups LIST', Array, "Check Groups, comma separated list of check group ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['checkGroups'] = []
         else
           params['checkGroups'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
@@ -636,18 +511,18 @@ class Morpheus::Cli::MonitoringAlertsCommand
         params['allApps'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
       opts.on('--apps LIST', Array, "Monitor Apps, comma separated list of monitor app ID or names.") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
+        if list.size == 1 && ('[]' == list[0]) # clear array
           params['apps'] = []
         else
           params['apps'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      opts.on('--recipients LIST', Array, "Recipients, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
-        if list.size == 1 && list[0] == 'null' || list[0] == '[]' # hacky way to clear it
-          params['recipients'] = []
+      opts.on('--contacts LIST', Array, "Contacts, comma separated list of contact ID or names. Additional recipient settings can be passed like Contact ID:method:notifyOnClose:notifyOnChange") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
+          params['contacts'] = []
         else
           recipient_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          params['recipients'] = recipient_list
+          params['contacts'] = recipient_list
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -688,29 +563,12 @@ class Morpheus::Cli::MonitoringAlertsCommand
         # end
         # Checks
         if params['checks']
-          check_list = params['checks']
-          check_ids = []
-
-          bad_ids = []
-          if check_list && check_list.size > 0
-            check_list.each do |it|
-              found_check = nil
-              begin
-                found_check = find_check_by_name_or_id(it)
-              rescue SystemExit => cmdexit
-              end
-              if found_check
-                check_ids << found_check['id']
-              else
-                bad_ids << it
-              end
-            end
-          end
-          if !bad_ids.empty?
+          prompt_results = prompt_for_checks(params, options, @api_client)
+          if prompt_results[:success]
+            params['checks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          
-          params['checks'] = check_ids
         end
 
         # All Check Groups?
@@ -720,63 +578,33 @@ class Morpheus::Cli::MonitoringAlertsCommand
         # end
         # Check Groups
         if params['checkGroups']
-          check_group_list = params['checkGroups']
-          check_group_ids = []
-          bad_ids = []
-          if check_group_list && check_group_list.size > 0
-            check_group_list.each do |it|
-              found_check = nil
-              begin
-                found_check = find_check_group_by_name_or_id(it)
-              rescue SystemExit => cmdexit
-              end
-              if found_check
-                check_group_ids << found_check['id']
-              else
-                bad_ids << it
-              end
-            end
-          end
-          if !bad_ids.empty?
+          prompt_results = prompt_for_check_groups(params, options, @api_client)
+          if prompt_results[:success]
+            params['checkGroups'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          params['checkGroups'] = check_group_ids
         end
-        
+
         # All Apps?
         # if params['allApps'].nil?
         #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allApps', 'type' => 'text', 'fieldLabel' => 'All Apps?', 'required' => false, 'defaultValue' => 'off', 'description' => 'Trigger for all monitoring apps.'}], options[:options])
         #   params['allApps'] = (['on','true'].include?(v_prompt['allApps'].to_s)) unless v_prompt['allApps'].nil?
         # end
         # Apps
-        if params['checkGroups']
-          monitor_app_list = params['apps']
-          monitor_app_ids = []
-          bad_ids = []
-          if monitor_app_list && monitor_app_list.size > 0
-            monitor_app_list.each do |it|
-              found_monitor_app = nil
-              begin
-                found_monitor_app = find_monitoring_app_by_name_or_id(it)
-              rescue SystemExit => cmdexit
-              end
-              if found_monitor_app
-                monitor_app_ids << found_monitor_app['id']
-              else
-                bad_ids << it
-              end
-            end
-          end
-          if !bad_ids.empty?
+        if params['apps']
+          prompt_results = prompt_for_monitor_apps(params, options, @api_client)
+          if prompt_results[:success]
+            params['apps'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
             return 1
           end
-          params['apps'] = monitor_app_ids
         end
 
         # Recipients (Contacts)
-        if params['recipients']
+        if params['contacts']
           
-          recipient_list = params['recipients']
+          recipient_list = params['contacts']
           contact_ids = []
           bad_ids = []
           if recipient_list && recipient_list.size > 0
@@ -799,23 +627,34 @@ class Morpheus::Cli::MonitoringAlertsCommand
           end
           recipient_records = []
           # parse recipient string as Contact ID:method:notifyOnClose:notifyOnChange
-          # todo: should be smarter and try to merge changes with existing recipient record
+          existing_recipients = alert['contacts'] || []
           recipient_list.each_with_index do |it, index|
             parts = it.split(":").collect { |part| part.strip }
             #recipient_id = parts[0]
             recipient_id = contact_ids[index]
-            recipient_method = parts[1] ? parts[1].to_s : "emailAddress"
-            recipient_notify = parts[2] ? ['on','true'].include?(parts[2].to_s.downcase) : true
-            recipient_close = parts[3] ? ['on','true'].include?(parts[3].to_s.downcase) : true
             recipient_record = {
-              "id" => recipient_id, 
-              "method" => parse_recipient_method(recipient_method), 
-              "notify" => recipient_notify,
-              "close" => recipient_close
+              "id" => recipient_id
             }
+            # preserve existing values for these settings
+            existing_recipient = existing_recipients.find {|rec| rec['id'] == recipient_id.to_i }
+            if parts[1]
+              recipient_record["method"] = parse_recipient_method(parts[1].to_s)
+            elsif existing_recipient
+              recipient_record["method"] = existing_recipient["method"]
+            end
+            if parts[2]
+              recipient_record["notify"] = ['on','true'].include?(parts[2].to_s.downcase)
+            elsif existing_recipient
+              recipient_record["notify"] = existing_recipient["notify"]
+            end
+            if parts[3]
+              recipient_record["close"] = ['on','true'].include?(parts[3].to_s.downcase)
+            elsif existing_recipient
+              recipient_record["close"] = existing_recipient["close"]
+            end
             recipient_records << recipient_record
           end
-          params['recipients'] = recipient_records
+          params['contacts'] = recipient_records
         end
         
         payload = {'alert' => params}
@@ -863,7 +702,7 @@ class Morpheus::Cli::MonitoringAlertsCommand
     end
     connect(options)
     id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete alert #{id_list.size == 1 ? 'alert' : 'alerts'} #{anded_list(id_list)}?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete #{id_list.size == 1 ? 'alert' : 'alerts'} #{anded_list(id_list)}?", options)
       exit 1
     end
     return run_command_for_each_arg(id_list) do |arg|
@@ -898,7 +737,19 @@ class Morpheus::Cli::MonitoringAlertsCommand
     columns = [
       {"ID" => "id" },
       {"NAME" => "name" },
-      {"MIN. SEVERITY" => "minSeverity" },
+      {"APPS" => lambda {|alert| 
+        if alert['allApps']
+          "All"
+        else
+          monitor_apps = alert['apps'] || []
+          # if monitor_apps.size > 3
+          #   monitor_apps.first(3).collect {|r| r['name'] }.join(", ") + ", (#{monitor_apps.size - 3} more)"
+          # else
+          #   monitor_apps.collect {|r| r['name'] }.join(", ")
+          # end
+          monitor_apps.size.to_s
+        end
+      } },
       {"CHECKS" => lambda {|alert| 
         if alert['allChecks']
           "All"
@@ -926,21 +777,9 @@ class Morpheus::Cli::MonitoringAlertsCommand
           check_groups.size.to_s
         end
       } },
-      {"APPS" => lambda {|alert| 
-        if alert['allApps']
-          "All"
-        else
-          monitor_apps = alert['apps'] || []
-          # if monitor_apps.size > 3
-          #   monitor_apps.first(3).collect {|r| r['name'] }.join(", ") + ", (#{monitor_apps.size - 3} more)"
-          # else
-          #   monitor_apps.collect {|r| r['name'] }.join(", ")
-          # end
-          monitor_apps.size.to_s
-        end
-      } },
-      {"RECIPIENTS" => lambda {|alert| 
-        recipients = alert['recipients'] || []
+      {"MIN. SEVERITY" => "minSeverity" },
+      {"CONTACTS" => lambda {|alert| 
+        recipients = alert['contacts'] || alert['recipients'] || []
         # if recipients.size > 3
         #   recipients.first(3).collect {|r| r['name'] }.join(", ") + ", (#{recipients.size - 3} more)"
         # else

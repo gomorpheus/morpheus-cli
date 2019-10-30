@@ -641,7 +641,7 @@ class Morpheus::Cli::Tasks
   end
 
   def find_task_by_name(name)
-    tasks = @tasks_interface.get({name: name.to_s})['tasks']
+    tasks = @tasks_interface.list({name: name.to_s})['tasks']
     if tasks.empty?
       print_red_alert "Task not found by name #{name}"
       return nil

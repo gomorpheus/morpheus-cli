@@ -36,10 +36,10 @@ class Morpheus::Cli::Deployments
       end
       @deployments_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @deployments_interface.dry.get(params)
+        print_dry_run @deployments_interface.dry.list(params)
         return
       end
-      json_response = @deployments_interface.get(params)
+      json_response = @deployments_interface.list(params)
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else

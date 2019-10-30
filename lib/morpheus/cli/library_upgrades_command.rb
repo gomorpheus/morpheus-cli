@@ -288,7 +288,7 @@ class Morpheus::Cli::LibraryUpgradesCommand
         end
         
 
-        # provision_types = @provision_types_interface.get({customSupported: true})['provisionTypes']
+        # provision_types = @provision_types_interface.list({customSupported: true})['provisionTypes']
         # if provision_types.empty?
         #   print_red_alert "No available provision types found!"
         #   exit 1

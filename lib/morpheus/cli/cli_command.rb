@@ -34,14 +34,14 @@ module Morpheus
         @my_terminal ||= Morpheus::Terminal.instance
       end
 
-      # set the terminal this is running this command.
+      # set the terminal running this command.
       # @param term [MorpheusTerminal] the terminal this command is assigned to
       # @return the Terminal this command is being executed inside of
       def my_terminal=(term)
-        if !t.is_a?(Morpheus::Terminal)
-          raise "CliCommand #{self.class} terminal= expects object of type Terminal and instead got a #{t.class}"
+        if !term.is_a?(Morpheus::Terminal)
+          raise "CliCommand (#{self.class}) my_terminal= expects object of type Terminal and instead got a #{term.class}"
         end
-        @my_terminal = t
+        @my_terminal = term
       end
 
 
@@ -778,8 +778,16 @@ module Morpheus
           end
           cmd_results << cur_result
         end
-        failed_cmd = cmd_results.find {|cmd_result| cmd_result == false || (cmd_result.is_a?(Integer) && cmd_result != 0) }
-        return failed_cmd ? failed_cmd : 0
+        # find a bad result and return it
+        cmd_results = cmd_results.collect do |cmd_result| 
+          if cmd_result.is_a?(Array)
+            cmd_result
+          else
+            [cmd_result, nil]
+          end
+        end
+        failed_result = cmd_results.find {|cmd_result| cmd_result[0] == false || (cmd_result[0].is_a?(Integer) && cmd_result[0] != 0) }
+        return failed_result ? failed_result : cmd_results.last
       end
 
       # This supports the simple remote option eg. `instances add --remote "qa"`

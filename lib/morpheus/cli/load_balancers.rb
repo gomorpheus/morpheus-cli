@@ -39,10 +39,10 @@ class Morpheus::Cli::LoadBalancers
       end
       @load_balancers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @load_balancers_interface.dry.get(params)
+        print_dry_run @load_balancers_interface.dry.list(params)
         return
       end
-      json_response = @load_balancers_interface.get(params)
+      json_response = @load_balancers_interface.list(params)
       if options[:json]
         puts as_json(json_response, options, "loadBalancers")
         return 0
@@ -95,7 +95,7 @@ class Morpheus::Cli::LoadBalancers
         if lb_name.to_s =~ /\A\d{1,}\Z/
           print_dry_run @load_balancers_interface.dry.get(lb_name.to_i)
         else
-          print_dry_run @load_balancers_interface.dry.get({name:lb_name})
+          print_dry_run @load_balancers_interface.dry.list({name:lb_name})
         end
         return
       end
@@ -370,7 +370,7 @@ class Morpheus::Cli::LoadBalancers
   end
 
   def find_lb_by_name(name)
-    lbs = @load_balancers_interface.get({name: name.to_s})['loadBalancers']
+    lbs = @load_balancers_interface.list({name: name.to_s})['loadBalancers']
     if lbs.empty?
       print_red_alert "Load Balancer not found by name #{name}"
       return nil

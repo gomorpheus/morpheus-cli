@@ -5,12 +5,14 @@ require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/option_types'
 require 'morpheus/cli/mixins/accounts_helper'
+require 'morpheus/cli/mixins/provisioning_helper'
 require 'json'
 
 class Morpheus::Cli::Roles
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove, :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access'
+  include Morpheus::Cli::ProvisioningHelper
+  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -22,7 +24,7 @@ class Morpheus::Cli::Roles
     @roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
-    #@clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @active_group_id = Morpheus::Cli::Groups.active_group
@@ -88,9 +90,13 @@ class Morpheus::Cli::Roles
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('-f','--feature-access', "Display Feature Access") do |val|
+      opts.on('-p','--permissions', "Display Permissions") do |val|
         options[:include_feature_access] = true
       end
+      opts.on('-f','--feature-access', "Display Feature Access [deprecated]") do |val|
+        options[:include_feature_access] = true
+      end
+      opts.add_hidden_option('--feature-access')
       opts.on('-g','--group-access', "Display Group Access") do
         options[:include_group_access] = true
       end
@@ -189,9 +195,8 @@ class Morpheus::Cli::Roles
       #   "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
       # }, role['instanceLimits'])
 
-      # print_h2 "Feature Access", options
-      # print cyan
-
+      print_h2 "Permissions", options
+      print cyan
       if options[:include_feature_access]
         rows = json_response['featurePermissions'].collect do |it|
           {
@@ -202,7 +207,7 @@ class Morpheus::Cli::Roles
         end
         print as_pretty_table(rows, [:code, :name, :access], options)
       else
-        puts "Use --feature-access to list feature access"
+        puts "Use --permissions to list permissions"
       end
 
       print_h2 "Group Access", options
@@ -273,6 +278,89 @@ class Morpheus::Cli::Roles
         else
           puts "Use --blueprint-access to list custom access"
         end
+      end
+
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def list_permissions(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List the permissions for a role.\n" +
+                    "[role] is required. This is the name or id of a role."
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+
+      # role = find_role_by_name_or_id(account_id, args[0])
+      # exit 1 if role.nil?
+
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
+        else
+          print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
+        end
+        return
+      end
+
+      json_response = nil
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        json_response = @roles_interface.get(account_id, args[0].to_i)
+        role = json_response['role']
+      else
+        role = find_role_by_name_or_id(account_id, args[0])
+        exit 1 if role.nil?
+        # refetch from show action, argh
+        json_response = @roles_interface.get(account_id, role['id'])
+        role = json_response['role']
+      end
+
+      role_permissions = json_response['featurePermissions']
+
+      if options[:json]
+        puts as_json(role_permissions, options)
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(role_permissions, options)
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(role_permissions)
+        return 0
+      end
+
+      print cyan
+      print_h1 "Role Permissions: [#{role['id']}] #{role['authority']}", options
+
+      print cyan
+      if role_permissions && role_permissions.size > 0
+        rows = role_permissions.collect do |it|
+          {
+            code: it['code'],
+            name: it['name'],
+            access: get_access_string(it['access']),
+          }
+        end
+        print as_pretty_table(rows, [:code, :name, :access], options)
+      else
+        puts "No permissions found?"
       end
 
       print reset,"\n"
@@ -543,7 +631,7 @@ class Morpheus::Cli::Roles
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} feature access updated"
+        print_green_success "Role #{role['authority']} permission #{permission_code} set to #{access_value}"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -555,7 +643,7 @@ class Morpheus::Cli::Roles
     usage = "Usage: morpheus roles update-global-group-access [name] [full|read|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [code] [full|read|custom|none]")
+      opts.banner = subcommand_usage("[name] [full|read|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -658,12 +746,10 @@ class Morpheus::Cli::Roles
         exit 1
       end
 
-      # group_id = find_group_id_by_name(group_name)
-      # exit 1 if group_id.nil?
       group = nil
       group_id = nil
       if !do_all
-        group = find_group_by_name(group_name)
+        group = find_group_by_name_or_id_for_provisioning(group_name)
         return 1 if group.nil?
         group_id = group['id']
       end
@@ -817,9 +903,7 @@ class Morpheus::Cli::Roles
       if !do_all
         group_id = nil
         if !options[:group].nil?
-          #group_id = find_group_id_by_name(options[:group])
-          group = find_group_by_name(options[:group])
-          return 1 if group.nil?
+          group = find_group_by_name_or_id_for_provisioning(options[:group])
           group_id = group['id']
         else
           group_id = @active_group_id
@@ -1192,28 +1276,6 @@ class Morpheus::Cli::Roles
     add_role_option_types.reject {|it| ['roleType', 'baseRole'].include?(it['fieldName']) }
   end
 
-
-  def find_group_by_name(name)
-    group_results = @groups_interface.get(name)
-    if group_results['groups'].empty?
-      print_red_alert "Group not found by name #{name}"
-      return nil
-    end
-    return group_results['groups'][0]
-  end
-
-  # no worky, returning  {"success"=>true, "data"=>[]}
-  # def find_group_id_by_name(name)
-  #   option_results = @options_interface.options_for_source('groups',{})
-  #   puts "option_results: #{option_results.inspect}"
-  #   match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-  #   if match.nil?
-  #     print_red_alert "Group not found by name #{name}"
-  #     return nil
-  #   else
-  #     return match['value']
-  #   end
-  # end
 
   def find_cloud_id_by_name(group_id, name)
     option_results = @options_interface.options_for_source('clouds', {groupId: group_id})

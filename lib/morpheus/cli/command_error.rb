@@ -15,4 +15,8 @@ class Morpheus::Cli::CommandError < StandardError
     super(msg)
   end
 
+  # def inspect
+  #   to_s
+  # end
+
 end

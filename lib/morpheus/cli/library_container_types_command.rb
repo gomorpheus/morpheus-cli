@@ -315,7 +315,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         # err, these optionTypes have the fieldContext
         # so merge them at the root level of the request.
 
-        provision_types = @provision_types_interface.get({customSupported: true})['provisionTypes']
+        provision_types = @provision_types_interface.list({customSupported: true})['provisionTypes']
         if provision_types.empty?
           print_red_alert "No available provision types found!"
           return 1

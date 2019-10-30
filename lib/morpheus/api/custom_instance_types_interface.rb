@@ -8,10 +8,9 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/custom-instance-types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 

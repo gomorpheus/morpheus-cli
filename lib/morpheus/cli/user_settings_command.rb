@@ -87,9 +87,10 @@ class Morpheus::Cli::UserSettingsCommand
         print_h2 "API Access Tokens"
         cols = {
           #"ID" => lambda {|it| it['id'] },
-          "Client ID" => lambda {|it| it['clientId'] },
-          "Username" => lambda {|it| it['username'] },
-          "Expiration" => lambda {|it| format_local_dt(it['expiration']) }
+          "CLIENT ID" => lambda {|it| it['clientId'] },
+          "USERNAME" => lambda {|it| it['username'] },
+          "EXPIRATION" => lambda {|it| format_local_dt(it['expiration']) },
+          "TTL" => lambda {|it| it['expiration'] ? (format_duration(it['expiration']) rescue '') : '' }
         }
         print cyan
         puts as_pretty_table(access_tokens, cols)
@@ -332,12 +333,15 @@ class Morpheus::Cli::UserSettingsCommand
         return
       end
       json_response = @user_settings_interface.regenerate_access_token(params, payload)
-      new_access_token = json_response['token']
+      new_access_token = json_response['access_token'] || json_response['token']
       # update credentials if regenerating cli token
-      if params['clientId'] == 'morph-cli'
-        if new_access_token
-          login_opts = {:remote_token => new_access_token}
-          login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(login_opts)
+      if params['clientId'] == Morpheus::APIClient::CLIENT_ID
+        if params['userId'].nil? # should check against current user id
+          if new_access_token
+            # this sux, need to save refresh_token too.. just save to wallet and refresh shell maybe?
+            login_opts = {:remote_token => new_access_token}
+            login_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).login(login_opts)
+          end
         end
       end
       if options[:quiet]
@@ -393,11 +397,11 @@ class Morpheus::Cli::UserSettingsCommand
       end
       new_access_token = json_response['token']
       # update credentials if regenerating cli token
-      # if params['clientId'] == 'morph-cli'
+      # if params['clientId'] == Morpheus::APIClient::CLIENT_ID
       #   logout_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).logout
       # end
       print_green_success "Cleared #{params['clientId']} access token"
-      if params['clientId'] == 'morph-cli'
+      if params['clientId'] == Morpheus::APIClient::CLIENT_ID
         print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
       end
       # get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
@@ -451,7 +455,11 @@ class Morpheus::Cli::UserSettingsCommand
       clients = json_response['clients'] || json_response['apiClients']
       print_h1 "Morpheus API Clients"
       columns = {
-        "Client ID" => lambda {|it| it['clientId'] }
+        "CLIENT ID" => lambda {|it| it['clientId'] },
+        "NAME" => lambda {|it| it['name'] },
+        "TTL" => lambda {|it| it['accessTokenValiditySeconds'] ? "#{it['accessTokenValiditySeconds']}" : '' },
+        "DURATION" => lambda {|it| it['accessTokenValiditySeconds'] ? (format_duration_seconds(it['accessTokenValiditySeconds']) rescue '') : '' },
+        # "USABLE" => lambda {|it| format_boolean(it['usable']) }
       }
       print cyan
       puts as_pretty_table(clients, columns)

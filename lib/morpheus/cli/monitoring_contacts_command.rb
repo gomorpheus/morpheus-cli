@@ -173,15 +173,30 @@ class Morpheus::Cli::MonitoringContactsCommand
     end
     optparse.parse!(args)
     connect(options)
-
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    if args[0]
+      params['name'] = args[0]
+    end
     begin
-
-      if !params["name"]
-        print_red_alert "Name is required"
-        puts optparse
-        exit 1
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      if params['name'].nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true, 'description' => 'The name of this contact.'}], options[:options])
+        params['name'] = v_prompt['name']
       end
-
+      if params['emailAddress'].nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'emailAddress', 'type' => 'text', 'fieldLabel' => 'Email', 'required' => false, 'description' => 'Contact email address.'}], options[:options])
+        params['emailAddress'] = v_prompt['emailAddress'] unless v_prompt['emailAddress'].to_s.empty?
+      end
+      if params['smsAddress'].nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'smsAddress', 'type' => 'text', 'fieldLabel' => 'Mobile', 'required' => false, 'description' => 'Contact sms address, or phone number.'}], options[:options])
+        params['smsAddress'] = v_prompt['smsAddress'] unless v_prompt['smsAddress'].to_s.empty?
+      end
+      # if params['slackHook'].nil?
+      #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'slackHook', 'type' => 'text', 'fieldLabel' => 'Slack Hook', 'required' => false, 'description' => 'Contact slack hook.'}], options[:options])
+      #   params['slackHook'] = v_prompt['slackHook'] unless v_prompt['slackHook'].to_s.empty?
+      # end
       payload = {
         'contact' => {}
       }
@@ -283,7 +298,7 @@ class Morpheus::Cli::MonitoringContactsCommand
     end
     connect(options)
     id_list = parse_id_list(args)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete contact #{id_list.size == 1 ? 'contact' : 'contacts'} #{anded_list(id_list)}?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete #{id_list.size == 1 ? 'contact' : 'contacts'} #{anded_list(id_list)}?", options)
       exit 1
     end
     return run_command_for_each_arg(id_list) do |arg|

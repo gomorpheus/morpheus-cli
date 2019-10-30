@@ -62,12 +62,12 @@ class Morpheus::Cli::DotFile
         if err.success?
           cmd_result = true
         else
-          puts "#{red} source file: #{@filename} line: #{line_num} command: #{line}#{reset} error: exited non zero - #{err}"
+          puts "#{red} source file: #{@filename}, line: #{line_num}, command: #{line}, error: #{err}#{reset}"
           cmd_result = false
         end
       rescue => err
         # raise err
-        puts "#{red} source file: #{@filename} line: #{line_num} command: #{line}#{reset} error: unexpected error - #{err}"
+        puts "#{red} source file: #{@filename}, line: #{line_num}, command: #{line}, error: #{err}#{reset}"
         cmd_result = false
       end
       if cmd_result == false

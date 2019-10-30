@@ -966,7 +966,7 @@ class Morpheus::Cli::Instances
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
-    if args.count != 1
+    if args.count < 1
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
@@ -1540,6 +1540,9 @@ class Morpheus::Cli::Instances
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID for the new instance" ) do |val|
         options[:cloud] = val
       end
+      opts.on("--create-user on|off", String, "User Config: Create Your User. Default is on") do |val|
+        options[:create_user] = !['false','off','0'].include?(val.to_s)
+      end
       build_common_options(opts, options, [:options, :payload, :auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1607,6 +1610,15 @@ class Morpheus::Cli::Instances
         passed_options.delete('cloud')
         passed_options.delete('group')
         payload.deep_merge!(passed_options)
+      end
+      
+      # JD: this actually fixed a customer problem
+      # It appears to be important to pass this... not sure if config.createUser is necessary...
+      if options[:create_user].nil?
+        options[:create_user] = true
+      end
+      if options[:create_user] != nil
+        payload.deep_merge!({'createUser' => options[:create_user], 'config' =>{'createUser' => options[:create_user]}})
       end
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance #{instance['name']} as '#{payload['name']}'?", options)
         return 9, "aborted command"
@@ -3627,7 +3639,7 @@ private
   end
 
   def find_workflow_by_name(name)
-    workflows = @task_sets_interface.get({name: name.to_s})['taskSets']
+    workflows = @task_sets_interface.list({name: name.to_s})['taskSets']
     if workflows.empty?
       print_red_alert "Workflow not found by name #{name}"
       return nil

@@ -16,6 +16,7 @@ class Morpheus::Cli::ErrorHandler
 
   def handle_error(err, options={})
     exit_code = 1
+    options = (options || {}).clone
     # heh
     if Morpheus::Logging.debug? && options[:debug].nil?
       options[:debug] = true
@@ -147,6 +148,8 @@ class Morpheus::Cli::ErrorHandler
     else
       @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
     end
+    # uh, having this print method return exit_code, err to standardize return values of methods that are still calling it, at the end just by chance..
+    return exit_code, err #.to_s
   end
 
   def print_rest_errors(response, options={})
@@ -178,7 +181,7 @@ class Morpheus::Cli::ErrorHandler
   end
 
   def print_rest_request(req)
-    @stderr.print "Request:"
+    @stderr.print "REQUEST"
     @stderr.print "\n"
     @stderr.print "#{req.method.to_s.upcase} #{req.url.inspect}"
     @stderr.print "\n"
@@ -187,10 +190,10 @@ class Morpheus::Cli::ErrorHandler
   def print_rest_response(res)
     # size = @raw_response ? File.size(@tf.path) : (res.body.nil? ? 0 : res.body.size)
     size = (res.body.nil? ? 0 : res.body.size)
-    @stderr.print "Response:"
+    @stderr.print "RESPONSE"
     @stderr.print "\n"
     display_size = Filesize.from("#{size} B").pretty rescue size
-    @stderr.print "HTTP #{res.net_http_res.code} - #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{display_size}"
+    @stderr.print "HTTP #{res.net_http_res.code} #{res.net_http_res.message} | #{(res['Content-type'] || '').gsub(/;.*$/, '')} #{display_size}"
     @stderr.print "\n"
     begin
       @stderr.print JSON.pretty_generate(JSON.parse(res.body))

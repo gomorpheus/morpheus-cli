@@ -1806,7 +1806,7 @@ class Morpheus::Cli::Hosts
         exit 1
       end
     else
-      json_results = @clouds_interface.get({groupId: group_id, name: val})
+      json_results = @clouds_interface.list({groupId: group_id, name: val})
       zone = json_results['zones'] ? json_results['zones'][0] : nil
       if zone.nil?
         print_red_alert "Cloud not found by name #{val}"

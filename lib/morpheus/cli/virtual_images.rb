@@ -649,7 +649,7 @@ class Morpheus::Cli::VirtualImages
   end
 
   def find_virtual_image_by_name(name)
-    json_results = @virtual_images_interface.get({name: name.to_s})
+    json_results = @virtual_images_interface.list({name: name.to_s})
     if json_results['virtualImages'].empty?
       print_red_alert "Virtual Image not found by name #{name}"
       return nil

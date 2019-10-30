@@ -2,17 +2,18 @@ require 'morpheus/api/api_client'
 
 class Morpheus::AuthInterface < Morpheus::APIClient
 
-  #attr_reader :access_token, :refresh_token, :expires_at
+  # def initialize(base_url, access_token=nil)
+  #   @base_url = base_url
+  #   @access_token = access_token
+  # end
 
-  def initialize(base_url, access_token=nil)
-    @base_url = base_url
-    @access_token = access_token
-  end
-
-  def login(username, password)
+  def login(username, password, use_client_id=nil)
+    if use_client_id
+      self.client_id = use_client_id
+    end
     @access_token, @refresh_token, @expires_at = nil, nil, nil
     url = "#{@base_url}/oauth/token"
-    params = {grant_type: 'password', scope:'write', client_id: 'morph-cli', username: username}
+    params = {grant_type: 'password', scope:'write', client_id: self.client_id, username: username}
     payload = {password: password}
     opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 5}
     response = execute(opts)
@@ -26,10 +27,13 @@ class Morpheus::AuthInterface < Morpheus::APIClient
   end
 
   # this regenerates the access_token and refresh_token
-  def use_refresh_token(refresh_token)
+  def use_refresh_token(refresh_token, use_client_id=nil)
+    if use_client_id
+      self.client_id = use_client_id
+    end
     @access_token = nil
     url = "#{@base_url}/oauth/token"
-    params = {grant_type: 'refresh_token', scope:'write', client_id: 'morph-cli'}
+    params = {grant_type: 'refresh_token', scope:'write', client_id: self.client_id}
     payload = {refresh_token: refresh_token}
     opts = {method: :post, url: url, headers:{ params: params}, payload: payload}
     response = execute(opts)

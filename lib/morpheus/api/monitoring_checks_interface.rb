@@ -16,9 +16,9 @@ class Morpheus::MonitoringChecksInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/monitoring/checks"
-    headers = { params: options, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end

@@ -21,6 +21,13 @@ class Morpheus::LoadBalancersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def list(params={})
+    url = "#{@base_url}/api/load-balancers"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+  
   def get(options=nil)
     url = "#{@base_url}/api/load-balancers"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }

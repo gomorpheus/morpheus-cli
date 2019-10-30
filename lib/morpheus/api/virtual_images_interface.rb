@@ -33,10 +33,9 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def list(options=nil)
+  def list(params={})
     url = "#{@base_url}/api/virtual-images"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 

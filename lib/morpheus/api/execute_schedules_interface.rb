@@ -16,10 +16,9 @@ class Morpheus::ExecuteSchedulesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def list(options={})
+  def list(params={})
     url = "#{@base_url}/api/execute-schedules"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, timeout: 10, headers: headers}
     execute(opts)
   end

@@ -106,11 +106,18 @@ module Morpheus
             unless options[:quiet] || options[:no_prompt]
               # if username.empty? || password.empty?
                 if options[:test_only]
-                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
                 else
-                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}\n",reset
+                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
                 end
               # end
+              if options[:client_id].empty?
+                # print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset
+              else
+                if options[:client_id] != Morpheus::APIClient::CLIENT_ID
+                  print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset
+                end
+              end
               if username.empty?
                 print "Username: #{required_blue_prompt} "
                 username = $stdin.gets.chomp!
@@ -131,7 +138,7 @@ module Morpheus
               return nil
             end
             begin
-              auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url, client_id: options[:client_id]})
               auth_interface.setopts(options)
               if options[:dry_run]
                 print_dry_run auth_interface.dry.login(username, password)
@@ -270,7 +277,7 @@ module Morpheus
         username = wallet['username']
 
         begin
-          auth_interface = Morpheus::AuthInterface.new(@appliance_url)
+          auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
           auth_interface.setopts(options)
           if options[:dry_run]
             print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'])
@@ -399,6 +406,44 @@ module Morpheus
             FileUtils.mkdir_p(File.dirname(fn))
           end
           Morpheus::Logging::DarkPrinter.puts "adding credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
+          File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
+          FileUtils.chmod(0600, fn)
+          @@appliance_credentials_map = credential_map
+        rescue => e
+          puts "failed to save #{fn}. #{e}"  if Morpheus::Logging.debug?
+        ensure
+          # recalcuate echo vars
+          #puts "Recalculating variable maps for username change"
+          Morpheus::Cli::Echo.recalculate_variable_map()
+          # recalculate shell prompt after this change
+          if Morpheus::Cli::Shell.has_instance?
+            Morpheus::Cli::Shell.instance.reinitialize()
+          end
+        end
+      end
+
+      def rename_credentials(appliance_name, new_appliance_name)
+        # reloading file is better for now, otherwise you can lose credentials with multiple shells.
+        credential_map = load_credentials_file || {}
+
+        if new_appliance_name.to_s.empty?
+          puts "Cannot rename credentials without specifying a new name" 
+          return nil
+        elsif credential_map[new_appliance_name.to_s] || credential_map[new_appliance_name.to_sym]
+          # yes you can, maybe require --force?
+          puts "Cannot rename credentials to a name that already exists: #{new_appliance_name}" 
+          return nil
+        end
+        
+        # always remove symbol, which was used pre 3.6.9
+        credential_map.delete(appliance_name.to_sym)
+        begin
+          fn = credentials_file_path
+          if !Dir.exists?(File.dirname(fn))
+            FileUtils.mkdir_p(File.dirname(fn))
+          end
+          #Morpheus::Logging::DarkPrinter.puts "renaming credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "renaming credentials from #{appliance_name} to #{appliance_name}" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)
           @@appliance_credentials_map = credential_map

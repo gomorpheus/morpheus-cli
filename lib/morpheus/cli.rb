@@ -1,6 +1,6 @@
-require "morpheus/cli/version"
+require 'morpheus/cli/version'
 require 'morpheus/cli/command_error'
-require "morpheus/rest_client"
+require 'morpheus/rest_client'
 require 'morpheus/formatters'
 require 'morpheus/logging'
 require 'term/ansicolor'
@@ -9,20 +9,20 @@ Dir[File.dirname(__FILE__)  + "/ext/*.rb"].each {|file| require file }
 
 module Morpheus
   module Cli
-  
-    # the home directory, where morpheus-cli stores things
-    def self.home_directory=(fn)
-      @@home_directory = fn
+    
+    # get the home directory, where morpheus-cli stores things   
+    # The default is $MORPHEUS_CLI_HOME or $HOME/.morpheus
+    unless defined?(@@home_directory)
+      @@home_directory = ENV['MORPHEUS_CLI_HOME'] || File.join(Dir.home, ".morpheus")
+    end
+    
+    def self.home_directory
+      @@home_directory
     end
 
-    def self.home_directory
-      if @@home_directory
-        @@home_directory
-      elsif ENV['MORPHEUS_CLI_HOME']
-        @@home_directory = ENV['MORPHEUS_CLI_HOME']
-      else
-        @@home_directory = File.join(Dir.home, ".morpheus")
-      end
+    # set the home directory
+    def self.home_directory=(fn)
+      @@home_directory = fn
     end
 
     # check if this is a Windows environment.
@@ -126,6 +126,7 @@ module Morpheus
       load 'morpheus/cli/monitoring_alerts_command.rb'
       load 'morpheus/cli/monitoring_groups_command.rb'
       load 'morpheus/cli/monitoring_apps_command.rb'
+      load 'morpheus/cli/logs_command.rb'
       load 'morpheus/cli/policies_command.rb'
       load 'morpheus/cli/networks_command.rb'
       load 'morpheus/cli/network_groups_command.rb'

@@ -368,7 +368,7 @@ class Morpheus::Cli::Workflows
   end
 
   def find_workflow_by_name(name)
-    workflows = @task_sets_interface.get({name: name.to_s})['taskSets']
+    workflows = @task_sets_interface.list({name: name.to_s})['taskSets']
     if workflows.empty?
       print_red_alert "Workflow not found by name #{name}"
       return nil
@@ -404,7 +404,7 @@ class Morpheus::Cli::Workflows
   end
 
   def find_task_by_name(name)
-    tasks = @tasks_interface.get({name: name.to_s})['tasks']
+    tasks = @tasks_interface.list({name: name.to_s})['tasks']
     if tasks.empty?
       print_red_alert "Task not found by name #{name}"
       return nil

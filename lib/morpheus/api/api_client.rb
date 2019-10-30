@@ -3,19 +3,30 @@ require 'uri'
 require 'rest-client'
 
 class Morpheus::APIClient
+
+  CLIENT_ID = 'morph-cli' unless defined?(CLIENT_ID)
+
+  attr_accessor :client_id
   # Initialize a new APIClient
   #   client = APIClient.new(url:"https://morpheus.yourcompany.com", verify_ssl:false)
   # This old method signature is being deprecated:
   #   client = APIClient.new(access_token, refresh_token, expires_in, base_url, verify_ssl, options={})
   #
+  # def initialize(attrs={}, options={})
   def initialize(access_token, refresh_token=nil,expires_in = nil, base_url=nil, verify_ssl=true, options={})
+    self.client_id = CLIENT_ID
+    attrs = {}
     if access_token.is_a?(Hash)
-      client_opts = access_token.clone()
-      access_token = client_opts[:access_token]
-      refresh_token = client_opts[:refresh_token]
-      base_url = client_opts[:url] || client_opts[:base_url]
-      expires_in = client_opts[:expires_in]
-      verify_ssl = client_opts.key?(:verify_ssl) ? client_opts[:verify_ssl] : true
+      attrs = access_token.clone()
+      access_token = attrs[:access_token]
+      refresh_token = attrs[:refresh_token]
+      base_url = attrs[:url] || attrs[:base_url]
+      expires_in = attrs[:expires_in]
+      verify_ssl = attrs.key?(:verify_ssl) ? attrs[:verify_ssl] : true
+      self.client_id = attrs[:client_id] ? attrs[:client_id] : CLIENT_ID
+      if attrs[:client_id]
+        self.client_id = attrs[:client_id]
+      end
       options = refresh_token.is_a?(Hash) ? refresh_token.clone() : {}
     end
     @access_token = access_token
@@ -38,7 +49,7 @@ class Morpheus::APIClient
   end
 
   def to_s
-    "<##{self.class}:#{self.object_id.to_s(8)} @url=#{@base_url} @verify_ssl=#{@verify_ssl} @access_token=#{@access_token ? '************' : nil} @refresh_token=#{@access_token ? '************' : nil} @expires_at=#{@expires_at} @options=#{@options}>"
+    "<##{self.class}:#{self.object_id.to_s(8)} @url=#{@base_url} @verify_ssl=#{@verify_ssl} @access_token=#{@access_token ? '************' : nil} @refresh_token=#{@access_token ? '************' : nil} @expires_at=#{@expires_at} @client_id=#{@client_id} @options=#{@options}>"
   end
 
   def inspect
@@ -219,9 +230,20 @@ class Morpheus::APIClient
     !!@access_token
   end
 
-  def login(username, password)
+  def client_id
+    @client_id
+  end
+
+  def client_id=(val)
+    @client_id = val
+  end
+
+  def login(username, password, use_client_id=nil)
+    if use_client_id
+      self.client_id = use_client_id
+    end
     @access_token, @refresh_token, @expires_at = nil, nil, nil
-    response = auth.login(username, password)
+    response = auth.login(username, password, self.client_id)
     @access_token = response['access_token']
     @refresh_token = response['refresh_token']
     if response['expires_in'] != nil
@@ -235,7 +257,7 @@ class Morpheus::APIClient
     if @refresh_token.nil?
       raise "#{self.class} does not currently have a refresh_token"
     end
-    response = auth.use_refresh_token(@refresh_token)
+    response = auth.use_refresh_token(@refresh_token, self.client_id)
     @access_token = response['access_token']
     @refresh_token = response['refresh_token']
     if response['expires_in'] != nil
@@ -253,8 +275,12 @@ class Morpheus::APIClient
     return self
   end
 
+  def common_iface_opts
+    {url: @base_url, access_token: @access_token, refresh_token: @refresh_token, expires_at: @expires_at}
+  end
+
   def auth
-    Morpheus::AuthInterface.new(@base_url, @access_token).setopts(@options)
+    Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
   end
 
   def whoami
@@ -425,8 +451,9 @@ class Morpheus::APIClient
     Morpheus::ExecuteSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  
   def setup
-    Morpheus::SetupInterface.new(@base_url).setopts(@options).setopts(@options)
+    Morpheus::SetupInterface.new(common_iface_opts).setopts(@options).setopts(@options)
   end
 
   def monitoring
