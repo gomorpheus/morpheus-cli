@@ -236,7 +236,12 @@ class Morpheus::Cli::NetworkPoolsCommand
           print_red_alert "Pool Type not found by code '#{options['type']}'"
           return 1
         end
-        payload['networkPool']['type'] = {'code' => network_type_code }
+        # pre 4.1.1 expects ID
+        if network_type_code.to_s =~ /\A\d{1,}\Z/
+          payload['networkPool']['type'] = {'id' => network_type_code }
+        else
+          payload['networkPool']['type'] = {'code' => network_type_code }
+        end
         # payload['networkPool']['type'] = network_type_code # this works too, simpler
 
         # IP Ranges
