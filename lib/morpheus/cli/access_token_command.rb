@@ -39,6 +39,7 @@ class Morpheus::Cli::AccessTokenCommand
       end
       return 1
     end
+    return 0
   end
 
   def handle(args)
@@ -124,7 +125,22 @@ class Morpheus::Cli::AccessTokenCommand
       raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
 
-    connect(options)
+    connect_result = connect(options)
+    return connect_result if (connect_result.is_a?(Numeric) && connect_result != 0)
+    # if @wallet.nil? || @wallet['access_token'].nil?
+    #   unless options[:quiet]
+    #     print_error yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+    #     print_error yellow,"Use the 'login' command.",reset,"\n"
+    #   end
+    #   return 1
+    # end
+    if @wallet['refresh_token'].nil?
+      unless options[:quiet]
+        print_error yellow,"No refresh token found for appliance #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+        print_error yellow,"Use the 'login' command.",reset,"\n"
+      end
+      return 1
+    end
     if options[:dry_run]
       print_dry_run Morpheus::AuthInterface.new({url:@appliance_url}).setopts(options).use_refresh_token(@wallet['refresh_token'])
       return 0

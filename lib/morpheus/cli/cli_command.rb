@@ -34,14 +34,14 @@ module Morpheus
         @my_terminal ||= Morpheus::Terminal.instance
       end
 
-      # set the terminal this is running this command.
+      # set the terminal running this command.
       # @param term [MorpheusTerminal] the terminal this command is assigned to
       # @return the Terminal this command is being executed inside of
       def my_terminal=(term)
-        if !t.is_a?(Morpheus::Terminal)
-          raise "CliCommand #{self.class} terminal= expects object of type Terminal and instead got a #{t.class}"
+        if !term.is_a?(Morpheus::Terminal)
+          raise "CliCommand (#{self.class}) my_terminal= expects object of type Terminal and instead got a #{term.class}"
         end
-        @my_terminal = t
+        @my_terminal = term
       end
 
 

@@ -148,6 +148,8 @@ class Morpheus::Cli::ErrorHandler
     else
       @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
     end
+    # uh, having this print method return exit_code, err to standardize return values of methods that are still calling it, at the end just by chance..
+    return exit_code, err #.to_s
   end
 
   def print_rest_errors(response, options={})

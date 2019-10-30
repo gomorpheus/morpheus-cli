@@ -275,6 +275,10 @@ class Morpheus::APIClient
     return self
   end
 
+  def common_iface_opts
+    {url: @base_url, access_token: @access_token, refresh_token: @refresh_token, expires_at: @expires_at}
+  end
+
   def auth
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
   end
@@ -447,8 +451,9 @@ class Morpheus::APIClient
     Morpheus::ExecuteSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  
   def setup
-    Morpheus::SetupInterface.new(@base_url).setopts(@options).setopts(@options)
+    Morpheus::SetupInterface.new(common_iface_opts).setopts(@options).setopts(@options)
   end
 
   def monitoring

@@ -421,6 +421,52 @@ module Morpheus
           end
         end
       end
+
+      def rename_credentials(appliance_name, new_appliance_name)
+        # reloading file is better for now, otherwise you can lose credentials with multiple shells.
+        credential_map = load_credentials_file || {}
+
+        if new_appliance_name.to_s.empty?
+          puts "Cannot rename credentials without specifying a new name" 
+          return nil
+        elsif credential_map[new_appliance_name.to_sym] || credential_map[new_appliance_name.to_s]
+          # yes you can, maybe require --force?
+          puts "Cannot rename credentials to a name that already exists: #{new_appliance_name}" 
+          return nil
+        end
+
+                credential_map = load_credentials_file || {}
+        
+        if wallet
+          credential_map[appliance_name.to_s] = wallet
+        else
+          # nil mean remove the damn thing
+          credential_map.delete(appliance_name.to_s)
+        end
+        # always remove symbol, which was used pre 3.6.9
+        credential_map.delete(appliance_name.to_sym)
+        begin
+          fn = credentials_file_path
+          if !Dir.exists?(File.dirname(fn))
+            FileUtils.mkdir_p(File.dirname(fn))
+          end
+          #Morpheus::Logging::DarkPrinter.puts "renaming credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "renaming credentials from #{appliance_name} to #{appliance_name}" if Morpheus::Logging.debug?
+          File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
+          FileUtils.chmod(0600, fn)
+          @@appliance_credentials_map = credential_map
+        rescue => e
+          puts "failed to save #{fn}. #{e}"  if Morpheus::Logging.debug?
+        ensure
+          # recalcuate echo vars
+          #puts "Recalculating variable maps for username change"
+          Morpheus::Cli::Echo.recalculate_variable_map()
+          # recalculate shell prompt after this change
+          if Morpheus::Cli::Shell.has_instance?
+            Morpheus::Cli::Shell.instance.reinitialize()
+          end
+        end
+      end
     end
   end
 end

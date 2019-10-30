@@ -8,9 +8,9 @@ class Morpheus::SetupInterface < Morpheus::APIClient
   #   @expires_at = expires_at
   # end
 
-  def initialize(base_url)
-    @base_url = base_url
-  end
+  # def initialize(base_url)
+  #   @base_url = base_url
+  # end
 
   # no JSON here, just a 200 OK 'NOTHING TO SEE HERE'
   def ping(params={}, timeout=5)
@@ -49,5 +49,11 @@ class Morpheus::SetupInterface < Morpheus::APIClient
     headers = { 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end  
+
+  def teardown(params={})
+    url = "#{@base_url}/api/setup/teardown"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}" }
+    execute(method: :delete, url: url, headers: headers)
+  end
 
 end

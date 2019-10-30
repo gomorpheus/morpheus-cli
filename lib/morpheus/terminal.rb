@@ -85,10 +85,10 @@ module Morpheus
     # the global Morpheus::Terminal instance
     # This should go away, but it needed for now...
     def self.instance
-      @morphterm
+      @morphterm # ||= self.new({})
     end
 
-    # hack alert! This should go away, but it needed for now...
+    # hack alert! This should go away, but is needed for now...
     def self.new(*args)
       obj = super(*args)
       @morphterm = obj
@@ -107,12 +107,14 @@ module Morpheus
     # @param [IO] stderr
     # @stderr = stderr
     def initialize(stdin=STDIN,stdout=STDOUT, stderr=STDERR, homedir=nil)
-      # todo: establish config context for executing commands, 
-    #       so you can run them in parallel within the same process
-    #       that means not using globals and class instance vars
-    #       just return an exit code / err, instead of raising SystemExit
-    
-      
+      attrs = {}
+      if stdin.is_a?(Hash)
+        attrs = stdin.clone()
+        stdin = attrs[:stdin] || STDIN
+        stdout = attrs[:stdout] || STDOUT
+        stderr = attrs[:stderr] || STDERR
+        homedir = attrs[:homedir] || attrs[:home] || attrs[:home_directory]
+      end
       # establish IO
       # @stdin, @stdout, @stderr = stdin, stdout, stderr
       set_stdin(stdin)
@@ -138,6 +140,14 @@ module Morpheus
       # the string to prompt for input with
       @prompt ||= Morpheus::Terminal.prompt
       @angry_prompt ||= Morpheus::Terminal.angry_prompt
+    end
+
+    def to_s
+      "<##{self.class}:#{self.object_id.to_s(8)} @stdin=#{@stdin} @stdout=#{@base_url} @stderr=#{@stderr} @home=#{@home_directory} @prompt=#{@prompt} >"
+    end
+
+    def inspect
+      to_s
     end
 
     # execute .morpheus_profile startup script
