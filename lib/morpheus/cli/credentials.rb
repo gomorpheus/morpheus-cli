@@ -429,20 +429,12 @@ module Morpheus
         if new_appliance_name.to_s.empty?
           puts "Cannot rename credentials without specifying a new name" 
           return nil
-        elsif credential_map[new_appliance_name.to_sym] || credential_map[new_appliance_name.to_s]
+        elsif credential_map[new_appliance_name.to_s] || credential_map[new_appliance_name.to_sym]
           # yes you can, maybe require --force?
           puts "Cannot rename credentials to a name that already exists: #{new_appliance_name}" 
           return nil
         end
-
-                credential_map = load_credentials_file || {}
         
-        if wallet
-          credential_map[appliance_name.to_s] = wallet
-        else
-          # nil mean remove the damn thing
-          credential_map.delete(appliance_name.to_s)
-        end
         # always remove symbol, which was used pre 3.6.9
         credential_map.delete(appliance_name.to_sym)
         begin
