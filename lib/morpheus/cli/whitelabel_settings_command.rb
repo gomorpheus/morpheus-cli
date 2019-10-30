@@ -10,8 +10,6 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   register_subcommands :update_images, :reset_image, :download_image, :view_image
   set_default_subcommand :get
 
-  set_command_hidden # hiding until 4.2 release
-
   def initialize()
     @image_types = {'header-logo' => 'headerLogo', 'footer-logo' => 'footerLogo', 'login-logo' => 'loginLogo', 'favicon' => 'favicon'}
   end

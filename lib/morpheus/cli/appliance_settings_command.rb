@@ -10,8 +10,6 @@ class Morpheus::Cli::ApplianceSettingsCommand
   
   set_default_subcommand :get
 
-  set_command_hidden # hiding until 4.2 release
-
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @appliance_settings_interface = @api_client.appliance_settings
