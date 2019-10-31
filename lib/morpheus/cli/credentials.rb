@@ -354,7 +354,7 @@ module Morpheus
         @@appliance_credentials_map = load_credentials_file || {}
         @@appliance_credentials_map.delete(appliance_name.to_s)
         @@appliance_credentials_map.delete(appliance_name.to_sym)
-        Morpheus::Logging::DarkPrinter.puts "clearing credentials for #{appliance_name} from file #{credentials_file_path}" if Morpheus::Logging.debug?
+        #Morpheus::Logging::DarkPrinter.puts "clearing credentials for #{appliance_name} from file #{credentials_file_path}" if Morpheus::Logging.debug?
         File.open(credentials_file_path, 'w') {|f| f.write @@appliance_credentials_map.to_yaml } #Store
         ::Morpheus::Cli::Remote.recalculate_variable_map()
         true
@@ -376,7 +376,7 @@ module Morpheus
       def load_credentials_file
         fn = credentials_file_path
         if File.exist? fn
-          Morpheus::Logging::DarkPrinter.puts "loading credentials file #{fn}" if Morpheus::Logging.debug?
+          #Morpheus::Logging::DarkPrinter.puts "loading credentials file #{fn}" if Morpheus::Logging.debug?
           return YAML.load_file(fn)
         else
           return nil
@@ -405,7 +405,7 @@ module Morpheus
           if !Dir.exists?(File.dirname(fn))
             FileUtils.mkdir_p(File.dirname(fn))
           end
-          Morpheus::Logging::DarkPrinter.puts "adding credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
+          #Morpheus::Logging::DarkPrinter.puts "adding credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)
           @@appliance_credentials_map = credential_map
@@ -442,8 +442,7 @@ module Morpheus
           if !Dir.exists?(File.dirname(fn))
             FileUtils.mkdir_p(File.dirname(fn))
           end
-          #Morpheus::Logging::DarkPrinter.puts "renaming credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
-          Morpheus::Logging::DarkPrinter.puts "renaming credentials from #{appliance_name} to #{appliance_name}" if Morpheus::Logging.debug?
+          #Morpheus::Logging::DarkPrinter.puts "renaming credentials from #{appliance_name} to #{new_appliance_name}" if Morpheus::Logging.debug?
           File.open(fn, 'w') {|f| f.write credential_map.to_yaml } #Store
           FileUtils.chmod(0600, fn)
           @@appliance_credentials_map = credential_map

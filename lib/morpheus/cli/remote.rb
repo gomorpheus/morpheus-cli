@@ -1534,7 +1534,7 @@ EOT
     def load_appliance_file
       fn = appliances_file_path
       if File.exist? fn
-        Morpheus::Logging::DarkPrinter.puts "loading appliances file #{fn}" if Morpheus::Logging.debug?
+        #Morpheus::Logging::DarkPrinter.puts "loading appliances file #{fn}" if Morpheus::Logging.debug?
         return YAML.load_file(fn)
       else
         return {}
