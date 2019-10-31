@@ -144,7 +144,7 @@ class Morpheus::Cli::License
         puts JSON.pretty_generate(json_response)
       else
         print_green_success "License installed!"
-        # get([]) # show it
+        get([] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
