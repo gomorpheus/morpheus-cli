@@ -68,10 +68,10 @@ class Morpheus::Cli::License
         return exit_code, err
       end
       
-      # if exit_code != 0 
-      #   print_error red, err.to_s, reset, "\n"
-      #   return exit_code, err
-      # end
+      if exit_code != 0 
+        print_error red, err.to_s, reset, "\n"
+        return exit_code, err
+      end
       
       # render output
 

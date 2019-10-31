@@ -1773,7 +1773,6 @@ EOT
       rescue => err
         # should save before raising atleast..sheesh
         raise err
-        # Morpheus::Cli::ErrorHandler.new.handle_error(e)
         app_map[:status] = 'error'
         app_map[:last_check][:error] = err.message
       end

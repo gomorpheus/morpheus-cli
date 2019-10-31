@@ -17,11 +17,13 @@ class Morpheus::Cli::ErrorHandler
   def handle_error(err, options={})
     exit_code = 1
     options = (options || {}).clone
-    # heh
-    if Morpheus::Logging.debug? && options[:debug].nil?
+    if Morpheus::Logging.debug?
       options[:debug] = true
     end
     do_print_stacktrace = true
+    
+    #@stderr.puts "#{dark}Handling error #{err.class} - #{err}#{reset}"
+
     case (err)
     when ::OptionParser::InvalidOption, ::OptionParser::AmbiguousOption, 
         ::OptionParser::MissingArgument, ::OptionParser::InvalidArgument, 
@@ -61,10 +63,7 @@ class Morpheus::Cli::ErrorHandler
     when RestClient::Exception
       print_rest_exception(err, options)
       # no stacktrace for now...
-      return exit_code
-      # if !options[:debug]
-      #   return exit_code
-      # end
+      #return exit_code, err
     when ArgumentError
       @stderr.puts "#{red}Argument Error: #{err.message}#{reset}"
     else
@@ -83,7 +82,7 @@ class Morpheus::Cli::ErrorHandler
       end
     end
 
-    return exit_code
+    return exit_code, err
 
   end
 
@@ -149,7 +148,8 @@ class Morpheus::Cli::ErrorHandler
       @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
     end
     # uh, having this print method return exit_code, err to standardize return values of methods that are still calling it, at the end just by chance..
-    return exit_code, err #.to_s
+    # return exit_code, err
+    return 1, err
   end
 
   def print_rest_errors(response, options={})

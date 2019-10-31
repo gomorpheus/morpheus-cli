@@ -433,8 +433,7 @@ module Morpheus
         end
         exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
       rescue => e
-        exit_code = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
-        err = e
+        exit_code, err = Morpheus::Cli::ErrorHandler.new(@stderr).handle_error(e)
       ensure
         # should always try to stop it
         # if @benchmarking
