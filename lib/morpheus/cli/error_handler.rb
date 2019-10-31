@@ -63,7 +63,7 @@ class Morpheus::Cli::ErrorHandler
     when RestClient::Exception
       print_rest_exception(err, options)
       # no stacktrace for now...
-      #return exit_code, err
+      return exit_code, err
     when ArgumentError
       @stderr.puts "#{red}Argument Error: #{err.message}#{reset}"
     else
