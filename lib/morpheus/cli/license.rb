@@ -143,7 +143,7 @@ class Morpheus::Cli::License
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "License applied successfully!"
+        print_green_success "License installed!"
         # get([]) # show it
       end
       return 0
@@ -265,12 +265,6 @@ class Morpheus::Cli::License
       end
 
       json_response = @license_interface.uninstall(params)
-      
-      @apps_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.wiki(app["id"], params)
-        return
-      end
       render_result = render_with_format(json_response, options)
       return 0 if render_result
       return 0 if options[:quiet]
