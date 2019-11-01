@@ -76,11 +76,12 @@ class Morpheus::Cli::NetworkGroupsCommand
             networks: network_group['networks'] ? network_group['networks'].size : 0,
             subnets: network_group['subnets'] ? network_group['subnets'].size : 0,
             visibility: network_group['visibility'].to_s.capitalize,
+            active: format_boolean(subnet_group['active']),
             tenants: network_group['tenants'] ? network_group['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           row
         }
-        columns = [:id, :name, :description, :networks, :subnets, :visibility, :tenants]
+        columns = [:id, :name, :description, :networks, :subnets, :visibility, :active, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -144,6 +145,7 @@ class Morpheus::Cli::NetworkGroupsCommand
         "Networks" => lambda {|it| it['networks'].size rescue 'n/a' },
         "Subnets" => lambda {|it| it['subnets'].size rescue 'n/a' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+        "Active" => lambda {|it| it['active'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
@@ -160,6 +162,7 @@ class Morpheus::Cli::NetworkGroupsCommand
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Active" => lambda {|it| it['active'].to_s.capitalize },
           "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
         }
         print cyan
@@ -178,6 +181,7 @@ class Morpheus::Cli::NetworkGroupsCommand
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Active" => lambda {|it| it['active'].to_s.capitalize },
           "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
         }
         print cyan
@@ -275,6 +279,9 @@ class Morpheus::Cli::NetworkGroupsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a network group") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new network group." + "\n" +
@@ -379,6 +386,11 @@ class Morpheus::Cli::NetworkGroupsCommand
           payload['networkGroup']['visibility'] = options['visibility']
         end
 
+        # Active
+        if options['active'] != nil
+          payload['networkGroup']['active'] = options['active']
+        end
+
       end
 
       @network_groups_interface.setopts(options)
@@ -463,6 +475,9 @@ class Morpheus::Cli::NetworkGroupsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a network group") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network group." + "\n" +
@@ -560,6 +575,11 @@ class Morpheus::Cli::NetworkGroupsCommand
           payload['networkGroup']['visibility'] = options['visibility']
         end
 
+        # Active
+        if options['active'] != nil
+          payload['networkGroup']['active'] = options['active']
+        end
+        
       end
       @network_groups_interface.setopts(options)
       if options[:dry_run]

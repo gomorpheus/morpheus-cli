@@ -200,6 +200,7 @@ class Morpheus::Cli::NetworksCommand
         "DHCP" => lambda {|it| it['dhcpServer'] ? 'Yes' : 'No' },
         "Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+        "Active" => lambda {|it| format_boolean(it['active']) },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
@@ -243,10 +244,11 @@ class Morpheus::Cli::NetworksCommand
             pool: subnet['pool'] ? subnet['pool']['name'] : '',
             dhcp: subnet['dhcpServer'] ? 'Yes' : 'No',
             visibility: subnet['visibility'].to_s.capitalize,
+            active: format_boolean(subnet['active']),
             tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
         }
-        columns = [:id, :name, :cidr, :dhcp, :visibility]
+        columns = [:id, :name, :cidr, :dhcp, :visibility, :active]
         print cyan
         print as_pretty_table(subnet_rows, columns, options)
         print reset
@@ -1200,6 +1202,7 @@ class Morpheus::Cli::NetworksCommand
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Active" => lambda {|it| format_boolean(it['active']) },
           "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
         }
         print cyan

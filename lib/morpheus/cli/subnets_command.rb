@@ -41,6 +41,9 @@ class Morpheus::Cli::SubnetsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on( '--cloud CLOUD', '--cloud CLOUD', "Filter results to a specific cloud" ) do |val|
+        options[:cloud] = val
+      end
       opts.on( '--network NETWORK', '--network NETWORK', "Filter results to a specific network" ) do |val|
         options[:network] = val
       end
@@ -61,8 +64,17 @@ class Morpheus::Cli::SubnetsCommand
       else
         return 1, "Network not found"
       end
-      # params['networksId'] = params.delete('networkId')
     end
+    cloud = nil
+    if options[:cloud]
+      cloud = find_cloud_by_name_or_id(options[:cloud])
+      if cloud
+        params['zoneId'] = cloud['id']
+      else
+        return 1, "Cloud not found"
+      end
+    end
+    
 
     exit_code, err = 0, nil
 
@@ -82,6 +94,9 @@ class Morpheus::Cli::SubnetsCommand
     if network
       subtitles << "Network: #{network['name']}"
     end
+    if cloud
+      subtitles << "Cloud: #{cloud['name']}"
+    end
     subtitles += parse_list_subtitles(options)
     print_h1 title, subtitles
     
@@ -98,7 +113,8 @@ class Morpheus::Cli::SubnetsCommand
         "CIDR" => lambda {|it| it['cidr'] },
         "DHCP" => lambda {|it| format_boolean(it['dhcpServer']) },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
-        "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
+        "Active" => lambda {|it| format_boolean(it['active']) },
+        "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
       }
       print cyan
       print as_pretty_table(subnets, subnet_columns)
@@ -171,6 +187,7 @@ class Morpheus::Cli::SubnetsCommand
         "DHCP" => lambda {|it| format_boolean it['dhcpServer'] },
         #"Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+        "Active" => lambda {|it| format_boolean(it['active']) },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
@@ -265,9 +282,9 @@ class Morpheus::Cli::SubnetsCommand
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
-      # opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
-      #   options['active'] = val.to_s == 'on' || val.to_s == 'true'
-      # end
+      opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new subnet." + "\n" +
                     "--network is required. This is the name or id of a network." #+ "\n" +
@@ -438,9 +455,9 @@ class Morpheus::Cli::SubnetsCommand
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
-      # opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
-      #   options['active'] = val.to_s == 'on' || val.to_s == 'true'
-      # end
+      opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a subnet." + "\n" +
                     "[subnet] is required. This is the name or id of a subnet."
