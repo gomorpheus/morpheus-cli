@@ -329,6 +329,9 @@ class Morpheus::Cli::SubnetsCommand
         end
         subnet_type = find_subnet_type_by_name_or_id(subnet_type_id)
         return 1 if subnet_type.nil?
+        if subnet_type['creatable'] == false
+          raise_command_error "Subnet Type cannot be created: #{subnet_type['name']}"
+        end
         payload['subnet']['type'] = {'id' => subnet_type['id'] }
         #payload['subnet']['type'] = {'code' => subnet_type['code'] }
 
@@ -562,6 +565,12 @@ class Morpheus::Cli::SubnetsCommand
     begin
       subnet = find_subnet_by_name_or_id(args[0])
       return 1 if subnet.nil?
+
+      subnet_type = find_subnet_type_by_name_or_id(subnet['type']['id'])
+      return 1 if subnet_type.nil?
+      if subnet_type['deletable'] == false
+        raise_command_error "Subnet Type cannot be deleted: #{subnet_type['name']}"
+      end
 
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the subnet: #{subnet['name']}?")
         return 9, "aborted command"
