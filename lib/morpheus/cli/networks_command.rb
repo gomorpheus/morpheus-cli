@@ -39,7 +39,7 @@ class Morpheus::Cli::NetworksCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '-c', '--cloud CLOUD', "Cloud" ) do |val|
+      opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
         options[:cloud] = val
       end
       opts.on('--cidr VALUE', String, "Filter by cidr, matches beginning of value.") do |val|

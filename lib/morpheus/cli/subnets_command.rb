@@ -41,10 +41,10 @@ class Morpheus::Cli::SubnetsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on( '--cloud CLOUD', '--cloud CLOUD', "Filter results to a specific cloud" ) do |val|
+      opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
         options[:cloud] = val
       end
-      opts.on( '--network NETWORK', '--network NETWORK', "Filter results to a specific network" ) do |val|
+      opts.on( '--network NETWORK', '--network NETWORK', "Filter by Network" ) do |val|
         options[:network] = val
       end
       opts.footer = "List subnets."
