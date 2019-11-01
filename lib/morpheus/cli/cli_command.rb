@@ -966,6 +966,10 @@ module Morpheus
           else
             output = records_as_csv([row], options)
           end
+        elsif options[:quiet]
+          # note: returning non nil means the calling function knows to return rght away.. kinda weird..
+          # but means we need less if options[:quiet] blocks in every action.
+          output = ""
         end
         if output
           if options[:outfile]

@@ -1,6 +1,6 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::NetworkSubnetTypesInterface < Morpheus::APIClient
+class Morpheus::SubnetTypesInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
     @access_token = access_token
     @refresh_token = refresh_token
@@ -10,14 +10,14 @@ class Morpheus::NetworkSubnetTypesInterface < Morpheus::APIClient
 
 def get(id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/network-subnet-types/#{id}"
+    url = "#{@base_url}/api/subnet-types/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
   def list(params={})
-    url = "#{@base_url}/api/network-subnet-types"
+    url = "#{@base_url}/api/subnet-types"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)

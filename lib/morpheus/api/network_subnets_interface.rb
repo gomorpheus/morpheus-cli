@@ -1,5 +1,6 @@
 require 'morpheus/api/api_client'
 
+# This is deprecated, use SubnetsInterface instead.
 class Morpheus::NetworkSubnetsInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
     @access_token = access_token

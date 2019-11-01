@@ -21,6 +21,36 @@ module Morpheus::Cli::InfrastructureHelper
     @clouds_interface
   end
 
+  def networks_interface
+    # @api_client.networks
+    raise "#{self.class} has not defined @networks_interface" if @networks_interface.nil?
+    @networks_interface
+  end
+
+  def subnets_interface
+    # @api_client.subnets
+    raise "#{self.class} has not defined @subnets_interface" if @subnets_interface.nil?
+    @subnets_interface
+  end
+
+  def network_groups_interface
+    # @api_client.network_groups
+    raise "#{self.class} has not defined @network_groups_interface" if @network_groups_interface.nil?
+    @network_groups_interface
+  end
+
+  def network_types_interface
+    # @api_client.network_types
+    raise "#{self.class} has not defined @network_types_interface" if @network_types_interface.nil?
+    @network_types_interface
+  end
+  
+  def subnet_types_interface
+    # @api_client.subnet_types
+    raise "#{self.class} has not defined @subnet_types_interface" if @subnet_types_interface.nil?
+    @subnet_types_interface
+  end
+
   def find_group_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_group_by_id(val)
@@ -101,6 +131,351 @@ module Morpheus::Cli::InfrastructureHelper
 
   def cloud_type_for_name(name)
     return get_available_cloud_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+  end
+
+
+  # Networks
+
+  def find_network_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_by_id(val)
+    else
+      return find_network_by_name(val)
+    end
+  end
+
+  def find_network_by_id(id)
+    begin
+      json_response = networks_interface.get(id.to_i)
+      return json_response['network']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_network_by_name(name)
+    json_response = networks_interface.list({name: name.to_s})
+    networks = json_response['networks']
+    if networks.empty?
+      print_red_alert "Network not found by name #{name}"
+      return nil
+    elsif networks.size > 1
+      print_red_alert "#{networks.size} networks found by name #{name}"
+      rows = networks.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      network = networks[0]
+      # merge in tenants map
+      if json_response['tenants'] && json_response['tenants'][network['id']]
+        network['tenants'] = json_response['tenants'][network['id']]
+      end
+      return network
+    end
+  end
+
+  def find_network_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_type_by_id(val)
+    else
+      return find_network_type_by_name(val)
+    end
+  end
+
+  def find_network_type_by_id(id)
+    begin
+      json_response = network_types_interface.get(id.to_i)
+      return json_response['networkType']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network Type not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_network_type_by_name(name)
+    json_response = network_types_interface.list({name: name.to_s})
+    network_types = json_response['networkTypes']
+    if network_types.empty?
+      print_red_alert "Network Type not found by name #{name}"
+      return network_types
+    elsif network_types.size > 1
+      print_red_alert "#{network_types.size} network types found by name #{name}"
+      rows = network_types.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return network_types[0]
+    end
+  end
+
+  def find_subnet_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_subnet_by_id(val)
+    else
+      return find_subnet_by_name(val)
+    end
+  end
+
+  def find_subnet_by_id(id)
+    begin
+      json_response = subnets_interface.get(id.to_i)
+      return json_response['subnet']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Subnet not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_subnet_by_name(name)
+    json_response = subnets_interface.list({name: name.to_s})
+    subnets = json_response['subnets']
+    if subnets.empty?
+      print_red_alert "Subnet not found by name #{name}"
+      return nil
+    elsif subnets.size > 1
+      print_red_alert "#{subnets.size} subnets found by name #{name}"
+      rows = subnets.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return subnets[0]
+    end
+  end
+
+  def find_subnet_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_subnet_type_by_id(val)
+    else
+      return find_subnet_type_by_name(val)
+    end
+  end
+
+  def find_subnet_type_by_id(id)
+    begin
+      json_response = subnet_types_interface.get(id.to_i)
+      return json_response['subnetType']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Subnet Type not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_subnet_type_by_name(name)
+    json_response = subnet_types_interface.list({name: name.to_s})
+    subnet_types = json_response['subnetTypes']
+    if subnet_types.empty?
+      print_red_alert "Subnet Type not found by name #{name}"
+      return subnet_types
+    elsif subnet_types.size > 1
+      print_red_alert "#{subnet_types.size} subnet types found by name #{name}"
+      rows = subnet_types.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return subnet_types[0]
+    end
+  end
+
+  def find_network_group_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_group_by_id(val)
+    else
+      return find_network_group_by_name(val)
+    end
+  end
+
+  def find_network_group_by_id(id)
+    begin
+      json_response = network_groups_interface.get(id.to_i)
+      return json_response['networkGroup']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network Group not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_network_group_by_name(name)
+    json_response = network_groups_interface.list({name: name.to_s})
+    network_groups = json_response['networkGroups']
+    if network_groups.empty?
+      print_red_alert "Network Group not found by name #{name}"
+      return nil
+    elsif network_groups.size > 1
+      print_red_alert "#{network_groups.size} network groups found by name #{name}"
+      # print_networks_table(networks, {color: red})
+      rows = network_groups.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return network_groups[0]
+    end
+  end
+
+  def prompt_for_network(network_id, options={}, required=true, field_name='network', field_label='Network')
+    # Prompt for a Network, text input that searches by name or id
+    network = nil
+    still_prompting = true
+    while still_prompting do
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => field_name, 'type' => 'text', 'fieldLabel' => field_label, 'required' => required, 'description' => 'Network name or ID.'}], network_id ? {(field_name) => network_id} : {})
+      network_id = v_prompt['network']
+      begin
+        network = find_network_by_name_or_id(network_id)
+      rescue SystemExit => cmdexit
+      end
+      if options[:no_prompt]
+        still_prompting = false
+      else
+        still_prompting = network ? false : true
+      end
+      if still_prompting
+        network_id = nil
+      end
+    end
+    return {success:!!network, network: network}
+  end
+
+  def prompt_for_networks(params, options={}, api_client=nil, api_params={})
+    # Networks
+    network_list = nil
+    network_ids = nil
+    still_prompting = true
+    if params['networks'].nil?
+      still_prompting = true
+      while still_prompting do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networks', 'type' => 'text', 'fieldLabel' => 'Networks', 'required' => false, 'description' => 'Networks to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['networks'].to_s.empty?
+          network_list = v_prompt['networks'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        network_ids = []
+        bad_ids = []
+        if network_list && network_list.size > 0
+          network_list.each do |it|
+            found_network = nil
+            begin
+              found_network = find_network_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_network
+              network_ids << found_network['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      network_list = params['networks']
+      still_prompting = false
+      network_ids = []
+      bad_ids = []
+      if network_list && network_list.size > 0
+        network_list.each do |it|
+          found_network = nil
+          begin
+            found_network = find_network_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_network
+            network_ids << found_network['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Networks not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: network_ids}
+  end
+
+  def prompt_for_subnets(params, options={}, api_client=nil, api_params={})
+    # todo: make this a generic method now please.
+    # Subnets
+    record_list = nil
+    record_ids = nil
+    still_prompting = true
+    if params['subnets'].nil?
+      still_prompting = true
+      while still_prompting do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'subnets', 'type' => 'text', 'fieldLabel' => 'Subnets', 'required' => false, 'description' => 'Subnets to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['subnets'].to_s.empty?
+          record_list = v_prompt['subnets'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        record_ids = []
+        bad_ids = []
+        if record_list && record_list.size > 0
+          record_list.each do |it|
+            found_record = nil
+            begin
+              found_record = find_subnet_by_name_or_id(it)
+            rescue SystemExit => cmdexit
+            end
+            if found_record
+              record_ids << found_record['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      record_list = params['subnets']
+      still_prompting = false
+      record_ids = []
+      bad_ids = []
+      if record_list && record_list.size > 0
+        record_list.each do |it|
+          found_network = nil
+          begin
+            found_network = find_record_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_network
+            record_ids << found_network['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Subnets not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: record_ids}
   end
 
 end
