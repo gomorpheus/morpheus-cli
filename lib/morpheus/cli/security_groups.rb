@@ -116,7 +116,7 @@ class Morpheus::Cli::SecurityGroups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a security group."
     end
     optparse.parse!(args)
@@ -125,26 +125,22 @@ class Morpheus::Cli::SecurityGroups
     end
     connect(options)
     exit_code, err = 0, nil
-    begin
-      @security_groups_interface.setopts(options)
-      json_response = nil
+    
+      security_group_id = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = @security_groups_interface.get(args[0].to_i)
-        if options[:dry_run]
-          print_dry_run @security_groups_interface.dry.get(args[0].to_i)
-          return exit_code, err
-        end      
+        security_group_id = args[0].to_i
       else
         security_group = find_security_group_by_name(args[0])
         return 1, "Security Group not found" if security_group.nil?
-        if options[:dry_run]
-          print_dry_run @security_groups_interface.dry.get(security_group['id'])
-          return exit_code, err
-        end
-        json_response = @security_groups_interface.get(security_group['id'])
+        security_group_id = security_group['id']
       end
-
-      render_result = render_with_format(json_response, options, 'subnets')
+      @security_groups_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @security_groups_interface.dry.get(security_group_id)
+        return exit_code, err
+      end
+      json_response = @security_groups_interface.get(security_group_id)
+      render_result = render_with_format(json_response, options, 'securityGroup')
       return exit_code, err if render_result
 
       security_group = json_response['securityGroup']
@@ -222,11 +218,7 @@ class Morpheus::Cli::SecurityGroups
         end
       end
 
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+      return exit_code, err
   end
 
   def add(args)

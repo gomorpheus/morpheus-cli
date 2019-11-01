@@ -114,25 +114,21 @@ class Morpheus::Cli::NetworkGroupsCommand
     connect(options)
     exit_code, err = 0, nil
     begin
-      @network_groups_interface.setopts(options)
-      json_response = nil
+      network_group_id = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = @network_groups_interface.get(args[0].to_i)
-        if options[:dry_run]
-          print_dry_run @network_groups_interface.dry.get(args[0].to_i)
-          return exit_code, err
-        end      
+        network_group_id = args[0].to_i
       else
         network_group = find_network_group_by_name(args[0])
-        return 1, "Network not found" if network_group.nil?
-        if options[:dry_run]
-          print_dry_run @network_groups_interface.dry.get(network_group['id'])
-          return exit_code, err
-        end
-        json_response = @network_groups_interface.get(network_group['id'])
+        return 1, "Network Group not found" if network_group.nil?
+        network_group_id = network_group['id']
       end
-
-      render_result = render_with_format(json_response, options, 'subnets')
+      @network_groups_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_groups_interface.dry.get(network_group_id)
+        return exit_code, err
+      end
+      json_response = @network_groups_interface.get(network_group_id)
+      render_result = render_with_format(json_response, options, 'networkGroup')
       return exit_code, err if render_result
 
       network_group = json_response['networkGroup']

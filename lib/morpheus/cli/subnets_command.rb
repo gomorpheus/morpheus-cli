@@ -124,40 +124,23 @@ class Morpheus::Cli::SubnetsCommand
     end
     connect(options)
     begin
-      @subnets_interface.setopts(options)
-      json_response = nil
+      subnet_id = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = @subnets_interface.get(args[0].to_i)
-        if options[:dry_run]
-          print_dry_run @subnets_interface.dry.get(args[0].to_i)
-          return exit_code, err
-        end      
+        subnet_id = args[0].to_i
       else
-        subnet = find_subnet_by_name_or_id(args[0])
-        return 1, "Network not found" if subnet.nil?
-        if options[:dry_run]
-          print_dry_run @network_groups_interface.dry.get(subnet['id'])
-          return exit_code, err
-        end
-        json_response = @network_groups_interface.get(subnet['id'])
+        subnet = find_subnet_by_name(args[0])
+        return 1, "Security Group not found" if subnet.nil?
+        subnet_id = subnet['id']
       end
-
-      render_result = render_with_format(json_response, options, 'subnets')
-      return exit_code, err if render_result
-
       @subnets_interface.setopts(options)
       if options[:dry_run]
-        if args[1].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @subnets_interface.dry.get(network['id'], args[1].to_i)
-        else
-          print_dry_run @subnets_interface.dry.list(network['id'], {name:args[1]})
-        end
-        return
+        print_dry_run @subnets_interface.dry.get(subnet_id)
+        return exit_code, err
       end
-      subnet = find_subnet_by_name_or_id(network['id'], args[1])
-      return 1 if subnet.nil?
-      json_response = {'subnet' => subnet}  # skip redundant request
-      # json_response = @subnets_interface.get(network['id'], subnet['id'])
+      json_response = @subnets_interface.get(subnet_id)
+      render_result = render_with_format(json_response, options, 'subnet')
+      return exit_code, err if render_result
+
       subnet = json_response['subnet']
       if options[:json]
         puts as_json(json_response, options, "subnet")
@@ -176,8 +159,8 @@ class Morpheus::Cli::SubnetsCommand
         "Name" => 'name',
         "Description" => 'description',
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
-        "Network" => lambda {|it| network['name'] },
-        "Cloud" => lambda {|it| network['zone'] ? network['zone']['name'] : '' },
+        "Network" => lambda {|it| subnet['network']['name'] rescue subnet['network'] },
+        "Cloud" => lambda {|it| subnet['zone']['name'] rescue subnet['zone'] },
         "CIDR" => 'cidr',
         "Gateway" => 'gateway',
         "Netmask" => 'netmask',
