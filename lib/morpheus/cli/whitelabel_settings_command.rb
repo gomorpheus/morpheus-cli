@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::WhitelabelSettingsCommand
   include Morpheus::Cli::CliCommand
  # include Morpheus::Cli::AccountsHelper
-
+  set_command_hidden # hide until 4.2.0
   set_command_name :'whitelabel-settings'
 
   register_subcommands :get, :update
