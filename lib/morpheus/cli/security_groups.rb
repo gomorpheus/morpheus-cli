@@ -124,33 +124,34 @@ class Morpheus::Cli::SecurityGroups
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
+    exit_code, err = 0, nil
     begin
       @security_groups_interface.setopts(options)
-
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @security_groups_interface.dry.get(args[0].to_i)
-        else
-          print_dry_run @security_groups_interface.dry.list({name:args[0]})
-        end
-        return 0
-      end
-      security_group = find_security_group_by_name_or_id(args[0])
-      return 1 if security_group.nil?
       json_response = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = {'securityGroup' => security_group}  # skip redundant request
+        json_response = @security_groups_interface.get(args[0].to_i)
+        if options[:dry_run]
+          print_dry_run @security_groups_interface.dry.get(args[0].to_i)
+          return exit_code, err
+        end      
       else
+        security_group = find_security_group_by_name(args[0])
+        return 1, "Security Group not found" if security_group.nil?
+        if options[:dry_run]
+          print_dry_run @security_groups_interface.dry.get(security_group['id'])
+          return exit_code, err
+        end
         json_response = @security_groups_interface.get(security_group['id'])
       end
 
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options, 'subnets')
+      return exit_code, err if render_result
+
       security_group = json_response['securityGroup']
-      print_h1 "Morpheus Security Group"
+      security_group_locations = json_response['locations'] || security_group['locations']
+      security_group_rules = json_response['rules'] || security_group['rules']
+
+      print_h1 "Security Group Details"
       print cyan
       description_cols = {
         "ID" => 'id',
@@ -162,7 +163,7 @@ class Morpheus::Cli::SecurityGroups
       print_description_list(description_cols, security_group)
       # print reset,"\n"
 
-      if security_group['locations'] && security_group['locations'].size > 0
+      if security_group_locations && security_group_locations.size > 0
         print_h2 "Locations"
         print cyan
         location_cols = {
@@ -171,13 +172,13 @@ class Morpheus::Cli::SecurityGroups
           "EXTERNAL ID" => lambda {|it| it['externalId'] },
           "RESOURCE POOL" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' }
         }
-        puts as_pretty_table(security_group['locations'], location_cols)
+        puts as_pretty_table(security_group_locations, location_cols)
       else
         print reset,"\n"
       end
 
-      if security_group['rules']
-        if security_group['rules'].size == 0
+      if security_group_rules
+        if security_group_rules == 0
           #print cyan,"No rules.",reset,"\n"
         else
           print_h2 "Rules"
@@ -217,7 +218,7 @@ class Morpheus::Cli::SecurityGroups
             "PROTOCOL" => lambda {|it| it['protocol'] },
             "PORT RANGE" => lambda {|it| it['portRange'] }
           }
-          puts as_pretty_table(security_group['rules'], rule_cols)
+          puts as_pretty_table(security_group_rules, rule_cols)
         end
       end
 
