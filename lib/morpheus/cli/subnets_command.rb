@@ -139,6 +139,7 @@ class Morpheus::Cli::SubnetsCommand
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
+    exit_code, err = 0, nil
     begin
       subnet_id = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
