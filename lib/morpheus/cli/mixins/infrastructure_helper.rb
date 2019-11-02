@@ -459,13 +459,13 @@ module Morpheus::Cli::InfrastructureHelper
       bad_ids = []
       if record_list && record_list.size > 0
         record_list.each do |it|
-          found_network = nil
+          found_subnet = nil
           begin
-            found_network = find_record_by_name_or_id(it)
+            found_subnet = find_subnet_by_name_or_id(it)
           rescue SystemExit => cmdexit
           end
-          if found_network
-            record_ids << found_network['id']
+          if found_subnet
+            record_ids << found_subnet['id']
           else
             bad_ids << it
           end
