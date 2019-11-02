@@ -296,8 +296,9 @@ class Morpheus::Cli::SubnetsCommand
     if args.count > 1
       raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
     end
-    if args[1]
+    if args[0]
       options[:options]['name'] = args[1]
+      options[:options].deep_merge!({'config' => {'subnetName' => args[0]}})
     end
     connect(options)
     begin
@@ -472,10 +473,10 @@ class Morpheus::Cli::SubnetsCommand
     end
     connect(options)
     begin
-      network = find_network_by_name_or_id(args[0])
-      return 1 if network.nil?
+      # network = find_network_by_name_or_id(args[0])
+      # return 1 if network.nil?
 
-      subnet = find_subnet_by_name_or_id(network['id'], args[1])
+      subnet = find_subnet_by_name_or_id(args[0])
       return 1 if subnet.nil?
       
       # merge -O options into normally parsed options
@@ -531,16 +532,16 @@ class Morpheus::Cli::SubnetsCommand
 
       @subnets_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @subnets_interface.dry.update(network['id'], subnet['id'], payload)
+        print_dry_run @subnets_interface.dry.update(subnet['id'], payload)
         return
       end
-      json_response = @subnets_interface.update(network['id'], subnet['id'], payload)
+      json_response = @subnets_interface.update(subnet['id'], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
         subnet = json_response['subnet']
         print_green_success "Updated subnet #{subnet['name']}"
-        get_args = [network['id'], subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get_args = [subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
         get(get_args)
       end
       return 0
