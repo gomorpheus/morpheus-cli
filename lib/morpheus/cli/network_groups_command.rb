@@ -76,7 +76,7 @@ class Morpheus::Cli::NetworkGroupsCommand
             networks: network_group['networks'] ? network_group['networks'].size : 0,
             subnets: network_group['subnets'] ? network_group['subnets'].size : 0,
             visibility: network_group['visibility'].to_s.capitalize,
-            active: format_boolean(subnet_group['active']),
+            active: format_boolean(network_group['active']),
             tenants: network_group['tenants'] ? network_group['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           row
