@@ -407,7 +407,7 @@ class Morpheus::Cli::SubnetsCommand
       elsif !options[:quiet]
         subnet = json_response['subnet']
         print_green_success "Added subnet #{subnet['name']}"
-        get_args = [network['id'], subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        get_args = [subnet['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
         get(get_args)
       end
       return 0
