@@ -14,7 +14,7 @@ class Morpheus::Cli::NetworksCommand
   register_subcommands :'types' => :list_types
   register_subcommands :'get-type' => :get_type
 
-  register_subcommands :list_subnets, # :get_subnet, :add_subnet, :update_subnet, :remove_subnet
+  #register_subcommands :list_subnets, # :get_subnet, :add_subnet, :update_subnet, :remove_subnet
   
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
