@@ -129,7 +129,7 @@ class Morpheus::Cli::SubnetsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[network] [subnet]")
+      opts.banner = subcommand_usage("[subnet]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a subnet." + "\n" +
                     "[subnet] is required. This is the name or id of a subnet."
