@@ -103,6 +103,7 @@ class Morpheus::Cli::NetworksCommand
             dhcp: network['dhcpServer'] ? 'Yes' : 'No',
             subnets: (network['subnets'].size rescue 'n/a'),
             visibility: network['visibility'].to_s.capitalize,
+            active: format_boolean(network['active']),
             tenants: network['tenants'] ? network['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           rows << row
@@ -118,13 +119,14 @@ class Morpheus::Cli::NetworksCommand
                 pool: subnet['pool'] ? subnet['pool']['name'] : '',
                 dhcp: subnet['dhcpServer'] ? 'Yes' : 'No',
                 visibility: subnet['visibility'].to_s.capitalize,
+                active: format_boolean(network['active']),
                 tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
               }
               rows << subnet_row
             end
           end
         end
-        columns = [:id, :name, :type, :cloud, :cidr, :pool, :dhcp, :subnets, :visibility, :tenants]
+        columns = [:id, :name, :type, :cloud, :cidr, :pool, :dhcp, :subnets, :active, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -198,11 +200,10 @@ class Morpheus::Cli::NetworksCommand
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
         "VPC" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' },
         "DHCP" => lambda {|it| it['dhcpServer'] ? 'Yes' : 'No' },
+        "Active" => lambda {|it| format_boolean(it['active']) },
         "Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
-        "Active" => lambda {|it| format_boolean(it['active']) },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
-        # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
       print_description_list(description_cols, network)
 
@@ -248,7 +249,7 @@ class Morpheus::Cli::NetworksCommand
             tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
         }
-        columns = [:id, :name, :cidr, :dhcp, :visibility, :active]
+        columns = [:id, :name, :cidr, :dhcp, :active, :visibility]
         print cyan
         print as_pretty_table(subnet_rows, columns, options)
         print reset
@@ -1201,9 +1202,9 @@ class Morpheus::Cli::NetworksCommand
           #"Description" => 'description',
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
-          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Active" => lambda {|it| format_boolean(it['active']) },
-          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         }
         print cyan
         print as_pretty_table(subnets, subnet_columns)

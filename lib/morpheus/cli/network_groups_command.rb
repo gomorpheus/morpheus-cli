@@ -75,13 +75,13 @@ class Morpheus::Cli::NetworkGroupsCommand
             # networks: network_group['networks'] ? network_group['networks'].collect {|it| it['name'] }.uniq.join(', ') : '',
             networks: network_group['networks'] ? network_group['networks'].size : 0,
             subnets: network_group['subnets'] ? network_group['subnets'].size : 0,
-            visibility: network_group['visibility'].to_s.capitalize,
             active: format_boolean(network_group['active']),
+            visibility: network_group['visibility'].to_s.capitalize,
             tenants: network_group['tenants'] ? network_group['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           row
         }
-        columns = [:id, :name, :description, :networks, :subnets, :visibility, :active, :tenants]
+        columns = [:id, :name, :description, :networks, :subnets, :active, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -144,10 +144,9 @@ class Morpheus::Cli::NetworkGroupsCommand
         "Description" => 'description',
         "Networks" => lambda {|it| it['networks'].size rescue 'n/a' },
         "Subnets" => lambda {|it| it['subnets'].size rescue 'n/a' },
-        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Active" => lambda {|it| it['active'].to_s.capitalize },
+        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
-        # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
       print_description_list(description_cols, network_group)
 
@@ -161,9 +160,9 @@ class Morpheus::Cli::NetworkGroupsCommand
           #"Description" => 'description',
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
-          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Active" => lambda {|it| it['active'].to_s.capitalize },
-          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         }
         print cyan
         print as_pretty_table(networks, subnet_columns)
@@ -180,9 +179,9 @@ class Morpheus::Cli::NetworkGroupsCommand
           #"Description" => 'description',
           "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
           "CIDR" => lambda {|it| it['cidr'] },
-          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Active" => lambda {|it| it['active'].to_s.capitalize },
-          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         }
         print cyan
         print as_pretty_table(subnets, subnet_columns)

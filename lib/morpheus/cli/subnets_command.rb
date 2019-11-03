@@ -112,8 +112,8 @@ class Morpheus::Cli::SubnetsCommand
         "Cloud" => lambda {|it| it['zone']['name'] rescue it['zone'] },
         "CIDR" => lambda {|it| it['cidr'] },
         "DHCP" => lambda {|it| format_boolean(it['dhcpServer']) },
-        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Active" => lambda {|it| format_boolean(it['active']) },
+        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
       }
       print cyan
@@ -187,10 +187,9 @@ class Morpheus::Cli::SubnetsCommand
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
         "DHCP" => lambda {|it| format_boolean it['dhcpServer'] },
         #"Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
-        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Active" => lambda {|it| format_boolean(it['active']) },
+        "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
-        # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
       print_description_list(description_cols, subnet)
 
