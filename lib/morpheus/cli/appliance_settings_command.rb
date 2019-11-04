@@ -207,7 +207,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
       opts.on("--disable-all-clouds", "Set all cloud types enabled status off, can be used in conjunction with --enable-clouds options") do
         params['disableAllZoneTypes'] = true
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
     end
 
     optparse.parse!(args)

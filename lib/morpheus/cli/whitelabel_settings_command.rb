@@ -210,10 +210,22 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       opts.on("--privacy-policy-file FILE", String, "Privacy policy content from local file") do |val|
         options[:privacyPolicyFile] = val
       end
-      opts.on('--support-menu-links LIST', Array, "Support menu links. Comma delimited list of menu links. Each menu link is pipe delimited url1|label1|code1,url2|label2|code2") do |val|
-        options[:supportMenuLinks] = val
+      opts.on('--support-menu-links JSON', String, "Support menu links JSON") do |val|
+        begin
+          support_menu_links = JSON.parse(val.to_s)
+          params['supportMenuLinks'] = support_menu_links.kind_of?(Array) ? support_menu_links : [support_menu_links]
+        rescue JSON::ParserError => e
+          print_red_alert "Unable to parse forwarding rules JSON"
+          exit 1
+        end
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.on('--support-menu-links-list LIST', Array, "Support menu links list. Comma delimited list of menu links. Each menu link is pipe delimited url1|label1|code1,url2|label2|code2") do |val|
+        params['supportMenuLinks'] = val.collect { |link|
+          parts = link.split('|')
+          {'url' => parts[0].strip, 'label' => (parts.count > 1 ? parts[1].strip : ''), 'labelCode' => (parts.count > 2 ? parts[2].strip : '')}
+        }
+      end
+      build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
     end
 
     optparse.parse!(args)
@@ -240,12 +252,6 @@ class Morpheus::Cli::WhitelabelSettingsCommand
               exit 1
             end
           end
-        end
-        if options[:supportMenuLinks]
-          params['supportMenuLinks'] = options[:supportMenuLinks].collect { |link|
-            parts = link.split('|')
-            {'url' => parts[0].strip, 'label' => (parts.count > 1 ? parts[1].strip : ''), 'labelCode' => (parts.count > 2 ? parts[2].strip : '')}
-          }
         end
         payload = {'whitelabelSettings' => params}
       end
@@ -303,7 +309,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       opts.on("--reset-favicon", String, "Resets favicon default favicon") do |val|
         params['resetFavicon'] = true
       end
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
       opts.footer = "Update your whitelabel images."
     end
 
