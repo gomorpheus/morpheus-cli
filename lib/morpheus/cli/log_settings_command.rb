@@ -94,10 +94,10 @@ class Morpheus::Cli::LogSettingsCommand
       opts.on("--enabled [on|off]", ['on','off'], "Logs enabled") do |val|
         params['enabled'] = ['true','on'].include?(val.to_s.strip)
       end
-      opts.on("--retention NUMBER", Integer, "Availability time frame in days") do |val|
+      opts.on("-R", "--retention NUMBER", Integer, "Availability time frame in days") do |val|
         params['retentionDays'] = val.to_i
       end
-      opts.on('--syslog JSON', String, "Syslog rules JSON") do |val|
+      opts.on("-s", "--syslog JSON", String, "Syslog rules JSON") do |val|
         begin
           syslog_rules = JSON.parse(val.to_s)
           options[:syslogRules] = syslog_rules.kind_of?(Array) ? syslog_rules : [syslog_rules]
