@@ -129,6 +129,7 @@ module Morpheus
       load 'morpheus/cli/logs_command.rb'
       load 'morpheus/cli/policies_command.rb'
       load 'morpheus/cli/networks_command.rb'
+      load 'morpheus/cli/subnets_command.rb'
       load 'morpheus/cli/network_groups_command.rb'
       load 'morpheus/cli/network_pools_command.rb'
       load 'morpheus/cli/network_services_command.rb'

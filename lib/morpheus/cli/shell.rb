@@ -442,7 +442,7 @@ class Morpheus::Cli::Shell
         log_history_command(input)
         return Morpheus::Cli::SourceCommand.new.handle(input.split[1..-1])
       end
-      cmd_result = nil
+      exit_code, err = 0, nil
       begin
         argv = Shellwords.shellsplit(input)
         cmd_name = argv[0]
@@ -462,28 +462,28 @@ class Morpheus::Cli::Shell
               start_benchmark(benchmark_name)
             end
           end
-          cmd_exit_code, cmd_err = Morpheus::Cli::CliRegistry.exec_expression(input)
-          #cmd_result = Morpheus::Cli::CliRegistry.exec(cmd_name, cmd_args)
-          #cmd_exit_code, cmd_err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
-          benchmark_record = stop_benchmark(cmd_exit_code, cmd_err) # if benchmarking?
+          exit_code, err = Morpheus::Cli::CliRegistry.exec_expression(input)
+          benchmark_record = stop_benchmark(exit_code, err) # if benchmarking?
           Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
         # else
         #   puts_error "#{Morpheus::Terminal.angry_prompt}'#{cmd_name}' is not recognized. Use 'help' to see the list of available commands."
         #   @history_logger.warn "Unrecognized Command #{cmd_name}" if @history_logger
-        #   cmd_result = -1
+        #   exit_code, err = -1, "Command not recognized"
         # end
       rescue Interrupt
-        # nothing to do
+        # user pressed ^C to interrupt a command
         @history_logger.warn "shell interrupt" if @history_logger
         print "\nInterrupt. aborting command '#{input}'\n"
+        exit_code, err = 9, "aborted command"
       rescue SystemExit => cmdexit
-        # nothing to do
+        # nothing to do, assume the command that exited printed an error already
         # print "\n"
-        cmd_result = cmdexit.status
+        exit_code, err = cmdexit.status, "Command exited early."
       rescue => e
+        # some other type of failure..
         @history_logger.error "#{e.message}" if @history_logger
-        cmd_result = Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
-        # exit 1
+        exit_code, err = Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
+        
       ensure
         if @return_to_log_level
           Morpheus::Logging.set_log_level(@return_to_log_level)
@@ -501,11 +501,7 @@ class Morpheus::Cli::Shell
         end
       end
 
-      # commands should be a number or nil (treated as 0)
-      if cmd_result == true
-        cmd_result = 0
-      end
-      return cmd_result
+      return exit_code, err
     end
 
   end

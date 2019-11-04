@@ -21,6 +21,8 @@ class Morpheus::Cli::NetworkGroupsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @network_groups_interface = @api_client.network_groups
+    @networks_interface = @api_client.networks
+    @subnets_interface = @api_client.subnets
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
   end
@@ -72,12 +74,14 @@ class Morpheus::Cli::NetworkGroupsCommand
             description: network_group['description'],
             # networks: network_group['networks'] ? network_group['networks'].collect {|it| it['name'] }.uniq.join(', ') : '',
             networks: network_group['networks'] ? network_group['networks'].size : 0,
+            subnets: network_group['subnets'] ? network_group['subnets'].size : 0,
+            active: format_boolean(network_group['active']),
             visibility: network_group['visibility'].to_s.capitalize,
             tenants: network_group['tenants'] ? network_group['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           row
         }
-        columns = [:id, :name, :description, :networks, :visibility, :tenants]
+        columns = [:id, :name, :description, :networks, :subnets, :active, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -109,45 +113,81 @@ class Morpheus::Cli::NetworkGroupsCommand
       return 1
     end
     connect(options)
+    exit_code, err = 0, nil
     begin
+      network_group_id = nil
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        network_group_id = args[0].to_i
+      else
+        network_group = find_network_group_by_name(args[0])
+        return 1, "Network Group not found" if network_group.nil?
+        network_group_id = network_group['id']
+      end
       @network_groups_interface.setopts(options)
       if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @network_groups_interface.dry.get(args[0].to_i)
-        else
-          print_dry_run @network_groups_interface.dry.list({name:args[0]})
-        end
-        return
+        print_dry_run @network_groups_interface.dry.get(network_group_id)
+        return exit_code, err
       end
-      network_group = find_network_group_by_name_or_id(args[0])
-      return 1 if network_group.nil?
-      json_response = {'networkGroup' => network_group}  # skip redundant request
-      # json_response = @network_groups_interface.get(network_group['id'])
+      json_response = @network_groups_interface.get(network_group_id)
+      render_result = render_with_format(json_response, options, 'networkGroup')
+      return exit_code, err if render_result
+
       network_group = json_response['networkGroup']
-      if options[:json]
-        puts as_json(json_response, options, "networkGroup")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "networkGroup")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([network_group], options)
-        return 0
-      end
+      networks = json_response['networks'] # || network_group['networks']
+      subnets = json_response['subnets']  # || network_group['subnets']
+
       print_h1 "Network Group Details"
       print cyan
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
-        "Networks" => lambda {|it| it['networks'] ? it['networks'].collect {|it| it['name'] }.uniq.join(', ') : '' },
+        "Networks" => lambda {|it| it['networks'].size rescue 'n/a' },
+        "Subnets" => lambda {|it| it['subnets'].size rescue 'n/a' },
+        "Active" => lambda {|it| it['active'].to_s.capitalize },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
-        # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       }
       print_description_list(description_cols, network_group)
 
-      
+      if networks.empty?
+        # print cyan,"No networks found.",reset,"\n"
+      else
+        print_h2 "Networks"
+        subnet_columns = {
+          "ID" => 'id',
+          "Name" => 'name',
+          #"Description" => 'description',
+          "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
+          "CIDR" => lambda {|it| it['cidr'] },
+          "Active" => lambda {|it| it['active'].to_s.capitalize },
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
+        }
+        print cyan
+        print as_pretty_table(networks, subnet_columns)
+        print reset,"\n"
+      end
+
+      if subnets.empty?
+        # print cyan,"No subnets found.",reset,"\n"
+      else
+        print_h2 "Subnets"
+        subnet_columns = {
+          "ID" => 'id',
+          "Name" => 'name',
+          #"Description" => 'description',
+          "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
+          "CIDR" => lambda {|it| it['cidr'] },
+          "Active" => lambda {|it| it['active'].to_s.capitalize },
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
+          "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
+        }
+        print cyan
+        print as_pretty_table(subnets, subnet_columns)
+        print reset,"\n"
+      end
+
       if network_group['resourcePermission'].nil?
         print "\n", "No group access found", "\n"
       else
@@ -167,9 +207,9 @@ class Morpheus::Cli::NetworkGroupsCommand
         columns = [:group, :default]
         print cyan
         print as_pretty_table(rows, columns)
+        print reset,"\n"
       end
       
-      print reset,"\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -191,11 +231,18 @@ class Morpheus::Cli::NetworkGroupsCommand
       opts.on('--description VALUE', String, "Description of network group") do |val|
         options['description'] = val
       end
-      opts.on('--networks LIST', Array, "Networks in the group, comma separated list of network IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+      opts.on('--networks LIST', Array, "Networks in the group, comma separated list of network names or IDs") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
           options['networks'] = []
         else
           options['networks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--subnets LIST', Array, "Subnets, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
+          options['subnets'] = []
+        else
+          options['subnets'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
@@ -231,6 +278,9 @@ class Morpheus::Cli::NetworkGroupsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a network group") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new network group." + "\n" +
@@ -284,12 +334,29 @@ class Morpheus::Cli::NetworkGroupsCommand
         end
         
         # Networks
-        if options['networks']
-          payload['networkGroup']['networks'] = options['networks'].collect {|it| {id: it} }
+        # if options['networks']
+        #   payload['networkGroup']['networks'] = options['networks'].collect {|it| {id: it} }
+        # else
+        #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networks', 'fieldLabel' => 'Networks', 'type' => 'text', 'required' => true, 'description' => 'Networks in the group, comma separated list of network IDs.'}], options)
+        #   payload['networkGroup']['networks'] = v_prompt['networks'].to_s.split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {id: it} }
+        # end
+
+        # Networks
+        prompt_results = prompt_for_networks(options, options, @api_client)
+        if prompt_results[:success]
+          payload['networkGroup']['networks'] = prompt_results[:data] unless prompt_results[:data].nil?
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networks', 'fieldLabel' => 'Networks', 'type' => 'text', 'required' => true, 'description' => 'Networks in the group, comma separated list of network IDs.'}], options)
-          payload['networkGroup']['networks'] = v_prompt['networks'].to_s.split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {id: it} }
+          return 1, "Networks prompt failed."
         end
+
+        # Subnets
+        prompt_results = prompt_for_subnets(options, options, @api_client)
+        if prompt_results[:success]
+          payload['networkGroup']['subnets'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1, "Subnets prompt failed."
+        end
+        
 
         # Group Access
         if group_access_all != nil
@@ -316,6 +383,11 @@ class Morpheus::Cli::NetworkGroupsCommand
         # Visibility
         if options['visibility'] != nil
           payload['networkGroup']['visibility'] = options['visibility']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['networkGroup']['active'] = options['active']
         end
 
       end
@@ -362,6 +434,13 @@ class Morpheus::Cli::NetworkGroupsCommand
           options['networks'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--subnets LIST', Array, "Subnets, comma separated list of names or IDs.") do |list|
+        if list.size == 1 && ('[]' == list[0]) # clear array
+          options['subnets'] = []
+        else
+          options['subnets'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true'
       end
@@ -395,6 +474,9 @@ class Morpheus::Cli::NetworkGroupsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a network group") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network group." + "\n" +
@@ -444,13 +526,25 @@ class Morpheus::Cli::NetworkGroupsCommand
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'description' => 'Description of network group.'}], options)
           # payload['networkGroup']['description'] = v_prompt['description']
         end
-        
+
         # Networks
         if options['networks']
-          payload['networkGroup']['networks'] = options['networks'].collect {|it| {id: it} }
-        else
-          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networks', 'fieldLabel' => 'Networks', 'type' => 'text', 'required' => true, 'description' => 'Networks in the group, comma separated list of network IDs.'}], options)
-          # payload['networkGroup']['networks'] = v_prompt['networks'].to_s.split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {id: it} }
+          prompt_results = prompt_for_networks(options, options, @api_client)
+          if prompt_results[:success]
+            payload['networkGroup']['networks'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1, "Networks prompt failed."
+          end
+        end
+
+        # Subnets
+        if options['subnets']
+          prompt_results = prompt_for_subnets(options, options, @api_client)
+          if prompt_results[:success]
+            payload['networkGroup']['subnets'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1, "Subnets prompt failed."
+          end
         end
 
         # Group Access
@@ -480,6 +574,11 @@ class Morpheus::Cli::NetworkGroupsCommand
           payload['networkGroup']['visibility'] = options['visibility']
         end
 
+        # Active
+        if options['active'] != nil
+          payload['networkGroup']['active'] = options['active']
+        end
+        
       end
       @network_groups_interface.setopts(options)
       if options[:dry_run]
@@ -548,45 +647,6 @@ class Morpheus::Cli::NetworkGroupsCommand
   private
 
 
- def find_network_group_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_network_group_by_id(val)
-    else
-      return find_network_group_by_name(val)
-    end
-  end
-
-  def find_network_group_by_id(id)
-    begin
-      json_response = @network_groups_interface.get(id.to_i)
-      return json_response['networkGroup']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Network Group not found by id #{id}"
-        return nil
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_network_group_by_name(name)
-    json_response = @network_groups_interface.list({name: name.to_s})
-    network_groups = json_response['networkGroups']
-    if network_groups.empty?
-      print_red_alert "Network Group not found by name #{name}"
-      return nil
-    elsif network_groups.size > 1
-      print_red_alert "#{network_groups.size} network groups found by name #{name}"
-      # print_networks_table(networks, {color: red})
-      rows = network_groups.collect do |it|
-        {id: it['id'], name: it['name']}
-      end
-      puts as_pretty_table(rows, [:id, :name], {color:red})
-      return nil
-    else
-      return network_groups[0]
-    end
-  end
+ 
 
 end

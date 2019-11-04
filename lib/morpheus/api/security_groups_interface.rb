@@ -15,7 +15,7 @@ class Morpheus::SecurityGroupsInterface < Morpheus::APIClient
   end
 
   def get(id, params={})
-    url = "#{@base_url}/api/security-groups"
+    url = "#{@base_url}/api/security-groups/#{id}"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
 
     if options.is_a?(Hash)

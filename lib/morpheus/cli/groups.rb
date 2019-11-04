@@ -773,7 +773,7 @@ public
     def load_group_file
       fn = groups_file_path
       if File.exist? fn
-        Morpheus::Logging::DarkPrinter.puts "loading groups file #{fn}" if Morpheus::Logging.debug?
+        #Morpheus::Logging::DarkPrinter.puts "loading groups file #{fn}" if Morpheus::Logging.debug?
         return YAML.load_file(fn)
       else
         {}

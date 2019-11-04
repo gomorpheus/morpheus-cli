@@ -168,7 +168,7 @@ EOT
 
       # for the sake of sanity
       if [:current, :all].include?(new_appliance_name.to_sym)
-        puts_angry_error "The specified appliance name '#{new_appliance_name}' is invalid.",reset,"\n"
+        raise_command_error "The specified appliance name '#{new_appliance_name}' is invalid."
         new_appliance_name = nil
       end
       # unique name
@@ -331,7 +331,7 @@ EOT
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :quiet, :dry_run, :remote])
       opts.footer = <<-EOT
 Check the status of a remote appliance.
-[name] is optional. This is the name of a remote.  Default is the current remote.
+[name] is optional. This is the name of a remote.  Default is the current remote. Can be passed as 'all'. to perform remote check-all.
 This makes a request to the configured appliance url and updates the status and version.
 EOT
     end
@@ -341,6 +341,10 @@ EOT
       id_list = ['current']
     else
       id_list = parse_id_list(args)
+    end
+    # trick for remote check all
+    if id_list.length == 1 && id_list[0].to_s.downcase == 'all'
+      return _check_all_appliances(options)
     end
     #connect(options)
     return run_command_for_each_arg(id_list) do |arg|
@@ -1081,8 +1085,8 @@ EOT
       user_option_types = [
         {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text', 'required' => false, 'defaultValue' => (hub_info ? hub_info['firstName'] : nil), 'description' => 'First name of the user.'},
         {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text', 'required' => false, 'defaultValue' => (hub_info ? hub_info['lastName'] : nil), 'description' => 'Last name of the user.'},
-        {'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'description' => 'A unique username for the master user.'},
-        {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['email'] : nil), 'description' => 'A unique email address for the user.'}
+        {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['email'] : nil), 'description' => 'A unique email address for the user.'},
+        {'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'required' => true, 'description' => 'A unique username for the master user.'}
       ]
       v_prompt = Morpheus::Cli::OptionTypes.prompt(user_option_types, options[:options])
       payload.merge!(v_prompt)
@@ -1294,13 +1298,13 @@ EOT
       out << "#{magenta}#{status_str.upcase}#{return_color}"
     elsif status_str == "ready"
       out << "#{green}#{status_str.upcase}#{return_color}"
-    elsif status_str == "unreachable"
+    elsif status_str == "http-error"
       out << "#{red}#{status_str.upcase}#{return_color}"
-    elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable'].include?(status_str)
+    elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable', 'unrecognized'].include?(status_str)
       out << "#{red}#{status_str.upcase}#{return_color}"
     else
       # dunno
-      out << "#{status_str}"
+      out << "#{yellow}#{status_str.upcase}#{return_color}"
     end
     out
   end
@@ -1362,7 +1366,8 @@ EOT
           blurbs << "Last checked #{format_duration(app_map[:last_check][:timestamp])} ago."
         end
         if app_map[:last_check][:error]
-          blurbs << "Error: #{app_map[:last_check][:error]}"
+          last_error_msg = truncate_string(app_map[:last_check][:error], 250)
+          blurbs << "Error: #{last_error_msg}"
         end
         if app_map[:last_check][:http_status]
           blurbs << "HTTP #{app_map[:last_check][:http_status]}"
@@ -1529,7 +1534,7 @@ EOT
     def load_appliance_file
       fn = appliances_file_path
       if File.exist? fn
-        Morpheus::Logging::DarkPrinter.puts "loading appliances file #{fn}" if Morpheus::Logging.debug?
+        #Morpheus::Logging::DarkPrinter.puts "loading appliances file #{fn}" if Morpheus::Logging.debug?
         return YAML.load_file(fn)
       else
         return {}
@@ -1742,6 +1747,9 @@ EOT
       rescue OpenSSL::SSL::SSLError => err
         app_map[:status] = 'ssl-error'
         app_map[:last_check][:error] = err.message
+      rescue JSON::ParserError => err
+        app_map[:status] = 'unrecognized'
+        app_map[:last_check][:error] = err.message
       rescue RestClient::Exception => err
         app_map[:status] = 'http-error'
         app_map[:http_status] = err.response ? err.response.code : nil
@@ -1765,7 +1773,6 @@ EOT
       rescue => err
         # should save before raising atleast..sheesh
         raise err
-        # Morpheus::Cli::ErrorHandler.new.handle_error(e)
         app_map[:status] = 'error'
         app_map[:last_check][:error] = err.message
       end

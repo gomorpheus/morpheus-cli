@@ -24,7 +24,7 @@ class Morpheus::SubnetsInterface < Morpheus::APIClient
   end
 
   def create(network_id, payload)
-    url = "#{@base_url}/api/subnets"
+    url = "#{@base_url}/api/networks/#{network_id}/subnets"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)

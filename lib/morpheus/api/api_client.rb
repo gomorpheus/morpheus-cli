@@ -490,12 +490,12 @@ class Morpheus::APIClient
     Morpheus::NetworkTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def network_subnets
-    Morpheus::NetworkSubnetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  def subnets
+    Morpheus::SubnetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def network_subnet_types
-    Morpheus::NetworkSubnetTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  def subnet_types
+    Morpheus::SubnetTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def network_groups

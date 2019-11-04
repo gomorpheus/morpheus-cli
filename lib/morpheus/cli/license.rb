@@ -68,10 +68,10 @@ class Morpheus::Cli::License
         return exit_code, err
       end
       
-      # if exit_code != 0 
-      #   print_error red, err.to_s, reset, "\n"
-      #   return exit_code, err
-      # end
+      if exit_code != 0 
+        print_error red, err.to_s, reset, "\n"
+        return exit_code, err
+      end
       
       # render output
 
@@ -90,7 +90,7 @@ class Morpheus::Cli::License
           if it['endDate']
             format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
           else
-            'None'
+            'Never'
           end
           },
         "Memory" => lambda {|it| "#{used_memory} / #{max_memory}" },
@@ -143,8 +143,8 @@ class Morpheus::Cli::License
       if options[:json]
         puts JSON.pretty_generate(json_response)
       else
-        print_green_success "License applied successfully!"
-        # get([]) # show it
+        print_green_success "License installed!"
+        get([] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -265,12 +265,6 @@ class Morpheus::Cli::License
       end
 
       json_response = @license_interface.uninstall(params)
-      
-      @apps_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.wiki(app["id"], params)
-        return
-      end
       render_result = render_with_format(json_response, options)
       return 0 if render_result
       return 0 if options[:quiet]
