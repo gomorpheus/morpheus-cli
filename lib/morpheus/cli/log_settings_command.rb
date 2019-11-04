@@ -68,7 +68,7 @@ class Morpheus::Cli::LogSettingsCommand
       if !log_settings['syslogRules'].empty?
         print_h2 "Syslog Forwarding Rules"
         print cyan
-        print as_pretty_table(log_settings['syslogRules'], [:name, :rule])
+        print as_pretty_table(log_settings['syslogRules'], [:id, :name, :rule])
       end
 
       # Integrations
@@ -122,6 +122,7 @@ class Morpheus::Cli::LogSettingsCommand
         end
       end
       build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
+      opts.footer = "Update your log settings."
     end
 
     optparse.parse!(args)
@@ -190,6 +191,10 @@ class Morpheus::Cli::LogSettingsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[name] [host] [port]")
       build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
+      opts.footer = "Enables specifed integration.\n" +
+          "[name] is required. Currently supports splunk and logrhythm integrations.\n" +
+          "[host] is required. Host of the integration.\n" +
+          "[port] is required. Port of the integration."
     end
 
     optparse.parse!(args)
@@ -240,6 +245,8 @@ class Morpheus::Cli::LogSettingsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Disabled specifed integration.\n" +
+          "[name] is required. Currently supports splunk and logrhythm integrations."
     end
 
     optparse.parse!(args)
@@ -283,6 +290,9 @@ class Morpheus::Cli::LogSettingsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[name] [rule]")
       build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
+      opts.footer = "Add syslog rule.\n" +
+          "[name] is required. If syslog already exists, the specified rule will be updated\n" +
+          "[rule] is required"
     end
 
     optparse.parse!(args)
@@ -328,8 +338,10 @@ class Morpheus::Cli::LogSettingsCommand
     options = {}
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = opts.banner = subcommand_usage("[name]")
+      opts.banner = opts.banner = subcommand_usage("[syslog-rule]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a syslog rule.\n" +
+          "[syslog-rule] is required. This is the name or id of an syslog rule."
     end
 
     optparse.parse!(args)
@@ -340,12 +352,19 @@ class Morpheus::Cli::LogSettingsCommand
     end
 
     begin
+      syslog_rule = find_syslog_rule_by_name_or_id(args[0])
+
+      if syslog_rule.nil?
+        print_red_alert "Syslog rule not found for: #{args[0]}"
+        return 1
+      end
+
       @log_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @log_settings_interface.dry.destroy_syslog_rule(args[0])
+        print_dry_run @log_settings_interface.dry.destroy_syslog_rule(syslog_rule['id'])
         return
       end
-      json_response = @log_settings_interface.destroy_syslog_rule(args[0])
+      json_response = @log_settings_interface.destroy_syslog_rule(syslog_rule['id'])
 
       if options[:json]
         puts as_json(json_response, options)
@@ -362,6 +381,15 @@ class Morpheus::Cli::LogSettingsCommand
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  private
+
+  def find_syslog_rule_by_name_or_id(val)
+    log_settings = @log_settings_interface.get()['logSettings']
+    log_settings['syslogRules'].find do |rule|
+      val.casecmp(rule['name']) == 0 || rule['id'] == val.to_i
     end
   end
 
