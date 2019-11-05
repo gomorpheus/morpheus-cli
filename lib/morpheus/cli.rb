@@ -149,6 +149,7 @@ module Morpheus
       load 'morpheus/cli/packages_command.rb'
       load 'morpheus/cli/reports_command.rb'
       load 'morpheus/cli/environments_command.rb'
+      load 'morpheus/cli/backup_settings_command.rb'
       load 'morpheus/cli/log_settings_command.rb'
       load 'morpheus/cli/whitelabel_settings_command.rb'
       load 'morpheus/cli/wiki_command.rb'

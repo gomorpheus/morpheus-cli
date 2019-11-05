@@ -607,6 +607,10 @@ class Morpheus::APIClient
     Morpheus::EnvironmentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def backup_settings
+    Morpheus::BackupSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def log_settings
     Morpheus::LogSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
