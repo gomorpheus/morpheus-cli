@@ -454,7 +454,7 @@ class Morpheus::Cli::NetworksCommand
             # if option_type['fieldContext'] == 'domain'
             #   option_type['fieldContext'] = 'network'
             # end
-            option_type['fieldContext'] = nil
+            #option_type['fieldContext'] = nil
           end
           network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
           payload['network'].deep_merge!(network_type_params)

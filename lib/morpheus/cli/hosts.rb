@@ -14,7 +14,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::ProvisioningHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, {:'make-managed' => :install_agent}, :upgrade_agent
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent
   register_subcommands :'types' => :list_types
   register_subcommands :exec => :execution_request
   register_subcommands :wiki, :update_wiki
@@ -1166,12 +1166,18 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def install_agent(args)
+  def make_managed(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_option_type_options(opts, options, install_agent_option_types(false))
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_option_type_options(opts, options, make_managed_option_types(false))
+      opts.on('--install-agent [on|off]', String, "Install Agent? Pass false to manually install agent. Default is true.") do |val|
+        options['installAgent'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      # opts.on('--instance-type-id ID', String, "Instance Type ID for the new instance.") do |val|
+      #   options['instanceTypeId'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      # end
+      build_common_options(opts, options, [:options, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1188,7 +1194,9 @@ class Morpheus::Cli::Hosts
       payload = {
         'server' => {}
       }
-      params = Morpheus::Cli::OptionTypes.prompt(install_agent_option_types, options[:options], @api_client, options[:params])
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+      payload.deep_merge!(passed_options)
+      params = Morpheus::Cli::OptionTypes.prompt(make_managed_option_types, options[:options], @api_client, options[:params])
       server_os = params.delete('serverOs')
       if server_os
         payload['server']['serverOs'] = {id: server_os}
@@ -1198,12 +1206,17 @@ class Morpheus::Cli::Hosts
         payload['server']['account'] = {id: account}
       end
       payload['server'].merge!(params)
+      ['installAgent','instanceTypeId'].each do |k|
+        if options[k] != nil
+          payload[k] = options[k]
+        end
+      end
       @servers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.install_agent(host['id'], payload)
+        print_dry_run @servers_interface.dry.make_managed(host['id'], payload)
         return
       end
-      json_response = @servers_interface.install_agent(host['id'], payload)
+      json_response = @servers_interface.make_managed(host['id'], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -1882,7 +1895,7 @@ class Morpheus::Cli::Hosts
     out
   end
 
-   def install_agent_option_types(connected=true)
+   def make_managed_option_types(connected=true)
     [
       #{'fieldName' => 'account', 'fieldLabel' => 'Account', 'type' => 'select', 'optionSource' => 'accounts', 'required' => true},
       {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => true},

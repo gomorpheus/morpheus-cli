@@ -50,7 +50,10 @@ class Morpheus::Cli::License
       json_response = @license_interface.get()
       # 200 OK, parse results
       license = json_response['license']
-      used_memory = json_response['licenseUsedMemory']
+      current_usage = json_response['currentUsage'] || {}
+      used_memory = json_response['licenseUsedMemory'] || current_usage['memory']
+      used_storage = current_usage['storage']
+      used_workloads = current_usage['workloads']
       
       # Determine exit status and any error conditions for the command
       exit_code = 0
@@ -81,6 +84,9 @@ class Morpheus::Cli::License
       max_memory = Filesize.from("#{license['maxMemory']} B").pretty  if license['maxMemory'].to_i != 0
       max_storage = Filesize.from("#{license['maxStorage']} B").pretty  if license['maxStorage'].to_i != 0
       used_memory = Filesize.from("#{used_memory} B").pretty if used_memory.to_i != 0
+      used_storage = Filesize.from("#{used_storage} B").pretty if used_storage.to_i != 0
+      #used_workloads = "n/a" if used_workloads.nil?
+      max_workloads = license["maxInstances"].to_i == 0 ? 'Unlimited' : license["maxInstances"]
       print cyan
       description_cols = {
         "Account" => 'accountName',
@@ -94,8 +100,8 @@ class Morpheus::Cli::License
           end
           },
         "Memory" => lambda {|it| "#{used_memory} / #{max_memory}" },
-        "Max Storage" => lambda {|it| "#{max_storage}" },
-        "Max Instances" => lambda {|it| it["maxInstances"].to_i == 0 ? 'Unlimited' : it["maxInstances"] },
+        "Storage" => lambda {|it| "#{used_storage} / #{max_storage}" },
+        "Workloads" => lambda {|it| "#{used_workloads} / #{max_workloads}" },
         "Hard Limit" => lambda {|it| it[""] == false ? 'Yes' : 'No' },
       }
       print_description_list(description_cols, license)
