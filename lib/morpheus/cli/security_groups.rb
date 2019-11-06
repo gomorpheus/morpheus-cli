@@ -154,10 +154,32 @@ class Morpheus::Cli::SecurityGroups
         "Name" => 'name',
         "Description" => 'description',
         "Scoped Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : 'All' },
-        "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' }
+        "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
+        "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.sort.join(', ') : '' },
       }
       print_description_list(description_cols, security_group)
       # print reset,"\n"
+
+      if security_group['resourcePermission'].nil?
+        #print "\n", "No group access found", "\n"
+      else
+        print_h2 "Group Access"
+        rows = []
+        if security_group['resourcePermission']['all']
+          rows.push({"name" => 'All'})
+        end
+        if security_group['resourcePermission']['sites']
+          security_group['resourcePermission']['sites'].each do |site|
+            rows.push(site)
+          end
+        end
+        rows = rows.collect do |site|
+          {group: site['name'], default: site['default'] ? 'Yes' : ''}
+        end
+        columns = [:group, :default]
+        print cyan
+        print as_pretty_table(rows, columns)
+      end
 
       if security_group_locations && security_group_locations.size > 0
         print_h2 "Locations"
@@ -225,6 +247,10 @@ class Morpheus::Cli::SecurityGroups
     params = {}
     options = {:options => {}}
     cloud_id = nil
+    tenants = nil
+    group_access_all = nil
+    group_access_list = nil
+    group_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on( '--name Name', String, "Name of the security group" ) do |val|
@@ -235,6 +261,36 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on( '-c', '--cloud CLOUD', "Scoped Cloud Name or ID" ) do |val|
         cloud_id = val
+      end
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_access_list = []
+        else
+          group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--visibility [private|public]', String, "Visibility") do |val|
+        options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
+        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a security group." + "\n" +
@@ -303,6 +359,38 @@ class Morpheus::Cli::SecurityGroups
           print yellow,"Failed to determine the available scoped clouds.",reset,"\n"
         end
 
+        # Group Access
+        if group_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = group_access_all
+        end
+        if group_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Tenants
+        if options['tenants']
+          payload['tenantPermissions'] = {}
+          payload['tenantPermissions']['accounts'] = options['tenants']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['securityGroup']['active'] = options['active']
+        end
+        
+        # Visibility
+        if options['visibility'] != nil
+          payload['securityGroup']['visibility'] = options['visibility']
+        end
+
       end
 
       @security_groups_interface.setopts(options)
@@ -326,6 +414,10 @@ class Morpheus::Cli::SecurityGroups
   def update(args)
     params = {}
     options = {:options => {}}
+    tenants = nil
+    group_access_all = nil
+    group_access_list = nil
+    group_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[security-group] [options]")
       opts.on( '--name Name', String, "Name of the security group" ) do |val|
@@ -333,6 +425,30 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on( '--description Description', String, "Description of the security group" ) do |val|
         options[:options]['description'] = val
+      end
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_access_list = []
+        else
+          group_access_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          group_defaults_list = []
+        else
+          group_defaults_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options['tenants'] = []
+        else
+          options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a security group." + "\n" +
@@ -362,7 +478,39 @@ class Morpheus::Cli::SecurityGroups
         # allow arbitrary -O options
         payload['securityGroup'].deep_merge!(passed_options)  unless passed_options.empty?
         
-        if passed_options.empty?
+        # Group Access
+        if group_access_all != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = group_access_all
+        end
+        if group_access_list != nil
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+            site = {"id" => site_id.to_i}
+            if group_defaults_list && group_defaults_list.include?(site_id)
+              site["default"] = true
+            end
+            site
+          end
+        end
+
+        # Tenants
+        if options['tenants']
+          payload['tenantPermissions'] = {}
+          payload['tenantPermissions']['accounts'] = options['tenants']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['securityGroup']['active'] = options['active']
+        end
+        
+        # Visibility
+        if options['visibility'] != nil
+          payload['securityGroup']['visibility'] = options['visibility']
+        end
+
+        if payload['securityGroup'].empty? && payload['tenantPermissions'].nil? && payload['resourcePermissions'].nil?
           raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
