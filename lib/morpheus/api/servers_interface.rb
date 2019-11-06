@@ -69,8 +69,9 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def install_agent(serverId,payload = {})
+  def make_managed(serverId,payload = {})
     url = "#{@base_url}/api/servers/#{serverId}/install-agent"
+    #url = "#{@base_url}/api/servers/#{serverId}/make-managed" # added in 4.1
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
