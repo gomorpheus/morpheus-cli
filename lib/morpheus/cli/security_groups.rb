@@ -381,14 +381,14 @@ class Morpheus::Cli::SecurityGroups
           payload['tenantPermissions']['accounts'] = options['tenants']
         end
 
-        # Active
-        if options['active'] != nil
-          payload['securityGroup']['active'] = options['active']
-        end
-        
         # Visibility
         if options['visibility'] != nil
           payload['securityGroup']['visibility'] = options['visibility']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['securityGroup']['active'] = options['active']
         end
 
       end
@@ -450,6 +450,9 @@ class Morpheus::Cli::SecurityGroups
           options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--visibility [private|public]', String, "Visibility") do |val|
+        options['visibility'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a security group." + "\n" +
                     "[security-group] is required. This is the name or id of the security group."
@@ -500,14 +503,14 @@ class Morpheus::Cli::SecurityGroups
           payload['tenantPermissions']['accounts'] = options['tenants']
         end
 
-        # Active
-        if options['active'] != nil
-          payload['securityGroup']['active'] = options['active']
-        end
-        
         # Visibility
         if options['visibility'] != nil
           payload['securityGroup']['visibility'] = options['visibility']
+        end
+
+        # Active
+        if options['active'] != nil
+          payload['securityGroup']['active'] = options['active']
         end
 
         if payload['securityGroup'].empty? && payload['tenantPermissions'].nil? && payload['resourcePermissions'].nil?
