@@ -155,6 +155,9 @@ class Morpheus::Cli::SecurityGroups
         "Description" => 'description',
         "Scoped Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : 'All' },
         "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
+        # "Active" => lambda {|it| format_boolean(it['active']) },
+        "Visibility" => 'visibility',
+        "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.sort.join(', ') : '' },
       }
       print_description_list(description_cols, security_group)
@@ -288,9 +291,6 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
-      end
-      opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
-        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a security group." + "\n" +
