@@ -2347,7 +2347,7 @@ class Morpheus::Cli::Instances
     instance_ids = instances.collect {|instance| instance["id"] }
 
     # figure out what action to run
-    available_actions = @instances_interface.available_actions(instance_ids, options)["actions"]
+    available_actions = @instances_interface.available_actions(instance_ids)["actions"]
     if available_actions.empty?
       if instance_ids.size > 1
         print_red_alert "The specified instances have no available actions in common."
