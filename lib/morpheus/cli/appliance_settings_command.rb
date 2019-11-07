@@ -67,10 +67,10 @@ class Morpheus::Cli::ApplianceSettingsCommand
         "Default User Role" => lambda {|it| it['defaultUserRoleId'] },
         "Docker Privileged Mode" => lambda {|it| format_boolean(it['dockerPrivilegedMode']) },
         # User Management Settings
-        "Expire Password After" => lambda {|it| it['expirePwdDays'] == 0 ? 'Disabled' : it['expirePwdDays'] + ' Days' },
+        "Expire Password After" => lambda {|it| format_days(it['expirePwdDays']) },
         "Disable User After Attempts" => lambda {|it| it['disableAfterAttempts'] == 0 ? 'Disabled' : it['disableAfterAttempts']},
-        "Disable User if Inactive For" => lambda {|it| it['disableAfterDaysInactive'] == 0 ? 'Disabled' : it['disableAfterDaysInactive'] + ' Days' },
-        "Send warning email before deactivating" => lambda {|it| it['warnUserDaysBefore'] == 0 ? 'Disabled' : it['warnUserDaysBefore'] + ' Days' },
+        "Disable User if Inactive For" => lambda {|it| format_days(it['disableAfterDaysInactive']) },
+        "Send warning email before deactivating" => lambda {|it| format_days(it['warnUserDaysBefore']) },
         # Email Settings
         "SMTP From Address" => lambda {|it| it['smtpMailFrom'] },
         "SMTP Server" => lambda {|it| it['smtpServer'] },
@@ -297,5 +297,11 @@ class Morpheus::Cli::ApplianceSettingsCommand
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  private
+
+  def format_days(days)
+    days ? (days == 0 ? 'Disabled' : days + ' Days') : ''
   end
 end
