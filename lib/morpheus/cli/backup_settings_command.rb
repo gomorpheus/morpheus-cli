@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::BackupSettingsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-
+  set_command_hidden
   set_command_name :'backup-settings'
 
   register_subcommands :get, :update
