@@ -2540,13 +2540,14 @@ class Morpheus::Cli::Clusters
               name: ds['name'],
               type: ds['type'],
               capacity: format_bytes_short(ds['freeSpace']).strip,
-              online: format_boolean(ds['online']),
+              online: (ds['online'] == false ? red : '') + format_boolean(ds['online']) + cyan,
+              active: format_boolean(ds['active']),
               visibility: ds['visibility'].nil? ? '' : ds['visibility'].to_s.capitalize,
               tenants: ds['tenants'].nil? ? '' : ds['tenants'].collect {|it| it['name']}.join(', ')
           }
         end
         columns = [
-            :id, :name, :type, :capacity, :online, :visibility, :tenants
+            :id, :name, :type, :capacity, :online, :active, :visibility, :tenants
         ]
         print as_pretty_table(rows, columns, options)
       end
@@ -2562,7 +2563,7 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[cluster] [datastore]")
-      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a cluster datastore.\n" +
           "[cluster] is required. This is the name or id of an existing cluster.\n" +
           "[datastore] is required. This is the name or id of an existing datastore."
@@ -2600,7 +2601,8 @@ class Morpheus::Cli::Clusters
           "Name" => 'name',
           "Type" => 'type',
           "Capacity" => lambda { |it| format_bytes_short(it['freeSpace']).strip },
-          "Online" => lambda { |it| format_boolean(it['online']) },
+          "Online" => lambda { |it| (it['online'] == false ? red : '') + format_boolean(it['online']) + cyan },
+          "Active" => lambda { |it| format_boolean(it['active']) },
           "Visibility" => lambda { |it| it['visibility'].nil? ? '' : it['visibility'].to_s.capitalize },
           "Tenants" => lambda { |it| it['tenants'].nil? ? '' : it['tenants'].collect {|it| it['name']}.join(', ') },
           "Cluster" => lambda { |it| cluster['name'] }
