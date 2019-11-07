@@ -147,8 +147,8 @@ class Morpheus::Cli::LogSettingsCommand
         end
 
         if !options[:integrations].nil?
-          if options[:integrations].reject { |rule| rule['name'] && rule['host'] && rule['port'] }.count > 0
-            print_red_alert "Invalid integration: name, host and port are required"
+          if options[:integrations].reject { |rule| rule['name'] }.count > 0
+            print_red_alert "Invalid integration: name is required"
             return 1
           end
           payload['logSettings']['integrations'] = options[:integrations]
