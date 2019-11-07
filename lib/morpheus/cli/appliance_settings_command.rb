@@ -160,10 +160,10 @@ class Morpheus::Cli::ApplianceSettingsCommand
         params['smtpPort'] = val == 'null' ? nil : val.to_i
       end
       opts.on("--smtp-ssl [on|off]", ['on','off'], "Use SSL for SMTP connections") do |val|
-        params['smtpSSL'] = ['true','on'].include?(val.to_s.strip)
+        params['smtpSSL'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("--smtp-tls [on|off]", ['on','off'], "Use TLS for SMTP connections") do |val|
-        params['smtpTLS'] = ['true','on'].include?(val.to_s.strip)
+        params['smtpTLS'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("--smtp-user STRING", String, "SMTP user") do |val|
         params['smtpUser'] = val == 'null' ? nil : val
