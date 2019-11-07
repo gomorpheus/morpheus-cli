@@ -157,7 +157,6 @@ class Morpheus::Cli::SecurityGroups
         "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
         # "Active" => lambda {|it| format_boolean(it['active']) },
         "Visibility" => 'visibility',
-        "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.sort.join(', ') : '' },
       }
       print_description_list(description_cols, security_group)

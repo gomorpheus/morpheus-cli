@@ -101,7 +101,7 @@ class Morpheus::Cli::Deployments
           rows = versions.collect do |version|
             {version: version['userVersion'], type: version['deployType'], updated: format_local_dt(version['lastUpdated'])}
           end
-          coumns = [:version, :type, :updated]
+          columns = [:version, :type, :updated]
           print as_pretty_table(rows, columns, options)
         end
         print reset,"\n"
