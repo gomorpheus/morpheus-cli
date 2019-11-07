@@ -3977,8 +3977,8 @@ class Morpheus::Cli::Clusters
 
     # Group Access
     if !excludes.include?('groupAccess')
-      if options[:groupAccessAll]
-        all_groups = true
+      if !options[:groupAccessAll].nil?
+        all_groups = options[:groupAccessAll]
       end
 
       if !options[:groupAccessList].empty?
@@ -4023,8 +4023,8 @@ class Morpheus::Cli::Clusters
 
     # Plan Access
     if !excludes.include?('planAccess')
-      if options[:planAccessAll]
-        all_plans = true
+      if !options[:planAccessAll].nil?
+        all_plans = options[:planAccessAll]
       end
 
       if !options[:planAccessList].empty?
