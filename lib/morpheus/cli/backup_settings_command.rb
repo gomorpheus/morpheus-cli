@@ -58,7 +58,7 @@ class Morpheus::Cli::BackupSettingsCommand
       print_h1 "Backup Settings"
       print cyan
       description_cols = {
-        "Backups Enabled" => lambda {|it| format_boolean(it['enabled']) },
+        "Scheduled Backups" => lambda {|it| format_boolean(it['backupsEnabled']) },
         "Create Backups" => lambda {|it| format_boolean(it['createBackups']) },
         "Backup Appliance" => lambda {|it| format_boolean(it['backupAppliance']) },
         "Default Backup Bucket" => lambda {|it| it['defaultStorageBucket'] ? it['defaultStorageBucket']['name'] : '' },
@@ -80,8 +80,8 @@ class Morpheus::Cli::BackupSettingsCommand
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
-      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the backups. Default is on") do |val|
-        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the scheduled backups. Default is on") do |val|
+        params['backupsEnabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("--create-backups [on|off]", String, "Can be used to enable / disable create backups. Default is on") do |val|
         params['createBackups'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
@@ -137,9 +137,7 @@ class Morpheus::Cli::BackupSettingsCommand
         end
 
         if !options[:storageBucket].nil?
-          storage_bucket = @storage_providers.list['storageBuckets'].find do |it|
-            it['name'] == options[:storageBucket].to_s || it['bucketName'] == options[:storageBucket].to_s || it['id'] == options[:storageBucket].to_i
-          end
+          storage_bucket = find_storage_bucket_by_name_or_id(options[:storageBucket])
           if storage_bucket.nil?
             print_red_alert "Storage bucket not found for #{options[:storageBucket]}"
             return 1
@@ -178,4 +176,9 @@ class Morpheus::Cli::BackupSettingsCommand
     end
   end
 
+  private
+
+  def find_storage_bucket_by_name_or_id(val)
+    (val.to_s =~ /\A\d{1,}\Z/) ? @storage_providers.get(val)['storageBucket'] : @storage_providers.list({'name' => val})['storageBuckets'].first
+  end
 end
