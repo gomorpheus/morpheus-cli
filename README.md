@@ -1,7 +1,7 @@
 # Morpheus CLI
 
 - Website: https://www.morpheusdata.com/
-- Portal: [Morpheus Hub](https://morpheushub.com)
+<!-- - Portal: [Morpheus Hub](https://morpheushub.com) -->
 - Guide: [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki)
 - Docs: [Morpheus Documentation](https://docs.morpheusdata.com)
 - Support: [Morpheus Support](https://support.morpheusdata.com)
