@@ -7,7 +7,7 @@
 
 <img src="https://www.morpheusdata.com/wp-content/uploads/2018/06/cropped-morpheus_highres.png" width="600px">
 
-This library is a Ruby gem that provides a command line interface for interacting with the Morpheus Data appliance. The features provided include provisioning clusters, hosts, and containers, monitoring applications, infrastructure automating tasks, deployments, and much more.
+This library is a Ruby gem that provides a command line interface for interacting with the Morpheus Data appliance. The features provided include provisioning clusters, hosts, and containers, deploying and monitoring applications, automating tasks, and much more.
 
 ## Installation
 
