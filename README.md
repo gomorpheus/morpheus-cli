@@ -1,6 +1,14 @@
-# Morpheus::Cli
+# Morpheus CLI
 
-Provides a command line interface for interacting with the Morpheus Cloud Platform. Easily provision servers, containers, and manage deployments.
+- Website: https://www.morpheusdata.com/
+- Portal: [Morpheus Hub](https://morpheushub.com)
+- Guide: [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki)
+- Docs: [Morpheus Documentation](https://docs.morpheusdata.com)
+- Support: [Morpheus Support](https://support.morpheusdata.com)
+
+<img src="https://www.morpheusdata.com/wp-content/uploads/2018/06/cropped-morpheus_highres.png" width="600px">
+
+This library is a Ruby gem that provides a command line interface for interacting with the Morpheus Data appliance. The features provided include provisioning clusters, hosts, and containers, monitoring applications, infrastructure automating tasks, deployments, and much more.
 
 ## Installation
 
@@ -10,7 +18,7 @@ Add this line to your application's Gemfile:
 
 And then execute:
 
-    $ bundle
+    $ bundle install
 
 Or install it yourself as:
 
@@ -18,12 +26,17 @@ Or install it yourself as:
 
 ## Usage
 
-Please check out the [Wiki](https://github.com/gomorpheus/morpheus-cli/wiki) for usage instructions.
+### morpheus binary
 
-## Contributing
+This gem installs the [morpheus](https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual) binary for executing commands in your shell environment. 
 
-1. Fork it ( https://github.com/[my-github-username]/morpheus-cli/fork )
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+```sh
+morpheus remote add demo https://demo.mymorpheus.com
+morpheus instances list
+```
+
+### ruby code
+
+If you want to interface with your Morpheus appliance via ruby directly, you can use [Morpheus::APIClient](https://github.com/gomorpheus/morpheus-cli/wiki/APIClient) or [Morpheus::Terminal](https://github.com/gomorpheus/morpheus-cli/wiki/Terminal).
+
+For more detailed usage information, visit the [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki).
