@@ -43,7 +43,7 @@ class Morpheus::Cli::TenantsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List tenants (accounts)."
+      opts.footer = "List tenants."
     end
     optparse.parse!(args)
     connect(options)
@@ -53,7 +53,7 @@ class Morpheus::Cli::TenantsCommand
       @accounts_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @accounts_interface.dry.list(params)
-        return
+        return 0
       end
       json_response = @accounts_interface.list(params)
       render_result = render_with_format(json_response, options, 'accounts')
@@ -64,7 +64,7 @@ class Morpheus::Cli::TenantsCommand
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if accounts.empty?
-        puts yellow,"No tenants found.",reset
+        print cyan,"No tenants found.",reset,"\n"
       else
         print_accounts_table(accounts)
         print_results_pagination(json_response)

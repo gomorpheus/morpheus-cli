@@ -55,9 +55,9 @@ class Morpheus::Cli::Groups
       groups = json_response['groups']
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 "Morpheus Groups"
+      print_h1 "Morpheus Groups", subtitles, options
       if groups.empty?
-        print yellow,"No groups currently configured.",reset,"\n"
+        print cyan,"No groups found.",reset,"\n"
       else
         print_groups_table(groups, options)
         print_results_pagination(json_response)
@@ -74,6 +74,7 @@ class Morpheus::Cli::Groups
         end
       end
       print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
