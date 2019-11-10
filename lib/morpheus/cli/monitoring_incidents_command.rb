@@ -587,7 +587,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted incident #{incident['id']}"
         else
           print_green_success "Unmuted incident #{incident['id']}"
@@ -651,6 +651,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on(nil, "--disable", "Disable mute state instead, the same as unmute-all") do
+        params['muted'] = false
         params['enabled'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -680,7 +681,7 @@ class Morpheus::Cli::MonitoringIncidentsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         num_updated = json_response['updated']
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted #{num_updated} open incidents"
         else
           print_green_success "Unmuted #{num_updated} open incidents"

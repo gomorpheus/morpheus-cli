@@ -445,6 +445,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       opts.banner = subcommand_usage("[name]")
       opts.on(nil, "--disable", "Disable mute, the same as unmute") do
         params['enabled'] = false
+        params['muted'] = false
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Mute a check group. This prevents it from creating new incidents." + "\n" +
@@ -474,7 +475,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted group #{check_group['name']}"
         else
           print_green_success "Unmuted group #{check_group['name']}"
@@ -568,7 +569,7 @@ class Morpheus::Cli::MonitoringGroupsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         num_updated = json_response['updated']
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted #{num_updated} check groups"
         else
           print_green_success "Unmuted #{num_updated} check groups"

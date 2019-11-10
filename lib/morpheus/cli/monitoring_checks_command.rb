@@ -505,7 +505,7 @@ class Morpheus::Cli::MonitoringChecksCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted check #{check['name']}"
         else
           print_green_success "Unmuted check #{check['name']}"
@@ -599,7 +599,7 @@ class Morpheus::Cli::MonitoringChecksCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         num_updated = json_response['updated']
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted #{num_updated} checks"
         else
           print_green_success "Unmuted #{num_updated} checks"

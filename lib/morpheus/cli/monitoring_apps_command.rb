@@ -486,8 +486,8 @@ class Morpheus::Cli::MonitoringAppsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on(nil, "--disable", "Unmute instead, the same as the unmute command") do
-        params['enabled'] = false
         params['muted'] = false
+        params['enabled'] = false
       end
       opts.footer = "Mute a monitoring app. This prevents it from creating new incidents." + "\n" +
                     "[name] is required. This is the name or id of a monitoring app."
@@ -517,7 +517,7 @@ class Morpheus::Cli::MonitoringAppsCommand
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted app #{monitor_app['name']}"
         else
           print_green_success "Unmuted app #{monitor_app['name']}"
@@ -611,7 +611,7 @@ class Morpheus::Cli::MonitoringAppsCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         num_updated = json_response['updated']
-        if params['enabled']
+        if params['muted'] != false
           print_green_success "Muted #{num_updated} apps"
         else
           print_green_success "Unmuted #{num_updated} apps"
