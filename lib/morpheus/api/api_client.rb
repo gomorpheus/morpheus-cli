@@ -55,7 +55,7 @@ class Morpheus::APIClient
   def inspect
     to_s
   end
-  
+
   def dry_run(val=true)
     @dry_run = !!val
     self
@@ -341,6 +341,10 @@ class Morpheus::APIClient
 
   def integrations
     Morpheus::IntegrationsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def jobs
+    Morpheus::JobsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def server_types

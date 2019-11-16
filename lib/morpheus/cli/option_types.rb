@@ -35,7 +35,7 @@ module Morpheus
         prompt(option_types, options, api_client, api_params, true)
       end
 
-      def self.prompt(option_types, options={}, api_client=nil,api_params={}, no_prompt=false)
+      def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false)
         results = {}
         options = options || {}
         # puts "Options Prompt #{options}"
@@ -153,7 +153,7 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type,api_client, (api_params || {}).merge(results))
+              value = select_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
           elsif option_type['type'] == 'hidden'
             value = option_type['defaultValue']
             input = value
@@ -245,7 +245,7 @@ module Morpheus
         Thread.current[:_last_select]
       end
 
-      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil)
+      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
         value_found = false
         value = nil
         default_value = option_type['defaultValue']
@@ -320,6 +320,12 @@ module Morpheus
             end
           end
         end
+
+        page_size = Readline.get_screen_size[0] - 6
+        if paging_enabled && page_size < select_options.count
+          paging = {:cur_page => 0, :page_size => page_size, :total => select_options.count}
+        end
+
         while !value_found do
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
@@ -336,7 +342,9 @@ module Morpheus
             }
             matches
           }
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for options]: ", false).to_s
+
+          has_more_pages = paging && (paging[:cur_page] * paging[:page_size]) < paging[:total]
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages && paging[:cur_page] > 0 ? ' more ' : ' '}options]: ", false).to_s
           input = input.chomp.strip
           if input.empty? && default_value
             input = default_value.to_s
@@ -351,7 +359,8 @@ module Morpheus
           
           if input == '?'
             help_prompt(option_type)
-            display_select_options(option_type, select_options)
+            display_select_options(option_type, select_options, paging)
+            paging[:cur_page] = (paging[:cur_page] + 1) * paging[:page_size] < paging[:total] ? paging[:cur_page] + 1 : 0 if paging
           elsif !value.nil? || option_type['required'] != true
             value_found = true
           end
@@ -505,8 +514,14 @@ module Morpheus
         api_client.options.options_for_source(source,params)['data']
       end
 
-      def self.display_select_options(opt, select_options = [])
+      def self.display_select_options(opt, select_options = [], paging = nil)
         header = opt['fieldLabel'] ? "#{opt['fieldLabel']} Options" : "Options"
+        if paging
+          offset = paging[:cur_page] * paging[:page_size]
+          limit = [offset + paging[:page_size], select_options.count].min - 1
+          header = "#{header} (#{offset+1}-#{limit+1} of #{paging[:total]})"
+          select_options = select_options[(offset)..(limit)]
+        end
         puts "\n#{header}"
         puts "==============="
         select_options.each do |option|
