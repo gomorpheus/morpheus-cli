@@ -423,7 +423,7 @@ class Morpheus::Cli::Clouds
       opts.on( '-f', '--force', "Force Remove" ) do
         query_params[:force] = 'on'
       end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -437,6 +437,10 @@ class Morpheus::Cli::Clouds
         exit
       end
       @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.destroy(cloud['id'], query_params)
+        return 0
+      end
       json_response = @clouds_interface.destroy(cloud['id'], query_params)
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -445,6 +449,7 @@ class Morpheus::Cli::Clouds
         print_green_success "Removed cloud #{cloud['name']}"
         #list([])
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
