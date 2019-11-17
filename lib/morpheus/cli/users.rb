@@ -53,32 +53,26 @@ class Morpheus::Cli::Users
         return
       end
       json_response = @users_interface.list(account_id, params)
+      render_result = render_with_format(json_response, options, 'users')
+      return 0 if render_result
       users = json_response['users']
-      if options[:json]
-        puts as_json(json_response, options, "users")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "users")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(users, options)
-        return 0
-      else
-        title = "Morpheus Users"
-        subtitles = []
-        if account
-          subtitles << "Account: #{account['name']}".strip
-        end
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles, options
-        if users.empty?
-          puts yellow,"No users found.",reset
-        else
-          print_users_table(users, options)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+
+      title = "Morpheus Users"
+      subtitles = []
+      if account
+        subtitles << "Account: #{account['name']}".strip
       end
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if users.empty?
+        print cyan,"No users found.",reset,"\n"
+      else
+        print_users_table(users, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+      return 0
+      
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
