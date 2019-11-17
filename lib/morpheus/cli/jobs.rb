@@ -135,7 +135,9 @@ class Morpheus::Cli::Jobs
         job_id = job['id']
       end
 
-      params = {'includeExecCount' => max_execs.nil? ? 3 : max_execs.to_i}
+      max_execs = 3 if max_execs.nil?
+
+      params = {'includeExecCount' => max_execs}
 
       if options[:dry_run]
         print_dry_run @jobs_interface.dry.get(job_id, params)
@@ -182,7 +184,10 @@ class Morpheus::Cli::Jobs
       if max_execs != 0
         print_h2 "Recent Executions"
         print_job_executions(json_response['executions']['jobExecutions'], options)
-        print_results_pagination(json_response['executions'])
+
+        if json_response['executions']['meta'] && json_response['executions']['meta']['total'] > max_execs
+          print_results_pagination(json_response['executions'])
+        end
       end
       print reset,"\n"
       return 0
@@ -627,8 +632,11 @@ class Morpheus::Cli::Jobs
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-J', '--job [job]', String, "Job Id or name. Show executions for specified job") do |val|
+        options[:job] = val.to_s
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List jobs."
+      opts.footer = "List job executions."
     end
     optparse.parse!(args)
     connect(options)
@@ -639,6 +647,17 @@ class Morpheus::Cli::Jobs
 
     begin
       params.merge!(parse_list_options(options))
+
+      if !options[:job].nil?
+        job = find_by_name_or_id('job', options[:job])
+
+        if job.nil?
+          print_red_alert "Job #{options[:job]} not found"
+          exit 1
+        end
+        params['jobId'] = job['id']
+      end
+
       @jobs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @jobs_interface.dry.list_executions(params)
@@ -650,7 +669,7 @@ class Morpheus::Cli::Jobs
       return 0 if render_result
 
       title = "Morpheus Job Executions"
-      subtitles = []
+      subtitles = job ? ["Job: #{job['name']}"] : []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
 

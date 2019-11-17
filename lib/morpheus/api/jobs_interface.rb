@@ -52,26 +52,28 @@ class Morpheus::JobsInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers)
   end
 
+=begin
+  def list_job_executions(id, params={})
+    url = "#{@api_url}/#{id}/executions"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+=end
+
   def list_executions(params={})
-    url = "#{@api_url}/executions"
+    url = "#{@base_url}/api/job-executions"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get_execution(id, params={})
-    url = "#{@api_url}/executions/#{id}"
+    url = "#{@base_url}/api/job-executions/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def options(jobTypeId, params={})
-    url = "#{@api_url}/options/#{jobTypeId}"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    execute(method: :get, url: url, headers: headers)
-  end
-
-  def list_targets(jobTypeId, params={})
-    url = "#{@api_url}/targets/#{jobTypeId}"
+    url = "#{@base_url}/api/job-options/#{jobTypeId}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
