@@ -407,6 +407,10 @@ class Morpheus::APIClient
     Morpheus::AccountsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def approvals
+    Morpheus::ApprovalsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def users
     Morpheus::UsersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end

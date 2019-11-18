@@ -98,7 +98,7 @@ module Morpheus
       load 'morpheus/cli/deploys.rb'
       load 'morpheus/cli/license.rb'
       load 'morpheus/cli/instance_types.rb'
-      load 'morpheus/cli/jobs.rb'
+      load 'morpheus/cli/jobs_command.rb'
       load 'morpheus/cli/integrations_command.rb'
       load 'morpheus/cli/security_groups.rb'
       load 'morpheus/cli/security_group_rules.rb'
@@ -155,6 +155,7 @@ module Morpheus
       load 'morpheus/cli/log_settings_command.rb'
       load 'morpheus/cli/whitelabel_settings_command.rb'
       load 'morpheus/cli/wiki_command.rb'
+      load 'morpheus/cli/approvals_command.rb'
 
       # Your new commands go here...
 

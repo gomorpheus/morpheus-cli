@@ -1,6 +1,6 @@
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::Jobs
+class Morpheus::Cli::JobsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
 
@@ -107,7 +107,7 @@ class Morpheus::Cli::Jobs
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [max-exec-count]")
+      opts.banner = subcommand_usage("[job] [max-exec-count]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Get details about a job.\n" +
           "[job] is required. Job ID or name.\n" +
