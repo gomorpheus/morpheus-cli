@@ -649,28 +649,27 @@ class Morpheus::Cli::JobsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      opts.on('-J', '--job [job]', String, "Job Id or name. Show executions for specified job") do |val|
-        options[:job] = val.to_s
-      end
+      opts.banner = subcommand_usage("[job]")
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List job executions."
+      opts.footer = "List job executions.\n" +
+          "[job] is optional. Job ID or name to filter executions."
+
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0..1 and got (#{args.count}) #{args}\n#{optparse}"
       return 1
     end
 
     begin
       params.merge!(parse_list_options(options))
 
-      if !options[:job].nil?
-        job = find_by_name_or_id('job', options[:job])
+      if args.count > 0
+        job = find_by_name_or_id('job', args[0])
 
         if job.nil?
-          print_red_alert "Job #{options[:job]} not found"
+          print_red_alert "Job #{args[0]} not found"
           exit 1
         end
         params['jobId'] = job['id']
