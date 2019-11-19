@@ -72,6 +72,12 @@ class Morpheus::JobsInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def get_execution_event(id, event_id, params={})
+    url = "#{@base_url}/api/job-executions/#{id}/events/#{event_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
   def options(jobTypeId, params={})
     url = "#{@base_url}/api/job-options/#{jobTypeId}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }

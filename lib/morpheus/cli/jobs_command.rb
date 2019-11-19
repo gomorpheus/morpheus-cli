@@ -7,7 +7,7 @@ class Morpheus::Cli::JobsCommand
   set_command_name :'jobs'
 
   register_subcommands :list, :get, :add, :update, :execute, :remove
-  register_subcommands :list_executions, :get_execution
+  register_subcommands :list_executions, :get_execution, :get_execution_event
   set_default_subcommand :list
 
   def connect(opts)
@@ -31,6 +31,9 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("--source [all|user|discovered]", String, "Filters job based upon specified source. Default is all") do |val|
+        options[:source] = val.to_s
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List jobs."
     end
@@ -43,6 +46,15 @@ class Morpheus::Cli::JobsCommand
 
     begin
       params.merge!(parse_list_options(options))
+
+      if !options[:source].nil?
+        if !['all', 'user', 'discovered', 'sync'].include?(options[:source])
+          print_red_alert "Invalid source filter #{options[:source]}"
+          exit 1
+        end
+        params['itemSource'] = options[:source] == 'discovered' ? 'sync' : options[:source]
+      end
+
       @jobs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @jobs_interface.dry.list(params)
@@ -69,7 +81,7 @@ class Morpheus::Cli::JobsCommand
               type: job['type'] ? job['type']['name'] : '',
               name: job['name'],
               details: job['jobSummary'],
-              enabled: "#{job['enabled'] ? '' : yellow}#{format_boolean(job['enabled'])}",
+              enabled: "#{job['enabled'] ? '' : yellow}#{format_boolean(job['enabled'])}#{cyan}",
               lastRun: format_local_dt(job['lastRun']),
               nextRun: job['enabled'] && job['scheduleMode'] && job['scheduleMode'] != 'manual' ? format_local_dt(job['nextFire']) : '',
               lastResult: format_status(job['lastResult'])
@@ -118,7 +130,7 @@ class Morpheus::Cli::JobsCommand
       raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
-    return _get(args[0], args.count > 1 ? args[1] : nil, options)
+    return _get(args[0], args.count > 1 ? args[1].to_i : nil, options)
   end
 
   def _get(job_id, max_execs = 3, options = {})
@@ -155,11 +167,13 @@ class Morpheus::Cli::JobsCommand
 
       job = json_response['job']
       scheduleName = ''
-      if job['scheduleMode'] == 'manual'
-        scheduleName = 'Manual'
-      else
-        schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
-        scheduleName = schedule ? schedule['name'] : ''
+      if !job['scheduleMode'].nil?
+        if job['scheduleMode'] == 'manual'
+          scheduleName = 'Manual'
+        else !job['scheduleMode']
+          schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
+          scheduleName = schedule ? schedule['name'] : ''
+        end
       end
 
       print cyan
@@ -314,9 +328,9 @@ class Morpheus::Cli::JobsCommand
         if ['instance', 'server'].include?(params['targetType']) && (params['targets'].nil? || params['targets'].empty?)
           targets = []
           if params['targetType'] == 'instance'
-            avail_targets = @instances_interface.list()['instances'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
+            avail_targets = @instances_interface.list({max:10000})['instances'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
           else
-            avail_targets = @servers_interface.list({'vmHypervisor' => nil, 'containerHypervisor' => nil})['servers'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
+            avail_targets = @servers_interface.list({max:10000, 'vmHypervisor' => nil, 'containerHypervisor' => nil})['servers'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
           end
           target_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'target', 'fieldLabel' => "Context #{params['targetType'].capitalize}", 'type' => 'select', 'required' => true, 'selectOptions' => avail_targets}], options[:options], @api_client, {}, options[:no_prompt], true)['target']
           targets << target_id
@@ -606,6 +620,10 @@ class Morpheus::Cli::JobsCommand
         exit 1
       end
 
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the job '#{job['name']}'?", options)
+        return 9, "aborted command"
+      end
+
       @jobs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @jobs_interface.dry.destroy(job['id'], params)
@@ -688,6 +706,12 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('-D', '--details [on|off]', String, "Can be used to enable / disable execution details. Default if on") do |val|
+        options[:details] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('-e', '--events [on|off]', String, "Can be used to enable / disable execution events. Default if on") do |val|
+        options[:events] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Get details about a job.\n" +
           "[id] is required. Job execution ID."
@@ -716,28 +740,118 @@ class Morpheus::Cli::JobsCommand
       print_h1 title, subtitles
 
       exec = json_response['jobExecution']
+      process = exec['process']
       print cyan
       description_cols = {
-          "Job" => lambda {|it| it['job']['name']},
-          "Job Type" => lambda {|it| it['job']['type']['name']},
-          "Description" => lambda {|it| it['process']['description'] || it['process']['refType'] == 'instance' ? it['process']['displayName'] : it['process']['processTypeName'].capitalize },
+          "Job" => lambda {|it| it['job'] ? it['job']['name'] : ''},
+          "Job Type" => lambda {|it| it['job'] && it['job']['type'] ? (it['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : ''},
+          # "Description" => lambda {|it| it['description'] || (it['job'] ? it['job']['description'] : '') },
           "Start Date" => lambda {|it| format_local_dt(it['startDate'])},
-          "Created By" => lambda {|it| it['process']['createdBy'] ? it['process']['createdBy']['displayName'] : ''},
-          (['complete', 'failed'].include?(exec['process']['status']) ? "Duration" : "ETA") => lambda {|it| (it['process']['duration'] || it['process']['statusEta']) ? format_human_duration((it['process']['duration'] || it['process']['statusEta']) / 1000.0) : ''},
-          "Status" => lambda {|it| it['status']}
+          "ETA/Time" => lambda {|it| it['duration'] ? format_human_duration(it['duration'] / 1000.0) : ''},
+          "Status" => lambda {|it| format_status(it['status'])},
+          "Error" => lambda {|it| it['process'] && (it['process']['message'] || it['process']['error']) ? red + (it['process']['message'] || it['process']['error']) + cyan : ''},
+          "Created By" => lambda {|it| it['createdBy'].nil? ? '' : it['createdBy']['displayName'] || it['createdBy']['username']}
       }
-
-      if exec['process']['output']
-        description_cols['Process Output'] = lambda {|it| it['process']['output']}
-      elsif exec['process']['message'] || exec['process']['error']
-        description_cols['Errors'] = lambda {|it| it['process']['message'] || it['process']['error']}
-      end
+      description_cols["Process ID"] = lambda {|it| process['id']} if !process.nil?
 
       print_description_list(description_cols, exec)
 
-      if !exec['process']['events'].empty?
-        print_h2 "Sub Processes"
-        print_process_events(exec['process']['events'])
+      if !process.nil?
+        if options[:details]
+        process_data = get_process_event_data(process)
+          print_h2 "Execution Details"
+          description_cols = {
+              "Process ID" => lambda {|it| it[:id]},
+              "Description" => lambda {|it| it[:description]},
+              "Start Data" => lambda {|it| it[:start_date]},
+              "Created By" => lambda {|it| it[:created_by]},
+              "Duration" => lambda {|it| it[:duration]},
+              "Status" => lambda {|it| it[:status]}
+          }
+          if !options[:details]
+            description_cols["Output"] = lambda {|it| it[:output]} if process_data[:output] && process_data[:output].strip.length > 0
+            description_cols["Error"] = lambda {|it| it[:error]} if process_data[:error] && process_data[:error].strip.length > 0
+          end
+
+          print_description_list(description_cols, process_data)
+
+          if process_data[:output] && process_data[:output].strip.length > 0
+            print_h2 "Output"
+            print process['output']
+          end
+          if process_data[:error] && process_data[:error].strip.length > 0
+            print_h2 "Error"
+            print process['message'] || process['error']
+            print reset,"\n"
+          end
+        end
+
+        if options[:events] && process['events'] && !process['events'].empty?
+          print_h2 "Execution Events"
+          print_process_events(process['events'])
+        end
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def get_execution_event(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [event]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Get details about a job.\n" +
+          "[id] is required. Job execution ID.\n" +
+          "[event] is required. Process event ID."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      @jobs_interface.setopts(options)
+
+      if options[:dry_run]
+        print_dry_run @jobs_interface.dry.get_execution_event(args[0].to_i, args[1].to_i, params)
+        return
+      end
+      json_response = @jobs_interface.get_execution_event(args[0].to_i, args[1].to_i, params)
+
+      render_result = render_with_format(json_response, options, 'processEvent')
+      return 0 if render_result
+
+      title = "Morpheus Job Execution Event"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+
+      event = json_response['processEvent']
+      event_data = get_process_event_data(event)
+      description_cols = {
+          "ID" => lambda {|it| it[:id]},
+          "Description" => lambda {|it| it[:description]},
+          "Start Data" => lambda {|it| it[:start_date]},
+          "Created By" => lambda {|it| it[:created_by]},
+          "Duration" => lambda {|it| it[:duration]},
+          "Status" => lambda {|it| it[:status]}
+      }
+
+      print_description_list(description_cols, event_data)
+
+      if event_data[:output] && event_data[:output].strip.length > 0
+        print_h2 "Output"
+        print event['output']
+      end
+      if event_data[:error] && event_data[:error].strip.length > 0
+        print_h2 "Error"
+        print event['message'] || event['error']
       end
       print reset,"\n"
       return 0
@@ -749,20 +863,22 @@ class Morpheus::Cli::JobsCommand
 
   private
 
+  def get_process_event_data(process_or_event)
+    {
+        id: process_or_event['id'],
+        description: process_or_event['description'] || (process_or_event['refType'] == 'instance' ? process_or_event['displayName'] : (process_or_event['processTypeName'] || '').capitalize),
+        start_date: format_local_dt(process_or_event['startDate']),
+        created_by: process_or_event['createdBy'] ? process_or_event['createdBy']['displayName'] : '',
+        duration: format_human_duration((process_or_event['duration'] || process_or_event['statusEta'] || 0) / 1000.0),
+        status: format_status(process_or_event['status']),
+        error: truncate_string(process_or_event['message'] || process_or_event['error'], 32),
+        output: truncate_string(process_or_event['output'], 32)
+    }
+  end
+
+  # both process and process events
   def print_process_events(events, options={})
-    rows = events.collect do |evt|
-      {
-          id: evt['id'],
-          description: evt['description'] || evt['processTypeName'],
-          startDate: format_local_dt(evt['startDate']),
-          duration: format_human_duration((evt['duration'] || evt['statusEta'] || 0) / 1000.0),
-          error: evt['message']
-      }
-    end
-    columns = [
-        :id, :description, :startDate, :duration, :error
-    ]
-    print as_pretty_table(rows, columns, options)
+    print as_pretty_table(events.collect {|it| get_process_event_data(it)}, [:id, :description, :start_date, :created_by, :duration, :status, :error], options)
     print reset,"\n"
   end
 
@@ -773,16 +889,18 @@ class Morpheus::Cli::JobsCommand
       rows = execs.collect do |ex|
         {
             id: ex['id'],
-            name: ex['job'] ? ex['job']['name'] : '',
-            type: ex['job'] ? (ex['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : '',
+            job: ex['job'] ? ex['job']['name'] : '',
+            description: ex['description'] || ex['job'] ? ex['job']['description'] : '',
+            type: ex['job'] && ex['job']['type'] ? (ex['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : '',
             startDate: format_local_dt(ex['startDate']),
             duration: ex['duration'] ? format_human_duration(ex['duration'] / 1000.0) : '',
             status: format_status(ex['status']),
             error: truncate_string(ex['process'] && (ex['process']['message'] || ex['process']['error']) ? ex['process']['message'] || ex['process']['error'] : '', 32)
         }
       end
+
       columns = [
-          :id, :name, :type, :startDate, :duration, :status, :error
+          :id, :job, :type, :startDate, {'ETA/TIME' => :duration}, :status, :error
       ]
       print as_pretty_table(rows, columns, options)
       print reset,"\n"
