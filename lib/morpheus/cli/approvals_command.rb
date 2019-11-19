@@ -59,7 +59,7 @@ class Morpheus::Cli::ApprovalsCommand
               id: it['id'],
               name: it['name'] || (it['accountIntegration'] ? 'Pending' : 'Not Set'),
               requestType: it['requestType'],
-              externalName: it['accountIntegration'] ? it['approval']['externalName'] || 'Pending' : 'N/A',
+              externalName: it['accountIntegration'] ? it['externalName'] || 'Pending' : 'N/A',
               type: it['accountIntegration'] ? it['accountIntegration']['type'] : 'Internal',
               status: it['status'],
               dateCreated: format_local_dt(it['dateCreated']),
@@ -132,7 +132,7 @@ class Morpheus::Cli::ApprovalsCommand
           "ID" => lambda {|it| it['id']},
           "Name" => lambda {|it| it['name'] || (it['accountIntegration'] ? 'Pending' : 'Not Set')},
           "Request Type" => lambda {|it| it['requestType']},
-          "External Name" => lambda {|it|it['accountIntegration'] ? it['approval']['externalName'] || 'Pending' : 'N/A'},
+          "External Name" => lambda {|it|it['accountIntegration'] ? it['externalName'] || 'Pending' : 'N/A'},
           "Type" => lambda {|it| it['accountIntegration'] ? it['accountIntegration']['type'] : 'Internal'},
           "Date Created" => lambda {|it| format_local_dt(it['dateCreated'])},
           "Requested By" => lambda {|it| it['requestBy']}
@@ -141,21 +141,27 @@ class Morpheus::Cli::ApprovalsCommand
 
       print_h2 "Requested Items"
       approval_items = approval['approvalItems']
-      rows = approval_items.collect do |it|
-        {
-            id: it['id'],
-            name: it['name'] || 'Not Set',
-            external_name: it['externalName'] || 'N/A',
-            reference: it['reference'] ? it['reference']['displayName'] || it['reference']['name'] : '',
-            status: (it['status'] || '').capitalize,
-            created: format_local_dt(it['dateCreated']),
-            updated: format_local_dt(it['lastUpdated'])
-        }
+
+      if approval_items && !approval_items.empty?
+        rows = approval_items.collect do |it|
+          {
+              id: it['id'],
+              name: it['name'] || 'Not Set',
+              external_name: it['externalName'] || 'N/A',
+              reference: it['reference'] ? it['reference']['displayName'] || it['reference']['name'] : '',
+              status: (it['status'] || '').capitalize,
+              created: format_local_dt(it['dateCreated']),
+              updated: format_local_dt(it['lastUpdated'])
+          }
+        end
+        columns = [
+            :id, :name, :external_name, :reference, :status, :created, :updated
+        ]
+        print as_pretty_table(rows, columns, options)
+      else
+        print yellow,"No requested items.",reset,"\n"
       end
-      columns = [
-          :name, :external_name, :reference, :status, :created, :updated
-      ]
-      print as_pretty_table(rows, columns, options)
+
       print reset,"\n"
       return 0
     rescue RestClient::Exception => e
