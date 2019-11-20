@@ -708,9 +708,6 @@ class Morpheus::Cli::JobsCommand
       opts.on('-D', '--details [on|off]', String, "Can be used to enable / disable execution details. Default if on") do |val|
         options[:details] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('-e', '--events [on|off]', String, "Can be used to enable / disable execution events. Default if on") do |val|
-        options[:events] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Get details about a job.\n" +
           "[id] is required. Job execution ID."
@@ -785,7 +782,7 @@ class Morpheus::Cli::JobsCommand
           end
         end
 
-        if options[:events] && process['events'] && !process['events'].empty?
+        if process['events'] && !process['events'].empty?
           print_h2 "Execution Events"
           print_process_events(process['events'])
         end
