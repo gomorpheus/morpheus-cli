@@ -5,7 +5,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
  # include Morpheus::Cli::AccountsHelper
 
   set_command_name :'whitelabel-settings'
-  set_command_hidden
+
   register_subcommands :get, :update
   register_subcommands :update_images, :reset_image, :download_image, :view_image
   set_default_subcommand :get

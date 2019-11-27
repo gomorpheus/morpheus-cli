@@ -5,7 +5,7 @@ class Morpheus::Cli::BackupSettingsCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'backup-settings'
-  set_command_hidden
+
   register_subcommands :get, :update
   set_default_subcommand :get
 

@@ -5,7 +5,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'appliance-settings'
-  set_command_hidden
+
   register_subcommands :get, :update
   
   set_default_subcommand :get

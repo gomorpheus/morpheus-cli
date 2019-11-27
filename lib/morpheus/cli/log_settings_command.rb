@@ -5,7 +5,7 @@ class Morpheus::Cli::LogSettingsCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'log-settings'
-  set_command_hidden
+
   register_subcommands :get, :update
   register_subcommands :enable_integration, :disable_integration
   register_subcommands :add_syslog_rule, :remove_syslog_rule

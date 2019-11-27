@@ -5,7 +5,7 @@ class Morpheus::Cli::ApprovalsCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'approvals'
-  set_command_hidden
+
   register_subcommands :list, :get, :approve, :deny, :cancel
   set_default_subcommand :list
 

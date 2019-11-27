@@ -5,7 +5,7 @@ class Morpheus::Cli::JobsCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'jobs'
-  set_command_hidden
+
   register_subcommands :list, :get, :add, :update, :execute, :remove
   register_subcommands :list_executions, :get_execution, :get_execution_event
   set_default_subcommand :list
