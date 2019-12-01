@@ -5,26 +5,49 @@ class Morpheus::ServicePlansInterface < Morpheus::APIClient
     @access_token = access_token
     @refresh_token = refresh_token
     @base_url = base_url
+    @api_url = "#{@base_url}/api/service-plans"
     @expires_at = expires_at
   end
 
   def list(params={})
-    url = "#{@base_url}/api/service-plans"
+    url = @api_url
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
-  def get(options=nil)
-    url = "#{@base_url}/api/service-plans"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+  def get(id, params={})
+    url = "#{@api_url}/#{id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
 
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/service-plans/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
-    end
+  def create(payload)
+    url = @api_url
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def update(id, payload)
+    url = "#{@api_url}/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def destroy(id, params={})
+    url = "#{@api_url}/#{id}"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
+  def provision_types(params={})
+    url = "#{@api_url}/provision-types"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def price_sets(params={})
+    url = "#{@api_url}/price-sets"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 end

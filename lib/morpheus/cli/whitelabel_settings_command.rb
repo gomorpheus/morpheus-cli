@@ -215,7 +215,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
           support_menu_links = JSON.parse(val.to_s)
           params['supportMenuLinks'] = support_menu_links.kind_of?(Array) ? support_menu_links : [support_menu_links]
         rescue JSON::ParserError => e
-          print_red_alert "Unable to parse forwarding rules JSON"
+          print_red_alert "Unable to parse support menu links JSON"
           exit 1
         end
       end

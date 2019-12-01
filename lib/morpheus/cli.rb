@@ -156,7 +156,7 @@ module Morpheus
       load 'morpheus/cli/whitelabel_settings_command.rb'
       load 'morpheus/cli/wiki_command.rb'
       load 'morpheus/cli/approvals_command.rb'
-
+      load 'morpheus/cli/service_plans_command.rb'
       # Your new commands go here...
 
     end
