@@ -435,7 +435,7 @@ module Morpheus
             opts.on( '-r', '--remote REMOTE', "Remote name. The current remote is used by default." ) do |val|
               options[:remote] = val
             end
-            opts.on( nil, '--remote-url URL', "Remote url. The current remote url is used by default." ) do |val|
+            opts.on( '--remote-url URL', '--remote-url URL', "Remote url. This allows adhoc requests instead of using a configured remote." ) do |val|
               options[:remote_url] = val
             end
             opts.on( '-T', '--token TOKEN', "Access token for authentication with --remote. Saved credentials are used by default." ) do |val|
