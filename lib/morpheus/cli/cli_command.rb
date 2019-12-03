@@ -228,7 +228,7 @@ module Morpheus
                     nested_options = nested_options[name_element]
                   else
                     val = custom_option_args[1]
-                    if val.to_s[0] == '{' && val.to_s[-1] == '}'
+                    if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
                       begin
                         val = JSON.parse(val)
                       rescue
@@ -240,7 +240,7 @@ module Morpheus
                 end
               else
                 val = custom_option_args[1]
-                if val.to_s[0] == '{' && val.to_s[-1] == '}'
+                if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
                   begin
                     val = JSON.parse(val)
                   rescue
