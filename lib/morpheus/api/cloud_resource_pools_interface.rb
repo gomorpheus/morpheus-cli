@@ -10,14 +10,14 @@ class Morpheus::CloudResourcePoolsInterface < Morpheus::APIClient
 
   def get(cloud_id, id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/zones/#{cloud_id}/resource-pools/#{id}"
+    url = cloud_id.nil? ? "#{@base_url}/api/zones/resource-pools/#{id}" : "#{@base_url}/api/zones/#{cloud_id}/resource-pools/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
   def list(cloud_id, params={})
-    url = "#{@base_url}/api/zones/#{cloud_id}/resource-pools"
+    url = cloud_id.nil? ? "#{@base_url}/api/zones/resource-pools" : "#{@base_url}/api/zones/#{cloud_id}/resource-pools"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)

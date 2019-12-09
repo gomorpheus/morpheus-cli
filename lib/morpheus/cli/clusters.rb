@@ -923,7 +923,7 @@ class Morpheus::Cli::Clusters
           payload['permissions'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
         end
       else
-        payload = {"permissions" => prompt_permissions(options)}
+        payload = {"permissions" => prompt_permissions(options.merge({:available_plans => namespace_service_plans}))}
       end
 
       @clusters_interface.setopts(options)
@@ -2623,7 +2623,7 @@ class Morpheus::Cli::Clusters
       opts.on('--active [on|off]', String, "Enable datastore") do |val|
         options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      add_perms_options(opts, options, ['planAccess', 'groupAccessDefaults'])
+      add_perms_options(opts, options, ['plans', 'groupDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster datastore.\n" +
           "[cluster] is required. This is the name or id of an existing cluster.\n" +
@@ -2655,7 +2655,7 @@ class Morpheus::Cli::Clusters
         payload = {'datastore' => {}}
         payload['datastore']['active'] = options[:active].nil? ? (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'description' => 'Datastore Active', 'defaultValue' => true}], options[:options], @api_client))['active'] == 'on' : options[:active]
 
-        perms = prompt_permissions(options, datastore['owner']['id'] == current_user['accountId'] ? ['planAccess', 'groupAccessDefaults'] : ['planAccess', 'groupAccessDefaults', 'visibility', 'tenants'])
+        perms = prompt_permissions(options.merge({:available_plans => namespace_service_plans}), datastore['owner']['id'] == current_user['accountId'] ? ['plans', 'groupDefaults'] : ['plans', 'groupDefaults', 'visibility', 'tenants'])
         perms_payload = {}
         perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
         perms_payload['tenantPermissions'] = perms['tenantPermissions'] if !perms['tenantPermissions'].nil?
@@ -3643,7 +3643,9 @@ class Morpheus::Cli::Clusters
   end
 
   def namespace_service_plans
-    @service_plans_interface.list({'provisionable' => 'any', 'provisionTypeId' => @provision_types_interface.list({'code' => 'docker'})['provisionTypes'].first['id']})['servicePlans'] rescue []
+    @service_plans_interface.list({'provisionable' => 'any', 'provisionTypeId' => @provision_types_interface.list({'code' => 'docker'})['provisionTypes'].first['id']})['servicePlans'].collect {|it|
+      {"name" => it["name"], "value" => it["id"]}
+    } rescue []
   end
 
   def get_cloud_type(id)
@@ -3848,66 +3850,6 @@ class Morpheus::Cli::Clusters
     end
   end
 
-  def add_perms_options(opts, options, excludes = [])
-    if !excludes.include?('groupAccess')
-      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        options[:groupAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
-      end
-      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
-          options[:groupAccessList] = []
-        else
-          options[:groupAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-        end
-      end
-      if !excludes.include?('groupAccessDefaults')
-        opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
-          if list.size == 1 && list[0] == 'null' # hacky way to clear it
-            options[:groupDefaultsList] = []
-          else
-            options[:groupDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          end
-        end
-      end
-    end
-
-    if !excludes.include?('planAccess')
-      opts.on('--plan-access-all [on|off]', String, "Toggle Access for all service plans.") do |val|
-        options[:planAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
-      end
-      opts.on('--plan-access LIST', Array, "Service Plan Access, comma separated list of plan IDs.") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
-          options[:planAccessList] = []
-        else
-          options[:planAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-        end
-      end
-      opts.on('--plan-defaults LIST', Array, "Plan Default Selection, comma separated list of plan IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
-          options[:planDefaultsList] = []
-        else
-          options[:planDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-        end
-      end
-    end
-
-    if !excludes.include?('visibility')
-      opts.on('--visibility [private|public]', String, "Visibility") do |val|
-        options[:visibility] = val
-      end
-    end
-
-    if !excludes.include?('tenants')
-      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
-        if list.size == 1 && list[0] == 'null' # hacky way to clear it
-          options[:tenants] = []
-        else
-          options[:tenants] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-        end
-      end
-    end
-  end
-
   def prompt_resource_pool(group, cloud, service_plan, provision_type, options)
     resource_pool = nil
 
@@ -3962,7 +3904,7 @@ class Morpheus::Cli::Clusters
     rtn['description'] = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Namespace Description', 'required' => false}], options[:options], @api_client)['description']
     rtn['active'] = options[:active].nil? ? (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'description' => 'Namespace Active', 'defaultValue' => true}], options[:options], @api_client))['active'] == 'on' : options[:active]
 
-    perms = prompt_permissions(options)
+    perms = prompt_permissions(options.merge({:available_plans => namespace_service_plans}))
     if perms['resourcePool'] && !perms['resourcePool']['visibility'].nil?
       rtn['visibility'] = perms['resourcePool']['visibility']
       perms.delete('resourcePool')

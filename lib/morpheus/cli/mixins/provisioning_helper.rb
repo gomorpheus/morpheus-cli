@@ -74,6 +74,15 @@ module Morpheus::Cli::ProvisioningHelper
     @available_accounts
   end
 
+  def get_available_plans(refresh=false)
+    if !@available_plans || refresh
+      @available_plans = instances_interface.search_plans['searchPlans'].collect {|it|
+        {"name" => it["name"], "value" => it["id"]}
+      }
+    end
+    @available_plans
+  end
+
   def find_group_by_id_for_provisioning(val)
     groups = get_available_groups()
     group = groups.find {|it| it["id"].to_s == val.to_s }
@@ -1343,6 +1352,66 @@ module Morpheus::Cli::ProvisioningHelper
     [{'name' => 'Dev', 'value' => 'dev'}, {'name' => 'Test', 'value' => 'qa'}, {'name' => 'Staging', 'value' => 'staging'}, {'name' => 'Production', 'value' => 'production'}]
   end
 
+  def add_perms_options(opts, options, excludes = [])
+    if !excludes.include?('groups')
+      opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
+        options[:groupAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:groupAccessList] = []
+        else
+          options[:groupAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      if !excludes.include?('groupDefaults')
+        opts.on('--group-defaults LIST', Array, "Group Default Selection, comma separated list of group IDs") do |list|
+          if list.size == 1 && list[0] == 'null' # hacky way to clear it
+            options[:groupDefaultsList] = []
+          else
+            options[:groupDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          end
+        end
+      end
+    end
+
+    if !excludes.include?('plans')
+      opts.on('--plan-access-all [on|off]', String, "Toggle Access for all service plans.") do |val|
+        options[:planAccessAll] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--plan-access LIST', Array, "Service Plan Access, comma separated list of plan IDs.") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:planAccessList] = []
+        else
+          options[:planAccessList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--plan-defaults LIST', Array, "Plan Default Selection, comma separated list of plan IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:planDefaultsList] = []
+        else
+          options[:planDefaultsList] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+    end
+
+    if !excludes.include?('visibility')
+      opts.on('--visibility VISIBILITY', String, "Visibility [private|public]") do |val|
+        options[:visibility] = val
+      end
+    end
+
+    if !excludes.include?('tenants')
+      opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:tenants] = []
+        else
+          options[:tenants] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+    end
+  end
+
   def prompt_permissions(options, excludes = [])
     all_groups = nil
     group_access = nil
@@ -1350,7 +1419,7 @@ module Morpheus::Cli::ProvisioningHelper
     plan_access = nil
 
     # Group Access
-    if !excludes.include?('group')
+    if !excludes.include?('groups')
       if !options[:groupAccessAll].nil?
         all_groups = options[:groupAccessAll]
       end
@@ -1358,7 +1427,7 @@ module Morpheus::Cli::ProvisioningHelper
       if !options[:groupAccessList].empty?
         group_access = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_i}} || []
       elsif !options[:no_prompt]
-        available_groups = get_available_groups
+        available_groups = options[:available_groups] || get_available_groups
 
         if available_groups.empty?
           #print_red_alert "No available groups"
@@ -1373,7 +1442,7 @@ module Morpheus::Cli::ProvisioningHelper
             if group_id == 'all'
               all_groups = true
             else
-              group_access = (excludes.include?('groupAccessDefaults') ? [{'id' => group_id}] : [{'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})}])
+              group_access = (excludes.include?('groupDefaults') ? [{'id' => group_id}] : [{'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['value'] == group_id}['name']}' as default?", {:default => false})}])
             end
             available_groups = available_groups.reject {|it| it['value'] == group_id}
 
@@ -1385,7 +1454,7 @@ module Morpheus::Cli::ProvisioningHelper
                   all_groups = true
                 else
                   group_access ||= []
-                  group_access << (excludes.include?('groupAccessDefaults') ? {'id' => group_id} : {'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['id'] == group_id}['name']}' as default?", {:default => false})})
+                  group_access << (excludes.include?('groupDefaults') ? {'id' => group_id} : {'id' => group_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_groups.find{|it| it['value'] == group_id}['name']}' as default?", {:default => false})})
                 end
                 available_groups = available_groups.reject {|it| it['value'] == group_id}
               end
@@ -1396,7 +1465,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # Plan Access
-    if !excludes.include?('plan')
+    if !excludes.include?('plans')
       if !options[:planAccessAll].nil?
         all_plans = options[:planAccessAll]
       end
@@ -1404,7 +1473,7 @@ module Morpheus::Cli::ProvisioningHelper
       if !options[:planAccessList].empty?
         plan_access = options[:planAccessList].collect {|plan_id| {'id' => plan_id.to_i}}
       elsif !options[:no_prompt]
-        available_plans = namespace_service_plans.collect {|it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id']} }
+        available_plans = options[:available_plans] || get_available_plans
 
         if available_plans.empty?
           #print_red_alert "No available plans"
@@ -1432,7 +1501,7 @@ module Morpheus::Cli::ProvisioningHelper
                   all_plans = true
                 else
                   plan_access ||= []
-                  plan_access << {'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}
+                  plan_access << {'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['value'] == plan_id}['name']}' as default?", {:default => false})}
                 end
                 available_plans = available_plans.reject {|it| it['value'] == plan_id}
               end
@@ -1455,9 +1524,13 @@ module Morpheus::Cli::ProvisioningHelper
 
     # Prompts for multi tenant
     if available_accounts.count > 1
-      visibility = options[:visibility] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
+      visibility = options[:visibility]
 
-      permissions['resourcePool'] = {'visibility' => visibility}
+      if !visibility && !options[:no_prompt]
+        visibility = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
+      end
+
+      permissions['resourcePool'] = {'visibility' => visibility} if visibility
 
       # Tenants
       if !excludes.include?('tenants')
@@ -1490,27 +1563,41 @@ module Morpheus::Cli::ProvisioningHelper
       print yellow,"No permissions found.",reset,"\n"
     else
       if !permissions['resourcePermissions'].nil?
-        if !excludes.include?('group')
+        if !excludes.include?('groups')
           print_h2 "Group Access"
-          rows = []
-          if permissions['resourcePermissions']['all']
-            rows.push({group: 'All'})
-          end
-          if permissions['resourcePermissions']['sites']
-            permissions['resourcePermissions']['sites'].each do |site|
-              rows.push({group: site['name'], default: site['default'] ? 'Yes' : ''})
+
+          if excludes.include?('groupDefaults')
+            groups = []
+            groups << 'All' if permissions['resourcePermissions']['all']
+            groups += permissions['resourcePermissions']['sites'].collect {|it| it['name']} if permissions['resourcePermissions']['sites']
+
+            if groups.count > 0
+              print cyan,"#{groups.join(', ')}".center(20)
+            else
+              print yellow,"No group access",reset,"\n"
             end
-          end
-          if rows.empty?
-            print yellow,"No group access",reset,"\n"
+            print "\n"
           else
-            columns = [:group, :default]
-            print cyan
-            print as_pretty_table(rows, columns)
+            rows = []
+            if permissions['resourcePermissions']['all']
+              rows.push({group: 'All'})
+            end
+            if permissions['resourcePermissions']['sites']
+              permissions['resourcePermissions']['sites'].each do |site|
+                rows.push({group: site['name'], default: site['default'] ? 'Yes' : ''})
+              end
+            end
+            if rows.empty?
+              print yellow,"No group access",reset,"\n"
+            else
+              columns = [:group, :default]
+              print cyan
+              print as_pretty_table(rows, columns)
+            end
           end
         end
 
-        if !excludes.include?('plan')
+        if !excludes.include?('plans')
           print_h2 "Plan Access"
           rows = []
           if permissions['resourcePermissions']['allPlans']

@@ -157,6 +157,8 @@ module Morpheus
       load 'morpheus/cli/wiki_command.rb'
       load 'morpheus/cli/approvals_command.rb'
       load 'morpheus/cli/service_plans_command.rb'
+      load 'morpheus/cli/price_sets_command.rb'
+      load 'morpheus/cli/prices_command.rb'
       # Your new commands go here...
 
     end

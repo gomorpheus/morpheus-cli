@@ -359,6 +359,14 @@ class Morpheus::APIClient
     Morpheus::ServicePlansInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def price_sets
+    Morpheus::PriceSetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def prices
+    Morpheus::PricesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def load_balancers
     Morpheus::LoadBalancersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end

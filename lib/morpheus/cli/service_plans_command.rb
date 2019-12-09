@@ -16,6 +16,7 @@ class Morpheus::Cli::ServicePlanCommand
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
     @accounts_interface = @api_client.accounts
+    @price_sets_interface = @api_client.price_sets
   end
 
   def handle(args)
@@ -63,7 +64,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       json_response = @service_plans_interface.list(params)
 
-      render_result = render_with_format(json_response, options, 'approvals')
+      render_result = render_with_format(json_response, options, 'servicePlans')
       return 0 if render_result
 
       title = "Morpheus Service Plans"
@@ -163,12 +164,9 @@ class Morpheus::Cli::ServicePlanCommand
 
       provision_type = service_plan['provisionType'] || {}
 
-      #
-      # Remove editable from here
-      #
-      description_cols['Customize Root Volume'] = lambda {|it| format_boolean(it['customMaxStorage'])} if service_plan['editable'] && provision_type['rootDiskCustomizable']
-      description_cols['Customize Extra Volumes'] = lambda {|it| format_boolean(it['customMaxDataStorage'])} if service_plan['editable'] && provision_type['customizeVolume']
-      description_cols['Add Volumes'] = lambda {|it| format_boolean(it['addVolumes'])} if service_plan['editable'] && provision_type['addVolumes']
+      description_cols['Customize Root Volume'] = lambda {|it| format_boolean(it['customMaxStorage'])} if provision_type['rootDiskCustomizable']
+      description_cols['Customize Extra Volumes'] = lambda {|it| format_boolean(it['customMaxDataStorage'])} if provision_type['customizeVolume']
+      description_cols['Add Volumes'] = lambda {|it| format_boolean(it['addVolumes'])} if provision_type['addVolumes']
       description_cols['Max Disks Allowed'] = lambda {|it| it['maxDisks'] || 0} if provision_type['addVolumes']
       description_cols['Memory'] = lambda {|it| printable_byte_size(it, it['maxMemory'], 'memorySizeType')}
       description_cols['Custom Max Memory'] = lambda {|it| format_boolean(it['customMaxMemory'])}
@@ -195,7 +193,7 @@ class Morpheus::Cli::ServicePlanCommand
         }
       end
       if (ranges['minCores'] && ranges['minCores'] != '') || (ranges['maxCores'] && ranges['maxCores'] != '')
-        description_cols['Custom Memory Range'] = lambda {|it|
+        description_cols['Custom Cores Range'] = lambda {|it|
           get_range(
               ranges['minCores'] && ranges['minCores'] != '' ? ranges['minCores'] : nil,
               ranges['maxCores'] && ranges['maxCores'] != '' ? ranges['maxCores'] : nil
@@ -224,7 +222,7 @@ class Morpheus::Cli::ServicePlanCommand
         print yellow,"No price sets.",reset,"\n"
       end
 
-      print_permissions(service_plan['permissions'], ['plan'])
+      print_permissions(service_plan['permissions'], ['plans', 'groupDefaults'])
       print reset,"\n"
       return 0
     rescue RestClient::Exception => e
@@ -244,13 +242,13 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on("--code CODE", String, "Service plan code, unique identifier") do |val|
         params['code'] = val.to_s
       end
-      opts.on('-t', '--provision-type', String, "Provision type ID or code") do |val|
+      opts.on('-t', '--provision-type [TYPE]', String, "Provision type ID or code") do |val|
         options[:provisionType] = val
       end
       opts.on("--description [TEXT]", String, "Description") do |val|
         params['description'] = val.to_s
       end
-      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
+      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the service plan. Default is on") do |val|
         params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
@@ -323,6 +321,7 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--max-cores NUMBER', String, "Max cores") do |val|
         ((params['config'] ||= {})['ranges'] ||= {})['maxCores'] = val.to_i
       end
+      add_perms_options(opts, options, ['plans', 'groupDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create service plan"
     end
@@ -341,7 +340,7 @@ class Morpheus::Cli::ServicePlanCommand
         params['name'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Service Plan Name', 'required' => true, 'description' => 'Service Plan Name.'}],options[:options],@api_client,{}, options[:no_prompt])['name']
 
         # code
-        params['code'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Service Plan Code', 'required' => true, 'defaultValue' => params['name'].gsub(/[^0-9a-z ]/i, '').gsub(' ', '-'), 'description' => 'Service Plan Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
+        params['code'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Service Plan Code', 'required' => true, 'defaultValue' => params['name'].gsub(/[^0-9a-z ]/i, '').gsub(' ', '.').downcase, 'description' => 'Service Plan Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
 
         # provision type
         options[:provisionType] = options[:provisionType] || (args.count > 1 ? args[1] : nil)
@@ -354,7 +353,7 @@ class Morpheus::Cli::ServicePlanCommand
             provision_type = provision_types.find {|it| it['id'] == provision_type_id}
           end
         else
-          provision_type = provision_types.find {|it| it['name'] == options[:provisionType] || it['code'] == options[:provisionType] || it['id'] == options[:provisionType].to_id}
+          provision_type = provision_types.find {|it| it['name'] == options[:provisionType] || it['code'] == options[:provisionType] || it['id'] == options[:provisionType].to_i}
 
           if provision_type.nil?
             print_red_alert "Provision type #{options[:provisionType]} not found"
@@ -372,11 +371,13 @@ class Morpheus::Cli::ServicePlanCommand
           end
           while params['maxStorage'].nil? do
             begin
-              params['maxStorage'] = parse_bytes_param(
+              bytes = parse_bytes_param(
                   Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
                   'storage',
                   'GB'
-              )[:bytes]
+              )
+              params['maxStorage'] = bytes[:bytes]
+              # (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
             rescue
               print "Invalid Value... Please try again.\n"
             end
@@ -391,11 +392,13 @@ class Morpheus::Cli::ServicePlanCommand
           end
           while params['maxMemory'].nil? do
             begin
-              params['maxMemory'] = parse_bytes_param(
+              bytes = parse_bytes_param(
                   Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
                   'memory',
                   'MB'
-              )[:bytes]
+              )
+              params['maxMemory'] = bytes[:bytes]
+              # (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
             rescue
               print "Invalid Value... Please try again.\n"
             end
@@ -408,7 +411,7 @@ class Morpheus::Cli::ServicePlanCommand
           while Morpheus::Cli::OptionTypes.confirm("Add #{price_sets.empty? ? '' : 'another '}price set?", {:default => false}) do
             price_unit = prompt_price_unit(options)
 
-            avail_price_sets ||= @service_plans_interface.price_sets['priceSets'].collect {|it| {'name' => it['name'], 'value' => it['id'], 'priceUnit' => it['priceUnit']}}
+            avail_price_sets ||= @price_sets_interface.list['priceSets'].collect {|it| {'name' => it['name'], 'value' => it['id'], 'priceUnit' => it['priceUnit']}}
 
             if price_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceSet', 'type' => 'select', 'fieldLabel' => 'Price Set', 'selectOptions' => avail_price_sets.reject {|it| it['priceUnit'] != price_unit}, 'required' => false, 'description' => 'Select Price.'}],options[:options],@api_client,{}, options[:no_prompt], true)['priceSet']
               price_set = avail_price_sets.find {|it| it['value'] == price_set_id}
@@ -424,8 +427,8 @@ class Morpheus::Cli::ServicePlanCommand
         end
 
         # permissions
-        if params['resourcePermissions'].nil? && !options[:no_prompt]
-          perms = prompt_permissions(options, ['planAccess'])
+        if !options[:no_prompt]
+          perms = prompt_permissions(options, ['plans', 'groupDefaults'])
           params['visibility'] = perms.delete('resourcePool')['visibility']
           params['permissions'] = perms
         end
@@ -546,6 +549,7 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--max-cores NUMBER', String, "Max cores") do |val|
         ((params['config'] ||= {})['ranges'] ||= {})['maxCores'] = val.to_i
       end
+      add_perms_options(opts, options, ['plans', 'groupDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update service plan.\n[plan] is required. Service plan ID, name or code"
     end
@@ -556,11 +560,12 @@ class Morpheus::Cli::ServicePlanCommand
       return 1
     end
 
+    print options
     begin
       plan = find_service_plan(args[0])
 
       if plan.nil?
-        print_red_alert "Service plan #{args[0]} no found"
+        print_red_alert "Service plan #{args[0]} not found"
         exit 1
       end
 
@@ -580,6 +585,21 @@ class Morpheus::Cli::ServicePlanCommand
           end
           params['provisionType'] = {'id' => provision_type['id']} if !provision_type.nil?
         end
+
+        # perms
+        resource_perms = {}
+        resource_perms['all'] = true if options[:groupAccessAll]
+        resource_perms['sites'] = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_i}} if !options[:groupAccessList].nil?
+
+        if !resource_perms.empty? || !options[:tenants].nil?
+          params['permissions'] = {}
+          params['permissions']['resourcePermissions'] = resource_perms if !resource_perms.empty?
+          params['permissions']['tenantPermissions'] = {'accounts' => options[:tenants]} if !options[:tenants].nil?
+        end
+
+        # visibility
+        params['visibility'] = options[:visibility] if !options[:visibility].nil?
+
         payload = {'servicePlan' => params}
       end
 
@@ -672,7 +692,7 @@ class Morpheus::Cli::ServicePlanCommand
   end
 
   def printable_byte_size(plan, val, config_field, default_unit = 'MB')
-    label = ((plan['config'] && plan['config'][config_field]) || default_unit) == 'MB' || val.to_i < 1024 * 1024 * 1024 ? 'MB' : 'GB'
+    label = (((plan['config'] && plan['config'][config_field]) || default_unit) == 'MB' || val.to_i < 1024 * 1024 * 1024) ? 'MB' : 'GB'
     val = (val.to_i || 0) / (label == 'MB' ? 1024 * 1024 : 1024 * 1024 * 1024)
     "#{val} #{label}"
   end
