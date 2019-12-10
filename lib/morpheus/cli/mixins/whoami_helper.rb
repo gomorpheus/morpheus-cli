@@ -30,6 +30,13 @@ module Morpheus::Cli::WhoamiHelper
     return whoami_response
   end
 
+  def current_account
+    if @current_user.nil?
+      load_whoami
+    end
+    @current_user ? @current_user['account'] : nil
+  end
+
   def is_master_account
     if @current_user.nil?
       load_whoami
