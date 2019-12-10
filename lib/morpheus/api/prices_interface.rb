@@ -36,10 +36,10 @@ class Morpheus::PricesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def destroy(id, params={})
-    url = "#{@api_url}/#{id}"
+  def deactivate(id, params={})
+    url = "#{@api_url}/#{id}/deactivate"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :delete, url: url, headers: headers)
+    execute(method: :put, url: url, headers: headers)
   end
 
   def list_datastores(params={})

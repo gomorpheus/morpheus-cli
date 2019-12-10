@@ -7,7 +7,7 @@ class Morpheus::Cli::ServicePlanCommand
 
   set_command_name :'service-plans'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :deactivate
   set_default_subcommand :list
 
   def connect(opts)
@@ -31,7 +31,7 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('-t', '--provision-type VALUE', String, "Filter by provision type ID or code") do |val|
         options[:provisionType] = val
       end
-      opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is off") do |val|
+      opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
         params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -78,20 +78,23 @@ class Morpheus::Cli::ServicePlanCommand
       else
         rows = plans.collect do |it|
           {
-              id: it['id'],
+              id: (it['active'] ? cyan : yellow) + it['id'].to_s,
               name: it['name'],
-              active: (it['active'] ? '' : yellow) + format_boolean(it['active']) + cyan,
+              type: it['provisionType'] ? it['provisionType']['name'] : '',
+              active: format_boolean(it['active']),
               cores: it['maxCores'],
               memory: format_bytes(it['maxMemory']),
               clouds: it['zones'] ? truncate_string(it['zones'].collect {|it| it['name']}.join(', '), 30) : '',
               visibility: (it['visibility'] || '').capitalize,
               tenants: it['tenants'] || 'Global',
-              price_sets: it['priceSets'] ? it['priceSets'].count : 0
+              price_sets: (it['priceSets'] ? it['priceSets'].count : 0).to_s + cyan
           }
         end
         columns = [
-            :id, :name, :active, :cores, :memory, :clouds, :visibility, :tenants, :price_sets
+            :id, :name, :type, :active, :cores, :memory, :clouds, :visibility, :tenants, :price_sets
         ]
+        columns.delete(:active) if !params['includeInactive']
+
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
         print reset,"\n"
@@ -172,7 +175,7 @@ class Morpheus::Cli::ServicePlanCommand
       description_cols['Custom Max Memory'] = lambda {|it| format_boolean(it['customMaxMemory'])}
       description_cols['Core Count'] = lambda {|it| it['maxCores']}
       description_cols['Custom Cores'] = lambda {|it| format_boolean(it['customCores'])}
-      description_cols['Cores Per Socket'] = lambda {|it| it['coresPerSocket']} if provision_type['hasConfigurableCpuSockets']
+      description_cols['Cores Per Socket'] = lambda {|it| it['coresPerSocket']} if provision_type['hasConfigurableCpuSockets'] && service_plan['customCores']
 
       ranges = (service_plan['config'] ? service_plan['config']['ranges'] : nil) || {}
 
@@ -247,9 +250,6 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on("--description [TEXT]", String, "Description") do |val|
         params['description'] = val.to_s
-      end
-      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the service plan. Default is on") do |val|
-        params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
@@ -476,9 +476,6 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on("--description [TEXT]", String, "Description") do |val|
         params['description'] = val.to_s
       end
-      opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
-        params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      end
       opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -632,13 +629,13 @@ class Morpheus::Cli::ServicePlanCommand
     end
   end
 
-  def remove(args)
+  def deactivate(args)
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[plan]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Remove service plan.\n" +
+      opts.footer = "Deactivate service plan.\n" +
           "[plan] is required. Service plan ID, name or code"
     end
     optparse.parse!(args)
@@ -656,23 +653,28 @@ class Morpheus::Cli::ServicePlanCommand
         exit 1
       end
 
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the service plan '#{plan['name']}'?", options)
+      if plan['active'] == false
+        print_green_success "Service plan #{plan['name']} already deactived."
+        return 0
+      end
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to deactivate the service plan '#{plan['name']}'?", options)
         return 9, "aborted command"
       end
 
       @service_plans_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @service_plans_interface.dry.destroy(plan['id'], params)
+        print_dry_run @service_plans_interface.dry.deactivate(plan['id'], params)
         return
       end
 
-      json_response = @service_plans_interface.destroy(plan['id'], params)
+      json_response = @service_plans_interface.deactivate(plan['id'], params)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Service plan #{plan['name']} removed"
+        print_green_success "Service plan #{plan['name']} deactivated"
       end
       return 0
     rescue RestClient::Exception => e

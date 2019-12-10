@@ -9,7 +9,7 @@ class Morpheus::Cli::PriceSetsCommand
 
   set_command_name :'price-sets'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :deactivate
   set_default_subcommand :list
 
   def connect(opts)
@@ -31,6 +31,9 @@ class Morpheus::Cli::PriceSetsCommand
     params = {'includeZones': true}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
+        params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List price sets."
     end
@@ -65,16 +68,19 @@ class Morpheus::Cli::PriceSetsCommand
       else
         rows = price_sets.collect do |it|
           {
-              id: it['id'],
+              id: (it['active'] ? cyan : yellow) + it['id'].to_s,
               name: it['name'],
+              active: format_boolean(it['active']),
               price_unit: it['priceUnit'],
               type: price_set_type_label(it['type']),
-              price_count: it['prices'].count
+              price_count: it['prices'].count.to_s + cyan
           }
         end
         columns = [
-            :id, :name, :price_unit, :type, '# of prices' => :price_count
+            :id, :name, :active, :price_unit, :type, '# of prices' => :price_count
         ]
+        columns.delete(:active) if !params['includeInactive']
+
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
         print reset,"\n"
@@ -409,13 +415,13 @@ class Morpheus::Cli::PriceSetsCommand
     end
   end
 
-  def remove(args)
+  def deactivate(args)
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[price-set]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Remove price set.\n" +
+      opts.footer = "Deactivate price set.\n" +
           "[price-set] is required. Price set ID, name or code"
     end
     optparse.parse!(args)
@@ -433,23 +439,28 @@ class Morpheus::Cli::PriceSetsCommand
         exit 1
       end
 
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the price set '#{price_set['name']}'?", options)
+      if price_set['active'] == false
+        print_green_success "Price set #{price_set['name']} already deactived."
+        return 0
+      end
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to deactivate the price set '#{price_set['name']}'?", options)
         return 9, "aborted command"
       end
 
       @price_sets_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @price_sets_interface.dry.destroy(price_set['id'], params)
+        print_dry_run @price_sets_interface.dry.deactivate(price_set['id'], params)
         return
       end
 
-      json_response = @price_sets_interface.destroy(price_set['id'], params)
+      json_response = @price_sets_interface.deactivate(price_set['id'], params)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Price set #{price_set['name']} removed"
+        print_green_success "Price set #{price_set['name']} deactivate"
       end
       return 0
     rescue RestClient::Exception => e

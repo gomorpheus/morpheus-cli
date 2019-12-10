@@ -9,7 +9,7 @@ class Morpheus::Cli::PricesCommand
 
   set_command_name :'prices'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :deactivate
   set_default_subcommand :list
 
   def connect(opts)
@@ -27,6 +27,9 @@ class Morpheus::Cli::PricesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
+        params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List prices."
     end
@@ -59,7 +62,28 @@ class Morpheus::Cli::PricesCommand
       if prices.empty?
         print yellow,"No prices found.",reset,"\n"
       else
-        print_price_list(json_response, prices, options)
+        rows = prices.collect do |it|
+          {
+              id: (it['active'] ? cyan : yellow) + it['id'].to_s,
+              name: it['name'],
+              active: format_boolean(it['active']),
+              priceType: price_type_label(it['priceType']),
+              tenant: it['account'].nil? ? (is_master_account ? 'All Tenants' : nil) : it['account']['name'],
+              priceUnit: it['priceUnit'].nil? ? nil : it['priceUnit'].capitalize,
+              priceAdjustment: it['markupType'].nil? ? 'None' : it['markupType'].capitalize,
+              cost: price_prefix(it) + format_amount(it['cost'] || 0),
+              markup: price_markup(it),
+              price: price_prefix(it) + format_amount(it['markupType'] == 'custom' ? it['customPrice'] || 0 : it['price'] || 0) + cyan
+          }
+        end
+        columns = [
+            :id, :name, :active, :priceType, :tenant, :priceUnit, :priceAdjustment, :cost, :markup, :price
+        ]
+        columns.delete(:active) if !params['includeInactive']
+
+        print as_pretty_table(rows, columns, options)
+        print_results_pagination(json_response)
+        print reset,"\n"
       end
       print reset,"\n"
       return 0
@@ -459,13 +483,13 @@ class Morpheus::Cli::PricesCommand
     end
   end
 
-  def remove(args)
+  def deactivate(args)
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[price]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Remove price.\n" +
+      opts.footer = "Deactivate price.\n" +
           "[price] is required. Price ID, name or code"
     end
     optparse.parse!(args)
@@ -483,23 +507,28 @@ class Morpheus::Cli::PricesCommand
         exit 1
       end
 
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the price '#{price['name']}'?", options)
+      if price['active'] == false
+        print_green_success "Price #{price_set['name']} already deactived."
+        return 0
+      end
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to deactivate the price '#{price['name']}'?", options)
         return 9, "aborted command"
       end
 
       @prices_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @prices_interface.dry.destroy(price['id'], params)
+        print_dry_run @prices_interface.dry.deactivate(price['id'], params)
         return
       end
 
-      json_response = @prices_interface.destroy(price['id'], params)
+      json_response = @prices_interface.deactivate(price['id'], params)
 
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Price #{price['name']} removed"
+        print_green_success "Price #{price['name']} deactivate"
       end
       return 0
     rescue RestClient::Exception => e
@@ -524,28 +553,6 @@ class Morpheus::Cli::PricesCommand
 
   def currency_sym(currency)
     Money::Currency.new((currency || 'usd').to_sym).symbol
-  end
-
-  def print_price_list(json_response, prices, options)
-    rows = prices.collect do |it|
-      {
-          id: it['id'],
-          name: it['name'],
-          priceType: price_type_label(it['priceType']),
-          tenant: it['account'].nil? ? (is_master_account ? 'All Tenants' : nil) : it['account']['name'],
-          priceUnit: it['priceUnit'].nil? ? nil : it['priceUnit'].capitalize,
-          priceAdjustment: it['markupType'].nil? ? 'None' : it['markupType'].capitalize,
-          cost: price_prefix(it) + format_amount(it['cost'] || 0),
-          markup: price_markup(it),
-          price: price_prefix(it) + format_amount(it['markupType'] == 'custom' ? it['customPrice'] || 0 : it['price'] || 0)
-      }
-    end
-    columns = [
-        :id, :name, :priceType, :tenant, :priceUnit, :priceAdjustment, :cost, :markup, :price
-    ]
-    print as_pretty_table(rows, columns, options)
-    print_results_pagination(json_response)
-    print reset,"\n"
   end
 
   def price_prefix(price)
