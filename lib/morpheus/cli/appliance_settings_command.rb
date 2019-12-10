@@ -127,16 +127,24 @@ class Morpheus::Cli::ApplianceSettingsCommand
         params['corsAllowed'] = val == 'null' ? nil : val
       end
       opts.on("--registration-enabled [on|off]", ['on','off'], "Tenant registration enabled") do |val|
-        params['registrationEnabled'] = ['true','on'].include?(val.to_s.strip)
+        params['registrationEnabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("--default-tenant-role ROLE", String, "Default tenant role authority or ID") do |val|
-        options[:defaultTenantRole] = val == 'null' ? nil : val
+        if val == 'null'
+          params['defaultRoleId'] = nil
+        else
+          options[:defaultTenantRole] = val
+        end
       end
       opts.on("--default-user-role ROLE", String, "Default user role authority or ID") do |val|
-        options[:defaultUserRole] = val == 'null' ? nil : val
+        if val == 'null'
+          params['defaultUserRoleId'] = nil
+        else
+          options[:defaultUserRole] = val
+        end
       end
       opts.on("--docker-privileged-mode [on|off]", ['on','off'], "Docker privileged mode") do |val|
-        params['dockerPrivilegedMode'] = ['true','on'].include?(val.to_s.strip)
+        params['dockerPrivilegedMode'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("--expire-pwd-days NUMBER", Integer, "Expire password after specified days. Set to 0 to disable this feature") do |val|
         params['expirePwdDays'] = val.to_i

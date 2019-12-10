@@ -92,7 +92,7 @@ class Morpheus::Cli::LogSettingsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
       opts.on("--enabled [on|off]", ['on','off'], "Logs enabled") do |val|
-        params['enabled'] = ['true','on'].include?(val.to_s.strip)
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on("-R", "--retention NUMBER", Integer, "Availability time frame in days") do |val|
         params['retentionDays'] = val.to_i
