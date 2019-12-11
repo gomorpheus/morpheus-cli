@@ -179,7 +179,9 @@ class Morpheus::Cli::Roles
         "Description" => 'description',
         "Scope" => lambda {|it| it['scope'] },
         "Type" => lambda {|it| format_role_type(it) },
-        "Multitenant" => lambda {|it| format_boolean(it['multitenant']) },
+        "Multitenant" => lambda {|it| 
+          format_boolean(it['multitenant']).to_s + (it['multitenantLocked'] ? " (LOCKED)" : "")
+        },
         "Owner" => lambda {|it| role['owner'] ? role['owner']['name'] : '' },
         #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
@@ -425,6 +427,10 @@ class Morpheus::Cli::Roles
           if role_payload['roleType'] == 'user'
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5}], options[:options])
             role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
+            if role_payload['multitenant']
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '}], options[:options])
+              role_payload['multitenantLocked'] = ['on','true'].include?(v_prompt['multitenantLocked'].to_s)
+            end
           end
         end
 
@@ -505,10 +511,10 @@ class Morpheus::Cli::Roles
         params.deep_merge!(passed_options)
         prompt_option_types = update_role_option_types()
         if !@is_master_account
-          prompt_option_types = prompt_option_types.reject {|it| ['roleType', 'multitenant'].include?(it['fieldName']) }
+          prompt_option_types = prompt_option_types.reject {|it| ['roleType', 'multitenant','multitenantLocked'].include?(it['fieldName']) }
         end
         if role['roleType'] != 'user'
-          prompt_option_types = prompt_option_types.reject {|it| ['multitenant'].include?(it['fieldName']) }
+          prompt_option_types = prompt_option_types.reject {|it| ['multitenant','multitenantLocked'].include?(it['fieldName']) }
         end
         #params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 
@@ -1265,9 +1271,7 @@ class Morpheus::Cli::Roles
       {'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user', 'displayOrder' => 3},
       {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4},
       {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5},
-      # {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
-      # {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
-      # {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
+      {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. ', 'displayOrder' => 6}
     ]
   end
 

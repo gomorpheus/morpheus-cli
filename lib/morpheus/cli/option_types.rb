@@ -36,6 +36,7 @@ module Morpheus
       end
 
       def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false)
+        paging_enabled = false if Morpheus::Cli.windows?
         results = {}
         options = options || {}
         # puts "Options Prompt #{options}"
@@ -246,6 +247,7 @@ module Morpheus
       end
 
       def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
+        paging_enabled = false if Morpheus::Cli.windows?
         value_found = false
         value = nil
         default_value = option_type['defaultValue']
@@ -321,9 +323,13 @@ module Morpheus
           end
         end
 
-        page_size = Readline.get_screen_size[0] - 6
-        if paging_enabled && page_size < select_options.count
-          paging = {:cur_page => 0, :page_size => page_size, :total => select_options.count}
+        paging = nil
+        if paging_enabled
+          option_count = select_options ? select_options.count : 0
+          page_size = Readline.get_screen_size[0] - 6
+          if page_size < option_count
+            paging = {:cur_page => 0, :page_size => page_size, :total => option_count}
+          end
         end
 
         while !value_found do
@@ -360,7 +366,9 @@ module Morpheus
           if input == '?'
             help_prompt(option_type)
             display_select_options(option_type, select_options, paging)
-            paging[:cur_page] = (paging[:cur_page] + 1) * paging[:page_size] < paging[:total] ? paging[:cur_page] + 1 : 0 if paging
+            if paging
+              paging[:cur_page] = (paging[:cur_page] + 1) * paging[:page_size] < paging[:total] ? paging[:cur_page] + 1 : 0
+            end
           elsif !value.nil? || option_type['required'] != true
             value_found = true
           end
