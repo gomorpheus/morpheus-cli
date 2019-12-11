@@ -190,7 +190,7 @@ class Morpheus::Cli::ProvisioningSettingsCommand
           if !template_type
             print_red_alert "Blueprint type #{options[:blueprintType]} not found"
           end
-          params['defaultTemplateType'] = {'code' => template_type['code']}
+          params['defaultTemplateType'] = {'id' => template_type['id']}
         end
         payload = {'provisioningSettings' => params}
       end
