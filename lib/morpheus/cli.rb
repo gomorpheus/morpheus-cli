@@ -104,7 +104,6 @@ module Morpheus
       load 'morpheus/cli/security_group_rules.rb'
       load 'morpheus/cli/clusters.rb'
       load 'morpheus/cli/tenants_command.rb'
-      load 'morpheus/cli/accounts.rb'
       load 'morpheus/cli/account_groups_command.rb'
       load 'morpheus/cli/users.rb'
       load 'morpheus/cli/change_password_command.rb'
