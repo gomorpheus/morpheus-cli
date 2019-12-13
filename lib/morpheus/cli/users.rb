@@ -202,13 +202,6 @@ class Morpheus::Cli::Users
         }
         print_description_list(description_cols, user)
 
-        # print_h2 "User Instance Limits", options
-        # print cyan
-        # print_description_list({
-        #   "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
-        #   "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
-        #   "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
-        # }, user['instanceLimits'])
 
         if options[:include_feature_access] && user_feature_permissions
           if user_feature_permissions
@@ -258,11 +251,7 @@ class Morpheus::Cli::Users
         prompt_option_types = add_user_option_types().reject {|it| 'role' == it['fieldName'] }
         v_prompt = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(v_prompt)
-        if params['instanceLimits']
-          params['instanceLimits']['maxStorage'] = params['instanceLimits']['maxStorage'].to_i if params['instanceLimits']['maxStorage'].to_s.strip != ''
-          params['instanceLimits']['maxMemory'] = params['instanceLimits']['maxMemory'].to_i if params['instanceLimits']['maxMemory'].to_s.strip != ''
-          params['instanceLimits']['maxCpu'] = params['instanceLimits']['maxCpu'].to_i if params['instanceLimits']['maxCpu'].to_s.strip != ''
-        end
+
         # prompt for roles
         selected_roles = []
         selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
@@ -359,13 +348,7 @@ class Morpheus::Cli::Users
           return 1
         end
 
-        #puts "parsed params is : #{params.inspect}"
-        if params['instanceLimits']
-          params['instanceLimits']['maxStorage'] = params['instanceLimits']['maxStorage'].to_i if params['instanceLimits']['maxStorage'].to_s.strip != ''
-          params['instanceLimits']['maxMemory'] = params['instanceLimits']['maxMemory'].to_i if params['instanceLimits']['maxMemory'].to_s.strip != ''
-          params['instanceLimits']['maxCpu'] = params['instanceLimits']['maxCpu'].to_i if params['instanceLimits']['maxCpu'].to_s.strip != ''
-        end
-
+        
         payload = {'user' => params}
       end
       @users_interface.setopts(options)
@@ -524,9 +507,6 @@ class Morpheus::Cli::Users
       {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => true, 'displayOrder' => 4},
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 7},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
     ]
   end
@@ -539,9 +519,6 @@ class Morpheus::Cli::Users
       {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => false, 'displayOrder' => 6},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => false, 'displayOrder' => 7},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 9},
-      {'fieldContext' => 'instanceLimits', 'fieldName' => 'maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 10},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'displayOrder' => 11, 'description' => "Role names (comma separated)"},
     ]
   end
