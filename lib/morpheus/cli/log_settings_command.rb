@@ -7,7 +7,7 @@ class Morpheus::Cli::LogSettingsCommand
   set_command_name :'log-settings'
 
   register_subcommands :get, :update
-  register_subcommands :enable_integration, :disable_integration
+  register_subcommands :enable_integration, :disable_integration, :remove_integration
   register_subcommands :add_syslog_rule, :remove_syslog_rule
   
   set_default_subcommand :get
@@ -274,6 +274,49 @@ class Morpheus::Cli::LogSettingsCommand
           get([] + (options[:remote] ? ["-r",options[:remote]] : []))
         else
           print_red_alert "Error disabling integration: #{json_response['msg'] || json_response['errors']}"
+        end
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_integration(args)
+    options = {}
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = "Deletes specifed integration.\n" +
+          "[name] is required. Currently supports splunk and logrhythm integrations."
+    end
+
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+      return 1
+    end
+
+    begin
+      @log_settings_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @log_settings_interface.dry.destroy_integration(args[0])
+        return
+      end
+      json_response = @log_settings_interface.destroy_integration(args[0])
+
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        if json_response['success']
+          print_green_success  "Integration removed"
+          get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        else
+          print_red_alert "Error removing integration: #{json_response['msg'] || json_response['errors']}"
         end
       end
       return 0

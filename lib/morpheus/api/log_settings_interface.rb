@@ -27,6 +27,12 @@ class Morpheus::LogSettingsInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def destroy_integration(name, params={})
+    url = "#{@api_url}/integrations/#{name}"
+    headers = { params: params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
   def add_syslog_rule(payload, params={})
     url = "#{@api_url}/syslog-rules"
     headers = { params: params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
