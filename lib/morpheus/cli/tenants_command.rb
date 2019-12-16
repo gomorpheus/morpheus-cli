@@ -188,12 +188,7 @@ class Morpheus::Cli::TenantsCommand
       account_keys = ['name', 'description', 'currency']
       account_payload = params.select {|k,v| account_keys.include?(k) }
       account_payload['currency'] = account_payload['currency'].to_s.empty? ? "USD" : account_payload['currency'].upcase
-      if !account_payload['instanceLimits']
-        account_payload['instanceLimits'] = {}
-        account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-        account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-        account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
-      end
+      
       if params['role'].to_s != ''
         role = find_role_by_name(nil, params['role'])
         exit 1 if role.nil?
@@ -255,15 +250,10 @@ class Morpheus::Cli::TenantsCommand
       end
 
       #puts "parsed params is : #{params.inspect}"
-      #account_keys = ['name', 'description', 'currency', 'instanceLimits']
+      #account_keys = ['name', 'description', 'currency']
       account_payload = params
       account_payload['currency'] = account_payload['currency'].upcase unless account_payload['currency'].to_s.empty?
-      # if !account_payload['instanceLimits']
-      #   account_payload['instanceLimits'] = {}
-      #   account_payload['instanceLimits']['maxStorage'] = params['instanceLimits.maxStorage'].to_i if params['instanceLimits.maxStorage'].to_s.strip != ''
-      #   account_payload['instanceLimits']['maxMemory'] = params['instanceLimits.maxMemory'].to_i if params['instanceLimits.maxMemory'].to_s.strip != ''
-      #   account_payload['instanceLimits']['maxCpu'] = params['instanceLimits.maxCpu'].to_i if params['instanceLimits.maxCpu'].to_s.strip != ''
-      # end
+      
       if params['role'].to_s != ''
         role = find_role_by_name(nil, params['role'])
         exit 1 if role.nil?
@@ -345,9 +335,6 @@ class Morpheus::Cli::TenantsCommand
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
       {'fieldName' => 'role', 'fieldLabel' => 'Base Role', 'type' => 'text', 'displayOrder' => 3},
       {'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'displayOrder' => 4}
-      # {'fieldName' => 'instanceLimits.maxStorage', 'fieldLabel' => 'Max Storage (bytes)', 'type' => 'text', 'displayOrder' => 5},
-      # {'fieldName' => 'instanceLimits.maxMemory', 'fieldLabel' => 'Max Memory (bytes)', 'type' => 'text', 'displayOrder' => 6},
-      # {'fieldName' => 'instanceLimits.maxCpu', 'fieldLabel' => 'CPU Count', 'type' => 'text', 'displayOrder' => 7},
     ]
   end
 
