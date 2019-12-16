@@ -37,6 +37,12 @@ module Morpheus::Cli::ProvisioningHelper
     @library_layouts_interface
   end
 
+  def clouds_interface
+    # @api_client.instance_types
+    raise "#{self.class} has not defined @clouds_interface" if @clouds_interface.nil?
+    @clouds_interface
+  end
+
   def accounts_interface
     raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
     @accounts_interface
@@ -285,7 +291,7 @@ module Morpheus::Cli::ProvisioningHelper
   end
 
   def get_provision_type_for_zone_type(zone_type_id)
-    @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
+    clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
   # prompts user for all the configuartion options for a particular instance
@@ -318,8 +324,11 @@ module Morpheus::Cli::ProvisioningHelper
       available_clouds = get_available_clouds(group_id)
       cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.', 'defaultValue' => options[:default_cloud] ? options[:default_cloud] : nil}],options[:options],api_client,{groupId: group_id})
       cloud_id = cloud_prompt['cloud']
-      cloud = available_clouds.find {|it| it['id'] == cloud_id.to_i || it['name'] == cloud_id.to_s }
     end
+
+    cloud = clouds_interface.get(cloud_id)['zone']
+    cloud_type = cloud['zoneType'] || {}
+
     # Instance Type
     instance_type_code = nil
     if options[:instance_type_code]
@@ -344,7 +353,20 @@ module Morpheus::Cli::ProvisioningHelper
     end
     name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
     instance_name = name_prompt['name']
-    
+
+    # config
+    config = {}
+    if cloud_type['code'] == 'amazon' && (cloud['config'] || {})['isVpc'] == 'false' && (cloud['config'] || {})['vpc'] == ''
+      config['isEC2'] = true
+    else
+      config['isEC2'] = false
+      if cloud_type['code'] == 'amazon' && (cloud['config'] || {})['isVpc'] == 'true' && (cloud['config'] || {})['vpc'] != ''
+        config['isVpcSelectable'] = false
+        config['resourcePoolId'] = cloud['config']['vpc']
+      else
+        config['isVpcSelectable'] = true
+      end
+    end
 
     payload = {
       'zoneId' => cloud_id,
@@ -359,7 +381,8 @@ module Morpheus::Cli::ProvisioningHelper
         'instanceType' => {
           'code' => instance_type_code
         }
-      }
+      },
+      'config' => config
     }
 
     # allow arbitrary -O values passed by the user
@@ -440,7 +463,7 @@ module Morpheus::Cli::ProvisioningHelper
     layout_id = options[:layout].to_i if options[:layout]
 
     if !layout_id
-      layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})['layout']
+      layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value, creatable: true})['layout']
     end
 
     layout = find_instance_type_layout_by_id(instance_type['id'], layout_id.to_i)
@@ -527,6 +550,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     # remove host selection for kubernetes
     if resource_pool
+      payload['config']['poolProviderType'] = resource_pool['providerType'] if resource_pool['providerType']
       if resource_pool['providerType'] == 'kubernetes'
         option_type_list = option_type_list.reject {|opt| ['provisionServerId'].include?(opt['fieldName'])}
       end
@@ -542,12 +566,12 @@ module Morpheus::Cli::ProvisioningHelper
           }
         end
 
-        if service_plan['supportsAutoDatastore']
+        if layout['provisionType'] && layout['provisionType']['supportsAutoDatastore']
           service_plan['autoOptions'] ||= []
           if service_plan['datastores']['cluster'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
             service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
           end
-          if service_plan['datastores']['store'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+          if service_plan['datastores']['store'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'auto'}
             service_plan['autoOptions'] << {'id' => 'auto', 'name' => 'Auto - Datastore'}
           end
         end
@@ -753,6 +777,7 @@ module Morpheus::Cli::ProvisioningHelper
     if !datastore_options.empty?
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => volume['datastoreId']}], options[:options])
       volume['datastoreId'] = v_prompt[field_context]['datastoreId']
+      volume['hasDatastore'] = true
     end
 
     volumes << volume
@@ -817,6 +842,7 @@ module Morpheus::Cli::ProvisioningHelper
           if !datastore_options.empty?
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => volume['datastoreId']}], options[:options])
             volume['datastoreId'] = v_prompt[field_context]['datastoreId']
+            volume['hasDatastore'] = true
           end
 
           volumes << volume
