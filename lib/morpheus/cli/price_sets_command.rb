@@ -19,7 +19,7 @@ class Morpheus::Cli::PriceSetsCommand
     @price_sets_interface = @api_client.price_sets
     @prices_interface = @api_client.prices
     @clouds_interface = @api_client.clouds
-    @clouds_resource_pools_interface = @api_client.cloud_resource_pools
+    @cloud_resource_pools_interface = @api_client.cloud_resource_pools
   end
 
   def handle(args)
@@ -264,7 +264,7 @@ class Morpheus::Cli::PriceSetsCommand
           end
           params['zonePool'] = {'id' => resource_pool['id']}
         else
-          resource_pool_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'required' => false, 'description' => 'Select resource pool for price set', 'selectOptions' => @clouds_resource_pools_interface.list(params['zone'] ? params['zone']['id'] : nil)['resourcePools'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['value']
+          resource_pool_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'required' => false, 'description' => 'Select resource pool for price set', 'selectOptions' => @cloud_resource_pools_interface.list(params['zone'] ? params['zone']['id'] : nil)['resourcePools'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['value']
 
           if resource_pool_id
             params['zonePool'] = {'id' => resource_pool_id}
@@ -498,7 +498,7 @@ class Morpheus::Cli::PriceSetsCommand
   end
 
   def find_resource_pool(cloud_id, val)
-    (val.to_s =~ /\A\d{1,}\Z/) ? @clouds_resource_pools_interface.get(cloud_id, val.to_i)['resourcePool'] : @clouds_resource_pools_interface.list(cloud_id, {'name' => val})["resourcePools"].first
+    (val.to_s =~ /\A\d{1,}\Z/) ? @cloud_resource_pools_interface.get(cloud_id, val.to_i)['resourcePool'] : @cloud_resource_pools_interface.list(cloud_id, {'name' => val})["resourcePools"].first
   end
 
   def price_set_type_label(type)
