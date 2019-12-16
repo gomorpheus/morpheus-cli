@@ -533,7 +533,7 @@ module Morpheus::Cli::ProvisioningHelper
 
       # add selectable datastores for resource pool
       if cloud_datastores
-        service_plan['datastores'] ||= {'cluster' => [], 'store' => []}
+        service_plan['datastores'] = {'cluster' => [], 'store' => []}
         selectable_datastores = cloud_datastores.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
         ['cluster', 'store'].each do |type|
           service_plan['datastores'][type] ||= []
