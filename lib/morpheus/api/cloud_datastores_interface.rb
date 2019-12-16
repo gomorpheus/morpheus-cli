@@ -44,4 +44,11 @@ class Morpheus::CloudDatastoresInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def selectable(cloud_id, params={})
+    url = "#{@base_url}/api/zones/#{cloud_id}/data-stores/selectable"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end

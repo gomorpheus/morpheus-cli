@@ -31,6 +31,12 @@ module Morpheus::Cli::ProvisioningHelper
     @instance_types_interface
   end
 
+  def instance_type_layouts_interface
+    # @api_client.instance_types
+    raise "#{self.class} has not defined @library_layouts" if @library_layouts_interface.nil?
+    @library_layouts_interface
+  end
+
   def accounts_interface
     raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
     @accounts_interface
@@ -229,6 +235,15 @@ module Morpheus::Cli::ProvisioningHelper
     return instance
   end
 
+  def find_instance_type_layout_by_id(layout_id, id)
+    json_results = instance_type_layouts_interface.get(layout_id, id)
+    if json_results['instanceTypeLayout'].empty?
+      print_red_alert "Instance type layout not found by id #{id}"
+      exit 1
+    end
+    json_results['instanceTypeLayout']
+  end
+
   def find_workflow_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_workflow_by_id(val)
@@ -265,13 +280,17 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+  def find_cloud_resource_pool_by_name_or_id(cloud_id, val)
+    (val.to_s =~ /\A\d{1,}\Z/) ? find_cloud_resource_pool_by_id(cloud_id, val) : find_cloud_resource_pool_by_name(cloud_id, val)
+  end
+
   def get_provision_type_for_zone_type(zone_type_id)
     @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
   # prompts user for all the configuartion options for a particular instance
   # returns payload of data for a new instance
-  def prompt_new_instance(options={})
+  def prompt_new_instance(options={}, cloud_datastores = nil)
     #puts "prompt_new_instance() #{options}"
     print reset # clear colors
     options[:options] ||= {}
@@ -418,9 +437,13 @@ module Morpheus::Cli::ProvisioningHelper
     #   layout_id = options[:options]["layout"]
     #   ...
     # end
-    layout_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})
-    layout_id = layout_prompt['layout']
-    layout = instance_type['instanceTypeLayouts'].find{ |lt| lt['id'] == layout_id.to_i}
+    layout_id = options[:layout].to_i if options[:layout]
+
+    if !layout_id
+      layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value})['layout']
+    end
+
+    layout = find_instance_type_layout_by_id(instance_type['id'], layout_id.to_i)
     if !layout
       print_red_alert "Layout not found by id #{layout_id}"
       exit 1
@@ -428,22 +451,26 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['layout'] = {'id' => layout['id']}
 
     # prompt for service plan
-    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
+    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
     service_plans = service_plans_json["plans"]
-    service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"], 'code' => sp['code']} } # already sorted
-    default_plan = nil
-    if payload['plan']
-      default_plan = payload['plan']
-    elsif payload['instance'] && payload['instance']['plan']
-      default_plan = payload['instance']['plan']
-    end
-    default_plan_value = default_plan.is_a?(Hash) ? default_plan['id'] : default_plan
-    plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
-    plan_id = plan_prompt['servicePlan']
-    service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
+    service_plan = service_plans.find {|sp| sp['id'] == options[:service_plan].to_i} if options[:service_plan]
+
     if !service_plan
-      print_red_alert "Plan not found by id #{plan_id}"
-      exit 1
+      service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"], 'code' => sp['code']} } # already sorted
+      default_plan = nil
+      if payload['plan']
+        default_plan = payload['plan']
+      elsif payload['instance'] && payload['instance']['plan']
+        default_plan = payload['instance']['plan']
+      end
+      default_plan_value = default_plan.is_a?(Hash) ? default_plan['id'] : default_plan
+      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
+      plan_id = plan_prompt['servicePlan']
+      service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
+      if !service_plan
+        print_red_alert "Plan not found by id #{plan_id}"
+        exit 1
+      end
     end
     #todo: consolidate these, instances api looks for instance.plan.id and apps looks for plan.id
     payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
@@ -479,36 +506,69 @@ module Morpheus::Cli::ProvisioningHelper
       # pluck out the resourcePoolId option type to prompt for
       resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
       option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-      resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'optionSource' => 'zonePools', 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
-      resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})
-      resource_pool_prompt.deep_compact!
-      payload.deep_merge!(resource_pool_prompt)
-      resource_pool = Morpheus::Cli::OptionTypes.get_last_select()
-      if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
-        pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
-      elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
-        pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
+      resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})['data']
+      resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
+
+      if resource_pool
+        pool_id = resource_pool['id']
+      else
+        resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
+        resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{})
+        resource_pool_prompt.deep_compact!
+        payload.deep_merge!(resource_pool_prompt)
+        resource_pool = Morpheus::Cli::OptionTypes.get_last_select()
+        if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
+          pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
+        elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
+          pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
+        end
       end
     end
 
     # remove host selection for kubernetes
-    if resource_pool && resource_pool['providerType'] == 'kubernetes'
-      option_type_list = option_type_list.reject {|opt|
-        ['provisionServerId'].include?(opt['fieldName'])
-      }
+    if resource_pool
+      if resource_pool['providerType'] == 'kubernetes'
+        option_type_list = option_type_list.reject {|opt| ['provisionServerId'].include?(opt['fieldName'])}
+      end
+
+      # add selectable datastores for resource pool
+      if cloud_datastores
+        service_plan['datastores'] ||= {'cluster' => [], 'store' => []}
+        selectable_datastores = cloud_datastores.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+        ['cluster', 'store'].each do |type|
+          service_plan['datastores'][type] ||= []
+          selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
+            service_plan['datastores'][type] << ds
+          }
+        end
+
+        if service_plan['supportsAutoDatastore']
+          service_plan['autoOptions'] ||= []
+          if service_plan['datastores']['cluster'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+            service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
+          end
+          if service_plan['datastores']['store'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+            service_plan['autoOptions'] << {'id' => 'auto', 'name' => 'Auto - Datastore'}
+          end
+        end
+      end
     end
 
     # plan_info has this property already..
     # has_datastore = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasDatastore"]
     # service_plan['hasDatastore'] = has_datastore
 
+    # set root volume name if has mounts
+    mounts = (layout['mounts'] || []).reject {|it| !it['canPersist']}
+    if mounts.count > 0
+      options[:root_volume_name] = mounts[0]['shortName']
+    end
+
     # prompt for volumes
-    # if payload['volumes'].nil?
-      volumes = prompt_volumes(service_plan, options, api_client, {zoneId: cloud_id, layoutId: layout_id, siteId: group_id})
-      if !volumes.empty?
-        payload['volumes'] = volumes
-      end
-    # end
+    volumes = prompt_volumes(service_plan, options, api_client, {zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
+    if !volumes.empty?
+      payload['volumes'] = volumes
+    end
 
     # if payload['networkInterfaces'].nil?
       if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
@@ -579,10 +639,10 @@ module Morpheus::Cli::ProvisioningHelper
   # returns array of volumes based on service plan options (plan_info)
   def prompt_volumes(plan_info, options={}, api_client=nil, api_params={})
     #puts "Configure Volumes:"
+    # return [] if plan_info['noDisks']
+
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-
     volumes = []
-
     plan_size = nil
     if plan_info['maxStorage']
       plan_size = plan_info['maxStorage'].to_i / (1024 * 1024 * 1024)
@@ -636,7 +696,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     field_context = "rootVolume"
 
-    volume_label = 'root'
+    volume_label = options[:root_volume_name] || 'root'
     volume = {
       'id' => -1,
       'rootVolume' => true,

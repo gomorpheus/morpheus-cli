@@ -36,7 +36,9 @@ class Morpheus::Cli::Instances
     @logs_interface = @api_client.logs
     @tasks_interface = @api_client.tasks
     @instance_types_interface = @api_client.instance_types
+    @library_layouts_interface = @api_client.library_layouts
     @clouds_interface = @api_client.clouds
+    @clouds_datastores_interface = @api_client.cloud_datastores
     @servers_interface = @api_client.servers
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
@@ -312,6 +314,15 @@ class Morpheus::Cli::Instances
       opts.on("--layout-size NUMBER", Integer, "Apply a multiply factor of containers/vms within the instance") do |val|
         options[:layout_size] = val.to_i
       end
+      opts.on( '-l', '--layout LAYOUT', "Layout ID" ) do |val|
+        options[:layout] = val
+      end
+      opts.on( '-p', '--plan PLAN', "Service plan ID") do |val|
+        options[:service_plan] = val
+      end
+      opts.on( '--resource-pool ID', String, "Resource pool ID" ) do |val|
+        options[:resource_pool] = val
+      end
       opts.on("--workflow ID", String, "Automation: Workflow ID") do |val|
         options[:workflow_id] = val
       end
@@ -371,7 +382,7 @@ class Morpheus::Cli::Instances
         # prompt for all the instance configuration options
         # this provisioning helper method handles all (most) of the parsing and prompting
         # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
-        payload = prompt_new_instance(options)
+        payload = prompt_new_instance(options, @clouds_datastores_interface)
         # clean payload of empty objects 
         # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
         if payload['instance'].is_a?(Hash)
