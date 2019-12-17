@@ -7,15 +7,17 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Tasks
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :get, :add, :update, :remove, :types => :task_types
+  register_subcommands :list, :get, :add, :update, :remove, :execute, :types => :task_types
   alias_subcommand :details, :get
   alias_subcommand :'task-types', :task_types
   set_default_subcommand :list
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @tasks_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).tasks
-    @task_sets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).task_sets
+    @tasks_interface = @api_client.tasks
+    @task_sets_interface = @api_client.task_sets
+    @instances_interface = @api_client.instances
+    @servers_interface = @api_client.servers
   end
 
   def handle(args)
@@ -233,21 +235,22 @@ class Morpheus::Cli::Tasks
       @tasks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @tasks_interface.dry.update(task['id'], payload)
-        return
+        return 0
       end
       response = @tasks_interface.update(task['id'], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         if !response['success']
-          exit 1
+          return 1
         end
       else
         print_green_success "Task #{response['task']['name']} updated"
         get([task['id']])
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -348,6 +351,9 @@ class Morpheus::Cli::Tasks
       end
       opts.on('--retry-delay SECONDS', String, "Retry Delay Seconds" ) do |val|
         options[:options]['retryDelaySeconds'] = val.to_i
+      end
+      opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
+        options[:options]['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --O taskOptions.script" ) do |filename|
         full_filename = File.expand_path(filename)
@@ -554,6 +560,13 @@ class Morpheus::Cli::Tasks
         end
 
 
+        # Allow Custom Config
+        if options[:options]['allowCustomConfig'] != nil
+          payload['task']['allowCustomConfig'] = options[:options]['allowCustomConfig']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowCustomConfig', 'fieldLabel' => 'Allow Custom Config', 'type' => 'checkbox', 'defaultValue' => false}], options[:options], @api_client)
+          payload['task']['allowCustomConfig'] = ['true','on'].include?(v_prompt['allowCustomConfig'].to_s) unless v_prompt['allowCustomConfig'].nil?
+        end
        
 
       end
@@ -617,8 +630,122 @@ class Morpheus::Cli::Tasks
     end
   end
 
+  def execute(args)
+    params = {}
+    options = {}
+    target_type = nil
+    instance_ids = []
+    instances = []
+    server_ids = []
+    servers = []
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[task] --instance [instance] [options]")
+      opts.on('--instance INSTANCE', String, "Instance name or id to execute the task on. This option can be passed more than once.") do |val|
+        target_type = 'instance'
+        instance_ids << val
+      end
+      opts.on('--instances [LIST]', Array, "Instances, comma separated list of instance names or IDs.") do |list|
+        target_type = 'instance'
+        instance_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--host HOST', String, "Host name or id to execute the task on. This option can be passed more than once.") do |val|
+        target_type = 'server'
+        server_ids << val
+      end
+      opts.on('--hosts [LIST]', Array, "Hosts, comma separated list of host names or IDs.") do |list|
+        target_type = 'server'
+        server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--server HOST', String, "alias for --host") do |val|
+        target_type = 'server'
+        server_ids << val
+      end
+      opts.on('--servers [LIST]', Array, "alias for --hosts") do |list|
+        target_type = 'server'
+        server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.add_hidden_option('--server')
+      opts.add_hidden_option('--servers')
+      opts.on('--config [TEXT]', String, "Custom config") do |val|
+        params['customConfig'] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    task_name = args[0]
+    connect(options)
+    begin
+      task = find_task_by_name_or_id(task_name)
+      return 1 if task.nil?
+
+      if instance_ids.size > 0 && server_ids.size > 0
+        raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
+      elsif instance_ids.size > 0
+        instance_ids.each do |instance_id|
+          instance = find_instance_by_name_or_id(instance_id)
+          return 1 if instance.nil?
+          instances << instance
+        end
+        params['instances'] = instances.collect {|it| it['id'] }
+      elsif server_ids.size > 0
+        server_ids.each do |server_id|
+          server = find_server_by_name_or_id(server_id)
+          return 1 if server.nil?
+          servers << server
+        end
+        params['servers'] = instances.collect {|it| it['id'] }
+      else
+        raise_command_error "missing required option: --instance or --host\n#{optparse}"
+      end
+
+      # todo: prompt to task optionTypes for customOptions
+      if task['optionTypes']
+        
+      end
+
+      params['targetType'] = target_type
+
+      job_payload = {}
+      job_payload.deep_merge!(params)
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      job_payload.deep_merge!(passed_options) unless passed_options.empty?
+
+      payload = {'job' => job_payload}
+
+      @tasks_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @tasks_interface.dry.run(task['id'], payload)
+        return
+      end
+      response = @tasks_interface.run(task['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        if !response['success']
+          return 1
+        end
+      else
+        target_desc = ""
+        if instances.size() > 0
+          target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
+        elsif servers.size() > 0
+          target_desc = (servers.size() == 1) ? "host #{servers[0]['name']}" : "#{servers.size()} hosts"
+        end
+        print_green_success "Executing task #{task['name']} on #{target_desc}"
+        # todo: load job/execution
+        # get([task['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
 
   private
+
   def find_task_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_task_by_id(val)
@@ -697,6 +824,80 @@ class Morpheus::Cli::Tasks
       columns = opts[:include_fields]
     end
     print as_pretty_table(tasks, columns, opts)
+  end
+
+  def find_instance_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_instance_by_id(val)
+    else
+      return find_instance_by_name(val)
+    end
+  end
+
+  def find_instance_by_id(id)
+    begin
+      json_response = @instances_interface.get(id.to_i)
+      return json_response['instance']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Instance not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_instance_by_name(name)
+    instances = @instances_interface.list({name: name.to_s})['instances']
+    if instances.empty?
+      print_red_alert "Instance not found by name #{name}"
+      return nil
+    elsif instances.size > 1
+      print_red_alert "#{instances.size} instances found by name #{name}"
+      as_pretty_table(instances, [:id, :name], {color: red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return instances[0]
+    end
+  end
+
+  def find_server_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_server_by_id(val)
+    else
+      return find_server_by_name(val)
+    end
+  end
+
+  def find_server_by_id(id)
+    begin
+      json_response = @servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Server not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_server_by_name(name)
+    servers = @servers_interface.list({name: name.to_s})['servers']
+    if servers.empty?
+      print_red_alert "Host not found by name #{name}"
+      return nil
+    elsif servers.size > 1
+      print_red_alert "#{servers.size} hosts found by name #{name}"
+      as_pretty_table(servers, [:id, :name], {color: red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return servers[0]
+    end
   end
 
 end

@@ -47,4 +47,12 @@ class Morpheus::TaskSetsInterface < Morpheus::APIClient
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :delete, url: url, headers: headers)
   end
+
+  def run(id, options)
+    url = "#{@base_url}/api/task-sets/#{id}/execute"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
 end
