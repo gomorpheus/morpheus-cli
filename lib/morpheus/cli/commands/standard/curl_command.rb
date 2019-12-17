@@ -12,6 +12,9 @@ class Morpheus::Cli::CurlCommand
     split_args = args.join(" ").split(" -- ")
     args = split_args[0].split(" ")
     curl_args = split_args[1] ? split_args[1].split(" ") : []
+    curl_method = nil
+    curl_data = nil
+    show_progress = false
     # puts "args is : #{args}"
     # puts "curl_args is : #{curl_args}"
     options = {}
@@ -19,6 +22,15 @@ class Morpheus::Cli::CurlCommand
       opts.banner = "Usage: morpheus curl [path] -- [*args]"
       opts.on( '-p', '--pretty', "Print result as parsed JSON." ) do
         options[:pretty] = true
+      end
+      opts.on( '-X', '--request METHOD', "HTTP request method. Default is GET" ) do |val|
+        curl_method = val
+      end
+      opts.on( '--data DATA', String, "HTTP request body for use with POST and PUT, typically JSON." ) do |val|
+        curl_data = val
+      end
+      opts.on( '--progress', '--progress', "Display progress output by excluding the -s option." ) do
+        show_progress = true
       end
       build_common_options(opts, options, [:dry_run, :remote])
       opts.add_hidden_option('--curl')
@@ -71,9 +83,20 @@ EOT
       api_path = api_path.sub(/^\//, "") # strip leading slash
       url = "#{@appliance_url.chomp('/')}/#{api_path}"
     end
-    curl_cmd = "curl \"#{url}\""
+    curl_cmd = "curl"
+    if show_progress == false
+      curl_cmd << " -s"
+    end
+    if curl_method
+      curl_cmd << " -X#{curl_method}"
+    end
+    curl_cmd << " \"#{url}\""
     if @access_token
       curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
+    end
+    if curl_data
+      #todo: curl_data.gsub("'","\\'")
+      curl_cmd << " --data '#{curl_data}'"
     end
     if !curl_args.empty?
       curl_cmd << " " + curl_args.join(' ')
@@ -89,16 +112,18 @@ EOT
       print reset
       return 0
     end
-    print cyan
-    print "#{cyan}#{curl_cmd_str}#{reset}"
-    print "\n\n"
+    # print cyan
+    # print "#{cyan}#{curl_cmd_str}#{reset}"
+    # print "\n\n"
     print reset
     # print result
     curl_output = `#{curl_cmd}`
     if options[:pretty]
       output_lines = curl_output.split("\n")
       last_line = output_lines.pop
-      puts output_lines.join("\n")
+      if output_lines.size > 0
+        puts output_lines.join("\n")
+      end
       begin
         json_data = JSON.parse(last_line)
         json_string = JSON.pretty_generate(json_data)
