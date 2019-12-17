@@ -36,7 +36,7 @@ class Morpheus::Cli::CurlCommand
       opts.add_hidden_option('--curl')
       #opts.add_hidden_option('--scrub')
       opts.footer = <<-EOT
-This invokes the `curl` command with url "appliance_url/api/$0
+This invokes the `curl` command with url "appliance_url/$0
 and includes the authorization header -H "Authorization: Bearer access_token"
 Arguments for the curl command should be passed after ' -- '
 Example: morpheus curl "/api/servers/1" -- -XGET -sv
