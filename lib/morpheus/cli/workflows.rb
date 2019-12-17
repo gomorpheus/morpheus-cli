@@ -110,6 +110,12 @@ class Morpheus::Cli::Workflows
           option_type_arg_list << {option_type_id: it.to_s.strip}
         end
       end
+      opts.on('--platform [PLATFORM]', String, "Platform, eg. linux, windows or osx") do |val|
+        params['platform'] = val.to_s.empty? ? nil : val.to_s.downcase
+      end
+      opts.on('--visibility VISIBILITY', String, "Visibility, eg. private or public") do |val|
+        params['visibility'] = val.to_s.downcase
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
@@ -149,8 +155,6 @@ class Morpheus::Cli::Workflows
         end
         option_types = []
         if option_type_arg_list
-          # if workflow_type == 'operation'
-          # end
           option_type_arg_list.each do |option_type_arg|
             found_option_type = find_option_type_by_name_or_id(option_type_arg[:option_type_id])
             return 1 if found_option_type.nil?
@@ -248,6 +252,8 @@ class Morpheus::Cli::Workflows
           "Name" => 'name',
           "Description" => 'description',
           "Type" => lambda {|workflow| format_workflow_type(workflow) },
+          "Platform" => lambda {|it| format_platform(it['platform']) },
+          "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }
@@ -285,6 +291,7 @@ class Morpheus::Cli::Workflows
     options = {}
     params = {}
     task_arg_list = nil
+    option_type_arg_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "New name for workflow") do |val|
@@ -296,6 +303,18 @@ class Morpheus::Cli::Workflows
           task_id, task_phase = it.split(":")
           task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
         end
+      end
+      opts.on("--option-types x,y,z", Array, "List of option type name or IDs. For use with operational workflows to add configuration during execution.") do |list|
+        option_type_arg_list = []
+        list.each do |it|
+          option_type_arg_list << {option_type_id: it.to_s.strip}
+        end
+      end
+      opts.on('--platform [PLATFORM]', String, "Platform, eg. linux, windows or osx") do |val|
+        params['platform'] = val.to_s.empty? ? nil : val.to_s.downcase
+      end
+      opts.on('--visibility VISIBILITY', String, "Visibility, eg. private or public") do |val|
+        params['visibility'] = val.to_s.downcase
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
@@ -324,11 +343,22 @@ class Morpheus::Cli::Workflows
             tasks << row
           end
         end
+        option_types = []
+        if option_type_arg_list
+          option_type_arg_list.each do |option_type_arg|
+            found_option_type = find_option_type_by_name_or_id(option_type_arg[:option_type_id])
+            return 1 if found_option_type.nil?
+            option_types << found_option_type['id']
+          end
+        end
         payload = {'taskSet' => {}}
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         payload['taskSet'].deep_merge!(params)
         if !tasks.empty?
           payload['taskSet']['tasks'] = tasks
+        end
+        if !option_types.empty?
+          payload['taskSet']['optionTypes'] = option_types
         end
       end
       @task_sets_interface.setopts(options)
@@ -607,6 +637,16 @@ class Morpheus::Cli::Workflows
       "Operational"
     else
       workflow['type']
+    end
+  end
+
+  def format_platform(platform)
+    if platform.nil?
+      "All"
+    elsif platform == 'osx'
+      "OSX"
+    else
+      platform.to_s.capitalize
     end
   end
 
