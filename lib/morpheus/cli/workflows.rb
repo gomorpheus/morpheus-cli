@@ -100,7 +100,7 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
-      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional, the default is 'provision'.") do |list|
+      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
         task_arg_list = []
         list.each do |it|
           task_id, task_phase = it.split(":")
@@ -324,7 +324,7 @@ class Morpheus::Cli::Workflows
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val
       end
-      opts.on("--tasks x,y,z", Array, "New list of tasks to run in the format <Task ID>:<Phase>. Phase is optional, the default is 'provision'.") do |list|
+      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
         task_arg_list = []
         list.each do |it|
           task_id, task_phase = it.split(":")
