@@ -764,6 +764,7 @@ class Morpheus::Cli::Tasks
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Task not found by id #{id}"
+        return nil
       else
         raise e
       end
@@ -844,6 +845,7 @@ class Morpheus::Cli::Tasks
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Instance not found by id #{id}"
+        return nil
       else
         raise e
       end
@@ -881,6 +883,7 @@ class Morpheus::Cli::Tasks
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Server not found by id #{id}"
+        return nil
       else
         raise e
       end
