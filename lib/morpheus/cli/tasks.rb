@@ -699,7 +699,7 @@ class Morpheus::Cli::Tasks
           return 1 if server.nil?
           servers << server
         end
-        params['servers'] = instances.collect {|it| it['id'] }
+        params['servers'] = servers.collect {|it| it['id'] }
       else
         raise_command_error "missing required option: --instance or --host\n#{optparse}"
       end
