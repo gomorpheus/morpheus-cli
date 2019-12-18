@@ -164,6 +164,9 @@ class Morpheus::Cli::Tasks
               format_boolean(it['retryable'])
             end
           },
+          "Allow Custom Config" => lambda {|it| format_boolean(it['allowCustomConfig']) },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }
         print_description_list(description_cols, task)
         
@@ -817,7 +820,7 @@ class Morpheus::Cli::Tasks
       {"ID" => lambda {|it| it['id'] } },
       {"NAME" => lambda {|it| it['name'] } },
       {"TYPE" => lambda {|it| it['taskType']['name'] ? it['taskType']['name'] : it['type'] } },
-      # {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+      {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
     ]
     if opts[:include_fields]

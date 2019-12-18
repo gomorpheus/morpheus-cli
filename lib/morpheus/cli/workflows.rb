@@ -88,6 +88,9 @@ class Morpheus::Cli::Workflows
       opts.on("--name NAME", String, "Name for workflow") do |val|
         params['name'] = val
       end
+      opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
+        params['description'] = val
+      end
       opts.on("-t", "--type TYPE", "Type of workflow. i.e. provision or operation. Default is provision.") do |val|
         workflow_type = val.to_s.downcase
         if workflow_type == 'provisional'
@@ -112,6 +115,9 @@ class Morpheus::Cli::Workflows
       end
       opts.on('--platform [PLATFORM]', String, "Platform, eg. linux, windows or osx") do |val|
         params['platform'] = val.to_s.empty? ? nil : val.to_s.downcase
+      end
+      opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
+        params['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--visibility VISIBILITY', String, "Visibility, eg. private or public") do |val|
         params['visibility'] = val.to_s.downcase
@@ -253,6 +259,7 @@ class Morpheus::Cli::Workflows
           "Description" => 'description',
           "Type" => lambda {|workflow| format_workflow_type(workflow) },
           "Platform" => lambda {|it| format_platform(it['platform']) },
+          "Allow Custom Config" => lambda {|it| format_boolean(it['allowCustomConfig']) },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
@@ -277,9 +284,26 @@ class Morpheus::Cli::Workflows
             {"PHASE" => lambda {|it| it['taskPhase'] } }, # not returned yet?
           ]
           print cyan
-          puts as_pretty_table(tasks, task_set_task_columns)
+          print as_pretty_table(tasks, task_set_task_columns)
+        end
+
+        workflow_option_types = workflow['optionTypes']
+
+        if workflow_option_types && workflow_option_types.size() > 0
+          print_h2 "Workflow Option Types"
+          columns = [
+            {"ID" => lambda {|it| it['id'] } },
+            {"NAME" => lambda {|it| it['name'] } },
+            {"TYPE" => lambda {|it| it['type'] } },
+            {"FIELD NAME" => lambda {|it| it['fieldName'] } },
+            {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+            {"DEFAULT" => lambda {|it| it['defaultValue'] } },
+            {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+          ]
+          print as_pretty_table(workflow_option_types, columns)
         end
         print reset
+        print "\n"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -297,6 +321,9 @@ class Morpheus::Cli::Workflows
       opts.on("--name NAME", String, "New name for workflow") do |val|
         params['name'] = val
       end
+      opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
+        params['description'] = val
+      end
       opts.on("--tasks x,y,z", Array, "New list of tasks to run in the format <Task ID>:<Phase>. Phase is optional, the default is 'provision'.") do |list|
         task_arg_list = []
         list.each do |it|
@@ -312,6 +339,9 @@ class Morpheus::Cli::Workflows
       end
       opts.on('--platform [PLATFORM]', String, "Platform, eg. linux, windows or osx") do |val|
         params['platform'] = val.to_s.empty? ? nil : val.to_s.downcase
+      end
+      opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
+        params['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--visibility VISIBILITY', String, "Visibility, eg. private or public") do |val|
         params['visibility'] = val.to_s.downcase
@@ -407,7 +437,7 @@ class Morpheus::Cli::Workflows
       if options[:json]
         print JSON.pretty_generate(json_response)
       elsif !options[:quiet]
-        print "\n", cyan, "Workflow #{workflow['name']} removed", reset, "\n\n"
+        print_green_success "Workflow #{workflow['name']} removed"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -616,13 +646,15 @@ class Morpheus::Cli::Workflows
     columns = [
       {"ID" => lambda {|workflow| workflow['id'] } },
       {"NAME" => lambda {|workflow| workflow['name'] } },
+      {"DESCRIPTION" => lambda {|workflow| workflow['description'] } },
       {"TYPE" => lambda {|workflow| format_workflow_type(workflow) } },
       {"TASKS" => lambda {|workflow| 
-        (workflow['taskSetTasks'] || []).sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }.collect { |taskSetTask|
-          taskSetTask['task']['name']
-        }.join(', ')
+        # (workflow['taskSetTasks'] || []).sort { |x,y| x['taskOrder'].to_i <=> y['taskOrder'].to_i }.collect { |taskSetTask|
+        #   taskSetTask['task']['name']
+        # }.join(', ')
+        (workflow['taskSetTasks'] || []).size.to_s
        } },
-      {"DATE CREATED" => lambda {|workflow| format_local_dt(workflow['dateCreated']) } },
+      {"CREATED" => lambda {|workflow| format_local_dt(workflow['dateCreated']) } },
     ]
     if opts[:include_fields]
       columns = opts[:include_fields]
