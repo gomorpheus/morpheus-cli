@@ -17,6 +17,10 @@ class Morpheus::Cli::ReportsCommand
 
   register_subcommands :list, :get, :run, :view, :export, :remove, :types
   
+  def default_refresh_interval
+    5
+  end
+  
   def handle(args)
     handle_subcommand(args)
   end
