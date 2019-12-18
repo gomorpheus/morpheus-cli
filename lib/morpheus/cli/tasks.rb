@@ -581,7 +581,7 @@ class Morpheus::Cli::Tasks
         print JSON.pretty_generate(json_response),"\n"
       elsif !options[:quiet]
         task = json_response['task']
-        print_green_success "Task #{task['name']} created successfully"
+        print_green_success "Task #{task['name']} created"
         get([task['id']])
       end
     rescue RestClient::Exception => e

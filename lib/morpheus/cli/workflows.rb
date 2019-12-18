@@ -182,7 +182,7 @@ class Morpheus::Cli::Workflows
         print JSON.pretty_generate(json_response)
       else
         workflow = json_response['taskSet']
-        print "\n", cyan, "Workflow #{workflow['name']} created successfully", reset, "\n\n"
+        print_green_success "Workflow #{workflow['name']} created"
         get([workflow['id']])
       end
     rescue RestClient::Exception => e
@@ -370,7 +370,7 @@ class Morpheus::Cli::Workflows
       if options[:json]
         print JSON.pretty_generate(json_response)
       elsif !options[:quiet]
-        print "\n", cyan, "Workflow #{json_response['taskSet']['name']} updated successfully", reset, "\n\n"
+        print_green_success "Workflow #{json_response['taskSet']['name']} updated"
         get([workflow['id']])
       end
     rescue RestClient::Exception => e
