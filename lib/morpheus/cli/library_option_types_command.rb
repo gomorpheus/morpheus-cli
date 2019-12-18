@@ -120,8 +120,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         return
       end
       option_type = find_option_type_by_name_or_id(id)
-      exit 1 if option_type.nil?
-
+      return 1 if option_type.nil?
+      json_response = {'optionType' => option_type}
       if options[:json]
         puts as_json(json_response, options, "optionType")
         return 0
