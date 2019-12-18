@@ -20,7 +20,7 @@ class Morpheus::Cli::ReportsCommand
   def default_refresh_interval
     5
   end
-  
+
   def handle(args)
     handle_subcommand(args)
   end
@@ -33,14 +33,13 @@ class Morpheus::Cli::ReportsCommand
       opts.on( '--type CODE', String, "Report Type code(s)" ) do |val|
         params['reportType'] = val.to_s.split(",").compact.collect {|it| it.strip }
       end
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :dry_run, :remote])
       opts.footer = "List report history."
     end
     optparse.parse!(args)
     connect(options)
     begin
       params.merge!(parse_list_options(options))
-      
       @reports_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @reports_interface.dry.list(params)
@@ -272,6 +271,10 @@ class Morpheus::Cli::ReportsCommand
 
         # Report Types tell us what the available filters are...
         report_option_types = report_type['optionTypes'] || []
+        report_option_types = report_option_types.collect {|it|
+          it['fieldContext'] = nil
+          it
+        }
         # pluck out optionTypes like the UI does..
         metadata_option_type = nil
         if report_option_types.find {|it| it['fieldName'] == 'metadata' }
@@ -279,6 +282,7 @@ class Morpheus::Cli::ReportsCommand
         end
 
         v_prompt = Morpheus::Cli::OptionTypes.prompt(report_option_types, options[:options], @api_client)
+        payload.deep_merge!({'report' => v_prompt}) unless v_prompt.empty?
 
         if metadata_option_type
           if !options[:options]['metadata']
@@ -289,8 +293,6 @@ class Morpheus::Cli::ReportsCommand
           end
         end
 
-        # payload.deep_merge!({'report' => v_prompt}) unless v_prompt.empty?
-        payload.deep_merge!(v_prompt) unless v_prompt.empty?
       end
 
       @reports_interface.setopts(options)
