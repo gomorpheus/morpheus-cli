@@ -555,7 +555,7 @@ class Morpheus::Cli::Workflows
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -567,47 +567,54 @@ class Morpheus::Cli::Workflows
       workflow = find_workflow_by_name_or_id(workflow_name)
       return 1 if workflow.nil?
 
-      if instance_ids.size > 0 && server_ids.size > 0
-        raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
-      elsif instance_ids.size > 0
-        instance_ids.each do |instance_id|
-          instance = find_instance_by_name_or_id(instance_id)
-          return 1 if instance.nil?
-          instances << instance
-        end
-        params['instances'] = instances.collect {|it| it['id'] }
-      elsif server_ids.size > 0
-        server_ids.each do |server_id|
-          server = find_server_by_name_or_id(server_id)
-          return 1 if server.nil?
-          servers << server
-        end
-        params['servers'] = servers.collect {|it| it['id'] }
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'job' => passed_options})  unless passed_options.empty?
       else
-        raise_command_error "missing required option: --instance or --host\n#{optparse}"
-      end
+        if instance_ids.size > 0 && server_ids.size > 0
+          raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
+        elsif instance_ids.size > 0
+          instance_ids.each do |instance_id|
+            instance = find_instance_by_name_or_id(instance_id)
+            return 1 if instance.nil?
+            instances << instance
+          end
+          params['instances'] = instances.collect {|it| it['id'] }
+        elsif server_ids.size > 0
+          server_ids.each do |server_id|
+            server = find_server_by_name_or_id(server_id)
+            return 1 if server.nil?
+            servers << server
+          end
+          params['servers'] = servers.collect {|it| it['id'] }
+        else
+          raise_command_error "missing required option: --instance or --host\n#{optparse}"
+        end
 
-      # todo: prompt to workflow optionTypes for customOptions
-      custom_options = nil
-      if workflow['optionTypes'] && workflow['optionTypes'].size() > 0
-        custom_option_types = workflow['optionTypes'].collect {|it|
-          it['fieldContext'] = 'customOptions'
-          it
-        }
-        custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
-      end
+        # todo: prompt to workflow optionTypes for customOptions
+        custom_options = nil
+        if workflow['optionTypes'] && workflow['optionTypes'].size() > 0
+          custom_option_types = workflow['optionTypes'].collect {|it|
+            it['fieldContext'] = 'customOptions'
+            it
+          }
+          custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
+        end
 
-      params['targetType'] = target_type
+        params['targetType'] = target_type
 
-      job_payload = {}
-      job_payload.deep_merge!(params)
-      passed_options.delete('customOptions')
-      job_payload.deep_merge!(passed_options) unless passed_options.empty?
-      if custom_options
-        # job_payload.deep_merge!('config' => custom_options)
-        job_payload.deep_merge!(custom_options)
+        job_payload = {}
+        job_payload.deep_merge!(params)
+        passed_options.delete('customOptions')
+        job_payload.deep_merge!(passed_options) unless passed_options.empty?
+        if custom_options
+          # job_payload.deep_merge!('config' => custom_options)
+          job_payload.deep_merge!(custom_options)
+        end
+        payload = {'job' => job_payload}
       end
-      payload = {'job' => job_payload}
 
       @task_sets_interface.setopts(options)
       if options[:dry_run]

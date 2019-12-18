@@ -684,39 +684,44 @@ class Morpheus::Cli::Tasks
       task = find_task_by_name_or_id(task_name)
       return 1 if task.nil?
 
-      if instance_ids.size > 0 && server_ids.size > 0
-        raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
-      elsif instance_ids.size > 0
-        instance_ids.each do |instance_id|
-          instance = find_instance_by_name_or_id(instance_id)
-          return 1 if instance.nil?
-          instances << instance
-        end
-        params['instances'] = instances.collect {|it| it['id'] }
-      elsif server_ids.size > 0
-        server_ids.each do |server_id|
-          server = find_server_by_name_or_id(server_id)
-          return 1 if server.nil?
-          servers << server
-        end
-        params['servers'] = servers.collect {|it| it['id'] }
-      else
-        raise_command_error "missing required option: --instance or --host\n#{optparse}"
-      end
-
-      # todo: prompt to task optionTypes for customOptions
-      if task['optionTypes']
-        
-      end
-
-      params['targetType'] = target_type
-
-      job_payload = {}
-      job_payload.deep_merge!(params)
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      job_payload.deep_merge!(passed_options) unless passed_options.empty?
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'job' => passed_options})  unless passed_options.empty?
+      else
+        if instance_ids.size > 0 && server_ids.size > 0
+          raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
+        elsif instance_ids.size > 0
+          instance_ids.each do |instance_id|
+            instance = find_instance_by_name_or_id(instance_id)
+            return 1 if instance.nil?
+            instances << instance
+          end
+          params['instances'] = instances.collect {|it| it['id'] }
+        elsif server_ids.size > 0
+          server_ids.each do |server_id|
+            server = find_server_by_name_or_id(server_id)
+            return 1 if server.nil?
+            servers << server
+          end
+          params['servers'] = servers.collect {|it| it['id'] }
+        else
+          raise_command_error "missing required option: --instance or --host\n#{optparse}"
+        end
 
-      payload = {'job' => job_payload}
+        # todo: prompt to task optionTypes for customOptions
+        if task['optionTypes']
+          
+        end
+
+        params['targetType'] = target_type
+
+        job_payload = {}
+        job_payload.deep_merge!(params)
+        job_payload.deep_merge!(passed_options) unless passed_options.empty?
+        payload = {'job' => job_payload}
+      end
 
       @tasks_interface.setopts(options)
       if options[:dry_run]
