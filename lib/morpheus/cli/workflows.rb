@@ -95,9 +95,9 @@ class Morpheus::Cli::Workflows
       end
       opts.on("-t", "--type TYPE", "Type of workflow. i.e. provision or operation. Default is provision.") do |val|
         workflow_type = val.to_s.downcase
-        if workflow_type == 'provisional'
+        if workflow_type.include?('provision')
           workflow_type = 'provision'
-        elsif workflow_type == 'operational'
+        elsif workflow_type.include?('operation')
           workflow_type = 'operation'
         end
         params['type'] = workflow_type
