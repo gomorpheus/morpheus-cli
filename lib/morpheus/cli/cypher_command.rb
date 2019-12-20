@@ -66,6 +66,7 @@ class Morpheus::Cli::CypherCommand
         puts records_as_csv([json_response], options)
         return 0
       end
+      cypher_items = json_response["cypherItems"] || json_response["cyphers"]
       cypher_data = json_response["data"]
       title = "Morpheus Cypher Key List"
       subtitles = []
@@ -93,13 +94,15 @@ class Morpheus::Cli::CypherCommand
           "EXPIRATION" => lambda {|it| 
             format_expiration_date(it["expireDate"])
           },
-          "DATE CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
-          "LAST ACCESS" => lambda {|it| format_local_dt(it["lastAccessed"]) }
+          # "DATE CREATED" => lambda {|it| format_local_dt(it["dateCreated"]) },
+          "LAST UPDATED" => lambda {|it| format_local_dt(it["lastUpdated"]) },
+          "LAST ACCESSED" => lambda {|it| format_local_dt(it["lastAccessed"]) }
         }
         print cyan
-        print as_pretty_table(json_response["cypherItems"], cypher_columns, options)
+        print as_pretty_table(cypher_items, cypher_columns, options)
         print reset
-        print_results_pagination({size:cypher_keys.size,total:cypher_keys.size.to_i})
+        # print_results_pagination({size:cypher_keys.size,total:cypher_keys.size.to_i})
+        print_results_pagination(json_response)
       end
       print reset,"\n"
       return 0
@@ -114,7 +117,7 @@ class Morpheus::Cli::CypherCommand
     params = {}
     value_only = false
     do_decrypt = false
-    item_ttl = nil
+    ttl = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
       # opts.on(nil, '--decrypt', 'Display the decrypted value') do
@@ -127,14 +130,14 @@ class Morpheus::Cli::CypherCommand
         value_only = true
       end
       opts.on( '-t', '--ttl SECONDS', "Time to live, the lease duration before this key expires. Use if creating new key." ) do |val|
-        item_ttl = val
+        ttl = val
         if val.to_s.empty? || val.to_s == '0'
-          item_ttl = 0
+          ttl = 0
         else
-          item_ttl = val
+          ttl = val
         end
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :outfile, :dry_run, :quiet, :remote])
       opts.footer = "Read a cypher item and display the decrypted value." + "\n" +
                     "[key] is required. This is the cypher key to read." + "\n" +
                     "Use --ttl to specify a ttl if expecting cypher engine to automatically create the key."
@@ -148,33 +151,24 @@ class Morpheus::Cli::CypherCommand
     connect(options)
     begin
       item_key = args[0]
-      if item_ttl
-        params["ttl"] = item_ttl
+      if ttl
+        params["ttl"] = ttl
       end
       @cypher_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @cypher_interface.dry.get(item_key, params)
         return 0
       end
+      params.merge!(parse_list_options(options))
       json_response = @cypher_interface.get(item_key, params)
-
-      if options[:quiet]
+      render_result = render_with_format(json_response, options)
+      if render_result
         return 0
       end
-
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options)
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response], options)
-        return 0
-      end
-
+      
       cypher_item = json_response['cypher']
       decrypted_value = json_response["data"]
+      data_type = decrypted_value.is_a?(String) ? 'string' : 'object'
 
       if value_only
         print cyan
@@ -201,19 +195,24 @@ class Morpheus::Cli::CypherCommand
         "TTL" => lambda {|it| 
           format_expiration_ttl(it["expireDate"])
         },
+        # "Type" => lambda {|it| 
+        #   data_type
+        # },
         "Expiration" => lambda {|it| 
           format_expiration_date(it["expireDate"])
         },
-        "Date Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
-        "Last Access" => lambda {|it| format_local_dt(it["lastAccessed"]) }
+        # "Date Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
+        "Last Updated" => lambda {|it| format_local_dt(it["lastUpdated"]) },
+        "Last Accessed" => lambda {|it| format_local_dt(it["lastAccessed"]) }
       }
       if cypher_item["expireDate"].nil?
         description_cols.delete("Expires")
       end
       print_description_list(description_cols, cypher_item)
 
-      print_h2 "Value", options
-      # print_h2 "Decrypted Value"
+      # print_h2 "Value", options
+      # print_h2 "Data", options
+      print_h2 "Data (#{data_type})", options
       
       if decrypted_value
         print cyan
@@ -247,36 +246,44 @@ class Morpheus::Cli::CypherCommand
   end
 
   def put(args)
+        usage = <<-EOT
+Usage: morpheus #{command_name} put [key] [value] [options] to store a string.
+       morpheus #{command_name} put [key] [k=v] [k=v] [options] to store an object.
+EOT
     options = {}
     params = {}
     item_key = nil
     item_value = nil
-    item_ttl = nil
+    ttl = nil
     no_overwrite = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[key] [value]")
-      # opts.on( '--key VALUE', String, "Key" ) do |val|
-      #   item_key = val
-      # end
-      opts.on( '-v', '--value VALUE', "Secret value" ) do |val|
+      # opts.banner = subcommand_usage("[key] [value]\n\t[key] [k=v] [k=v] [k=v]") 
+      opts.banner = usage 
+      opts.on( '--key KEY', String, "Key. This can also be passed as the first argument." ) do |val|
+        item_key = val
+      end
+      opts.on( '-v', '--value VALUE', "Secret value. This can be used to store a string instead of an object, and can also be passed as the second argument." ) do |val|
         item_value = val
       end
       opts.on( '-t', '--ttl SECONDS', "Time to live, the lease duration before this key expires." ) do |val|
-        item_ttl = val
+        ttl = val
         if val.to_s.empty? || val.to_s == '0'
-          item_ttl = 0
+          ttl = 0
         else
-          item_ttl = val
+          ttl = val
         end
       end
       # opts.on( '--no-overwrite', '--no-overwrite', "Do not overwrite existing keys. Existing keys are overwritten by default." ) do
       #   params['overwrite'] = false
       # end
-      build_common_options(opts, options, [:auto_confirm, :options, :payload, :json, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:auto_confirm, :options, :payload, :json, :yaml, :csv, :fields, :outfile, :dry_run, :quiet, :remote])
       opts.footer = "Create or update a cypher key." + "\n" +
-                    "[key] is required. This is the key of the cypher being created or updated." + "\n" +
-                    "[value] is required. This is the new value or value pairs being stored. Supports format foo=bar, 1-N arguments." + "\n" +
-                    "The --payload option can be used instead of passing [value] argument."
+                    "[key] is required. This is the key of the cypher being created or updated. The key includes the mount prefix eg. secret/hello" + "\n" +
+                    "[value] is required for some cypher engines, such as secret. This is the secret value or k=v pairs being stored. Supports 1-N arguments." + "\n" +
+                    "If a single [value] is passed, it is stored as type string." + "\n" +
+                    "If more than one [value] is passed, the format is expected to be k=v and the value will be stored as an object." + "\n" +
+                    "The --value option can be used to store a string value." + "\n" +
+                    "The --payload option can be used to store an object."
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -285,170 +292,160 @@ class Morpheus::Cli::CypherCommand
     #   return 1
     # end
     connect(options)
-    begin
-      if args[0]
-        item_key = args[0]
+    
+    # parse arguments like [value] or [k=v]
+    item_key = args[0]
+    item_value = args[1]
+    if args.count == 0
+      # prompt for key and value
+    elsif args.count == 1
+      # prompt for value
+    elsif args.count == 2
+      # expecting [value] or [k=v]
+      item_value_object = {}
+      item_value_pair = item_value.split("=")
+      if item_value_pair.size == 2
+        item_value_object[item_value_pair[0].to_s] = item_value_pair[1]
+        item_value = item_value_object
+      else
+        # item_value = item_value
       end
-      options[:options] ||= {}
-      options[:options]['key'] = item_key if item_key
-      # Key prompt
+    elsif args.count > 2
+      # expecting [k=v] [k=v]
+      item_value_object = {}
+      args[1..(args.size-1)].each do |arg|
+        item_value_pair = arg.split("=")
+        item_value_object[item_value_pair[0].to_s] = item_value_pair[1]
+      end
+      item_value = item_value_object
+    end
+
+    # this is redunant and silly, refactor soon
+
+    # Key prompt
+    if item_key
+      options[:options]['key'] = item_key
+    end
+    if item_key.nil?
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'key', 'fieldLabel' => 'Key', 'type' => 'text', 'required' => true, 'description' => cypher_key_help}], options[:options])
       item_key = v_prompt['key']
+    end
 
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['key','value'].include?(k)}) if options[:options] && options[:options].keys.size > 0
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['key','value'].include?(k)}) if options[:options] && options[:options].keys.size > 0
+    else
+      # merge -O options into normally parsed options
+      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['key','value'].include?(k)}) if options[:options] && options[:options].keys.size > 0
+      
+      # Value prompt
+      value_is_required = false
+      cypher_mount_type = item_key.split("/").first
+      if ["secret","tfvars"].include?(cypher_mount_type)
+        value_is_required = true
+      end
+
+      # todo: read value from STDIN shall we?
+
+      # cool, we got value as arguments like foo=bar
+      if args.count > 1
+        # parse one and only arg as the value like password/mine mypassword123
+        if args.count == 2 && args[1].split("=").size() == 1
+          item_value = args[1]
+        elsif args.count > 1
+          # parse args as key value pairs like secret/config foo=bar thing=myvalue
+          value_arguments = args[1..-1]
+          value_arguments_map = {}
+          value_arguments.each do |value_argument|
+            value_pair = value_argument.split("=")
+            value_arguments_map[value_pair[0]] = value_pair[1] ? value_pair[1..-1].join("=") : nil
+          end
+          item_value = value_arguments_map
+        end
       else
-        # merge -O options into normally parsed options
-        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['key','value'].include?(k)}) if options[:options] && options[:options].keys.size > 0
-        
-        # Value prompt
-        value_is_required = false
-        cypher_mount_type = item_key.split("/").first
-        if ["secret"].include?(cypher_mount_type)
-          value_is_required = true
-        end
-
-        # todo: read value from STDIN shall we?
-
-        # cool, we got value as arguments like foo=bar
-        if args.count > 1
-          # parse one and only arg as the value like password/mine mypassword123
-          if args.count == 2 && args[1].split("=").size() == 1
-            item_value = args[1]
-          elsif args.count > 1
-            # parse args as key value pairs like secret/config foo=bar thing=myvalue
-            value_arguments = args[1..-1]
-            value_arguments_map = {}
-            value_arguments.each do |value_argument|
-              value_pair = value_argument.split("=")
-              value_arguments_map[value_pair[0]] = value_pair[1] ? value_pair[1..-1].join("=") : nil
-            end
-            item_value = value_arguments_map
-          end
-        else
-          # Prompt for a single text value to be sent as {"value":"my secret"}
-          if value_is_required
-            options[:options]['value'] = item_value if item_value
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'fieldLabel' => 'Value', 'type' => 'text', 'required' => value_is_required, 'description' => "Secret value for this cypher"}], options[:options])
-            item_value = v_prompt['value']
-          end
-        end
-
-        # construct payload
-        # payload = {
-        #   'cypher' => params
-        # }
-        
-        # if value is valid json, then the payload IS the value
-        if item_value.is_a?(String) && item_value.to_s[0] == '{' && item_value.to_s[-1] == '}'
-          begin
-            json_object = JSON.parse(item_value)
-            item_value = json_object
-          rescue => ex
-            Morpheus::Logging::DarkPrinter.puts "Failed to parse cypher value '#{item_value}' as JSON. Error: #{ex}" if Morpheus::Logging.debug?
-            raise_command_error "Failed to parse cypher value as JSON: #{item_value}"
-            # return 1
-          end
-        else
-          # it is just a string
-          if item_value.is_a?(String)
-            payload = {"value" => item_value}
-          elsif item_value.nil?
-            payload = {}
-          else item_value
-            # great, a Hash I hope
-            payload = item_value
-          end
+        # Prompt for a single text value to be sent as {"value":"my secret"}
+        if value_is_required
+          options[:options]['value'] = item_value if item_value
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'fieldLabel' => 'Value', 'type' => 'text', 'required' => value_is_required, 'description' => "Secret value for this cypher"}], options[:options])
+          item_value = v_prompt['value']
         end
       end
 
-      # prompt for Lease
-      options[:options]['ttl'] = item_ttl if item_ttl
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ttl', 'fieldLabel' => 'Lease (TTL in seconds)', 'type' => 'text', 'required' => false, 'description' => cypher_ttl_help}], options[:options])
-      item_ttl = v_prompt['ttl']
+      # make sure not to pass a value for these or it will not save them.
+      # if ['uuid','key','password'].include?(cypher_mount_type)
+      #   item_value = nil
+      # end
 
-
-      if item_ttl
-        # I would like this better as params...
-        payload["ttl"] = item_ttl
-      end
-      @cypher_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @cypher_interface.dry.create(item_key, payload)
-        return
-      end
-      existing_cypher = nil
-      json_response = @cypher_interface.list(item_key)
-      if json_response["data"] && json_response["data"]["keys"]
-        existing_cypher = json_response["data"]["keys"].find {|k| k == item_key }
-      end
-      if existing_cypher
-        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to overwrite the cypher key #{item_key}?")
-          return 9, "aborted command"
+      # construct payload
+      # payload = {
+      #   'cypher' => params
+      # }
+      payload = {}
+      # if value is valid json, then the payload IS the value
+      if item_value.is_a?(String) && item_value.to_s[0] == '{' && item_value.to_s[-1] == '}'
+        begin
+          json_object = JSON.parse(item_value)
+          item_value = json_object
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Failed to parse cypher value '#{item_value}' as JSON. Error: #{ex}" if Morpheus::Logging.debug?
+          raise_command_error "Failed to parse cypher value as JSON: #{item_value}"
+          # return 1
+        end
+      else
+        # it is just a string
+        if item_value.is_a?(String)
+          params['type'] = 'string'
+          #params["value"] = item_value
+          payload["value"] = item_value
+        elsif item_value.nil?
+          payload = {}
+        else item_value
+          # great, a Hash I hope
+          payload = item_value
         end
       end
-      json_response = @cypher_interface.create(item_key, payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print_green_success "Wrote cypher #{item_key}"
-        # should print without doing get, because that can use a token.
-        cypher_item = json_response['cypher']
-        get([item_key])
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def remove(args)
-    options = {}
-    params = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[key]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Delete a cypher." + "\n" +
-                    "[key] is required. This is the key of a cypher."
-    end
-    optparse.parse!(args)
-
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
-      return 1
     end
 
-    connect(options)
-    begin
-      item_key = args[0]
-      cypher_item = find_cypher_by_key(item_key)
-      return 1 if cypher_item.nil?
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the cypher #{item_key}?")
+    # prompt for Lease
+    options[:options]['ttl'] = ttl if ttl
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ttl', 'fieldLabel' => 'Lease (TTL in seconds)', 'type' => 'text', 'required' => false, 'description' => cypher_ttl_help, 'defaultValue' => '0'}], options[:options])
+    ttl = v_prompt['ttl']
+
+    if ttl
+      params['ttl'] = ttl
+      #payload["ttl"] = ttl
+    end
+    @cypher_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @cypher_interface.dry.create(item_key, params, payload)
+      return
+    end
+    existing_cypher = nil
+    json_response = @cypher_interface.list(item_key)
+    if json_response["data"] && json_response["data"]["keys"]
+      existing_cypher = json_response["data"]["keys"].find {|k| k == item_key }
+    end
+    if existing_cypher
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to overwrite the cypher key #{item_key}?")
         return 9, "aborted command"
       end
-      @cypher_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @cypher_interface.dry.destroy(item_key, params)
-        return
-      end
-      json_response = @cypher_interface.destroy(item_key, params)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        print_green_success "Deleted cypher #{item_key}"
-        # list([])
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    json_response = @cypher_interface.create(item_key, params, payload)
+    render_result = render_with_format(json_response, options)
+    if render_result
+      return 0
+    end
+    #print_green_success "Cypher #{item_key} updated"
+    # print_green_success "Wrote cypher #{item_key}"
+    print_green_success "Success! Data written to: #{item_key}"
+    # should print without doing get, because that can use a token.
+    cypher_item = json_response['cypher']
+    get_args = [item_key] + (options[:remote] ? ["-r",options[:remote]] : [])
+    get(get_args)
+    return 0
   end
-
+  
   private
 
   def find_cypher_by_key(key, params={})
@@ -478,16 +475,16 @@ key - Generates a Base 64 encoded AES Key of specified bit length in the key pat
 
   def cypher_ttl_help
     """
-Lease time in seconds
+TTL in seconds
 Quick Second Time Reference:
 Hour: 3600
 Day: 86400
 Week: 604800
 Month (30 days): 2592000
 Year: 31536000
-This can also be passed in abbreviated format with the unit as the suffix. eg. 32d, 90s, 5y
-This can be passed as 0 to disable expiration and never expire.
-The default is 32 days (2764800).
+Unlimited: 0
+This can be passed in abbreviated duration format. eg. 32d, 90s, 5y
+The default is 0, meaning Unlimited.
 """
   end
 
