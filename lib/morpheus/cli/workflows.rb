@@ -181,6 +181,9 @@ class Morpheus::Cli::Workflows
                 task_id, task_phase = it.split(":")
                 task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
               end
+            else
+              # empty array is allowed
+              tasks = []
             end
           end
           if task_arg_list
