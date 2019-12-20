@@ -165,7 +165,7 @@ class Morpheus::Cli::Workflows
         
         # Type
         if workflow_type.nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_workflow_types(), 'required' => true, 'description' => 'Workflow Type'}], options[:options], @api_client)
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_workflow_types(), 'required' => true, 'description' => 'Workflow Type', 'defaultValue' => workflow_type || 'provision'}], options[:options], @api_client)
           params['type'] = v_prompt['type'] unless v_prompt['type'].to_s.empty?
         end
 
@@ -173,7 +173,7 @@ class Morpheus::Cli::Workflows
         while tasks.nil? do
           if task_arg_list.nil?
             tasks_val = nil
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tasks', 'fieldLabel' => 'Tasks', 'type' => 'text', 'required' => true, 'description' => "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'."}], options[:options], @api_client)
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tasks', 'fieldLabel' => 'Tasks', 'type' => 'text', 'required' => false, 'description' => "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'."}], options[:options], @api_client)
             tasks_val = v_prompt['tasks'] unless v_prompt['tasks'].to_s.empty?
             if tasks_val
               task_arg_list = []
@@ -200,6 +200,11 @@ class Morpheus::Cli::Workflows
                 row['taskPhase'] = 'operation'
               end
               tasks << row
+            end
+          else
+            if options[:no_prompt]
+              # empty array is allowed
+              tasks = []
             end
           end
         end
