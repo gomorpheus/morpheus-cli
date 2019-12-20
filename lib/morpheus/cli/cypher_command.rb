@@ -446,6 +446,50 @@ EOT
     return 0
   end
   
+  def remove(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[key]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a cypher." + "\n" +
+                    "[key] is required. This is the cypher key to be deleted."
+    end
+    optparse.parse!(args)
+
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
+      return 1
+    end
+
+    connect(options)
+    begin
+      item_key = args[0]
+      cypher_item = find_cypher_by_key(item_key)
+      return 1 if cypher_item.nil?
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the cypher #{item_key}?")
+        return 9, "aborted command"
+      end
+      @cypher_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @cypher_interface.dry.destroy(item_key, params)
+        return
+      end
+      json_response = @cypher_interface.destroy(item_key, params)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        print_green_success "Deleted cypher #{item_key}"
+        # list([])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
   private
 
   def find_cypher_by_key(key, params={})
