@@ -170,7 +170,8 @@ class Morpheus::Cli::Workflows
         # Type
         if workflow_type.nil?
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_workflow_types(), 'required' => true, 'description' => 'Workflow Type', 'defaultValue' => workflow_type || 'provision'}], options[:options], @api_client)
-          params['type'] = v_prompt['type'] unless v_prompt['type'].to_s.empty?
+          workflow_type = v_prompt['type'] unless v_prompt['type'].to_s.empty?
+          params['type'] = workflow_type
         end
 
         # Tasks
