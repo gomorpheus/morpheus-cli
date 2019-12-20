@@ -102,12 +102,16 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
-      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
+      opts.on("--operational", "--operational", "Create an operational workflow, alias for --type operational.") do |val|
+        workflow_type = 'operation'
+        params['type'] = workflow_type
+      end
+      opts.on("--tasks [x,y,z]", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
         task_arg_list = []
         list.each do |it|
           task_id, task_phase = it.split(":")
           task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
-        end
+        end if list
       end
       opts.on("--option-types x,y,z", Array, "List of option type name or IDs. For use with operational workflows to add configuration during execution.") do |list|
         option_type_arg_list = []
