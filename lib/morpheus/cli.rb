@@ -158,6 +158,7 @@ module Morpheus
       load 'morpheus/cli/price_sets_command.rb'
       load 'morpheus/cli/prices_command.rb'
       load 'morpheus/cli/provisioning_settings_command.rb'
+      load 'morpheus/cli/budgets_command.rb'
       # Your new commands go here...
 
     end
