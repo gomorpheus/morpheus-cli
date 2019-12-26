@@ -457,6 +457,9 @@ class Morpheus::Cli::NetworksCommand
             #option_type['fieldContext'] = nil
           end
           network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
+          # network context options belong at network level and not network.network
+          network_context_params = network_type_params.delete('network')
+          payload['network'].deep_merge!(network_context_params) if network_context_params
           payload['network'].deep_merge!(network_type_params)
 
         #todo: special handling of type: 'aciVxlan'
