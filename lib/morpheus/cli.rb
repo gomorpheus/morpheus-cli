@@ -138,7 +138,6 @@ module Morpheus
       load 'morpheus/cli/network_domains_command.rb'
       load 'morpheus/cli/network_proxies_command.rb'
       load 'morpheus/cli/cypher_command.rb'
-      load 'morpheus/cli/old_cypher_command.rb'
       load 'morpheus/cli/image_builder_command.rb'
       load 'morpheus/cli/preseed_scripts_command.rb'
       load 'morpheus/cli/boot_scripts_command.rb'
@@ -159,6 +158,7 @@ module Morpheus
       load 'morpheus/cli/price_sets_command.rb'
       load 'morpheus/cli/prices_command.rb'
       load 'morpheus/cli/provisioning_settings_command.rb'
+      load 'morpheus/cli/budgets_command.rb'
       # Your new commands go here...
 
     end

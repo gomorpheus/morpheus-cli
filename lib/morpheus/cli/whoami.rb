@@ -59,12 +59,12 @@ class Morpheus::Cli::Whoami
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
       #   options[:include_instance_type_access] = true
       # end
-      # opts.on('-a','--all-access', "Display All Access Lists") do
-      #   options[:include_feature_access] = true
-      #   options[:include_group_access] = true
-      #   options[:include_cloud_access] = true
-      #   options[:include_instance_type_access] = true
-      # end
+      opts.on('-a','--all-access', "Display All Access Lists") do
+        options[:include_feature_access] = true
+        options[:include_group_access] = true
+        options[:include_cloud_access] = true
+        options[:include_instance_type_access] = true
+      end
       opts.on('-t','--token-only', "Print your access token only") do
         access_token_only = true
       end

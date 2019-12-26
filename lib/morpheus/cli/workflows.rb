@@ -84,7 +84,7 @@ class Morpheus::Cli::Workflows
     task_arg_list = nil
     option_types = nil
     option_type_arg_list = nil
-    workflow_type = 'provision'
+    workflow_type = nil # 'provision'
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "Name for workflow") do |val|
@@ -102,12 +102,16 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
-      opts.on("--tasks x,y,z", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
+      opts.on("--operational", "--operational", "Create an operational workflow, alias for --type operational.") do |val|
+        workflow_type = 'operation'
+        params['type'] = workflow_type
+      end
+      opts.on("--tasks [x,y,z]", Array, "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'.") do |list|
         task_arg_list = []
         list.each do |it|
           task_id, task_phase = it.split(":")
           task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
-        end
+        end if list
       end
       opts.on("--option-types x,y,z", Array, "List of option type name or IDs. For use with operational workflows to add configuration during execution.") do |list|
         option_type_arg_list = []
@@ -132,51 +136,127 @@ class Morpheus::Cli::Workflows
     end
     connect(options)
     begin
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'taskSet' => passed_options})  unless passed_options.empty?
       else
+        params.deep_merge!(passed_options)  unless passed_options.empty?
         if args[0]
           params['name'] = args[0]
         end
-        if params['name'].to_s.empty?
-          puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [name]\n#{optparse}"
-          return 1
+        # if params['name'].to_s.empty?
+        #   puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [name]\n#{optparse}"
+        #   return 1
+        # end
+        # if task_arg_list.nil?
+        #   puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: --tasks\n#{optparse}"
+        #   return 1
+        # end
+        
+        # Name
+        if params['name'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name'}], options[:options], @api_client)
+          params['name'] = v_prompt['name'] unless v_prompt['name'].to_s.empty?
         end
-        if task_arg_list.nil?
-          puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: --tasks\n#{optparse}"
-          return 1
+
+        # Description
+        if params['description'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Description'}], options[:options], @api_client)
+          params['description'] = v_prompt['description'] unless v_prompt['description'].to_s.empty?
         end
-        if task_arg_list
-          tasks = []
-          task_arg_list.each do |task_arg|
-            found_task = find_task_by_name_or_id(task_arg[:task_id])
-            return 1 if found_task.nil?
-            row = {'taskId' => found_task['id']}
-            if !task_arg[:task_phase].to_s.strip.empty?
-              row['taskPhase'] = task_arg[:task_phase]
-            elsif workflow_type == 'operation'
-              row['taskPhase'] = 'operation'
+        
+        # Type
+        if workflow_type.nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_workflow_types(), 'required' => true, 'description' => 'Workflow Type', 'defaultValue' => workflow_type || 'provision'}], options[:options], @api_client)
+          workflow_type = v_prompt['type'] unless v_prompt['type'].to_s.empty?
+          params['type'] = workflow_type
+        end
+
+        # Tasks
+        while tasks.nil? do
+          if task_arg_list.nil?
+            tasks_val = nil
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tasks', 'fieldLabel' => 'Tasks', 'type' => 'text', 'required' => false, 'description' => "List of tasks to run in order, in the format <Task ID>:<Task Phase> Task Phase is optional. Default is the same workflow type: 'provision' or 'operation'."}], options[:options], @api_client)
+            tasks_val = v_prompt['tasks'] unless v_prompt['tasks'].to_s.empty?
+            if tasks_val
+              task_arg_list = []
+              tasks_val.split(",").each do |it|
+                task_id, task_phase = it.split(":")
+                task_arg_list << {task_id: task_id.to_s.strip, task_phase: task_phase.to_s.strip}
+              end
+            else
+              # empty array is allowed
+              tasks = []
             end
-            tasks << row
+          end
+          if task_arg_list
+            tasks = []
+            task_arg_list.each do |task_arg|
+              found_task = find_task_by_name_or_id(task_arg[:task_id])
+              #return 1 if found_task.nil?
+              if found_task.nil?
+                task_arg_list = nil
+                tasks = nil
+                break
+              end
+              row = {'taskId' => found_task['id']}
+              if !task_arg[:task_phase].to_s.strip.empty?
+                row['taskPhase'] = task_arg[:task_phase]
+              elsif workflow_type == 'operation'
+                row['taskPhase'] = 'operation'
+              end
+              tasks << row
+            end
+          else
+            if options[:no_prompt]
+              # empty array is allowed
+              tasks = []
+            end
           end
         end
-        if option_type_arg_list
-          option_types = []
-          option_type_arg_list.each do |option_type_arg|
-            found_option_type = find_option_type_by_name_or_id(option_type_arg[:option_type_id])
-            return 1 if found_option_type.nil?
-            option_types << found_option_type['id']
+
+        # Option Types
+        if workflow_type == 'operation'
+          while option_types.nil? do
+            if option_type_arg_list.nil?
+              option_types_val = nil
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => "List of option type name or IDs. For use with operational workflows to add configuration during execution."}], options[:options], @api_client)
+              option_types_val = v_prompt['optionTypes'] unless v_prompt['optionTypes'].to_s.empty?
+              if option_types_val
+                option_type_arg_list = []
+                option_types_val.split(",").each do |it|
+                  option_type_arg_list << {option_type_id: it.to_s.strip}
+                end
+              else
+                option_types = [] # not required, break out
+              end
+            end
+            if option_type_arg_list
+              option_types = []
+              option_type_arg_list.each do |option_type_arg|
+                found_option_type = find_option_type_by_name_or_id(option_type_arg[:option_type_id])
+                #return 1 if found_option_type.nil?
+                if found_option_type.nil?
+                  option_type_arg_list = nil
+                  option_types = nil
+                  break
+                end
+                option_types << found_option_type['id']
+              end
+            end
           end
         end
+
         payload = {'taskSet' => {}}
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        params['type'] = workflow_type
+        # params['type'] = workflow_type
         payload['taskSet'].deep_merge!(params)
         if tasks
           payload['taskSet']['tasks'] = tasks
         end
-        if option_types
+        if option_types && option_types.size > 0
           payload['taskSet']['optionTypes'] = option_types
         end
       end
@@ -488,7 +568,7 @@ class Morpheus::Cli::Workflows
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
@@ -500,48 +580,54 @@ class Morpheus::Cli::Workflows
       workflow = find_workflow_by_name_or_id(workflow_name)
       return 1 if workflow.nil?
 
-      if instance_ids.size > 0 && server_ids.size > 0
-        raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
-      elsif instance_ids.size > 0
-        instance_ids.each do |instance_id|
-          instance = find_instance_by_name_or_id(instance_id)
-          return 1 if instance.nil?
-          instances << instance
-        end
-        params['instances'] = instances.collect {|it| it['id'] }
-      elsif server_ids.size > 0
-        server_ids.each do |server_id|
-          server = find_server_by_name_or_id(server_id)
-          return 1 if server.nil?
-          servers << server
-        end
-        params['servers'] = servers.collect {|it| it['id'] }
-      else
-        raise_command_error "missing required option: --instance or --host\n#{optparse}"
-      end
-
-      # todo: prompt to workflow optionTypes for customOptions
-      custom_options = nil
-      if workflow['optionTypes'] && workflow['optionTypes'].size() > 0
-        custom_option_types = workflow['optionTypes'].collect {|it|
-          it['fieldContext'] = 'customOptions'
-          it
-        }
-        custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
-      end
-
-      params['targetType'] = target_type
-
-      job_payload = {}
-      job_payload.deep_merge!(params)
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      passed_options.delete('customOptions')
-      job_payload.deep_merge!(passed_options) unless passed_options.empty?
-      if custom_options
-        # job_payload.deep_merge!('config' => custom_options)
-        job_payload.deep_merge!(custom_options)
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'job' => passed_options})  unless passed_options.empty?
+      else
+        if instance_ids.size > 0 && server_ids.size > 0
+          raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
+        elsif instance_ids.size > 0
+          instance_ids.each do |instance_id|
+            instance = find_instance_by_name_or_id(instance_id)
+            return 1 if instance.nil?
+            instances << instance
+          end
+          params['instances'] = instances.collect {|it| it['id'] }
+        elsif server_ids.size > 0
+          server_ids.each do |server_id|
+            server = find_server_by_name_or_id(server_id)
+            return 1 if server.nil?
+            servers << server
+          end
+          params['servers'] = servers.collect {|it| it['id'] }
+        else
+          raise_command_error "missing required option: --instance or --host\n#{optparse}"
+        end
+
+        # todo: prompt to workflow optionTypes for customOptions
+        custom_options = nil
+        if workflow['optionTypes'] && workflow['optionTypes'].size() > 0
+          custom_option_types = workflow['optionTypes'].collect {|it|
+            it['fieldContext'] = 'customOptions'
+            it
+          }
+          custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
+        end
+
+        params['targetType'] = target_type
+
+        job_payload = {}
+        job_payload.deep_merge!(params)
+        passed_options.delete('customOptions')
+        job_payload.deep_merge!(passed_options) unless passed_options.empty?
+        if custom_options
+          # job_payload.deep_merge!('config' => custom_options)
+          job_payload.deep_merge!(custom_options)
+        end
+        payload = {'job' => job_payload}
       end
-      payload = {'job' => job_payload}
 
       @task_sets_interface.setopts(options)
       if options[:dry_run]
@@ -574,6 +660,10 @@ class Morpheus::Cli::Workflows
 
   private
 
+  def get_available_workflow_types
+    [{"name" => "Provisioning", "value" => "provision", "isDefault" => true}, {"name" => "Operational", "value" => "operation"}]
+  end
+
   def find_workflow_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_workflow_by_id(val)
@@ -589,6 +679,7 @@ class Morpheus::Cli::Workflows
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Workflow not found by id #{id}"
+        return nil
       else
         raise e
       end
@@ -625,6 +716,7 @@ class Morpheus::Cli::Workflows
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Task not found by id #{id}"
+        return nil
       else
         raise e
       end
@@ -701,7 +793,7 @@ class Morpheus::Cli::Workflows
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Option Type not found by id #{id}"
-        exit 1
+        return nil
       else
         raise e
       end
@@ -712,7 +804,7 @@ class Morpheus::Cli::Workflows
     json_results = @option_types_interface.list({name: name.to_s})
     if json_results['optionTypes'].empty?
       print_red_alert "Option Type not found by name #{name}"
-      exit 1
+      return nil
     end
     option_type = json_results['optionTypes'][0]
     return option_type
@@ -733,6 +825,7 @@ class Morpheus::Cli::Workflows
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Instance not found by id #{id}"
+        return nil
       else
         raise e
       end
@@ -770,6 +863,7 @@ class Morpheus::Cli::Workflows
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Server not found by id #{id}"
+        return nil
       else
         raise e
       end
