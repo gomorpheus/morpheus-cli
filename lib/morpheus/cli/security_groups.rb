@@ -23,6 +23,7 @@ class Morpheus::Cli::SecurityGroups
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
+    @network_security_servers = @api_client.network_security_servers
   end
 
   def handle(args)
@@ -353,6 +354,15 @@ class Morpheus::Cli::SecurityGroups
           #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Scoped Cloud', 'type' => 'select', 'optionSource' => 'cloudsForSecurityGroup', 'required' => false}], options[:options], @api_client)
           if !v_prompt['zoneId'].to_s.empty? && v_prompt['zoneId'].to_s != 'all' && v_prompt['zoneId'].to_s != '-1'
             payload['securityGroup']['zoneId'] = v_prompt['zoneId']
+
+            zone = find_cloud_by_id(payload['securityGroup']['zoneId'])
+            if zone['securityServer']
+              sec_server = @network_security_servers.get(zone['securityServer']['id'])['networkSecurityServer']
+
+              if sec_server['type']
+                payload['securityGroup'].deep_merge!(Morpheus::Cli::OptionTypes.prompt(sec_server['type']['optionTypes'], options[:options], @api_client, {zoneId: zone['id']}))
+              end
+            end
           end
         rescue => ex
           print yellow,"Failed to determine the available scoped clouds.",reset,"\n"

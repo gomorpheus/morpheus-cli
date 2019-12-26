@@ -538,6 +538,10 @@ class Morpheus::APIClient
     Morpheus::NetworkServicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def network_security_servers
+    Morpheus::NetworkSecurityServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def network_pool_servers
     Morpheus::NetworkPoolServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end

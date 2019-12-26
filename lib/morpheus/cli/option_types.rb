@@ -250,6 +250,7 @@ module Morpheus
         paging_enabled = false if Morpheus::Cli.windows?
         value_found = false
         value = nil
+        value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
         default_value = option_type['defaultValue']
         # local array of options
         if option_type['selectOptions']
@@ -261,13 +262,14 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})
           else
             select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
-          end          
+          end
         else
           raise "select_prompt() requires selectOptions or optionSource!"
         end
+
         # ensure the preselected value (passed as an option) is in the dropdown
         if !use_value.nil?
-          matched_value = select_options.find {|opt| opt['value'].to_s == use_value.to_s }
+          matched_value = select_options.find {|opt| opt[value_field].to_s == use_value.to_s }
           if !matched_value.nil?
             value = use_value
             value_found = true
@@ -305,7 +307,7 @@ module Morpheus
           if !value_found
             if !select_options.nil? && select_options.count > 1 && option_type['autoPickOption'] == true
               value_found = true
-              value = select_options[0]['value']
+              value = select_options[0][value_field]
             elsif option_type['required']
               print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
@@ -342,7 +344,7 @@ module Morpheus
               if option['name'] && option['name'] =~ /^#{Regexp.escape(s)}/
                 matches << option['name']
               # elsif option['id'] && option['id'].to_s =~ /^#{Regexp.escape(s)}/
-              elsif option['value'] && option['value'].to_s == s
+              elsif option[value_field] && option[value_field].to_s == s
                 matches << option['name']
               end
             }
@@ -355,9 +357,9 @@ module Morpheus
           if input.empty? && default_value
             input = default_value.to_s
           end
-          select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (b['value'].nil? && input.empty?)}
+          select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (!b[value_field].nil? && b[value_field].to_s == input) || (b[value_field].nil? && input.empty?)}
           if select_option
-            value = select_option['value']
+            value = select_option[value_field]
             set_last_select(select_option)
           elsif !input.nil?  && !input.to_s.empty?
             input = '?'
