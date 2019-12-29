@@ -655,6 +655,10 @@ class Morpheus::APIClient
     Morpheus::BudgetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def health
+    Morpheus::HealthInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   # new interfaces get added here
 
 end

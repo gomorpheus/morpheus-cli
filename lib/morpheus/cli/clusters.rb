@@ -837,6 +837,21 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster]")
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
+        options[:start] = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
+        options[:end] = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
+        params['level'] = params['level'] ? [params['level'], val].flatten : val
+      end
+      opts.on('--table', '--table', "Format ouput as a table.") do
+        options[:table] = true
+      end
+      opts.on('-a', '--all', "Display all details: entire message." ) do
+        options[:details] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -849,27 +864,38 @@ class Morpheus::Cli::Clusters
       params = {}
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['startMs'] = (options[:start].to_i * 1000) if options[:start]
+      params['endMs'] = (options[:end].to_i * 1000) if options[:end]
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.cluster_logs(cluster['id'], params)
         return
       end
       json_response = @logs_interface.cluster_logs(cluster['id'], params)
-      render_result = render_with_format(json_response, options, 'data')
+      render_result = json_response['logs'] ? render_with_format(json_response, options, 'logs') : render_with_format(json_response, options, 'data')
       return 0 if render_result
 
       logs = json_response
       title = "Cluster Logs: #{cluster['name']}"
       subtitles = parse_list_subtitles(options)
+      if options[:start]
+        subtitles << "Start: #{options[:start]}".strip
+      end
+      if options[:end]
+        subtitles << "End: #{options[:end]}".strip
+      end
       if params[:query]
         subtitles << "Search: #{params[:query]}".strip
       end
-      # todo: startMs, endMs, sorts insteaad of sort..etc
+      if params['level']
+        subtitles << "Level: #{params['level']}"
+      end
+      logs = json_response['data'] || json_response['logs']
       print_h1 title, subtitles, options
-      if logs['data'].empty?
+      if logs.empty?
         puts "#{cyan}No logs found.#{reset}"
       else
-        logs['data'].each do |log_entry|
+        logs.each do |log_entry|
           log_level = ''
           case log_entry['level']
           when 'INFO'

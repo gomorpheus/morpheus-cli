@@ -80,6 +80,7 @@ module Morpheus
           elsif has_command?(command_name)
             instance.get(command_name).new.handle(args)
           else
+            # todo: need to just return error instead of raise
             raise Morpheus::Cli::CommandError.new("'#{command_name}' is not a command. See 'morpheus --help'.")
           end
         end

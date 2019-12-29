@@ -62,6 +62,15 @@ class Morpheus::Cli::LogsCommand
       # opts.on('--interval TIME','--interval TIME', "Interval of time to include, in seconds. Default is 30 days ago.") do |val|
       #   options[:interval] = parse_time(val).utc.iso8601
       # end
+      opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
+        params['level'] = params['level'] ? [params['level'], val].flatten : val
+      end
+      opts.on('--table', '--table', "Format ouput as a table.") do
+        options[:table] = true
+      end
+      opts.on('-a', '--all', "Display all details: entire message." ) do
+        options[:details] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List logs for a container.\n" +
                     "[id] is required. This is the id of a container."
@@ -85,19 +94,16 @@ class Morpheus::Cli::LogsCommand
         return
       end
       json_response = @logs_interface.list(params)
-      render_result = render_with_format(json_response, options, 'data')
+      render_result = json_response['logs'] ? render_with_format(json_response, options, 'logs') : render_with_format(json_response, options, 'data')
       return 0 if render_result
 
       title = "Morpheus Logs"
       subtitles = parse_list_subtitles(options)
-      if params[:start]
-        subtitles << "Start: #{params[:start]}".strip
+      if options[:start]
+        subtitles << "Start: #{options[:start]}".strip
       end
-      if params[:end]
-        subtitles << "End: #{params[:end]}".strip
-      end
-      if params[:interval]
-        subtitles << "Interval: #{params[:interval]}".strip
+      if options[:end]
+        subtitles << "End: #{options[:end]}".strip
       end
       if params[:query]
         subtitles << "Search: #{params[:query]}".strip
@@ -114,12 +120,16 @@ class Morpheus::Cli::LogsCommand
       if params[:query]
         subtitles << "Search: #{params[:query]}".strip
       end
+      if params['level']
+        subtitles << "Level: #{params['level']}"
+      end
       print_h1 title, subtitles, options
-      if json_response['data'].empty?
-        puts "#{cyan}No logs found.#{reset}"
+      logs = json_response['data'] || json_response['logs']
+      if logs.empty?
+        print "#{cyan}No logs found.#{reset}\n"
       else
-        puts format_log_records(json_response['data'], options)
-        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+        print format_log_records(logs, options)
+        print_results_pagination({'meta'=>{'total'=>(json_response['total']['value'] rescue json_response['total']),'size'=>logs.size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
       end
       print reset,"\n"
       return 0
