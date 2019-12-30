@@ -6,6 +6,7 @@ require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/accounts_helper'
 require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/mixins/processes_helper'
+require 'morpheus/cli/mixins/logs_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
@@ -13,6 +14,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
+  include Morpheus::Cli::LogsHelper
   set_command_name :instances
   set_command_description "View and manage instances."
   register_subcommands :list, :count, :get, :view, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
@@ -1026,8 +1028,41 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
+      # opts.on('--hosts HOSTS', String, "Filter logs to specific Host ID(s)") do |val|
+      #   params['servers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
+      # end
+      # opts.on('--servers HOSTS', String, "alias for --hosts") do |val|
+      #   params['servers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
+      # end
+      # opts.on('--vms HOSTS', String, "alias for --hosts") do |val|
+      #   params['servers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
+      # end
       opts.on( '-n', '--node NODE_ID', "Scope logs to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
+      end
+      # opts.on('--container CONTAINER', String, "Filter logs to specific Container ID(s)") do |val|
+      #   params['containers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
+      # end
+      # opts.on('--nodes HOST', String, "alias for --containers") do |val|
+      #   params['containers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
+      # end
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
+        options[:start] = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
+        options[:end] = parse_time(val) #.utc.iso8601
+      end
+      # opts.on('--interval TIME','--interval TIME', "Interval of time to include, in seconds. Default is 30 days ago.") do |val|
+      #   options[:interval] = parse_time(val).utc.iso8601
+      # end
+      opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
+        params['level'] = params['level'] ? [params['level'], val].flatten : val
+      end
+      opts.on('--table', '--table', "Format ouput as a table.") do
+        options[:table] = true
+      end
+      opts.on('-a', '--all', "Display all details: entire message." ) do
+        options[:details] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
@@ -1040,53 +1075,62 @@ class Morpheus::Cli::Instances
     begin
       instance = find_instance_by_name_or_id(args[0])
       container_ids = instance['containers']
-      if options[:node_id] && container_ids.include?(options[:node_id])
-        container_ids = [options[:node_id]]
+      if options[:node_id]
+        if container_ids.include?(options[:node_id])
+          container_ids = [options[:node_id]]
+        else
+          print_red_alert "Instance does not include node #{options[:node_id]}"
+          return 1
+        end
       end
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
+      params['startMs'] = (options[:start].to_i * 1000) if options[:start]
+      params['endMs'] = (options[:end].to_i * 1000) if options[:end]
+      params['interval'] = options[:interval].to_s if options[:interval]
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(container_ids, params)
         return
       end
       json_response = @logs_interface.container_logs(container_ids, params)
-      render_result = render_with_format(json_response, options, 'data')
+      render_result = json_response['logs'] ? render_with_format(json_response, options, 'logs') : render_with_format(json_response, options, 'data')
       return 0 if render_result
       
-      logs = json_response
       title = "Instance Logs: #{instance['name']} (#{instance['instanceType'] ? instance['instanceType']['name'] : ''})"
       subtitles = parse_list_subtitles(options)
+      if options[:start]
+        subtitles << "Start: #{options[:start]}".strip
+      end
+      if options[:end]
+        subtitles << "End: #{options[:end]}".strip
+      end
       if params[:query]
         subtitles << "Search: #{params[:query]}".strip
       end
-      # todo: startMs, endMs, sorts insteaad of sort..etc
+      if params['servers']
+        subtitles << "Servers: #{params['servers']}".strip
+      end
+      if params['containers']
+        subtitles << "Containers: #{params['containers']}".strip
+      end
+      if params[:query]
+        subtitles << "Search: #{params[:query]}".strip
+      end
+      if params['level']
+        subtitles << "Level: #{params['level']}"
+      end
+      logs = json_response['data'] || json_response['logs']
       print_h1 title, subtitles, options
-      if logs['data'].empty?
-        puts "#{cyan}No logs found.#{reset}"
+      if logs.empty?
+        print "#{cyan}No logs found.#{reset}\n"
       else
-        logs['data'].each do |log_entry|
-          log_level = ''
-          case log_entry['level']
-          when 'INFO'
-            log_level = "#{blue}#{bold}INFO#{reset}"
-          when 'DEBUG'
-            log_level = "#{white}#{bold}DEBUG#{reset}"
-          when 'WARN'
-            log_level = "#{yellow}#{bold}WARN#{reset}"
-          when 'ERROR'
-            log_level = "#{red}#{bold}ERROR#{reset}"
-          when 'FATAL'
-            log_level = "#{red}#{bold}FATAL#{reset}"
-          end
-          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
-        end
-        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+        print format_log_records(logs, options)
+        print_results_pagination({'meta'=>{'total'=>(json_response['total']['value'] rescue json_response['total']),'size'=>logs.size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
       end
       print reset, "\n"
       return 0
-      
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

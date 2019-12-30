@@ -4,11 +4,13 @@ require 'optparse'
 require 'filesize'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/provisioning_helper'
+require 'morpheus/cli/mixins/logs_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::ContainersCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::LogsHelper
 
   set_command_name :containers
 
@@ -507,8 +509,24 @@ class Morpheus::Cli::ContainersCommand
 
   def logs(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
+        options[:start] = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
+        options[:end] = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
+        params['level'] = params['level'] ? [params['level'], val].flatten : val
+      end
+      opts.on('--table', '--table', "Format ouput as a table.") do
+        options[:table] = true
+      end
+      opts.on('-a', '--all', "Display all details: entire message." ) do
+        options[:details] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List logs for a container.\n" +
                     "[id] is required. This is the id of a container."
@@ -523,47 +541,42 @@ class Morpheus::Cli::ContainersCommand
     id_list = parse_id_list(args)
     begin
       containers = id_list # heh
-      params = {}
       params.merge!(parse_list_options(options))
       params[:query] = params.delete(:phrase) unless params[:phrase].nil?
-      params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
+      params[:order] = params[:direction] unless params[:direction].nil? # old api version expects order instead of direction
+      params['startMs'] = (options[:start].to_i * 1000) if options[:start]
+      params['endMs'] = (options[:end].to_i * 1000) if options[:end]
       @logs_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @logs_interface.dry.container_logs(containers, params)
         return
       end
       json_response = @logs_interface.container_logs(containers, params)
-      render_result = render_with_format(json_response, options, 'data')
+      render_result = json_response['logs'] ? render_with_format(json_response, options, 'logs') : render_with_format(json_response, options, 'data')
       return 0 if render_result
 
       logs = json_response
       title = "Container Logs: #{containers.join(', ')}"
       subtitles = parse_list_subtitles(options)
+      if options[:start]
+        subtitles << "Start: #{options[:start]}".strip
+      end
+      if options[:end]
+        subtitles << "End: #{options[:end]}".strip
+      end
       if params[:query]
         subtitles << "Search: #{params[:query]}".strip
       end
-      # todo: startMs, endMs, sorts insteaad of sort..etc
+      if params['level']
+        subtitles << "Level: #{params['level']}"
+      end
+      logs = json_response['data'] || json_response['logs']
       print_h1 title, subtitles, options
-      if logs['data'].empty?
-        puts "#{cyan}No logs found.#{reset}"
+      if logs.empty?
+        print "#{cyan}No logs found.#{reset}\n"
       else
-        logs['data'].each do |log_entry|
-          log_level = ''
-          case log_entry['level']
-          when 'INFO'
-            log_level = "#{blue}#{bold}INFO#{reset}"
-          when 'DEBUG'
-            log_level = "#{white}#{bold}DEBUG#{reset}"
-          when 'WARN'
-            log_level = "#{yellow}#{bold}WARN#{reset}"
-          when 'ERROR'
-            log_level = "#{red}#{bold}ERROR#{reset}"
-          when 'FATAL'
-            log_level = "#{red}#{bold}FATAL#{reset}"
-          end
-          puts "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
-        end
-        print_results_pagination({'meta'=>{'total'=>json_response['total'],'size'=>json_response['data'].size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+        print format_log_records(logs, options)
+        print_results_pagination({'meta'=>{'total'=>(json_response['total']['value'] rescue json_response['total']),'size'=>logs.size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
       end
       print reset,"\n"
       return 0
