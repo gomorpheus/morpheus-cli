@@ -370,7 +370,7 @@ class Morpheus::Cli::Instances
 
     # use active group by default
     options[:group] ||= @active_group_id
-
+    options[:select_datastore] = true
     options[:name_required] = true
     begin
       payload = nil
@@ -382,7 +382,7 @@ class Morpheus::Cli::Instances
         # prompt for all the instance configuration options
         # this provisioning helper method handles all (most) of the parsing and prompting
         # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
-        payload = prompt_new_instance(options, @clouds_datastores_interface)
+        payload = prompt_new_instance(options)
         # clean payload of empty objects 
         # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
         if payload['instance'].is_a?(Hash)
@@ -1567,7 +1567,29 @@ class Morpheus::Cli::Instances
       return 1 if instance.nil?
 
       options[:options] ||= {}
-      
+      options[:select_datastore] = true
+      options[:name_required] = true
+
+      # defaults derived from clone
+      options[:default_name] = instance['name'] + '-clone' if instance['name']
+      options[:default_group] = instance['group']['id'] if instance['group']
+      options[:default_cloud] = instance['cloud']['name'] if instance['cloud']
+      options[:default_plan] = instance['plan']['name'] if instance['plan']
+      options[:default_resource_pool] = instance['config']['resourcePoolId'] if instance['config']
+      options[:default_config] = instance['config']
+      options[:default_security_group] = instance['config']['securityGroups'][0]['id'] if instance['config'] && (instance['config']['securityGroups'] || []).count > 0
+
+      # immutable derived from clone
+      options[:instance_type_code] = instance['instanceType']['code'] if instance['instanceType']
+      options[:version] = instance['instanceVersion']
+      options[:layout] = instance['layout']['id'] if instance['layout']
+
+      # volume defaults
+      options[:options]['volumes'] = instance['volumes']
+
+      # network defaults
+      options[:options]['networkInterfaces'] = instance['interfaces']
+
       # use the -g GROUP or active group by default
       #options[:options]['group'] ||= (options[:group] || @active_group_id)
       # support [new-name] 
@@ -1579,43 +1601,13 @@ class Morpheus::Cli::Instances
       if options[:payload]
         payload = options[:payload]
       else
-        payload = {
+        new_instance_payload = prompt_new_instance(options)
 
-        }
-
-        # Name
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for the new instance'}], options[:options], @api_client, options[:params])
-        payload['name'] = v_prompt['name'] unless v_prompt['name'].to_s.empty?
-        
-        # Group
-        group = nil
-        if options[:group].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'selectOptions' => get_available_groups(), 'defaultValue' => instance['group']['id']}], options[:options], @api_client, options[:params])
-          options[:group] = v_prompt['group'] unless v_prompt['group'].to_s.empty?
-        else
-          #options[:group] = instance['group']['id']
-        end
-        if options[:group]
-          group = find_group_by_name_or_id_for_provisioning(options[:group])
-          return 1 if group.nil?
-          payload['group'] = {id: group['id']}
-        end
-        # Cloud
-        cloud = nil
-        if group
-          if options[:cloud].nil?
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => get_available_clouds(group['id']), 'defaultValue' => instance['cloud']['id']}], options[:options], @api_client, options[:params])
-            options[:cloud] = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
-          else
-            #options[:cloud] = instance['cloud']['id']
-          end
-          cloud = find_zone_by_name_or_id(nil, options[:cloud])
-          return 1 if cloud.nil?
-          if cloud
-            payload['cloud'] = {id: cloud['id']}
-          end
-        end
-        
+        # adjust for differences between new and clone payloads
+        payload = new_instance_payload.delete('instance')
+        payload.deep_merge!(new_instance_payload)
+        payload['cloud'] = {'id' => payload.delete('zoneId')}
+        payload['group'] = payload.delete('site')
       end
       unless passed_options.empty?
         passed_options.delete('cloud')

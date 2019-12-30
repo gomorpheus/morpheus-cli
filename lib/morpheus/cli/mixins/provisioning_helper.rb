@@ -43,6 +43,11 @@ module Morpheus::Cli::ProvisioningHelper
     @clouds_interface
   end
 
+  def cloud_datastores_interface
+    raise "#{self.class} has not defined @clouds_datastores_interface" if  @clouds_datastores_interface.nil?
+    @clouds_datastores_interface
+  end
+
   def accounts_interface
     raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
     @accounts_interface
@@ -296,12 +301,14 @@ module Morpheus::Cli::ProvisioningHelper
 
   # prompts user for all the configuartion options for a particular instance
   # returns payload of data for a new instance
-  def prompt_new_instance(options={}, cloud_datastores = nil)
+  def prompt_new_instance(options={})
     #puts "prompt_new_instance() #{options}"
     print reset # clear colors
     options[:options] ||= {}
+
     # Group
-    default_group = @active_group_id ? find_group_by_name_or_id_for_provisioning(@active_group_id) : nil
+    default_group = find_group_by_name_or_id_for_provisioning(options[:default_group] || @active_group_id) if options[:default_group] || @active_group_id
+
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
     if group
@@ -351,8 +358,19 @@ module Morpheus::Cli::ProvisioningHelper
     elsif options[:options]['instance'] && options[:options]['instance']['name']
       options[:options]['name'] = options[:options]['instance']['name']
     end
-    name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required]}], options[:options])
-    instance_name = name_prompt['name']
+
+    while instance_name.nil? do
+      name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required], 'defaultValue' => options[:default_name]}], options[:options])
+      if instances_interface.get({name: name_prompt['name']})['instances'].empty?
+        instance_name = name_prompt['name']
+      else
+        print_red_alert "Name must be unique"
+
+        if options[:default_name] == name_prompt['name']
+          options[:default_name] += '-2'
+        end
+      end
+    end
 
     # config
     config = {}
@@ -424,36 +442,40 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['tags'] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
 
     # Version and Layout
-
-    available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
-    default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
-    default_layout_value = payload['instance']['layout'] ? payload['instance']['layout'] : payload['layout']
-    if default_layout_value && default_layout_value.is_a?(Hash)
-      default_layout_value = default_layout_value['id']
-    end
-    # JD: version is always nil because it is not stored in the blueprint or config !!
-    # so for now, infer the version from the layout
-    # requires api 3.6.2 to get "layouts" from /options/versions
-    if default_layout_value && default_version_value.to_s.empty?
-      available_versions.each do |available_version|
-        if available_version["layouts"]
-          selected_layout = available_version["layouts"].find {|it| it["value"].to_s == default_layout_value.to_s || it["id"].to_s == default_layout_value.to_s || it["code"].to_s == default_layout_value.to_s }
-          if selected_layout
-            default_version_value = available_version["value"]
-            break
+    if options[:version]
+      version_value = options[:version]
+    else
+      available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
+      default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
+      default_layout_value = payload['instance']['layout'] ? payload['instance']['layout'] : payload['layout']
+      if default_layout_value && default_layout_value.is_a?(Hash)
+        default_layout_value = default_layout_value['id']
+      end
+      # JD: version is always nil because it is not stored in the blueprint or config !!
+      # so for now, infer the version from the layout
+      # requires api 3.6.2 to get "layouts" from /options/versions
+      if default_layout_value && default_version_value.to_s.empty?
+        available_versions.each do |available_version|
+          if available_version["layouts"]
+            selected_layout = available_version["layouts"].find {|it| it["value"].to_s == default_layout_value.to_s || it["id"].to_s == default_layout_value.to_s || it["code"].to_s == default_layout_value.to_s }
+            if selected_layout
+              default_version_value = available_version["value"]
+              break
+            end
           end
         end
       end
+
+      # do not require version if a layout is passed
+      version_value = default_version_value
+      version_is_required = default_layout_value.nil?
+      if default_layout_value.nil? && options[:options]["layout"].nil? && options[:always_prompt] != true
+        #version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+        version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'selectOptions' => available_versions, 'required' => version_is_required, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
+        version_value = version_prompt['version']
+      end
     end
 
-    # do not require version if a layout is passed
-    version_value = default_version_value
-    version_is_required = default_layout_value.nil?
-    if default_layout_value.nil? && options[:options]["layout"].nil? && options[:always_prompt] != true
-      #version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'optionSource' => 'instanceVersions', 'required' => true, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
-      version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'type' => 'select', 'fieldLabel' => 'Version', 'selectOptions' => available_versions, 'required' => version_is_required, 'skipSingleOption' => true, 'autoPickOption' => true, 'description' => 'Select which version of the instance type to be provisioned.', 'defaultValue' => default_version_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})
-      version_value = version_prompt['version']
-    end
     # JD: there is a bug here, the version needs to be passed perhaps? or the optionSource methods need updating...
     # could just allow for now ...
     # if options[:options]["layout"]
@@ -486,7 +508,12 @@ module Morpheus::Cli::ProvisioningHelper
       elsif payload['instance'] && payload['instance']['plan']
         default_plan = payload['instance']['plan']
       end
-      default_plan_value = default_plan.is_a?(Hash) ? default_plan['id'] : default_plan
+
+      if options[:default_plan] && service_plans_dropdown.find {|sp| [sp["name"], sp["value"].to_s, sp["code"]].include?(options[:default_plan].to_s)}
+        default_plan_value = options[:default_plan]
+      else
+        default_plan_value = options[:default_plan] || (default_plan.is_a?(Hash) ? default_plan['id'] : default_plan)
+      end
       plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
       plan_id = plan_prompt['servicePlan']
       service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
@@ -535,7 +562,10 @@ module Morpheus::Cli::ProvisioningHelper
       if resource_pool
         pool_id = resource_pool['id']
       else
-        resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}
+        if options[:default_resource_pool]
+          default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
+        end
+        resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
         resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{})
         resource_pool_prompt.deep_compact!
         payload.deep_merge!(resource_pool_prompt)
@@ -556,9 +586,9 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       # add selectable datastores for resource pool
-      if cloud_datastores
+      if options[:select_datastore]
         service_plan['datastores'] = {'cluster' => [], 'store' => []}
-        selectable_datastores = cloud_datastores.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+        selectable_datastores = cloud_datastores_interface.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
         ['cluster', 'store'].each do |type|
           service_plan['datastores'][type] ||= []
           selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
@@ -616,26 +646,33 @@ module Morpheus::Cli::ProvisioningHelper
     # ok.. seed data has changed and serverTypes do not have this optionType anymore...
     if sg_option_type.nil?
       if layout["provisionType"] && (layout["provisionType"]["code"] == 'amazon')
-        sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.'}
+        sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
       end
     end
     has_security_groups = !!sg_option_type
     if options[:security_groups]
       payload['securityGroups'] = options[:security_groups].collect {|sg_id| {'id' => sg_id} }
-    else
-      if has_security_groups
-        security_groups_array = prompt_security_groups(sg_option_type, {zoneId: cloud_id, poolId: pool_id}, options)
-        if !security_groups_array.empty?
-          payload['securityGroups'] = security_groups_array.collect {|sg_id| {'id' => sg_id} }
-        end
+    elsif has_security_groups
+      security_groups_array = prompt_security_groups(sg_option_type, {zoneId: cloud_id, poolId: pool_id}, options)
+      if !security_groups_array.empty?
+        payload['securityGroups'] = security_groups_array.collect {|sg_id| {'id' => sg_id} }
       end
     end
-
 
     # prompt for option types
     api_params = {groupId: group_id, cloudId: cloud_id, zoneId: cloud_id, instanceTypeId: instance_type['id'], version: version_value}
     api_params['config'] = payload['config'] if payload['config']
     api_params['poolId'] = payload['config']['resourcePoolId'] if payload['config'] && payload['config']['resourcePoolId']
+
+    # set option type defaults from config
+    if options[:default_config]
+      options[:default_config].each do |k,v|
+        if v && !(v.kind_of?(Array) && v.empty?)
+          option_type = option_type_list.find {|ot| ot['fieldContext'] == 'config' && ot['fieldName'] == k}
+          option_type['defaultValue'] = v if option_type
+        end
+      end
+    end
 
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params)
     payload.deep_merge!(instance_config_payload)
@@ -739,7 +776,8 @@ module Morpheus::Cli::ProvisioningHelper
       storage_type_id = nil
       storage_type = nil
     else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => volume['storageType']}], options[:options])
+      default_storage_type = root_storage_types.find {|t| t['value'].to_s == volume['storageType'].to_s}
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => default_storage_type ? default_storage_type['name'] : volume['storageType']}], options[:options])
       storage_type_id = v_prompt[field_context]['storageType']
       storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
       volume['storageType'] = storage_type_id
@@ -775,7 +813,8 @@ module Morpheus::Cli::ProvisioningHelper
       #volume['sizeId'] = nil #volume.delete('sizeId')
     end
     if !datastore_options.empty?
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => volume['datastoreId']}], options[:options])
+      default_datastore = datastore_options.find {|ds| ds['value'].to_s == volume['datastoreId'].to_s}
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => default_datastore ? default_datastore['name'] : volume['datastoreId']}], options[:options])
       volume['datastoreId'] = v_prompt[field_context]['datastoreId']
       volume['hasDatastore'] = true
     end
@@ -1209,8 +1248,10 @@ module Morpheus::Cli::ProvisioningHelper
         network_interface = options[:options]['networkInterfaces'][interface_index]
       end
 
+      default_network_value = (network_options.find {|n| n['value'] == (network_interface['networkId'] || network_interface['id'])} || {})['name']
+
       # choose network
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => network_interface['networkId']}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => default_network_value}], options[:options])
       network_interface['network'] = {}
       network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_s
       selected_network = networks.find {|it| it["id"].to_s == network_interface['network']['id'] }
@@ -1222,7 +1263,8 @@ module Morpheus::Cli::ProvisioningHelper
 
       # choose network interface type
       if enable_network_type_selection && !network_interface_type_options.empty?
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => network_interface['networkInterfaceTypeId']}], options[:options])
+        default_interface_type_value = (network_interface_type_options.find {|t| t['value'].to_s == network_interface['networkInterfaceTypeId'].to_s} || {})['name']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkInterfaceTypeId', 'type' => 'select', 'fieldLabel' => "Network Interface Type", 'selectOptions' => network_interface_type_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a network interface type.', 'defaultValue' => default_interface_type_value}], options[:options])
         network_interface['networkInterfaceTypeId'] = v_prompt[field_context]['networkInterfaceTypeId'].to_i
       end
 
@@ -1318,12 +1360,14 @@ module Morpheus::Cli::ProvisioningHelper
   def prompt_security_groups(sg_option_type, api_params, options)
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
     security_groups_array = []
-
     sg_required = sg_option_type['required']
     sg_index = 0
     add_another_sg = sg_required || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a security group?", {default: false}))
     while add_another_sg do
       cur_sg_option_type = sg_option_type.merge({'required' => (sg_index == 0 ? sg_required : false)})
+      if sg_index == 0 && !options[:default_security_group].nil?
+        cur_sg_option_type['defaultValue'] = options[:default_security_group]
+      end
       field_context = cur_sg_option_type['fieldContext']
       field_name = cur_sg_option_type['fieldName']
       v_prompt = Morpheus::Cli::OptionTypes.prompt([cur_sg_option_type], options[:options], api_client, api_params)

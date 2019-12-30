@@ -109,7 +109,7 @@ module Morpheus
           no_prompt = no_prompt || options[:no_prompt]
           if no_prompt
             if !value_found
-              if option_type['defaultValue'] != nil
+              if option_type['defaultValue'] != nil && option_type['type'] != 'select'
                 value = option_type['defaultValue']
                 value_found = true
               end
@@ -300,12 +300,20 @@ module Morpheus
             if found_default_option
               default_value = found_default_option['name'] # name is prettier than value
             end
+          else
+            found_default_option  = select_options.find {|opt| opt[value_field].to_s == default_value.to_s}
+            if found_default_option
+              default_value = found_default_option['name'] # name is prettier than value
+            end
           end
         end
 
         if no_prompt
           if !value_found
-            if !select_options.nil? && select_options.count > 1 && option_type['autoPickOption'] == true
+            if !default_value.nil? && !select_options.nil? && select_options.find {|it| it['name'] == default_value || it[value_field].to_s == default_value.to_s}
+              value_found = true
+              value = select_options.find {|it| it['name'] == default_value || it[value_field].to_s == default_value.to_s}[value_field]
+            elsif !select_options.nil? && select_options.count > 1 && option_type['autoPickOption'] == true
               value_found = true
               value = select_options[0][value_field]
             elsif option_type['required']
