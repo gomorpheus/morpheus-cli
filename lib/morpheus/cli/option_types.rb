@@ -60,6 +60,25 @@ module Morpheus
           namespaces = field_key.split(".")
           field_name = namespaces.pop
 
+          # respect optionType.dependsOnCode
+          if option_type['dependsOnCode'] && option_type['dependsOnCode'] != ""
+            # optionTypes can have this setting in the format code=value or code:value
+            parts = option_type['dependsOnCode'].include?("=") ? option_type['dependsOnCode'].split("=") : option_type['dependsOnCode'].split(":")
+            depends_on_code = parts[0]
+            depends_on_value = parts[1]
+            depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
+            # could not find the dependent option type
+            if depends_on_option_type.nil?
+              next
+            end
+            # dependent option type has a different value
+            depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
+            found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
+            if depends_on_value && depends_on_value != found_dep_value
+              next
+            end
+          end
+
           if field_key.include?(".")
             cur_namespace = options
 
@@ -77,7 +96,7 @@ module Morpheus
                 value = value.to_s.include?('.') ? value.to_f : value.to_i
               elsif option_type['type'] == 'select'
                 # this should just fall down through below, with the extra params no_prompt, use_value
-                value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true, value)
+                value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
               end
               if options[:always_prompt] != true
                 value_found = true
@@ -102,8 +121,7 @@ module Morpheus
             option_type = option_type.clone  
             option_type['defaultValue'] = value
           end
-          
-
+                    
           # no_prompt means skip prompting and instead
           # use default value or error if a required option is not present
           no_prompt = no_prompt || options[:no_prompt]
@@ -117,7 +135,7 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if option_type['type'] == 'select'
-                  value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true)
+                  value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
                   value_found = !!value
                 end
                 if !value_found
@@ -254,13 +272,22 @@ module Morpheus
         default_value = option_type['defaultValue']
         # local array of options
         if option_type['selectOptions']
-          select_options = option_type['selectOptions']
-        # remote optionSource aka /api/options/$optionSource?
+          # calculate from inline lambda
+          if option_type['selectOptions'].is_a?(Proc)
+            select_options = option_type['selectOptions'].call()
+          else
+            # todo: better type validation
+            select_options = option_type['selectOptions']
+          end
         elsif option_type['optionSource']
-          # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-          if option_type['optionSource'] == 'list'
+          # calculate from inline lambda
+          if option_type['optionSource'].is_a?(Proc)
+            select_options = option_type['optionSource'].call()
+          elsif option_type['optionSource'] == 'list'
+            # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
             select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})
           else
+            # remote optionSource aka /api/options/$optionSource?
             select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
           end
         else

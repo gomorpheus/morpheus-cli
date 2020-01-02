@@ -1,5 +1,6 @@
 require 'time'
 require 'filesize'
+require 'money'
 
 DEFAULT_TIME_FORMAT = "%x %I:%M %p"
 
@@ -325,4 +326,25 @@ def format_number(n, opts={})
     out << "." + decimal
   end
   return out
+end
+
+def currency_sym(currency)
+  Money::Currency.new((currency || 'usd').to_sym).symbol
+end
+
+# returns currency amount formatted like "$4,5123.00". 0.00 is formatted as "$0"
+# this is not ideal
+def format_money(amount, currency='usd')
+  if amount.to_f == 0
+    return currency_sym(currency).to_s + "0"
+  else
+    rtn = amount.to_f.round(2).to_s
+    if rtn.index('.').nil?
+      rtn += '.00'
+    elsif rtn.split('.')[1].length < 2
+      rtn = rtn + (['0'] * (2 - rtn.split('.')[1].length) * '')
+    end
+    dollars,cents = rtn.split(".")
+    currency_sym(currency).to_s + format_number(dollars.to_i) + "." + cents
+  end
 end

@@ -321,89 +321,137 @@ EOT
       return 1
     end
     
-    cmd = args.join(' ')
-    benchmark_name ||= cmd
-    if n == 1
-      start_benchmark(benchmark_name)
-      # exit_code, err = my_terminal.execute(cmd)
-      cmd_result = Morpheus::Cli::CliRegistry.exec_expression(cmd)
-      exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
-      benchmark_record = stop_benchmark(exit_code, err)
-      Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
-    else
-      benchmark_records = []
-      n.times do |iteration_index|
+    exit_code = 0
+    out = ""
+
+    original_stdout = nil
+    begin
+      # --quiet actually unhooks stdout for this command
+      if options[:quiet]
+        original_stdout = my_terminal.stdout
+        my_terminal.set_stdout(Morpheus::Terminal::Blackhole.new)
+      end
+    
+      cmd = args.join(' ')
+      benchmark_name ||= cmd
+
+    
+      if n == 1
         start_benchmark(benchmark_name)
         # exit_code, err = my_terminal.execute(cmd)
         cmd_result = Morpheus::Cli::CliRegistry.exec_expression(cmd)
         exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
         benchmark_record = stop_benchmark(exit_code, err)
-        Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
-        benchmark_records << benchmark_record
-      end
-      # calc total and mean and print it
-      # all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
-      # total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
-      # avg_duration = total_duration / all_durations.size
-      # total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)}s"
-      # avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)}s"
+        # Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if benchmark_record
+        # return 0
+        if original_stdout
+          my_terminal.set_stdout(original_stdout)
+          original_stdout = nil
+        end
+        out = ""
+        # <benchmark name or command>
+        out << "#{benchmark_name.ljust(30, ' ')}"
+        # exit: 0
+        exit_code = benchmark_record.exit_code
+        bad_benchmark = benchmark_record.exit_code && benchmark_record.exit_code != 0
+        if bad_benchmark
+          out << "\texit: #{bad_benchmark.exit_code.to_s.ljust(2, ' ')}"
+          out << "\terror: #{bad_benchmark.error.to_s.ljust(12, ' ')}"
+        else
+          out << "\texit: 0 "
+        end
+      else
+        benchmark_records = []
+        n.times do |iteration_index|
+          start_benchmark(benchmark_name)
+          # exit_code, err = my_terminal.execute(cmd)
+          cmd_result = Morpheus::Cli::CliRegistry.exec_expression(cmd)
+          exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(cmd_result)
+          benchmark_record = stop_benchmark(exit_code, err)
+          Morpheus::Logging::DarkPrinter.puts(cyan + dark + benchmark_record.msg) if Morpheus::Logging.debug?
+          benchmark_records << benchmark_record
+        end
+        if original_stdout
+          my_terminal.set_stdout(original_stdout)
+          original_stdout = nil
+        end
+        # calc total and mean and print it
+        # all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
+        # total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
+        # avg_duration = total_duration / all_durations.size
+        # total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)}s"
+        # avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)}s"
 
-      all_durations = []
-      stats = {total: 0, avg: nil, min: nil, max: nil}
-      benchmark_records.each do |benchmark_record| 
-        duration = benchmark_record.duration
-        if duration
-          all_durations << duration
-          stats[:total] += duration
-          if stats[:min].nil? || stats[:min] > duration
-            stats[:min] = duration
-          end
-          if stats[:max].nil? || stats[:max] < duration
-            stats[:max] = duration
+        all_durations = []
+        stats = {total: 0, avg: nil, min: nil, max: nil}
+        benchmark_records.each do |benchmark_record| 
+          duration = benchmark_record.duration
+          if duration
+            all_durations << duration
+            stats[:total] += duration
+            if stats[:min].nil? || stats[:min] > duration
+              stats[:min] = duration
+            end
+            if stats[:max].nil? || stats[:max] < duration
+              stats[:max] = duration
+            end
           end
         end
+        if all_durations.size > 0
+          stats[:avg] = stats[:total].to_f / all_durations.size
+        end
+
+        total_time_str = "#{stats[:total].round((stats[:total] > 0.002) ? 3 : 6)}s"
+        min_time_str = stats[:min] ? "#{stats[:min].round((stats[:min] > 0.002) ? 3 : 6)}s" : ""
+        max_time_str = stats[:max] ? "#{stats[:max].round((stats[:max] > 0.002) ? 3 : 6)}s" : ""
+        avg_time_str = stats[:avg] ? "#{stats[:avg].round((stats[:avg] > 0.002) ? 3 : 6)}s" : ""
+
+        out = ""
+        # <benchmark name or command>
+        out << "#{benchmark_name.ljust(30, ' ')}"
+        # exit: 0
+        bad_benchmark = benchmark_records.find {|benchmark_record| benchmark_record.exit_code && benchmark_record.exit_code != 0 }
+        if bad_benchmark
+          exit_code = bad_benchmark.exit_code.to_i
+          out << "\texit: #{bad_benchmark.exit_code.to_s.ljust(2, ' ')}"
+          out << "\terror: #{bad_benchmark.error.to_s.ljust(12, ' ')}"
+        else
+          out << "\texit: 0 "
+        end
+
+        out << "\tn: #{n.to_s.ljust(4, ' ')}"
+        out << "\ttotal: #{total_time_str.ljust(9, ' ')}"
+        out << "\tmin: #{min_time_str.ljust(9, ' ')}"
+        out << "\tmax: #{max_time_str.ljust(9, ' ')}"
+        out << "\tavg: #{avg_time_str.ljust(9, ' ')}"
+
+
+        # if bad_benchmark
+        #   print_error red,out,reset,"\n"
+        #   return 1
+        # else
+        #   print cyan,out,reset,"\n"
+        #   return 0
+        # end
       end
-      if all_durations.size > 0
-        stats[:avg] = stats[:total].to_f / all_durations.size
-      end
-
-      total_time_str = "#{stats[:total].round((stats[:total] > 0.002) ? 3 : 6)}s"
-      min_time_str = stats[:min] ? "#{stats[:min].round((stats[:min] > 0.002) ? 3 : 6)}s" : ""
-      max_time_str = stats[:max] ? "#{stats[:max].round((stats[:max] > 0.002) ? 3 : 6)}s" : ""
-      avg_time_str = stats[:avg] ? "#{stats[:avg].round((stats[:avg] > 0.002) ? 3 : 6)}s" : ""
-
-      out = ""
-      # <benchmark name or command>
-      out << "#{benchmark_name.ljust(30, ' ')}"
-      # exit: 0
-      exit_str = "0"
-      bad_benchmark = benchmark_records.find {|benchmark_record| benchmark_record.exit_code && benchmark_record.exit_code != 0 }
-      if bad_benchmark
-        bad_benchmark.exit_code.to_s
-        out << "\texit: #{bad_benchmark.exit_code.to_s.ljust(2, ' ')}"
-        out << "\terror: #{bad_benchmark.error.to_s.ljust(12, ' ')}"
-      else
-        out << "\texit: 0 "
-      end
-
-      out << "\tn: #{n.to_s.ljust(4, ' ')}"
-      out << "\ttotal: #{total_time_str.ljust(9, ' ')}"
-      out << "\tmin: #{min_time_str.ljust(9, ' ')}"
-      out << "\tmax: #{max_time_str.ljust(9, ' ')}"
-      out << "\tavg: #{avg_time_str.ljust(9, ' ')}"
-
-
-      if bad_benchmark
-        print red,out,reset,"\n"
-        return 1
-      else
+      if exit_code == 0
         print cyan,out,reset,"\n"
         return 0
+      else
+        print_error red,out,reset,"\n"
+        return exit_code
       end
-      
+    rescue => ex
+      raise ex
+      #raise_command_error "benchmark exec failed with error: #{ex}"
+      #puts_error "benchmark exec failed with error: #{ex}"
+      #return 1
+    ensure
+      if original_stdout
+        my_terminal.set_stdout(original_stdout)
+        original_stdout = nil
+      end
     end
-
-    return 0 
   end
 
 end
