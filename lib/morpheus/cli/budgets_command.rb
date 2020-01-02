@@ -51,7 +51,7 @@ class Morpheus::Cli::BudgetsCommand
           columns = [
             {"ID" => lambda {|budget| budget['id'] } },
             {"NAME" => lambda {|budget| budget['name'] } },
-            {"DESCRIPTION" => lambda {|budget| budget['description'] } },
+            {"DESCRIPTION" => lambda {|budget| truncate_string(budget['description'], 30) } },
             # {"ENABLED" => lambda {|budget| format_boolean(budget['enabled']) } },
             # {"SCOPE" => lambda {|it| format_budget_scope(it) } },
             {"SCOPE" => lambda {|it| it['refName'] } },
