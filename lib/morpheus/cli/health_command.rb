@@ -133,23 +133,32 @@ class Morpheus::Cli::HealthCommand
         "Used Swap" => lambda {|it| format_percent(it['memory']['swapPercent'], 1, 0) rescue '' },
       }
       print as_pretty_table(health, health_levels_columns, options)
-      #print "\n"
+      print "\n"
 
       # flash warnings
       if health['cpu'] && health['cpu']['status'] != 'ok' && health['cpu']['statusMessage']
-        print_red_alert health['cpu']['statusMessage']
+        status_color = health['cpu']['status'] == 'error' ? red : yellow
+        print status_color,health['cpu']['statusMessage'],reset,"\n"
       end
       if health['memory'] && health['memory']['status'] != 'ok' && health['memory']['statusMessage']
-        print_red_alert health['memory']['statusMessage']
+        status_color = health['memory']['status'] == 'error' ? red : yellow
+        print status_color,health['memory']['statusMessage'],reset,"\n"
       end
       if health['database'] && health['database']['status'] != 'ok' && health['database']['statusMessage']
-        print_red_alert health['database']['statusMessage']
+        status_color = health['database']['status'] == 'error' ? red : yellow
+        print status_color,health['database']['statusMessage'],reset,"\n"
       end
-      if health['elastic'] && health['elastic']['status'] != 'ok' && health['elastic']['statusMessage']
-        print_red_alert health['elastic']['statusMessage']
+      if health['elastic']['noticeMessage'].to_s != ""
+        print cyan,health['elastic']['noticeMessage'],reset,"\n"
+      else
+        if health['elastic'] && health['elastic']['status'] != 'ok' && health['elastic']['statusMessage']
+          status_color = health['elastic']['status'] == 'error' ? red : yellow
+          print status_color,health['elastic']['statusMessage'],reset,"\n"
+        end
       end
       if health['rabbit'] && health['rabbit']['status'] != 'ok' && health['rabbit']['statusMessage']
-        print_red_alert health['rabbit']['statusMessage']
+        status_color = health['rabbit']['status'] == 'error' ? red : yellow
+        print status_color,health['rabbit']['statusMessage'],reset,"\n"
       end
 
       if options[:show_cpu]
