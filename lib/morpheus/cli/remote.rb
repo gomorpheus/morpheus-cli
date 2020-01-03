@@ -133,7 +133,7 @@ EOT
       opts.on(nil, "--insecure", "Allow insecure HTTPS communication.  i.e. Ignore SSL errors.") do
         secure = false
       end
-      build_common_options(opts, options, [:quiet])
+      build_common_options(opts, options, [:options, :quiet])
       opts.footer = <<-EOT
 This will add a new remote appliance to your morpheus client configuration.
 If this is your first remote, --use is automatically applied so
@@ -233,7 +233,7 @@ EOT
     # hit check api and store version and other info
     if !options[:quiet]
       print cyan
-      puts "Inspecting remote appliance url: #{appliance[:host]} ..."
+      puts "Inspecting remote appliance #{appliance[:host]} ..."
     end
     appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     if !options[:quiet]
@@ -257,6 +257,11 @@ EOT
 
     if options[:json]
       puts as_json(check_json_response, options)
+      return exit_code, err
+    end
+
+    # just skip setup/login stuff is no prompt -N is used.
+    if options[:no_prompt]
       return exit_code, err
     end
 
