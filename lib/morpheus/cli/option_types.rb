@@ -79,40 +79,27 @@ module Morpheus
             end
           end
 
-          if field_key.include?(".")
-            cur_namespace = options
+          
+          cur_namespace = options
 
-            namespaces.each do |ns|
-              next if ns.empty?
-              cur_namespace[ns.to_s] ||= {}
-              cur_namespace = cur_namespace[ns.to_s]
-              context_map[ns.to_s] ||= {}
-              context_map = context_map[ns.to_s]
+          namespaces.each do |ns|
+            next if ns.empty?
+            cur_namespace[ns.to_s] ||= {}
+            cur_namespace = cur_namespace[ns.to_s]
+            context_map[ns.to_s] ||= {}
+            context_map = context_map[ns.to_s]
+          end
+          # use the value passed in the options map
+          if cur_namespace.key?(field_name)
+            value = cur_namespace[field_name]
+            if option_type['type'] == 'number'
+              value = value.to_s.include?('.') ? value.to_f : value.to_i
+            elsif option_type['type'] == 'select'
+              # this should just fall down through below, with the extra params no_prompt, use_value
+              value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
             end
-            # use the value passed in the options map
-            if cur_namespace.key?(field_name)
-              value = cur_namespace[field_name]
-              if option_type['type'] == 'number'
-                value = value.to_s.include?('.') ? value.to_f : value.to_i
-              elsif option_type['type'] == 'select'
-                # this should just fall down through below, with the extra params no_prompt, use_value
-                value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
-              end
-              if options[:always_prompt] != true
-                value_found = true
-              end
-            end
-          else
-            # no fieldContext
-            if value_found == false && options.key?(field_key)
-              value = options[field_key]
-              if option_type['type'] == 'number'
-                value = value.to_s.include?('.') ? value.to_f : value.to_i
-              end
-             # still prompt
-             if options[:always_prompt] != true
-                value_found = true
-              end
+            if options[:always_prompt] != true
+              value_found = true
             end
           end
           
@@ -121,7 +108,6 @@ module Morpheus
             option_type = option_type.clone  
             option_type['defaultValue'] = value
           end
-                    
           # no_prompt means skip prompting and instead
           # use default value or error if a required option is not present
           no_prompt = no_prompt || options[:no_prompt]
@@ -296,9 +282,9 @@ module Morpheus
 
         # ensure the preselected value (passed as an option) is in the dropdown
         if !use_value.nil?
-          matched_value = select_options.find {|opt| opt[value_field].to_s == use_value.to_s }
-          if !matched_value.nil?
-            value = use_value
+          matched_option = select_options.find {|opt| opt[value_field].to_s == use_value.to_s || opt['name'].to_s == use_value.to_s }
+          if !matched_option.nil?
+            value = matched_option[value_field]
             value_found = true
           else
             print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
