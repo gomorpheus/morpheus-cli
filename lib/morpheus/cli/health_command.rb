@@ -525,8 +525,11 @@ class Morpheus::Cli::HealthCommand
       opts.on('--category VALUE', String, "Category") do |val|
         params['category'] = params['category'] ? [params['category'], val].flatten : val
       end
-      opts.on('--status VALUE', String, "Alarm Status open, acknowledged. Default is open.") do |val|
+      opts.on('--status VALUE', String, "Filter by status. warning, error") do |val|
         params['status'] = params['status'] ? [params['status'], val].flatten : val
+      end
+      opts.on('--acknowledged', '--acknowledged', "Filter by acknowledged. By default only open alarms are returned.") do
+        params['alarmStatus'] = 'acknowledged'
       end
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
         start_date = parse_time(val) #.utc.iso8601
@@ -560,7 +563,7 @@ class Morpheus::Cli::HealthCommand
       if params['category']
         subtitles << "Category: #{params['category']}"
       end
-      if params['status']
+      if params['category']
         subtitles << "Status: #{params['status']}"
       end
       if params['startDate']
@@ -640,86 +643,6 @@ class Morpheus::Cli::HealthCommand
     print reset,"\n"
     return 0
 
-  end
-
-  def alarms(args)
-    options = {}
-    params = {}
-    start_date, end_date = nil, nil
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      opts.on('--category VALUE', String, "Category") do |val|
-        params['category'] = params['category'] ? [params['category'], val].flatten : val
-      end
-      opts.on('--status VALUE', String, "Alarm Status open, acknowledged. Default is open.") do |val|
-        params['status'] = params['status'] ? [params['status'], val].flatten : val
-      end
-      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
-        start_date = parse_time(val) #.utc.iso8601
-      end
-      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        end_date = parse_time(val) #.utc.iso8601
-      end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List health alarms."
-    end
-    optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
-    end
-    connect(options)
-    begin
-      params['startDate'] = start_date.utc.iso8601 if start_date
-      params['endDate'] = end_date.utc.iso8601 if end_date
-      params.merge!(parse_list_options(options))
-      @health_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @health_interface.dry.list_alarms(params)
-        return 0
-      end
-      json_response = @health_interface.list_alarms(params)
-      render_result = render_with_format(json_response, options, 'health')
-      return 0 if render_result
-      alarms = json_response['alarms']
-      title = "Morpheus Health Alarms"
-      subtitles = []
-      if params['category']
-        subtitles << "Category: #{params['category']}"
-      end
-      if params['category']
-        subtitles << "Status: #{params['status']}"
-      end
-      if params['startDate']
-        subtitles << "Start Date: #{params['startDate']}"
-      end
-      if params['endDate']
-        subtitles << "End Date: #{params['endDate']}"
-      end
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-      if alarms.empty?
-        print cyan,"No alarms found.",reset,"\n"
-      else
-        alarm_columns = [
-          {"ID" => lambda {|alarm| alarm['id'] } },
-          {"STATUS" => lambda {|alarm| format_health_status(alarm['status']) } },
-          {"RESOURCE" => lambda {|alarm| alarm['resourceName'] || alarm['refName'] } },
-          {"INFO" => lambda {|alarm| alarm['name'] } },
-          {"START DATE" => lambda {|alarm| format_local_dt(alarm['startDate']) } },
-          {"DURATION" => lambda {|alarm| format_duration(alarm['startDate'], alarm['acknoDate'] || Time.now) } },
-        ]
-        if options[:include_fields]
-          columns = options[:include_fields]
-        end
-        print as_pretty_table(alarms, alarm_columns, options)
-        print_results_pagination(json_response)
-      end
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
   end
 
   def acknowledge_alarms(args)
