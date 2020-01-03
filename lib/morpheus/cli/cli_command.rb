@@ -897,6 +897,7 @@ module Morpheus
       end
 
       # parse the parameters provided by the common :list options
+      # this includes the :query options too via parse_query_options().
       # returns Hash of params the format {"phrase": => "foobar", "max": 100}
       def parse_list_options(options={})
         list_params = {}
@@ -907,6 +908,16 @@ module Morpheus
             list_params[k.to_s] = options[k.to_s]
           end
         end
+        # arbitrary filters
+        list_params.merge!(parse_query_options(options))
+        
+        return list_params
+      end
+
+      # parse the parameters provided by the common :query (:query_filters) options
+      # returns Hash of params the format {"phrase": => "foobar", "max": 100}
+      def parse_query_options(options={})
+        list_params = {}
         # arbitrary filters
         if options[:query_filters]
           options[:query_filters].each do |k, v|

@@ -56,6 +56,7 @@ class Morpheus::Cli::BudgetsCommand
             # {"SCOPE" => lambda {|it| format_budget_scope(it) } },
             {"SCOPE" => lambda {|it| it['refName'] } },
             {"PERIOD" => lambda {|it| it['year'] } },
+            {"INTERVAL" => lambda {|it| it['interval'].to_s.capitalize } },
             {"START DATE" => lambda {|it| format_local_date(it['startDate']) } },
             {"END DATE" => lambda {|it| format_local_date(it['endDate']) } },
             {"TOTAL" => lambda {|it| format_money(it['totalCost'], it['currency']) } },
@@ -294,6 +295,10 @@ class Morpheus::Cli::BudgetsCommand
         }
         # allow arbitrary -O options
         passed_options.delete('costs')
+        passed_options.delete('tenant')
+        passed_options.delete('group')
+        passed_options.delete('cloud')
+        passed_options.delete('user')
         payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
         # prompt for options
         if !costs.empty?
@@ -391,19 +396,40 @@ class Morpheus::Cli::BudgetsCommand
         }
         # allow arbitrary -O options
         passed_options.delete('costs')
+        passed_options.delete('tenant')
+        passed_options.delete('group')
+        passed_options.delete('cloud')
+        passed_options.delete('user')
         payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
-        if !costs.empty?
-          payload['budget']['costs'] ||= {}
-          payload['budget']['costs'].deep_merge!(costs)
-        end
         # prompt for options
         #params = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options], @api_client, options[:params])
-        params = passed_options
-
-        if payload['budget'].empty?
-          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options].merge(:no_prompt => true), @api_client)
+        params.deep_merge!(v_prompt)
+        # v_costs = prompt_costs({'interval' => budget['interval']}.merge(params), options.merge(:no_prompt => true))
+        # if v_costs && !v_costs.empty?
+        #   params['costs'] = v_costs
+        # end
+        if !costs.empty?
+          params['costs'] = costs
+        end
+        # budgets api expects scope prefixed parameters like this
+        if params['tenant'].is_a?(String) || params['tenant'].is_a?(Numeric)
+          params['scopeTenantId'] = params.delete('tenant')
+        end
+        if params['group'].is_a?(String) || params['group'].is_a?(Numeric)
+          params['scopeGroupId'] = params.delete('group')
+        end
+        if params['cloud'].is_a?(String) || params['cloud'].is_a?(Numeric)
+          params['scopeCloudId'] = params.delete('cloud')
+        end
+        if params['user'].is_a?(String) || params['user'].is_a?(Numeric)
+          params['scopeUserId'] = params.delete('user')
         end
         payload.deep_merge!({'budget' => params}) unless params.empty?
+
+        if payload.empty? || payload['budget'].empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
       end
       @budgets_interface.setopts(options)
       if options[:dry_run]
@@ -533,7 +559,8 @@ class Morpheus::Cli::BudgetsCommand
   def update_budget_option_types
     list = add_budget_option_types()
     # list = list.reject {|it| ["interval"].include? it['fieldName'] }
-    list.each {|it| it['required'] = false }
+    list.each {|it| it.delete('required') }
+    list.each {|it| it.delete('defaultValue') }
     list
   end
 
