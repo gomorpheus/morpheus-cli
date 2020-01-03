@@ -11,6 +11,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
   set_command_name :'library-instance-types'
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands({:'update-logo' => :update_logo})
+  register_subcommands({:'toggle-featured' => :toggle_featured})
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -300,12 +301,11 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       end
 
       print_green_success "Added Instance Type #{params['name']}"
-
-      #list([])
-
+      _get(json_response['instanceType']['id'], options)
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -349,21 +349,71 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       @library_instance_types_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @library_instance_types_interface.dry.update(instance_type['id'], payload)
-        return
+        return 0
       end
       
       json_response = @library_instance_types_interface.update(instance_type['id'], payload)
       
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
-        return
+        return 0
       end
 
       print_green_success "Updated Instance Type #{params['name'] || instance_type['name']}"
-      #list([])
+      _get(json_response['instanceType']['id'], options)
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
+    end
+  end
+
+  def toggle_featured(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] [options]")
+      # opts.on('--featured [on|off]', String, "Featured flag") do |val|
+      #   params['featured'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      # end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Toggle featured flag for an instance type." + "\n" +
+                    "[name] is required. This is the name or id of a instance type."
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance_type = find_instance_type_by_name_or_id(args[0])
+      return 1 if instance_type.nil?
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+      else
+        instance_type_payload = {}
+        instance_type_payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        payload = {'instanceType' => instance_type_payload}
+      end
+      @library_instance_types_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @library_instance_types_interface.dry.toggle_featured(instance_type['id'], params, payload)
+        return 0
+      end
+      
+      json_response = @library_instance_types_interface.toggle_featured(instance_type['id'], params, payload)
+      
+      if options[:json]
+        print JSON.pretty_generate(json_response), "\n"
+        return 0
+      end
+      print_green_success "Updated Instance Type #{params['name'] || instance_type['name']}"
+      _get(instance_type['id'], options)
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
     end
   end
 
@@ -408,13 +458,13 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       json_response = @library_instance_types_interface.update_logo(instance_type['id'], logo_file)
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
-        return
+        return 0
       end
       print_green_success "Updated Instance Type #{instance_type['name']} logo"
-      #list([])
+      _get(instance_type['id'], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 

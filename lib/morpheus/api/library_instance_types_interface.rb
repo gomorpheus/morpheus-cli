@@ -39,6 +39,13 @@ class Morpheus::LibraryInstanceTypesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def toggle_featured(id, params={}, payload={})
+    url = "#{@base_url}/api/library/#{id}/toggle-featured"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def destroy(id, payload={})
     url = "#{@base_url}/api/library/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
