@@ -46,6 +46,9 @@ class Morpheus::Cli::Whoami
       opts.on( '-n', '--name', "Print only your username." ) do
         username_only = true
       end
+      opts.on('-a','--all', "Display All Details (Feature Access)") do
+        options[:include_feature_access] = true
+      end
       opts.on('-f','--feature-access', "Display Feature Access") do
         options[:include_feature_access] = true
       end
@@ -188,10 +191,25 @@ class Morpheus::Cli::Whoami
           if @user_permissions
             print_h2 "Feature Permissions", options
             print cyan
-            rows = @user_permissions.collect do |code, access|
-              {code: code, access: get_access_string(access) }
+            begin
+              rows = []
+              if @user_permissions.is_a?(Hash)
+                # api used to return map like [code:access]
+                rows = @user_permissions.collect do |code, access|
+                  {permission: code, access: get_access_string(access) }
+                end
+              else
+                # api now returns an array of objects like [[name:"Foo",code:"foo",access:"full"], ...]
+                rows = @user_permissions.collect do |it|
+                  {permission: (it['name'] || it['code']), access: get_access_string(it['access']) }
+                end
+              end
+              # api sort sux right now
+              rows = rows.sort {|a,b| a[:permission] <=> b[:permission] }
+              print as_pretty_table(rows, [:permission, :access], options)
+            rescue => ex
+              puts_error "Failed to parse feature permissions: #{ex}"
             end
-            print as_pretty_table(rows, [:code, :access], options)
           else
             puts yellow,"No permissions found.",reset
           end
