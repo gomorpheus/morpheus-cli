@@ -555,7 +555,7 @@ class Morpheus::Cli::HealthCommand
         return 0
       end
       json_response = @health_interface.list_alarms(params)
-      render_result = render_with_format(json_response, options, 'health')
+      render_result = render_with_format(json_response, options, 'alarms')
       return 0 if render_result
       alarms = json_response['alarms']
       title = "Morpheus Health Alarms"
