@@ -154,58 +154,58 @@ class Morpheus::Cli::WhitelabelSettingsCommand
         params['resetFavicon'] = true
       end
       opts.on("--header-bg-color VALUE", String, "Header background color") do |val|
-        params['headerBgColor'] = val
+        params['headerBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--header-fg-color VALUE", String, "Header foreground color") do |val|
-        params['headerFgColor'] = val
+        params['headerFgColor'] = val == 'null' ? nil : val
       end
       opts.on("--nav-bg-color VALUE", String, "Nav background color") do |val|
-        params['navBgColor'] = val
+        params['navBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--nav-fg-color VALUE", String, "Nav foreground color") do |val|
-        params['navFgColor'] = val
+        params['navFgColor'] = val == 'null' ? nil : val
       end
       opts.on("--nav-hover-color VALUE", String, "Nav hover color") do |val|
-        params['navHoverColor'] = val
+        params['navHoverColor'] = val == 'null' ? nil : val
       end
       opts.on("--primary-button-bg-color VALUE", String, "Primary button background color") do |val|
-        params['primaryButtonBgColor'] = val
+        params['primaryButtonBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--primary-button-fg-color VALUE", String, "Primary button foreground color") do |val|
-        params['primaryButtonFgColor'] = val
+        params['primaryButtonFgColor'] = val == 'null' ? nil : val
       end
       opts.on("--primary-button-hover-bg-color VALUE", String, "Primary button hover background color") do |val|
-        params['primaryButtonHoverBgColor'] = val
+        params['primaryButtonHoverBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--primary-button-hover-fg-color VALUE", String, "Primary button hover foreground color") do |val|
-        params['primaryButtonHoverFgColor'] = val
+        params['primaryButtonHoverFgColor'] = val == 'null' ? nil : val
       end
       opts.on("--footer-bg-color VALUE", String, "Footer background color") do |val|
-        params['footerBgColor'] = val
+        params['footerBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--footer-fg-color VALUE", String, "Footer foreground color") do |val|
-        params['footerFgColor'] = val
+        params['footerFgColor'] = val == 'null' ? nil : val
       end
       opts.on("--login-bg-color VALUE", String, "Login background color") do |val|
-        params['loginBgColor'] = val
+        params['loginBgColor'] = val == 'null' ? nil : val
       end
       opts.on("--copyright TEXT", String, "Copyright String") do |val|
-        params['copyrightString'] = val
+        params['copyrightString'] = val == 'null' ? nil : val
       end
       opts.on("--css TEXT", String, "Override CSS") do |val|
-        params['overrideCss'] = val
+        params['overrideCss'] = val == 'null' ? nil : val
       end
       opts.on("--css-file FILE", String, "Override CSS from local file") do |val|
         options[:overrideCssFile] = val
       end
       opts.on("--terms TEXT", String, "Terms of use content") do |val|
-        params['termsOfUse'] = val
+        params['termsOfUse'] = val == 'null' ? nil : val
       end
       opts.on("--terms-file FILE", String, "Terms of use content from local file") do |val|
         options[:termsOfUseFile] = val
       end
       opts.on("--privacy-policy TEXT", String, "Privacy policy content") do |val|
-        params['privacyPolicy'] = val
+        params['privacyPolicy'] = val == 'null' ? nil : val
       end
       opts.on("--privacy-policy-file FILE", String, "Privacy policy content from local file") do |val|
         options[:privacyPolicyFile] = val
