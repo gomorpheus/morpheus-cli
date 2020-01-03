@@ -1299,9 +1299,9 @@ EOT
     elsif status_str == "ready"
       out << "#{green}#{status_str.upcase}#{return_color}"
     elsif status_str == "http-error"
-      out << "#{red}#{status_str.upcase}#{return_color}"
+      out << "#{red}HTTP ERROR#{return_color}"
     elsif ['error', 'net-error', 'ssl-error', 'http-timeout', 'unreachable', 'unrecognized'].include?(status_str)
-      out << "#{red}#{status_str.upcase}#{return_color}"
+      out << "#{red}#{status_str.gsub('-', ' ').upcase}#{return_color}"
     else
       # dunno
       out << "#{yellow}#{status_str.upcase}#{return_color}"
