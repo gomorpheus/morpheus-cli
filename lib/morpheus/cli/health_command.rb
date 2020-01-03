@@ -522,9 +522,9 @@ class Morpheus::Cli::HealthCommand
     start_date, end_date = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--category VALUE', String, "Category") do |val|
-        params['category'] = params['category'] ? [params['category'], val].flatten : val
-      end
+      # opts.on('--category VALUE', String, "Category") do |val|
+      #   params['category'] = params['category'] ? [params['category'], val].flatten : val
+      # end
       opts.on('--status VALUE', String, "Filter by status. warning, error") do |val|
         params['status'] = params['status'] ? [params['status'], val].flatten : val
       end
@@ -560,11 +560,14 @@ class Morpheus::Cli::HealthCommand
       alarms = json_response['alarms']
       title = "Morpheus Health Alarms"
       subtitles = []
-      if params['category']
-        subtitles << "Category: #{params['category']}"
-      end
-      if params['category']
+      # if params['category']
+      #   subtitles << "Category: #{params['category']}"
+      # end
+      if params['status']
         subtitles << "Status: #{params['status']}"
+      end
+      if params['alarmStatus'] == 'acknowledged'
+        subtitles << "(Acknowledged)"
       end
       if params['startDate']
         subtitles << "Start Date: #{params['startDate']}"
