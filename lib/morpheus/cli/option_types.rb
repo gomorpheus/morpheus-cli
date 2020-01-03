@@ -68,7 +68,7 @@ module Morpheus
             depends_on_value = parts[1]
             depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
             # could not find the dependent option type, proceed and prompt
-            if depends_on_option_type.nil?
+            if !depends_on_option_type.nil?
               # dependent option type has a different value
               depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
               found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
