@@ -331,6 +331,8 @@ module Morpheus::Cli::AccountsHelper
     val ||= 'none'
     if val == 'none'
       "#{white}#{val.to_s.capitalize}#{cyan}"
+    elsif val == 'read'
+      "#{cyan}#{val.to_s.capitalize}#{cyan}"
     else
       "#{green}#{val.to_s.capitalize}#{cyan}"
     end

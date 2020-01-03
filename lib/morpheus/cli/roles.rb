@@ -88,6 +88,7 @@ class Morpheus::Cli::Roles
 
   def get(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('-p','--permissions', "Display Permissions") do |val|
@@ -116,7 +117,7 @@ class Morpheus::Cli::Roles
         options[:include_instance_type_access] = true
         options[:include_blueprint_access] = true
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a role.\n" +
                     "[name] is required. This is the name or id of a role."
     end
@@ -131,6 +132,9 @@ class Morpheus::Cli::Roles
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
+
+      params.merge!(parse_query_options(options))
+
       @roles_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
@@ -159,16 +163,8 @@ class Morpheus::Cli::Roles
         role = json_response['role']
       end
 
-      if options[:json]
-        puts as_json(json_response, options, "role")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "role")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['role']], options)
-        return 0
-      end
+      render_result = render_with_format(json_response, options, 'role')
+      return 0 if render_result
 
       print cyan
       print_h1 "Role Details", options
@@ -207,15 +203,40 @@ class Morpheus::Cli::Roles
             access: get_access_string(it['access']),
           }
         end
+        if options[:sort]
+          rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+        end
+        if options[:direction] == 'desc'
+          rows.reverse!
+        end
+        if options[:phrase]
+          phrase_regexp = /#{Regexp.escape(options[:phrase])}/i
+          rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
+        end
         print as_pretty_table(rows, [:code, :name, :access], options)
       else
-        puts "Use --permissions to list permissions"
+        print cyan,"Use --permissions to list permissions","\n"
       end
 
-      print_h2 "Group Access", options
+      print_h2 "Access", options
+      # role_access_rows = [
+      #   {name: "Groups", access: get_access_string(json_response['globalSiteAccess']) },
+      #   {name: "Clouds", access: get_access_string(json_response['globalZoneAccess']) },
+      #   {name: "Instance Types", access: get_access_string(json_response['globalInstanceTypeAccess']) },
+      #   {name: "Blueprints", access: get_access_string(json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']) }
+      # ]
+      # puts as_pretty_table(role_access_rows, [:name, :access], options)
+      puts as_pretty_table([json_response], [
+        {"Groups" => lambda {|it| get_access_string(it['globalSiteAccess']) } },
+        {"Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) } },
+        {"Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) } },
+        {"Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) } },
+      ], options)
+
+      #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
       print cyan
-      puts "Global Group Access: #{get_access_string(json_response['globalSiteAccess'])}\n\n"
       if json_response['globalSiteAccess'] == 'custom'
+        print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
         if options[:include_group_access]
           rows = json_response['sites'].collect do |it|
             {
@@ -225,14 +246,18 @@ class Morpheus::Cli::Roles
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          puts "Use --group-access to list custom access"
+          print cyan,"Use -g, --group-access to list custom access","\n"
         end
+      else
+        print "\n"
+        print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
       end
-
-      print_h2 "Cloud Access", options
+      
       print cyan
-      puts "Global Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}\n\n"
+      #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
+      #print "\n"
       if json_response['globalZoneAccess'] == 'custom'
+        print_h2 "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}", options
         if options[:include_cloud_access]
           rows = json_response['zones'].collect do |it|
             {
@@ -242,14 +267,18 @@ class Morpheus::Cli::Roles
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          puts "Use --cloud-access to list custom access"
+          print cyan,"Use -c, --cloud-access to list custom access","\n"
         end
+      else
+        print "\n"
+        print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
       end
 
-      print_h2 "Instance Type Access", options
       print cyan
-      puts "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}\n\n"
+      # puts "Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}"
+      # print "\n"
       if json_response['globalInstanceTypeAccess'] == 'custom'
+        print_h2 "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}", options
         if options[:include_instance_type_access]
           rows = json_response['instanceTypePermissions'].collect do |it|
             {
@@ -259,16 +288,20 @@ class Morpheus::Cli::Roles
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          puts "Use --instance-type-access to list custom access"
+          print cyan,"Use -i, --instance-type-access to list custom access","\n"
         end
+      else
+        print "\n"
+        print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
       end
 
       blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
       blueprint_permissions = json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || []
-      print_h2 "Blueprint Access", options
       print cyan
-      puts "Global Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}\n\n"
+      # print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
+      # print "\n"
       if blueprint_global_access == 'custom'
+        print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
         if options[:include_blueprint_access]
           rows = blueprint_permissions.collect do |it|
             {
@@ -278,8 +311,11 @@ class Morpheus::Cli::Roles
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          puts "Use --blueprint-access to list custom access"
+          print cyan,"Use -b, --blueprint-access to list custom access","\n"
         end
+      else
+        print "\n"
+        print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
       end
 
       print reset,"\n"
@@ -294,7 +330,7 @@ class Morpheus::Cli::Roles
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List the permissions for a role.\n" +
                     "[role] is required. This is the name or id of a role."
     end
@@ -360,9 +396,19 @@ class Morpheus::Cli::Roles
             access: get_access_string(it['access']),
           }
         end
+        if options[:sort]
+          rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+        end
+        if options[:direction] == 'desc'
+          rows.reverse!
+        end
+        if options[:phrase]
+          phrase_regexp = /#{Regexp.escape(options[:phrase])}/i
+          rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
+        end
         print as_pretty_table(rows, [:code, :name, :access], options)
       else
-        puts "No permissions found?"
+        puts "No permissions found"
       end
 
       print reset,"\n"
@@ -378,12 +424,17 @@ class Morpheus::Cli::Roles
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[options]")
+      opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_role_option_types)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    if args[0]
+      options[:options]['authority'] = args[0]
+    end
     connect(options)
     begin
 
