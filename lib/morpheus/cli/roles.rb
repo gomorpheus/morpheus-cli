@@ -218,7 +218,7 @@ class Morpheus::Cli::Roles
         print cyan,"Use --permissions to list permissions","\n"
       end
 
-      print_h2 "Access", options
+      print_h2 "Global Access", options
       # role_access_rows = [
       #   {name: "Groups", access: get_access_string(json_response['globalSiteAccess']) },
       #   {name: "Clouds", access: get_access_string(json_response['globalZoneAccess']) },
@@ -236,7 +236,7 @@ class Morpheus::Cli::Roles
       #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
       print cyan
       if json_response['globalSiteAccess'] == 'custom'
-        print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
+        print_h2 "Group Access", options
         if options[:include_group_access]
           rows = json_response['sites'].collect do |it|
             {
@@ -249,15 +249,15 @@ class Morpheus::Cli::Roles
           print cyan,"Use -g, --group-access to list custom access","\n"
         end
       else
-        print "\n"
-        print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
+        # print "\n"
+        # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
       end
       
       print cyan
       #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
       #print "\n"
       if json_response['globalZoneAccess'] == 'custom'
-        print_h2 "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}", options
+        print_h2 "Cloud Access", options
         if options[:include_cloud_access]
           rows = json_response['zones'].collect do |it|
             {
@@ -270,15 +270,15 @@ class Morpheus::Cli::Roles
           print cyan,"Use -c, --cloud-access to list custom access","\n"
         end
       else
-        print "\n"
-        print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
+        # print "\n"
+        # print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
       end
 
       print cyan
       # puts "Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}"
       # print "\n"
       if json_response['globalInstanceTypeAccess'] == 'custom'
-        print_h2 "Global Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}", options
+        print_h2 "Instance Type Access", options
         if options[:include_instance_type_access]
           rows = json_response['instanceTypePermissions'].collect do |it|
             {
@@ -291,8 +291,8 @@ class Morpheus::Cli::Roles
           print cyan,"Use -i, --instance-type-access to list custom access","\n"
         end
       else
-        print "\n"
-        print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
+        # print "\n"
+        # print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
       end
 
       blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
@@ -301,7 +301,7 @@ class Morpheus::Cli::Roles
       # print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
       # print "\n"
       if blueprint_global_access == 'custom'
-        print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
+        print_h2 "Blueprint Access", options
         if options[:include_blueprint_access]
           rows = blueprint_permissions.collect do |it|
             {
@@ -314,8 +314,8 @@ class Morpheus::Cli::Roles
           print cyan,"Use -b, --blueprint-access to list custom access","\n"
         end
       else
-        print "\n"
-        print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
+        # print "\n"
+        # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
       end
 
       print reset,"\n"
