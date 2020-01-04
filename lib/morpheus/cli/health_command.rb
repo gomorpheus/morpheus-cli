@@ -202,7 +202,7 @@ class Morpheus::Cli::HealthCommand
             "System Memory Usage" => lambda {|it| format_percent(it['systemMemoryPercent'].to_f * 100) rescue '' },
             "System Swap" => lambda {|it| format_bytes_short(it['systemSwap']) rescue '' },
             "Free Swap" => lambda {|it| format_bytes_short(it['systemFreeSwap']) rescue '' },
-            "Used Swap" => lambda {|it| format_percent(it['swapPercent'].to_f * 100) rescue '' }
+            #"Used Swap" => lambda {|it| format_percent(it['swapPercent'].to_f * 100) rescue '' }
             # "System Load" => lambda {|it| (it['systemLoad'].to_f(3)) rescue '' },
           }
           #print as_pretty_table(health['memory'], memory_columns, options)
