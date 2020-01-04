@@ -110,6 +110,11 @@ class Morpheus::Cli::HealthCommand
         print yellow,"No health data returned.",reset,"\n"
         return 1
       end
+      if health['elastic'] && health['elastic']['noticeMessage'].to_s != ""
+        print cyan,health['elastic']['noticeMessage'],reset,"\n"
+        print "\n"
+      end
+
       #print_h2 "Health Summary", options
       print cyan
       health_summary_columns = {
@@ -123,18 +128,6 @@ class Morpheus::Cli::HealthCommand
       print as_pretty_table(health, health_summary_columns, options)
       print "\n"
       
-      #print_h2 "Health Levels", options
-      print cyan
-      health_levels_columns = {
-        "Morpheus CPU" => lambda {|it| format_percent(it['cpu']['cpuLoad'], 100, 0) rescue '' },
-        "System CPU" => lambda {|it| format_percent(it['cpu']['cpuTotalLoad'], 100, 0) rescue '' },
-        "Morpheus Memory" => lambda {|it| format_percent(it['memory']['memoryPercent'], 1, 0) rescue '' },
-        "System Memory" => lambda {|it| format_percent(it['memory']['systemMemoryPercent'], 1, 0) rescue '' },
-        "Used Swap" => lambda {|it| format_percent(it['memory']['swapPercent'], 1, 0) rescue '' },
-      }
-      print as_pretty_table(health, health_levels_columns, options)
-      print "\n"
-
       # flash warnings
       if health['cpu'] && health['cpu']['status'] != 'ok' && health['cpu']['statusMessage']
         status_color = health['cpu']['status'] == 'error' ? red : yellow
@@ -148,18 +141,29 @@ class Morpheus::Cli::HealthCommand
         status_color = health['database']['status'] == 'error' ? red : yellow
         print status_color,health['database']['statusMessage'],reset,"\n"
       end
-      if health['elastic']['noticeMessage'].to_s != ""
-        print cyan,health['elastic']['noticeMessage'],reset,"\n"
-      else
-        if health['elastic'] && health['elastic']['status'] != 'ok' && health['elastic']['statusMessage']
-          status_color = health['elastic']['status'] == 'error' ? red : yellow
-          print status_color,health['elastic']['statusMessage'],reset,"\n"
-        end
+      # if health['elastic'] && health['elastic']['noticeMessage'].to_s != ""
+      #   print cyan,health['elastic']['noticeMessage'],reset,"\n"
+      # end
+      if health['elastic'] && health['elastic']['status'] != 'ok' && health['elastic']['statusMessage']
+        status_color = health['elastic']['status'] == 'error' ? red : yellow
+        print status_color,health['elastic']['statusMessage'],reset,"\n"
       end
       if health['rabbit'] && health['rabbit']['status'] != 'ok' && health['rabbit']['statusMessage']
         status_color = health['rabbit']['status'] == 'error' ? red : yellow
         print status_color,health['rabbit']['statusMessage'],reset,"\n"
       end
+
+      print_h2 "Health Levels", options
+      print cyan
+      health_levels_columns = {
+        "Morpheus CPU" => lambda {|it| format_percent(it['cpu']['cpuLoad'], 100, 0) rescue '' },
+        "System CPU" => lambda {|it| format_percent(it['cpu']['cpuTotalLoad'], 100, 0) rescue '' },
+        "Morpheus Memory" => lambda {|it| format_percent(it['memory']['memoryPercent'], 1, 0) rescue '' },
+        "System Memory" => lambda {|it| format_percent(it['memory']['systemMemoryPercent'], 1, 0) rescue '' },
+        "Used Swap" => lambda {|it| format_percent(it['memory']['swapPercent'], 1, 0) rescue '' },
+      }
+      print as_pretty_table(health, health_levels_columns, options)
+      # print "\n"
 
       if options[:show_cpu]
         # CPU
