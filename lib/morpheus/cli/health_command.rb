@@ -10,7 +10,7 @@ class Morpheus::Cli::HealthCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LogsHelper
   set_command_name :health
-  register_subcommands :get, :alarms, :'get-alarm', :'acknowledge-alarms', :logs
+  register_subcommands :get, :alarms, :'get-alarm', :'acknowledge-alarms', :'unacknowledge-alarms', :logs
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -156,11 +156,11 @@ class Morpheus::Cli::HealthCommand
       print_h2 "Health Levels", options
       print cyan
       health_levels_columns = {
-        "Morpheus CPU" => lambda {|it| format_percent(it['cpu']['cpuLoad'], 100, 0) rescue '' },
-        "System CPU" => lambda {|it| format_percent(it['cpu']['cpuTotalLoad'], 100, 0) rescue '' },
-        "Morpheus Memory" => lambda {|it| format_percent(it['memory']['memoryPercent'], 1, 0) rescue '' },
-        "System Memory" => lambda {|it| format_percent(it['memory']['systemMemoryPercent'], 1, 0) rescue '' },
-        "Used Swap" => lambda {|it| format_percent(it['memory']['swapPercent'], 1, 0) rescue '' },
+        "Morpheus CPU" => lambda {|it| format_percent(it['cpu']['cpuLoad'].to_f, 0) rescue '' },
+        "System CPU" => lambda {|it| format_percent(it['cpu']['cpuTotalLoad'].to_f, 0) rescue '' },
+        "Morpheus Memory" => lambda {|it| format_percent(it['memory']['memoryPercent'].to_f * 100, 0) rescue '' },
+        "System Memory" => lambda {|it| format_percent(it['memory']['systemMemoryPercent'].to_f * 100, 0) rescue '' },
+        "Used Swap" => lambda {|it| format_percent(it['memory']['swapPercent'].to_f * 100, 0) rescue '' },
       }
       print as_pretty_table(health, health_levels_columns, options)
       # print "\n"
@@ -195,14 +195,14 @@ class Morpheus::Cli::HealthCommand
             "Morpheus Memory" => lambda {|it| format_bytes_short(it['totalMemory']) rescue '' },
             "Morpheus Used Memory" => lambda {|it| format_bytes_short(it['usedMemory']) rescue '' },
             "Morpheus Free Memory" => lambda {|it| format_bytes_short(it['freeMemory']) rescue '' },
-            "Morpheus Memory Usage" => lambda {|it| format_ratio_percent(it['memoryPercent']) rescue '' },
+            "Morpheus Memory Usage" => lambda {|it| format_percent(it['memoryPercent'].to_f * 100) rescue '' },
             "System Memory" => lambda {|it| format_bytes_short(it['systemMemory']) rescue '' },
-            "System Used Memory" => lambda {|it| format_bytes_short(it['comittedMemory']) rescue '' },
+            "System Used Memory" => lambda {|it| format_bytes_short(it['committedMemory']) rescue '' },
             "System Free Memory" => lambda {|it| format_bytes_short(it['systemFreeMemory']) rescue '' },
-            "System Memory Usage" => lambda {|it| format_ratio_percent(it['systemMemoryPercent']) rescue '' },
+            "System Memory Usage" => lambda {|it| format_percent(it['systemMemoryPercent'].to_f * 100) rescue '' },
             "System Swap" => lambda {|it| format_bytes_short(it['systemSwap']) rescue '' },
             "Free Swap" => lambda {|it| format_bytes_short(it['systemFreeSwap']) rescue '' },
-            "Used Swap" => lambda {|it| format_ratio_percent(it['swapPercent']) rescue '' }
+            "Used Swap" => lambda {|it| format_percent(it['swapPercent'].to_f * 100) rescue '' }
             # "System Load" => lambda {|it| (it['systemLoad'].to_f(3)) rescue '' },
           }
           #print as_pretty_table(health['memory'], memory_columns, options)
@@ -218,37 +218,24 @@ class Morpheus::Cli::HealthCommand
           print_h2 "Database", options
           print cyan
           database_columns = {
-            # "Status" => lambda {|it| format_health_status(it['status']) rescue '' },
-            "Status" => lambda {|it| 
-              begin
-                if it['statusMessage'].to_s != ""
-                  format_health_status(it['status']).to_s + " - " + it['statusMessage'] 
-                else
-                  format_health_status(it['status'])
-                end
-              rescue => ex
-                ''
-              end
-            },
             "Lifetime Connections" => lambda {|it| it['stats']['Connections'] rescue '' },
             "Aborted Connections" => lambda {|it| it['stats']['Aborted_connects'] rescue '' },
             "Max Used Connections" => lambda {|it| it['stats']['Max_used_connections'] rescue '' },
-            "Max Connections" => lambda {|it| it['stats']['maxConnections'] rescue '' },
+            "Max Connections" => lambda {|it| it['maxConnections'] rescue '' },
             "Threads Running" => lambda {|it| it['stats']['Threads_running'] rescue '' },
             "Threads Connected" => lambda {|it| it['stats']['Threads_connected'] rescue '' },
             "Slow Queries" => lambda {|it| it['stats']['Slow_queries'] rescue '' },
             "Temp Tables" => lambda {|it| it['stats']['Created_tmp_disk_tables'] rescue '' },
-            #"Key Reads" => lambda {|it| it['stats']['Key_reads'] rescue '' },
-            "Handler Reads First" => lambda {|it| it['stats']['Handler_read_first'] rescue '' },
+            "Handler Read First" => lambda {|it| it['stats']['Handler_read_first'] rescue '' },
             "Buffer Pool Free" => lambda {|it| it['stats']['Innodb_buffer_pool_wait_free'] rescue '' },
-            "Open_tables" => lambda {|it| it['stats']['Open_tables'] rescue '' },
+            "Open Tables" => lambda {|it| it['stats']['Open_tables'] rescue '' },
             "Table Scans" => lambda {|it| it['stats']['Select_scan'] rescue '' },
-            "Full Joines" => lambda {|it| it['stats']['Select_full_join'] rescue '' },
+            "Full Joins" => lambda {|it| it['stats']['Select_full_join'] rescue '' },
             "Key Read Requests" => lambda {|it| it['stats']['Key_read_requests'] rescue '' },
             "Key Reads" => lambda {|it| it['stats']['Key_reads'] rescue '' },
             "Engine Waits" => lambda {|it| it['stats']['Innodb_log_waits'] rescue '' },
             "Lock Waits" => lambda {|it| it['stats']['Table_locks_waited'] rescue '' },
-            "Handler Reads Rnd" => lambda {|it| it['stats']['Handler_read_rnd'] rescue '' },
+            "Handler Read Rnd" => lambda {|it| it['stats']['Handler_read_rnd'] rescue '' },
             "Engine IO Writes" => lambda {|it| it['stats']['Innodb_data_writes'] rescue '' },
             "Engine IO Reads" => lambda {|it| it['stats']['Innodb_data_reads'] rescue '' },
             "Engine IO Double Writes" => lambda {|it| it['stats']['Innodb_dblwr_writes'] rescue '' },
@@ -259,23 +246,28 @@ class Morpheus::Cli::HealthCommand
             "Free Buffers" => lambda {|it| it['innodbStats']['freeBuffers'] rescue '' },
             "Database Pages" => lambda {|it| it['innodbStats']['databasePages'] rescue '' },
             "Old Pages" => lambda {|it| it['innodbStats']['oldPages'] rescue '' },
-            "Dirty Page Percent" => lambda {|it| (it['innodbStats']['dirtyPagePercent'] ? it['innodbStats']['dirtyPagePercent'].to_s + '%' : '') rescue '' },
-            "Max Dirty Pages" => lambda {|it| (it['innodbStats']['maxDirtyPagePercent'] ? it['innodbStats']['maxDirtyPagePercent'].to_s + '%' : '') rescue '' },
-            "Insert Rate" => lambda {|it| (it['innodbStats']['insertsPerSecond']) rescue '' },
-            "Update Rate" => lambda {|it| (it['innodbStats']['updatesPerSecond']) rescue '' },
-            "Delete Rate" => lambda {|it| (it['innodbStats']['deletesPerSecond']) rescue '' },
-            "Read Rate" => lambda {|it| (it['innodbStats']['readsPerSecond']) rescue '' },
-            "Buffer Hit Rate" => lambda {|it| (it['innodbStats']['bufferHitRate']) rescue '' },
+            "Dirty Page Percent" => lambda {|it| format_percent(it['innodbStats']['dirtyPagePercent'] ? it['innodbStats']['dirtyPagePercent'] : '') rescue '' },
+            "Max Dirty Pages" => lambda {|it| format_percent(it['innodbStats']['maxDirtyPagePercent'].to_f) rescue '' },
+            "Pending Reads" => lambda {|it| format_number(it['innodbStats']['pendingReads']) rescue '' },
+            "Insert Rate" => lambda {|it| format_rate(it['innodbStats']['insertsPerSecond'].to_f) rescue '' },
+            "Update Rate" => lambda {|it| format_rate(it['innodbStats']['updatesPerSecond'].to_f) rescue '' },
+            "Delete Rate" => lambda {|it| format_rate(it['innodbStats']['deletesPerSecond'].to_f) rescue '' },
+            "Read Rate" => lambda {|it| format_rate(it['innodbStats']['readsPerSecond']) rescue '' },
+            "Buffer Hit Rate" => lambda {|it| format_percent(it['innodbStats']['bufferHitRate'].to_f) rescue '' },
             "Read Write Ratio" => lambda {|it| 
+              rw_ratio = ""
               begin
-                total_writes = (it['innodbStats']['Com_insert'] || 0) + (it['innodbStats']['Com_update'] || 0)  + (it['innodbStats']['Com_delete'] || 0) 
-                total_reads = (it['innodbStats']['Com_select'] || 0) 
-                rw_ratio = total_writes > 0 ? (total_reads.to_f / total_writes.to_f).to_f(3) : ""
-                rw_ratio
-              rescue ''
-              end 
+                total_writes = (it['stats']['Com_update'].to_i) + (it['stats']['Com_insert'].to_i) + (it['stats']['Com_delete'].to_f)
+                total_reads = (it['stats']['Com_select'].to_i)
+                if total_writes > 0
+                  rw_ratio = (total_reads.to_f / total_writes.to_f).round(2).to_s
+                end
+              rescue => ex
+                puts ex
+              end
+              rw_ratio
             },
-            "Uptime" => lambda {|it| (it['innodbStats']['Uptime'] ? format_human_duration(it['innodbStats']['Uptime']) : '') rescue '' },
+            "Uptime" => lambda {|it| (it['stats']['Uptime'] ? format_human_duration(it['stats']['Uptime'].to_i) : '') rescue '' },
           }
           
           print_description_list(database_columns, health['database'], options)
@@ -293,22 +285,22 @@ class Morpheus::Cli::HealthCommand
           print cyan
 
           elastic_columns = {
+            "Status" => 'status',
             # "Status" => lambda {|it| format_health_status(it['status']) rescue '' },
-            "Status" => lambda {|it| 
-              begin
-                if it['statusMessage'].to_s != ""
-                  format_health_status(it['status']).to_s + " - " + it['statusMessage'] 
-                else
-                  format_health_status(it['status'])
-                end
-              rescue => ex
-                ''
-              end
-            },
+            # "Status" => lambda {|it| 
+            #   begin
+            #     if it['statusMessage'].to_s != ""
+            #       format_health_status(it['status']).to_s + " - " + it['statusMessage'] 
+            #     else
+            #       format_health_status(it['status'])
+            #     end
+            #   rescue => ex
+            #     ''
+            #   end
+            # },
             "Cluster" => lambda {|it| it['stats']['clusterName'] rescue '' },
             "Node Count" => lambda {|it| it['stats']['nodeTotal'] rescue '' },
             "Data Nodes" => lambda {|it| it['stats']['nodeData'] rescue '' },
-            "Table Scans" => lambda {|it| it['stats']['Select_scan'] rescue '' },
             "Shards" => lambda {|it| it['stats']['shards'] rescue '' },
             "Primary Shards" => lambda {|it| it['stats']['primary'] rescue '' },
             "Relocating Shards" => lambda {|it| it['stats']['relocating'] rescue '' },
@@ -347,7 +339,7 @@ class Morpheus::Cli::HealthCommand
             {"Replicas".upcase => lambda {|it| it['replicas'] } },
             {"Doc Count".upcase => lambda {|it| format_number(it['count']) } },
             {"Primary Size".upcase => lambda {|it| it['primarySize'] } },
-            {"Total Size" => lambda {|it| it['totalSize'] } },
+            {"Total Size".upcase => lambda {|it| it['totalSize'] } },
           ]
 
           # when the api returns indices, it will include badIndices, so don't show both.
@@ -472,7 +464,7 @@ class Morpheus::Cli::HealthCommand
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
         end_date = parse_time(val) #.utc.iso8601
       end
-      opts.on('--table', '--table', "Format ouput as a table.") do
+      opts.on('--table', '--table', "Format output as a table.") do
         options[:table] = true
       end
       opts.on('-a', '--all', "Display all details: entire message." ) do
@@ -535,9 +527,9 @@ class Morpheus::Cli::HealthCommand
     start_date, end_date = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      # opts.on('--category VALUE', String, "Category") do |val|
-      #   params['category'] = params['category'] ? [params['category'], val].flatten : val
-      # end
+      opts.on('--category VALUE', String, "Filter by Alarm Category. datastore, computeZone, computeServer, etc.") do |val|
+        params['alarmCategory'] = params['alarmCategory'] ? [params['alarmCategory'], val].flatten : val
+      end
       opts.on('--status VALUE', String, "Filter by status. warning, error") do |val|
         params['status'] = params['status'] ? [params['status'], val].flatten : val
       end
@@ -740,6 +732,84 @@ class Morpheus::Cli::HealthCommand
     end
   end
 
+  def unacknowledge_alarms(args)
+    options = {}
+    params = {acknowledged:false}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[alarm] [options]")
+      # opts.on('-a', '--all', "Acknowledge all open alarms. This can be used instead of passing specific alarms.") do
+      #   params['all'] = true
+      # end
+      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
+      opts.footer = "Unacknowledge health alarm(s).\n[alarm] is required. Alarm ID, supports multiple arguments."
+    end
+    optparse.parse!(args)
+
+    if params['all']
+      # updating all
+      if args.count > 0
+        raise_command_error "wrong number of arguments, --all option expects 0 and got (#{args.count}) #{args}\n#{optparse}"
+      end
+    else
+      # updating 1-N ids
+      if args.count < 0
+        raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args}\n#{optparse}"
+      end
+      params['ids'] = args.collect {|arg| arg }
+    end
+    connect(options)
+    begin
+      # validate ids
+      if params['ids']
+        parsed_id_list = []
+        params['ids'].each do |alarm_id|
+          alarm = find_health_alarm_by_name_or_id(alarm_id)
+          if alarm.nil?
+            # print_red_alert "Alarm not found by id #{args[0]}"
+            return 1
+          end
+          parsed_id_list << alarm['id']
+        end
+        params['ids'] = parsed_id_list.uniq
+      end
+
+      # construct payload
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        payload = {}
+        # allow arbitrary -O options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      id_list = params['ids'] || []
+      confirm_msg = params['all'] ? "Are you sure you want to unacknowledge all alarms?" : "Are you sure you want to unacknowledge the #{id_list.size == 1 ? 'alarm' : 'alarms'} #{anded_list(id_list)}?"
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm(confirm_msg)
+        return 9, "aborted command"
+      end
+      @health_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @health_interface.dry.acknowledge_alarms(params, payload)
+        return
+      end
+      json_response = @health_interface.acknowledge_alarms(params, payload)
+      render_result = render_with_format(json_response, options)
+      exit_code = 0 # json_response['success'] == true ? 0 : 1
+      return exit_code if render_result
+
+      if params['all']
+        print_green_success "Acknowledged all alarms"
+      else
+        print_green_success "Acknowledged #{id_list.size == 1 ? 'alarm' : 'alarms'} #{anded_list(id_list)}"
+      end
+      return exit_code
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
   private
 
   def find_health_alarm_by_name_or_id(val)

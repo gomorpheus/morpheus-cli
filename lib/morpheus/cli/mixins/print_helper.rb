@@ -1115,12 +1115,11 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def format_percent(val, max_percent=100, sig_dig=2)
+  def format_percent(val, sig_dig=2)
     if val.nil?
       return ""
     end
-    # pass max_percent=1 when val us a ratio between 0-1 instead of 0-100
-    percent_value = max_percent == 1 ? (val.to_f * 100) : val.to_f
+    percent_value = val.to_f
     if percent_value == 0
       return "0%"
     else
@@ -1128,8 +1127,19 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def format_ratio_percent(val, sig_dig)
-    return format_percent(val, 1, sig_dig)
+  # returns 0.50 / s ie {{value}} / {{unit}}
+  def format_rate(amount, unit='s', sig_dig=2)
+    if amount.to_f == 0
+      return "0.00" + " / " + unit.to_s
+    else
+      rtn = amount.to_f.round(2).to_s
+      parts = rtn.split('.')
+      # number_str = format_number(parts[0])
+      number_str = parts[0].to_s
+      decimal_str = "#{parts[1]}".ljust(sig_dig, "0")
+      number_str + "." + decimal_str
+      return number_str + "." + decimal_str + " / " + unit.to_s
+    end
   end
 
 end
