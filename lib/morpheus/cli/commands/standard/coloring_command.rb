@@ -57,16 +57,28 @@ class Morpheus::Cli::ColoringCommand
       if Term::ANSIColor::coloring?
         if coloring_was_enabled == false
           Morpheus::Logging::DarkPrinter.puts "coloring enabled" if Morpheus::Logging.debug?
+          recalculate_after_color_change()
         end
         puts "#{cyan}coloring: #{bold}#{green}on#{reset}"
       else
         if coloring_was_enabled == true
           Morpheus::Logging::DarkPrinter.puts "coloring disabled" if Morpheus::Logging.debug?
+          recalculate_after_color_change()
         end
         puts "coloring: off"
       end
     end
     return exit_code
+  end
+
+  protected
+
+  def recalculate_after_color_change()
+    # recalculate shell prompt after this change
+    Morpheus::Cli::Echo.recalculate_variable_map()
+    if Morpheus::Cli::Shell.has_instance?
+      Morpheus::Cli::Shell.instance.recalculate_prompt()
+    end
   end
 
 end

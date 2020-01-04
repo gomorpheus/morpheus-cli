@@ -27,7 +27,7 @@ Examples:
     set-prompt "morpheus $ "
     set-prompt "%cyanmorpheus> "
     set-prompt "[%magenta%remote%reset] %cyan%username> "
-    set-prompt "%green%username%reset@%remote morph %magenta> %reset"
+    set-prompt "%green%username%reset@%remote %magenta> %reset"
     set-prompt "%cyan%username%reset@%magenta%remote %cyanmorpheus> %reset"
 
 The available variables are:
