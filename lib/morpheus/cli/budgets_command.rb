@@ -201,6 +201,7 @@ class Morpheus::Cli::BudgetsCommand
             format_local_date(it['endDate']) 
           end
         },
+        "Timezone" => lambda {|it| it['timezone'] },
       })
       budget_columns.merge!({
         "Created By" => lambda {|it| it['createdByName'] ? it['createdByName'] : it['createdById'] },
