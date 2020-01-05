@@ -253,7 +253,7 @@ class Morpheus::Cli::HealthCommand
             "Update Rate" => lambda {|it| format_rate(it['innodbStats']['updatesPerSecond'].to_f) rescue '' },
             "Delete Rate" => lambda {|it| format_rate(it['innodbStats']['deletesPerSecond'].to_f) rescue '' },
             "Read Rate" => lambda {|it| format_rate(it['innodbStats']['readsPerSecond']) rescue '' },
-            "Buffer Hit Rate" => lambda {|it| format_percent(it['innodbStats']['bufferHitRate'].to_f) rescue '' },
+            "Buffer Hit Rate" => lambda {|it| format_percent(it['innodbStats']['bufferHitRate'].to_f * 100) rescue '' },
             "Read Write Ratio" => lambda {|it| 
               rw_ratio = ""
               begin
@@ -335,6 +335,7 @@ class Morpheus::Cli::HealthCommand
           elastic_indices_columns = [
             {"Health".upcase => lambda {|it| format_index_health(it['health']) } },
             {"Index".upcase => lambda {|it| it['index']} },
+            {"Status".upcase => lambda {|it| it['status'] } },
             {"Primary".upcase => lambda {|it| it['primary'] } },
             {"Replicas".upcase => lambda {|it| it['replicas'] } },
             {"Doc Count".upcase => lambda {|it| format_number(it['count']) } },
