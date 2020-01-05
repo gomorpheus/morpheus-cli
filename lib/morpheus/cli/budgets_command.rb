@@ -268,6 +268,9 @@ class Morpheus::Cli::BudgetsCommand
           costs[month.to_s] = parse_cost_amount(val)
         end
       end
+      opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
       opts.footer = "Create budget."
     end
@@ -365,6 +368,9 @@ class Morpheus::Cli::BudgetsCommand
         opts.on("--#{month.to_s} [amount]", String, "#{month.to_s.capitalize} cost amount, use with month interval.") do |val|
           costs[month.to_s] = parse_cost_amount(val)
         end
+      end
+      opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
       opts.footer = "Update budget.\n[budget] is required. Budget ID or name"
