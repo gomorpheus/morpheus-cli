@@ -555,7 +555,7 @@ class Morpheus::Cli::BudgetsCommand
       {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda { 
         @options_interface.options_for_source("clouds", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
-      {'fieldName' => 'year', 'fieldLabel' => 'Year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'displayOrder' => 8},
+      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies to. Default is the current year.", 'displayOrder' => 8},
       {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'displayOrder' => 9}
     ]
   end
