@@ -125,10 +125,9 @@ class Morpheus::Cli::BudgetsCommand
         "Description" => 'description',
         "Enabled" => lambda {|budget| format_boolean(budget['enabled']) },
         "Scope" => lambda {|it| format_budget_scope(it) },
-        # "Period" => lambda {|it| it['period'].to_s },
-        "Year" => lambda {|it| it['year'] },
+        "Period" => lambda {|it| it['year'] },
         "Interval" => lambda {|it| it['interval'].to_s.capitalize },
-        # "Costs" => lambda {|it| it['costs'] },
+        # "Costs" => lambda {|it| it['costs'].inspect },
       }
       if budget['interval'] == 'year'
         budget_columns.merge!({
@@ -183,7 +182,7 @@ class Morpheus::Cli::BudgetsCommand
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
       })
       print_description_list(budget_columns, budget, options)
-      print reset,"\n"
+      # print reset,"\n"
 
       # a chart of Budget cost vs Actual cost for each interval in the period.
       print_h2 "Budget Summary", options
@@ -240,7 +239,6 @@ class Morpheus::Cli::BudgetsCommand
       else
         print yellow,"No budget stat data found.",reset,"\n"
       end
-      
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
