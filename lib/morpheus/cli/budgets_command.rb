@@ -57,8 +57,21 @@ class Morpheus::Cli::BudgetsCommand
             {"SCOPE" => lambda {|it| it['refName'] } },
             {"PERIOD" => lambda {|it| it['year'] } },
             {"INTERVAL" => lambda {|it| it['interval'].to_s.capitalize } },
-            {"START DATE" => lambda {|it| format_local_date(it['startDate']) } },
-            {"END DATE" => lambda {|it| format_local_date(it['endDate']) } },
+            # the UI doesn't consider timezone, so uhh do it this hacky way for now.
+            {"START DATE" => lambda {|it| 
+              if it['timezone'] == 'UTC'
+                ((parse_time(it['startDate'], "%Y-%m-%d").strftime("%x")) rescue it['startDate']) # + ' UTC'
+              else
+                format_local_date(it['startDate']) 
+              end
+            } },
+            {"END DATE" => lambda {|it| 
+              if it['timezone'] == 'UTC'
+                ((parse_time(it['endDate'], "%Y-%m-%d").strftime("%x")) rescue it['endDate']) # + ' UTC'
+              else
+                format_local_date(it['endDate']) 
+              end
+            } },
             {"TOTAL" => lambda {|it| format_money(it['totalCost'], it['currency']) } },
             {"AVERAGE" => lambda {|it| format_money(it['averageCost'], it['currency']) } },
             # {"CREATED BY" => lambda {|budget| budget['createdByName'] ? budget['createdByName'] : budget['createdById'] } },
@@ -173,8 +186,21 @@ class Morpheus::Cli::BudgetsCommand
       budget_columns.merge!({
         "Total" => lambda {|it| format_money(it['totalCost'], it['currency']) },
         "Average" => lambda {|it| format_money(it['averageCost'], it['currency']) },
-        "Start Date" => lambda {|it| format_local_date(it['startDate']) },
-        "End Date" => lambda {|it| format_local_date(it['endDate']) }
+        # the UI doesn't consider timezone, so uhh do it this hacky way for now.
+        "Start Date" => lambda {|it| 
+          if it['timezone'] == 'UTC'
+            ((parse_time(it['startDate'], "%Y-%m-%d").strftime("%x")) rescue it['startDate']) # + ' UTC'
+          else
+            format_local_date(it['startDate']) 
+          end
+        },
+        "End Date" => lambda {|it| 
+          if it['timezone'] == 'UTC'
+            ((parse_time(it['endDate'], "%Y-%m-%d").strftime("%x")) rescue it['endDate']) # + ' UTC'
+          else
+            format_local_date(it['endDate']) 
+          end
+        },
       })
       budget_columns.merge!({
         "Created By" => lambda {|it| it['createdByName'] ? it['createdByName'] : it['createdById'] },
