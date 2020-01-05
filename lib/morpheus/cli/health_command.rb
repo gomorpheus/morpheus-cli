@@ -512,7 +512,7 @@ class Morpheus::Cli::HealthCommand
         print "#{cyan}No logs found.#{reset}\n"
       else
         print format_log_records(logs, options, false)
-        print_results_pagination({'meta'=>{'total'=>(json_response['total']['value'] rescue json_response['total']),'size'=>logs.size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
+        print_results_pagination(json_response)
       end
       print reset,"\n"
       return 0
