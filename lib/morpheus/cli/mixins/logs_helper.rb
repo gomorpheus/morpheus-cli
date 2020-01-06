@@ -46,7 +46,7 @@ module Morpheus::Cli::LogsHelper
     out = ""
     table_color = options.key?(:color) ? options[:color] : cyan
     log_records.each do |log_entry|
-      log_level = format_log_level(log_entry['level'], table_color)
+      log_level = format_log_level(log_entry['level'], table_color, 6)
       out << table_color if table_color
       # out << "[#{log_entry['ts']}] #{log_level} - #{log_entry['message'].to_s.strip}"
       out << "#{log_level} "
@@ -94,19 +94,23 @@ module Morpheus::Cli::LogsHelper
     return out
   end
 
-  def format_log_level(val, return_color=cyan)
+  def format_log_level(val, return_color=cyan, label_width=nil)
     log_level = ''
+    display_value = val.to_s
+    if label_width
+      display_value = display_value.ljust(label_width, ' ')
+    end
     case val
     when 'INFO'
-      log_level = "#{blue}#{bold}INFO#{reset}#{return_color}"
+      log_level = "#{blue}#{bold}#{display_value}#{reset}#{return_color}"
     when 'DEBUG'
-      log_level = "#{white}#{bold}DEBUG#{reset}#{return_color}"
+      log_level = "#{white}#{bold}#{display_value}#{reset}#{return_color}"
     when 'WARN'
-      log_level = "#{yellow}#{bold}WARN#{reset}#{return_color}"
+      log_level = "#{yellow}#{bold}#{display_value}#{reset}#{return_color}"
     when 'ERROR'
-      log_level = "#{red}#{bold}ERROR#{reset}#{return_color}"
+      log_level = "#{red}#{bold}#{display_value}#{reset}#{return_color}"
     when 'FATAL'
-      log_level = "#{red}#{bold}FATAL#{reset}#{return_color}"
+      log_level = "#{red}#{bold}#{display_value}#{reset}#{return_color}"
     else
       log_level = val
     end
