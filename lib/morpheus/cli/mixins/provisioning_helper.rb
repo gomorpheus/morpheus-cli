@@ -361,13 +361,18 @@ module Morpheus::Cli::ProvisioningHelper
 
     while instance_name.nil? do
       name_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Instance Name', 'type' => 'text', 'required' => options[:name_required], 'defaultValue' => options[:default_name]}], options[:options])
-      if instances_interface.get({name: name_prompt['name']})['instances'].empty?
-        instance_name = name_prompt['name']
-      else
-        print_red_alert "Name must be unique"
 
-        if options[:default_name] == name_prompt['name']
-          options[:default_name] += '-2'
+      if name_prompt['name'].nil? && !options[:name_required]
+        break
+      else
+        if instances_interface.get({name: name_prompt['name']})['instances'].empty?
+          instance_name = name_prompt['name']
+        else
+          print_red_alert "Name must be unique"
+
+          if options[:default_name] == name_prompt['name']
+            options[:default_name] += '-2'
+          end
         end
       end
     end
