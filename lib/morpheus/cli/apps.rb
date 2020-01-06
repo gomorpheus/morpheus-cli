@@ -36,6 +36,7 @@ class Morpheus::Cli::Apps
     @apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).apps
     @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @library_layouts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_layouts
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
