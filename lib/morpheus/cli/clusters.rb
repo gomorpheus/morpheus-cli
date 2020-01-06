@@ -863,7 +863,7 @@ class Morpheus::Cli::Clusters
       cluster = find_cluster_by_name_or_id(args[0])
       params = {}
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['query'] = params.delete('phrase') if params['phrase']
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
       params['endMs'] = (options[:end].to_i * 1000) if options[:end]
       @logs_interface.setopts(options)
@@ -3128,7 +3128,7 @@ class Morpheus::Cli::Clusters
       return 1 if cluster.nil?
       params = {}
       params.merge!(parse_list_options(options))
-      # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      # params['query'] = params.delete('phrase') if params['phrase']
       @clusters_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clusters_interface.dry.history(cluster['id'], params)
@@ -3260,7 +3260,6 @@ class Morpheus::Cli::Clusters
       return 1 if cluster.nil?
       params = {}
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       @clusters_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @clusters_interface.dry.history_details(cluster['id'], process_id, params)

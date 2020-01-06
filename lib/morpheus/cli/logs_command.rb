@@ -82,7 +82,7 @@ class Morpheus::Cli::LogsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['query'] = params.delete('phrase') if params['phrase']
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
       params['endMs'] = (options[:end].to_i * 1000) if options[:end]
@@ -105,8 +105,8 @@ class Morpheus::Cli::LogsCommand
       if options[:end]
         subtitles << "End: #{options[:end]}".strip
       end
-      if params[:query]
-        subtitles << "Search: #{params[:query]}".strip
+      if params['query']
+        subtitles << "Search: #{params['query']}".strip
       end
       if params['servers']
         subtitles << "Servers: #{params['servers']}".strip
@@ -116,9 +116,6 @@ class Morpheus::Cli::LogsCommand
       end
       if params['clusters']
         subtitles << "Clusters: #{params['clusters']}".strip
-      end
-      if params[:query]
-        subtitles << "Search: #{params[:query]}".strip
       end
       if params['level']
         subtitles << "Level: #{params['level']}"

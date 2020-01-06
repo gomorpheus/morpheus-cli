@@ -1059,7 +1059,7 @@ class Morpheus::Cli::Apps
       end
       params = {}
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['query'] = params.delete('phrase') if params['phrase']
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
       params['endMs'] = (options[:end].to_i * 1000) if options[:end]
@@ -1442,7 +1442,7 @@ class Morpheus::Cli::Apps
       params = {}
       params['instanceIds'] = instance_ids
       params.merge!(parse_list_options(options))
-      # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      # params['query'] = params.delete('phrase') if params['phrase']
       @processes_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @processes_interface.dry.list(params)

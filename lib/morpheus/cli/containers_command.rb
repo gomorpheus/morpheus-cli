@@ -542,7 +542,7 @@ class Morpheus::Cli::ContainersCommand
     begin
       containers = id_list # heh
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
+      params['query'] = params.delete('phrase') if params['phrase']
       params[:order] = params[:direction] unless params[:direction].nil? # old api version expects order instead of direction
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
       params['endMs'] = (options[:end].to_i * 1000) if options[:end]

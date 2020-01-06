@@ -69,7 +69,6 @@ class Morpheus::Cli::Processes
     connect(options)
     begin
       params.merge!(parse_list_options(options))
-      # params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       @processes_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @processes_interface.dry.list(params)
@@ -201,7 +200,6 @@ class Morpheus::Cli::Processes
     begin
       process_id = args[0]
       params.merge!(parse_list_options(options))
-      params[:query] = params.delete(:phrase) unless params[:phrase].nil?
       @processes_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @processes_interface.dry.get(process_id, params)
