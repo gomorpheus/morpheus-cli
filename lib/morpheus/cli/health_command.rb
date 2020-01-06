@@ -643,6 +643,7 @@ class Morpheus::Cli::HealthCommand
       {"Status" => lambda {|alarm| format_health_status(alarm['status']) } },
       {"Resource" => lambda {|alarm| alarm['resourceName'] || alarm['refName'] } },
       {"Info" => lambda {|alarm| alarm['name'] } },
+      {"Active" => lambda {|alarm| format_boolean(alarm['active']) } },
       {"Start Date" => lambda {|alarm| format_local_dt(alarm['startDate']) } },
       {"Duration" => lambda {|alarm| format_duration(alarm['startDate'], alarm['acknowledgedDate'] || Time.now) } },
       {"Acknowledged Date" => lambda {|alarm| format_local_dt(alarm['acknowledgedDate']) } },
