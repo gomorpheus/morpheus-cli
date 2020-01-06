@@ -39,6 +39,7 @@ class Morpheus::Cli::Apps
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
     @processes_interface = @api_client.processes
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
