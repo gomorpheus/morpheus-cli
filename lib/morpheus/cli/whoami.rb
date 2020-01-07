@@ -26,7 +26,7 @@ class Morpheus::Cli::Whoami
     # begin
       @api_client = establish_remote_appliance_connection(opts.merge({:no_prompt => true, :skip_verify_access_token => true}))
       @groups_interface = @api_client.groups
-      @active_group_id = Morpheus::Cli::Groups.active_group
+      @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     # rescue Morpheus::Cli::CommandError => err
     #   puts_error err
     # end

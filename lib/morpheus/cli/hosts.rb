@@ -39,7 +39,7 @@ class Morpheus::Cli::Hosts
     @server_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).server_types
     @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
-    @active_group_id = Morpheus::Cli::Groups.active_group
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @execution_request_interface = @api_client.execution_request
     @clusters_interface = @api_client.clusters
   end

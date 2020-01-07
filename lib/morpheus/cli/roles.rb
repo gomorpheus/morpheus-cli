@@ -27,7 +27,7 @@ class Morpheus::Cli::Roles
     @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
-    @active_group_id = Morpheus::Cli::Groups.active_group
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
   def handle(args)
