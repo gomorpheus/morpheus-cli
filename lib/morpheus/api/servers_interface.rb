@@ -107,7 +107,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
 
   def workflow(id,task_set_id,payload)
     url = "#{@base_url}/api/servers/#{id}/workflow"
-    headers = { :params => {:taskSetId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers = { :params => {:workflowId => task_set_id},:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
