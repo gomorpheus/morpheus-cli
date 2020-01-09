@@ -41,7 +41,7 @@ class Morpheus::Cli::Clusters
     @servers_interface = @api_client.servers
     @server_types_interface = @api_client.server_types
     @options_interface = @api_client.options
-    @active_group_id = Morpheus::Cli::Groups.active_group
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @provision_types_interface = @api_client.provision_types
     @service_plans_interface = @api_client.service_plans
     @user_groups_interface = @api_client.user_groups

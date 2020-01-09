@@ -44,7 +44,7 @@ class Morpheus::Cli::Instances
     @servers_interface = @api_client.servers
     @provision_types_interface = @api_client.provision_types
     @options_interface = @api_client.options
-    @active_group_id = Morpheus::Cli::Groups.active_group
+    @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @execution_request_interface = @api_client.execution_request
   end
   
