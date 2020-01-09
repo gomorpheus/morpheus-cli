@@ -629,19 +629,19 @@ module Morpheus::Cli::ProvisioningHelper
       payload['volumes'] = volumes
     end
 
-    # if payload['networkInterfaces'].nil?
-      if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"]
-        # prompt for network interfaces (if supported)
-        begin
-          network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], pool_id, options)
-          if !network_interfaces.empty?
-            payload['networkInterfaces'] = network_interfaces
-          end
-        rescue RestClient::Exception => e
-          print yellow,"Unable to load network options. Proceeding...",reset,"\n"
-          print_rest_exception(e, options) if Morpheus::Logging.debug?
+    # prompt networks
+    if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"] # && layout["provisionType"]["supportsNetworkSelection"]
+      # prompt for network interfaces (if supported)
+      begin
+        network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], pool_id, options)
+        if !network_interfaces.empty?
+          payload['networkInterfaces'] = network_interfaces
         end
+      rescue RestClient::Exception => e
+        print yellow,"Unable to load network options. Proceeding...",reset,"\n"
+        print_rest_exception(e, options) if Morpheus::Logging.debug?
       end
+    end
     # end
 
     # Security Groups
@@ -1207,6 +1207,10 @@ module Morpheus::Cli::ProvisioningHelper
     if network_groups
       networks = network_groups + networks
     end
+    network_subnets = zone_network_data['networkSubnets']
+    if network_subnets
+      networks += network_subnets
+    end
     network_interface_types = (zone_network_data['networkTypes'] || []).sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
     enable_network_type_selection = (zone_network_data['enableNetworkTypeSelection'] == 'on' || zone_network_data['enableNetworkTypeSelection'] == true)
     has_networks = zone_network_data["hasNetworks"] == true
@@ -1260,6 +1264,7 @@ module Morpheus::Cli::ProvisioningHelper
       network_interface['network'] = {}
       network_interface['network']['id'] = v_prompt[field_context]['networkId'].to_s
       selected_network = networks.find {|it| it["id"].to_s == network_interface['network']['id'] }
+      network_options.reject! {|it| it['value'] == v_prompt[field_context]['networkId']}
 
       if !selected_network
         print_red_alert "Network not found by id #{network_interface['network']['id']}!"
@@ -1294,7 +1299,7 @@ module Morpheus::Cli::ProvisioningHelper
       interface_index += 1
       if options[:options] && options[:options]['networkInterfaces'] && options[:options]['networkInterfaces'][interface_index]
         add_another_interface = true
-      elsif max_networks && network_interfaces.size >= max_networks
+      elsif (max_networks && network_interfaces.size >= max_networks) || network_options.count == 0
         add_another_interface = false
       else
         has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index+1}"]
