@@ -33,6 +33,8 @@ class Morpheus::Cli::BlueprintsCommand
     @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
+    @clouds_interface = @api_client.clouds
+    @library_layouts_interface = @api_client.library_layouts
   end
 
   def handle(args)
