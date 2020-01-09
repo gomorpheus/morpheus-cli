@@ -1026,7 +1026,8 @@ module Morpheus::Cli::PrintHelper
 
     if options[:include_fields]
       if object_key
-        data[object_key] = filter_data(data[object_key], options[:include_fields])
+        # data[object_key] = filter_data(data[object_key], options[:include_fields])
+        data = {(object_key) => filter_data(data[object_key], options[:include_fields]) }
       else
         data = filter_data(data, options[:include_fields])
       end
