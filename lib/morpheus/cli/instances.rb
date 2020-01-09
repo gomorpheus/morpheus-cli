@@ -1652,6 +1652,7 @@ class Morpheus::Cli::Instances
         payload.deep_merge!(new_instance_payload)
         payload['cloud'] = {'id' => payload.delete('zoneId')}
         payload['group'] = payload.delete('site')
+        payload['name'] = new_instance_payload['name']
       end
       unless passed_options.empty?
         passed_options.delete('cloud')
