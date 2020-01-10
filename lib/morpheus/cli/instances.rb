@@ -1141,6 +1141,11 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
+      opts.on('-a', '--all', "Display all details: containers|vms, and scaling." ) do
+        options[:details] = true
+        options[:include_containers] = true
+        options[:include_scaling] = true
+      end
       opts.on( nil, '--containers', "Display Instance Containers" ) do
         options[:include_containers] = true
       end
