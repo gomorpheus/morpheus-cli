@@ -1640,7 +1640,7 @@ class Morpheus::Cli::Instances
       if args[1]
         options[:options]['name'] = args[1]
       end
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) || ['networkInterfaces'].include?(k)} : {}
       payload = {}
       if options[:payload]
         payload = options[:payload]
