@@ -1257,7 +1257,19 @@ module Morpheus::Cli::ProvisioningHelper
         network_interface = options[:options]['networkInterfaces'][interface_index]
       end
 
-      default_network_value = (network_options.find {|n| n['value'] == (network_interface['networkId'] || network_interface['id'])} || {})['name']
+      default_network_id = network_interface['networkId'] || network_interface['id']
+
+      if network_interface['network'] && network_interface['network']['id']
+        if network_interface['network']['subnet']
+          default_network_id = "subnet-#{network_interface['network']['subnet']}"
+        elsif network_interface['network']['group']
+          default_network_id = "networkGroup-#{network_interface['network']['group']}"
+        else
+          default_network_id = "network-#{network_interface['network']['id']}"
+        end
+      end
+
+      default_network_value = (network_options.find {|n| n['value'] == default_network_id} || {})['name']
 
       # choose network
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'networkId', 'type' => 'select', 'fieldLabel' => "Network", 'selectOptions' => network_options, 'required' => true, 'skipSingleOption' => false, 'description' => 'Choose a network for this interface.', 'defaultValue' => default_network_value}], options[:options])
