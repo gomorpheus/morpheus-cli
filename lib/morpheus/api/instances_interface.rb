@@ -68,6 +68,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def cancel_removal(id, params = {})
+    url = "#{@base_url}/api/instances/#{id}/cancel-removal"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers}
+    execute(opts)
+  end
+
   def stop(id, params={})
     url = "#{@base_url}/api/instances/#{id}/stop"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

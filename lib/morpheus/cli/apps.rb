@@ -17,7 +17,7 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::LogsHelper
   set_command_name :apps
   set_command_description "View and manage apps."
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
@@ -60,6 +60,9 @@ class Morpheus::Cli::Apps
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--pending-removal', "Include apps pending removal.") do
+        options[:pendingRemoval] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List apps."
     end
@@ -79,6 +82,9 @@ class Morpheus::Cli::Apps
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
       end
+
+      params['showDeleted'] = true if options[:pendingRemoval]
+
       @apps_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @apps_interface.dry.list(params)
@@ -636,6 +642,9 @@ class Morpheus::Cli::Apps
         },
         "Status" => lambda {|it| format_app_status(it) }
       }
+
+      description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if app['status'] == 'pendingRemoval'
+
       if app['blueprint'].nil?
         description_cols.delete("Blueprint")
       end
@@ -922,6 +931,38 @@ class Morpheus::Cli::Apps
       elsif !options[:quiet]
         print_green_success "Removed app #{app['name']}"
         #list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def cancel_removal(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      app = find_app_by_name_or_id(args[0])
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.cancel_removal(app['id'])
+        return
+      end
+      json_response = @apps_interface.cancel_removal(app['id'])
+      if options[:json]
+        print as_json(json_response, options), "\n"
+        return
+      elsif !options[:quiet]
+        get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

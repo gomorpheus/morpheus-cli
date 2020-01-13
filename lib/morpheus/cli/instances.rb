@@ -17,7 +17,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::LogsHelper
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :view, :add, :update, :update_notes, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :view, :add, :update, :update_notes, :remove, :cancel_removal, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   register_subcommands :wiki, :update_wiki
   register_subcommands :exec => :execution_request
   #register_subcommands :firewall_disable, :firewall_enable
@@ -71,6 +71,9 @@ class Morpheus::Cli::Instances
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--pending-removal', "Include instances pending removal.") do
+        options[:pendingRemoval] = true
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."
     end
@@ -105,6 +108,8 @@ class Morpheus::Cli::Instances
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
       end
+
+      params['showDeleted'] = true if options[:pendingRemoval]
 
       @instances_interface.setopts(options)
       if options[:dry_run]
@@ -1272,6 +1277,9 @@ class Morpheus::Cli::Instances
         #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Status" => lambda {|it| format_instance_status(it) }
       }
+
+      description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
+
       print_description_list(description_cols, instance)
 
       if instance['statusMessage']
@@ -2593,7 +2601,6 @@ class Morpheus::Cli::Instances
         query_params[:force] = 'on'
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-
     end
     optparse.parse!(args)
     if args.count < 1
@@ -2622,6 +2629,38 @@ class Morpheus::Cli::Instances
       elsif !options[:quiet]
         print_green_success "Removing instance #{instance['name']}"
         #list([] + (options[:remote] ? ["-r",options[:remote]] : []))
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def cancel_removal(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.cancel_removal(instance['id'])
+        return
+      end
+      json_response = @instances_interface.cancel_removal(instance['id'])
+      if options[:json]
+        print as_json(json_response, options), "\n"
+        return
+      elsif !options[:quiet]
+        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
