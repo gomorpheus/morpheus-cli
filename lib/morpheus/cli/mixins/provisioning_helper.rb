@@ -37,6 +37,12 @@ module Morpheus::Cli::ProvisioningHelper
     @library_layouts_interface
   end
 
+  def provision_types_interface
+    # api_client.provision_types
+    raise "#{self.class} has not defined @provision_types_interface" if @provision_types_interface.nil?
+    @provision_types_interface
+  end
+
   def clouds_interface
     # @api_client.instance_types
     raise "#{self.class} has not defined @clouds_interface" if @clouds_interface.nil?
@@ -489,6 +495,10 @@ module Morpheus::Cli::ProvisioningHelper
     # end
     layout_id = options[:layout].to_i if options[:layout]
 
+    # determine layout and provision_type
+    # provision_type = (layout && provision_type ? provision_type : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    # need to GET layout and provision type by ID in order to get optionTypes, and other settings...
+
     if !layout_id
       layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value, creatable: true})['layout']
     end
@@ -499,6 +509,22 @@ module Morpheus::Cli::ProvisioningHelper
       exit 1
     end
     payload['instance']['layout'] = {'id' => layout['id']}
+    
+    # need to GET provision type for optionTypes, and other settings...
+    #provision_type = (layout && provision_type ? provision_type : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    provision_type = nil
+    if layout && layout['provisionTypeCode']
+      provision_type = provision_types_interface.list({code:layout['provisionTypeCode']})['provisionTypes'][0]
+      if provision_type.nil?
+        print_red_alert "Provision Type not found by code #{layout['provisionTypeCode']}"
+        exit 1
+      end
+    elsif layout && layout['provisionType']
+      # api used to return entire record under layout.provisionType
+      provision_type = layout['provisionType']
+    else
+      provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    end
 
     # prompt for service plan
     service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
@@ -531,9 +557,6 @@ module Morpheus::Cli::ProvisioningHelper
     payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
     payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
 
-    # determine provision_type
-    # provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
-
     # build option types
     option_type_list = []
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
@@ -542,8 +565,8 @@ module Morpheus::Cli::ProvisioningHelper
     if !instance_type['optionTypes'].nil? && !instance_type['optionTypes'].empty?
       option_type_list += instance_type['optionTypes']
     end
-    if !layout['provisionType'].nil? && !layout['provisionType']['optionTypes'].nil? && !layout['provisionType']['optionTypes'].empty?
-      option_type_list += layout['provisionType']['optionTypes']
+    if !provision_type.nil? && !provision_type['optionTypes'].nil? && !provision_type['optionTypes'].empty?
+      option_type_list += provision_type['optionTypes']
     end
     if !payload['volumes'].empty?
       option_type_list = reject_volume_option_types(option_type_list)
@@ -601,7 +624,7 @@ module Morpheus::Cli::ProvisioningHelper
           }
         end
 
-        if layout['provisionType'] && layout['provisionType']['supportsAutoDatastore']
+        if provision_type && provision_type['supportsAutoDatastore']
           service_plan['autoOptions'] ||= []
           if service_plan['datastores']['cluster'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
             service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
