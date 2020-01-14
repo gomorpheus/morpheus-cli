@@ -2,7 +2,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::LibraryResourceSpecsCommand
   include Morpheus::Cli::CliCommand
-
+  set_command_hidden # hidden until complete
   set_command_name :'library-spec-templates'
 
   register_subcommands :list, :get, :add, :update, :remove
