@@ -255,7 +255,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           exit 1
         end
       end
-      opts.on('-e', '--evars-list LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
+      opts.on('-e', '--evars LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
         params['environmentVariables'] = val.collect do |nv|
           parts = nv.split('=')
           {'name' => parts[0].strip, 'value' => (parts.count > 1 ? parts[1].strip : '')}
@@ -419,14 +419,14 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
                 if container_type_id.include?('/')
                   parts = container_type_id.split('/')
                   container_type_id = parts[0]
-                  count = parts[1] if parts.count > 1
+                  count = parts[1].to_i if parts.count > 1
                 end
 
                 if @library_container_types_interface.get(nil, container_type_id.to_i).nil?
                   print_red_alert "Container type #{container_type_id} not found"
                   exit 1
                 else
-                  nodes << {'nodeType' => node_type, 'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                  nodes << {'count' => count, 'containerType' => {'id' => container_type_id.to_i}}
                 end
               end
             else
@@ -434,7 +434,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               while !avail_container_types.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{nodes.empty? ? '' : 'another '}#{node_type} node?", {:default => false}) do
                 container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
                 count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
-                nodes << {'nodeType' => node_type, 'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                nodes << {'count' => count, 'containerType' => {'id' => container_type_id.to_i}}
                 avail_container_types.reject! {|it| it['value'] == container_type_id}
               end
             end
@@ -509,7 +509,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           exit 1
         end
       end
-      opts.on('-e', '--evars-list LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
+      opts.on('-e', '--evars LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
         params['environmentVariables'] = val.collect do |nv|
           parts = nv.split('=')
           {'name' => parts[0].strip, 'value' => (parts.count > 1 ? parts[1].strip : '')}
@@ -551,7 +551,6 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
     begin
       layout = find_layout_by_name_or_id(args[0])
       if layout.nil?
-        print_red_alert "Cluster layout #{args[0]} not found"
         return 1
       end
 
@@ -622,7 +621,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
                 if container_type_id.include?('/')
                   parts = container_type_id.split('/')
                   container_type_id = parts[0]
-                  count = parts[1] if parts.count > 1
+                  count = parts[1].to_i if parts.count > 1
                 end
 
                 if @library_container_types_interface.get(nil, container_type_id.to_i).nil?
@@ -655,9 +654,14 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
         return
+      elsif !options[:quiet]
+        if json_response['success']
+          print_green_success "Updated cluster Layout #{params['name']}"
+          get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        else
+          print_red_alert "Error updating cluster layout: #{json_response['msg'] || json_response['errors']}"
+        end
       end
-      print_green_success "Updated cluster Layout #{params['name']}"
-      get([json_response['id']])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -695,7 +699,6 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
     begin
       layout = find_layout_by_name_or_id(args[0])
       if layout.nil?
-        print_red_alert "Cluster layout #{args[0]} not found"
         return 1
       end
 
@@ -747,7 +750,6 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
     begin
       layout = find_layout_by_name_or_id(args[0])
       if layout.nil?
-        print_red_alert "Cluster layout #{args[0]} not found"
         return 1
       end
 
@@ -766,7 +768,11 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Removed Cluster Layout #{layout['name']}"
+        if json_response['success']
+          print_green_success "Removed Cluster Layout #{layout['name']}"
+        else
+          print_red_alert "Error removing cluster layout: #{json_response['msg'] || json_response['errors']}"
+        end
       end
       return 0
     rescue RestClient::Exception => e
