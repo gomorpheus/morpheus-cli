@@ -598,8 +598,8 @@ class Morpheus::APIClient
     Morpheus::LibraryContainerTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def library_compute_type_layouts
-    Morpheus::LibraryComputeTypeLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  def library_cluster_layouts
+    Morpheus::LibraryClusterLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def library_resource_specs

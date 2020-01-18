@@ -114,6 +114,7 @@ module Morpheus
       load 'morpheus/cli/virtual_images.rb'
       # load 'morpheus/cli/library.rb' # gone until we collapse these again
       load 'morpheus/cli/library_instance_types_command.rb'
+      load 'morpheus/cli/library_cluster_layouts_command.rb'
       load 'morpheus/cli/library_layouts_command.rb'
       load 'morpheus/cli/library_upgrades_command.rb'
       load 'morpheus/cli/library_container_types_command.rb'

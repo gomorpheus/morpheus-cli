@@ -33,7 +33,7 @@ class Morpheus::Cli::Clusters
     @api_client = establish_remote_appliance_connection(opts)
     @clusters_interface = @api_client.clusters
     @groups_interface = @api_client.groups
-    @compute_type_layouts_interface = @api_client.library_compute_type_layouts
+    @cluster_layouts_interface = @api_client.library_cluster_layouts
     @security_groups_interface = @api_client.security_groups
     #@security_group_rules_interface = @api_client.security_group_rules
     @cloud_resource_pools_interface = @api_client.cloud_resource_pools
@@ -3605,15 +3605,15 @@ class Morpheus::Cli::Clusters
   end
 
   def find_layout_by_id(id)
-    @compute_type_layouts_interface.get(id)['layout'] rescue nil
+    @cluster_layouts_interface.get(id)['layout'] rescue nil
   end
 
   def find_layout_by_name(name)
-    @compute_type_layouts_interface.list({phrase:name}).find { it['name'].downcase == name.downcase || it['code'].downcase == name.downcase }
+    @cluster_layouts_interface.list({phrase:name}).find { it['name'].downcase == name.downcase || it['code'].downcase == name.downcase }
   end
 
   def layouts_for_dropdown(zone_id, group_type_id)
-    @compute_type_layouts_interface.list({zoneId: zone_id, groupTypeId: group_type_id})["layouts"].collect { |it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id'], 'code' => it['code']} }
+    @cluster_layouts_interface.list({zoneId: zone_id, groupTypeId: group_type_id})["layouts"].collect { |it| {'id' => it['id'], 'name' => it['name'], 'value' => it['id'], 'code' => it['code']} }
   end
 
   def find_service_plan_by_name_or_id(val)

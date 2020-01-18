@@ -711,24 +711,6 @@ class Morpheus::Cli::ServicePlanCommand
     end
   end
 
-  def parse_bytes_param(bytes_param, option, assumed_unit = nil)
-    if bytes_param && bytes_param.to_f > 0
-      bytes_param.upcase!
-      multiplier = 1
-      unit = nil
-      number = (bytes_param.to_f == bytes_param.to_i ? bytes_param.to_i : bytes_param.to_f)
-      if (bytes_param.end_with? 'GB') || ((!bytes_param.end_with? 'MB') && assumed_unit == 'GB')
-        unit = 'GB'
-        multiplier = 1024 * 1024 * 1024
-      elsif (bytes_param.end_with? 'MB') || assumed_unit == 'MB'
-        unit = 'MB'
-        multiplier = 1024 * 1024
-      end
-      return {:bytes_param => bytes_param, :bytes => number * multiplier, :number => number, :multiplier => multiplier, :unit => unit}
-    end
-    raise_command_error "Invalid value for #{option} option"
-  end
-
   def prompt_price_unit(options)
     price_units = ['Minute', 'Hour', 'Day', 'Month', 'Year', '2 Year', '3 Year', '4 Year', '5 Year'].collect {|it| {'name' => it, 'value' => it.downcase.delete(' ')}}
     Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceUnit', 'type' => 'select', 'fieldLabel' => 'Price Unit', 'selectOptions' => price_units, 'required' => true, 'defaultValue' => 'hour', 'description' => 'Select Price Unit.'}],options[:options],@api_client,{})['priceUnit']
