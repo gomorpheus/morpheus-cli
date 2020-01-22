@@ -80,11 +80,12 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           {
               id: layout['id'],
               name: layout['name'],
+              cloud_type: layout_cloud_type(layout),
               version: layout['computeVersion'],
               description: layout['description']
           }
         end
-        print as_pretty_table(rows, [:id, :name, :version, :description], options)
+        print as_pretty_table(rows, [:id, :name, :cloud_type, :version, :description], options)
         print_results_pagination(json_response, {:label => "node type", :n_label => "node types"})
       end
       print reset,"\n"
@@ -152,9 +153,10 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
         "Version" => lambda {|it| it['computeVersion']},
-        "Type" => lambda {|it| it['type'] ? it['type']['name'] : nil},
+        # "Type" => lambda {|it| it['type'] ? it['type']['name'] : nil},
         "Creatable" => lambda {|it| format_boolean(it['creatable'])},
-        "Cluster Type" => lambda {|it| it['groupType']['name']},
+        "Cloud Type" => lambda {|it| layout_cloud_type(it)},
+        "Cluster Type" => lambda {|it| it['groupType'] ? it['groupType']['name'] : nil},
         "Technology" => lambda {|it| it['provisionType'] ? it['provisionType']['code'] : nil},
         "Minimum Memory" => lambda {|it| printable_byte_size(it['memoryRequirement'])},
         "Workflow" => lambda {|it| it['taskSets'] && it['taskSets'].count > 0 ? it['taskSets'][0]['name'] : nil},
@@ -426,7 +428,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
                   print_red_alert "Container type #{container_type_id} not found"
                   exit 1
                 else
-                  nodes << {'count' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                  nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
                 end
               end
             else
@@ -434,7 +436,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               while !avail_container_types.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{nodes.empty? ? '' : 'another '}#{node_type} node?", {:default => false}) do
                 container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
                 count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
-                nodes << {'count' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
                 avail_container_types.reject! {|it| it['value'] == container_type_id}
               end
             end
@@ -628,7 +630,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
                   print_red_alert "Container type #{container_type_id} not found"
                   exit 1
                 else
-                  nodes << {'count' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                  nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
                 end
               end
             end
@@ -657,7 +659,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       elsif !options[:quiet]
         if json_response['success']
           print_green_success "Updated cluster Layout #{params['name']}"
-          get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          get([layout['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
         else
           print_red_alert "Error updating cluster layout: #{json_response['msg'] || json_response['errors']}"
         end
@@ -845,6 +847,10 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       label = 'GB'
     end
     "#{val} #{label}"
+  end
+
+  def layout_cloud_type(layout)
+    layout['provisionType'] ? layout['provisionType']['name'] : (layout['groupType'] ? layout['groupType']['name'] : 'Standard')
   end
 
   def prompt_evar(options)
