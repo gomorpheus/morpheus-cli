@@ -634,7 +634,7 @@ class Morpheus::Cli::ServicePlanCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[plan]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :remote, :auto_confirm])
       opts.footer = "Deactivate service plan.\n" +
           "[plan] is required. Service plan ID, name or code"
     end
