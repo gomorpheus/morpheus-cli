@@ -199,13 +199,14 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               short_name: container['shortName'],
               version: container['containerVersion'],
               category: container['category'],
-              count: server['nodeCount']
+              count: server['nodeCount'],
+              priority: server['priorityOrder']
           }
         end
 
         if nodes.count > 0
           print_h2 "#{node_type.capitalize} Nodes"
-          puts as_pretty_table(nodes, [:id, :name, :short_name, :version, :category, :count])
+          puts as_pretty_table(nodes, [:id, :name, :short_name, :version, :category, :count, :priority])
         end
       end
       print reset,"\n"
@@ -266,10 +267,10 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('-o', '--option-types LIST', Array, "Option types, comma separated list of option type IDs") do |val|
         options[:optionTypes] = val
       end
-      opts.on('--masters LIST', Array, "List of master. Comma separated container types IDs in format id[/count], ex: 100,101/3") do |val|
+      opts.on('--masters LIST', Array, "List of master. Comma separated container types IDs in format id[/count/priority], ex: 100,101/3/0") do |val|
         options[:masters] = val
       end
-      opts.on('--workers LIST', Array, "List of workers. Comma separated container types IDs in format id[/count], ex: 100,101/3") do |val|
+      opts.on('--workers LIST', Array, "List of workers. Comma separated container types IDs in format id[/count/priority], ex: 100,101/3/1") do |val|
         options[:workers] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -412,34 +413,38 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         params['optionTypes'] = option_types if option_types
 
         # nodes
+        priority = 0
         ['master', 'worker'].each do |node_type|
           nodes = []
           if cluster_type["has#{node_type.capitalize}s"]
             if options["#{node_type}s".to_sym]
               options["#{node_type}s".to_sym].each do |container_type_id|
-                count = 1
+                node_count = 1
                 if container_type_id.include?('/')
                   parts = container_type_id.split('/')
                   container_type_id = parts[0]
-                  count = parts[1].to_i if parts.count > 1
+                  node_count = parts[1].to_i if parts.count > 1
+                  priority = parts[2].to_i if parts.count > 2
                 end
 
                 if @library_container_types_interface.get(nil, container_type_id.to_i).nil?
                   print_red_alert "Container type #{container_type_id} not found"
                   exit 1
                 else
-                  nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                  nodes << {'nodeCount' => node_count, 'priorityOrder' => priority, 'containerType' => {'id' => container_type_id.to_i}}
                 end
               end
             else
               avail_container_types = @library_container_types_interface.list(nil, {'technology' => provision_type['code'], 'max' => 1000})['containerTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
               while !avail_container_types.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{nodes.empty? ? '' : 'another '}#{node_type} node?", {:default => false}) do
                 container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
-                count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
-                nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                node_count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
+                priority = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Priority Order", 'required' => true, 'defaultValue' => priority}], options[:options], @api_client, {}, options[:no_prompt])['value']
+                nodes << {'nodeCount' => node_count, 'priorityOrder' => priority, 'containerType' => {'id' => container_type_id.to_i}}
                 avail_container_types.reject! {|it| it['value'] == container_type_id}
               end
             end
+            priority += 1
           end
           params["#{node_type}s"] = nodes
         end
@@ -526,13 +531,13 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on(nil, '--clear-opt-types', "Removes all options") do
         params['optionTypes'] = []
       end
-      opts.on('--masters LIST', Array, "List of master nodes. Comma separated container types IDs in format id[/count], ex: 100,101/3") do |val|
+      opts.on('--masters LIST', Array, "List of master. Comma separated container types IDs in format id[/count/priority], ex: 100,101/3/0") do |val|
         options[:masters] = val
       end
       opts.on('--clear-masters', Array, "Removes all master nodes") do
         params['masters'] = []
       end
-      opts.on('--workers LIST', Array, "List of workers. Comma separated container types IDs in format id[/count], ex: 100,101/3") do |val|
+      opts.on('--workers LIST', Array, "List of workers. Comma separated container types IDs in format id[/count/priority], ex: 100,101/3/1") do |val|
         options[:workers] = val
       end
       opts.on('--clear-workers', Array, "Removes all worker nodes") do
@@ -619,18 +624,22 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               exit 1
             else
               options["#{node_type}s".to_sym].each do |container_type_id|
-                count = 1
+                node_count = 1
+                priority = nil
                 if container_type_id.include?('/')
                   parts = container_type_id.split('/')
                   container_type_id = parts[0]
-                  count = parts[1].to_i if parts.count > 1
+                  node_count = parts[1].to_i if parts.count > 1
+                  priority = parts[2].to_i if parts.count > 2
                 end
 
                 if @library_container_types_interface.get(nil, container_type_id.to_i).nil?
                   print_red_alert "Container type #{container_type_id} not found"
                   exit 1
                 else
-                  nodes << {'nodeCount' => count, 'containerType' => {'id' => container_type_id.to_i}}
+                  node = {'nodeCount' => node_count, 'containerType' => {'id' => container_type_id.to_i}}
+                  node['priorityOrder'] = priority if !priority.nil?
+                  nodes << node
                 end
               end
             end
