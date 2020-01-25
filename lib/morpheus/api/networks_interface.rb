@@ -26,14 +26,14 @@ class Morpheus::NetworksInterface < Morpheus::APIClient
   def create(payload)
     url = "#{@base_url}/api/networks"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json, timeout: 300}
     execute(opts)
   end
 
   def update(id, payload)
     url = "#{@base_url}/api/networks/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json, timeout: 300}
     execute(opts)
   end
 
