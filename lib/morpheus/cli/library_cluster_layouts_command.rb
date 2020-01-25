@@ -439,7 +439,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               while !avail_container_types.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{nodes.empty? ? '' : 'another '}#{node_type} node?", {:default => false}) do
                 container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
                 node_count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
-                priority = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Priority Order", 'required' => true, 'defaultValue' => priority}], options[:options], @api_client, {}, options[:no_prompt])['value']
+                priority = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Priority", 'required' => true, 'defaultValue' => priority}], options[:options], @api_client, {}, options[:no_prompt])['value']
                 nodes << {'nodeCount' => node_count, 'priorityOrder' => priority, 'containerType' => {'id' => container_type_id.to_i}}
                 avail_container_types.reject! {|it| it['value'] == container_type_id}
               end
