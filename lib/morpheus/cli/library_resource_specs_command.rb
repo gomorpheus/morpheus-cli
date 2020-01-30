@@ -41,17 +41,8 @@ class Morpheus::Cli::LibraryResourceSpecsCommand
       end
       # do it
       json_response = @resource_specs_interface.list(params)
-      # print result and return output
-      if options[:json]
-        puts as_json(json_response, options, "specs")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['specTemplates'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "specs")
-        return 0
-      end
+      render_result = render_with_format(json_response, options, 'specTemplates')
+      return 0 if render_result
       resource_specs = json_response['specTemplates']
       title = "Morpheus Library - Resource Spec Templates"
       subtitles = []
