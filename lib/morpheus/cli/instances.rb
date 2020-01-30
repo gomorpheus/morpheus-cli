@@ -491,7 +491,7 @@ class Morpheus::Cli::Instances
         params['powerScheduleType'] = val == "null" ? nil : val
       end
       opts.on('--created-by ID', String, "Created By User ID") do |val|
-        params['createdById'] = val
+        options[:created_by_id] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
@@ -543,13 +543,16 @@ class Morpheus::Cli::Instances
           payload['instance'].deep_merge!(params)
         end
       else
-        if params.empty?
+        if params.empty? && options[:created_by_id].nil?
           print_red_alert "Specify at least one option to update"
           puts optparse
           exit 1
         end
         payload = {}
         payload['instance'] = params
+        if options[:created_by_id]
+          payload['createdById'] = options[:created_by_id].to_i
+        end
       end
       @instances_interface.setopts(options)
       if options[:dry_run]
