@@ -563,6 +563,9 @@ class Morpheus::Cli::Workflows
         target_type = 'server'
         server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
+      opts.on('-a', '--appliance', "Execute on the appliance, the target is the appliance itself.") do
+        target_type = 'appliance'
+      end
       opts.add_hidden_option('--server')
       opts.add_hidden_option('--servers')
       opts.on('--config [TEXT]', String, "Custom config") do |val|
@@ -602,6 +605,8 @@ class Morpheus::Cli::Workflows
             servers << server
           end
           params['servers'] = servers.collect {|it| it['id'] }
+        elsif target_type == 'appliance'
+          # cool, run it locally.
         else
           raise_command_error "missing required option: --instance or --host\n#{optparse}"
         end
