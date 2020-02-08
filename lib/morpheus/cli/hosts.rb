@@ -108,6 +108,12 @@ class Morpheus::Cli::Hosts
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--tag-compliant', "Displays only servers that are valid according to applied tag policies. Does not show servers that do not have tag policies." ) do
+        options[:tagCompliant] = true
+      end
+      opts.on('--non-tag-compliant', "Displays only servers with tag compliance warnings." ) do
+        options[:tagCompliant] = false
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List hosts."
     end
