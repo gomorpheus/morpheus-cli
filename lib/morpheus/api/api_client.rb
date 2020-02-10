@@ -602,8 +602,12 @@ class Morpheus::APIClient
     Morpheus::LibraryClusterLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def library_resource_specs
-    Morpheus::LibraryResourceSpecsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  def library_spec_templates
+    Morpheus::LibrarySpecTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def library_spec_template_types
+    Morpheus::LibrarySpecTemplateTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def packages
