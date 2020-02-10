@@ -651,6 +651,8 @@ class Morpheus::Cli::Workflows
           target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
         elsif servers.size() > 0
           target_desc = (servers.size() == 1) ? "host #{servers[0]['name']}" : "#{servers.size()} hosts"
+        elsif target_type == 'appliance'
+          target_desc = "appliance"
         end
         print_green_success "Executing workflow #{workflow['name']} on #{target_desc}"
         # todo: load job/execution

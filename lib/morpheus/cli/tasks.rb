@@ -669,6 +669,9 @@ class Morpheus::Cli::Tasks
       end
       opts.add_hidden_option('--server')
       opts.add_hidden_option('--servers')
+      opts.on('-a', '--appliance', "Execute on the appliance, the target is the appliance itself.") do
+        target_type = 'appliance'
+      end
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
@@ -706,6 +709,8 @@ class Morpheus::Cli::Tasks
             servers << server
           end
           params['servers'] = servers.collect {|it| it['id'] }
+        elsif target_type == 'appliance'
+          # cool, run it locally.
         else
           raise_command_error "missing required option: --instance or --host\n#{optparse}"
         end
@@ -740,6 +745,8 @@ class Morpheus::Cli::Tasks
           target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
         elsif servers.size() > 0
           target_desc = (servers.size() == 1) ? "host #{servers[0]['name']}" : "#{servers.size()} hosts"
+        elsif target_type == 'appliance'
+          target_desc = "appliance"
         end
         print_green_success "Executing task #{task['name']} on #{target_desc}"
         # todo: load job/execution
