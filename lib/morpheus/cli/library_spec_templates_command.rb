@@ -195,6 +195,15 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           params['name'] = File.basename(full_filename)
         end
       end
+      opts.on('--url VALUE', String, "URL, for use when source is url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-path VALUE', String, "Content Path, for use when source is repository or url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-ref VALUE', String, "Content Ref (Version Ref), for use when source is repository") do |val|
+        file_params['contentRef'] = val
+      end
       # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
       #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
       # end
@@ -248,8 +257,14 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           end
         elsif source_type == "repository"
           if file_params['repository'].nil?
-            repository_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true, 'defaultValue' => 'local'}], options[:options], @api_client,{})['repositoryId']
+            repository_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true}], options[:options], @api_client,{})['repositoryId']
             file_params['repository'] = {'id' => repository_id}
+          end
+          if file_params['contentPath'].nil?
+            file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['path']
+          end
+          if file_params['contentRef'].nil?
+            file_params['contentRef'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'}], options[:options], @api_client,{})['ref']
           end
         end
         if template_type == "cloudFormation" # this right code?
@@ -315,10 +330,15 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           print_red_alert "File not found: #{full_filename}"
           exit 1
         end
-        # use the filename as the name by default.
-        if !params['name']
-          params['name'] = File.basename(full_filename)
-        end
+      end
+      opts.on('--url VALUE', String, "File URL, for use when source is url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-path VALUE', String, "Content Path, for use when source is repository or url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-ref VALUE', String, "Content Ref (Version Ref), for use when source is repository") do |val|
+        file_params['contentRef'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update a spec template." + "\n" +
@@ -558,14 +578,6 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       columns = opts[:include_fields]
     end
     print as_pretty_table(resource_specs, columns, opts)
-  end
-
-  def format_resource_spec_type(val)
-    val.to_s # .capitalize
-  end
-
-  def format_resource_spec_phase(val)
-    val.to_s # .capitalize
   end
 
   def find_spec_template_type_by_id(id)
