@@ -733,12 +733,10 @@ class Morpheus::Cli::Tasks
         print_dry_run @tasks_interface.dry.run(task['id'], payload)
         return
       end
-      response = @tasks_interface.run(task['id'], payload)
+      json_response = @tasks_interface.run(task['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        if !response['success']
-          return 1
-        end
+        puts as_json(json_response, options)
+        return json_response['success'] ? 0 : 1
       else
         target_desc = ""
         if instances.size() > 0
@@ -749,10 +747,14 @@ class Morpheus::Cli::Tasks
           target_desc = "appliance"
         end
         print_green_success "Executing task #{task['name']} on #{target_desc}"
-        # todo: load job/execution
-        # get([task['id']])
+        # todo: refresh, use get processId and load process record isntead? err
+        if json_response["jobExecution"] && json_response["jobExecution"]["id"]
+          get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
+          Morpheus::Logging::DarkPrinter.puts((['jobs', 'get-execution'] + get_args).join(' ')) if Morpheus::Logging.debug?
+          return ::Morpheus::Cli::JobsCommand.new.handle(['get-execution'] + get_args)
+        end
+        return json_response['success'] ? 0 : 1
       end
-      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1

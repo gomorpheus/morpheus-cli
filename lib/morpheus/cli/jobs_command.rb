@@ -34,6 +34,9 @@ class Morpheus::Cli::JobsCommand
       opts.on("--source [all|user|discovered]", String, "Filters job based upon specified source. Default is all") do |val|
         options[:source] = val.to_s
       end
+      opts.on("--internal [true|false]", String, "Filters job based on internal flag. Internal jobs are excluded by default.") do |val|
+        params["internalOnly"] = (val.to_s != "false")
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List jobs."
     end
@@ -68,6 +71,9 @@ class Morpheus::Cli::JobsCommand
       title = "Morpheus Jobs"
       subtitles = []
       subtitles += parse_list_subtitles(options)
+      if params["internalOnly"]
+        subtitles << "internalOnly: #{params['internalOnly']}"
+      end
       print_h1 title, subtitles
 
       jobs = json_response['jobs']
@@ -178,6 +184,7 @@ class Morpheus::Cli::JobsCommand
 
       print cyan
       description_cols = {
+          "ID" => lambda {|it| it['id'] },
           "Name" => lambda {|it| it['name']},
           "Job Type" => lambda {|it| it['type']['name']},
           "Enabled" => lambda {|it| format_boolean(it['enabled'])},
@@ -739,6 +746,7 @@ class Morpheus::Cli::JobsCommand
       process = exec['process']
       print cyan
       description_cols = {
+          "ID" => lambda {|it| it['id'] },
           "Job" => lambda {|it| it['job'] ? it['job']['name'] : ''},
           "Job Type" => lambda {|it| it['job'] && it['job']['type'] ? (it['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : ''},
           # "Description" => lambda {|it| it['description'] || (it['job'] ? it['job']['description'] : '') },

@@ -639,12 +639,10 @@ class Morpheus::Cli::Workflows
         print_dry_run @task_sets_interface.dry.run(workflow['id'], payload)
         return 0
       end
-      response = @task_sets_interface.run(workflow['id'], payload)
+      json_response = @task_sets_interface.run(workflow['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        if !response['success']
-          return 1
-        end
+        puts as_json(json_response, options)
+        return json_response['success'] ? 0 : 1
       else
         target_desc = ""
         if instances.size() > 0
@@ -655,10 +653,14 @@ class Morpheus::Cli::Workflows
           target_desc = "appliance"
         end
         print_green_success "Executing workflow #{workflow['name']} on #{target_desc}"
-        # todo: load job/execution
-        # get([workflow['id']])
+        # todo: refresh, use get processId and load process record isntead? err
+        if json_response["jobExecution"] && json_response["jobExecution"]["id"]
+          get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
+          Morpheus::Logging::DarkPrinter.puts((['jobs', 'get-execution'] + get_args).join(' ')) if Morpheus::Logging.debug?
+          return ::Morpheus::Cli::JobsCommand.new.handle(['get-execution'] + get_args)
+        end
+        return json_response['success'] ? 0 : 1
       end
-      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
