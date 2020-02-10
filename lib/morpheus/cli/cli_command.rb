@@ -567,7 +567,7 @@ module Morpheus
             end
 
           when :fields
-            opts.on('-F', '--fields x,y,z', Array, "Filter Output to a limited set of fields. Default is all fields.") do |val|
+            opts.on('-f', '--fields x,y,z', Array, "Filter Output to a limited set of fields. Default is all fields.") do |val|
               options[:include_fields] = val
             end
             opts.on(nil, '--all-fields', "Show all fields. Useful for showing hidden columns on wide tables.") do
