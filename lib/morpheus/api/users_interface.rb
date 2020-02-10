@@ -8,10 +8,10 @@ class Morpheus::UsersInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(account_id, id)
+  def get(account_id, id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = build_url(account_id, id)
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, timeout: 10, headers: headers}
     execute(opts)
   end

@@ -135,7 +135,7 @@ module Morpheus::Cli::AccountsHelper
 
   def find_user_by_id(account_id, id)
     begin
-      json_response = users_interface.get(account_id, id.to_i)
+      json_response = users_interface.get(account_id, id.to_i, {includePermissions:true})
       return json_response['user']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404

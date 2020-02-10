@@ -10,7 +10,7 @@ require 'json'
 class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :count, :get, :add, :update, :remove
+  register_subcommands :list, :count, :get, :add, :update, :remove, :permissions
   register_subcommands :'passwd' => :change_password
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -127,7 +127,7 @@ class Morpheus::Cli::Users
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
       #   options[:include_instance_type_access] = true
       # end
-      opts.on(nil,'--all-access', "Display All Access Lists") do
+      opts.on(nil,'--all', "Display All Access Lists") do
         options[:include_feature_access] = true
         options[:include_group_access] = true
         options[:include_cloud_access] = true
@@ -151,13 +151,13 @@ class Morpheus::Cli::Users
       @users_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @users_interface.dry.get(account_id, args[0].to_i)
+          print_dry_run @users_interface.dry.get(account_id, args[0].to_i, {includePermissions:true})
         else
           print_dry_run @users_interface.dry.get(account_id, {username: args[0]})
         end
-        if options[:include_feature_access]
-          print_dry_run @users_interface.dry.feature_permissions(account_id, ":id")
-        end
+        # if options[:include_feature_access]
+        #   print_dry_run @users_interface.dry.feature_permissions(account_id, ":id")
+        # end
         return
       end
       # todo: users_response = @users_interface.list(account_id, {name: name})
@@ -169,11 +169,11 @@ class Morpheus::Cli::Users
       # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
       if options[:json]
         puts as_json(json_response, options, "user")
-        puts as_json(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
+        #puts as_json(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:yaml]
         puts as_yaml(json_response, options, "user")
-        puts as_yaml(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
+        #puts as_yaml(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:csv]
         puts records_as_csv([user], options)
@@ -183,7 +183,8 @@ class Morpheus::Cli::Users
         user_feature_permissions = nil
         if options[:include_feature_access]
           user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
-          user_feature_permissions = user_feature_permissions_json['featurePermissions']
+          # permissions (Array) has replaced featurePermissions (map)
+          user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
         end
         print_h1 "User Details", options
         print cyan
@@ -207,10 +208,18 @@ class Morpheus::Cli::Users
           if user_feature_permissions
             print_h2 "Feature Permissions", options
             print cyan
-            rows = user_feature_permissions.collect do |code, access|
-              {code: code, access: get_access_string(access) }
+            if user_feature_permissions.is_a?(Array)
+              rows = user_feature_permissions.collect do |it|
+                {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
+              end
+              print as_pretty_table(rows, [:name, :code, :access], options)
+            else
+              rows = user_feature_permissions.collect do |code, access|
+                {code: code, access: get_access_string(access) }
+              end
+              print as_pretty_table(rows, [:code, :access], options)
             end
-            print as_pretty_table(rows, [:name, :access], options)
+            
           else
             puts yellow,"No permissions found.",reset
           end
@@ -218,6 +227,75 @@ class Morpheus::Cli::Users
 
         print cyan
         print reset,"\n"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def permissions(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[username]")
+      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display Permissions for a user." + "\n" +
+                    "[username] is required. This is the username or id of a user."
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      user = find_user_by_username_or_id(account_id, args[0])
+      return 1 if user.nil?
+      @users_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @users_interface.dry.feature_permissions(account_id, user['id'])
+        return
+      end
+      
+      json_response = @users_interface.feature_permissions(account_id, user['id'])
+      # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
+      if options[:json]
+        puts as_json(json_response, options, 'permissions')
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, 'permissions')
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['permissions'], options)
+        return 0
+      else
+        user_feature_permissions = nil
+        # permissions (Array) has replaced featurePermissions (map)
+        user_feature_permissions = json_response['permissions'] || json_response['featurePermissions']
+        print_h1 "User Permissions: #{user['username']}", options
+        if user_feature_permissions
+          print cyan
+          if user_feature_permissions.is_a?(Array)
+            rows = user_feature_permissions.collect do |it|
+              {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
+            end
+            print as_pretty_table(rows, [:name, :code, :access], options)
+          else
+            rows = user_feature_permissions.collect do |code, access|
+              {code: code, access: get_access_string(access) }
+            end
+            print as_pretty_table(rows, [:code, :access], options)
+          end
+          
+        else
+          print yellow,"No permissions found.",reset,"\n"
+        end
+        print reset,"\n"
+        return 0
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
