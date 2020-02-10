@@ -3,7 +3,6 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::LibrarySpecTemplatesCommand
   include Morpheus::Cli::CliCommand
   set_command_name :'library-spec-templates'
-  set_command_hidden
   register_subcommands :list, :get, :add, :update, :remove, :list_types
   
   def connect(opts)
