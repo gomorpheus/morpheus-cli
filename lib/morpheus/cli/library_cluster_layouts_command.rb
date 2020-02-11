@@ -295,17 +295,17 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
 
         # prompt for options
         if params['name'].nil?
-          params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true}], options[:options], @api_client,{})['value']
+          params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true}], options[:options], @api_client,{})['name']
         end
 
         # version
         if params['computeVersion'].nil?
-          params['computeVersion'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Version', 'required' => true}], options[:options], @api_client,{})['value']
+          params['computeVersion'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'computeVersion', 'type' => 'text', 'fieldLabel' => 'Version', 'required' => true}], options[:options], @api_client,{})['computeVersion']
         end
 
         # description
         if params['description'].nil?
-          params['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false}], options[:options], @api_client,{})['value']
+          params['description'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false}], options[:options], @api_client,{})['description']
         end
 
         # creatable
@@ -322,7 +322,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           end
         else
           cluster_type_options = cluster_types.collect {|type| {'name' => type['name'], 'value' => type['code']}}
-          cluster_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Cluster Type', 'required' => true, 'selectOptions' => cluster_type_options}], options[:options], @api_client,{}, nil, true)['value']
+          cluster_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'groupType', 'type' => 'select', 'fieldLabel' => 'Cluster Type', 'required' => true, 'selectOptions' => cluster_type_options}], options[:options], @api_client,{}, nil, true)['groupType']
           cluster_type = cluster_types.find {|type| type['code'] == cluster_type_code}
         end
 
@@ -337,7 +337,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           end
         else
           provision_type_options = provision_types.collect {|type| {'name' => type['name'], 'value' => type['code']}}
-          provision_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Technology', 'required' => true, 'selectOptions' => provision_type_options}], options[:options], @api_client,{}, nil, true)['value']
+          provision_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'provisionType', 'type' => 'select', 'fieldLabel' => 'Technology', 'required' => true, 'selectOptions' => provision_type_options}], options[:options], @api_client,{}, nil, true)['provisionType']
           provision_type = provision_types.find {|type| type['code'] == provision_type_code}
         end
 
@@ -345,7 +345,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
 
         # min memory
         if params['memoryRequirement'].nil?
-          memory = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Minimum Memory (MB) [can use GB modifier]', 'required' => false, 'description' => 'Memory (MB)'}],options[:options],@api_client,{}, options[:no_prompt])['value']
+          memory = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryRequirement', 'type' => 'text', 'fieldLabel' => 'Minimum Memory (MB) [can use GB modifier]', 'required' => false, 'description' => 'Memory (MB)'}], options[:options], @api_client,{}, options[:no_prompt])['memoryRequirement']
 
           if memory
             bytes = parse_bytes_param(memory, 'minimum memory', 'MB')
@@ -363,7 +363,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           end
           params['taskSets'] = [{'id' => task_set['id']}]
         else
-          task_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], {}, @api_client, {})['value']
+          task_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSets', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {})['taskSets']
 
           if task_set_id
             params['taskSets'] = [{'id' => task_set_id.to_i}]
@@ -399,7 +399,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           avail_type_options = @options_types_interface.list({'max' => 1000})['optionTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
           option_types = []
           while !avail_type_options.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{option_types.empty? ? '' : 'another '}option type?", {:default => false}) do
-            option_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Option Type', 'selectOptions' => avail_type_options, 'required' => false}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
+            option_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'optionType', 'type' => 'select', 'fieldLabel' => 'Option Type', 'selectOptions' => avail_type_options, 'required' => false}],options[:options],@api_client,{}, options[:no_prompt], true)['optionType']
 
             if option_type_id
               option_types << {'id' => option_type_id.to_i}
@@ -437,9 +437,9 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
             else
               avail_container_types = @library_container_types_interface.list(nil, {'technology' => provision_type['code'], 'max' => 1000})['containerTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
               while !avail_container_types.empty? && Morpheus::Cli::OptionTypes.confirm("Add #{nodes.empty? ? '' : 'another '}#{node_type} node?", {:default => false}) do
-                container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)['value']
-                node_count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])['value']
-                priority = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Priority", 'required' => true, 'defaultValue' => priority}], options[:options], @api_client, {}, options[:no_prompt])['value']
+                container_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "#{node_type}ContainerType", 'type' => 'select', 'fieldLabel' => "#{node_type.capitalize} Node", 'selectOptions' => avail_container_types, 'required' => true}],options[:options],@api_client,{}, options[:no_prompt], true)["#{node_type}ContainerType"]
+                node_count = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "#{node_type}NodeCount", 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Node Count", 'required' => true, 'defaultValue' => 1}], options[:options], @api_client, {}, options[:no_prompt])["#{node_type}NodeCount"]
+                priority = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "#{node_type}Priority", 'type' => 'number', 'fieldLabel' => "#{node_type.capitalize} Priority", 'required' => true, 'defaultValue' => priority}], options[:options], @api_client, {}, options[:no_prompt])["#{node_type}Priority"]
                 nodes << {'nodeCount' => node_count, 'priorityOrder' => priority, 'containerType' => {'id' => container_type_id.to_i}}
                 avail_container_types.reject! {|it| it['value'] == container_type_id}
               end
@@ -863,7 +863,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
   end
 
   def prompt_evar(options)
-    name = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Variable Name', 'required' => true}], options[:options], @api_client,{})['value']
+    name = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Variable Name', 'required' => true}], options[:options], @api_client,{})['name']
     value = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Variable Value', 'required' => false}], options[:options], @api_client,{})['value']
     masked = Morpheus::Cli::OptionTypes.confirm("Variable Masked?", {:default => false}) == true
     export = Morpheus::Cli::OptionTypes.confirm("Variable Label?", {:default => false}) == true
