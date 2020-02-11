@@ -272,8 +272,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
     options = {}
     params = {}
     instance_type_id = nil
-    option_type_ids = nil
-    node_type_ids = nil
     evars = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[instance-type]")
@@ -289,27 +287,36 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
+      opts.on("--creatable [on|off]", ['on','off'], "Creatable") do |val|
+        params['creatable'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
       opts.on('--technology CODE', String, "Technology") do |val|
         params['provisionTypeCode'] = val
       end
       opts.on('--min-memory VALUE', String, "Minimum Memory (MB)") do |val|
         params['memoryRequirement'] = val
       end
+      opts.on("--auto-scale [on|off]", ['on','off'], "Enable Scaling (Horizontal)") do |val|
+        params['hasAutoScale'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on("--convert-to-managed [on|off]", ['on','off'], "Supports Convert To Managed") do |val|
+        params['supportsConvertToManaged'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
       opts.on('--workflow ID', String, "Workflow") do |val|
         params['taskSetId'] = val.to_i
       end
       opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
         if list.nil?
-          option_type_ids = []
+          params['optionTypes'] = []
         else
-          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--node-types [x,y,z]', Array, "List of Node Type IDs") do |list|
         if list.nil?
-          node_type_ids = []
+          params['containerTypes'] = []
         else
-          node_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          params['containerTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--spec-templates [x,y,z]', Array, "List of Spec Templates to include in this layout, comma separated list of names or IDs.") do |list|
@@ -319,7 +326,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      #build_option_type_options(opts, options, add_layout_option_types())
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new layout." + "\n" +
                     "[instance-type] is required and can be passed as --instance-type instead."
@@ -350,8 +356,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
       if options[:payload]
         payload = options[:payload]
       else
-        # v_prompt = Morpheus::Cli::OptionTypes.prompt(add_layout_option_types, options[:options], @api_client, options[:params])
-        # params.deep_merge!(v_prompt)
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         
         if !params['name']
@@ -365,6 +369,10 @@ class Morpheus::Cli::LibraryLayoutsCommand
         if !params['description']
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false}], options[:options])
           params['description'] = v_prompt['description'] if v_prompt['description']
+        end
+        if params['creatable'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'creatable', 'type' => 'checkbox', 'fieldLabel' => 'Creatable', 'defaultValue' => 'on'}], options[:options])
+          params['creatable'] = ['true','on'].include?(v_prompt['creatable'].to_s) if v_prompt['creatable'] != nil
         end
 
         provision_types = @provision_types_interface.list({customSupported: true})['provisionTypes']
@@ -386,7 +394,14 @@ class Morpheus::Cli::LibraryLayoutsCommand
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryRequirement', 'type' => 'text', 'fieldLabel' => 'Min Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image'}], options[:options])
           params['memoryRequirement'] = v_prompt['memoryRequirement'] if v_prompt['memoryRequirement']
         end
-
+        if params['hasAutoScale'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hasAutoScale', 'type' => 'checkbox', 'fieldLabel' => 'Enable Scaling (Horizontal)'}], options[:options])
+          params['hasAutoScale'] = ['true','on'].include?(v_prompt['hasAutoScale'].to_s) if v_prompt['hasAutoScale'] != nil
+        end
+        if params['supportsConvertToManaged'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'supportsConvertToManaged', 'type' => 'checkbox', 'fieldLabel' => 'Supports Convert To Managed'}], options[:options])
+          params['supportsConvertToManaged'] = ['true','on'].include?(v_prompt['supportsConvertToManaged'].to_s) if v_prompt['supportsConvertToManaged'] != nil
+        end        
         if !params['taskSetId']
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSetId', 'type' => 'text', 'fieldLabel' => 'Workflow ID', 'required' => false, 'description' => 'Worflow ID'}], options[:options])
           params['taskSetId'] = v_prompt['taskSetId'].to_i if v_prompt['taskSetId']
@@ -400,17 +415,19 @@ class Morpheus::Cli::LibraryLayoutsCommand
         end
 
         # OPTION TYPES
-        if option_type_ids
-          params['optionTypes'] = option_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+        prompt_results = prompt_for_option_types(params, options, @api_client)
+        if prompt_results[:success]
+          params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
         else
-          # prompt
+          return 1
         end
 
         # NODE TYPES
-        if node_type_ids
-          params['containerTypes'] = node_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+        prompt_results = prompt_for_container_types(params, options, @api_client)
+        if prompt_results[:success]
+          params['containerTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
         else
-          # prompt
+          return 1
         end
 
         # SPEC TEMPLATES
@@ -452,8 +469,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
     options = {}
     params = {}
     instance_type_id = nil
-    option_type_ids = nil
-    node_type_ids = nil
     evars = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
@@ -466,27 +481,36 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
-      # opts.on('--technology CODE', String, "Technology") do |val|
-      #   params['provisionTypeCode'] = val
-      # end
+      opts.on("--creatable [on|off]", ['on','off'], "Creatable") do |val|
+        params['creatable'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on('--technology CODE', String, "Technology") do |val|
+        params['provisionTypeCode'] = val
+      end
       opts.on('--min-memory VALUE', String, "Minimum Memory (MB)") do |val|
         params['memoryRequirement'] = val
+      end
+      opts.on("--auto-scale [on|off]", ['on','off'], "Enable Scaling (Horizontal)") do |val|
+        params['hasAutoScale'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on("--convert-to-managed [on|off]", ['on','off'], "Supports Convert To Managed") do |val|
+        params['supportsConvertToManaged'] = (val.to_s != 'false' && val.to_s != 'off')
       end
       opts.on('--workflow ID', String, "Workflow") do |val|
         params['taskSetId'] = val.to_i
       end
       opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
         if list.nil?
-          option_type_ids = []
+          params['optionTypes'] = []
         else
-          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--node-types [x,y,z]', Array, "List of Node Type IDs") do |list|
         if list.nil?
-          node_type_ids = []
+          params['containerTypes'] = []
         else
-          node_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          params['containerTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       opts.on('--spec-templates [x,y,z]', Array, "List of Spec Templates to include in this layout, comma separated list of names or IDs.") do |list|
@@ -496,7 +520,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      #build_option_type_options(opts, options, update_layout_option_types())
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a layout."
     end
@@ -513,8 +536,6 @@ class Morpheus::Cli::LibraryLayoutsCommand
       if options[:payload]
         payload = options[:payload]
       else
-        # option_types = update_layout_option_types(instance_type)
-        # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         
         # ENVIRONMENT VARIABLES
@@ -525,17 +546,23 @@ class Morpheus::Cli::LibraryLayoutsCommand
         end
 
         # OPTION TYPES
-        if option_type_ids
-          params['optionTypes'] = option_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
-        else
-          # prompt
+        if params['optionTypes']
+          prompt_results = prompt_for_option_types(params, options, @api_client)
+          if prompt_results[:success]
+            params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
         end
 
         # NODE TYPES
-        if node_type_ids
-          params['containerTypes'] = node_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
-        else
-          # prompt
+        if params['containerTypes']
+          prompt_results = prompt_for_container_types(params, options, @api_client)
+          if prompt_results[:success]
+            params['containerTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
         end
 
         # SPEC TEMPLATES
@@ -549,8 +576,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
         end
 
         if params.empty?
-          puts optparse
-          exit 1
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
         payload = {'instanceTypeLayout' => params}
@@ -684,32 +710,5 @@ class Morpheus::Cli::LibraryLayoutsCommand
   def format_instance_type_phase(val)
     val.to_s # .capitalize
   end
-
-  def add_layout_option_types
-    [
-      # {'fieldName' => 'instanceTypeId', 'fieldLabel' => 'Instance Type ID', 'type' => 'text', 'required' => true, 'displayOrder' => 2, 'description' => 'The instance type this layout belongs to'},
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => true, 'displayOrder' => 2, 'description' => 'Useful shortcode for provisioning naming schemes and export reference.'},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 3},
-      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'select', 'optionSource' => 'categories', 'required' => true, 'displayOrder' => 4},
-      {'fieldName' => 'logo', 'fieldLabel' => 'Icon File', 'type' => 'text', 'displayOrder' => 5},
-      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 6},
-      {'fieldName' => 'environmentPrefix', 'fieldLabel' => 'Environment Prefix', 'type' => 'text', 'displayOrder' => 7, 'description' => 'Used for exportable environment variables when tying instance types together in app contexts. If not specified a name will be generated.'},
-      {'fieldName' => 'hasSettings', 'fieldLabel' => 'Enable Settings', 'type' => 'checkbox', 'displayOrder' => 8},
-      {'fieldName' => 'hasAutoScale', 'fieldLabel' => 'Enable Scaling (Horizontal)', 'type' => 'checkbox', 'displayOrder' => 9},
-      {'fieldName' => 'hasDeployment', 'fieldLabel' => 'Supports Deployments', 'type' => 'checkbox', 'displayOrder' => 10, 'description' => 'Requires a data volume be configured on each version. Files will be copied into this location.'}
-    ]
-  end
-
-  def update_layout_option_types(instance_type=nil)
-    if instance_type
-      opts = add_layout_option_types
-      opts.find {|opt| opt['fieldName'] == 'name'}['defaultValue'] = instance_type['name']
-      opts
-    else
-      add_layout_option_types
-    end
-  end
-
 
 end

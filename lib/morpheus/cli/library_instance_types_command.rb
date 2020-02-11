@@ -244,9 +244,17 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     options = {}
     params = {}
     logo_file = nil
+    option_type_ids = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[name]")
       build_option_type_options(opts, options, add_instance_type_option_types())
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          option_type_ids = []
+        else
+          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new instance type."
     end
@@ -284,6 +292,17 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         params['hasSettings'] = ['on','true','1'].include?(params['hasSettings'].to_s) if params.key?('hasSettings')
         params['hasAutoScale'] = ['on','true','1'].include?(params['hasAutoScale'].to_s) if params.key?('hasAutoScale')
         params['hasDeployment'] = ['on','true','1'].include?(params['hasDeployment'].to_s) if params.key?('hasDeployment')
+
+        # OPTION TYPES
+        if params['optionTypes']
+          prompt_results = prompt_for_option_types(params, options, @api_client)
+          if prompt_results[:success]
+            params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
+        end
+
         payload = {instanceType: params}
         @library_instance_types_interface.setopts(options)
         if options[:dry_run]
@@ -528,6 +547,8 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
   end
   
   private
+
+  ## finders are in LibraryHelper
 
   def add_instance_type_option_types
     [

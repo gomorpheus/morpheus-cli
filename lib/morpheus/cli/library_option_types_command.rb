@@ -433,37 +433,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     return ports
   end
 
-  def find_option_type_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_option_type_by_id(val)
-    else
-      return find_option_type_by_name(val)
-    end
-  end
-
-  def find_option_type_by_id(id)
-    begin
-      json_response = @option_types_interface.get(id.to_i)
-      return json_response['optionType']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Option Type not found by id #{id}"
-        exit 1
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_option_type_by_name(name)
-    json_results = @option_types_interface.list({name: name.to_s})
-    if json_results['optionTypes'].empty?
-      print_red_alert "Option Type not found by name #{name}"
-      exit 1
-    end
-    option_type = json_results['optionTypes'][0]
-    return option_type
-  end
+  # finders are in LibraryHelper
 
   # lol
   def new_option_type_option_types
