@@ -272,10 +272,10 @@ class Morpheus::Cli::PricesCommand
 
       if !payload
         # name
-        params['name'] ||= args[0] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Price Set Name', 'required' => true, 'description' => 'Price Set Name.'}],options[:options],@api_client,{}, options[:no_prompt])['name']
+        params['name'] ||= args[0] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Price Name', 'required' => true, 'description' => 'Price Set Name.'}],options[:options],@api_client,{}, options[:no_prompt])['name']
 
         # code
-        params['code'] ||= args[1] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Price Set Code', 'required' => true, 'defaultValue' => params['name'].gsub(/[^0-9a-z ]/i, '').gsub(' ', '.').downcase, 'description' => 'Price Set Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
+        params['code'] ||= args[1] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Price Code', 'required' => true, 'defaultValue' => params['name'].gsub(/[^0-9a-z ]/i, '').gsub(' ', '.').downcase, 'description' => 'Price Set Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
 
         # tenant
         if options[:tenant].nil?
@@ -293,28 +293,28 @@ class Morpheus::Cli::PricesCommand
         end
 
         # type (platform, software, datastore, storage)
-        params['priceType'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Price Type', 'required' => true, 'description' => 'Select price type', 'selectOptions' => price_types.collect {|k,v| {'name' => v, 'value' => k}}}], options[:options], @api_client, {}, options[:no_prompt])['value']
+        params['priceType'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceType', 'type' => 'select', 'fieldLabel' => 'Price Type', 'required' => true, 'description' => 'Select price type', 'selectOptions' => price_types.collect {|k,v| {'name' => v, 'value' => k}}}], options[:options], @api_client, {}, options[:no_prompt])['priceType']
 
         # price type
         prompt_for_price_type(params, options)
 
         # unit
-        params['priceUnit'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Price Unit', 'required' => true, 'description' => 'Select price unit', 'defaultValue' => 'month', 'selectOptions' => price_units.collect {|it| {'name' => it.split(' ').collect {|it| it.capitalize}.join(' '), 'value' => it}}], options[:options], @api_client, {}, options[:no_prompt])['value']
+        params['priceUnit'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'priceUnit', 'type' => 'select', 'fieldLabel' => 'Price Unit', 'required' => true, 'description' => 'Select price unit', 'defaultValue' => 'month', 'selectOptions' => price_units.collect {|it| {'name' => it.split(' ').collect {|it| it.capitalize}.join(' '), 'value' => it}}], options[:options], @api_client, {}, options[:no_prompt])['priceUnit']
 
         # incur
-        params['incurCharges'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Incur Charges', 'required' => true, 'description' => 'Select when to incur charges', 'defaultValue' => 'running', 'selectOptions' => [{'name' => 'When Running', 'value' => 'running'}, {'name' => 'When Stopped', 'value' => 'stopped'}, {'name' => 'Always', 'value' => 'always'}]], options[:options], @api_client, {}, options[:no_prompt])['value']
+        params['incurCharges'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'incurCharges', 'type' => 'select', 'fieldLabel' => 'Incur Charges', 'required' => true, 'description' => 'Select when to incur charges', 'defaultValue' => 'running', 'selectOptions' => [{'name' => 'When Running', 'value' => 'running'}, {'name' => 'When Stopped', 'value' => 'stopped'}, {'name' => 'Always', 'value' => 'always'}]], options[:options], @api_client, {}, options[:no_prompt])['incurCharges']
 
         # currency
-        params['currency'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Currency', 'required' => true, 'description' => 'Select when to incur charges', 'defaultValue' => 'USD', 'selectOptions' => avail_currencies.collect {|it| {'value' => it}}], options[:options], @api_client, {}, options[:no_prompt])['value']
+        params['currency'] ||= Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'currency', 'type' => 'select', 'fieldLabel' => 'Currency', 'required' => true, 'description' => 'Select when to incur charges', 'defaultValue' => 'USD', 'selectOptions' => avail_currencies.collect {|it| {'value' => it}}], options[:options], @api_client, {}, options[:no_prompt])['currency']
 
         # cost
         if params['cost'].nil?
-          params['cost'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => 'Cost', 'required' => true, 'description' => 'Price cost', 'defaultValue' => 0.0}],options[:options],@api_client,{}, options[:no_prompt])['value']
+          params['cost'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cost', 'type' => 'number', 'fieldLabel' => 'Cost', 'required' => true, 'description' => 'Price cost', 'defaultValue' => 0.0}],options[:options],@api_client,{}, options[:no_prompt])['cost']
         end
 
         # adjustment / markup type
         if params['markupType'].nil?
-          markup_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Price Adjustment', 'required' => false, 'description' => 'Price Adjustment', 'selectOptions' => [{'name' => 'None', 'value' => 'none'}, {'name' => 'Fixed Markup', 'value' => 'fixed'}, {'name' => 'Percent Markup', 'value' => 'percent'}, {'name' => 'Custom Price', 'value' => 'custom'}], 'defaultValue' => 'none'}],options[:options],@api_client,{}, options[:no_prompt])['value']
+          markup_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'markupType', 'type' => 'select', 'fieldLabel' => 'Price Adjustment', 'required' => false, 'description' => 'Price Adjustment', 'selectOptions' => [{'name' => 'None', 'value' => 'none'}, {'name' => 'Fixed Markup', 'value' => 'fixed'}, {'name' => 'Percent Markup', 'value' => 'percent'}, {'name' => 'Custom Price', 'value' => 'custom'}], 'defaultValue' => 'none'}],options[:options],@api_client,{}, options[:no_prompt])['markupType']
 
           if markup_type && markup_type != 'none'
             params['markupType'] = markup_type
@@ -607,9 +607,9 @@ class Morpheus::Cli::PricesCommand
   def prompt_for_price_type(params, options, price={})
     case params['priceType']
     when 'platform'
-      params['platform'] ||= price['platform'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Platform', 'required' => true, 'description' => 'Select platform for platform price type', 'selectOptions' => [{'name' => 'Linux', 'value' => 'linux'}, {'name' => 'Windows', 'value' => 'windows'}]}], options[:options], @api_client, {}, options[:no_prompt])['value']
+      params['platform'] ||= price['platform'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'platform', 'type' => 'select', 'fieldLabel' => 'Platform', 'required' => true, 'description' => 'Select platform for platform price type', 'selectOptions' => [{'name' => 'Linux', 'value' => 'linux'}, {'name' => 'Windows', 'value' => 'windows'}]}], options[:options], @api_client, {}, options[:no_prompt])['platform']
     when 'software'
-      params['software'] ||= price['software'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'text', 'fieldLabel' => 'Software', 'required' => true, 'description' => 'Set software for software price type'}], options[:options], @api_client,{}, options[:no_prompt])['value']
+      params['software'] ||= price['software'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'software', 'type' => 'text', 'fieldLabel' => 'Software', 'required' => true, 'description' => 'Set software for software price type'}], options[:options], @api_client,{}, options[:no_prompt])['software']
     when 'datastore'
       if options[:datastore]
         datastore = find_datastore(options[:datastore])
@@ -620,7 +620,7 @@ class Morpheus::Cli::PricesCommand
           exit 1
         end
       else
-        datastore_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Datastore', 'required' => true, 'description' => 'Select datastore for datastore price type', 'selectOptions' => @prices_interface.list_datastores['datastores'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt])['value']
+        datastore_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'datastore', 'type' => 'select', 'fieldLabel' => 'Datastore', 'required' => true, 'description' => 'Select datastore for datastore price type', 'selectOptions' => @prices_interface.list_datastores['datastores'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt])['datastore']
         params['datastore'] = {'id' => datastore_id}
       end
 
@@ -641,7 +641,7 @@ class Morpheus::Cli::PricesCommand
           exit 1
         end
       else
-        volume_type_id = (price['volumeType'] ? price['volumeType']['id'] : Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Volume Type', 'required' => true, 'description' => 'Select volume type for storage price type', 'selectOptions' => @prices_interface.list_volume_types['volumeTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['value'])
+        volume_type_id = (price['volumeType'] ? price['volumeType']['id'] : Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'volumeType', 'type' => 'select', 'fieldLabel' => 'Volume Type', 'required' => true, 'description' => 'Select volume type for storage price type', 'selectOptions' => @prices_interface.list_volume_types['volumeTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['volumeType'])
         params['volumeType'] = {'id' => volume_type_id}
       end
     end
@@ -652,17 +652,17 @@ class Morpheus::Cli::PricesCommand
     when 'percent'
       params['markupPercent'] = price['markupPercent'] if params['markupPercent'].nil?
       if params['markupPercent'].nil?
-        params['markupPercent'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => 'Markup Percent', 'required' => true, 'description' => 'Markup Percent'}],options[:options],@api_client,{}, options[:no_prompt])['value']
+        params['markupPercent'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'markupPercent', 'type' => 'number', 'fieldLabel' => 'Markup Percent', 'required' => true, 'description' => 'Markup Percent'}],options[:options],@api_client,{}, options[:no_prompt])['markupPercent']
       end
     when 'fixed'
       params['markup'] = price['markup'] if params['markup'].nil?
       if params['markup'].nil?
-        params['markup'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => 'Markup Amount', 'required' => true, 'description' => 'Markup Amount'}],options[:options],@api_client,{}, options[:no_prompt])['value']
+        params['markup'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'markup', 'type' => 'number', 'fieldLabel' => 'Markup Amount', 'required' => true, 'description' => 'Markup Amount'}],options[:options],@api_client,{}, options[:no_prompt])['markup']
       end
     when 'custom'
       params['customPrice'] = price['customPrice'] if params['customPrice'].nil?
       if params['customPrice'].nil?
-        params['customPrice'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'value', 'type' => 'number', 'fieldLabel' => 'Price', 'required' => true, 'description' => 'Price'}],options[:options],@api_client,{}, options[:no_prompt])['value']
+        params['customPrice'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'customPrice', 'type' => 'number', 'fieldLabel' => 'Price', 'required' => true, 'description' => 'Price'}],options[:options],@api_client,{}, options[:no_prompt])['customPrice']
       end
     end
   end

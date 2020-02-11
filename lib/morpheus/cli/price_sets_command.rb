@@ -235,7 +235,7 @@ class Morpheus::Cli::PriceSetsCommand
         params['code'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Price Set Code', 'required' => true, 'defaultValue' => params['name'].gsub(/[^0-9a-z ]/i, '').gsub(' ', '.').downcase, 'description' => 'Price Set Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
 
         # region code
-        params['regionCode'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'code', 'type' => 'text', 'fieldLabel' => 'Price Set Region Code', 'required' => false, 'description' => 'Price Set Region Code.'}],options[:options],@api_client,{}, options[:no_prompt])['code']
+        params['regionCode'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'regionCode', 'type' => 'text', 'fieldLabel' => 'Price Set Region Code', 'required' => false, 'description' => 'Price Set Region Code.'}],options[:options],@api_client,{}, options[:no_prompt])['regionCode']
 
         # cloud
         if options[:cloud]
@@ -247,7 +247,7 @@ class Morpheus::Cli::PriceSetsCommand
           end
           params['zone'] = {'id' => cloud['id']}
         else
-          cloud_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Cloud', 'required' => false, 'description' => 'Select cloud for price set', 'selectOptions' => @clouds_interface.list['zones'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['value']
+          cloud_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'zone', 'type' => 'select', 'fieldLabel' => 'Cloud', 'required' => false, 'description' => 'Select cloud for price set', 'selectOptions' => @clouds_interface.list['zones'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['zone']
 
           if cloud_id
             params['zone'] = {'id' => cloud_id}
@@ -264,7 +264,7 @@ class Morpheus::Cli::PriceSetsCommand
           end
           params['zonePool'] = {'id' => resource_pool['id']}
         else
-          resource_pool_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'value', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'required' => false, 'description' => 'Select resource pool for price set', 'selectOptions' => @cloud_resource_pools_interface.list(params['zone'] ? params['zone']['id'] : nil)['resourcePools'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['value']
+          resource_pool_id = Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'zonePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'required' => false, 'description' => 'Select resource pool for price set', 'selectOptions' => @cloud_resource_pools_interface.list(params['zone'] ? params['zone']['id'] : nil)['resourcePools'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['zonePool']
 
           if resource_pool_id
             params['zonePool'] = {'id' => resource_pool_id}
@@ -308,7 +308,7 @@ class Morpheus::Cli::PriceSetsCommand
           # additional prices
           avail_price_types = (price_set_type[:requires] + price_set_type[:allows]).collect {|it| {'name' => price_type_label(it), 'value' => it}}
           price_type = nil
-          while Morpheus::Cli::OptionTypes.confirm("Add additional prices?") do
+          while Morpheus::Cli::OptionTypes.confirm("Add additional prices?", {default:false}) do
             price_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceType', 'type' => 'select', 'fieldLabel' => "Price Type", 'selectOptions' => avail_price_types, 'required' => true, 'defaultValue' => price_type, 'description' => "Select Price Type"}],options[:options],@api_client,{}, options[:no_prompt], true)['priceType']
             avail_prices = @prices_interface.list({'priceType' => price_type, 'priceUnit' => params['priceUnit'], 'max' => 10000})['prices'].reject {|it| params['prices'].find {|price| price['id'] == it['id']}}.collect {|it| {'name' => it['name'], 'value' => it['id']}}
 
