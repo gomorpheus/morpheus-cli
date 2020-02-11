@@ -92,6 +92,8 @@ module Morpheus::Logging
         msg.gsub!(/#{header}\"\s?\=\>\s?\"[^"]+/, "#{header}\"=>\"************")
         msg.gsub!(/#{header}\:\s?[^"'']+/, "#{header}: ************")
       end
+      msg.gsub!(/password\"\: "[^"]+/, 'password": "************') # json properties ending with password
+      msg.gsub!(/Password\"\: "[^"]+/, 'Password": "************') # json properties ending with Password
       msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/i, 'password"=>"************')
       msg.gsub!(/password\=\"[^"]+/i, 'password="************')
       msg.gsub!(/password\=[^"'&\Z]+/i, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh

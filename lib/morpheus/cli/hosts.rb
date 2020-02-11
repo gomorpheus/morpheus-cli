@@ -1238,8 +1238,8 @@ class Morpheus::Cli::Hosts
       end
       @servers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.make_managed(host['id'], payload)
-        return
+        print_dry_run(@servers_interface.dry.make_managed(host['id'], payload), options)
+        return 0
       end
       json_response = @servers_interface.make_managed(host['id'], payload)
       if options[:json]
@@ -1249,7 +1249,7 @@ class Morpheus::Cli::Hosts
         print_green_success "Host #{host['name']} is being converted to managed."
         puts "Public Key:\n#{json_response['publicKey']}\n(copy to your authorized_keys file)"
       end
-      return true
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

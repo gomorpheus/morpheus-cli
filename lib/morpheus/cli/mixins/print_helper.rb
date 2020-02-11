@@ -215,6 +215,9 @@ module Morpheus::Cli::PrintHelper
           end
         end
       end
+      if options[:scrub]
+        output = Morpheus::Logging.scrub_message(output)
+      end
       print_result = print_to_file(output, options[:outfile], options[:overwrite])
       return print_result
     end
@@ -244,7 +247,11 @@ module Morpheus::Cli::PrintHelper
           end
         end
         puts "#{cyan}#{bold}#{dark}JSON#{reset}"
-        print JSON.pretty_generate(payload)
+        if options[:scrub]
+          print Morpheus::Logging.scrub_message(JSON.pretty_generate(payload))
+        else
+          print JSON.pretty_generate(payload)
+        end
       else
         print "Content-Type: #{content_type}", "\n"
         print reset
@@ -252,7 +259,11 @@ module Morpheus::Cli::PrintHelper
           pretty_size = "#{payload.size} B"
           print "File: #{payload.path} (#{pretty_size})"
         elsif payload.is_a?(String)
-          print payload
+          if options[:scrub]
+            print Morpheus::Logging.scrub_message(payload)
+          else
+            print payload
+          end
         else
           if content_type == 'application/x-www-form-urlencoded'
             body_str = payload.to_s
@@ -261,9 +272,17 @@ module Morpheus::Cli::PrintHelper
             rescue => ex
               # raise ex
             end
-            print body_str
+            if options[:scrub]
+              print Morpheus::Logging.scrub_message(body_str)
+            else
+              print body_str
+            end
           else
-            print payload
+            if options[:scrub]
+              print Morpheus::Logging.scrub_message(payload)
+            else
+              print payload
+            end
           end
         end
       end
