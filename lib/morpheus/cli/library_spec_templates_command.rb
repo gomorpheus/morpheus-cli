@@ -74,6 +74,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--no-content', "Do not display content." ) do
+        options[:no_content] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -141,25 +144,27 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       end
       print_description_list(description_cols, resource_spec)
 
-      file_content = resource_spec['file']
-      print_h2 "Content"
-      if file_content
-        if file_content['sourceType'] == 'local'
-          puts file_content['content']
-        elsif file_content['sourceType'] == 'url'
-          puts "URL: #{file_content['contentPath']}"
-        elsif file_content['sourceType'] == 'repository'
-          puts "Repository: #{file_content['repository']['name'] rescue 'n/a'}"
-          puts "Path: #{file_content['contentPath']}"
-          if file_content['contentRef']
-            puts "Ref: #{file_content['contentRef']}"
+      unless options[:no_content]
+        file_content = resource_spec['file']
+        print_h2 "Content"
+        if file_content
+          if file_content['sourceType'] == 'local'
+            puts file_content['content']
+          elsif file_content['sourceType'] == 'url'
+            puts "URL: #{file_content['contentPath']}"
+          elsif file_content['sourceType'] == 'repository'
+            puts "Repository: #{file_content['repository']['name'] rescue 'n/a'}"
+            puts "Path: #{file_content['contentPath']}"
+            if file_content['contentRef']
+              puts "Ref: #{file_content['contentRef']}"
+            end
+          else
+            puts "Source: #{file_content['sourceType']}"
+            puts "Path: #{file_content['contentPath']}"
           end
         else
-          puts "Source: #{file_content['sourceType']}"
-          puts "Path: #{file_content['contentPath']}"
+          print yellow,"No file content.",reset,"\n"
         end
-      else
-        print yellow,"No file content.",reset,"\n"
       end
 
       print reset,"\n"
