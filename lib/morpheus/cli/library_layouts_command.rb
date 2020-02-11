@@ -20,6 +20,8 @@ class Morpheus::Cli::LibraryLayoutsCommand
     @api_client = establish_remote_appliance_connection(opts)
     @library_layouts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_layouts
     @library_instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_instance_types
+    @spec_templates_interface = @api_client.library_spec_templates
+    @spec_template_types_interface = @api_client.library_spec_template_types
     @provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
     @option_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).option_types
     @option_type_lists_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).option_type_lists
@@ -156,6 +158,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Instance Type" => lambda {|it| it['instanceType']['name'] rescue '' },
         #"Code" => lambda {|it| it['code'] },
         "Version" => lambda {|it| it['instanceVersion'] },
         "Description" => lambda {|it| it['description'] },
@@ -223,9 +226,9 @@ class Morpheus::Cli::LibraryLayoutsCommand
         # print yellow,"No option types found for this layout.","\n",reset
       end
 
-      print_h2 "Node Types"
       layout_node_types = layout['containerTypes']
       if layout_node_types && layout_node_types.size > 0
+        print_h2 "Node Types"
         # match UI sorting [version desc, name asc]
         # or use something simpler like one of these
         layout_node_types = layout_node_types.sort { |a,b| a['name'] <=> b['name'] }
@@ -240,7 +243,21 @@ class Morpheus::Cli::LibraryLayoutsCommand
         ]
         print as_pretty_table(layout_node_types, node_type_columns)
       else
-        print yellow,"No node types for this layout.","\n",reset
+        # print yellow,"No node types for this layout.","\n",reset
+      end
+
+      layout_spec_templates = layout['specTemplates']
+      if layout_spec_templates && layout_spec_templates.size > 0
+        print_h2 "Spec Templates"
+        layout_spec_templates = layout_spec_templates.sort { |a,b| a['name'] <=> b['name'] }
+        spec_template_columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          {"NAME" => lambda {|it| it['name'] } },
+          {"TYPE" => lambda {|it| it['type']['name'] rescue '' } }
+        ]
+        print as_pretty_table(layout_spec_templates, spec_template_columns)
+      else
+        # print yellow,"No spec templates for this layout.","\n",reset
       end
 
       print reset,"\n"
@@ -281,11 +298,26 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--workflow ID', String, "Workflow") do |val|
         params['taskSetId'] = val.to_i
       end
-      opts.on('--option-types x,y,z', Array, "List of Option Type IDs") do |val|
-        option_type_ids = val #.collect {|it| it.to_i }
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          option_type_ids = []
+        else
+          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
-      opts.on('--node-types x,y,z', Array, "List of Node Type IDs") do |val|
-        node_type_ids = val #.collect {|it| it.to_i }
+      opts.on('--node-types [x,y,z]', Array, "List of Node Type IDs") do |list|
+        if list.nil?
+          node_type_ids = []
+        else
+          node_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--spec-templates [x,y,z]', Array, "List of Spec Templates to include in this layout, comma separated list of names or IDs.") do |list|
+        if list.nil?
+          params['specTemplates'] = []
+        else
+          params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
       #build_option_type_options(opts, options, add_layout_option_types())
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -293,17 +325,21 @@ class Morpheus::Cli::LibraryLayoutsCommand
                     "[instance-type] is required and can be passed as --instance-type instead."
     end
     optparse.parse!(args)
-    connect(options)
-    
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    if args[0]
+      #params["name"] = args[0]
+      instance_type_id = args[0]
+    end
     if instance_type_id.nil?
       instance_type_id = args[0]
     end
-
     if !instance_type_id
       puts optparse
-      exit 1
+      return 1
     end
-
+    connect(options)
     begin
       instance_type = find_instance_type_by_name_or_id(instance_type_id)
       exit 1 if instance_type.nil?
@@ -377,6 +413,14 @@ class Morpheus::Cli::LibraryLayoutsCommand
           # prompt
         end
 
+        # SPEC TEMPLATES
+        prompt_results = prompt_for_spec_templates(params, options, @api_client)
+        if prompt_results[:success]
+          params['specTemplates'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
+        end
+        
 
         payload = {'instanceTypeLayout' => params}
         
@@ -431,11 +475,26 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--workflow ID', String, "Workflow") do |val|
         params['taskSetId'] = val.to_i
       end
-      opts.on('--option-types x,y,z', Array, "List of Option Type IDs") do |val|
-        option_type_ids = val #.collect {|it| it.to_i }
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          option_type_ids = []
+        else
+          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
-      opts.on('--node-types x,y,z', Array, "List of Node Type IDs") do |val|
-        node_type_ids = val #.collect {|it| it.to_i }
+      opts.on('--node-types [x,y,z]', Array, "List of Node Type IDs") do |list|
+        if list.nil?
+          node_type_ids = []
+        else
+          node_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--spec-templates [x,y,z]', Array, "List of Spec Templates to include in this layout, comma separated list of names or IDs.") do |list|
+        if list.nil?
+          params['specTemplates'] = []
+        else
+          params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
       #build_option_type_options(opts, options, update_layout_option_types())
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
@@ -477,6 +536,16 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['containerTypes'] = node_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
         else
           # prompt
+        end
+
+        # SPEC TEMPLATES
+        if params['specTemplates']
+          prompt_results = prompt_for_spec_templates(params, options, @api_client)
+          if prompt_results[:success]
+            params['specTemplates'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
         end
 
         if params.empty?

@@ -1,7 +1,9 @@
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/library_helper'
 
 class Morpheus::Cli::LibrarySpecTemplatesCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::LibraryHelper
   set_command_name :'library-spec-templates'
   register_subcommands :list, :get, :add, :update, :remove, :list_types
   
@@ -89,7 +91,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
   def _get(id, options)
 
     begin
-      resource_spec = find_resource_spec_by_name_or_id(id)
+      resource_spec = find_spec_template_by_name_or_id(id)
       if resource_spec.nil?
         return 1
       end
@@ -128,6 +130,15 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) + " by #{it['createdBy']}" },
         # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) + " by #{it['updatedBy'] || it['createdBy']}" },
       }
+      template_type = resource_spec['type']['code'] rescue nil
+      if template_type.to_s.downcase == 'cloudformation'
+        cloudformation_description_cols = {
+          "CAPABILITY_IAM" => lambda {|it| format_boolean(it['config']['cloudformation']['IAM']) rescue '' },
+          "CAPABILITY_NAMED_IAM" => lambda {|it| format_boolean(it['config']['cloudformation']['CAPABILITY_NAMED_IAM']) rescue '' },
+          "CAPABILITY_AUTO_EXPAND" => lambda {|it| format_boolean(it['config']['cloudformation']['CAPABILITY_AUTO_EXPAND']) rescue '' },
+        }
+        description_cols.merge!(cloudformation_description_cols)
+      end
       print_description_list(description_cols, resource_spec)
 
       file_content = resource_spec['file']
@@ -170,7 +181,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('--type VALUE', String, "Spec Template Type. kubernetes, helm, terraform") do |val|
+      opts.on('-t', '--type TYPE', "Spec Template Type. kubernetes, helm, terraform, cloudFormation") do |val|
         template_type = val.to_s
       end
       opts.on('--source VALUE', String, "Source Type. local, repository, url") do |val|
@@ -218,8 +229,14 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     begin
       # construct payload
       payload = nil
+      passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) }
       if options[:payload]
         payload = options[:payload]
+        # merge -O options into normally parsed options
+        params['file'] = file_params unless file_params.empty?
+        unless params.empty?
+          payload.deep_merge!({'specTemplate' => params })
+        end
       else
         # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
@@ -228,7 +245,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['name']
         end
         if template_type.nil?
-          # should use code instead probably...
+          # use code instead of id
           #template_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'resourceSpecType', 'required' => true}], options[:options], @api_client,{})['type']
           #params['type'] = {'id' => template_type}
           spec_type_dropdown = get_all_spec_template_types.collect { |it| {'value' => it['code'], 'name' => it['name']} }
@@ -241,10 +258,12 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           template_type = template_type_obj['code']
           params['type'] = {'code' => template_type}
         end
+        # source
         if source_type.nil?
           source_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => true, 'defaultValue' => 'local'}], options[:options], @api_client,{})['source']
           file_params['sourceType'] = source_type
         end
+        # source type options
         if source_type == "local"
           # prompt for content
           if file_params['content'].nil?
@@ -266,8 +285,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
             file_params['contentRef'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'}], options[:options], @api_client,{})['ref']
           end
         end
-        if template_type == "cloudFormation" # this right code?
-          # JD: the field names the UI uses are strange, we should make these consistent...
+        # config
+        if template_type.to_s.downcase == "cloudformation"
+          # JD: the field names the UI uses are inconsistent, should fix in api...
           cloud_formation_option_types = [
             {'fieldContext' => 'config', 'fieldName' => 'cloudformation.IAM', 'fieldLabel' => 'CAPABILITY_IAM', 'type' => 'checkbox'},
             {'fieldContext' => 'config', 'fieldName' => 'cloudformation.CAPABILITY_NAMED_IAM', 'fieldLabel' => 'CAPABILITY_NAMED_IAM', 'type' => 'checkbox'},
@@ -310,7 +330,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('--type VALUE', String, "Spec Template Type. kubernetes, helm, terraform") do |val|
+      opts.on('-t', '--type TYPE', "Spec Template Type. kubernetes, helm, terraform, cloudFormation") do |val|
         template_type = val.to_s
       end
       opts.on('--source VALUE', String, "Source Type. local, repository, url") do |val|
@@ -351,7 +371,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     end
     connect(options)
     begin
-      resource_spec = find_resource_spec_by_name_or_id(args[0])
+      resource_spec = find_spec_template_by_name_or_id(args[0])
       if resource_spec.nil?
         return 1
       end
@@ -442,7 +462,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     connect(options)
 
     begin
-      resource_spec = find_resource_spec_by_name_or_id(args[0])
+      resource_spec = find_spec_template_by_name_or_id(args[0])
       if resource_spec.nil?
         return 1
       end
@@ -530,114 +550,6 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
 
   private
 
-  def find_resource_spec_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_resource_spec_by_id(val)
-    else
-      return find_resource_spec_by_name(val)
-    end
-  end
+  
 
-  def find_resource_spec_by_id(id)
-    begin
-      json_response = @spec_templates_interface.get(id.to_i)
-      return json_response['specTemplate']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Spec Template not found by id #{id}"
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_resource_spec_by_name(name)
-    resource_specs = @spec_templates_interface.list({name: name.to_s})['specTemplates']
-    if resource_specs.empty?
-      print_red_alert "Spec Template not found by name #{name}"
-      return nil
-    elsif resource_specs.size > 1
-      print_red_alert "#{resource_specs.size} spec templates found by name #{name}"
-      print_resource_specs_table(resource_specs, {color: red})
-      print_red_alert "Try using ID instead"
-      print reset,"\n"
-      return nil
-    else
-      return resource_specs[0]
-    end
-  end
-
-  def print_resource_specs_table(resource_specs, opts={})
-    columns = [
-      {"ID" => lambda {|resource_spec| resource_spec['id'] } },
-      {"NAME" => lambda {|resource_spec| resource_spec['name'] } },
-      #{"OWNER" => lambda {|resource_spec| resource_spec['account'] ? resource_spec['account']['name'] : '' } },
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(resource_specs, columns, opts)
-  end
-
-  def find_spec_template_type_by_id(id)
-    begin
-      json_response = @spec_template_types_interface.get(id.to_i)
-      return json_response['networkType']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Network Type not found by id #{id}"
-        return nil
-      else
-        raise e
-      end
-    end
-  end
-
-  # def find_spec_template_type_by_name(name)
-  #   json_response = @spec_template_types_interface.list({name: name.to_s})
-  #   spec_template_types = json_response['networkTypes']
-  #   if spec_template_types.empty?
-  #     print_red_alert "Network Type not found by name #{name}"
-  #     return spec_template_types
-  #   elsif spec_template_types.size > 1
-  #     print_red_alert "#{spec_template_types.size} network types found by name #{name}"
-  #     rows = spec_template_types.collect do |it|
-  #       {id: it['id'], name: it['name']}
-  #     end
-  #     puts as_pretty_table(rows, [:id, :name], {color:red})
-  #     return nil
-  #   else
-  #     return spec_template_types[0]
-  #   end
-  # end
-
-  def find_spec_template_type_by_name_or_code(name)
-    spec_template_types = get_all_spec_template_types().select { |it| name && it['code'] == name || it['name'] == name }
-    if spec_template_types.empty?
-      print_red_alert "Spec Template Type not found by code #{name}"
-      return nil
-    elsif spec_template_types.size > 1
-      print_red_alert "#{spec_template_types.size} spec template types found by code #{name}"
-      rows = spec_template_types.collect do |it|
-        {id: it['id'], code: it['code'], name: it['name']}
-      end
-      print "\n"
-      puts as_pretty_table(rows, [:id, :code, :name], {color:red})
-      return nil
-    else
-      return spec_template_types[0]
-    end
-  end
-
-  def find_spec_template_type_by_name_or_code_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_subnet_by_id(val)
-    else
-      return find_spec_template_type_by_name_or_code(val)
-    end
-  end
-
-  def get_all_spec_template_types
-    @all_spec_template_types ||= @spec_template_types_interface.list({max: 1000})['specTemplateTypes'] || []
-  end
 end

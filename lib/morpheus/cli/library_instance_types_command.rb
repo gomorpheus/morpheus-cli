@@ -251,12 +251,25 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       opts.footer = "Create a new instance type."
     end
     optparse.parse!(args)
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    if args[0]
+      #params["name"] = args[0]
+      options[:options]["name"] = args[0]
+    end
     connect(options)
     begin
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        # merge -O options
+        payload.deep_merge!({'instanceType' => passed_options}) unless passed_options.empty?
       else
+        # merge -O options
+        params.deep_merge!(passed_options) unless passed_options.empty?
+        # prompt
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_instance_type_option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(v_prompt)
         if params['logo']
@@ -328,10 +341,15 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     begin
       instance_type = find_instance_type_by_name_or_id(args[0])
       exit 1 if instance_type.nil?
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        # merge -O options
+        payload.deep_merge!({'instanceType' => passed_options}) unless passed_options.empty?
       else
+        # merge -O options
+        params.deep_merge!(passed_options) unless passed_options.empty?
         # option_types = update_instance_type_option_types(instance_type)
         # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]

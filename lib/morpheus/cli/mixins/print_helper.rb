@@ -945,7 +945,11 @@ module Morpheus::Cli::PrintHelper
   end
 
   def format_boolean(v)
-    !!v ? 'Yes' : 'No'
+    if v == true || v == "true" || v == "on"
+      "Yes"
+    else
+      "No"
+    end
   end
 
   def quote_csv_value(v)
