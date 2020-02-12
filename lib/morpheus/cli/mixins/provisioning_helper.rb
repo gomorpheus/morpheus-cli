@@ -511,17 +511,14 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['layout'] = {'id' => layout['id']}
     
     # need to GET provision type for optionTypes, and other settings...
-    #provision_type = (layout && provision_type ? provision_type : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    provision_type_code = layout['provisionTypeCode'] || layout['provisionType']['code']
     provision_type = nil
-    if layout && layout['provisionTypeCode']
-      provision_type = provision_types_interface.list({code:layout['provisionTypeCode']})['provisionTypes'][0]
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
       if provision_type.nil?
-        print_red_alert "Provision Type not found by code #{layout['provisionTypeCode']}"
+        print_red_alert "Provision Type not found by code #{provision_type_code}"
         exit 1
       end
-    elsif layout && layout['provisionType']
-      # api used to return entire record under layout.provisionType
-      provision_type = layout['provisionType']
     else
       provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
     end
