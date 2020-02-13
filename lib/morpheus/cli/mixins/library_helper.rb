@@ -204,7 +204,7 @@ module Morpheus::Cli::LibraryHelper
           container_type_list.each do |it|
             found_container_type = nil
             begin
-              found_container_type = find_container_type_by_name_or_id(it)
+              found_container_type = find_container_type_by_name_or_id(nil, it)
             rescue SystemExit => cmdexit
             end
             if found_container_type
@@ -225,7 +225,7 @@ module Morpheus::Cli::LibraryHelper
         container_type_list.each do |it|
           found_container_type = nil
           begin
-            found_container_type = find_container_type_by_name_or_id(it)
+            found_container_type = find_container_type_by_name_or_id(nil, it)
           rescue SystemExit => cmdexit
           end
           if found_container_type

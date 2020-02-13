@@ -20,6 +20,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
     @api_client = establish_remote_appliance_connection(opts)
     @library_layouts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_layouts
     @library_instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_instance_types
+    @library_container_types_interface = @api_client.library_container_types
     @spec_templates_interface = @api_client.library_spec_templates
     @spec_template_types_interface = @api_client.library_spec_template_types
     @provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
