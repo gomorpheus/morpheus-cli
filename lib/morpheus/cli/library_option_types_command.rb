@@ -397,42 +397,6 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     ]
   end
 
-  # Prompts user for exposed ports array
-  # returns array of port objects
-  def prompt_exposed_ports(options={}, api_client=nil, api_params={})
-    #puts "Configure ports:"
-    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-
-    ports = []
-    port_index = 0
-    has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
-    add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an exposed port?"))
-    while add_another_port do
-      field_context = "exposedPort#{port_index}"
-
-      port = {}
-      #port['name'] ||= "Port #{port_index}"
-      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
-      port['name'] = v_prompt[field_context]['name']
-
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
-      port['port'] = v_prompt[field_context]['port']
-
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'loadBalanceProtocol', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'selectOptions' => load_balance_protocols, 'required' => false, 'skipSingleOption' => true, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['loadBalanceProtocol']}], options[:options])
-      port['loadBalanceProtocol'] = v_prompt[field_context]['loadBalanceProtocol']
-
-      ports << port
-      port_index += 1
-      has_another_port = options[:options] && options[:options]["exposedPort#{port_index}"]
-      add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?"))
-
-    end
-
-
-    return ports
-  end
-
   # finders are in LibraryHelper
 
   # lol

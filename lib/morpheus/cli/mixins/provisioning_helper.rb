@@ -429,6 +429,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('environment')
       arbitrary_options.delete('instanceContext')
       arbitrary_options.delete('tags')
+      # arbitrary_options.delete('ports')
       payload.deep_merge!(arbitrary_options)
     end
 
@@ -701,6 +702,18 @@ module Morpheus::Cli::ProvisioningHelper
 
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params)
     payload.deep_merge!(instance_config_payload)
+
+    ## Network Options
+
+    # prompt for exposed ports
+    if payload['ports'].nil?
+      # need a way to know if the instanceType even supports this.
+      # the default ports come from the node type, under layout['containerTypes']
+      ports = prompt_exposed_ports(options)
+      if !ports.empty?
+        payload['ports'] = ports
+      end
+    end
 
     ## Advanced Options
 
@@ -1809,4 +1822,60 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+
+  ## Exposed Ports component
+
+  def load_balance_protocols_dropdown
+    [
+      {'name' => 'None', 'value' => ''},
+      {'name' => 'HTTP', 'value' => 'HTTP'},
+      {'name' => 'HTTPS', 'value' => 'HTTPS'},
+      {'name' => 'TCP', 'value' => 'TCP'}
+    ]
+  end
+
+  # Prompts user for ports array
+  # returns array of port objects
+  def prompt_exposed_ports(options={}, api_client=nil, api_params={})
+    #puts "Configure ports:"
+    passed_ports = ((options[:options] && options[:options]["ports"]) ? options[:options]["ports"] : nil)
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    # skip prompting?
+    if no_prompt
+      return passed_ports
+    end
+    # value already given
+    if passed_ports.is_a?(Array)
+      return passed_ports
+    end
+
+    # prompt for ports
+    ports = []
+    port_index = 0
+    has_another_port = options[:options] && options[:options]["ports"]
+    add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an exposed port?", {default:false}))
+    while add_another_port do
+      field_context = port_index == 0 ? "ports" : "ports#{port_index}"
+
+      port = {}
+      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
+      port['name'] = v_prompt[field_context]['name']
+
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
+      port['port'] = v_prompt[field_context]['port']
+
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'lb', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'required' => false, 'selectOptions' => load_balance_protocols_dropdown, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['lb']}], options[:options])
+      # port['loadBalanceProtocol'] = v_prompt[field_context]['lb']
+      port['lb'] = v_prompt[field_context]['lb']
+
+      ports << port
+      port_index += 1
+      has_another_port = options[:options] && options[:options]["ports#{port_index}"]
+      add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?", {default:false}))
+    end
+
+
+    return ports
+  end
 end
