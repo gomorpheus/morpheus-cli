@@ -172,13 +172,22 @@ class Morpheus::Cli::JobsCommand
       print_h1 title, subtitles
 
       job = json_response['job']
-      scheduleName = ''
+      schedule_name = ''
       if !job['scheduleMode'].nil?
         if job['scheduleMode'] == 'manual'
-          scheduleName = 'Manual'
-        else !job['scheduleMode']
-          schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
-          scheduleName = schedule ? schedule['name'] : ''
+          schedule_name = 'Manual'
+        elsif job['scheduleMode'].to_s.downcase == 'datetime'
+          schedule_name = ("Date and Time - " + (format_local_dt(job['dateTime']).to_s rescue 'n/a'))
+        elsif job['scheduleMode'].to_s == ''
+          schedule_name = 'n/a' # should not happen
+        else
+          begin
+            schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
+            schedule_name = schedule ? schedule['name'] : ''
+          rescue => ex
+            Morpheus::Logging::DarkPrinter.puts "Failed to load schedule name" if Morpheus::Logging.debug?
+            schedule_name = 'n/a'
+          end
         end
       end
 
@@ -189,7 +198,7 @@ class Morpheus::Cli::JobsCommand
           "Job Type" => lambda {|it| it['type']['name']},
           "Enabled" => lambda {|it| format_boolean(it['enabled'])},
           (job['workflow'] ? 'Workflow' : 'Task') => lambda {|it| it['jobSummary']},
-          "Schedule" => lambda {|it| scheduleName}
+          "Schedule" => lambda {|it| schedule_name}
       }
 
       if job['targetType']
@@ -262,6 +271,10 @@ class Morpheus::Cli::JobsCommand
       end
       opts.on('-R', '--run [on|off]', String, "Can be used to run the job now.") do |val|
         params['run'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--date-time DATETIME', String, "Can be used to run schedule at a specific date and time. Use UTC time in the format 2020-02-15T05:00:00Z. This sets scheduleMode to 'dateTime'.") do |val|
+        options[:schedule] = 'dateTime'
+        params['dateTime'] = val.to_s
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create job."
@@ -356,9 +369,15 @@ class Morpheus::Cli::JobsCommand
 
         # schedule
         if options[:schedule].nil?
-          params['scheduleMode'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+          params['scheduleMode'] = options[:schedule]
         else
-          if options[:schedule] != 'manual'
+          if options[:schedule] == 'manual'
+            # cool
+          elsif options[:schedule].to_s.downcase == 'datetime'
+            # parse time and send it like
+          else
+             # ok they passed a schedule name or id
             schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
 
             if schedule.nil?

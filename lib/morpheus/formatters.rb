@@ -3,6 +3,7 @@ require 'filesize'
 require 'money'
 
 DEFAULT_TIME_FORMAT = "%x %I:%M %p"
+ALTERNATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'"
 
 # returns an instance of Time
 def parse_time(dt, format=nil)
@@ -23,6 +24,13 @@ def parse_time(dt, format=nil)
       if format
         begin
           result = Time.strptime(dt, format)
+        rescue => e
+          err = e
+        end
+      end
+      if !result
+        begin
+          result = Time.strptime(dt, ALTERNATE_TIME_FORMAT)
         rescue => e
           err = e
         end
