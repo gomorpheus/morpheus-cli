@@ -186,7 +186,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('-t', '--type TYPE', "Spec Template Type. kubernetes, helm, terraform, cloudFormation") do |val|
+      opts.on('-t', '--type TYPE', "Spec Template Type. i.e. arm, cloudFormation, helm, kubernetes, oneview, terraform, ucs") do |val|
         template_type = val.to_s
       end
       opts.on('--source VALUE', String, "Source Type. local, repository, url") do |val|
