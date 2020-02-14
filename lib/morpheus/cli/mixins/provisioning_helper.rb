@@ -577,7 +577,7 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for resource pool
     pool_id = nil
     resource_pool = nil
-    has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
+    has_zone_pools = provision_type && provision_type["id"] && provision_type["hasZonePools"]
     if has_zone_pools
       # pluck out the resourcePoolId option type to prompt for
       resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
@@ -635,7 +635,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # plan_info has this property already..
-    # has_datastore = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasDatastore"]
+    # has_datastore = provision_type && provision_type["id"] && provision_type["hasDatastore"]
     # service_plan['hasDatastore'] = has_datastore
 
     # set root volume name if has mounts
@@ -651,10 +651,10 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # prompt networks
-    if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"] # && layout["provisionType"]["supportsNetworkSelection"]
+    if provision_type && provision_type["hasNetworks"]
       # prompt for network interfaces (if supported)
       begin
-        network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], pool_id, options)
+        network_interfaces = prompt_network_interfaces(cloud_id, provision_type["id"], pool_id, options)
         if !network_interfaces.empty?
           payload['networkInterfaces'] = network_interfaces
         end
@@ -671,7 +671,7 @@ module Morpheus::Cli::ProvisioningHelper
     option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
     # ok.. seed data has changed and serverTypes do not have this optionType anymore...
     if sg_option_type.nil?
-      if layout["provisionType"] && (layout["provisionType"]["code"] == 'amazon')
+      if provision_type && (provision_type["code"] == 'amazon')
         sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
       end
     end
