@@ -468,6 +468,10 @@ class Morpheus::Cli::JobsCommand
       opts.on('-R', '--run [on|off]', String, "Can be used to run the job now.") do |val|
         params['run'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--date-time DATETIME', String, "Can be used to run schedule at a specific date and time. Use UTC time in the format 2020-02-15T05:00:00Z. This sets scheduleMode to 'dateTime'.") do |val|
+        options[:schedule] = 'dateTime'
+        params['dateTime'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Update job.\n" +
           "[job] is required. Job ID or name"
@@ -541,6 +545,33 @@ class Morpheus::Cli::JobsCommand
           end
           params['scheduleMode'] = options[:schedule]
         end
+
+
+        # schedule
+        if !options[:schedule].nil?
+          job_options = @jobs_interface.options(job_type_id)
+          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+          params['scheduleMode'] = options[:schedule]
+
+          if options[:schedule] == 'manual'
+            # cool
+          elsif options[:schedule].to_s.downcase == 'datetime'
+            # prompt for dateTime
+            if params['dateTime'].nil?
+              raise_command_error "--date-time is required for schedule type of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+            end
+          elsif options[:schedule].to_s != ''
+             # ok they passed a schedule name or id
+            schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
+
+            if schedule.nil?
+              print_red_alert "Schedule #{options[:schedule]} not found"
+              exit 1
+            end
+            options[:schedule] = schedule['value']
+          end
+        end
+
         payload = {'job' => params}
       end
 
