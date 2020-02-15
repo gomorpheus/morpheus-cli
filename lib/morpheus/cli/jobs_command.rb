@@ -371,23 +371,26 @@ class Morpheus::Cli::JobsCommand
         if options[:schedule].nil?
           options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
           params['scheduleMode'] = options[:schedule]
-        else
-          if options[:schedule] == 'manual'
-            # cool
-          elsif options[:schedule].to_s.downcase == 'datetime'
-            # parse time and send it like
-          else
-             # ok they passed a schedule name or id
-            schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
-
-            if schedule.nil?
-              print_red_alert "Schedule #{options[:schedule]} not found"
-              exit 1
-            end
-            options[:schedule] = schedule['value']
-          end
-          params['scheduleMode'] = options[:schedule]
         end
+
+        if options[:schedule] == 'manual'
+          # cool
+        elsif options[:schedule].to_s.downcase == 'datetime'
+          # prompt for dateTime
+          if params['dateTime'].nil?
+            params['dateTime'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dateTime', 'fieldLabel' => "Date and Time", 'type' => 'text', 'required' => true}], options[:options], @api_client, {}, options[:no_prompt], true)['dateTime']
+          end
+        elsif options[:schedule].to_s != ''
+           # ok they passed a schedule name or id
+          schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
+
+          if schedule.nil?
+            print_red_alert "Schedule #{options[:schedule]} not found"
+            exit 1
+          end
+          options[:schedule] = schedule['value']
+        end
+        params['scheduleMode'] = options[:schedule]
 
         # custom config
         if params['customConfig'].nil? && job_options['allowCustomConfig']
