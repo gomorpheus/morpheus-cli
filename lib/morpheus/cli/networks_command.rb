@@ -97,6 +97,7 @@ class Morpheus::Cli::NetworksCommand
             id: network['id'],
             name: network['name'],
             type: network['type'] ? network['type']['name'] : '',
+            group: network['group'] ? network['group']['name'] : 'Shared',
             cloud: network['zone'] ? network['zone']['name'] : '',
             cidr: network['cidr'],
             pool: network['pool'] ? network['pool']['name'] : '',
@@ -114,6 +115,7 @@ class Morpheus::Cli::NetworksCommand
                 name: "  #{subnet['name']}",
                 # type: subnet['type'] ? subnet['type']['name'] : '',
                 type: "Subnet",
+                group: network['group'] ? network['group']['name'] : 'Shared',
                 cloud: network['zone'] ? network['zone']['name'] : '',
                 cidr: subnet['cidr'],
                 pool: subnet['pool'] ? subnet['pool']['name'] : '',
@@ -126,7 +128,7 @@ class Morpheus::Cli::NetworksCommand
             end
           end
         end
-        columns = [:id, :name, :type, :cloud, :cidr, :pool, :dhcp, :subnets, :active, :visibility, :tenants]
+        columns = [:id, :name, :type, :group, :cloud, :cidr, :pool, :dhcp, :subnets, :active, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -190,6 +192,7 @@ class Morpheus::Cli::NetworksCommand
         "Name" => 'name',
         "Description" => 'description',
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+        "Group" => lambda {|it| it['group'] ? it['group']['name'] : 'Shared' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
         "CIDR" => 'cidr',
         "Gateway" => 'gateway',
@@ -207,7 +210,9 @@ class Morpheus::Cli::NetworksCommand
       }
       print_description_list(description_cols, network)
 
-      if network['resourcePermission'].nil?
+      if network["group"]
+        # Group Access is n/a unless network is_a? Shared (no group)
+      elsif network['resourcePermission'].nil?
         print "\n", "No group access found", "\n"
       else
         print_h2 "Group Access"
@@ -976,9 +981,13 @@ class Morpheus::Cli::NetworksCommand
 
   def remove(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[network]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      opts.on( '-f', '--force', "Force Delete" ) do
+        params[:force] = 'true'
+      end
       opts.footer = "Delete a network." + "\n" +
                     "[network] is required. This is the name or id of a network."
     end
@@ -1000,10 +1009,10 @@ class Morpheus::Cli::NetworksCommand
       end
       @networks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @networks_interface.dry.destroy(network['id'])
+        print_dry_run @networks_interface.dry.destroy(network['id'], params)
         return 0
       end
-      json_response = @networks_interface.destroy(network['id'])
+      json_response = @networks_interface.destroy(network['id'], params)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
