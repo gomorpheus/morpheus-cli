@@ -26,6 +26,7 @@ class Morpheus::Cli::NetworksCommand
     @network_types_interface = @api_client.network_types
     @subnets_interface = @api_client.subnets
     @subnet_types_interface = @api_client.subnet_types
+    @groups_interface = @api_client.groups
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
   end
@@ -277,6 +278,9 @@ class Morpheus::Cli::NetworksCommand
     group_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("-t TYPE")
+      opts.on( '-g', '--group GROUP', "Group Name or ID. Default is Shared." ) do |val|
+        options[:group] = val
+      end
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
@@ -416,19 +420,53 @@ class Morpheus::Cli::NetworksCommand
           payload['network']['description'] = v_prompt['description']
         end
 
+        # Group
+        group = nil
+        if options[:group]
+          group = find_group_by_name_or_id(options[:group])
+          return 1 if group.nil?
+        else
+          group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'optionSource' => 'groups', 'required' => false, 'description' => 'Select Group.'}],options,@api_client,{})
+          group_id = group_prompt['group']
+          if group_id.to_s != '' && group_id.to_s != 'shared'
+            group = find_group_by_name_or_id(group_id)
+            return 1 if group.nil?
+          end
+        end
+        if group
+          payload['network']['site'] = {'id' => group['id']}
+        else
+          # shared
+        end
+
         # Cloud
         cloud = nil
-        if options[:cloud]
-          cloud = find_cloud_by_name_or_id(options[:cloud])
-          # meh, should validate cloud is in the cloudsForNetworks dropdown..
-          return 1 if cloud.nil?
+        if group
+          if options[:cloud]
+            cloud = group["clouds"].find {|it| it["id"].to_s == options[:cloud].to_s || it["name"].to_s == options[:cloud]}
+            if cloud.nil?
+              print_red_alert "Cloud not found by id #{id}"
+              return 1
+            end
+          else
+            api_params = {groupId:group['id']}
+            cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
+            cloud_id = cloud_prompt['cloud']
+            cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
+            return 1 if cloud.nil?
+          end
         else
-          # print_red_alert "Cloud not specified!"
-          # exit 1
-          cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,{})
-          cloud_id = cloud_prompt['cloud']
-          cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
-          return 1 if cloud.nil?
+          if options[:cloud]
+            cloud = find_cloud_by_name_or_id(options[:cloud])
+            # meh, should validate cloud is in the cloudsForNetworks dropdown..
+            return 1 if cloud.nil?
+          else
+            api_params = {}
+            cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
+            cloud_id = cloud_prompt['cloud']
+            cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
+            return 1 if cloud.nil?
+          end
         end
         payload['network']['zone'] = {'id' => cloud['id']}
 
