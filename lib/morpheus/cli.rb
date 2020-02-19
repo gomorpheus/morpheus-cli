@@ -139,6 +139,7 @@ module Morpheus
       load 'morpheus/cli/network_pool_servers_command.rb'
       load 'morpheus/cli/network_domains_command.rb'
       load 'morpheus/cli/network_proxies_command.rb'
+      load 'morpheus/cli/network_routers_command.rb'
       load 'morpheus/cli/cypher_command.rb'
       load 'morpheus/cli/image_builder_command.rb'
       load 'morpheus/cli/preseed_scripts_command.rb'

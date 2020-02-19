@@ -534,6 +534,10 @@ class Morpheus::APIClient
     Morpheus::NetworkPoolIpsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def network_routers
+    Morpheus::NetworkRoutersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   def network_services
     Morpheus::NetworkServicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end

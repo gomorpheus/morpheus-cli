@@ -56,6 +56,11 @@ module Morpheus
         my_terminal.stdout.print(*msgs)
       end
 
+      def println(*msgs)
+        print(*msgs)
+        print "\n"
+      end
+
       def puts(*msgs)
         my_terminal.stdout.puts(*msgs)
       end

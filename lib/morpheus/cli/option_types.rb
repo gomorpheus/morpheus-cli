@@ -45,7 +45,6 @@ module Morpheus
           value = nil
           value_found=false
 
-         
           # How about this instead?
           # option_type = option_type.clone
           # field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
@@ -56,6 +55,8 @@ module Morpheus
           #   end
           # end
 
+          # allow for mapping of domain to relevant type: domain.zone => router.zone
+          option_type['fieldContext'] = (options[:context_map] || {})[option_type['fieldContext']] || option_type['fieldContext']
           field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
           namespaces = field_key.split(".")
           field_name = namespaces.pop
@@ -78,33 +79,38 @@ module Morpheus
             end
           end
 
-          
           cur_namespace = options
+          parent_context_map = context_map
+          parent_ns = field_name
 
           namespaces.each do |ns|
             next if ns.empty?
+            parent_context_map = context_map
+            parent_ns = ns
             cur_namespace[ns.to_s] ||= {}
             cur_namespace = cur_namespace[ns.to_s]
             context_map[ns.to_s] ||= {}
             context_map = context_map[ns.to_s]
           end
+
           # use the value passed in the options map
-          if cur_namespace.key?(field_name)
+          if cur_namespace.respond_to?('key?') && cur_namespace.key?(field_name)
             value = cur_namespace[field_name]
+            input_value = ['select', 'multiSelect'].include?(option_type['type']) && option_type['fieldInput'] ? cur_namespace[option_type['fieldInput']] : nil
             if option_type['type'] == 'number'
               value = value.to_s.include?('.') ? value.to_f : value.to_i
-            elsif option_type['type'] == 'select'
+            elsif ['select', 'multiSelect'].include?(option_type['type'])
               # this should just fall down through below, with the extra params no_prompt, use_value
-              value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
+              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
             end
             if options[:always_prompt] != true
               value_found = true
             end
           end
-          
+
           # set the value that has been passed to the option type default value: options[fieldContext.fieldName]
           if value != nil # && value != ''
-            option_type = option_type.clone  
+            option_type = option_type.clone
             option_type['defaultValue'] = value
           end
           # no_prompt means skip prompting and instead
@@ -119,7 +125,7 @@ module Morpheus
               if !value_found
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
-                if option_type['type'] == 'select'
+                if ['select', 'multiSelect'].include?(option_type['type'])
                   value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
                   value_found = !!value
                 end
@@ -150,7 +156,7 @@ module Morpheus
               value = multiline_prompt(option_type)
             elsif option_type['type'] == 'code-editor'
               value = multiline_prompt(option_type)
-            elsif option_type['type'] == 'select'
+            elsif ['select', 'multiSelect'].include?(option_type['type'])
               # so, the /api/options/source is may need ALL the previously
               # selected values that are being accumulated in options
               # api_params is just extra params to always send
@@ -158,70 +164,85 @@ module Morpheus
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
               value = select_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
-          elsif option_type['type'] == 'hidden'
-            value = option_type['defaultValue']
-            input = value
-          elsif option_type['type'] == 'file'
-            value = file_prompt(option_type)
+              if value && option_type['type'] == 'multiSelect'
+                value = [value]
+                while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
+                  if addn_value = select_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
+                    value << addn_value
+                  else
+                    break
+                  end
+                end
+              end
+            elsif option_type['type'] == 'hidden'
+              value = option_type['defaultValue']
+              input = value
+            elsif option_type['type'] == 'file'
+              value = file_prompt(option_type)
+            else
+              value = generic_prompt(option_type)
+            end
+          end
+
+          if option_type['type'] == 'multiSelect'
+            value = [value] if !value.nil? && !value.is_a?(Array)
+            parent_context_map[parent_ns] = value
           else
-            value = generic_prompt(option_type)
+            context_map[field_name] = value
           end
         end
-        context_map[field_name] = value
+        results
       end
 
-      return results
-    end
+      def self.grails_params(data, context=nil)
+        params = {}
+        data.each do |k,v|
+          if v.is_a?(Hash)
+            params.merge!(grails_params(v, context ? "#{context}.#{k.to_s}" : k))
+          else
+            if context
+              params["#{context}.#{k.to_s}"] = v
+            else
+              params[k.to_s] = v
+            end
+          end
+        end
+        return params
+      end
 
-    def self.grails_params(data, context=nil)
-      params = {}
-      data.each do |k,v|
-        if v.is_a?(Hash)
-          params.merge!(grails_params(v, context ? "#{context}.#{k.to_s}" : k))
-        else
-          if context
-            params["#{context}.#{k.to_s}"] = v
-          else
-            params[k.to_s] = v
+      def self.radio_prompt(option_type)
+        value_found = false
+        value = nil
+        options = []
+        if option_type['config'] and option_type['config']['radioOptions']
+          option_type['config']['radioOptions'].each do |radio_option|
+            options << {key: radio_option['key'], checked: radio_option['checked']}
           end
         end
-      end
-      return params
-    end
-
-    def self.radio_prompt(option_type)
-      value_found = false
-      value = nil
-      options = []
-      if option_type['config'] and option_type['config']['radioOptions']
-        option_type['config']['radioOptions'].each do |radio_option|
-          options << {key: radio_option['key'], checked: radio_option['checked']}
-        end
-      end
-      optionString = options.collect{ |b| b[:checked] ? "(#{b[:key]})" : b[:key]}.join(', ')
-      while !value_found do
-        print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
-        input = $stdin.gets.chomp!
-        if input == '?'
-          help_prompt(option_type)
-        else
-          if input.nil? || input.empty?
-            selectedOption = options.find{|o| o[:checked] == true}
+        optionString = options.collect{ |b| b[:checked] ? "(#{b[:key]})" : b[:key]}.join(', ')
+        while !value_found do
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
+          input = $stdin.gets.chomp!
+          if input == '?'
+            help_prompt(option_type)
           else
-            selectedOption = options.find{|o| o[:key].downcase == input.downcase}
-          end
-          if selectedOption
-            value = selectedOption[:key]
-          else
-            puts "Invalid Option. Please select from #{optionString}."
-          end
-          if !value.nil? || option_type['required'] != true
-            value_found = true
+            if input.nil? || input.empty?
+              selectedOption = options.find{|o| o[:checked] == true}
+            else
+              selectedOption = options.find{|o| o[:key].downcase == input.downcase}
+            end
+            if selectedOption
+              value = selectedOption[:key]
+            else
+              puts "Invalid Option. Please select from #{optionString}."
+            end
+            if !value.nil? || option_type['required'] != true
+              value_found = true
+            end
           end
         end
+        return value
       end
-      return value
-    end
 
       def self.number_prompt(option_type)
         value_found = false
@@ -255,6 +276,7 @@ module Morpheus
         value = nil
         value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
         default_value = option_type['defaultValue']
+        default_value = default_value['id'] if default_value && default_value.is_a?(Hash) && !default_value['id'].nil?
         # local array of options
         if option_type['selectOptions']
           # calculate from inline lambda
@@ -395,7 +417,12 @@ module Morpheus
             value_found = true
           end
         end
-        return value
+
+        # wrap in object when using fieldInput
+        if value && !option_type['fieldInput'].nil?
+          value = {option_type['fieldName'].split('.').last => value, option_type['fieldInput'] => (no_prompt ? option_type['defaultInputValue'] : field_input_prompt(option_type))}
+        end
+        value
       end
 
       # this is a funky one, the user is prompted for yes/no
@@ -430,6 +457,27 @@ module Morpheus
             next
           end
           if value.nil? && !option_type['required']
+            value_found = true
+          end
+        end
+        return value
+      end
+
+      def self.field_input_prompt(option_type)
+        value_found = false
+        value = nil
+
+        input_field_label = option_type['fieldInput'].gsub(/[A-Z]/, ' \0').split(' ').collect {|it| it.capitalize}.join(' ')
+        input_field_name = option_type['fieldName'].split('.').reverse.drop(1).reverse.push(option_type['fieldInput']).join('.')
+        input_option_type = option_type.merge({'fieldName' => input_field_name, 'fieldLabel' => input_field_label, 'required' => true, 'type' => 'text'})
+
+        while !value_found do
+          print "#{input_field_label}#{option_type['defaultInputValue'] ? " [#{option_type['defaultInputValue']}]" : ''}: "
+          input = $stdin.gets.chomp!
+          value = input.empty? ? option_type['defaultInputValue'] : input
+          if input == '?'
+            help_prompt(input_option_type)
+          elsif !value.nil?
             value_found = true
           end
         end
@@ -529,7 +577,7 @@ module Morpheus
       end
 
       def self.help_prompt(option_type)
-        full_field_name = option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''
+        full_field_name = option_type['fieldContext'] && option_type['fieldContext'] != '' ? (option_type['fieldContext']+'.') : ''
         full_field_name << option_type['fieldName'].to_s
         # an attempt at prompting help for natural options without the -O switch
         if option_type[:fmt] == :natural
@@ -559,17 +607,24 @@ module Morpheus
         end
       end
 
-      def self.format_option_types_help(option_types)
+      def self.format_option_types_help(option_types, opts={})
         if option_types.empty?
-          "Available Options:\nNone\n\n"
+          "#{opts[:color]}#{opts[:title] || "Available Options:"}\nNone\n\n"
         else
-          option_lines = option_types.collect {|it| "    -O #{it['fieldName']}=\"value\"" }.join("\n")
-          "Available Options:\n#{option_lines}\n\n"
+          if opts[:include_context]
+            option_lines = option_types.sort {|it| it['displayOrder']}.collect {|it|
+              field_context = (opts[:context_map] || {})[it['fieldContext']] || it['fieldContext']
+              "    -O #{field_context && field_context != '' ? "#{field_context}." : ''}#{it['fieldName']}=\"value\""
+            }
+          else
+            option_lines = option_types.sort {|it| it['displayOrder']}.collect {|it| "    -O #{it['fieldName']}=\"value\"" }
+          end
+          "#{opts[:color]}#{opts[:title] || "Available Options:"}\n#{option_lines.join("\n")}\n\n"
         end
       end
         
-      def self.display_option_types_help(option_types)
-        puts self.format_option_types_help(option_types)
+      def self.display_option_types_help(option_types, opts={})
+        puts self.format_option_types_help(option_types, opts)
       end
 
       def self.optional_label(option_type)
