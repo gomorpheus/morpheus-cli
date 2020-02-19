@@ -1107,9 +1107,9 @@ EOT
           {'fieldName' => 'password', 'fieldLabel' => 'Create Password', 'type' => 'password', 'required' => true, 'description' => 'Create a new password for the user.'},
           {'fieldName' => 'confirmPassword', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'description' => 'Confirm the new password for the user.'},
         ]
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
-        if v_prompt['password'] == v_prompt['confirmPassword']
-          payload.deep_merge!(v_prompt)
+        password_prompt = Morpheus::Cli::OptionTypes.prompt(password_option_types, options[:options])
+        if password_prompt['password'] == password_prompt['confirmPassword']
+          payload['password'] = password_prompt['password']
           need_password = false
         else
           print_error red, "Password confirmation does not match. Re-enter your new password.", reset, "\n"
