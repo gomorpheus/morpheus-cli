@@ -8,11 +8,13 @@ class Morpheus::Cli::NetworkRoutersCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::WhoamiHelper
 
   set_command_name :'network-routers'
   register_subcommands :list, :get, :firewall, :dhcp, :routes, :types, :type, :add, :update, :remove
   register_subcommands :add_firewall_rule, :remove_firewall_rule
   register_subcommands :add_route, :remove_route
+  register_subcommands :update_permissions
 
   def initialize()
   end
@@ -22,6 +24,7 @@ class Morpheus::Cli::NetworkRoutersCommand
     @network_routers_interface = @api_client.network_routers
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
+    @accounts_interface = @api_client.accounts
   end
 
   def handle(args)
@@ -342,9 +345,6 @@ class Morpheus::Cli::NetworkRoutersCommand
       opts.on('-D', '--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
-      #opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the network router. Default is on") do |val|
-      #  params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      #end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network router."
     end
@@ -998,6 +998,66 @@ class Morpheus::Cli::NetworkRoutersCommand
     end
   end
 
+  def update_permissions(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[router]")
+      add_perms_options(opts, options, ['plans', 'groups'])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a network router permissions.\n" +
+          "[router] is required. This is the name or id of an existing network router."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      if !is_master_account
+        print_red_alert "Permissions only available for master account"
+        return 1
+      end
+
+      router = find_router(args[0])
+      return 1 if router.nil?
+
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['permissions'] ||= {}
+          payload['permissions'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        perms = {}
+        if !options[:visibility].nil?
+          perms['visibility'] = options[:visibility]
+        end
+        if !options[:tenants].nil?
+          perms['tenantPermissions'] = {'accounts' => options[:tenants].collect {|id| id.to_i}}
+        end
+        payload = {'permissions' => perms}
+      end
+
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_routers_interface.dry.update_permissions(router['id'], payload)
+        return
+      end
+      json_response = @network_routers_interface.update_permissions(router['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif json_response['success']
+        print_green_success "\nUpdated Network Router Permissions\n"
+      else
+        print_rest_errors(json_response, options)
+      end
+    end
+  end
+
   private
 
   def print_firewall(router, details=false, rules_only=false)
@@ -1154,7 +1214,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   end
 
   def find_router_by_name(name)
-    json_response = @network_routers_interface.list({name: name.to_s})
+    json_response = @network_routers_interface.list({phrase: name.to_s})
     routers = json_response['networkRouters']
     if routers.empty?
       print_red_alert "Network Router not found by name #{name}"

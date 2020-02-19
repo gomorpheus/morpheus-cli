@@ -1673,7 +1673,7 @@ module Morpheus::Cli::ProvisioningHelper
             if plan_id == 'all'
               all_plans = true
             else
-              plan_access = [{'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['id'] == plan_id}['name']}' as default?", {:default => false})}]
+              plan_access = [{'id' => plan_id, 'default' => Morpheus::Cli::OptionTypes.confirm("Set '#{available_plans.find{|it| it['value'] == plan_id}['name']}' as default?", {:default => false})}]
             end
 
             available_plans = available_plans.reject {|it| it['value'] == plan_id}
@@ -1722,13 +1722,13 @@ module Morpheus::Cli::ProvisioningHelper
         if !options[:tenants].nil?
           accounts = options[:tenants].collect {|id| id.to_i}
         elsif !options[:no_prompt]
-          account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account_id', 'type' => 'select', 'fieldLabel' => 'Add Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account_id']
+          account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account', 'type' => 'select', 'fieldLabel' => 'Add Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account']
 
           if !account_id.nil?
             accounts << account_id
             available_accounts = available_accounts.reject {|it| it['value'] == account_id}
 
-            while !available_accounts.empty? && (account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account_id', 'type' => 'select', 'fieldLabel' => 'Add Another Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account_id'])
+            while !available_accounts.empty? && (account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account', 'type' => 'select', 'fieldLabel' => 'Add Another Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account'])
               if !account_id.nil?
                 accounts << account_id
                 available_accounts = available_accounts.reject {|it| it['value'] == account_id}

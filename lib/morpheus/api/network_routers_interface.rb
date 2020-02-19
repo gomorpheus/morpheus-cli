@@ -92,4 +92,10 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
+
+  def update_permissions(router_id, payload)
+    url = "#{@base_url}/api/networks/routers/#{router_id}/permissions"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
 end
