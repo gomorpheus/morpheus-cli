@@ -885,7 +885,7 @@ class Morpheus::Cli::NetworkRoutersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "List network router types."
     end
     optparse.parse!(args)
