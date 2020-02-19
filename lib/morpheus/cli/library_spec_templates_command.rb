@@ -180,7 +180,6 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     params = {}
     file_params = {}
     template_type = nil
-    source_type = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -190,14 +189,14 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
         template_type = val.to_s
       end
       opts.on('--source VALUE', String, "Source Type. local, repository, url") do |val|
-        source_type = val.to_s
+        file_params['sourceType'] = val
       end
       opts.on('--content TEXT', String, "Contents of the template. This implies source is local.") do |val|
-        source_type = 'local' if source_type.nil?
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         file_params['content'] = val
       end
       opts.on('--file FILE', "File containing the template. This can be used instead of --content" ) do |filename|
-        source_type = 'local' if source_type.nil?
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           file_params['content'] = File.read(full_filename)
@@ -263,33 +262,38 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           template_type = template_type_obj['code']
           params['type'] = {'code' => template_type}
         end
-        # source
-        if source_type.nil?
-          source_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => true, 'defaultValue' => 'local'}], options[:options], @api_client,{})['source']
-          file_params['sourceType'] = source_type
-        end
-        # source type options
-        if source_type == "local"
-          # prompt for content
-          if file_params['content'].nil?
-            file_params['content'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true, 'description' => 'The file content'}], options[:options])['content']
-          end
-        elsif source_type == "url"
-          if file_params['contentPath'].nil?
-            file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['url']
-          end
-        elsif source_type == "repository"
-          if file_params['repository'].nil?
-            repository_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true}], options[:options], @api_client,{})['repositoryId']
-            file_params['repository'] = {'id' => repository_id}
-          end
-          if file_params['contentPath'].nil?
-            file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['path']
-          end
-          if file_params['contentRef'].nil?
-            file_params['contentRef'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'}], options[:options], @api_client,{})['ref']
-          end
-        end
+        
+        # file content
+        options[:options]['file'] ||= {}
+        options[:options]['file'].merge!(file_params)
+        file_params = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'file', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, options[:options], @api_client, {})
+
+        # if source_type.nil?
+        #   source_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => true, 'defaultValue' => 'local'}], options[:options], @api_client,{})['source']
+        #   file_params['sourceType'] = source_type
+        # end
+        # # source type options
+        # if source_type == "local"
+        #   # prompt for content
+        #   if file_params['content'].nil?
+        #     file_params['content'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true, 'description' => 'The file content'}], options[:options])['content']
+        #   end
+        # elsif source_type == "url"
+        #   if file_params['contentPath'].nil?
+        #     file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['url']
+        #   end
+        # elsif source_type == "repository"
+        #   if file_params['repository'].nil?
+        #     repository_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true}], options[:options], @api_client,{})['repositoryId']
+        #     file_params['repository'] = {'id' => repository_id}
+        #   end
+        #   if file_params['contentPath'].nil?
+        #     file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['path']
+        #   end
+        #   if file_params['contentRef'].nil?
+        #     file_params['contentRef'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'}], options[:options], @api_client,{})['ref']
+        #   end
+        # end
         # config
         if template_type.to_s.downcase == "cloudformation"
           # JD: the field names the UI uses are inconsistent, should fix in api...
@@ -329,7 +333,6 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     params = {}
     file_params = {}
     template_type = nil
-    source_type = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -339,14 +342,14 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
         template_type = val.to_s
       end
       opts.on('--source VALUE', String, "Source Type. local, repository, url") do |val|
-        source_type = val.to_s
+        file_params['sourceType'] = val
       end
       opts.on('--content TEXT', String, "Contents of the template. This implies source is local.") do |val|
-        source_type = 'local' if source_type.nil?
+        # file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         file_params['content'] = val
       end
       opts.on('--file FILE', "File containing the template. This can be used instead of --content" ) do |filename|
-        source_type = 'local' if source_type.nil?
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         full_filename = File.expand_path(filename)
         if File.exists?(full_filename)
           file_params['content'] = File.read(full_filename)
@@ -400,34 +403,6 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
           template_type = template_type_obj['code']
           params['type'] = {'code' => template_type}
         end
-        if !source_type.nil?
-          file_params['sourceType'] = source_type
-        end
-        # if source_type == "local"
-        #   # prompt for content
-        #   if file_params['content'].nil?
-        #     file_params['content'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true, 'description' => 'The file content'}], options[:options])['content']
-        #   end
-        # elsif source_type == "url"
-        #   if file_params['contentPath'].nil?
-        #     file_params['contentPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true}], options[:options], @api_client,{})['url']
-        #   end
-        # elsif source_type == "repository"
-        #   if file_params['repository'].nil?
-        #     repository_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true, 'defaultValue' => 'local'}], options[:options], @api_client,{})['repositoryId']
-        #     file_params['repository'] = {'id' => repository_id}
-        #   end
-        # end
-        # if template_type == "cloudFormation" # this right code?
-        #   # JD: the field names the UI uses are strange, we should make these consistent...
-        #   cloud_formation_option_types = [
-        #     {'fieldContext' => 'config', 'fieldName' => 'cloudformation.IAM', 'fieldLabel' => 'CAPABILITY_IAM', 'type' => 'checkbox'},
-        #     {'fieldContext' => 'config', 'fieldName' => 'cloudformation.CAPABILITY_NAMED_IAM', 'fieldLabel' => 'CAPABILITY_NAMED_IAM', 'type' => 'checkbox'},
-        #     {'fieldContext' => 'config', 'fieldName' => 'cloudformation.CAPABILITY_AUTO_EXPAND', 'fieldLabel' => 'CAPABILITY_AUTO_EXPAND', 'type' => 'checkbox'}
-        #   ]
-        #   v_prompt = Morpheus::Cli::OptionTypes.prompt(cloud_formation_option_types, options[:options], @api_client,{})
-        #   params.deep_merge!(v_prompt)
-        # end
         if !file_params.empty?
           params['file'] = file_params
         end

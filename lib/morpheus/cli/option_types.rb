@@ -179,6 +179,8 @@ module Morpheus
               input = value
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
+            elsif option_type['type'] == 'file-content'
+              value = file_content_prompt(option_type, options, api_client, {})
             else
               value = generic_prompt(option_type)
             end
@@ -574,6 +576,54 @@ module Morpheus
           end
         end
         return value
+      end
+
+      # file_content_prompt() prompts for source (local,repository,url) and then content or repo or.
+      # returns a Hash like {sourceType:"local",content:"yadda",contentPath:null,contentRef:null}
+      def self.file_content_prompt(option_type, options={}, api_client=nil, api_params={})
+        file_params = {}
+        options ||= {}
+        full_field_key = option_type['fieldContext'] ? "#{option_type['fieldContext']}.#{option_type['fieldName']}" : "#{option_type['fieldName']}"
+        passed_file_params = get_object_value(options, full_field_key)
+        if passed_file_params.is_a?(Hash)
+          file_params = passed_file_params
+        end
+        is_required = option_type['required']
+        if file_params['source']
+          file_params['sourceType'] = file_params.delete('source')
+        end
+        source_type = file_params['sourceType']
+        # source
+        if source_type.nil?
+          source_type = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => is_required, 'defaultValue' => 'local'}, api_client, {}, options[:no_prompt])
+          file_params['sourceType'] = source_type
+        end
+        # source type options
+        if source_type == "local"
+          # prompt for content
+          if file_params['content'].nil?
+            file_params['content'] = multiline_prompt({'fieldContext' => full_field_key, 'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => is_required})
+          end
+        elsif source_type == "url"
+          if file_params['url']
+            file_params['contentPath'] = file_params.delete('url')
+          end
+          if file_params['contentPath'].nil?
+            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => is_required})
+          end
+        elsif source_type == "repository"
+          if file_params['repository'].nil?
+            repository_id = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => is_required}, api_client, {}, options[:no_prompt])
+            file_params['repository'] = {'id' => repository_id}
+          end
+          if file_params['contentPath'].nil?
+            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => is_required})
+          end
+          if file_params['contentRef'].nil?
+            file_params['contentRef'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'})
+          end
+        end
+        return file_params
       end
 
       def self.help_prompt(option_type)
