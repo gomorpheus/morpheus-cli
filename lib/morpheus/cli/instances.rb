@@ -348,10 +348,10 @@ class Morpheus::Cli::Instances
       opts.on("--user-group USERGROUP", String, "User Config: User Group") do |val|
         options[:user_group_id] = val
       end
-      opts.on("--shutdown-days NUMBER", Integer, "Automation: Shutdown Days") do |val|
-        options[:expire_days] = val.to_i
+      opts.on("--shutdown-days DAYS", Integer, "Automation: Shutdown Days") do |val|
+        options[:shutdown_days] = val.to_i
       end
-      opts.on("--expire-days NUMBER", Integer, "Automation: Expiration Days") do |val|
+      opts.on("--expire-days DAYS", Integer, "Automation: Expiration Days") do |val|
         options[:expire_days] = val.to_i
       end
       opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
@@ -499,6 +499,12 @@ class Morpheus::Cli::Instances
       opts.on('--created-by ID', String, "Created By User ID") do |val|
         options[:created_by_id] = val
       end
+      # opts.on("--shutdown-days [DAYS]", Integer, "Automation: Shutdown Days") do |val|
+      #   params['shutdownDays'] = val.to_s.empty? ? nil : val.to_i
+      # end
+      # opts.on("--expire-days DAYS", Integer, "Automation: Expiration Days") do |val|
+      #   params['expireDays'] = val.to_s.empty? ? nil : val.to_i
+      # end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
