@@ -54,6 +54,7 @@ class Morpheus::Cli::Instances
 
   def list(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
@@ -71,6 +72,10 @@ class Morpheus::Cli::Instances
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|
+        params['status'] ||= []
+        params['status'] << val
+      end
       opts.on('--pending-removal', "Include instances pending removal.") do
         options[:pendingRemoval] = true
       end
@@ -83,7 +88,6 @@ class Morpheus::Cli::Instances
       raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
     end
     begin
-      params = {}
       params.merge!(parse_list_options(options))
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
       if group
