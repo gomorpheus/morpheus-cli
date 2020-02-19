@@ -6,6 +6,7 @@ require 'morpheus/cli/mixins/infrastructure_helper'
 
 class Morpheus::Cli::NetworksCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::InfrastructureHelper
 
   set_command_name :networks
@@ -420,17 +421,43 @@ class Morpheus::Cli::NetworksCommand
           payload['network']['description'] = v_prompt['description']
         end
 
+        # ok, networks list needs to know if they have full or groups permission
+        groups_dropdown = nil
+        group_is_required = true
+        network_perm = (current_user_permissions || []).find {|perm| perm['code'] == 'infrastructure-networks'}
+        if network_perm && ['full','read'].include?(network_perm['access'])
+          group_is_required = false
+          groups_dropdown = get_available_groups_with_shared
+        else
+          # they have group access, shared cannot be selected.
+          groups_dropdown = get_available_groups
+        end
         # Group
         group = nil
+        groups_dropdown = get_available_groups_with_shared
         if options[:group]
-          group = find_group_by_name_or_id(options[:group])
-          return 1 if group.nil?
+          group_id = options[:group]
+          group = groups_dropdown.find {|it| it["value"].to_s == group_id.to_s || it["name"].to_s == group_id}
+          if group.nil?
+            print_red_alert "Group not found by id #{group_id}"
+            return 1
+          end
+          if group_id.to_s == 'shared'
+            group_id = nil
+            group = nil
+          end
         else
-          group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'optionSource' => 'groups', 'required' => false, 'description' => 'Select Group.'}],options,@api_client,{})
+          group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => group_is_required, 'description' => 'Select Group.'}],options,@api_client,{})
           group_id = group_prompt['group']
-          if group_id.to_s != '' && group_id.to_s != 'shared'
-            group = find_group_by_name_or_id(group_id)
-            return 1 if group.nil?
+          if group_id.to_s == '' && group_id.to_s == 'shared'
+            group_id = nil
+            group = nil
+          else
+            group = groups_dropdown.find {|it| it["value"].to_s == group_id.to_s || it["name"].to_s == group_id}
+            if group.nil?
+              print_red_alert "Group not found by id #{group_id}"
+              return 1
+            end
           end
         end
         if group
@@ -443,9 +470,10 @@ class Morpheus::Cli::NetworksCommand
         cloud = nil
         if group
           if options[:cloud]
-            cloud = group["clouds"].find {|it| it["id"].to_s == options[:cloud].to_s || it["name"].to_s == options[:cloud]}
+            cloud_id = options[:cloud]
+            cloud = group["clouds"].find {|it| it["id"].to_s == cloud_id.to_s || it["name"].to_s == cloud_id}
             if cloud.nil?
-              print_red_alert "Cloud not found by id #{id}"
+              print_red_alert "Cloud not found by id #{cloud_id}"
               return 1
             end
           else
@@ -1269,5 +1297,20 @@ class Morpheus::Cli::NetworksCommand
   end
 
   private
+
+  def get_available_groups(refresh=false)
+    if !@available_groups || refresh
+      option_results = @options_interface.options_for_source('groups',{})
+      @available_groups = option_results['data'].collect {|it|
+        {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+      }
+    end
+    #puts "get_available_groups() rtn: #{@available_groups.inspect}"
+    return @available_groups
+  end
+
+  def get_available_groups_with_shared(refresh=false)
+    [{"id" => 'shared', "name" => 'Shared', "value" => 'shared'}] + get_available_groups(refresh)
+  end
 
 end

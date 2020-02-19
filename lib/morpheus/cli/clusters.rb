@@ -3681,13 +3681,6 @@ class Morpheus::Cli::Clusters
     @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
-  def current_user(refresh=false)
-    if !@current_user || refresh
-      load_whoami
-    end
-    @current_user
-  end
-
   def load_group(options)
     # Group / Site
     group_id = nil

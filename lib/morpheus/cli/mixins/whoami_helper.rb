@@ -19,7 +19,7 @@ module Morpheus::Cli::WhoamiHelper
       exit 1
     end
     @is_master_account = whoami_response["isMasterAccount"]
-
+    @user_permissions = whoami_response["permissions"]
     if whoami_response["appliance"]
       @appliance_build_verison = whoami_response["appliance"]["buildVersion"]
     else
@@ -42,4 +42,19 @@ module Morpheus::Cli::WhoamiHelper
     end
     @is_master_account
   end
+
+  def current_user
+    if @current_user.nil?
+      load_whoami
+    end
+    @current_user
+  end
+
+  def current_user_permissions
+    if @user_permissions.nil?
+      load_whoami
+    end
+    @user_permissions
+  end
+
 end
