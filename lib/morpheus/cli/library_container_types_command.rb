@@ -556,67 +556,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
   private
 
-  def find_container_type_by_name_or_id(layout_id, val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_container_type_by_id(layout_id, val)
-    else
-      return find_container_type_by_name(layout_id, val)
-    end
-  end
+  ## finders are in LibraryHelper
 
-  def find_container_type_by_id(layout_id, id)
-    begin
-      json_response = @library_container_types_interface.get(layout_id, id.to_i)
-      return json_response['containerType']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Instance Type not found by id #{id}"
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_container_type_by_name(layout_id, name)
-    container_types = @library_container_types_interface.list(layout_id, {name: name.to_s})['containerTypes']
-    if container_types.empty?
-      print_red_alert "Node Type not found by name #{name}"
-      return nil
-    elsif container_types.size > 1
-      print_red_alert "#{container_types.size} node types found by name #{name}"
-      print_container_types_table(container_types, {color: red})
-      print_red_alert "Try using ID instead"
-      print reset,"\n"
-      return nil
-    else
-      return container_types[0]
-    end
-  end
-
-  def print_container_types_table(container_types, opts={})
-    columns = [
-      {"ID" => lambda {|it| it['id'] } },
-      {"TECHNOLOGY" => lambda {|it| format_container_type_technology(it) } },
-      {"NAME" => lambda {|it| it['name'] } },
-      {"SHORT NAME" => lambda {|it| it['shortName'] } },
-      {"VERSION" => lambda {|it| it['containerVersion'] } },
-      {"CATEGORY" => lambda {|it| it['category'] } },
-      {"OWNER" => lambda {|it| it['account'] ? it['account']['name'] : '' } }
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(container_types, columns, opts)
-  end
-
-  def format_container_type_technology(container_type)
-    if container_type
-      container_type['provisionType'] ? container_type['provisionType']['name'] : ''
-    else
-      ""
-    end
-  end
-
+  ## these layout methods should be consolidated as well
 
   def find_layout_by_name_or_id(instance_type_id, val)
     if val.to_s =~ /\A\d{1,}\Z/

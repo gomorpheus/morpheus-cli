@@ -108,6 +108,12 @@ class Morpheus::Cli::Hosts
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--tag-compliant', "Displays only servers that are valid according to applied tag policies. Does not show servers that do not have tag policies." ) do
+        params[:tagCompliant] = true
+      end
+      opts.on('--non-tag-compliant', "Displays only servers with tag compliance warnings." ) do
+        params[:tagCompliant] = false
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List hosts."
     end
@@ -1185,6 +1191,9 @@ class Morpheus::Cli::Hosts
       opts.on('--install-agent [on|off]', String, "Install Agent? Pass false to manually install agent. Default is true.") do |val|
         options['installAgent'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('-g', '--group GROUP', String, "Group to assign to new instance.") do |val|
+        options[:group] = val
+      end
       # opts.on('--instance-type-id ID', String, "Instance Type ID for the new instance.") do |val|
       #   options['instanceTypeId'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       # end
@@ -1216,6 +1225,11 @@ class Morpheus::Cli::Hosts
       if account_id
         payload['server']['account'] = {id: account}
       end
+      if options[:group]
+        group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+        return 1 if group.nil?
+        params['provisionSiteId'] = group['id']
+      end
       payload['server'].merge!(params)
       ['installAgent','instanceTypeId'].each do |k|
         if options[k] != nil
@@ -1224,8 +1238,8 @@ class Morpheus::Cli::Hosts
       end
       @servers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.make_managed(host['id'], payload)
-        return
+        print_dry_run(@servers_interface.dry.make_managed(host['id'], payload), options)
+        return 0
       end
       json_response = @servers_interface.make_managed(host['id'], payload)
       if options[:json]
@@ -1235,7 +1249,7 @@ class Morpheus::Cli::Hosts
         print_green_success "Host #{host['name']} is being converted to managed."
         puts "Public Key:\n#{json_response['publicKey']}\n(copy to your authorized_keys file)"
       end
-      return true
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

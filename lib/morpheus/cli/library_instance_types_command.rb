@@ -244,19 +244,40 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     options = {}
     params = {}
     logo_file = nil
+    option_type_ids = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[name]")
       build_option_type_options(opts, options, add_instance_type_option_types())
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          option_type_ids = []
+        else
+          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new instance type."
     end
     optparse.parse!(args)
+    if args.count > 1
+      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    if args[0]
+      #params["name"] = args[0]
+      options[:options]["name"] = args[0]
+    end
     connect(options)
     begin
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        # merge -O options
+        payload.deep_merge!({'instanceType' => passed_options}) unless passed_options.empty?
       else
+        # merge -O options
+        params.deep_merge!(passed_options) unless passed_options.empty?
+        # prompt
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_instance_type_option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(v_prompt)
         if params['logo']
@@ -271,6 +292,17 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         params['hasSettings'] = ['on','true','1'].include?(params['hasSettings'].to_s) if params.key?('hasSettings')
         params['hasAutoScale'] = ['on','true','1'].include?(params['hasAutoScale'].to_s) if params.key?('hasAutoScale')
         params['hasDeployment'] = ['on','true','1'].include?(params['hasDeployment'].to_s) if params.key?('hasDeployment')
+
+        # OPTION TYPES
+        if params['optionTypes']
+          prompt_results = prompt_for_option_types(params, options, @api_client)
+          if prompt_results[:success]
+            params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
+        end
+
         payload = {instanceType: params}
         @library_instance_types_interface.setopts(options)
         if options[:dry_run]
@@ -328,10 +360,15 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     begin
       instance_type = find_instance_type_by_name_or_id(args[0])
       exit 1 if instance_type.nil?
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
+        # merge -O options
+        payload.deep_merge!({'instanceType' => passed_options}) unless passed_options.empty?
       else
+        # merge -O options
+        params.deep_merge!(passed_options) unless passed_options.empty?
         # option_types = update_instance_type_option_types(instance_type)
         # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
@@ -510,6 +547,8 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
   end
   
   private
+
+  ## finders are in LibraryHelper
 
   def add_instance_type_option_types
     [

@@ -1,6 +1,6 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::LibraryResourceSpecsInterface < Morpheus::APIClient
+class Morpheus::LibrarySpecTemplatesInterface < Morpheus::APIClient
   def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
     @access_token = access_token
     @refresh_token = refresh_token

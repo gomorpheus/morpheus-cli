@@ -333,6 +333,12 @@ class Morpheus::Cli::Instances
       opts.on("--workflow ID", String, "Automation: Workflow ID") do |val|
         options[:workflow_id] = val
       end
+      opts.on("--ports ARRAY", String, "Exposed Ports, JSON formatted list of objects containing name and port") do |val|
+        # expects format like --ports '[{"name":"web","port":8080}]'
+        ports_array = JSON.parse(val)
+        options[:ports] = ports_array
+        options[:options]['ports'] = ports_array
+      end
       # opts.on('-L', "--lb", "Enable Load Balancer") do
       #   options[:enable_load_balancer] = true
       # end

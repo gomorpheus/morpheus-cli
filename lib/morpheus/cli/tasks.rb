@@ -669,6 +669,9 @@ class Morpheus::Cli::Tasks
       end
       opts.add_hidden_option('--server')
       opts.add_hidden_option('--servers')
+      opts.on('-a', '--appliance', "Execute on the appliance, the target is the appliance itself.") do
+        target_type = 'appliance'
+      end
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
@@ -706,6 +709,8 @@ class Morpheus::Cli::Tasks
             servers << server
           end
           params['servers'] = servers.collect {|it| it['id'] }
+        elsif target_type == 'appliance'
+          # cool, run it locally.
         else
           raise_command_error "missing required option: --instance or --host\n#{optparse}"
         end
@@ -728,24 +733,28 @@ class Morpheus::Cli::Tasks
         print_dry_run @tasks_interface.dry.run(task['id'], payload)
         return
       end
-      response = @tasks_interface.run(task['id'], payload)
+      json_response = @tasks_interface.run(task['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        if !response['success']
-          return 1
-        end
+        puts as_json(json_response, options)
+        return json_response['success'] ? 0 : 1
       else
         target_desc = ""
         if instances.size() > 0
           target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
         elsif servers.size() > 0
           target_desc = (servers.size() == 1) ? "host #{servers[0]['name']}" : "#{servers.size()} hosts"
+        elsif target_type == 'appliance'
+          target_desc = "appliance"
         end
         print_green_success "Executing task #{task['name']} on #{target_desc}"
-        # todo: load job/execution
-        # get([task['id']])
+        # todo: refresh, use get processId and load process record isntead? err
+        if json_response["jobExecution"] && json_response["jobExecution"]["id"]
+          get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
+          Morpheus::Logging::DarkPrinter.puts((['jobs', 'get-execution'] + get_args).join(' ')) if Morpheus::Logging.debug?
+          return ::Morpheus::Cli::JobsCommand.new.handle(['get-execution'] + get_args)
+        end
+        return json_response['success'] ? 0 : 1
       end
-      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1

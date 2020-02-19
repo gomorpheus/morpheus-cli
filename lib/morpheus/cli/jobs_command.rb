@@ -34,6 +34,9 @@ class Morpheus::Cli::JobsCommand
       opts.on("--source [all|user|discovered]", String, "Filters job based upon specified source. Default is all") do |val|
         options[:source] = val.to_s
       end
+      opts.on("--internal [true|false]", String, "Filters job based on internal flag. Internal jobs are excluded by default.") do |val|
+        params["internalOnly"] = (val.to_s != "false")
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List jobs."
     end
@@ -68,6 +71,9 @@ class Morpheus::Cli::JobsCommand
       title = "Morpheus Jobs"
       subtitles = []
       subtitles += parse_list_subtitles(options)
+      if params["internalOnly"]
+        subtitles << "internalOnly: #{params['internalOnly']}"
+      end
       print_h1 title, subtitles
 
       jobs = json_response['jobs']
@@ -166,23 +172,33 @@ class Morpheus::Cli::JobsCommand
       print_h1 title, subtitles
 
       job = json_response['job']
-      scheduleName = ''
+      schedule_name = ''
       if !job['scheduleMode'].nil?
         if job['scheduleMode'] == 'manual'
-          scheduleName = 'Manual'
-        else !job['scheduleMode']
-          schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
-          scheduleName = schedule ? schedule['name'] : ''
+          schedule_name = 'Manual'
+        elsif job['scheduleMode'].to_s.downcase == 'datetime'
+          schedule_name = ("Date and Time - " + (format_local_dt(job['dateTime']).to_s rescue 'n/a'))
+        elsif job['scheduleMode'].to_s == ''
+          schedule_name = 'n/a' # should not happen
+        else
+          begin
+            schedule = @execute_schedules_interface.get(job['scheduleMode'])['schedule']
+            schedule_name = schedule ? schedule['name'] : ''
+          rescue => ex
+            Morpheus::Logging::DarkPrinter.puts "Failed to load schedule name" if Morpheus::Logging.debug?
+            schedule_name = 'n/a'
+          end
         end
       end
 
       print cyan
       description_cols = {
+          "ID" => lambda {|it| it['id'] },
           "Name" => lambda {|it| it['name']},
           "Job Type" => lambda {|it| it['type']['name']},
           "Enabled" => lambda {|it| format_boolean(it['enabled'])},
           (job['workflow'] ? 'Workflow' : 'Task') => lambda {|it| it['jobSummary']},
-          "Schedule" => lambda {|it| scheduleName}
+          "Schedule" => lambda {|it| schedule_name}
       }
 
       if job['targetType']
@@ -255,6 +271,10 @@ class Morpheus::Cli::JobsCommand
       end
       opts.on('-R', '--run [on|off]', String, "Can be used to run the job now.") do |val|
         params['run'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--date-time DATETIME', String, "Can be used to run schedule at a specific date and time. Use UTC time in the format 2020-02-15T05:00:00Z. This sets scheduleMode to 'dateTime'.") do |val|
+        options[:schedule] = 'dateTime'
+        params['dateTime'] = val.to_s
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create job."
@@ -349,19 +369,28 @@ class Morpheus::Cli::JobsCommand
 
         # schedule
         if options[:schedule].nil?
-          params['scheduleMode'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
-        else
-          if options[:schedule] != 'manual'
-            schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
-
-            if schedule.nil?
-              print_red_alert "Schedule #{options[:schedule]} not found"
-              exit 1
-            end
-            options[:schedule] = schedule['value']
-          end
+          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
           params['scheduleMode'] = options[:schedule]
         end
+
+        if options[:schedule] == 'manual'
+          # cool
+        elsif options[:schedule].to_s.downcase == 'datetime'
+          # prompt for dateTime
+          if params['dateTime'].nil?
+            params['dateTime'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dateTime', 'fieldLabel' => "Date and Time", 'type' => 'text', 'required' => true}], options[:options], @api_client, {}, options[:no_prompt], true)['dateTime']
+          end
+        elsif options[:schedule].to_s != ''
+           # ok they passed a schedule name or id
+          schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
+
+          if schedule.nil?
+            print_red_alert "Schedule #{options[:schedule]} not found"
+            exit 1
+          end
+          options[:schedule] = schedule['value']
+        end
+        params['scheduleMode'] = options[:schedule]
 
         # custom config
         if params['customConfig'].nil? && job_options['allowCustomConfig']
@@ -439,6 +468,10 @@ class Morpheus::Cli::JobsCommand
       opts.on('-R', '--run [on|off]', String, "Can be used to run the job now.") do |val|
         params['run'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--date-time DATETIME', String, "Can be used to run schedule at a specific date and time. Use UTC time in the format 2020-02-15T05:00:00Z. This sets scheduleMode to 'dateTime'.") do |val|
+        options[:schedule] = 'dateTime'
+        params['dateTime'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Update job.\n" +
           "[job] is required. Job ID or name"
@@ -512,6 +545,33 @@ class Morpheus::Cli::JobsCommand
           end
           params['scheduleMode'] = options[:schedule]
         end
+
+
+        # schedule
+        if !options[:schedule].nil?
+          job_options = @jobs_interface.options(job_type_id)
+          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+          params['scheduleMode'] = options[:schedule]
+
+          if options[:schedule] == 'manual'
+            # cool
+          elsif options[:schedule].to_s.downcase == 'datetime'
+            # prompt for dateTime
+            if params['dateTime'].nil?
+              raise_command_error "--date-time is required for schedule type of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+            end
+          elsif options[:schedule].to_s != ''
+             # ok they passed a schedule name or id
+            schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
+
+            if schedule.nil?
+              print_red_alert "Schedule #{options[:schedule]} not found"
+              exit 1
+            end
+            options[:schedule] = schedule['value']
+          end
+        end
+
         payload = {'job' => params}
       end
 
@@ -739,6 +799,7 @@ class Morpheus::Cli::JobsCommand
       process = exec['process']
       print cyan
       description_cols = {
+          "ID" => lambda {|it| it['id'] },
           "Job" => lambda {|it| it['job'] ? it['job']['name'] : ''},
           "Job Type" => lambda {|it| it['job'] && it['job']['type'] ? (it['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : ''},
           # "Description" => lambda {|it| it['description'] || (it['job'] ? it['job']['description'] : '') },

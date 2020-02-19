@@ -68,17 +68,20 @@ class Morpheus::Cli::LibraryOptionListsCommand
             size: option_type_list['listItems'] ? option_type_list['listItems'].size : ''
           }
         end
+          columns = [
+          :id,
+          :name,
+          :description,
+          :type,
+          :size
+        ]
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        print_results_pagination(json_response)
       end
-      columns = [
-        :id,
-        :name,
-        :description,
-        :type,
-        :size
-      ]
-      print cyan
-      print as_pretty_table(rows, columns, options)
       print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -221,9 +224,6 @@ class Morpheus::Cli::LibraryOptionListsCommand
             params['config'] ||= {}
             params['config']['sourceHeaders'] = source_headers
           end
-        end
-        if params.key?('required')
-          params['required'] = ['on','true'].include?(params['required'].to_s)
         end
         list_payload = params
         payload = {'optionTypeList' => list_payload}
@@ -479,7 +479,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
   def get_available_option_list_types
     [
-      {'name' => 'Rest', 'value' => 'rest'}, 
+      {'name' => 'REST', 'value' => 'rest'}, 
+      {'name' => 'Morpheus Api', 'value' => 'api'}, 
       {'name' => 'Manual', 'value' => 'manual'}
     ]
   end
@@ -494,18 +495,33 @@ class Morpheus::Cli::LibraryOptionListsCommand
         {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
         {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
         #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
+        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
         {'fieldName' => 'sourceUrl', 'fieldLabel' => 'Source Url', 'type' => 'text', 'required' => true, 'description' => "A REST URL can be used to fetch list data and is cached in the appliance database.", 'displayOrder' => 4},
         {'fieldName' => 'ignoreSSLErrors', 'fieldLabel' => 'Ignore SSL Errors', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 5},
         {'fieldName' => 'realTime', 'fieldLabel' => 'Real Time', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 6},
         {'fieldName' => 'sourceMethod', 'fieldLabel' => 'Source Method', 'type' => 'select', 'selectOptions' => [{'name' => 'GET', 'value' => 'GET'}, {'name' => 'POST', 'value' => 'POST'}], 'defaultValue' => 'GET', 'required' => true, 'displayOrder' => 7},
+        # sourceHeaders component (is done afterwards manually)
         {'fieldName' => 'initialDataset', 'fieldLabel' => 'Initial Dataset', 'type' => 'code-editor', 'description' => "Create an initial json dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'. However, if there is a translation script, that will also be passed through.", 'displayOrder' => 8},
         {'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 9},
+        {'fieldName' => 'requestScript', 'fieldLabel' => 'Request Script', 'type' => 'code-editor', 'description' => "Create a js script to prepare the request. Return a data object as the body for a post, and return an array containing properties name and value for a get. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 10},
+
+      ]
+    elsif list_type.to_s.downcase == 'api'
+      [
+        {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+        {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
+        #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Rest', 'value' => 'rest'}, {'name' => 'Manual', 'value' => 'manual'}], 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
+        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
+        {'fieldName' => 'apiType', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'apiOptionLists', 'required' => true, 'description' => 'The code of the api list to use, eg. clouds, servers, etc.', 'displayOrder' => 6},
+        {'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 9},
+        {'fieldName' => 'requestScript', 'fieldLabel' => 'Request Script', 'type' => 'code-editor', 'description' => "Create a js script to prepare the request. Return a data object as the body for a post, and return an array containing properties name and value for a get. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 10},
       ]
     elsif list_type.to_s.downcase == 'manual'
       [
         {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
         {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
         #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Rest', 'value' => 'rest'}, {'name' => 'Manual', 'value' => 'manual'}], 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
+        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
         {'fieldName' => 'initialDataset', 'fieldLabel' => 'Dataset', 'type' => 'code-editor', 'required' => true, 'description' => "Create an initial JSON or CSV dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'.", 'displayOrder' => 4},
       ]
     else

@@ -122,7 +122,7 @@ module Morpheus
       load 'morpheus/cli/library_container_templates_command.rb'
       load 'morpheus/cli/library_option_types_command.rb'
       load 'morpheus/cli/library_option_lists_command.rb'
-      load 'morpheus/cli/library_resource_specs_command.rb'
+      load 'morpheus/cli/library_spec_templates_command.rb'
       load 'morpheus/cli/monitoring_incidents_command.rb'
       load 'morpheus/cli/monitoring_checks_command.rb'
       load 'morpheus/cli/monitoring_contacts_command.rb'

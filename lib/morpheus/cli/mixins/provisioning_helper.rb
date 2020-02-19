@@ -429,6 +429,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('environment')
       arbitrary_options.delete('instanceContext')
       arbitrary_options.delete('tags')
+      # arbitrary_options.delete('ports')
       payload.deep_merge!(arbitrary_options)
     end
 
@@ -511,17 +512,14 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['layout'] = {'id' => layout['id']}
     
     # need to GET provision type for optionTypes, and other settings...
-    #provision_type = (layout && provision_type ? provision_type : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    provision_type_code = layout['provisionTypeCode'] || layout['provisionType']['code']
     provision_type = nil
-    if layout && layout['provisionTypeCode']
-      provision_type = provision_types_interface.list({code:layout['provisionTypeCode']})['provisionTypes'][0]
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
       if provision_type.nil?
-        print_red_alert "Provision Type not found by code #{layout['provisionTypeCode']}"
+        print_red_alert "Provision Type not found by code #{provision_type_code}"
         exit 1
       end
-    elsif layout && layout['provisionType']
-      # api used to return entire record under layout.provisionType
-      provision_type = layout['provisionType']
     else
       provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
     end
@@ -579,7 +577,7 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for resource pool
     pool_id = nil
     resource_pool = nil
-    has_zone_pools = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasZonePools"]
+    has_zone_pools = provision_type && provision_type["id"] && provision_type["hasZonePools"]
     if has_zone_pools
       # pluck out the resourcePoolId option type to prompt for
       resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
@@ -637,7 +635,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # plan_info has this property already..
-    # has_datastore = layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasDatastore"]
+    # has_datastore = provision_type && provision_type["id"] && provision_type["hasDatastore"]
     # service_plan['hasDatastore'] = has_datastore
 
     # set root volume name if has mounts
@@ -653,10 +651,10 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # prompt networks
-    if layout["provisionType"] && layout["provisionType"]["id"] && layout["provisionType"]["hasNetworks"] # && layout["provisionType"]["supportsNetworkSelection"]
+    if provision_type && provision_type["hasNetworks"]
       # prompt for network interfaces (if supported)
       begin
-        network_interfaces = prompt_network_interfaces(cloud_id, layout["provisionType"]["id"], pool_id, options)
+        network_interfaces = prompt_network_interfaces(cloud_id, provision_type["id"], pool_id, options)
         if !network_interfaces.empty?
           payload['networkInterfaces'] = network_interfaces
         end
@@ -673,7 +671,7 @@ module Morpheus::Cli::ProvisioningHelper
     option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
     # ok.. seed data has changed and serverTypes do not have this optionType anymore...
     if sg_option_type.nil?
-      if layout["provisionType"] && (layout["provisionType"]["code"] == 'amazon')
+      if provision_type && (provision_type["code"] == 'amazon')
         sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
       end
     end
@@ -704,6 +702,18 @@ module Morpheus::Cli::ProvisioningHelper
 
     instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params)
     payload.deep_merge!(instance_config_payload)
+
+    ## Network Options
+
+    # prompt for exposed ports
+    if payload['ports'].nil?
+      # need a way to know if the instanceType even supports this.
+      # the default ports come from the node type, under layout['containerTypes']
+      ports = prompt_exposed_ports(options)
+      if !ports.empty?
+        payload['ports'] = ports
+      end
+    end
 
     ## Advanced Options
 
@@ -1812,4 +1822,60 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+
+  ## Exposed Ports component
+
+  def load_balance_protocols_dropdown
+    [
+      {'name' => 'None', 'value' => ''},
+      {'name' => 'HTTP', 'value' => 'HTTP'},
+      {'name' => 'HTTPS', 'value' => 'HTTPS'},
+      {'name' => 'TCP', 'value' => 'TCP'}
+    ]
+  end
+
+  # Prompts user for ports array
+  # returns array of port objects
+  def prompt_exposed_ports(options={}, api_client=nil, api_params={})
+    #puts "Configure ports:"
+    passed_ports = ((options[:options] && options[:options]["ports"]) ? options[:options]["ports"] : nil)
+    no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
+    # skip prompting?
+    if no_prompt
+      return passed_ports
+    end
+    # value already given
+    if passed_ports.is_a?(Array)
+      return passed_ports
+    end
+
+    # prompt for ports
+    ports = []
+    port_index = 0
+    has_another_port = options[:options] && options[:options]["ports"]
+    add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add an exposed port?", {default:false}))
+    while add_another_port do
+      field_context = port_index == 0 ? "ports" : "ports#{port_index}"
+
+      port = {}
+      port_label = port_index == 0 ? "Port" : "Port [#{port_index+1}]"
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{port_label} Name", 'required' => false, 'description' => 'Choose a name for this port.', 'defaultValue' => port['name']}], options[:options])
+      port['name'] = v_prompt[field_context]['name']
+
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'port', 'type' => 'number', 'fieldLabel' => "#{port_label} Number", 'required' => true, 'description' => 'A port number. eg. 8001', 'defaultValue' => (port['port'] ? port['port'].to_i : nil)}], options[:options])
+      port['port'] = v_prompt[field_context]['port']
+
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'lb', 'type' => 'select', 'fieldLabel' => "#{port_label} LB", 'required' => false, 'selectOptions' => load_balance_protocols_dropdown, 'description' => 'Choose a load balance protocol.', 'defaultValue' => port['lb']}], options[:options])
+      # port['loadBalanceProtocol'] = v_prompt[field_context]['lb']
+      port['lb'] = v_prompt[field_context]['lb']
+
+      ports << port
+      port_index += 1
+      has_another_port = options[:options] && options[:options]["ports#{port_index}"]
+      add_another_port = has_another_port || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another exposed port?", {default:false}))
+    end
+
+
+    return ports
+  end
 end
