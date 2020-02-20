@@ -8,20 +8,6 @@ class Morpheus::TasksInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def task_types(options={})
-    url = "#{@base_url}/api/task-types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/task-types/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
-    end
-    execute(method: :get, url: url, headers: headers)
-  end
-
   def list(params={})
     url = "#{@base_url}/api/tasks"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
@@ -69,6 +55,18 @@ class Morpheus::TasksInterface < Morpheus::APIClient
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def list_types(params={})
+    url = "#{@base_url}/api/task-types"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def get_type(id, params={})
+    url = "#{@base_url}/api/task-types/#{id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
   end
 
 end

@@ -2860,7 +2860,7 @@ class Morpheus::Cli::Instances
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     workflow = find_workflow_by_name_or_id(args[1])
-    task_types = @tasks_interface.task_types()
+    task_types = @tasks_interface.list_types()
     editable_options = []
     workflow['taskSetTasks'].sort{|a,b| a['taskOrder'] <=> b['taskOrder']}.each do |task_set_task|
       task_type_id = task_set_task['task']['taskType']['id']

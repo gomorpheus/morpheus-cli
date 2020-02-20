@@ -7,10 +7,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Tasks
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :get, :add, :update, :remove, :execute, :types => :task_types
-  alias_subcommand :details, :get
-  alias_subcommand :'task-types', :task_types
-  set_default_subcommand :list
+  register_subcommands :list, :get, :add, :update, :remove, :execute
+  register_subcommands :'list-types' => :list_task_types
+  register_subcommands :'get-type' => :get_task_type
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -35,40 +34,36 @@ class Morpheus::Cli::Tasks
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
+    if args.count > 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
     connect(options)
     begin
       params.merge!(parse_list_options(options))
       @tasks_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @tasks_interface.dry.get(params)
+        print_dry_run @tasks_interface.dry.list(params)
         return
       end
-      json_response = @tasks_interface.get(params)
-      # print result and return output
-      if options[:json]
-        puts as_json(json_response, options, "tasks")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['tasks'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "tasks")
-        return 0
+      json_response = @tasks_interface.list(params)
+
+      render_result = render_with_format(json_response, options, 'tasks')
+      return 0 if render_result
+      
+      title = "Morpheus Tasks"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      tasks = json_response['tasks']
+      if tasks.empty?
+        print cyan,"No tasks found.",reset,"\n"
       else
-        title = "Morpheus Tasks"
-        subtitles = []
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
-        tasks = json_response['tasks']
-        if tasks.empty?
-          print cyan,"No tasks found.",reset,"\n"
-        else
-          print cyan
-          print_tasks_table(tasks, options)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+        print cyan
+        print_tasks_table(tasks, options)
+        print_results_pagination(json_response)
       end
+      print reset,"\n"
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -86,8 +81,7 @@ class Morpheus::Cli::Tasks
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      return 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -216,113 +210,10 @@ class Morpheus::Cli::Tasks
     end
   end
 
-  def update(args)
-    options = {}
-    account_name = nil
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[task] [options]")
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    task_name = args[0]
-    connect(options)
-    begin
-
-
-      task = find_task_by_name_or_id(task_name)
-      exit 1 if task.nil?
-      task_type = find_task_type_by_name(task['taskType']['name'])
-
-      #params = Morpheus::Cli::OptionTypes.prompt(add_user_option_types, options[:options], @api_client, options[:params]) # options[:params] is mysterious
-      params = options[:options] || {}
-
-      if params.empty?
-        puts optparse.banner
-        option_lines = update_task_option_types(task_type).collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-        puts "\nAvailable Options:\n#{option_lines}\n\n"
-        exit 1
-      end
-
-      #puts "parsed params is : #{params.inspect}"
-      task_keys = ['name']
-      changes_payload = (params.select {|k,v| task_keys.include?(k) })
-      task_payload = task
-      if changes_payload
-        task_payload.merge!(changes_payload)
-      end
-      if params['taskOptions']
-        task_payload['taskOptions'].merge!(params['taskOptions'])
-      end
-
-      payload = {task: task_payload}
-      @tasks_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @tasks_interface.dry.update(task['id'], payload)
-        return 0
-      end
-      response = @tasks_interface.update(task['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        if !response['success']
-          return 1
-        end
-      else
-        print_green_success "Task #{response['task']['name']} updated"
-        get([task['id']])
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
-    end
-  end
-
-
-  def task_types(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    connect(options)
-    begin
-      @tasks_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @tasks_interface.dry.task_types()
-        return
-      end
-      json_response = @tasks_interface.task_types()
-      if options[:json]
-        print JSON.pretty_generate(json_response),"\n"
-      else
-        task_types = json_response['taskTypes']
-        print_h1 "Morpheus Task Types"
-        if task_types.nil? || task_types.empty?
-          print yellow,"No task types currently exist on this appliance. This could be a seed issue.",reset,"\n"
-        else
-          print cyan
-          rows = task_types.collect do |task_type|
-            {name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
-          end
-          puts as_pretty_table(rows, [:id, :name, :code], options)
-        end
-
-        print reset,"\n"
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
   def add(args)
     params = {}
-    options = {:options => {}}
+    file_params = {}
+    options = {}
     task_name = nil
     task_code = nil
     task_type_name = nil
@@ -336,6 +227,32 @@ class Morpheus::Cli::Tasks
       end
       opts.on('--code CODE', String, "Task Code" ) do |val|
         task_code = val
+      end
+      opts.on('--source VALUE', String, "Source Type. local, repository, url. Only applies to script task types.") do |val|
+        file_params['sourceType'] = val
+      end
+      opts.on('--content TEXT', String, "Contents of the task script. This implies source is local.") do |val|
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
+        file_params['content'] = val
+      end
+      opts.on('--file FILE', "File containing the task script. This can be used instead of --content" ) do |filename|
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          file_params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+      end
+      opts.on('--url VALUE', String, "URL, for use when source is url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-path VALUE', String, "Content Path, for use when source is repository or url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-ref VALUE', String, "Content Ref (Version Ref), for use when source is repository") do |val|
+        file_params['contentRef'] = val
       end
       opts.on('--result-type VALUE', String, "Result Type" ) do |val|
         options[:options]['resultType'] = val
@@ -382,21 +299,6 @@ class Morpheus::Cli::Tasks
       opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
         options[:options]['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      opts.on('--file FILE', "File containing the script. This can be used instead of --O taskOptions.script" ) do |filename|
-        full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
-          options[:options]['taskOptions'] ||= {}
-          options[:options]['taskOptions']['script'] = File.read(full_filename)
-          # params['script'] = File.read(full_filename)
-        else
-          print_red_alert "File not found: #{full_filename}"
-          exit 1
-        end
-        # use the filename as the name by default.
-        if !options[:options]['name']
-          options[:options]['name'] = File.basename(full_filename)
-        end
-      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
@@ -421,6 +323,7 @@ class Morpheus::Cli::Tasks
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
+        payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
       else
         # construct payload
         payload = {
@@ -452,7 +355,7 @@ class Morpheus::Cli::Tasks
         end
 
         # Task Type
-        @all_task_types ||= @tasks_interface.task_types({max:1000})['taskTypes']
+        @all_task_types ||= @tasks_interface.list_types({max:1000})['taskTypes']
         task_types_dropdown = @all_task_types.collect {|it| {"name" => it["name"], "value" => it["code"]}}
         
         if task_type_name
@@ -482,11 +385,12 @@ class Morpheus::Cli::Tasks
 
         # Task Type Option Types
 
-        # JD: uhh some of these are missing a fieldContext?
-        # containerScript just points to a library script  via Id now??
+        # correct fieldContext
+        has_file_content = false
         task_option_types = task_type['optionTypes'] || []
         task_option_types.each do |it|
           if it['type'] == 'file-content'
+            has_file_content = true
             it['fieldContext'] = nil
             it['fieldName'] = 'file'
           else
@@ -495,6 +399,18 @@ class Morpheus::Cli::Tasks
             end
           end
         end
+        # inject file_params into options for file-content prompt
+        # or into taskOptions.script for types not yet using file-content
+        unless file_params.empty?
+          if has_file_content
+            options[:options]['file'] ||= {}
+            options[:options]['file'].merge!(file_params)
+          else
+            options[:options]['taskOptions'] ||= {}
+            options[:options]['taskOptions']['script'] = file_params['content'] if file_params['content']
+          end
+        end
+        # prompt
         input_options = Morpheus::Cli::OptionTypes.prompt(task_option_types, options[:options],@api_client, options[:params])
         payload.deep_merge!({'task' => input_options})  unless input_options.empty?
         
@@ -621,6 +537,149 @@ class Morpheus::Cli::Tasks
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  def update(args)
+    params = {}
+    file_params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[task] [options]")
+      opts.on('--name NAME', String, "Task Name" ) do |val|
+        options[:options]['name'] = val
+      end
+      opts.on('--code CODE', String, "Task Code" ) do |val|
+        options[:options]['code'] = val
+      end
+      opts.on('--source VALUE', String, "Source Type. local, repository, url. Only applies to script task types.") do |val|
+        file_params['sourceType'] = val
+      end
+      opts.on('--content TEXT', String, "Contents of the task script. This implies source is local.") do |val|
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
+        file_params['content'] = val
+      end
+      opts.on('--file FILE', "File containing the task script. This can be used instead of --content" ) do |filename|
+        file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
+        full_filename = File.expand_path(filename)
+        if File.exists?(full_filename)
+          file_params['content'] = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          exit 1
+        end
+      end
+      opts.on('--url VALUE', String, "URL, for use when source is url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-path VALUE', String, "Content Path, for use when source is repository or url") do |val|
+        file_params['contentPath'] = val
+      end
+      opts.on('--content-ref VALUE', String, "Content Ref (Version Ref), for use when source is repository") do |val|
+        file_params['contentRef'] = val
+      end
+      opts.on('--result-type VALUE', String, "Result Type" ) do |val|
+        options[:options]['resultType'] = val
+      end
+      opts.on('--result-type VALUE', String, "Result Type" ) do |val|
+        options[:options]['executeTarget'] = val
+      end
+      opts.on('--execute-target VALUE', String, "Execute Target" ) do |val|
+        options[:options]['executeTarget'] = val
+      end
+      opts.on('--target-host VALUE', String, "Target Host" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['host'] = val
+      end
+      opts.on('--target-port VALUE', String, "Target Port" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['port'] = val
+      end
+      opts.on('--target-username VALUE', String, "Target Username" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['username'] = val
+      end
+      opts.on('--target-password VALUE', String, "Target Password" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['password'] = val
+      end
+      opts.on('--git-repo VALUE', String, "Git Repo ID" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['localScriptGitId'] = val
+      end
+      opts.on('--git-ref VALUE', String, "Git Ref" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['localScriptGitRef'] = val
+      end
+      opts.on('--retryable [on|off]', String, "Retryable" ) do |val|
+        options[:options]['retryable'] = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
+      end
+      opts.on('--retry-count COUNT', String, "Retry Count" ) do |val|
+        options[:options]['retryCount'] = val.to_i
+      end
+      opts.on('--retry-delay SECONDS', String, "Retry Delay Seconds" ) do |val|
+        options[:options]['retryDelaySeconds'] = val.to_i
+      end
+      opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
+        options[:options]['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    task_name = args[0]
+    connect(options)
+    begin
+      task = find_task_by_name_or_id(task_name)
+      return 1 if task.nil?
+      task_type = find_task_type_by_name(task['taskType']['name'])
+      return 1 if task_type.nil?
+      
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      # if passed_options['type']
+      #   task_type_name = passed_options.delete('type')
+      # end
+      payload = nil
+      
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
+        payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
+      else
+        # construct payload
+        payload = {}
+        payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
+        payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
+
+        if payload['task'].empty?
+          print_red_alert "Specify at least one option to update"
+          puts optparse
+          return 1
+        end
+
+      end
+
+      @tasks_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @tasks_interface.dry.update(task['id'], payload)
+        return 0
+      end
+      response = @tasks_interface.update(task['id'], payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        if !response['success']
+          return 1
+        end
+      else
+        print_green_success "Task #{response['task']['name']} updated"
+        get([task['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
     end
   end
 
@@ -792,6 +851,135 @@ class Morpheus::Cli::Tasks
     end
   end
 
+  def list_task_types(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List task types."
+    end
+    optparse.parse!(args)
+    if args.count > 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      params.merge!(parse_list_options(options))
+      @tasks_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @tasks_interface.dry.list_types(params)
+        return
+      end
+      json_response = @tasks_interface.list_types(params)
+
+
+      render_result = render_with_format(json_response, options, 'taskTypes')
+      return 0 if render_result
+      
+      title = "Morpheus Task Types"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      task_types = json_response['taskTypes']
+      if task_types.empty?
+        print cyan,"No task types found.",reset,"\n"
+      else
+        print cyan
+        rows = task_types.collect do |task_type|
+          {name: task_type['name'], id: task_type['id'], code: task_type['code'], description: task_type['description']}
+        end
+        print as_pretty_table(rows, [:id, :name, :code], options)
+        #print_results_pagination(json_response)
+        print_results_pagination({size:task_types.size,total:task_types.size})
+      end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def get_task_type(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[type]")
+      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Get details about a task type.\n" +
+                    "[type] is required. This is the id or code or name of a task type."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      @tasks_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @tasks_interface.dry.get_type(args[0].to_i)
+        else
+          print_dry_run @tasks_interface.dry.list_types({name:args[0]})
+        end
+        return
+      end
+      # find_task_type_by_name actually finds by name or code id
+      task_type = find_task_type_by_name(args[0])
+      return 1 if task_type.nil?
+      json_response = {'taskType' => task_type}  # skip redundant request
+      # json_response = @tasks_interface.get(task_type['id'])
+      
+      render_result = render_with_format(json_response, options, 'taskType')
+      return 0 if render_result
+
+      task_type = json_response['taskType']
+
+      title = "Morpheus Task Type"
+      
+      print_h1 "Morpheus Task Type", [], options
+      
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Code" => 'name',
+        #"Description" => 'description',
+        "Scriptable" => lambda {|it| format_boolean(it['scriptable']) },
+        # lots more here
+        # "enabled" => lambda {|it| format_boolean(it['enabled']) },
+        # "hasResults" => lambda {|it| format_boolean(it['hasResults']) },
+        # "allowRemoteKeyAuth" => lambda {|it| format_boolean(it['allowRemoteKeyAuth']) },
+        # "allowExecuteLocal" => lambda {|it| format_boolean(it['allowExecuteLocal']) },
+        # "allowExecuteRemote" => lambda {|it| format_boolean(it['allowExecuteRemote']) },
+        # "allowExecuteResource" => lambda {|it| format_boolean(it['allowExecuteResource']) },
+        # "allowLocalRepo" => lambda {|it| format_boolean(it['allowLocalRepo']) },
+        # "allowRemoteKeyAuth" => lambda {|it| format_boolean(it['allowRemoteKeyAuth']) },
+      }
+      print_description_list(description_cols, task_type)
+
+      option_types = task_type['optionTypes'] || []
+      option_types = option_types.sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      if !option_types.empty?
+        print_h2 "Config Option Types", [], options
+        option_type_cols = {
+          "Name" => lambda {|it| it['fieldContext'].to_s != '' ? "#{it['fieldContext']}.#{it['fieldName']}" : it['fieldName'] },
+          "Label" => lambda {|it| it['fieldLabel'] },
+          "Type" => lambda {|it| it['type'] },
+        }
+        print cyan
+        print as_pretty_table(option_types, option_type_cols)
+      end
+      
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
   private
 
   def find_task_by_name_or_id(val)
@@ -833,7 +1021,7 @@ class Morpheus::Cli::Tasks
 
   def find_task_type_by_name(val)
     raise "find_task_type_by_name passed a bad name: #{val.inspect}" if val.to_s == ''
-    @all_task_types ||= @tasks_interface.task_types({max:1000})['taskTypes']
+    @all_task_types ||= @tasks_interface.list_types({max:1000})['taskTypes']
 
     if @all_task_types.nil? && !@all_task_types.empty?
       print_red_alert "No task types found"

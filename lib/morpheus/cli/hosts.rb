@@ -1321,7 +1321,7 @@ class Morpheus::Cli::Hosts
       payload = {}
       # i guess you must pass an option if there are editable options
       # any option, heh
-      task_types = @tasks_interface.task_types()
+      task_types = @tasks_interface.list_types()
       editable_options = []
       workflow['taskSetTasks'].sort{|a,b| a['taskOrder'] <=> b['taskOrder']}.each do |task_set_task|
         task_type_id = task_set_task['task']['taskType']['id']
