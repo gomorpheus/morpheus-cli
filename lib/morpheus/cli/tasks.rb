@@ -29,7 +29,7 @@ class Morpheus::Cli::Tasks
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--types x,y,z', Array, "Filter by task type code(s)") do |val|
+      opts.on('-t', '--type x,y,z', Array, "Filter by task type code(s)") do |val|
         params['taskTypeCodes'] = val
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -496,17 +496,19 @@ class Morpheus::Cli::Tasks
         end
 
         if payload['task']['executeTarget'] == 'local'
-          # Git Repo
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitId', 'fieldLabel' => 'Git Repo', 'type' => 'text', 'description' => 'Git Repo ID'}], options[:options], @api_client)
-          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitId'].to_s.empty?
-            payload['task']['taskOptions'] ||= {}
-            payload['task']['taskOptions']['localScriptGitId'] = v_prompt['taskOptions']['localScriptGitId']
-          end
-          # Git Ref
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitRef', 'fieldLabel' => 'Git Ref', 'type' => 'text', 'description' => 'Git Ref eg. master'}], options[:options], @api_client)
-          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitRef'].to_s.empty?
-            payload['task']['taskOptions'] ||= {}
-            payload['task']['taskOptions']['localScriptGitRef'] = v_prompt['taskOptions']['localScriptGitRef']
+          if task_type['allowLocalRepo']
+            # Git Repo
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitId', 'fieldLabel' => 'Git Repo', 'type' => 'text', 'description' => 'Git Repo ID'}], options[:options], @api_client)
+            if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitId'].to_s.empty?
+              payload['task']['taskOptions'] ||= {}
+              payload['task']['taskOptions']['localScriptGitId'] = v_prompt['taskOptions']['localScriptGitId']
+            end
+            # Git Ref
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'localScriptGitRef', 'fieldLabel' => 'Git Ref', 'type' => 'text', 'description' => 'Git Ref eg. master'}], options[:options], @api_client)
+            if v_prompt['taskOptions'] && !v_prompt['taskOptions']['localScriptGitRef'].to_s.empty?
+              payload['task']['taskOptions'] ||= {}
+              payload['task']['taskOptions']['localScriptGitRef'] = v_prompt['taskOptions']['localScriptGitRef']
+            end
           end
 
         elsif payload['task']['executeTarget'] == 'remote'
