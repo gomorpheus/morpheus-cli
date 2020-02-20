@@ -595,29 +595,29 @@ module Morpheus
         source_type = file_params['sourceType']
         # source
         if source_type.nil?
-          source_type = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => is_required, 'defaultValue' => 'local'}, api_client, {}, options[:no_prompt])
+          source_type = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'optionSource' => 'fileContentSource', 'required' => is_required, 'defaultValue' => (is_required ? 'local' : nil)}, api_client, {}, options[:no_prompt])
           file_params['sourceType'] = source_type
         end
         # source type options
         if source_type == "local"
           # prompt for content
           if file_params['content'].nil?
-            file_params['content'] = multiline_prompt({'fieldContext' => full_field_key, 'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => is_required})
+            file_params['content'] = multiline_prompt({'fieldContext' => full_field_key, 'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true})
           end
         elsif source_type == "url"
           if file_params['url']
             file_params['contentPath'] = file_params.delete('url')
           end
           if file_params['contentPath'].nil?
-            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => is_required})
+            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true})
           end
         elsif source_type == "repository"
           if file_params['repository'].nil?
-            repository_id = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => is_required}, api_client, {}, options[:no_prompt])
+            repository_id = select_prompt({'fieldContext' => full_field_key, 'fieldName' => 'repositoryId', 'fieldLabel' => 'Repository', 'type' => 'select', 'optionSource' => 'codeRepositories', 'required' => true}, api_client, {}, options[:no_prompt])
             file_params['repository'] = {'id' => repository_id}
           end
           if file_params['contentPath'].nil?
-            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => is_required})
+            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true})
           end
           if file_params['contentRef'].nil?
             file_params['contentRef'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'})
