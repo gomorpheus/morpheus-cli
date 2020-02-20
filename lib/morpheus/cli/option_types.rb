@@ -126,7 +126,7 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if ['select', 'multiSelect'].include?(option_type['type'])
-                  value = select_prompt(option_type.merge({'defaultValue' => value}), api_client, (api_params || {}).merge(results), true)
+                  value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true)
                   value_found = !!value
                 end
                 if !value_found
