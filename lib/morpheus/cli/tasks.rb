@@ -79,6 +79,9 @@ class Morpheus::Cli::Tasks
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[workflow]")
+      opts.on('--no-content', "Do not display script content." ) do
+        options[:no_content] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -174,8 +177,10 @@ class Morpheus::Cli::Tasks
         if task_type
           task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
             if optionType['fieldLabel'].to_s.downcase == 'script'
-              print_h2 "Script"
-              print reset,bright_black,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+              if task['taskOptions'][optionType['fieldName']]
+                print_h2 "Script"
+                print reset,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+              end
             else
               print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
             end
@@ -183,6 +188,25 @@ class Morpheus::Cli::Tasks
         else
           print yellow,"Task type not found.",reset,"\n"
         end
+        file_content = task['file']
+        if file_content && options[:no_content] != true
+          print_h2 "Script Content"
+          if file_content['sourceType'] == 'local'
+            puts file_content['content']
+          elsif file_content['sourceType'] == 'url'
+            puts "URL: #{file_content['contentPath']}"
+          elsif file_content['sourceType'] == 'repository'
+            puts "Repository: #{file_content['repository']['name'] rescue 'n/a'}"
+            puts "Path: #{file_content['contentPath']}"
+            if file_content['contentRef']
+              puts "Ref: #{file_content['contentRef']}"
+            end
+          else
+            puts "Source: #{file_content['sourceType']}"
+            puts "Path: #{file_content['contentPath']}"
+          end
+        end
+
         print reset,"\n"
         return 0
       end
@@ -462,8 +486,13 @@ class Morpheus::Cli::Tasks
         # containerScript just points to a library script  via Id now??
         task_option_types = task_type['optionTypes'] || []
         task_option_types.each do |it|
-          if it['fieldContext'].nil? || it['fieldContext'] == ''
-            it['fieldContext'] = 'taskOptions'
+          if it['type'] == 'file-content'
+            it['fieldContext'] = nil
+            it['fieldName'] = 'file'
+          else
+            if it['fieldContext'].nil? || it['fieldContext'] == ''
+              it['fieldContext'] = 'taskOptions'
+            end
           end
         end
         input_options = Morpheus::Cli::OptionTypes.prompt(task_option_types, options[:options],@api_client, options[:params])

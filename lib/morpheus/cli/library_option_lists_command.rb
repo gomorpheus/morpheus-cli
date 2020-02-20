@@ -130,7 +130,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
           "Type" => lambda {|it| it['type'].to_s.capitalize },
         }, option_type_list)
         # print_h2 "Initial Dataset"
-        # print bright_black,"#{option_type_list['initialDataset']}","\n",reset
+        # print reset,"#{option_type_list['initialDataset']}","\n",reset
       else
         option_list_columns = {
           "ID" => 'id',
@@ -157,11 +157,11 @@ class Morpheus::Cli::LibraryOptionListsCommand
         end
         if !option_type_list['initialDataset'].empty?
           print_h2 "Initial Dataset"
-          print bright_black,"#{option_type_list['initialDataset']}","\n",reset
+          print reset,"#{option_type_list['initialDataset']}","\n",reset
         end
         if !option_type_list['translationScript'].empty?
           print_h2 "Translation Script"
-          print bright_black,"#{option_type_list['translationScript']}","\n",reset
+          print reset,"#{option_type_list['translationScript']}","\n",reset
         end
       end
       print_h2 "List Items"
