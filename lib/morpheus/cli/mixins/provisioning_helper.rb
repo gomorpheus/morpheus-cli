@@ -14,49 +14,35 @@ module Morpheus::Cli::ProvisioningHelper
   end
 
   def instances_interface
-    # @api_client.instances
-    raise "#{self.class} has not defined @instances_interface" if @instances_interface.nil?
-    @instances_interface
+    @api_client.instances
   end
 
   def options_interface
-    # @api_client.options
-    raise "#{self.class} has not defined @options_interface" if @options_interface.nil?
-    @options_interface
+    @api_client.options
   end
 
   def instance_types_interface
-    # @api_client.instance_types
-    raise "#{self.class} has not defined @instance_types_interface" if @instance_types_interface.nil?
-    @instance_types_interface
+    @api_client.instance_types
   end
 
   def instance_type_layouts_interface
-    # @api_client.instance_types
-    raise "#{self.class} has not defined @library_layouts" if @library_layouts_interface.nil?
-    @library_layouts_interface
+    @api_client.library_layouts
   end
 
   def provision_types_interface
-    # api_client.provision_types
-    raise "#{self.class} has not defined @provision_types_interface" if @provision_types_interface.nil?
-    @provision_types_interface
+    api_client.provision_types
   end
 
   def clouds_interface
-    # @api_client.instance_types
-    raise "#{self.class} has not defined @clouds_interface" if @clouds_interface.nil?
-    @clouds_interface
+    @api_client.clouds
   end
 
   def cloud_datastores_interface
-    raise "#{self.class} has not defined @clouds_datastores_interface" if  @clouds_datastores_interface.nil?
-    @clouds_datastores_interface
+    @api_client.cloud_datastores
   end
 
   def accounts_interface
-    raise "#{self.class} has not defined @accounts_interface" if @accounts_interface.nil?
-    @accounts_interface
+    @api_client.accounts
   end
 
   def get_available_groups(refresh=false)
