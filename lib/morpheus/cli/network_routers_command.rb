@@ -161,6 +161,7 @@ class Morpheus::Cli::NetworkRoutersCommand
           "Name" => lambda {|it| it['name'] },
           "Status" => lambda {|it| format_router_status(it)},
           "Type" => lambda {|it| it['type']['name']},
+          "Service" => lambda {|it| it['networkServer'] ? it['networkServer']['name'] : nil},
           "Group" => lambda {|it| it['site'] ? it['site']['name'] : 'Shared'},
           # "Integration" => lambda {|it| router_integration_label(it)},
           "Provider ID" => lambda {|it| it['providerId'] || it['externalId']},
@@ -220,7 +221,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       opts.on('-t', '--type VALUE', String, "Name or ID of router type") do |val|
         options[:options]['routerType'] = val
       end
-      opts.on('-n', '--name VALUE', String, "Name for this cluster layout") do |val|
+      opts.on('-n', '--name VALUE', String, "Name for this network router") do |val|
         options[:options]['name'] = val
       end
       opts.on('-D', '--description VALUE', String, "Description") do |val|
@@ -462,7 +463,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       puts optparse
       return 1
     end
-    _firewall(args[0].to_i, options)
+    _firewall(args[0], options)
   end
 
   def _firewall(router_id, options)
@@ -503,9 +504,9 @@ class Morpheus::Cli::NetworkRoutersCommand
       if router['type']['hasFirewall']
         print_firewall(router, true, options[:rules_only])
       else
-        print_red_alert "Firewalls not supported for #{router['type']['name']} routers"
+        print_red_alert "Firewall not supported for #{router['type']['name']}"
       end
-      print reset
+      println reset
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
@@ -537,6 +538,11 @@ class Morpheus::Cli::NetworkRoutersCommand
       router = find_router(args[0])
 
       if router.nil?
+        return 1
+      end
+
+      if !router['type']['hasFirewall']
+        print_red_alert "Firewall not supported for #{router['type']['name']}"
         return 1
       end
 
@@ -675,7 +681,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       if router['type']['hasDhcp']
         print_dhcp(router, true)
       else
-        print_red_alert "DHCP not supported for #{router['type']['name']} routers"
+        print_red_alert "DHCP not supported for #{router['type']['name']}"
       end
       println reset
     rescue RestClient::Exception => e
@@ -738,7 +744,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       if router['type']['hasRouting']
         print_routes(router)
       else
-        print_red_alert "Routes not supported for #{router['type']['name']} routers"
+        print_red_alert "Routes not supported for #{router['type']['name']}"
       end
       print reset
     rescue RestClient::Exception => e
@@ -790,6 +796,11 @@ class Morpheus::Cli::NetworkRoutersCommand
       router = find_router(args[0])
 
       if router.nil?
+        return 1
+      end
+
+      if !router['type']['hasRouting']
+        print_red_alert "Routes not supported for #{router['type']['name']}"
         return 1
       end
 
