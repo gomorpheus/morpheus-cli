@@ -637,21 +637,38 @@ class Morpheus::Cli::Tasks
       task_type = find_task_type_by_name(task['taskType']['name'])
       return 1 if task_type.nil?
       
+      # file content param varies, heh
+      has_file_content = false
+      task_option_types = task_type['optionTypes'] || []
+      task_option_types.each do |it|
+        if it['type'] == 'file-content'
+          has_file_content = true
+        end
+      end
+      # inject file_params into options for file-content prompt
+      # or into taskOptions.script for types not yet using file-content
+      unless file_params.empty?
+        if has_file_content
+          options[:options]['file'] ||= {}
+          options[:options]['file'].merge!(file_params)
+        else
+          options[:options]['taskOptions'] ||= {}
+          options[:options]['taskOptions']['script'] = file_params['content'] if file_params['content']
+        end
+      end
+
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      # if passed_options['type']
-      #   task_type_name = passed_options.delete('type')
-      # end
       payload = nil
       
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
-        payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
+        # payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
       else
         # construct payload
         payload = {}
         payload.deep_merge!({'task' => passed_options})  unless passed_options.empty?
-        payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
+        # payload.deep_merge!({'task' => {'file' => file_params}}) unless file_params.empty?
 
         if payload['task'].empty?
           print_red_alert "Specify at least one option to update"
