@@ -284,6 +284,7 @@ class Morpheus::Cli::Apps
 
         # Default Cloud
         cloud_id = nil
+        cloud = nil
         scoped_available_clouds = get_available_clouds(group['id'])
         if options[:cloud]
           cloud_id = options[:cloud]
@@ -361,16 +362,16 @@ class Morpheus::Cli::Apps
                       end
 
                       # Cloud
-                      cloud_id = nil
-                      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => scoped_available_clouds, 'defaultValue' => cloud ? cloud['name'] : nil}], options[:options])
-                      cloud_id = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
-                      if cloud_id
-                        # cloud = find_cloud_by_name_or_id_for_provisioning(group['id'], cloud_id)
-                        cloud = scoped_available_clouds.find {|it| it['name'] == cloud_id.to_s } || scoped_available_clouds.find {|it| it['id'].to_s == cloud_id.to_s }
-                        return 1 if cloud.nil?
-                      else
-                        # prompt still happens inside get_scoped_instance_config
-                      end
+                      # cloud_id = nil
+                      # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => scoped_available_clouds, 'defaultValue' => cloud ? cloud['name'] : nil}], options[:options])
+                      # cloud_id = v_prompt['cloud'] unless v_prompt['cloud'].to_s.empty?
+                      # if cloud_id
+                      #   # cloud = find_cloud_by_name_or_id_for_provisioning(group['id'], cloud_id)
+                      #   cloud = scoped_available_clouds.find {|it| it['name'] == cloud_id.to_s } || scoped_available_clouds.find {|it| it['id'].to_s == cloud_id.to_s }
+                      #   return 1 if cloud.nil?
+                      # else
+                      #   # prompt still happens inside get_scoped_instance_config
+                      # end
                       
                       
                       # prompt for the cloud for this instance
@@ -380,7 +381,7 @@ class Morpheus::Cli::Apps
                       # now configure an instance like normal, use the config as default options with :always_prompt
                       instance_prompt_options = {}
                       instance_prompt_options[:group] = group ? group['id'] : nil
-                      instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
+                      #instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
                       #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
@@ -398,7 +399,9 @@ class Morpheus::Cli::Apps
                       #instance_prompt_options[:name_required] = true
                       instance_prompt_options[:instance_type_code] = instance_type_code
                       # todo: an effort to render more useful help eg.  -O Web.0.instance.name
-                      instance_prompt_options[:extra_field_context] = "#{tier_name}.#{instance_index}" 
+                      help_field_prefix = "#{tier_name}.#{instance_index}" 
+                      instance_prompt_options[:help_field_prefix] = help_field_prefix
+                      instance_prompt_options[:options][:help_field_prefix] = help_field_prefix
                       # this provisioning helper method handles all (most) of the parsing and prompting
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
                       

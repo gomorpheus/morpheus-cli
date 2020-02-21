@@ -39,6 +39,12 @@ module Morpheus
         paging_enabled = false if Morpheus::Cli.windows?
         results = {}
         options = options || {}
+        # inject cli only stuff into option_types (should clone() here)
+        option_types.each do |option_type|
+          if options[:help_field_prefix]
+            option_type[:help_field_prefix] = options[:help_field_prefix]
+          end
+        end
         # puts "Options Prompt #{options}"
         option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |option_type|
           context_map = results
@@ -58,6 +64,7 @@ module Morpheus
           # allow for mapping of domain to relevant type: domain.zone => router.zone
           option_type['fieldContext'] = (options[:context_map] || {})[option_type['fieldContext']] || option_type['fieldContext']
           field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+          help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
           namespaces = field_key.split(".")
           field_name = namespaces.pop
 
@@ -108,7 +115,7 @@ module Morpheus
             end
           end
 
-          # set the value that has been passed to the option type default value: options[fieldContext.fieldName]
+          # set the value that has been passed to the option type default value
           if value != nil # && value != ''
             option_type = option_type.clone
             option_type['defaultValue'] = value
@@ -132,7 +139,7 @@ module Morpheus
                 if !value_found
                   if option_type['required']
                     print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
-                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+                    print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
                     print "\n"
                     exit 1
                   else
@@ -274,6 +281,8 @@ module Morpheus
 
       def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
         paging_enabled = false if Morpheus::Cli.windows?
+        field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+        help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
         value_found = false
         value = nil
         value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
@@ -354,7 +363,7 @@ module Morpheus
               value = select_options[0][value_field]
             elsif option_type['required']
               print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
-              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
               if select_options && select_options.size > 10
                 display_select_options(option_type, select_options.first(10))
                 puts " (#{select_options.size-1} more)"
@@ -627,13 +636,13 @@ module Morpheus
       end
 
       def self.help_prompt(option_type)
-        full_field_name = option_type['fieldContext'] && option_type['fieldContext'] != '' ? (option_type['fieldContext']+'.') : ''
-        full_field_name << option_type['fieldName'].to_s
+        field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+        help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
         # an attempt at prompting help for natural options without the -O switch
         if option_type[:fmt] == :natural
-          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [--#{full_field_name}=] ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [--#{help_field_key}=] ", Term::ANSIColor.reset , "#{option_type['description']}\n"
         else
-          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{full_field_name}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
+          print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
         end
       end
 
