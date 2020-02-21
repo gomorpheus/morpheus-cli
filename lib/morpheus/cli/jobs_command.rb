@@ -533,7 +533,7 @@ class Morpheus::Cli::JobsCommand
         end
 
         if !options[:schedule].nil?
-          if options[:schedule] != 'manual'
+          if options[:schedule] != 'manual' && options[:schedule].to_s.downcase != 'datetime'
             job_options = @jobs_interface.options(job_type_id)
             schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
 
@@ -549,18 +549,19 @@ class Morpheus::Cli::JobsCommand
 
         # schedule
         if !options[:schedule].nil?
-          job_options = @jobs_interface.options(job_type_id)
-          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
-          params['scheduleMode'] = options[:schedule]
+          
 
           if options[:schedule] == 'manual'
             # cool
           elsif options[:schedule].to_s.downcase == 'datetime'
             # prompt for dateTime
             if params['dateTime'].nil?
-              raise_command_error "--date-time is required for schedule type of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+              raise_command_error "--date-time is required for schedule '#{options[:schedule]}'\n#{optparse}"
             end
           elsif options[:schedule].to_s != ''
+            job_options = @jobs_interface.options(job_type_id)
+            options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+            params['scheduleMode'] = options[:schedule]
              # ok they passed a schedule name or id
             schedule = job_options['schedules'].find {|it| it['name'] == options[:schedule] || it['value'] == options[:schedule].to_i}
 
