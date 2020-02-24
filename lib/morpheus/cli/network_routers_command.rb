@@ -203,6 +203,19 @@ class Morpheus::Cli::NetworkRoutersCommand
         print cyan
         print_routes(router)
       end
+      if router['permissions'] && options[:details]
+        print_h2 "Tenant Permissions"
+        print cyan
+        description_cols = {
+            "Visibility" => lambda{|it| it['permissions']['visibility']},
+            "Tenants" => lambda{|it|
+              accounts = (it['permissions']['tenantPermissions'] || {})['accounts'] || []
+              accounts.count > 0 ? accounts.join(', ') : ''
+            }
+        }
+        print_description_list(description_cols, router)
+        println
+      end
       print reset
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1100,10 +1113,10 @@ class Morpheus::Cli::NetworkRoutersCommand
                   direction: it['direction'] || 'any',
                   source: it['source'] || 'any',
                   destination: it['destination'] || 'any',
-                  protocol: it['protocol'] || 'any'
+                  application: it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
               }
             end
-            puts as_pretty_table(rows, [:id, :name, :type, :policy, :direction, :source, :destination, :protocol])
+            puts as_pretty_table(rows, [:id, :name, :type, :policy, :direction, :source, :destination, :application])
           else
             println "No firewall rules"
           end
