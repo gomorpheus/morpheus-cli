@@ -28,7 +28,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     connect(options)
     if args.count > 0
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
       return 1
     end
     begin
@@ -122,10 +122,11 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
         "Name" => lambda {|it| it['name'] },
         "Type" => lambda {|it| format_container_script_type(it['scriptType']) },
         "Phase" => lambda {|it| format_container_script_phase(it['scriptPhase']) },
+        "Run As User" => lambda {|it| it['runAsUser'] },
+        "Sudo" => lambda {|it| format_boolean(it['sudoUser']) },
         "Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        # "Enabled" => lambda {|it| format_boolean it['enabled'] },
-        # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
       print_description_list(description_cols, container_script)
 
@@ -144,22 +145,19 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
   end
 
   def add(args)
+    params = {} # {'scriptType' => 'bash', 'scriptPhase' => 'provision'}
     options = {}
-    params = {'scriptType' => 'bash', 'scriptPhase' => 'provision'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('--type [bash|powershell]', String, "Script Type. Default is 'bash'") do |val|
+      opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
       end
-      opts.on('--phase [provision|start|stop]', String, "Script Phase. Default is 'provision'") do |val|
+      opts.on('--phase PHASE', String, "Script Phase. i.e. start, stop, preProvision, provision, postProvision, preDeploy, deploy, reconfigure, teardown. Default is provision.") do |val|
         params['scriptPhase'] = val
-      end
-      opts.on('--category VALUE', String, "Category") do |val|
-        params['category'] = val
-      end
+      end      
       opts.on('--script TEXT', String, "Contents of the script.") do |val|
         params['script'] = val
       end
@@ -176,8 +174,14 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
           params['name'] = File.basename(full_filename)
         end
       end
-      # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-      #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
+      opts.on("--sudo [on|off]", String, "Run with sudo") do |val|
+        params['sudoUser'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--run-as-user VALUE", String, "Run as user") do |val|
+        params['runAsUser'] = val
+      end
+      # opts.on("--run-as-password VALUE", String, "Run as password") do |val|
+      #   params['runAsPassword'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       # end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new container script." + "\n" +
@@ -188,22 +192,26 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     if args[0]
       params['name'] = args[0]
     end
-    if !params['name']
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
     connect(options)
     begin
       # construct payload
       payload = nil
       if options[:payload]
         payload = options[:payload]
-      else
-        # merge -O options into normally parsed options
+        # merge -O options into normally parsed params
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # todo: prompt?
-        payload = {'containerScript' => params}
+        payload.deep_merge!({'containerScript' => params}) unless params.empty?
+      else
+        # prompt
+        script_payload = Morpheus::Cli::OptionTypes.prompt([
+          {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+          {'fieldName' => 'scriptType', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'scriptTypes', 'defaultValue' => 'bash', 'required' => true},
+          {'fieldName' => 'scriptPhase', 'fieldLabel' => 'Phase', 'type' => 'select', 'optionSource' => 'containerPhases', 'defaultValue' => 'provision', 'required' => true},
+          {'fieldName' => 'script', 'fieldLabel' => 'Script', 'type' => 'code-editor', 'required' => true},
+          {'fieldName' => 'runAsUser', 'fieldLabel' => 'Run As User', 'type' => 'text'},
+          {'fieldName' => 'sudoUser', 'fieldLabel' => 'Sudo', 'type' => 'checkbox', 'defaultValue' => false},
+        ], params.deep_merge(options[:options] || {}), @api_client)
+        payload = {'containerScript' => script_payload}
       end
       @container_scripts_interface.setopts(options)
       if options[:dry_run]
@@ -234,21 +242,12 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      # opts.on('--code VALUE', String, "Code") do |val|
-      #   params['code'] = val
-      # end
-      # opts.on('--description VALUE', String, "Description") do |val|
-      #   params['description'] = val
-      # end
-      opts.on('--type [bash|powershell]', String, "Script Type") do |val|
+      opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
       end
-      opts.on('--phase [start|stop]', String, "Script Phase") do |val|
+      opts.on('--phase PHASE', String, "Script Phase. i.e. start, stop, preProvision, provision, postProvision, preDeploy, deploy, reconfigure, teardown. Default is provision.") do |val|
         params['scriptPhase'] = val
-      end
-      opts.on('--category VALUE', String, "Category") do |val|
-        params['category'] = val
-      end
+      end      
       opts.on('--script TEXT', String, "Contents of the script.") do |val|
         params['script'] = val
       end
@@ -261,8 +260,14 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
           exit 1
         end
       end
-      # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-      #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
+      opts.on("--sudo [on|off]", String, "Run with sudo") do |val|
+        params['sudoUser'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--run-as-user VALUE", String, "Run as user") do |val|
+        params['runAsUser'] = val
+      end
+      # opts.on("--run-as-password VALUE", String, "Run as password") do |val|
+      #   params['runAsPassword'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       # end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update a container script." + "\n" +
@@ -271,7 +276,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     optparse.parse!(args)
     if args.count != 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
       return 1
     end
     connect(options)
@@ -284,10 +289,16 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       payload = nil
       if options[:payload]
         payload = options[:payload]
-      else
-        # merge -O options into normally parsed options
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        payload = {'containerScript' => params}
+        payload.deep_merge!({'containerScript' => params}) unless params.empty?
+      else
+        # update without prompting
+        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        script_payload = params
+        if script_payload.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
+        payload = {'containerScript' => script_payload}
       end
       @container_scripts_interface.setopts(options)
       if options[:dry_run]
