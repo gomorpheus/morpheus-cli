@@ -562,7 +562,6 @@ class Morpheus::Cli::ServicePlanCommand
       return 1
     end
 
-    print options
     begin
       plan = find_service_plan(args[0])
 
@@ -606,8 +605,9 @@ class Morpheus::Cli::ServicePlanCommand
       end
 
       if payload.empty? || !payload['servicePlan'] || payload['servicePlan'].empty?
-        print_green_success "Nothing to update"
-        exit 1
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+        # print_green_success "Nothing to update"
+        # return 0
       end
 
       @service_plans_interface.setopts(options)
