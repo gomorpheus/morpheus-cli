@@ -97,7 +97,6 @@ class Morpheus::Cli::ServicePlanCommand
 
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
-        print reset,"\n"
       end
       print reset,"\n"
       return 0
@@ -250,6 +249,9 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on("--description [TEXT]", String, "Description") do |val|
         params['description'] = val.to_s
+      end
+      opts.on('--active [on|off]', String, "Can be used to enable / disable the plan. Default is on") do |val|
+        params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
@@ -475,6 +477,9 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on("--description [TEXT]", String, "Description") do |val|
         params['description'] = val.to_s
+      end
+      opts.on('--active [on|off]', String, "Can be used to enable / disable the plan. Default is on") do |val|
+        params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
