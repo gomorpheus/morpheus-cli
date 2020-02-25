@@ -51,7 +51,7 @@ class Morpheus::LibraryContainerTypesInterface < Morpheus::APIClient
   def build_url(layout_id=nil, id=nil)
     url = "#{@base_url}/api"
     if layout_id
-      url += "/library/#{layout_id}/container-types"
+      url += "/library/layouts/#{layout_id}/container-types"
     else
       url += "/library/container-types"
     end
