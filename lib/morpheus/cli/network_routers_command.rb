@@ -326,7 +326,7 @@ class Morpheus::Cli::NetworkRoutersCommand
 
         # prompt options
         option_opts = options[:options].deep_merge!({'config' => options[:options].clone})
-        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, option_opts.merge({:context_map => {'domain' => ''}}), @api_client, params)
+        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, option_opts.merge({:context_map => {'networkRouter' => ''}}), @api_client, params)
         payload = {'networkRouter' => router.deep_merge(option_result)}
         payload['networkRouter']['config'] = option_result['config'] if option_result['config']
       end
@@ -570,7 +570,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         api_params = {}
         api_params['networkServerId'] = router['networkServer']['id'] if router['networkServer']
         api_params['zoneId'] = router['zone']['id'] if router['networkServer'].nil?
-        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, api_params, nil, true)
+        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'networkRouter' => ''}}), @api_client, api_params, nil, true)
         payload = {'rule' => params.deep_merge(option_result)}
       end
 
@@ -1011,7 +1011,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         println cyan
         print Morpheus::Cli::OptionTypes.display_option_types_help(
             router_type['optionTypes'].reject {|it| ['enabled'].include?(it['fieldName'])},
-            {:include_context => true, :context_map => {'domain' => ''}, :color => cyan, :title => "Available Router Options"}
+            {:include_context => true, :context_map => {'networkRouter' => ''}, :color => cyan, :title => "Available Router Options"}
         )
       end
       print reset
