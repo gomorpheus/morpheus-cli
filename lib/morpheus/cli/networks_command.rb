@@ -421,7 +421,9 @@ class Morpheus::Cli::NetworksCommand
           payload['network']['description'] = v_prompt['description']
         end
 
+        # Group
         # ok, networks list needs to know if they have full or groups permission
+        group = nil
         groups_dropdown = nil
         group_is_required = true
         network_perm = (current_user_permissions || []).find {|perm| perm['code'] == 'infrastructure-networks'}
@@ -432,9 +434,6 @@ class Morpheus::Cli::NetworksCommand
           # they have group access, shared cannot be selected.
           groups_dropdown = get_available_groups
         end
-        # Group
-        group = nil
-        groups_dropdown = get_available_groups_with_shared
         if options[:group]
           group_id = options[:group]
           group = groups_dropdown.find {|it| it["value"].to_s == group_id.to_s || it["name"].to_s == group_id}
@@ -449,7 +448,7 @@ class Morpheus::Cli::NetworksCommand
         else
           group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => group_is_required, 'description' => 'Select Group.'}],options,@api_client,{})
           group_id = group_prompt['group']
-          if group_id.to_s == '' && group_id.to_s == 'shared'
+          if group_id.to_s == '' || group_id.to_s == 'shared'
             group_id = nil
             group = nil
           else
@@ -517,83 +516,84 @@ class Morpheus::Cli::NetworksCommand
           print_red_alert "Network Type not found by id '#{network_type_id}'"
           return 1
         end
+
+        # CIDR
+        if options['cidr']
+          payload['network']['cidr'] = options['cidr']
+        else
+          #if network_type['cidrEditable']
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
+            payload['network']['cidr'] = v_prompt['cidr']
+          #end
+        end
+
+        # Gateway
+        if options['gateway']
+          payload['network']['gateway'] = options['gateway']
+        else
+          if network_type['gatewayEditable']
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['gateway'] = v_prompt['gateway']
+          end
+        end
+
+        # DNS Primary
+        if options['dnsPrimary']
+          payload['network']['dnsPrimary'] = options['dnsPrimary']
+        else
+          if network_type['dnsEditable']
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimary', 'fieldLabel' => 'DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['dnsPrimary'] = v_prompt['dnsPrimary']
+          end
+        end
+
+        # DNS Secondary
+        if options['dnsSecondary']
+          payload['network']['dnsSecondary'] = options['dnsSecondary']
+        else
+          if network_type['dnsEditable']
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondary', 'fieldLabel' => 'DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['dnsSecondary'] = v_prompt['dnsSecondary']
+          end
+        end
+
+        # VLAN ID
+        if options['vlanId']
+          payload['network']['vlanId'] = options['vlanId']
+        else
+          if network_type['vlanEditable']
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'vlanId', 'fieldLabel' => 'VLAN ID', 'type' => 'number', 'required' => false, 'description' => ''}], options)
+            payload['network']['vlanId'] = v_prompt['vlanId']
+          end
+        end
+
+        # prompt for option types
         network_type_option_types = network_type['optionTypes']
         if network_type_option_types && network_type_option_types.size > 0
-          # prompt for option types
-          # JD: 3.6.2 has fieldContext: 'domain' , which is wrong
-          network_type_option_types.each do |option_type|
-            # if option_type['fieldContext'] == 'domain'
-            #   option_type['fieldContext'] = 'network'
-            # end
-            #option_type['fieldContext'] = nil
-          end
           network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
           # network context options belong at network level and not network.network
           network_context_params = network_type_params.delete('network')
           payload['network'].deep_merge!(network_context_params) if network_context_params
           payload['network'].deep_merge!(network_type_params)
 
-        #todo: special handling of type: 'aciVxlan'
+        end
 
+        # DHCP Server
+        if options['dhcpServer'] != nil
+          payload['network']['dhcpServer'] = options['dhcpServer']
         else
-          # DEFAULT INPUTS
-
-          # Gateway
-          if options['gateway']
-            payload['network']['gateway'] = options['gateway']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['gateway'] = v_prompt['gateway']
-          end
-
-          # DNS Primary
-          if options['dnsPrimary']
-            payload['network']['dnsPrimary'] = options['dnsPrimary']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimary', 'fieldLabel' => 'DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsPrimary'] = v_prompt['dnsPrimary']
-          end
-
-          # DNS Secondary
-          if options['dnsSecondary']
-            payload['network']['dnsSecondary'] = options['dnsSecondary']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondary', 'fieldLabel' => 'DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsSecondary'] = v_prompt['dnsSecondary']
-          end
-
-          # CIDR
-          if options['cidr']
-            payload['network']['cidr'] = options['cidr']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['cidr'] = v_prompt['cidr']
-          end
-
-          # VLAN ID
-          if options['vlanId']
-            payload['network']['vlanId'] = options['vlanId']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'vlanId', 'fieldLabel' => 'VLAN ID', 'type' => 'number', 'required' => false, 'description' => ''}], options)
-            payload['network']['vlanId'] = v_prompt['vlanId']
-          end
-
-          # DHCP Server
-          if options['dhcpServer'] != nil
-            payload['network']['dhcpServer'] = options['dhcpServer']
-          else
+          if network_type['dhcpServerEditable']
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dhcpServer', 'fieldLabel' => 'DHCP Server', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
             payload['network']['dhcpServer'] = v_prompt['dhcpServer']
           end
+        end
 
-          # Allow IP Override
-          if options['allowStaticOverride'] != nil
-            payload['network']['allowStaticOverride'] = options['allowStaticOverride']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
-            payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
-          end
-
+        # Allow IP Override
+        if options['allowStaticOverride'] != nil
+          payload['network']['allowStaticOverride'] = options['allowStaticOverride']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
+          payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
         end
 
         ## IPAM Options
@@ -602,10 +602,12 @@ class Morpheus::Cli::NetworksCommand
         if options['pool']
           payload['network']['pool'] = options['pool'].to_i
         else
-          # todo: select dropdown
-          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-          payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
+          if network_type['canAssignPool']
+            # todo: select dropdown
+            # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
+          end
         end
         
         ## Advanced Options
