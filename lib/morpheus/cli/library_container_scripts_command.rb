@@ -194,16 +194,16 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     end
     connect(options)
     begin
-      # construct payload
       payload = nil
+      arbitrary_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      create_payload = {}
+      create_payload.deep_merge!(params)
+      create_payload.deep_merge!(arbitrary_options)
       if options[:payload]
         payload = options[:payload]
-        # merge -O options into normally parsed params
-        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        payload.deep_merge!({'containerScript' => params}) unless params.empty?
+        payload.deep_merge!({'containerScript' => create_payload}) unless create_payload.empty?
       else
-        # prompt
-        script_payload = Morpheus::Cli::OptionTypes.prompt([
+        prompt_result = Morpheus::Cli::OptionTypes.prompt([
           {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
           {'fieldName' => 'scriptType', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'scriptTypes', 'defaultValue' => 'bash', 'required' => true},
           {'fieldName' => 'scriptPhase', 'fieldLabel' => 'Phase', 'type' => 'select', 'optionSource' => 'containerPhases', 'defaultValue' => 'provision', 'required' => true},
@@ -211,7 +211,8 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
           {'fieldName' => 'runAsUser', 'fieldLabel' => 'Run As User', 'type' => 'text'},
           {'fieldName' => 'sudoUser', 'fieldLabel' => 'Sudo', 'type' => 'checkbox', 'defaultValue' => false},
         ], params.deep_merge(options[:options] || {}), @api_client)
-        payload = {'containerScript' => script_payload}
+        create_payload.deep_merge!(prompt_result)
+        payload = {'containerScript' => create_payload}
       end
       @container_scripts_interface.setopts(options)
       if options[:dry_run]
