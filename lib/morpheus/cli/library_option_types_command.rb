@@ -31,7 +31,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :dry_run, :json, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List option types."
     end
     optparse.parse!(args)
@@ -47,10 +47,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
 
       json_response = @option_types_interface.list(params)
 
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options, 'optionTypes')
+      return 0 if render_result
 
       option_types = json_response['optionTypes']
       subtitles = []
@@ -94,12 +92,13 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
+      opts.footer = "Get details about an option type.\n" + 
+                    "[name] is required. This is the name or id of an option type. Supports 1-N [name] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      return 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
     connect(options)
     id_list = parse_id_list(args)
@@ -122,16 +121,9 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       option_type = find_option_type_by_name_or_id(id)
       return 1 if option_type.nil?
       json_response = {'optionType' => option_type}
-      if options[:json]
-        puts as_json(json_response, options, "optionType")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "optionType")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['optionType']], options)
-        return 0
-      end
+
+      render_result = render_with_format(json_response, options, 'optionType')
+      return 0 if render_result
 
       print_h1 "Option Type Details"
       print cyan
@@ -145,24 +137,24 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         "Full Field Name" => lambda {|it| [it['fieldContext'], it['fieldName']].select {|it| !it.to_s.empty? }.join('.') },
         "Type" => lambda {|it| it['type'].to_s.capitalize },
         "Placeholder" => 'placeHolder',
-        "Default Value" => 'defaultValue'
+        "Default Value" => 'defaultValue',
+        "Required" => lambda {|it| format_boolean(it['required']) },
       }, option_type)
       print reset,"\n"
-
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
   def add(args)
-    # JD: this is annoying because our option_types (for prompting and help)
-    # are the same type of object being managed here.., options options options
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       build_option_type_options(opts, options, new_option_type_option_types)
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
+      opts.footer = "Create a new option type."
     end
     optparse.parse!(args)
     connect(options)
@@ -189,10 +181,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         return
       end
       json_response = @option_types_interface.create(payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
       option_type = json_response['optionType']
       print_green_success "Added Option Type #{option_type['name']}"
       #list([])
@@ -204,13 +194,13 @@ class Morpheus::Cli::LibraryOptionTypesCommand
   end
 
   def update(args)
-    # JD: this is annoying because our option_types (for prompting and help)
-    # are the same type of object being managed here.., options options options
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_option_type_option_types)
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
+      opts.footer = "Update an option type.\n" +
+                    "[name] is required. This is the name or id of an option type."
     end
     optparse.parse!(args)
     connect(options)
@@ -245,16 +235,14 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         return
       end
       json_response = @option_types_interface.update(option_type['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
       print_green_success "Updated Option Type #{option_type_payload['name']}"
       #list([])
       get([option_type['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -262,7 +250,9 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_standard_remove_options(opts, options)
+      opts.footer = "Delete an option type.\n" +
+                    "[name] is required. This is the name or id of an option type."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -285,10 +275,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       end
       json_response = @option_types_interface.destroy(option_type['id'])
 
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
 
       print_green_success "Removed Option Type #{option_type['name']}"
       #list([])
@@ -422,83 +410,5 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     }
     list
   end
-
-  # def find_option_type_list_by_name_or_id(val)
-  #   if val.to_s =~ /\A\d{1,}\Z/
-  #     return find_option_type_list_by_id(val)
-  #   else
-  #     return find_option_type_list_by_name(val)
-  #   end
-  # end
-
-  # def find_option_type_list_by_id(id)
-  #   begin
-  #     json_response = @option_type_lists_interface.get(id.to_i)
-  #     return json_response['optionTypeList']
-  #   rescue RestClient::Exception => e
-  #     if e.response && e.response.code == 404
-  #       print_red_alert "Option List not found by id #{id}"
-  #       exit 1
-  #     else
-  #       raise e
-  #     end
-  #   end
-  # end
-
-  # def find_option_type_list_by_name(name)
-  #   json_results = @option_type_lists_interface.list({name: name.to_s})
-  #   if json_results['optionTypeLists'].empty?
-  #     print_red_alert "Option List not found by name #{name}"
-  #     exit 1
-  #   end
-  #   option_type_list = json_results['optionTypeLists'][0]
-  #   return option_type_list
-  # end
-
-  # def get_available_option_list_types
-  #   [
-  #     {'name' => 'Rest', 'value' => 'rest'}, 
-  #     {'name' => 'Manual', 'value' => 'manual'}
-  #   ]
-  # end
-
-  # def find_option_list_type(code)
-  #    get_available_option_list_types.find {|it| code == it['value'] || code == it['name'] }
-  # end
-
-  # def new_option_type_list_option_types(list_type='rest')
-  #   if list_type.to_s.downcase == 'rest'
-  #     [
-  #       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-  #       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-  #       #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
-  #       {'fieldName' => 'sourceUrl', 'fieldLabel' => 'Source Url', 'type' => 'text', 'required' => true, 'description' => "A REST URL can be used to fetch list data and is cached in the appliance database.", 'displayOrder' => 4},
-  #       {'fieldName' => 'ignoreSSLErrors', 'fieldLabel' => 'Ignore SSL Errors', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 5},
-  #       {'fieldName' => 'sourceMethod', 'fieldLabel' => 'Source Method', 'type' => 'select', 'selectOptions' => [{'name' => 'GET', 'value' => 'GET'}, {'name' => 'POST', 'value' => 'POST'}], 'defaultValue' => 'GET', 'required' => true, 'displayOrder' => 6},
-  #       {'fieldName' => 'initialDataset', 'fieldLabel' => 'Initial Dataset', 'type' => 'code-editor', 'description' => "Create an initial json dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'. However, if there is a translation script, that will also be passed through.", 'displayOrder' => 7},
-  #       {'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 8},
-  #     ]
-  #   elsif list_type.to_s.downcase == 'manual'
-  #     [
-  #       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-  #       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-  #       #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Rest', 'value' => 'rest'}, {'name' => 'Manual', 'value' => 'manual'}], 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
-  #       {'fieldName' => 'initialDataset', 'fieldLabel' => 'Dataset', 'type' => 'code-editor', 'required' => true, 'description' => "Create an initial JSON or CSV dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'.", 'displayOrder' => 4},
-  #     ]
-  #   else
-  #     print_red_alert "Unknown Option List type '#{list_type}'"
-  #     exit 1
-  #   end
-  # end
-
-  # def update_option_type_list_option_types(list_type='rest')
-  #   list = new_option_type_list_option_types(list_type)
-  #   list.each {|it| 
-  #     it.delete('required')
-  #     it.delete('defaultValue')
-  #     it.delete('skipSingleOption')
-  #   }
-  #   list
-  # end
 
 end
