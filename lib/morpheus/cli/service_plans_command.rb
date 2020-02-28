@@ -335,9 +335,11 @@ class Morpheus::Cli::ServicePlanCommand
     end
 
     begin
-      payload = parse_payload(options)
+      if options[:payload]
+        payload = parse_payload(options, 'servicePlan')
+      else
+        apply_options(params, options)
 
-      if !payload
         # name
         params['name'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Service Plan Name', 'required' => true, 'description' => 'Service Plan Name.'}],options[:options],@api_client,{}, options[:no_prompt])['name']
 
@@ -570,9 +572,11 @@ class Morpheus::Cli::ServicePlanCommand
         exit 1
       end
 
-      payload = parse_payload(options)
+      if options[:payload]
+        payload = parse_payload(options, 'servicePlan')
+      else
+        apply_options(params, options)
 
-      if !payload
         # provision type
         options[:provisionType] = options[:provisionType] || (args.count > 1 ? args[1] : nil)
 

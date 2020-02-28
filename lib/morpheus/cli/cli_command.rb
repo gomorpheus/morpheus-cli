@@ -979,12 +979,25 @@ module Morpheus
         return subtitles
       end
 
-      def parse_payload(options={})
+      def parse_payload(options={}, object_key=nil)
         payload = nil
         if options[:payload]
           payload = options[:payload]
           # support -O OPTION switch on top of --payload
-          payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+          apply_options(payload, options, object_key)
+        end
+        payload
+      end
+
+      # support -O OPTION switch
+      def apply_options(payload, options, object_key=nil)
+        payload ||= {}
+        if options[:options]
+          if object_key
+            payload.deep_merge!({object_key => options[:options].reject {|k,v| k.is_a?(Symbol)}})
+          else
+            payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol)})
+          end
         end
         payload
       end

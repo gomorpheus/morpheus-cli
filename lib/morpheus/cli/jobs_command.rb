@@ -287,9 +287,11 @@ class Morpheus::Cli::JobsCommand
     end
 
     begin
-      payload = parse_payload(options)
+      if options[:payload]
+        payload = parse_payload(options, 'job')
+      else
+        apply_options(params, options)
 
-      if !payload
         # name
         params['name'] = params['name'] || args[0] || name = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Job Name', 'required' => true, 'description' => 'Job Name.'}],options[:options],@api_client,{})['name']
 
@@ -303,11 +305,9 @@ class Morpheus::Cli::JobsCommand
 
           # prompt task / workflow
           if job_type['code'] == 'morpheus.task'
-            task_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'task', 'fieldLabel' => 'Task', 'type' => 'select', 'required' => true, 'optionSource' => 'tasks'}], {'optionTypeId' => job_options['optionTypes'][0]['id']}, @api_client, {})['task']
-            params['task'] = {'id' => task_id}
+            params['task'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'task.id', 'fieldLabel' => 'Task', 'type' => 'select', 'required' => true, 'optionSource' => 'tasks'}], options[:options], @api_client, {})['task']
           else
-            workflow_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => true, 'optionSource' => 'operationTaskSets'}], {'optionTypeId' => job_options['optionTypes'][0]['id']}, @api_client, {})['workflow']
-            params['workflow'] = {'id' => workflow_id}
+            params['workflow'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'workflow.id', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => true, 'optionSource' => 'operationTaskSets'}], options[:options], @api_client, {})['workflow']
           end
         end
 
@@ -341,7 +341,7 @@ class Morpheus::Cli::JobsCommand
 
         # context type
         if params['targetType'].nil?
-          params['targetType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'contextType', 'fieldLabel' => 'Context Type', 'type' => 'select', 'required' => true, 'selectOptions' => job_options['targetTypes'], 'defaultValue' => job_options['targetTypes'].first['name']}], {'optionTypeId' => option_type_id}, @api_client, {})['contextType']
+          params['targetType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'targetType', 'fieldLabel' => 'Context Type', 'type' => 'select', 'required' => true, 'selectOptions' => job_options['targetTypes'], 'defaultValue' => job_options['targetTypes'].first['name']}], options[:options], @api_client, {})['targetType']
         end
 
         # contexts
@@ -369,7 +369,7 @@ class Morpheus::Cli::JobsCommand
 
         # schedule
         if options[:schedule].nil?
-          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'schedule', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['schedule']
+          options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scheduleMode', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['scheduleMode']
           params['scheduleMode'] = options[:schedule]
         end
 
@@ -472,7 +472,7 @@ class Morpheus::Cli::JobsCommand
         options[:schedule] = 'dateTime'
         params['dateTime'] = val.to_s
       end
-      build_common_options(opts, options, [:payload, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Update job.\n" +
           "[job] is required. Job ID or name"
     end
@@ -491,9 +491,11 @@ class Morpheus::Cli::JobsCommand
         exit 1
       end
 
-      payload = parse_payload(options)
+      if options[:payload]
+        payload = parse_payload(options, 'job')
+      else
+        apply_options(params, options)
 
-      if !payload
         job_type_id = job['type']['id']
 
         if !options[:task].nil?
