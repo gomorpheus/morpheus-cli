@@ -31,8 +31,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :dry_run, :json, :remote])
-      opts.footer = "This outputs a list of custom Option List records."
+      build_standard_list_options(opts, options)
+      opts.footer = "List option lists."
     end
     optparse.parse!(args)
     connect(options)
@@ -46,11 +46,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
       end
 
       json_response = @option_type_lists_interface.list(params)
-
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options, 'optionTypeLists')
+      return 0 if render_result
 
       option_type_lists = json_response['optionTypeLists']
       subtitles = []
@@ -90,35 +87,41 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
   def get(args)
     options = {}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "This outputs details about a particular Option List."
+      build_standard_get_options(opts, options)
+      opts.footer = "Get details about an option list.\n" + 
+                    "[name] is required. This is the name or id of an option list. Supports 1-N [name] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      exit 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
-
     connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+  
+  def _get(id, options)
+    
     begin
       @option_type_lists_interface.setopts(options)
       if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @option_type_lists_interface.dry.get(args[0].to_i)
+        if id.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @option_type_lists_interface.dry.get(id.to_i)
         else
-          print_dry_run @option_type_lists_interface.dry.list({name: args[0]})
+          print_dry_run @option_type_lists_interface.dry.list({name: id})
         end
         return
       end
-      option_type_list = find_option_type_list_by_name_or_id(args[0])
-      exit 1 if option_type_list.nil?
+      option_type_list = find_option_type_list_by_name_or_id(id)
+      return 1 if option_type_list.nil?
 
-      if options[:json]
-        print JSON.pretty_generate({optionTypeList: option_type_list}), "\n"
-        return
-      end
+      json_response = {'optionTypeList' => option_type_list}
+      render_result = render_with_format(json_response, options, 'optionTypeList')
+      return 0 if render_result
 
       print_h1 "Option List Details", options
       print cyan
@@ -179,8 +182,6 @@ class Morpheus::Cli::LibraryOptionListsCommand
   end
 
   def add(args)
-    # JD: this is annoying because our option_types (for prompting and help)
-    # are the same type of object being managed here.., options options options
     options = {}
     my_option_types = nil
     list_type = nil
@@ -192,7 +193,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
         # options[:options]['type'] = val
       end
       build_option_type_options(opts, options, new_option_type_list_option_types())
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
+      opts.footer = "Create a new option list."
     end
     optparse.parse!(args)
     
@@ -234,10 +236,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
         return
       end
       json_response = @option_type_lists_interface.create(payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
       option_type_list = json_response['optionTypeList']
       print_green_success "Added Option List #{option_type_list['name']}"
       get([option_type_list['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
@@ -249,13 +249,13 @@ class Morpheus::Cli::LibraryOptionListsCommand
   end
 
   def update(args)
-    # JD: this is annoying because our option_types (for prompting and help)
-    # are the same type of object being managed here.., options options options
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_option_type_list_option_types())
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
+      opts.footer = "Update an option list.\n" +
+                    "[name] is required. This is the name or id of an option list."
     end
     optparse.parse!(args)
     connect(options)
@@ -304,15 +304,13 @@ class Morpheus::Cli::LibraryOptionListsCommand
         return
       end
       json_response = @option_type_lists_interface.update(option_type_list['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
       print_green_success "Updated Option List #{list_payload['name']}"
       get([option_type_list['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
-      exit 1
+      return 1
     end
   end
 
@@ -320,7 +318,9 @@ class Morpheus::Cli::LibraryOptionListsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_standard_remove_options(opts, options)
+      opts.footer = "Delete an option list.\n" +
+                    "[name] is required. This is the name or id of an option list."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -342,11 +342,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
         return
       end
       json_response = @option_type_lists_interface.destroy(option_type_list['id'])
-
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return
-      end
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
 
       print_green_success "Removed Option List #{option_type_list['name']}"
       #list([])

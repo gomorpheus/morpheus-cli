@@ -206,6 +206,26 @@ module Morpheus
         opts
       end
 
+      def build_standard_list_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_get_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_add_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_update_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_remove_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote] + includes, excludes)
+      end
+      
       # appends to the passed OptionParser all the generic options
       # @param opts [OptionParser] the option parser object being constructed
       # @param options [Hash] the output Hash that is to being modified

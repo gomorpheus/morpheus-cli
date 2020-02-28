@@ -169,19 +169,51 @@ class Morpheus::Cli::Tasks
         
         # JD: uhh, the api should NOT be returning passwords!!
         if task_type
+          # task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
+          #   if optionType['fieldLabel'].to_s.downcase == 'script'
+          #     if task['taskOptions'][optionType['fieldName']]
+          #       print_h2 "Script"
+          #       print reset,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+          #     end
+          #   else
+          #     print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
+          #   end
+          # end
+          script_content = nil
+          task_option_types = []
+          task_option_config = {}
+          task_option_columns = []
           task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
             if optionType['fieldLabel'].to_s.downcase == 'script'
-              if task['taskOptions'][optionType['fieldName']]
-                print_h2 "Script"
-                print reset,"#{task['taskOptions'][optionType['fieldName']]}","\n",reset
+              script_content = task['taskOptions'][optionType['fieldName']]
+            elsif optionType['fieldName'] == 'httpHeaders' || optionType['fieldName'] == 'webHeaders'
+              http_headers = task['taskOptions']['httpHeaders'] || task['taskOptions']['webHeaders']
+              begin
+                if http_headers.is_a?(String)
+                  http_headers = JSON.parse(http_headers)
+                end
+                # API has mismatch on fieldName httpHeaders vs webHeaders, we want to format this in a particular way though anyhow..
+                task_option_columns << {(optionType['fieldLabel']) => lambda {|it| http_headers.collect {|h| "#{h['key']}: #{h['value']}"}.join(", ") } }
+              rescue => ex
+                Morpheus::Logging::DarkPrinter.puts("Failed to parse httpHeaders task option as JSON") if Morpheus::Logging.debug?
               end
             else
-              print cyan,("#{optionType['fieldLabel']} : " + (optionType['type'] == 'password' ? "#{task['taskOptions'][optionType['fieldName']] ? '************' : ''}" : "#{task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']}")),"\n"
+              task_option_types << optionType
+              task_option_columns << {(optionType['fieldLabel']) => lambda {|it| task['taskOptions'][optionType['fieldName']] || optionType['defaultValue'] } }
             end
           end
         else
           print yellow,"Task type not found.",reset,"\n"
         end
+        if !task_option_columns.empty?
+          print_h2 "Task Options"
+          print_description_list(task_option_columns, task["taskOptions"])
+        end
+        if script_content
+          print_h2 "Script"
+          print reset,script_content,"\n",reset
+        end
+        # some task types have a file (file-content) instead of taskOptions.script
         file_content = task['file']
         if file_content && options[:no_content] != true
           print_h2 "Script Content"
