@@ -584,6 +584,10 @@ class Morpheus::Cli::Clusters
           server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
         end
 
+        # Worker count
+        default_node_count = cluster_type['computeServers'] ? (cluster_type['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
+        server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "Node Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
+
         # Controller type
         server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
         controller_provision_type = nil
@@ -3769,6 +3773,9 @@ class Morpheus::Cli::Clusters
     end
     opts.on( '-p', '--plan PLAN', "Service Plan") do |val|
       options[:servicePlan] = val
+    end
+    opts.on( '-n', '--worker-count VALUE', String, "Worker / host count") do |val|
+      options[:workerCount] = val
     end
     opts.on('--max-memory VALUE', String, "Maximum Memory (MB)") do |val|
       options[:maxMemory] = val
