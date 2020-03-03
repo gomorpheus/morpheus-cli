@@ -584,10 +584,6 @@ class Morpheus::Cli::Clusters
           server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
         end
 
-        # Worker count
-        default_node_count = cluster_type['computeServers'] ? (cluster_type['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-        server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "Node Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
-
         # Controller type
         server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
         controller_provision_type = nil
@@ -635,6 +631,10 @@ class Morpheus::Cli::Clusters
         end
 
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
+
+        # Worker count
+        default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
+        server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
 
         # Create User
         if !options[:createUser].nil?
@@ -1110,6 +1110,8 @@ class Morpheus::Cli::Clusters
       else
         server_payload = {'config' => {}}
 
+        cluster_type = find_cluster_type_by_id(cluster['type']['id'])
+
         # If not available add set type return
         layout = find_layout_by_id(cluster['layout']['id'])
 
@@ -1194,6 +1196,10 @@ class Morpheus::Cli::Clusters
 
         # Security Groups
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
+
+        # Worker count
+        default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
+        server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
 
         # Options / Custom Config
         option_type_list = (server_type['optionTypes'].reject { |type|
@@ -3775,7 +3781,7 @@ class Morpheus::Cli::Clusters
       options[:servicePlan] = val
     end
     opts.on( '-n', '--worker-count VALUE', String, "Worker / host count") do |val|
-      options[:workerCount] = val
+      options[:options]['nodeCount'] = val
     end
     opts.on('--max-memory VALUE', String, "Maximum Memory (MB)") do |val|
       options[:maxMemory] = val
