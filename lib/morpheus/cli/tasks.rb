@@ -655,7 +655,7 @@ class Morpheus::Cli::Tasks
       opts.on('--allow-custom-config [on|off]', String, "Allow Custom Config") do |val|
         options[:options]['allowCustomConfig'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
     if args.count != 1
