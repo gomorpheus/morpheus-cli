@@ -294,13 +294,14 @@ EOT
     connect(options)
     
     # parse arguments like [value] or [k=v]
-    item_key = args[0]
-    item_value = args[1]
     if args.count == 0
       # prompt for key and value
     elsif args.count == 1
+      item_key = args[0]
       # prompt for value
     elsif args.count == 2
+      item_key = args[0]
+      item_value = args[1]
       # expecting [value] or [k=v]
       item_value_object = {}
       item_value_pair = item_value.split("=")
@@ -311,6 +312,8 @@ EOT
         # item_value = item_value
       end
     elsif args.count > 2
+      item_key = args[0]
+      item_value = args[1]
       # expecting [k=v] [k=v]
       item_value_object = {}
       args[1..(args.size-1)].each do |arg|
