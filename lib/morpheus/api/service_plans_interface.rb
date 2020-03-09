@@ -33,6 +33,12 @@ class Morpheus::ServicePlansInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def activate(id, params={})
+    url = "#{@api_url}/#{id}/activate"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers)
+  end
+
   def deactivate(id, params={})
     url = "#{@api_url}/#{id}/deactivate"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
