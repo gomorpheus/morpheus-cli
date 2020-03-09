@@ -599,13 +599,16 @@ module Morpheus::Cli::ProvisioningHelper
 
       # add selectable datastores for resource pool
       if options[:select_datastore]
-        service_plan['datastores'] = {'cluster' => [], 'store' => []}
-        selectable_datastores = cloud_datastores_interface.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
-        ['cluster', 'store'].each do |type|
-          service_plan['datastores'][type] ||= []
-          selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
-            service_plan['datastores'][type] << ds
-          }
+        begin
+          service_plan['datastores'] = {'cluster' => [], 'store' => []}
+          selectable_datastores = cloud_datastores_interface.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+          ['cluster', 'store'].each do |type|
+            service_plan['datastores'][type] ||= []
+            selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
+              service_plan['datastores'][type] << ds
+            }
+          end
+        rescue => error
         end
 
         if provision_type && provision_type['supportsAutoDatastore']
