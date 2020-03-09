@@ -7,7 +7,7 @@ class Morpheus::Cli::ServicePlanCommand
 
   set_command_name :'service-plans'
 
-  register_subcommands :list, :get, :add, :update
+  register_subcommands :list, :get, :add, :update, :deactivate
   set_default_subcommand :list
 
   def connect(opts)
@@ -630,6 +630,60 @@ class Morpheus::Cli::ServicePlanCommand
         else
           print_red_alert "Error updating service plan: #{json_response['msg'] || json_response['errors']}"
         end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def deactivate(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[plan]")
+      build_common_options(opts, options, [:json, :dry_run, :remote, :auto_confirm])
+      opts.footer = "Deactivate service plan.\n" +
+          "[plan] is required. Service plan ID, name or code"
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+      return 1
+    end
+
+    begin
+      plan = find_service_plan(args[0])
+
+      if !plan
+        print_red_alert "Service plan #{args[0]} not found"
+        exit 1
+      end
+
+      if plan['active'] == false
+        print_green_success "Service plan #{plan['name']} already deactived."
+        return 0
+      end
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to deactivate the service plan '#{plan['name']}'?", options)
+        return 9, "aborted command"
+      end
+
+      @service_plans_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_plans_interface.dry.deactivate(plan['id'], params)
+        return
+      end
+
+      json_response = @service_plans_interface.deactivate(plan['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Service plan #{plan['name']} deactivated"
       end
       return 0
     rescue RestClient::Exception => e
