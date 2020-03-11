@@ -51,7 +51,9 @@ class Morpheus::LibraryLayoutsInterface < Morpheus::APIClient
   def build_url(instance_type_id=nil, id=nil)
     url = "#{@base_url}/api"
     if instance_type_id
-      url += "/library/instance-types/#{instance_type_id}/layouts"
+      # new URL is available in api 4.2 +
+      # url += "/library/instance-types/#{instance_type_id}/layouts"
+      url += "/library/#{instance_type_id}/layouts"
     else
       url += "/library/layouts"
     end
