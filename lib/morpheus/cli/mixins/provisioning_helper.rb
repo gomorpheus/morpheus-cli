@@ -490,7 +490,8 @@ module Morpheus::Cli::ProvisioningHelper
       layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'optionSource' => 'layoutsForCloud', 'required' => true, 'description' => 'Select which configuration of the instance type to be provisioned.', 'defaultValue' => default_layout_value}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], version: version_value, creatable: true})['layout']
     end
 
-    layout = find_instance_type_layout_by_id(instance_type['id'], layout_id.to_i)
+    # layout = find_instance_type_layout_by_id(instance_type['id'], layout_id.to_i)
+    layout = (instance_type['instanceTypeLayouts'] || []).find {|it| it['id'] == layout_id.to_i }
     if !layout
       print_red_alert "Layout not found by id #{layout_id}"
       exit 1
