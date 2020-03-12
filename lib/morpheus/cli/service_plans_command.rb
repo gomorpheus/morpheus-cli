@@ -483,9 +483,6 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--active [on|off]', String, "Can be used to enable / disable the plan. Default is on") do |val|
         params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--editable [on|off]', String, "Can be used to enable / disable the editability of the service plan. Default is on") do |val|
-        params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      end
       opts.on('--storage [AMOUNT]', String, "Storage size is required. Assumes GB unless optional modifier specified, ex: 512MB" ) do |val|
         bytes = parse_bytes_param(val, '--storage', 'GB')
         params['maxStorage'] = bytes[:bytes]
