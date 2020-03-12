@@ -25,6 +25,21 @@ class Morpheus::Cli::InvoicesCommand
       # opts.on('--group ID', String, "Filter by Group ID") do |val|
       #   params['siteId'] = val
       # end
+      opts.on('--type TYPE', String, "Filter by Ref Type") do |val|
+        if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
+          params['refType'] = 'ComputeZone'
+        elsif val.to_s.downcase == 'instance'
+          params['refType'] = 'Instance'
+        elsif val.to_s.downcase == 'server' || val.to_s.downcase == 'host'
+          params['refType'] = 'ComputeServer'
+        elsif val.to_s.downcase == 'cluster'
+          params['refType'] = 'ComputeServerGroup'
+        elsif val.to_s.downcase == 'group'
+          params['refType'] = 'ComputeSite'
+        else
+          params['refType'] = val
+        end
+      end
       opts.on('--cloud ID', String, "Filter by Cloud ID") do |val|
         params['zoneId'] = val
       end
