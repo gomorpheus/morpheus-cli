@@ -149,8 +149,6 @@ class Morpheus::Cli::InvoicesCommand
         "Estimate" => lambda {|it| format_boolean(it['estimate']) },
         "Price" => lambda {|it| format_money(it['totalPrice']) },
         "Cost" => lambda {|it| format_money(it['totalCost']) },
-        "Actual Price" => lambda {|it| format_money(it['actualTotalPrice']) },
-        "Actual Cost" => lambda {|it| format_money(it['actualTotalCost']) },
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
@@ -223,8 +221,6 @@ class Morpheus::Cli::InvoicesCommand
       {"END" => lambda {|it| it['endDate'] ? format_local_dt(it['endDate']) : '' } },
       {"PRICE" => lambda {|it| format_money(it['totalPrice']) } },
       {"COST" => lambda {|it| format_money(it['totalCost']) } },
-      {"ACTUAL PRICE" => lambda {|it| format_money(it['actualTotalPrice']) } },
-      {"ACTUAL COST" => lambda {|it| format_money(it['actualTotalCost']) } },
     ]
     if opts[:include_fields]
       columns = opts[:include_fields]
