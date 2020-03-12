@@ -41,6 +41,10 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client.cloud_datastores
   end
 
+  def datastores_interface
+    @api_client.datastores
+  end
+
   def accounts_interface
     @api_client.accounts
   end
@@ -588,6 +592,7 @@ module Morpheus::Cli::ProvisioningHelper
         elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
           pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
         end
+        resource_pool ||= resource_pool_options.find {|it| it['id'] == pool_id}
       end
     end
 
@@ -601,9 +606,9 @@ module Morpheus::Cli::ProvisioningHelper
       # add selectable datastores for resource pool
       if options[:select_datastore]
         begin
-          service_plan['datastores'] = {'cluster' => [], 'store' => []}
-          selectable_datastores = cloud_datastores_interface.selectable(cloud_id, {'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
-          ['cluster', 'store'].each do |type|
+          service_plan['datastores'] = {'clusters' => [], 'datastores' => []}
+          selectable_datastores = datastores_interface.list({'zoneId' => cloud_id, 'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+          ['clusters', 'datastores'].each do |type|
             service_plan['datastores'][type] ||= []
             selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
               service_plan['datastores'][type] << ds
@@ -613,11 +618,12 @@ module Morpheus::Cli::ProvisioningHelper
         end
 
         if provision_type && provision_type['supportsAutoDatastore']
+          service_plan['supportsAutoDatastore'] = true
           service_plan['autoOptions'] ||= []
-          if service_plan['datastores']['cluster'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+          if service_plan['datastores']['clusters'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
             service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
           end
-          if service_plan['datastores']['store'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'auto'}
+          if service_plan['datastores']['datastores'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'auto'}
             service_plan['autoOptions'] << {'id' => 'auto', 'name' => 'Auto - Datastore'}
           end
         end
@@ -768,6 +774,8 @@ module Morpheus::Cli::ProvisioningHelper
       plan_info['datastores'].each do |k, v|
         v.each do |opt|
           if !opt.nil?
+            k = 'datastores' if k == 'store'
+            k = 'clusters' if k == 'cluster'
             datastore_options << {'name' => "#{k}: #{opt['name']}", 'value' => opt['id']}
           end
         end
