@@ -608,8 +608,8 @@ module Morpheus::Cli::ProvisioningHelper
       # add selectable datastores for resource pool
       if options[:select_datastore]
         begin
-          service_plan['datastores'] = {'clusters' => [], 'datastores' => []}
           selectable_datastores = datastores_interface.list({'zoneId' => cloud_id, 'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+          service_plan['datastores'] = {'clusters' => [], 'datastores' => []}
           ['clusters', 'datastores'].each do |type|
             service_plan['datastores'][type] ||= []
             selectable_datastores[type].reject { |ds| service_plan['datastores'][type].find {|it| it['id'] == ds['id']} }.each { |ds|
@@ -617,15 +617,24 @@ module Morpheus::Cli::ProvisioningHelper
             }
           end
         rescue => error
+          Morpheus::Logging::DarkPrinter.puts "Unable to load available data-stores, using datastores option source instead." if Morpheus::Logging.debug?
         end
 
         if provision_type && provision_type['supportsAutoDatastore']
           service_plan['supportsAutoDatastore'] = true
           service_plan['autoOptions'] ||= []
-          if service_plan['datastores']['clusters'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+          if service_plan['datastores'] && service_plan['datastores']['clusters']
+            if service_plan['datastores']['clusters'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'autoCluster'}
+              service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
+            end
+          else
             service_plan['autoOptions'] << {'id' => 'autoCluster', 'name' => 'Auto - Cluster'}
           end
-          if service_plan['datastores']['datastores'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'auto'}
+          if service_plan['datastores'] && service_plan['datastores']['datastores']
+            if service_plan['datastores']['datastores'].count > 0 && !service_plan['autoOptions'].find {|it| it['id'] == 'auto'}
+              service_plan['autoOptions'] << {'id' => 'auto', 'name' => 'Auto - Datastore'}
+            end
+          else
             service_plan['autoOptions'] << {'id' => 'auto', 'name' => 'Auto - Datastore'}
           end
         end
