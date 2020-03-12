@@ -233,13 +233,13 @@ class Morpheus::Cli::InvoicesCommand
   end
 
   def format_invoice_ref_type(it)
-    if it['cloud']
+    if it['refType'] == 'ComputeZone'
       "Cloud"
-    elsif it['instance']
+    elsif it['refType'] == 'Instance'
       "Instance"
-    elsif it['server']
+    elsif it['refType'] == 'ComputeServer'
       "Host"
-    elsif it['cluster']
+    elsif it['refType'] == 'ComputeServerGroup'
       "Cluster"
     elsif it['refType'] == 'ComputeSite'
       "Group"
