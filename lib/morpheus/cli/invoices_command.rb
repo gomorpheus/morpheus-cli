@@ -137,7 +137,8 @@ class Morpheus::Cli::InvoicesCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Type" => lambda {|it| format_invoice_ref_type(it) },
-        "Reference" => lambda {|it| format_invoice_ref_name(it) },
+        "Ref ID" => lambda {|it| it['refId'] },
+        "Ref Name" => lambda {|it| it['refName'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Period" => lambda {|it| it['period'] },
         "Interval" => lambda {|it| it['interval'] },
@@ -212,7 +213,8 @@ class Morpheus::Cli::InvoicesCommand
     columns = [
       {"ID" => lambda {|it| it['id'] } },
       {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
-      {"REF" => lambda {|it| format_invoice_ref_name(it) } },
+      {"REF ID" => lambda {|it| it['refId'] } },
+      {"REF NAME" => lambda {|it| it['refName'] } },
       {"PERIOD" => lambda {|it| it['period'] } },
       {"INTERVAL" => lambda {|it| it['interval'] } },
       {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
@@ -239,23 +241,13 @@ class Morpheus::Cli::InvoicesCommand
       "Host"
     elsif it['cluster']
       "Cluster"
+    elsif it['refType'] == 'ComputeSite'
+      "Group"
     else
       it['refType']
     end
   end
 
-  def format_invoice_ref_name(it)
-    if it['cloud']
-      it['cloud']['name']
-    elsif it['instance']
-      it['instance']['name']
-    elsif it['server']
-      it['server']['name']
-    elsif it['cluster']
-      it['cluster']['name']
-    else
-      it['refName']
-    end
-  end
+  
 
 end
