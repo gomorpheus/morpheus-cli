@@ -327,10 +327,10 @@ module Morpheus::Cli::ProvisioningHelper
       available_clouds = get_available_clouds(group_id)
       cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'selectOptions' => get_available_clouds(group_id), 'required' => true, 'description' => 'Select Cloud.', 'defaultValue' => options[:default_cloud] ? options[:default_cloud] : nil}],options[:options],api_client,{groupId: group_id})
       cloud_id = cloud_prompt['cloud']
+      cloud = available_clouds.find {|it| it['value'] == cloud_id}
     end
 
-    cloud = clouds_interface.get(cloud_id)['zone']
-    cloud_type = cloud['zoneType'] || {}
+    cloud_type = clouds_interface.cloud_type(cloud['zoneTypeId'])
 
     # Instance Type
     instance_type_code = nil
@@ -375,6 +375,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     # config
     config = {}
+=begin
     if cloud_type['code'] == 'amazon' && (cloud['config'] || {})['isVpc'] == 'false' && (cloud['config'] || {})['vpc'] == ''
       config['isEC2'] = true
     else
@@ -386,6 +387,7 @@ module Morpheus::Cli::ProvisioningHelper
         config['isVpcSelectable'] = true
       end
     end
+=end
 
     payload = {
       'zoneId' => cloud_id,
