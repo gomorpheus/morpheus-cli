@@ -79,10 +79,10 @@ class Morpheus::Cli::InvoicesCommand
       #   params['refId'] = val.to_i
       # end
       opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
-        params['startDate'] = parse_time(val).utc.iso8601
+        params['startDate'] = val #parse_time(val).utc.iso8601
       end
       opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is now.") do |val|
-        params['endDate'] = parse_time(val).utc.iso8601
+        params['endDate'] = val #parse_time(val).utc.iso8601
       end
       opts.on('--period PERIOD', String, "Period in the format YYYYMM. This can be used instead of start/end.") do |val|
         params['period'] = parse_period(val)
