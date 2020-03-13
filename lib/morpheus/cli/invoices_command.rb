@@ -1,4 +1,5 @@
 require 'morpheus/cli/cli_command'
+require 'date'
 
 class Morpheus::Cli::InvoicesCommand
   include Morpheus::Cli::CliCommand
@@ -58,8 +59,8 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is now.") do |val|
         params['endDate'] = parse_time(val).utc.iso8601
       end
-      opts.on('--period YYYYMM', String, "Period in the format YYYYMM. This can be used instead of start/end.") do |val|
-        params['period'] = val
+      opts.on('--period PERIOD', String, "Period in the format YYYYMM. This can be used instead of start/end.") do |val|
+        params['period'] = parse_period(val)
       end
       opts.on('--active [true|false]',String, "Filter by active.") do |val|
         params['active'] = (val.to_s != 'false' && val.to_s != 'off')
@@ -158,10 +159,10 @@ class Morpheus::Cli::InvoicesCommand
         "Ref ID" => lambda {|it| it['refId'] },
         "Ref Name" => lambda {|it| it['refName'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
-        "Period" => lambda {|it| it['period'] },
-        "Interval" => lambda {|it| it['interval'] },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
+        "Period" => lambda {|it| format_invoice_period(it) },
+        #"Interval" => lambda {|it| it['interval'] },
         "Start" => lambda {|it| format_local_dt(it['startDate']) },
         "End" => lambda {|it| it['endDate'] ? format_local_dt(it['endDate']) : '' },
         "Estimate" => lambda {|it| format_boolean(it['estimate']) },
@@ -231,10 +232,10 @@ class Morpheus::Cli::InvoicesCommand
       {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
       {"REF ID" => lambda {|it| it['refId'] } },
       {"REF NAME" => lambda {|it| it['refName'] } },
-      {"PERIOD" => lambda {|it| it['period'] } },
-      {"INTERVAL" => lambda {|it| it['interval'] } },
+      #{"INTERVAL" => lambda {|it| it['interval'] } },
       {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
       {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
+      {"PERIOD" => lambda {|it| format_invoice_period(it) } },
       {"START" => lambda {|it| format_local_dt(it['startDate']) } },
       {"END" => lambda {|it| it['endDate'] ? format_local_dt(it['endDate']) : '' } },
       {"PRICE" => lambda {|it| format_money(it['totalPrice']) } },
@@ -262,6 +263,50 @@ class Morpheus::Cli::InvoicesCommand
     end
   end
 
-  
+  # convert "202003" to "March 2020"
+  def format_invoice_period(it)
+    interval = it['interval']
+    period = it['period']
+    if period
+      if interval == 'month'
+        year = period[0..3]
+        month = period[4..5]
+        if year && month
+          month_name = Date::MONTHNAMES[month.to_i] || "#{month}?"
+          return "#{month_name} #{year}"
+        else
+          return "#{year}"
+        end
+      else
+        return it['period']
+      end
+    else
+      return "n/a"
+    end
+  end
+
+  # convert "March 2020" to "202003"
+  def parse_period(period, interval='month')
+    if period
+      if interval == 'month'
+        if period.include?(" ")
+          period_parts = period.split(" ")
+          month = Date::MONTHNAMES.index(period_parts[0])
+          year = period_parts[1].to_i
+          if month
+            return "#{year}#{month.to_s.rjust(2, '0')}"
+          else
+            return "#{year}00" # meh, bad month name, raise error probably
+          end
+        else
+          return "#{period}"
+        end
+      else
+        return "#{period}"
+      end
+    else
+      return nil
+    end
+  end
 
 end
