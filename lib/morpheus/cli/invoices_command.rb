@@ -41,6 +41,9 @@ class Morpheus::Cli::InvoicesCommand
           params['refType'] = val
         end
       end
+      opts.on('--ref-id ID', String, "Filter by Ref ID") do |val|
+        params['refId'] = val
+      end
       opts.on('--cloud ID', String, "Filter by Cloud ID") do |val|
         params['zoneId'] = val
       end
@@ -64,6 +67,9 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.on('--active [true|false]',String, "Filter by active.") do |val|
         params['active'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
+        params['accountId'] = val
       end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
