@@ -53,7 +53,7 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--cluster ID', String, "Filter by Cluster") do |val|
         params['clusterId'] = val
       end
-      opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD. Default is 3 months ago.") do |val|
+      opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
         params['startDate'] = parse_time(val).utc.iso8601
       end
       opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is now.") do |val|
