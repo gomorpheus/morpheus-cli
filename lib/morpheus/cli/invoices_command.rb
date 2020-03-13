@@ -23,10 +23,7 @@ class Morpheus::Cli::InvoicesCommand
     start_date, end_date = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      # opts.on('--group ID', String, "Filter by Group ID") do |val|
-      #   params['siteId'] = val
-      # end
-      opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, User") do |val|
+      opts.on('--type TYPE', String, "Find invoices for a Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
           params['refType'] = 'ComputeZone'
         elsif val.to_s.downcase == 'instance'
@@ -43,20 +40,38 @@ class Morpheus::Cli::InvoicesCommand
           params['refType'] = val
         end
       end
-      opts.on('--ref-id ID', String, "Filter by Ref ID") do |val|
+      opts.on('--ref-id ID', String, "Find invoices for a Ref ID") do |val|
         params['refId'] = val
       end
-      opts.on('--cloud ID', String, "Filter by Cloud ID") do |val|
-        params['zoneId'] = val
+      opts.on('--group ID', String, "Find invoices for a Group ID") do |val|
+        # params['siteId'] = val
+        params['refType'] = 'ComputeSite'
+        params['refId'] = val.to_i
       end
-      opts.on('--instance ID', String, "Filter by Instance") do |val|
-        params['instanceId'] = val
+      opts.on('--cloud ID', String, "Find invoices for a Cloud ID") do |val|
+        # params['zoneId'] = val
+        params['refType'] = 'ComputeZone'
+        params['refId'] = val.to_i
       end
-      opts.on('--server ID', String, "Filter by Server (Host)") do |val|
-        params['serverId'] = val
+      opts.on('--instance ID', String, "Find invoices for a Instance") do |val|
+        # params['instanceId'] = val
+        params['refType'] = 'Instance'
+        params['refId'] = val.to_i
+      end
+      opts.on('--server ID', String, "Find invoices for a Server (Host)") do |val|
+        # params['serverId'] = val
+        params['refType'] = 'ComputeServer'
+        params['refId'] = val.to_i
+      end
+      opts.on('--user ID', String, "Find invoices for a User ID") do |val|
+        # params['userId'] = val
+        params['refType'] = 'User'
+        params['refId'] = val.to_i
       end
       # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
-      #   params['clusterId'] = val
+      #   # params['clusterId'] = val
+      #   params['refType'] = 'ComputeServerGroup'
+      #   params['refId'] = val.to_i
       # end
       opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
         params['startDate'] = parse_time(val).utc.iso8601
