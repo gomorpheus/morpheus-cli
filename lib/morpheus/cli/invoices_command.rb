@@ -20,7 +20,7 @@ class Morpheus::Cli::InvoicesCommand
   def list(args)
     options = {}
     params = {}
-    start_date, end_date = nil, nil
+    ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--type TYPE', String, "Find invoices for a Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, User") do |val|
@@ -41,32 +41,37 @@ class Morpheus::Cli::InvoicesCommand
         end
       end
       opts.on('--ref-id ID', String, "Find invoices for a Ref ID") do |val|
-        params['refId'] = val
+        ref_ids << val
       end
       opts.on('--group ID', String, "Find invoices for a Group") do |val|
         # params['siteId'] = val
         params['refType'] = 'ComputeSite'
-        params['refId'] = val.to_i
+        ref_ids << val
       end
       opts.on('--cloud ID', String, "Find invoices for a Cloud") do |val|
         # params['zoneId'] = val
         params['refType'] = 'ComputeZone'
-        params['refId'] = val.to_i
+        ref_ids << val
       end
-      opts.on('--instance ID', String, "Find invoices for a Instance") do |val|
+      opts.on('--instance ID', String, "Find invoices for an Instance") do |val|
         # params['instanceId'] = val
         params['refType'] = 'Instance'
-        params['refId'] = val.to_i
+        ref_ids << val
+      end
+      opts.on('--container ID', String, "Find invoices for a Container") do |val|
+        # params['instanceId'] = val
+        params['refType'] = 'Container'
+        ref_ids << val
       end
       opts.on('--server ID', String, "Find invoices for a Server (Host)") do |val|
         # params['serverId'] = val
         params['refType'] = 'ComputeServer'
-        params['refId'] = val.to_i
+        ref_ids << val
       end
       opts.on('--user ID', String, "Find invoices for a User") do |val|
         # params['userId'] = val
         params['refType'] = 'User'
-        params['refId'] = val.to_i
+        ref_ids << val
       end
       # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
       #   # params['clusterId'] = val
@@ -99,8 +104,7 @@ class Morpheus::Cli::InvoicesCommand
       return 1
     end
     begin
-      params['startDate'] = start_date.utc.iso8601 if start_date
-      params['endDate'] = end_date.utc.iso8601 if end_date
+      params['refId'] = ref_ids unless ref_ids.empty?
       params.merge!(parse_list_options(options))
       @invoices_interface.setopts(options)
       if options[:dry_run]
