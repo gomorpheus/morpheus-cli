@@ -161,6 +161,7 @@ module Morpheus
       load 'morpheus/cli/price_sets_command.rb'
       load 'morpheus/cli/prices_command.rb'
       load 'morpheus/cli/provisioning_settings_command.rb'
+      load 'morpheus/cli/provisioning_licenses_command.rb'
       load 'morpheus/cli/budgets_command.rb'
       load 'morpheus/cli/health_command.rb'
       load 'morpheus/cli/invoices_command.rb'
