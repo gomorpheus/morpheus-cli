@@ -43,12 +43,12 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--ref-id ID', String, "Find invoices for a Ref ID") do |val|
         params['refId'] = val
       end
-      opts.on('--group ID', String, "Find invoices for a Group ID") do |val|
+      opts.on('--group ID', String, "Find invoices for a Group") do |val|
         # params['siteId'] = val
         params['refType'] = 'ComputeSite'
         params['refId'] = val.to_i
       end
-      opts.on('--cloud ID', String, "Find invoices for a Cloud ID") do |val|
+      opts.on('--cloud ID', String, "Find invoices for a Cloud") do |val|
         # params['zoneId'] = val
         params['refType'] = 'ComputeZone'
         params['refId'] = val.to_i
@@ -63,7 +63,7 @@ class Morpheus::Cli::InvoicesCommand
         params['refType'] = 'ComputeServer'
         params['refId'] = val.to_i
       end
-      opts.on('--user ID', String, "Find invoices for a User ID") do |val|
+      opts.on('--user ID', String, "Find invoices for a User") do |val|
         # params['userId'] = val
         params['refType'] = 'User'
         params['refId'] = val.to_i
