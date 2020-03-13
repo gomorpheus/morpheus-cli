@@ -309,6 +309,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
   end
 
   def reservations(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
@@ -326,10 +327,10 @@ class Morpheus::Cli::ProvisioningLicensesCommand
       params.merge!(parse_list_options(options))
       @provisioning_licenses_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @provisioning_licenses_interface.dry.reservations(params)
+        print_dry_run @provisioning_licenses_interface.dry.reservations(license['id'], params)
         return 0
       end
-      json_response = @provisioning_licenses_interface.reservations(params)
+      json_response = @provisioning_licenses_interface.reservations(license['id'], params)
       render_result = render_with_format(json_response, options, 'reservations')
       return 0 if render_result
       reservations = json_response['reservations']
@@ -338,7 +339,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
-      if licenses.empty?
+      if reservations.empty?
         print cyan,"No reservations found.",reset,"\n"
       else
         columns = [
@@ -349,7 +350,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
         if options[:include_fields]
           columns = options[:include_fields]
         end
-        print as_pretty_table(licenses, columns, options)
+        print as_pretty_table(reservations, columns, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
