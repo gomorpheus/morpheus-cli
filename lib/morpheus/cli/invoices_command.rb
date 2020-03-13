@@ -23,7 +23,7 @@ class Morpheus::Cli::InvoicesCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--type TYPE', String, "Find invoices for a Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, User") do |val|
+      opts.on('--type TYPE', String, "Find invoices for a Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
           params['refType'] = 'ComputeZone'
         elsif val.to_s.downcase == 'instance'
