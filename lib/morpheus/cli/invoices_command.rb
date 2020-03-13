@@ -50,9 +50,9 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--server ID', String, "Filter by Server (Host)") do |val|
         params['serverId'] = val
       end
-      opts.on('--cluster ID', String, "Filter by Cluster") do |val|
-        params['clusterId'] = val
-      end
+      # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
+      #   params['clusterId'] = val
+      # end
       opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
         params['startDate'] = parse_time(val).utc.iso8601
       end
@@ -154,7 +154,7 @@ class Morpheus::Cli::InvoicesCommand
 
       
       description_cols = {
-        "ID" => lambda {|it| it['id'] },
+        "Invoice ID" => lambda {|it| it['id'] },
         "Type" => lambda {|it| format_invoice_ref_type(it) },
         "Ref ID" => lambda {|it| it['refId'] },
         "Ref Name" => lambda {|it| it['refName'] },
@@ -228,7 +228,7 @@ class Morpheus::Cli::InvoicesCommand
 
   def print_invoices_table(invoices, opts={})
     columns = [
-      {"ID" => lambda {|it| it['id'] } },
+      {"INVOICE ID" => lambda {|it| it['id'] } },
       {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
       {"REF ID" => lambda {|it| it['refId'] } },
       {"REF NAME" => lambda {|it| it['refName'] } },
