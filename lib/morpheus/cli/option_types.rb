@@ -111,17 +111,15 @@ module Morpheus
             elsif option_type['type'] == 'select'
               value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
             elsif option_type['type'] == 'multiSelect'
-              value_list = value.is_a?(String) ? value.parse_csv : [value].flatten
-              input_value_list = input_value.is_a?(String) ? input_value.parse_csv : [input_value].flatten
-              if value_list.size > 1
-                select_value_list = []
-                value_list.each_with_index do |v, i|
-                  select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (api_params || {}).merge(results), true)
-                end
-                value = select_value_list
-              else
-                value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
+              # support value as csv like "thing1, thing2"
+              value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
+              input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
+              select_value_list = []
+              value_list.each_with_index do |v, i|
+                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (api_params || {}).merge(results), true)
               end
+              value = select_value_list
+              
             end
             if options[:always_prompt] != true
               value_found = true
