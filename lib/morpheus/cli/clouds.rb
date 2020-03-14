@@ -4,11 +4,13 @@ require 'rest_client'
 require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/infrastructure_helper'
+require 'morpheus/cli/mixins/provisioning_helper'
 require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Clouds
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::ProvisioningHelper
 
   register_subcommands :list, :count, :get, :add, :update, :remove, :security_groups, :apply_security_groups, :types => :list_cloud_types
   register_subcommands :wiki, :update_wiki
@@ -267,14 +269,14 @@ class Morpheus::Cli::Clouds
 
         # Group
         group_id = nil
-        group = params[:group] ? find_group_by_name_or_id(params[:group]) : nil
+        group = params[:group] ? find_group_by_name_or_id_for_provisioning(params[:group]) : nil
         if group
           group_id = group["id"]
         else
           # print_red_alert "Group not found or specified!"
           # exit 1
-          groups_dropdown = @groups_interface.list({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
-          group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => groups_dropdown, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
+          #groups_dropdown = @groups_interface.list({})['groups'].collect {|it| {'name' => it["name"], 'value' => it["id"]} }
+          group_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'optionSource' => 'groups', 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})
           group_id = group_prompt['group']
         end
         cloud_payload['groupId'] = group_id
