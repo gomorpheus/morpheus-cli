@@ -1,5 +1,6 @@
 require 'term/ansicolor'
 require 'readline'
+require 'csv'
 module Morpheus
   module Cli
     module OptionTypes
@@ -106,9 +107,21 @@ module Morpheus
             input_value = ['select', 'multiSelect'].include?(option_type['type']) && option_type['fieldInput'] ? cur_namespace[option_type['fieldInput']] : nil
             if option_type['type'] == 'number'
               value = value.to_s.include?('.') ? value.to_f : value.to_i
-            elsif ['select', 'multiSelect'].include?(option_type['type'])
-              # this should just fall down through below, with the extra params no_prompt, use_value
+            # these select prompts should just fall down through below, with the extra params no_prompt, use_value
+            elsif option_type['type'] == 'select'
               value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
+            elsif option_type['type'] == 'multiSelect'
+              value_list = value.is_a?(String) ? value.parse_csv : [value].flatten
+              input_value_list = input_value.is_a?(String) ? input_value.parse_csv : [input_value].flatten
+              if value_list.size > 1
+                select_value_list = []
+                value_list.each_with_index do |v, i|
+                  select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (api_params || {}).merge(results), true)
+                end
+                value = select_value_list
+              else
+                value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
+              end
             end
             if options[:always_prompt] != true
               value_found = true
@@ -125,7 +138,7 @@ module Morpheus
           no_prompt = no_prompt || options[:no_prompt]
           if no_prompt
             if !value_found
-              if option_type['defaultValue'] != nil && option_type['type'] != 'select'
+              if option_type['defaultValue'] != nil && !['select', 'multiSelect'].include?(option_type['type'])
                 value = option_type['defaultValue']
                 value_found = true
               end
