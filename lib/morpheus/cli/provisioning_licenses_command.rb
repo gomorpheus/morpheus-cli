@@ -5,8 +5,6 @@ class Morpheus::Cli::ProvisioningLicensesCommand
   set_command_name :'provisioning-licenses'
   register_subcommands :list, :get, :add, :update, :remove, :reservations, :'list-types'
 
-  set_command_hidden
-  
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @provisioning_licenses_interface = @api_client.provisioning_licenses
