@@ -53,6 +53,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
           {"ID" => lambda {|license| license['id'] } },
           {"NAME" => lambda {|license| license['name'] } },
           {"LICENSE TYPE" => lambda {|license| license['licenseType']['name'] rescue license['licenseType'] } },
+          {"VERSION" => lambda {|license| license['licenseVersion'] } },
           {"COPIES" => lambda {|license| 
             "#{license['reservationCount']}/#{license['copies']}"
           } },
@@ -119,11 +120,16 @@ class Morpheus::Cli::ProvisioningLicensesCommand
         {"Name" => lambda {|license| license['name'] } },
         {"License Type" => lambda {|license| license['licenseType']['name'] rescue license['licenseType'] } },
         {"License Key" => lambda {|license| license['licenseKey'] } },
+        {"Org Name" => lambda {|license| license['orgName'] } },
+        {"Full Name" => lambda {|license| license['fullName'] } },
+        {"Version" => lambda {|license| license['licenseVersion'] } },
+        {"Description" => lambda {|license| license['description'] } },
         {"Copies" => lambda {|license| 
           "#{license['reservationCount']}/#{license['copies']}"
         } },
-        {"Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|acnt| acnt['name']}.join(', ') : '' } },
+        {"Description" => lambda {|license| license['description'] } },
         {"Virtual Images" => lambda {|it| it['virtualImages'] ? it['virtualImages'].collect {|v| v['name']}.join(', ') : '' } },
+        {"Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|acnt| acnt['name']}.join(', ') : '' } },
       ]
       print_description_list(columns, license, options)
       print reset,"\n"
