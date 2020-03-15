@@ -57,8 +57,8 @@ class Morpheus::Cli::ProvisioningLicensesCommand
           {"COPIES" => lambda {|license| 
             "#{license['reservationCount']}/#{license['copies']}"
           } },
-          {"TENANTS" => lambda {|it| it['tenants'] ? it['tenants'].collect {|acnt| acnt['name']}.join(', ') : '' } },
           {"VIRTUAL IMAGES" => lambda {|it| it['virtualImages'] ? it['virtualImages'].collect {|v| v['name']}.join(', ') : '' } },
+          {"TENANTS" => lambda {|it| it['tenants'] ? it['tenants'].collect {|acnt| acnt['name']}.join(', ') : '' } },
         ]
         if options[:include_fields]
           columns = options[:include_fields]
