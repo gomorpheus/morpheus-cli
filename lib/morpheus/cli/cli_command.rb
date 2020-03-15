@@ -183,11 +183,21 @@ module Morpheus
             value_label = 'on|off' # or.. true|false
           elsif option_type['type'] == 'number'
             value_label = 'NUMBER'
+          elsif option_type['type'] == 'multiSelect'
+            value_label = 'LIST'
           # elsif option_type['type'] == 'select'
           #   value_label = 'SELECT'
           # elsif option['type'] == 'select'
           end
           opts.on("--#{full_field_name} #{value_label}", String, description) do |val|
+            # attempt to parse JSON, this allows blank arrays for multiSelect like --tenants []
+            if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
+              begin
+                val = JSON.parse(val)
+              rescue
+                Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+              end
+            end
             cur_namespace = custom_options
             field_namespace.each do |ns|
               next if ns.empty?
