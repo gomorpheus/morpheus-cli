@@ -148,6 +148,9 @@ class Morpheus::Cli::InvoicesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
+        options[:show_raw_data] = true
+      end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice."
     end
@@ -200,7 +203,7 @@ class Morpheus::Cli::InvoicesCommand
       }
       print_description_list(description_cols, invoice)
 
-      if invoice['rawData'] && !invoice['rawData'].empty?
+      if options[:show_raw_data]
         print_h2 "Raw Data"
         puts invoice['rawData']
       end
