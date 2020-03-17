@@ -232,6 +232,8 @@ class Morpheus::Cli::InvoicesCommand
         # "License Cost" => lambda {|it| format_money(it['licenseCost']) },
         "Extra Price" => lambda {|it| format_money(it['extraPrice']) },
         "Extra Cost" => lambda {|it| format_money(it['extraCost']) },
+        "Running Price" => lambda {|it| format_money(it['runningPrice']) },
+        "Running Cost" => lambda {|it| format_money(it['runningCost']) },
         "Total Price" => lambda {|it| format_money(it['totalPrice']) },
         "Total Cost" => lambda {|it| format_money(it['totalCost']) },
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
