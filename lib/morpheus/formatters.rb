@@ -2,6 +2,7 @@ require 'time'
 require 'filesize'
 require 'money'
 
+DEFAULT_DATE_FORMAT = "%x"
 DEFAULT_TIME_FORMAT = "%x %I:%M %p"
 ALTERNATE_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'"
 
@@ -64,11 +65,11 @@ def format_local_dt(dt, options={})
 end
 
 def format_date(dt, options={})
-  format_dt(dt, options.merge({local: true}))
+  format_dt(dt, {format: DEFAULT_DATE_FORMAT}.merge(options))
 end
 
 def format_local_date(dt, options={})
-  format_dt(dt, {local: true, format: "%x"}.merge(options))
+  format_dt(dt, {local: true, format: DEFAULT_DATE_FORMAT}.merge(options))
 end
 
 def format_dt_as_param(dt)
