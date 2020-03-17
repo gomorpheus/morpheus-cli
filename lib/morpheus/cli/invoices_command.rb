@@ -93,6 +93,10 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
+      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
+        options[:show_raw_data] = true
+        params['rawData'] = true
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
     end
@@ -134,7 +138,24 @@ class Morpheus::Cli::InvoicesCommand
       if invoices.empty?
         print cyan,"No invoices found.",reset,"\n"
       else
-        print_invoices_table(invoices, options)
+        columns = [
+          {"INVOICE ID" => lambda {|it| it['id'] } },
+          {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
+          {"REF ID" => lambda {|it| it['refId'] } },
+          {"REF NAME" => lambda {|it| it['refName'] } },
+          #{"INTERVAL" => lambda {|it| it['interval'] } },
+          {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
+          {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
+          {"PERIOD" => lambda {|it| format_invoice_period(it) } },
+          {"START" => lambda {|it| format_local_dt(it['startDate']) } },
+          {"END" => lambda {|it| it['endDate'] ? format_local_dt(it['endDate']) : '' } },
+          {"PRICE" => lambda {|it| format_money(it['totalPrice']) } },
+          {"COST" => lambda {|it| format_money(it['totalCost']) } },
+        ]
+        if options[:show_raw_data]
+          columns << {"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }
+        end
+        print as_pretty_table(invoices, columns, options)
         print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
       end
       print reset,"\n"
@@ -167,14 +188,17 @@ class Morpheus::Cli::InvoicesCommand
   end
 
   def _get(id, options)
-
+    params = {}
+    if options[:show_raw_data]
+      params['rawData'] = true
+    end
     begin
       @invoices_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @invoices_interface.dry.get(id)
+        print_dry_run @invoices_interface.dry.get(id, params)
         return
       end
-      json_response = @invoices_interface.get(id)
+      json_response = @invoices_interface.get(id, params)
       invoice = json_response['invoice']
       render_result = render_with_format(json_response, options, 'invoice')
       return 0 if render_result
@@ -255,27 +279,6 @@ class Morpheus::Cli::InvoicesCommand
   #     return invoices[0]
   #   end
   # end
-
-  def print_invoices_table(invoices, opts={})
-    columns = [
-      {"INVOICE ID" => lambda {|it| it['id'] } },
-      {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
-      {"REF ID" => lambda {|it| it['refId'] } },
-      {"REF NAME" => lambda {|it| it['refName'] } },
-      #{"INTERVAL" => lambda {|it| it['interval'] } },
-      {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
-      {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
-      {"PERIOD" => lambda {|it| format_invoice_period(it) } },
-      {"START" => lambda {|it| format_local_dt(it['startDate']) } },
-      {"END" => lambda {|it| it['endDate'] ? format_local_dt(it['endDate']) : '' } },
-      {"PRICE" => lambda {|it| format_money(it['totalPrice']) } },
-      {"COST" => lambda {|it| format_money(it['totalCost']) } },
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(invoices, columns, opts)
-  end
 
   def format_invoice_ref_type(it)
     if it['refType'] == 'ComputeZone'

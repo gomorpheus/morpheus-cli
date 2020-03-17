@@ -8,10 +8,10 @@ class Morpheus::InvoicesInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(id)
+  def get(id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = "#{@base_url}/api/invoices/#{id}"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
