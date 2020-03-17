@@ -116,7 +116,7 @@ class Morpheus::Cli::InvoicesCommand
         return
       end
       json_response = @invoices_interface.list(params)
-      render_result = render_with_format(json_response, options, 'invoice')
+      render_result = render_with_format(json_response, options, 'invoices')
       return 0 if render_result
       invoices = json_response['invoices']
       title = "Morpheus Invoices"
