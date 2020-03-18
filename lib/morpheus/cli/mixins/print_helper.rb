@@ -628,6 +628,44 @@ module Morpheus::Cli::PrintHelper
   #
   def as_pretty_table(data, columns, options={})
     data = [data].flatten
+    
+    # support --fields x,y,z and --all-fields or --fields all
+    all_fields = data.first ? data.first.keys : []
+    
+    if options[:include_fields]
+      if (options[:include_fields].is_a?(Array) && options[:include_fields].size == 1 && options[:include_fields][0] == 'all') || options[:include_fields] == 'all'
+        columns = all_fields
+      else
+        # so let's use the passed in column definitions instead of the raw data properties
+        # columns = options[:include_fields]
+        new_columns = []
+        options[:include_fields].each do |f|
+          matching_column = nil
+          # column definitions vary right now, array of symbols/strings/hashes or perhaps a single hash
+          if columns.is_a?(Array) && columns[0] && columns[0].is_a?(Hash)
+            matching_column = columns.find {|c| 
+              if c.is_a?(Hash)
+                c.keys[0].to_s.downcase == f.to_s.downcase
+              else
+                c && c.to_s.downcase == f.to_s.downcase
+              end
+            }
+          elsif columns.is_a?(Hash)
+            matching_key = columns.keys.find {|k| k.to_s.downcase == f.to_s.downcase }
+            if matching_key
+              matching_column = columns[matching_key]
+            end
+          end
+          new_columns << (matching_column ? matching_column : f)
+        end
+        columns = new_columns
+      end
+    elsif options[:all_fields]
+      columns = all_fields
+    else
+      columns = columns
+    end
+
     columns = build_column_definitions(columns)
 
     table_color = options[:color] || cyan
@@ -690,7 +728,7 @@ module Morpheus::Cli::PrintHelper
     # could use some options[:preferred_columns] logic here to throw away in some specified order
     # --all fields disables this
     trimmed_columns = []
-    if options[:responsive_table] != false && options[:include_fields].nil? && options[:all_fields] != true
+    if options[:responsive_table] != false # && options[:include_fields].nil? && options[:all_fields] != true
 
       begin
         term_width = current_terminal_width()
@@ -1027,11 +1065,13 @@ module Morpheus::Cli::PrintHelper
     cols = []
     all_fields = records.first ? records.first.keys : []
     if options[:include_fields]
-      if options[:include_fields] == 'all' || options[:include_fields].include?('all')
+      if (options[:include_fields].is_a?(Array) && options[:include_fields].size == 1 && options[:include_fields][0] == 'all') || options[:include_fields] == 'all'
         cols = all_fields
       else
         cols = options[:include_fields]
       end
+    elsif options[:all_fields]
+      cols = all_fields
     elsif default_columns
       cols = default_columns
     else
