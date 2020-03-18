@@ -346,6 +346,9 @@ end
 def format_money(amount, currency='usd')
   if amount.to_f == 0
     return currency_sym(currency).to_s + "0"
+  # elsif amount.to_f < 0.01
+  #   # return exponent notation like 3.4e-09
+  #   return currency_sym(currency).to_s + "#{amount}"
   else
     rtn = amount.to_f.round(2).to_s
     if rtn.index('.').nil?

@@ -23,6 +23,17 @@ class Morpheus::Cli::InvoicesCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+        options[:show_costs] = true
+        options[:show_prices] = true
+        options[:show_raw_data] = true
+      end
+      opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
+        options[:show_costs] = true
+      end
+      opts.on('--prices', '--prices', "Display all costs: Compute, Memory, Storage, etc." ) do
+        options[:show_prices] = true
+      end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
           params['refType'] = 'ComputeZone'
@@ -92,7 +103,6 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
-        params['rawData'] = true
       end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
@@ -105,6 +115,7 @@ class Morpheus::Cli::InvoicesCommand
       return 1
     end
     begin
+      params['rawData'] = true if options[:show_raw_data]
       params['refId'] = ref_ids unless ref_ids.empty?
       params.merge!(parse_list_options(options))
       @invoices_interface.setopts(options)
@@ -135,6 +146,8 @@ class Morpheus::Cli::InvoicesCommand
       if invoices.empty?
         print cyan,"No invoices found.",reset,"\n"
       else
+        current_date = Time.now
+        current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
         columns = [
           {"INVOICE ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
@@ -144,14 +157,51 @@ class Morpheus::Cli::InvoicesCommand
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
           {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
           {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
+          #{"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
           {"PERIOD" => lambda {|it| format_invoice_period(it) } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
           {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
-          {"PRICE" => lambda {|it| format_money(it['totalPrice']) } },
-          {"COST" => lambda {|it| format_money(it['totalCost']) } },
+          
         ]
+        if options[:show_costs]
+          columns += [
+            {"COMPUTE" => lambda {|it| format_money(it['computeCost']) } },
+            # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
+            {"STORAGE" => lambda {|it| format_money(it['storageCost']) } },
+            {"NETWORK" => lambda {|it| format_money(it['networkCost']) } },
+            {"OTHER" => lambda {|it| format_money(it['extraCost']) } },
+          ]
+        end
+        columns += [
+          {"MTD" => lambda {|it| format_money(it['runningCost']) } },
+          {"TOTAL" => lambda {|it| 
+            if it['period'] == current_period && it['totalCost'].to_f > 0
+              format_money(it['totalCost']) + " (Projected)"
+            else
+              format_money(it['totalCost'])
+            end
+          } }
+        ]
+        if options[:show_prices]
+          columns += [
+            {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice']) } },
+            # {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice']) } },
+            {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice']) } },
+            {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice']) } },
+            {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice']) } },
+            {"MTD PRICE" => lambda {|it| format_money(it['runningPrice']) } },
+            {"TOTAL PRICE" => lambda {|it| 
+              if it['period'] == current_period && it['totalPrice'].to_f > 0
+                format_money(it['totalPrice']) + " (Projected)"
+              else
+                format_money(it['totalPrice'])
+              end
+            } }
+          ]
+        end
+
         if options[:show_raw_data]
-          columns << {"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }
+          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
         print as_pretty_table(invoices, columns, options)
         print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
@@ -218,26 +268,75 @@ class Morpheus::Cli::InvoicesCommand
         "Start" => lambda {|it| format_date(it['startDate']) },
         "End" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' },
         "Estimate" => lambda {|it| format_boolean(it['estimate']) },
-        "Compute Price" => lambda {|it| format_money(it['computePrice']) },
-        "Compute Cost" => lambda {|it| format_money(it['computeCost']) },
-        "Memory Price" => lambda {|it| format_money(it['memoryPrice']) },
-        "Memory Cost" => lambda {|it| format_money(it['memoryCost']) },
-        "Storage Price" => lambda {|it| format_money(it['storagePrice']) },
-        "Storage Cost" => lambda {|it| format_money(it['storageCost']) },
-        "Network Price" => lambda {|it| format_money(it['networkPrice']) },
-        "Network Cost" => lambda {|it| format_money(it['networkCost']) },
-        "License Price" => lambda {|it| format_money(it['licensePrice']) },
-        "License Cost" => lambda {|it| format_money(it['licenseCost']) },
-        "Extra Price" => lambda {|it| format_money(it['extraPrice']) },
-        "Extra Cost" => lambda {|it| format_money(it['extraCost']) },
-        "Running Price" => lambda {|it| format_money(it['runningPrice']) },
-        "Running Cost" => lambda {|it| format_money(it['runningCost']) },
-        "Total Price" => lambda {|it| format_money(it['totalPrice']) },
-        "Total Cost" => lambda {|it| format_money(it['totalCost']) },
-        # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
       print_description_list(description_cols, invoice)
+=begin
+      print_h2 "Costs"
+      cost_columns = {
+        "Compute" => lambda {|it| format_money(it['computeCost']) },
+        "Memory" => lambda {|it| format_money(it['memoryCost']) },
+        "Storage" => lambda {|it| format_money(it['storageCost']) },
+        "Network" => lambda {|it| format_money(it['networkCost']) },
+        "License" => lambda {|it| format_money(it['licenseCost']) },
+        "Other" => lambda {|it| format_money(it['extraCost']) },
+        "Running" => lambda {|it| format_money(it['runningCost']) },
+        "Total Cost" => lambda {|it| format_money(it['totalCost']) },
+      }
+      print as_pretty_table([invoice], cost_columns, options)
+
+      print_h2 "Prices"
+      price_columns = {
+        "Compute" => lambda {|it| format_money(it['computePrice']) },
+        "Memory" => lambda {|it| format_money(it['memoryPrice']) },
+        "Storage" => lambda {|it| format_money(it['storagePrice']) },
+        "Network" => lambda {|it| format_money(it['networkPrice']) },
+        "License" => lambda {|it| format_money(it['licensePrice']) },
+        "Other" => lambda {|it| format_money(it['extraPrice']) },
+        "Running" => lambda {|it| format_money(it['runningPrice']) },
+        "Total Price" => lambda {|it| format_money(it['totalPrice']) },
+      }
+      print as_pretty_table([invoice], price_columns, options)
+=end
+      
+      current_date = Time.now
+      current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
+
+      print "\n"
+      # print_h2 "Costs"
+      cost_rows = [
+        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+      ]
+      cost_columns = {
+        "" => lambda {|it| it[:label] },
+        "Compute".upcase => lambda {|it| format_money(it[:compute]) },
+        "Memory".upcase => lambda {|it| format_money(it[:memory]) },
+        "Storage".upcase => lambda {|it| format_money(it[:storage]) },
+        "Network".upcase => lambda {|it| format_money(it[:network]) },
+        "License".upcase => lambda {|it| format_money(it[:license]) },
+        "Other".upcase => lambda {|it| format_money(it[:extra]) },
+        "MTD" => lambda {|it| format_money(it[:running]) },
+        "Total".upcase => lambda {|it| 
+          if invoice['period'] == current_period && it[:total].to_f > 0
+            format_money(it[:total]) + " (Projected)"
+          else
+            format_money(it[:total])
+          end
+        },
+      }
+      # remove columns that rarely have data...
+      if cost_rows.sum { |it| it[:memory].to_f } == 0
+        cost_columns.delete("Memory".upcase)
+      end
+      if cost_rows.sum { |it| it[:license].to_f } == 0
+        cost_columns.delete("License".upcase)
+      end
+      if cost_rows.sum { |it| it[:extra].to_f } == 0
+        cost_columns.delete("Other".upcase)
+      end
+      print as_pretty_table(cost_rows, cost_columns, options)
 
       if options[:show_raw_data]
         print_h2 "Raw Data"
