@@ -467,7 +467,7 @@ class Morpheus::Cli::Groups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:remote])
       opts.footer = "Print the name of the current active group"
     end
     optparse.parse!(args)
