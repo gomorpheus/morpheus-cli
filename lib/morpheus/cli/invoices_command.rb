@@ -197,11 +197,11 @@ class Morpheus::Cli::InvoicesCommand
         end
         if options[:show_actual_costs]
           columns += [
-            {"ACTUAL COMPUTE" => lambda {|it| format_money(it['actualComputePrice']) } },
-            # {"ACTUAL MEMORY" => lambda {|it| format_money(it['actualMemoryPrice']) } },
-            {"ACTUAL STORAGE" => lambda {|it| format_money(it['actualStoragePrice']) } },
-            {"ACTUAL NETWORK" => lambda {|it| format_money(it['actualNetworkPrice']) } },
-            {"ACTUAL OTHER" => lambda {|it| format_money(it['actualExtraPrice']) } },
+            {"ACTUAL COMPUTE" => lambda {|it| format_money(it['actualComputeCost']) } },
+            # {"ACTUAL MEMORY" => lambda {|it| format_money(it['actualMemoryCost']) } },
+            {"ACTUAL STORAGE" => lambda {|it| format_money(it['actualStorageCost']) } },
+            {"ACTUAL NETWORK" => lambda {|it| format_money(it['actualNetworkCost']) } },
+            {"ACTUAL OTHER" => lambda {|it| format_money(it['actualExtraCost']) } },
           ]
         end
 
