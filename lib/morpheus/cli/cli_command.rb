@@ -620,7 +620,7 @@ module Morpheus
             opts.on(nil, '--all-fields', "Show all fields present in the data.") do
               options[:all_fields] = true
             end
-            opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
+            #opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on(nil, '--wrap', "Wrap table columns instead hiding them when terminal is not wide enough.") do
               options[:responsive_table] = false
             end
