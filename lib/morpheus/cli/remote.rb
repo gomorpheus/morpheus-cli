@@ -334,6 +334,9 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :quiet, :dry_run, :remote])
+      opts.on('-a', '--all', "Check all remotes.") do
+        checkall = true
+      end
       opts.footer = <<-EOT
 Check the status of a remote appliance.
 [name] is optional. This is the name of a remote.  Default is the current remote. Can be passed as 'all'. to perform remote check-all.
@@ -341,7 +344,9 @@ This makes a request to the configured appliance url and updates the status and 
 EOT
     end
     optparse.parse!(args)
-    
+    if checkall == true
+      return _check_all_appliances(options)
+    end
     if args.count == 0
       id_list = ['current']
     else
