@@ -153,8 +153,8 @@ class Morpheus::Cli::InvoicesCommand
       if invoices.empty?
         print cyan,"No invoices found.",reset,"\n"
       else
-        current_date = Time.now
-        current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
+        # current_date = Time.now
+        # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
         columns = [
           {"INVOICE ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
@@ -170,7 +170,8 @@ class Morpheus::Cli::InvoicesCommand
           {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
           {"MTD" => lambda {|it| format_money(it['runningCost']) } },
           {"TOTAL" => lambda {|it| 
-            if it['period'] == current_period && it['totalCost'].to_f > 0
+
+            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalCost'].to_f > 0
               format_money(it['totalCost']) + " (Projected)"
             else
               format_money(it['totalCost'])
@@ -178,7 +179,7 @@ class Morpheus::Cli::InvoicesCommand
           } },
           {"ACTUAL MTD" => lambda {|it| format_money(it['actualRunningCost']) } },
           {"ACTUAL TOTAL" => lambda {|it| 
-            if it['period'] == current_period && it['actualTotalCost'].to_f > 0
+            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['actualTotalCost'].to_f > 0
               format_money(it['actualTotalCost']) + " (Projected)"
             else
               format_money(it['actualTotalCost'])
@@ -201,14 +202,6 @@ class Morpheus::Cli::InvoicesCommand
             {"ACTUAL STORAGE" => lambda {|it| format_money(it['actualStoragePrice']) } },
             {"ACTUAL NETWORK" => lambda {|it| format_money(it['actualNetworkPrice']) } },
             {"ACTUAL OTHER" => lambda {|it| format_money(it['actualExtraPrice']) } },
-            # {"ACTUAL MTD" => lambda {|it| format_money(it['actualRunningPrice']) } },
-            # {"ACTUAL TOTAL" => lambda {|it| 
-            #   if it['period'] == current_period && it['actualTotalPrice'].to_f > 0
-            #     format_money(it['actualTotalPrice']) + " (Projected)"
-            #   else
-            #     format_money(it['actualTotalPrice'])
-            #   end
-            # } }
           ]
         end
 
@@ -221,7 +214,7 @@ class Morpheus::Cli::InvoicesCommand
             {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice']) } },
             {"MTD PRICE" => lambda {|it| format_money(it['runningPrice']) } },
             {"TOTAL PRICE" => lambda {|it| 
-              if it['period'] == current_period && it['totalPrice'].to_f > 0
+              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalPrice'].to_f > 0
                 format_money(it['totalPrice']) + " (Projected)"
               else
                 format_money(it['totalPrice'])
@@ -291,6 +284,7 @@ class Morpheus::Cli::InvoicesCommand
         "Ref ID" => lambda {|it| it['refId'] },
         "Ref Name" => lambda {|it| it['refName'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "Power State" => lambda {|it| format_server_power_state(it) },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
         "Period" => lambda {|it| format_invoice_period(it) },
@@ -301,6 +295,13 @@ class Morpheus::Cli::InvoicesCommand
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
+      # remove columns that do not apply
+      if !invoice['plan']
+        description_cols.delete("Plan")
+      end
+      if !['ComputeServer','Instance','Container'].include?(invoice['refType'])
+        description_cols.delete("Power State")
+      end
       print_description_list(description_cols, invoice)
 =begin
       print_h2 "Costs"
@@ -330,8 +331,8 @@ class Morpheus::Cli::InvoicesCommand
       print as_pretty_table([invoice], price_columns, options)
 =end
       
-      current_date = Time.now
-      current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
+      # current_date = Time.now
+      # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
 
       print "\n"
       # print_h2 "Costs"
@@ -350,7 +351,7 @@ class Morpheus::Cli::InvoicesCommand
         "Other".upcase => lambda {|it| format_money(it[:extra]) },
         "MTD" => lambda {|it| format_money(it[:running]) },
         "Total".upcase => lambda {|it| 
-          if invoice['period'] == current_period && it[:total].to_f > 0
+          if invoice['runningMultiplier'] && invoice['runningMultiplier'].to_i != 1 && it[:total].to_f.to_f > 0
             format_money(it[:total]) + " (Projected)"
           else
             format_money(it[:total])
@@ -482,6 +483,18 @@ class Morpheus::Cli::InvoicesCommand
     else
       return nil
     end
+  end
+  
+  def format_server_power_state(server, return_color=cyan)
+    out = ""
+    if server['powerState'] == 'on'
+      out << "#{green}ON#{return_color}"
+    elsif server['powerState'] == 'off'
+      out << "#{red}OFF#{return_color}"
+    else
+      out << "#{white}#{server['powerState'].to_s.upcase}#{return_color}"
+    end
+    out
   end
 
 end
