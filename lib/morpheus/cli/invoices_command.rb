@@ -98,6 +98,9 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--active [true|false]',String, "Filter by active.") do |val|
         params['active'] = (val.to_s != 'false' && val.to_s != 'off')
       end
+      opts.on('--estimate [true|false]',String, "Filter by estimate.") do |val|
+        params['estimate'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
       opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
