@@ -24,14 +24,18 @@ class Morpheus::Cli::InvoicesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+        options[:show_actual_costs] = true
         options[:show_costs] = true
         options[:show_prices] = true
         options[:show_raw_data] = true
       end
+      opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
+        options[:show_actual_costs] = true
+      end
       opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
         options[:show_costs] = true
       end
-      opts.on('--prices', '--prices', "Display all costs: Compute, Memory, Storage, etc." ) do
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
         options[:show_prices] = true
       end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
@@ -164,7 +168,22 @@ class Morpheus::Cli::InvoicesCommand
           {"PERIOD" => lambda {|it| format_invoice_period(it) } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
           {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
-          
+          {"MTD" => lambda {|it| format_money(it['runningCost']) } },
+          {"TOTAL" => lambda {|it| 
+            if it['period'] == current_period && it['totalCost'].to_f > 0
+              format_money(it['totalCost']) + " (Projected)"
+            else
+              format_money(it['totalCost'])
+            end
+          } },
+          {"ACTUAL MTD" => lambda {|it| format_money(it['actualRunningCost']) } },
+          {"ACTUAL TOTAL" => lambda {|it| 
+            if it['period'] == current_period && it['actualTotalCost'].to_f > 0
+              format_money(it['actualTotalCost']) + " (Projected)"
+            else
+              format_money(it['actualTotalCost'])
+            end
+          } }
         ]
         if options[:show_costs]
           columns += [
@@ -175,16 +194,24 @@ class Morpheus::Cli::InvoicesCommand
             {"OTHER" => lambda {|it| format_money(it['extraCost']) } },
           ]
         end
-        columns += [
-          {"MTD" => lambda {|it| format_money(it['runningCost']) } },
-          {"TOTAL" => lambda {|it| 
-            if it['period'] == current_period && it['totalCost'].to_f > 0
-              format_money(it['totalCost']) + " (Projected)"
-            else
-              format_money(it['totalCost'])
-            end
-          } }
-        ]
+        if options[:show_actual_costs]
+          columns += [
+            {"ACTUAL COMPUTE" => lambda {|it| format_money(it['actualComputePrice']) } },
+            # {"ACTUAL MEMORY" => lambda {|it| format_money(it['actualMemoryPrice']) } },
+            {"ACTUAL STORAGE" => lambda {|it| format_money(it['actualStoragePrice']) } },
+            {"ACTUAL NETWORK" => lambda {|it| format_money(it['actualNetworkPrice']) } },
+            {"ACTUAL OTHER" => lambda {|it| format_money(it['actualExtraPrice']) } },
+            # {"ACTUAL MTD" => lambda {|it| format_money(it['actualRunningPrice']) } },
+            # {"ACTUAL TOTAL" => lambda {|it| 
+            #   if it['period'] == current_period && it['actualTotalPrice'].to_f > 0
+            #     format_money(it['actualTotalPrice']) + " (Projected)"
+            #   else
+            #     format_money(it['actualTotalPrice'])
+            #   end
+            # } }
+          ]
+        end
+
         if options[:show_prices]
           columns += [
             {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice']) } },
@@ -309,8 +336,9 @@ class Morpheus::Cli::InvoicesCommand
       print "\n"
       # print_h2 "Costs"
       cost_rows = [
-        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
-        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+        {label: 'Usage Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+        {label: 'Usage Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+        {label: 'Actual Cost'.upcase, compute: invoice['actualComputeCost'], memory: invoice['actualMemoryCost'], storage: invoice['actualStorageCost'], network: invoice['actualNetworkCost'], license: invoice['actualLicenseCost'], extra: invoice['actualExtraCost'], running: invoice['actualRunningCost'], total: invoice['actualTotalCost']},
       ]
       cost_columns = {
         "" => lambda {|it| it[:label] },
