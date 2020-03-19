@@ -114,7 +114,7 @@ class Morpheus::Cli::ExecutionRequestCommand
       }
       print_description_list(description_cols, execution_request)      
 
-      if execution_request['stdErr']
+      if execution_request['stdErr'] && execution_request['stdErr'] != "stdin: is not a tty\n"
         print_h2 "Error"
         puts execution_request['stdErr'].to_s.strip
       end
