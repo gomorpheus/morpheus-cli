@@ -208,10 +208,11 @@ class Morpheus::Cli::Instances
               :type, :version, :environment, 
               {:user => {:display_name => "CREATED BY", :max_width => 20}}, 
               :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
-          # custom pretty table columns ...
-          if options[:include_fields]
-            columns = options[:include_fields]
-          end
+          # custom pretty table columns ... this is handled in as_pretty_table now(), 
+          # todo: remove all these.. and try to always pass rows as the json data itself..
+          # if options[:include_fields]
+          #   columns = options[:include_fields]
+          # end
           print cyan
           print as_pretty_table(rows, columns, options)
           print reset
