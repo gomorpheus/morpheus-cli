@@ -538,7 +538,7 @@ module Morpheus::Cli::PrintHelper
     value = value.to_s
     if do_wrap && value && Morpheus::Cli::PrintHelper.terminal_width
       value_width = Morpheus::Cli::PrintHelper.terminal_width - label_width
-      if value_width > 0 && value.to_s.size > value_width
+      if value_width > 0 && value.gsub(/\e\[(\d+)m/, '').to_s.size > value_width
         wrap_indent = label_width + 1 # plus 1 needs to go away
         value = wrap(value, value_width, wrap_indent)
       end

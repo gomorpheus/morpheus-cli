@@ -284,16 +284,17 @@ def filter_data(data, include_fields=nil, exclude_fields=nil)
   end
 end
 
-def format_bytes(bytes, units="B")
+def format_bytes(bytes, units="B", round=nil)
   out = ""
   if bytes
     if bytes < 1024 && units == "B"
       out = "#{bytes.to_i} B"
     else
-      out = Filesize.from("#{bytes} #{units}").pretty.strip
+      out = Filesize.from("#{bytes}#{units == 'auto' ? '' : " #{units}"}").pretty.strip
+      out = out.split(' ')[0].to_f.round(round).to_s + ' ' + out.split(' ')[1] if round
     end
   end
-  return out
+  out
 end
 
 # returns bytes in an abbreviated format
@@ -343,7 +344,7 @@ end
 
 # returns currency amount formatted like "$4,5123.00". 0.00 is formatted as "$0"
 # this is not ideal
-def format_money(amount, currency='usd')
+def format_money(amount, currency='usd', opts={})
   if amount.to_f == 0
     return currency_sym(currency).to_s + "0"
   # elsif amount.to_f < 0.01
@@ -357,6 +358,14 @@ def format_money(amount, currency='usd')
       rtn = rtn + (['0'] * (2 - rtn.split('.')[1].length) * '')
     end
     dollars,cents = rtn.split(".")
-    currency_sym(currency).to_s + format_number(dollars.to_i) + "." + cents
+    rtn = currency_sym(currency).to_s + format_number(dollars.to_i.abs) + "." + cents
+
+    if dollars.to_i < 0
+      rtn = "(#{rtn})"
+      if opts[:minus_color]
+        rtn = "#{opts[:minus_color]}#{rtn}#{opts[:return_color] || cyan}"
+      end
+    end
+    rtn
   end
 end

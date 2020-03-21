@@ -686,6 +686,10 @@ class Morpheus::APIClient
     Morpheus::InvoicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def guidance
+    Morpheus::GuidanceInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
   # add new interfaces here
 
 end
