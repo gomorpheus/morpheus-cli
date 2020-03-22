@@ -64,14 +64,14 @@ class Morpheus::Cli::GuidanceCommand
       {'info'=>white, 'low'=>yellow, 'warning'=>bright_yellow, 'critical'=>red}.each do |level, color|
         print "#{cyan}#{level.capitalize}".rjust(14, ' ') + ": " + stats['severity'][level].to_s.ljust(10, ' ')
         # print "#{cyan} #{guidance['stats']['severity'][level]} of #{guidance['stats']['severity'].collect{|k, v| v}.reduce(:+)}".ljust(20, ' ')
-        println generate_usage_bar(stats['severity'][level], stats['severity'].collect{|k, v| v}.reduce(:+), {:bar_color => color})
+        println generate_usage_bar(stats['severity'][level], stats['severity'].collect{|k, v| v}.reduce(:+), {:max_bars => 20, :bar_color => color})
       end
 
       # "size": 13, "shutdown": 15, "move": 0, "schedule"
       print_h2 "Action Totals"
       {'size'=>green, 'move'=>magenta, 'shutdown'=>red, 'schedule'=>bright_yellow}.each do |level, color|
         print "#{cyan}#{level.capitalize}".rjust(14, ' ') + ": " + stats['type'][level].to_s.ljust(10, ' ')
-        println generate_usage_bar(stats['type'][level], stats['type'].collect{|k, v| v}.reduce(:+), {:bar_color => color})
+        println generate_usage_bar(stats['type'][level], stats['type'].collect{|k, v| v}.reduce(:+), {:max_bars => 20, :bar_color => color})
       end
       print reset "\n"
       return 0
@@ -92,6 +92,15 @@ class Morpheus::Cli::GuidanceCommand
       end
       opts.on('-t', '--type TYPE', String, "Filter by Type") do |val|
         params['code'] = val
+      end
+      opts.on('-i', '--ignored', String, "Include Ignored Discoveries") do |val|
+        params['state'] = 'ignored'
+      end
+      opts.on('-p', '--processed', String, "Include Executed Discoveries") do |val|
+        params['state'] = 'processed'
+      end
+      opts.on('-a', '--any', String, "Include Executed and Ignored Discoveries") do |val|
+        params['state'] = 'any'
       end
       build_standard_list_options(opts, options)
       opts.footer = "List discoveries"
