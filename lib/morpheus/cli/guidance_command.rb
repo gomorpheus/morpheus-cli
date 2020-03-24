@@ -190,7 +190,7 @@ class Morpheus::Cli::GuidanceCommand
 
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 "Morpheus Discoveries", subtitles
+      print_h1 "Morpheus Discoveries#{params['state'] ? " - #{params['state'].capitalize}" : ''}", subtitles
 
       if discoveries.empty?
         print cyan,"No discoveries found.",reset,"\n"
