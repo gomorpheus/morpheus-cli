@@ -6,7 +6,7 @@ class Morpheus::Cli::GuidanceCommand
 
   set_command_name :'guidance'
 
-  register_subcommands :list, :get, :stats, :execute, :ignore
+  register_subcommands :list, :get, :stats, :execute, :ignore, :types
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -81,6 +81,59 @@ class Morpheus::Cli::GuidanceCommand
     end
   end
 
+  def types(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_standard_get_options(opts, options)
+      opts.footer = "List discovery types."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+      return 1
+    end
+
+    begin
+      @guidance_interface.setopts(options)
+
+      if options[:dry_run]
+        print_dry_run @guidance_interface.dry.types()
+        return
+      end
+      json_response = @guidance_interface.types()
+      if options[:json]
+        puts as_json(json_response, options, "types")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "types")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv([json_response['types']], options)
+        return 0
+      end
+
+      types = json_response['types']
+
+      print_h1 "Discovery Types"
+      print cyan
+
+      cols = [
+          {"ID" => lambda {|it| it['id']}},
+          {"NAME" => lambda {|it| it['name']}},
+          {"TITLE" => lambda {|it| it['title']}},
+          {"CODE" => lambda {|it| it['code']}}
+      ];
+      print as_pretty_table(types, cols, options)
+      print reset "\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
   def list(args)
     options = {}
     params = {}
@@ -91,7 +144,7 @@ class Morpheus::Cli::GuidanceCommand
         params['severity'] = val
       end
       opts.on('-t', '--type TYPE', String, "Filter by Type") do |val|
-        params['code'] = val
+        options[:type] = val
       end
       opts.on('-i', '--ignored', String, "Include Ignored Discoveries") do |val|
         params['state'] = 'ignored'
@@ -113,6 +166,16 @@ class Morpheus::Cli::GuidanceCommand
       return 1
     end
     begin
+      if options[:type]
+        type = find_discovery_type(options[:type])
+
+        if !type
+          print_red_alert "Type #{options[:type]} not found"
+          exit 1
+        end
+        params['code'] = type['code']
+      end
+
       params.merge!(parse_list_options(options))
       @guidance_interface.setopts(options)
       if options[:dry_run]
@@ -429,6 +492,10 @@ class Morpheus::Cli::GuidanceCommand
 
   def find_discovery(id)
     @guidance_interface.get(id)['discovery']
+  end
+
+  def find_discovery_type(id)
+    @guidance_interface.types()['types'].find {|it| it['id'].to_s == id.to_s || it['code'] == id || it['name'] == id}
   end
 
   def format_status(status)

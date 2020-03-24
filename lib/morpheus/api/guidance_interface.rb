@@ -21,6 +21,12 @@ class Morpheus::GuidanceInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def types()
+    url = "#{@api_url}/types"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
   def get(id, params={})
     url = "#{@api_url}/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
