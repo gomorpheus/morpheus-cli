@@ -205,6 +205,9 @@ class Morpheus::Cli::GuidanceCommand
             {"SAVINGS" => lambda {|it| format_money(it['savings']['amount'], it['savings']['currency'], {:minus_color => red})}},
             {"DATE" => lambda {|it| format_local_date(it['dateCreated'], {:format => DEFAULT_TIME_FORMAT})}}
         ];
+        if(params['state'] == 'any')
+            cols << {'STATE' => lambda {|it| it['processed'] ? "#{green}Executed#{cyan}" : (it['ignored'] ? "#{yellow}Ignored#{cyan}" : '')}}
+        end
         print as_pretty_table(discoveries, cols, options)
         print_results_pagination(json_response, {:label => "discovery", :n_label => "discoveries"})
       end
@@ -478,7 +481,7 @@ class Morpheus::Cli::GuidanceCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         if json_response['success']
-          print_green_success  "Discovery successfully #{is_exec ? 'executed' : 'ignored'}"
+          print_green_success  "Discovery successfully #{is_exec ? 'queued' : 'ignored'}"
         else
           print_red_alert "Error #{is_exec ? 'executing' : 'ignoring'} the #{discovery['actionTitle'].capitalize} action: #{json_response['msg'] || json_response['errors']}"
         end
