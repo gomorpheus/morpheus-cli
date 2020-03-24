@@ -149,10 +149,10 @@ class Morpheus::Cli::GuidanceCommand
       opts.on('-i', '--ignored', String, "Include Ignored Discoveries") do |val|
         params['state'] = 'ignored'
       end
-      opts.on('-p', '--processed', String, "Include Executed Discoveries") do |val|
+      opts.on('-p', '--processed', String, "Include Processed Discoveries") do |val|
         params['state'] = 'processed'
       end
-      opts.on('-a', '--any', String, "Include Executed and Ignored Discoveries") do |val|
+      opts.on('-a', '--any', String, "Include Processed and Ignored Discoveries") do |val|
         params['state'] = 'any'
       end
       build_standard_list_options(opts, options)
@@ -205,8 +205,8 @@ class Morpheus::Cli::GuidanceCommand
             {"SAVINGS" => lambda {|it| format_money(it['savings']['amount'], it['savings']['currency'], {:minus_color => red})}},
             {"DATE" => lambda {|it| format_local_date(it['dateCreated'], {:format => DEFAULT_TIME_FORMAT})}}
         ];
-        if(params['state'] == 'any')
-            cols << {'STATE' => lambda {|it| it['processed'] ? "#{green}Executed#{cyan}" : (it['ignored'] ? "#{yellow}Ignored#{cyan}" : '')}}
+        if params['state'] == 'any'
+          cols << {"STATE" => lambda {|it| (it['state'] == 'processed' ? green : (it['state'] == 'ignored' ? white : '')) + it['state'].capitalize + cyan}}
         end
         print as_pretty_table(discoveries, cols, options)
         print_results_pagination(json_response, {:label => "discovery", :n_label => "discoveries"})
@@ -258,7 +258,8 @@ class Morpheus::Cli::GuidanceCommand
           #"Ref ID" => lambda {|it| it['refId'] },
           "Resource" => lambda {|it| it['refName'] },
           "Action" => lambda {|it| action_title(it['type'])},
-          "Date" => lambda {|it| format_local_date(it['dateCreated'], {:format => DEFAULT_TIME_FORMAT})}
+          "Date" => lambda {|it| format_local_date(it['dateCreated'], {:format => DEFAULT_TIME_FORMAT})},
+          "State" => lambda {|it| (it['state'] == 'processed' ? green : (it['state'] == 'ignored' ? white : cyan)) + it['state'].capitalize + cyan}
       }
       description_cols['Cloud'] = lambda {|it| it['zone']['name']} if discovery['refType'] == 'computeServer'
       description_cols.merge!({
@@ -460,8 +461,8 @@ class Morpheus::Cli::GuidanceCommand
         exit 1
       end
 
-      if discovery['resolved'] || discovery['ignored']
-        print_green_success "#{discovery['actionTitle'].capitalize} action for #{discovery['refName']} already resolved."
+      if discovery['state'] != 'open'
+        print_green_success "#{discovery['actionTitle'].capitalize} action for #{discovery['refName']} already #{discovery['state']}."
         return 0
       end
 
