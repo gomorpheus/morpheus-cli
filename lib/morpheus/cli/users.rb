@@ -113,25 +113,34 @@ class Morpheus::Cli::Users
 
   def get(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username]")
-      opts.on('-f','--feature-access', "Display Feature Access") do |val|
-        options[:include_feature_access] = true
+      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
+        options[:include_features_access] = true
+        params['includeAccess'] = true
       end
-      # opts.on(nil,'--group-access', "Display Group Access") do
-      #   options[:include_group_access] = true
-      # end
-      # opts.on(nil,'--cloud-access', "Display Cloud Access") do
-      #   options[:include_cloud_access] = true
-      # end
-      # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
-      #   options[:include_instance_type_access] = true
-      # end
+      opts.on(nil,'--group-access', "Display Group Access") do
+        options[:include_sites_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
+        options[:include_instance_types_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on(nil,'--blueprint-access', "Display Blueprint Access") do
+        options[:include_app_templates_access] = true
+        params['includeAccess'] = true
+      end
       opts.on(nil,'--all', "Display All Access Lists") do
-        options[:include_feature_access] = true
-        options[:include_group_access] = true
-        options[:include_cloud_access] = true
-        options[:include_instance_type_access] = true
+        options[:include_features_access] = true
+        options[:include_sites_access] = true
+        options[:include_instance_types_access] = true
+        options[:include_app_templates_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
+        options[:display_none_access] = true
       end
       build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Get details about a user." + "\n" +
@@ -151,44 +160,48 @@ class Morpheus::Cli::Users
       @users_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @users_interface.dry.get(account_id, args[0].to_i, {includePermissions:true})
+          print_dry_run @users_interface.dry.get(account_id, args[0].to_i, params)
         else
-          print_dry_run @users_interface.dry.get(account_id, {username: args[0]})
+          print_dry_run @users_interface.dry.get(account_id, {username: args[0]}, params)
         end
-        # if options[:include_feature_access]
-        #   print_dry_run @users_interface.dry.feature_permissions(account_id, ":id")
-        # end
         return
       end
-      # todo: users_response = @users_interface.list(account_id, {name: name})
-      #       there may be response data outside of user that needs to be displayed
-      user = find_user_by_username_or_id(account_id, args[0])
-      return 1 if user.nil?
+
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        user_id = args[0].to_i
+      else
+        user = find_user_by_username(account_id, args[0])
+
+        if user.nil?
+          print_red_alert "User #{args[0]} not found"
+          exit 1
+        end
+        user_id = user['id']
+      end
+
+      user = @users_interface.get(account_id, user_id, params)['user']
+
+      if user.nil?
+        print_red_alert "User #{args[0]} not found"
+        exit 1
+      end
       
       json_response =  {'user' => user}
-      # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
+
       if options[:json]
         puts as_json(json_response, options, "user")
-        #puts as_json(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:yaml]
         puts as_yaml(json_response, options, "user")
-        #puts as_yaml(@users_interface.feature_permissions(account_id, user['id']), options) if options[:include_feature_access]
         return 0
       elsif options[:csv]
         puts records_as_csv([user], options)
         return 0
-      else
-        user_feature_permissions_json = nil
-        user_feature_permissions = nil
-        if options[:include_feature_access]
-          user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
-          # permissions (Array) has replaced featurePermissions (map)
-          user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
-        end
-        print_h1 "User Details", options
-        print cyan
-        description_cols = {
+      end
+
+      print_h1 "User Details", options
+      print cyan
+      description_cols = {
           "ID" => 'id',
           "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
           # "First" => 'firstName',
@@ -200,34 +213,32 @@ class Morpheus::Cli::Users
           "Role" => lambda {|it| format_user_role_names(it) },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-        }
-        print_description_list(description_cols, user)
+      }
+      print_description_list(description_cols, user)
 
+      {'features' => 'Feature', 'sites' => 'Group', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}.each do |field, label|
+        if options["include_#{field}_access".to_sym]
+          access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
 
-        if options[:include_feature_access] && user_feature_permissions
-          if user_feature_permissions
-            print_h2 "Feature Permissions", options
-            print cyan
-            if user_feature_permissions.is_a?(Array)
-              rows = user_feature_permissions.collect do |it|
-                {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
-              end
-              print as_pretty_table(rows, [:name, :code, :access], options)
+          print_h2 "#{label} Access", options
+          print cyan
+
+          if access.count > 0
+            access.each {|it| it['access'] = get_access_string(it['access'])}
+
+            if ['features', 'instance_types'].include?(field)
+              print as_pretty_table(access, [:name, :code, :access], options)
             else
-              rows = user_feature_permissions.collect do |code, access|
-                {code: code, access: get_access_string(access) }
-              end
-              print as_pretty_table(rows, [:code, :access], options)
+              print as_pretty_table(access, [:name, :access], options)
             end
-            
           else
-            puts yellow,"No permissions found.",reset
+            println yellow,"No #{label} Access Found.",reset
           end
         end
-
-        print cyan
-        print reset,"\n"
       end
+      print cyan
+      print reset,"\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
