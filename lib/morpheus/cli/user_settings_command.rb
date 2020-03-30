@@ -364,23 +364,38 @@ class Morpheus::Cli::UserSettingsCommand
     raw_args = args
     options = {}
     params = {}
+    client_id = nil
+    all_clients = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[client-id]")
+      opts.on("--all", "--all", "Clear tokens for all Client IDs instead of a specific client.") do
+        all_clients = true
+      end
+      # opts.on("--client-id", "Client ID. eg. morph-api, morph-cli") do |val|
+      #   params['clientId'] = val.to_s
+      # end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = "Clear API access token for a specific client.\n" +
-                    "[client-id] is required. This is the id of an api client."
+                    "[client-id] or --all is required. This is the id of an api client."
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 1
+    if args.count > 1 || (args.count == 0 && all_clients == false)
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
-    params['clientId'] = args[0]
+    if args[0]
+      params['clientId'] = args[0]
+    end
+    if params['clientId'] == 'all'
+      params.delete('clientId')
+      all_clients = true
+      # clears all when clientId is omitted, no api parameter needed.
+    end
     begin
       payload = {}
       @user_settings_interface.setopts(options)
@@ -400,9 +415,20 @@ class Morpheus::Cli::UserSettingsCommand
       # if params['clientId'] == Morpheus::APIClient::CLIENT_ID
       #   logout_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).logout
       # end
-      print_green_success "Cleared #{params['clientId']} access token"
+      success_msg = "Success"
+      if all_clients
+        success_msg = "Cleared all access tokens"
+      else
+        success_msg = "Cleared #{params['clientId']} access token"
+      end
+      if params['userId']
+        success_msg << " for user #{params['userId']}"
+      end
+      print_green_success success_msg
       if params['clientId'] == Morpheus::APIClient::CLIENT_ID
-        print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
+        if params['userId'].nil? # should check against current user id
+          print yellow,"Your current access token is no longer valid, you will need to login again.",reset,"\n"
+        end
       end
       # get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
       # get(get_args)
