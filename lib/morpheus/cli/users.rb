@@ -250,7 +250,10 @@ class Morpheus::Cli::Users
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username]")
       build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Display Permissions for a user." + "\n" +
+      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
+        options[:display_none_access] = true
+      end
+      opts.footer = "Display Access for a user." + "\n" +
                     "[username] is required. This is the username or id of a user."
     end
     optparse.parse!(args)
@@ -268,46 +271,46 @@ class Morpheus::Cli::Users
       return 1 if user.nil?
       @users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.feature_permissions(account_id, user['id'])
+        print_dry_run @users_interface.dry.permissions(account_id, user['id'])
         return
       end
       
-      json_response = @users_interface.feature_permissions(account_id, user['id'])
-      # json_response['user']['featurePermissions'] = user_feature_permissions if options[:include_feature_access]
+      json_response = @users_interface.permissions(account_id, user['id'])
+
       if options[:json]
-        puts as_json(json_response, options, 'permissions')
+        puts as_json(json_response, options, 'access')
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, 'permissions')
+        puts as_yaml(json_response, options, 'access')
         return 0
       elsif options[:csv]
-        puts records_as_csv(json_response['permissions'], options)
-        return 0
-      else
-        user_feature_permissions = nil
-        # permissions (Array) has replaced featurePermissions (map)
-        user_feature_permissions = json_response['permissions'] || json_response['featurePermissions']
-        print_h1 "User Permissions: #{user['username']}", options
-        if user_feature_permissions
-          print cyan
-          if user_feature_permissions.is_a?(Array)
-            rows = user_feature_permissions.collect do |it|
-              {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
-            end
-            print as_pretty_table(rows, [:name, :code, :access], options)
-          else
-            rows = user_feature_permissions.collect do |code, access|
-              {code: code, access: get_access_string(access) }
-            end
-            print as_pretty_table(rows, [:code, :access], options)
-          end
-          
-        else
-          print yellow,"No permissions found.",reset,"\n"
-        end
-        print reset,"\n"
+        puts records_as_csv(json_response['access'], options)
         return 0
       end
+
+      print_h1 "User Permissions: #{user['username']}", options
+
+      {'features' => 'Feature', 'sites' => 'Group', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}.each do |field, label|
+        access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+        access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+
+        print_h2 "#{label} Access", options
+        print cyan
+
+        if access.count > 0
+          access.each {|it| it['access'] = get_access_string(it['access'])}
+
+          if ['features', 'instance_types'].include?(field)
+            print as_pretty_table(access, [:name, :code, :access], options)
+          else
+            print as_pretty_table(access, [:name, :access], options)
+          end
+        else
+          println yellow,"No #{label} Access Found.",reset
+        end
+      end
+      print cyan
+      print reset,"\n"
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
