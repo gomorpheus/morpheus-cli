@@ -10,6 +10,7 @@ require 'json'
 class Morpheus::Cli::Users
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::WhoamiHelper
   register_subcommands :list, :count, :get, :add, :update, :remove, :permissions
   register_subcommands :'passwd' => :change_password
   alias_subcommand :details, :get
@@ -21,7 +22,6 @@ class Morpheus::Cli::Users
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
     @users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
     @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
     @roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
@@ -124,6 +124,10 @@ class Morpheus::Cli::Users
         options[:include_sites_access] = true
         params['includeAccess'] = true
       end
+      opts.on(nil,'--cloud-access', "Display Cloud Access") do
+        options[:include_zones_access] = true
+        params['includeAccess'] = true
+      end
       opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
         options[:include_instance_types_access] = true
         params['includeAccess'] = true
@@ -135,6 +139,7 @@ class Morpheus::Cli::Users
       opts.on(nil,'--all', "Display All Access Lists") do
         options[:include_features_access] = true
         options[:include_sites_access] = true
+        options[:include_zones_access] = true
         options[:include_instance_types_access] = true
         options[:include_app_templates_access] = true
         params['includeAccess'] = true
@@ -185,7 +190,9 @@ class Morpheus::Cli::Users
         print_red_alert "User #{args[0]} not found"
         exit 1
       end
-      
+
+      is_tenant_account = current_account['id'] != user['account']['id']
+
       json_response =  {'user' => user}
 
       if options[:json]
@@ -216,8 +223,9 @@ class Morpheus::Cli::Users
       }
       print_description_list(description_cols, user)
 
-      {'features' => 'Feature', 'sites' => 'Group', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}.each do |field, label|
-        if options["include_#{field}_access".to_sym]
+      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+      available_field_options.each do |field, label|
+        if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
           access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
           access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
 
@@ -274,7 +282,9 @@ class Morpheus::Cli::Users
         print_dry_run @users_interface.dry.permissions(account_id, user['id'])
         return
       end
-      
+
+      is_tenant_account = current_account['id'] != user['account']['id']
+
       json_response = @users_interface.permissions(account_id, user['id'])
 
       if options[:json]
@@ -290,23 +300,26 @@ class Morpheus::Cli::Users
 
       print_h1 "User Permissions: #{user['username']}", options
 
-      {'features' => 'Feature', 'sites' => 'Group', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}.each do |field, label|
-        access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-        access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+      available_field_options.each do |field, label|
+        if !(field == 'sites' && is_tenant_account)
+          access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
 
-        print_h2 "#{label} Access", options
-        print cyan
+          print_h2 "#{label} Access", options
+          print cyan
 
-        if access.count > 0
-          access.each {|it| it['access'] = get_access_string(it['access'])}
+          if access.count > 0
+            access.each {|it| it['access'] = get_access_string(it['access'])}
 
-          if ['features', 'instance_types'].include?(field)
-            print as_pretty_table(access, [:name, :code, :access], options)
+            if ['features', 'instance_types'].include?(field)
+              print as_pretty_table(access, [:name, :code, :access], options)
+            else
+              print as_pretty_table(access, [:name, :access], options)
+            end
           else
-            print as_pretty_table(access, [:name, :access], options)
+            println yellow,"No #{label} Access Found.",reset
           end
-        else
-          println yellow,"No #{label} Access Found.",reset
         end
       end
       print cyan
