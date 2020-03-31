@@ -207,7 +207,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         print_h2 "Tenant Permissions"
         print cyan
         description_cols = {
-            "Visibility" => lambda{|it| it['permissions']['visibility']},
+            "Visibility" => lambda{|it| (it['permissions']['visibility'] || '').capitalize},
             "Tenants" => lambda{|it|
               accounts = (it['permissions']['tenantPermissions'] || {})['accounts'] || []
               accounts.count > 0 ? accounts.join(', ') : ''

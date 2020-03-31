@@ -258,8 +258,8 @@ module Morpheus
           case option_key.to_sym
 
           when :account
-            opts.on('-a','--account ACCOUNT', "Account Name") do |val|
-              options[:account_name] = val
+            opts.on('-a','--account ACCOUNT', "Account Name or ID") do |val|
+              options[:account] = val
             end
             opts.on('-A','--account-id ID', "Account ID") do |val|
               options[:account_id] = val
