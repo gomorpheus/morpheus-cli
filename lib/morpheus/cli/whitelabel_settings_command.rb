@@ -1,8 +1,9 @@
 require 'morpheus/cli/cli_command'
+require 'morpheus/cli/mixins/accounts_helper'
 
 class Morpheus::Cli::WhitelabelSettingsCommand
   include Morpheus::Cli::CliCommand
- # include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::AccountsHelper
 
   set_command_name :'whitelabel-settings'
 
@@ -17,6 +18,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @whitelabel_settings_interface = @api_client.whitelabel_settings
+    @accounts_interface = @api_client.accounts
   end
 
   def handle(args)
@@ -27,6 +29,9 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on('--details', "Show full (not truncated) contents of Terms of Use, Privacy Policy, Override CSS" ) do
         options[:details] = true
       end
@@ -44,12 +49,21 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     
     begin
       params = parse_list_options(options)
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          params['accountId'] = account['id']
+        end
+      end
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.get()
+        print_dry_run @whitelabel_settings_interface.dry.get(params)
         return
       end
-      json_response = @whitelabel_settings_interface.get()
+      json_response = @whitelabel_settings_interface.get(params)
       if options[:json]
         puts as_json(json_response, options, "whitelabelSettings")
         return 0
@@ -66,6 +80,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       print_h1 "Whitelabel Settings"
       print cyan
       description_cols = {
+        "Account" => lambda {|it| it['account']['name'] rescue '' },
         "Enabled" => lambda {|it| format_boolean(it['enabled']) },
         "Appliance Name" => lambda {|it| it['applianceName'] },
         "Disable Support Menu" => lambda {|it| format_boolean(it['disableSupportMenu'])},
@@ -130,8 +145,12 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   def update(args)
     options = {}
     params = {}
+    query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on('--active [on|off]', String, "Can be used to enable / disable whitelabel feature") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -237,6 +256,15 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     end
 
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          query_params['accountId'] = account['id']
+        end
+      end
       payload = parse_payload(options)
       image_files = {}
 
@@ -258,17 +286,17 @@ class Morpheus::Cli::WhitelabelSettingsCommand
 
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.update(payload, image_files)
+        print_dry_run @whitelabel_settings_interface.dry.update(payload, query_params)
         return
       end
-      json_response = @whitelabel_settings_interface.update(payload, image_files)
+      json_response = @whitelabel_settings_interface.update(payload, query_params)
 
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
         if json_response['success']
           print_green_success "Updated whitelabel settings"
-          get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          get([] + (options[:account] ? ["-a",options[:account]] : []) + (options[:remote] ? ["-r",options[:remote]] : []))
         else
           print_red_alert "Error updating whitelabel settings: #{json_response['msg'] || json_response['errors']}"
         end
@@ -281,10 +309,14 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   end
 
   def update_images(args)
-    options = {}
     params = {}
+    query_params = {}
+    options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on("--header-logo FILE", String, "Header logo image. Local path of a file to upload (png|jpg|svg)") do |val|
         options[:headerLogo] = val
       end
@@ -322,6 +354,15 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     end
 
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          query_params['accountId'] = account['id']
+        end
+      end
       payload = parse_payload(options)
 
       if !payload
@@ -348,11 +389,11 @@ class Morpheus::Cli::WhitelabelSettingsCommand
 
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.update_images(payload)
+        print_dry_run @whitelabel_settings_interface.dry.update_images(payload, query_params)
         return
       end
 
-      json_response = @whitelabel_settings_interface.update_images(payload)
+      json_response = @whitelabel_settings_interface.update_images(payload, query_params)
 
       if options[:json]
         puts as_json(json_response, options)
@@ -367,9 +408,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   end
 
   def reset_image(args)
+    query_params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type]")
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Reset your whitelabel image.\n" +
           "[image-type] is required. This is the whitelabel image type (#{@image_types.collect {|k,v| k}.join('|')})"
@@ -388,14 +433,23 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     end
 
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          query_params['accountId'] = account['id']
+        end
+      end
       image_type = @image_types[args[0]]
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.reset_image(image_type)
+        print_dry_run @whitelabel_settings_interface.dry.reset_image(image_type, query_params)
         return
       end
 
-      json_response = @whitelabel_settings_interface.reset_image(image_type)
+      json_response = @whitelabel_settings_interface.reset_image(image_type, query_params)
 
       if options[:json]
         puts as_json(json_response, options)
@@ -410,9 +464,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   end
 
   def view_image(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type]")
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "View your image of specified [image-type].\n" +
           "[image-type] is required. This is the whitelabel image type (#{@image_types.collect {|k,v| k}.join('|')})\n" +
@@ -432,14 +490,23 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     end
 
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          params['accountId'] = account['id']
+        end
+      end
       image_type = @image_types[args[0]]
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.get()
+        print_dry_run @whitelabel_settings_interface.dry.get(params)
         return
       end
 
-      whitelabel_settings = @whitelabel_settings_interface.get()['whitelabelSettings']
+      whitelabel_settings = @whitelabel_settings_interface.get(params)['whitelabelSettings']
 
       if link = whitelabel_settings[image_type]
         if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
@@ -461,9 +528,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
   end
 
   def download_image(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type] [local-file]")
+      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
         options[:overwrite] = true
       end
@@ -489,6 +560,15 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     end
 
     begin
+      account = nil
+      if options[:account]
+        account = find_account_by_name_or_id(options[:account])
+        if account.nil?
+          return 1
+        else
+          params['accountId'] = account['id']
+        end
+      end
       image_type = @image_types[args[0]]
       outfile = File.expand_path(args[1])
       outdir = File.dirname(outfile)
@@ -513,7 +593,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
 
       @whitelabel_settings_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @whitelabel_settings_interface.dry.download_image(image_type, outfile)
+        print_dry_run @whitelabel_settings_interface.dry.download_image(image_type, outfile, params)
         return
       end
 
@@ -521,7 +601,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
         print cyan + "Downloading #{args[0]} to #{outfile} ... "
       end
 
-      http_response = @whitelabel_settings_interface.download_image(image_type, outfile)
+      http_response = @whitelabel_settings_interface.download_image(image_type, outfile, params)
 
       success = http_response.code.to_i == 200
       if success
