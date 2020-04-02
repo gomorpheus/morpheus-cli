@@ -14,6 +14,7 @@ class Morpheus::Cli::CurlCommand
     curl_args = split_args[1] ? split_args[1].split(" ") : []
     curl_method = nil
     curl_data = nil
+    curl_verbsose = false
     show_progress = false
     # puts "args is : #{args}"
     # puts "curl_args is : #{curl_args}"
@@ -25,6 +26,9 @@ class Morpheus::Cli::CurlCommand
       end
       opts.on( '-X', '--request METHOD', "HTTP request method. Default is GET" ) do |val|
         curl_method = val
+      end
+      opts.on( '-v', '--verbose', "Print verbose output." ) do
+        curl_verbsose = true
       end
       opts.on( '--data DATA', String, "HTTP request body for use with POST and PUT, typically JSON." ) do |val|
         curl_data = val
@@ -86,6 +90,9 @@ EOT
     curl_cmd = "curl"
     if show_progress == false
       curl_cmd << " -s"
+    end
+    if curl_verbsose
+      curl_cmd << " -v"
     end
     if curl_method
       curl_cmd << " -X#{curl_method}"
