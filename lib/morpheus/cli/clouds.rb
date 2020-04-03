@@ -12,7 +12,7 @@ class Morpheus::Cli::Clouds
   include Morpheus::Cli::InfrastructureHelper
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :count, :get, :add, :update, :remove, :security_groups, :apply_security_groups, :types => :list_cloud_types
+  register_subcommands :list, :count, :get, :add, :update, :remove, :refresh, :security_groups, :apply_security_groups, :types => :list_cloud_types
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
   alias_subcommand :details, :get
@@ -335,12 +335,11 @@ class Morpheus::Cli::Clouds
       json_response = @clouds_interface.create(payload)
       cloud = json_response['zone']
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
-        #list([])
-        get([cloud["id"]])
+        get([cloud['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -405,12 +404,11 @@ class Morpheus::Cli::Clouds
       end
       json_response = @clouds_interface.update(cloud['id'], payload)
       if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
+        puts as_json(json_response, options)
       else
-        #list([])
-        get([cloud["id"]])
+        get([cloud['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -450,6 +448,105 @@ class Morpheus::Cli::Clouds
       elsif !options[:quiet]
         print_green_success "Removed cloud #{cloud['name']}"
         #list([])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def refresh(args)
+    options = {}
+    query_params = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [options]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'true'
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Refresh a cloud." + "\n" +
+                    "[cloud] is required. This is the name or id of a cloud."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        payload = {}
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.refresh(cloud['id'], query_params, payload)
+        return
+      end
+      json_response = @clouds_interface.refresh(cloud['id'], query_params, payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Refreshing cloud #{cloud['name']}..."
+        #get([cloud['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  # not exposed yet, refresh should be all that's needed.
+  def sync(args)
+    options = {}
+    query_params = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [options]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        query_params[:force] = 'true'
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Sync a cloud." + "\n" +
+                    "[cloud] is required. This is the name or id of a cloud."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      payload = nil
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        payload = {}
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.sync(cloud['id'], query_params, payload)
+        return
+      end
+      json_response = @clouds_interface.sync(cloud['id'], query_params, payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Syncing cloud #{cloud['name']}..."
+        #get([cloud['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
