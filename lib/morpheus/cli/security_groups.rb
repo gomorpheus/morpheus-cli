@@ -289,6 +289,9 @@ class Morpheus::Cli::SecurityGroups
           options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--can-manage LIST', Array, "Tenant Can Manage, comma separated list of account IDs that can manage") do |list|
+        options['canManage'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
@@ -388,6 +391,7 @@ class Morpheus::Cli::SecurityGroups
         if options['tenants']
           payload['tenantPermissions'] = {}
           payload['tenantPermissions']['accounts'] = options['tenants']
+          payload['tenantPermissions']['canManageAccounts'] = options['canManage'] if options['canManage']
         end
 
         # Visibility
@@ -459,6 +463,9 @@ class Morpheus::Cli::SecurityGroups
           options['tenants'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--can-manage LIST', Array, "Tenant Can Manage, comma separated list of account IDs that can manage") do |list|
+        options['canManage'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
@@ -510,6 +517,7 @@ class Morpheus::Cli::SecurityGroups
         if options['tenants']
           payload['tenantPermissions'] = {}
           payload['tenantPermissions']['accounts'] = options['tenants']
+          payload['tenantPermissions']['canManageAccounts'] = options['canManage'] if options['canManage']
         end
 
         # Visibility
