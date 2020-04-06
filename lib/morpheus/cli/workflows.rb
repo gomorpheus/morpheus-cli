@@ -358,8 +358,7 @@ class Morpheus::Cli::Workflows
           #   puts "#{(index+1).to_s.rjust(3, ' ')}. #{taskSetTask['task']['name']}"
           # end
           task_set_task_columns = [
-            # this is the ID needed for the config options, by name would be nicer
-            {"ID" => lambda {|it| it['id'] } }, 
+            #{"ID" => lambda {|it| it['id'] } }, 
             {"TASK ID" => lambda {|it| it['task']['id'] } },
             {"NAME" => lambda {|it| it['task']['name'] } },
             {"TYPE" => lambda {|it| it['task']['taskType'] ? it['task']['taskType']['name'] : '' } },
