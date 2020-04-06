@@ -73,6 +73,20 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def refresh(id, params={}, payload={})
+    url = "#{@base_url}/api/zones/#{id}/refresh"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def sync(id, params={}, payload={})
+    url = "#{@base_url}/api/zones/#{id}/sync"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def firewall_disable(id)
     url = "#{@base_url}/api/zones/#{id}/security-groups/disable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

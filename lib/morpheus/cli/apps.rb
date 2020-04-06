@@ -531,7 +531,12 @@ class Morpheus::Cli::Apps
       rescue TypeError, JSON::ParserError => ex
         print_error red, "Failed to parse JSON response: #{ex}", reset, "\n"
       end
-
+      # The default way to print errors, except instances => []
+      (json_response['errors'] || {}).each do |error_key, error_msg|
+        if error_key != 'instances'
+          print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
+        end
+      end
       # looks for special error format like instances.instanceErrors 
       if json_response['errors'] && json_response['errors']['instances']
         json_response['errors']['instances'].each do |error_obj|
@@ -543,13 +548,6 @@ class Morpheus::Cli::Apps
             instance_errors.each do |err_key, err_msg|
               print_error red, " * #{err_key} : #{err_msg}", reset, "\n"
             end
-          end
-        end
-      else
-        # a default way to print errors
-        (json_response['errors'] || {}).each do |error_key, error_msg|
-          if error_key != 'instances'
-            print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
           end
         end
       end
@@ -613,6 +611,7 @@ class Morpheus::Cli::Apps
         "Description" => 'description',
         "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
+        "Environment" => lambda {|it| it['appContext'] },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Tiers" => lambda {|it| 
           # it['instanceCount']
@@ -1938,6 +1937,7 @@ class Morpheus::Cli::Apps
         id: app['id'],
         name: app['name'],
         group: app['group'] ? app['group']['name'] : app['siteId'],
+        environment: app['appContext'],
         tiers: tiers_str,
         instances: instances_str,
         containers: containers_str,
@@ -1954,6 +1954,7 @@ class Morpheus::Cli::Apps
       :id,
       :name,
       :group,
+      :environment,
       :tiers,
       :instances,
       :containers,
