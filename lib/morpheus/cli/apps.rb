@@ -611,6 +611,7 @@ class Morpheus::Cli::Apps
         "Description" => 'description',
         "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
+        "Environment" => lambda {|it| it['appContext'] },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Tiers" => lambda {|it| 
           # it['instanceCount']
