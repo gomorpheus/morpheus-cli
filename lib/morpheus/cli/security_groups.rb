@@ -388,9 +388,9 @@ class Morpheus::Cli::SecurityGroups
         end
 
         # Tenants
-        if options['tenants']
+        if options['tenants'] || options['canManage']
           payload['tenantPermissions'] = {}
-          payload['tenantPermissions']['accounts'] = options['tenants']
+          payload['tenantPermissions']['accounts'] = ((options['tenants'] || []) + (options['canManage'] || [])).uniq
           payload['tenantPermissions']['canManageAccounts'] = options['canManage'] if options['canManage']
         end
 
@@ -514,9 +514,9 @@ class Morpheus::Cli::SecurityGroups
         end
 
         # Tenants
-        if options['tenants']
+        if options['tenants'] || options['canManage']
           payload['tenantPermissions'] = {}
-          payload['tenantPermissions']['accounts'] = options['tenants']
+          payload['tenantPermissions']['accounts'] = ((options['tenants'] || []) + (options['canManage'] || [])).uniq
           payload['tenantPermissions']['canManageAccounts'] = options['canManage'] if options['canManage']
         end
 
