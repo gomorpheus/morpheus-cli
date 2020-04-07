@@ -56,7 +56,6 @@ class Morpheus::Cli::ChangePasswordCommand
 
     connect(options)
     @current_remote = @appliance_name ? ::Morpheus::Cli::Remote.load_remote(@appliance_name) : ::Morpheus::Cli::Remote.load_active_remote()
-    puts "args is #{args}"
     begin
       if args[0]
         username = args[0]
