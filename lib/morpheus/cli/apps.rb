@@ -298,14 +298,23 @@ class Morpheus::Cli::Apps
         end
         
         # Environment
+        selected_environment = nil
+        available_environments = get_available_environments()
         if options[:environment]
           payload['environment'] = options[:environment]
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'optionSource' => 'environments'}], options[:options], @api_client)
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'selectOptions' => available_environments}], options[:options], @api_client)
           payload['environment'] = v_prompt['environment'] unless v_prompt['environment'].to_s.empty?
         end
+        selected_environment = nil
+        if payload['environment']
+          selected_environment = available_environments.find {|it| it['code'] == payload['environment'] || it['name'] == payload['environment'] }
+          if selected_environment.nil?
+            print_red_alert "Environment not found by name or code '#{payload['environment']}'"
+            return 1
+          end
+        end
         # payload['appContext'] = payload['environment'] if payload['environment']
-
 
         if !payload['tiers']
           if payload['blueprintId'] != 'existing'
@@ -376,13 +385,14 @@ class Morpheus::Cli::Apps
                       
                       # prompt for the cloud for this instance
                       # the cloud is part of finding the scoped config in the blueprint
-                      scoped_instance_config = get_scoped_instance_config(instance_config.clone, payload['environment'], group ? group['name'] : nil, cloud ? cloud['name'] : nil)
+                      scoped_instance_config = get_scoped_instance_config(instance_config.clone, selected_environment ? selected_environment['name'] : nil, group ? group['name'] : nil, cloud ? cloud['name'] : nil)
 
                       # now configure an instance like normal, use the config as default options with :always_prompt
                       instance_prompt_options = {}
                       instance_prompt_options[:group] = group ? group['id'] : nil
                       #instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
+                      instance_prompt_options[:environment] = selected_environment ? selected_environment['code'] : nil
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
                       #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
@@ -2024,24 +2034,6 @@ class Morpheus::Cli::Apps
     end
     #puts "get_available_blueprints() rtn: #{@available_blueprints.inspect}"
     return @available_blueprints
-  end
-
-  def get_available_environments(refresh=false)
-    if !@available_environments || refresh
-      # results = @options_interface.options_for_source('environments',{})
-      # @available_environments = results['data'].collect {|it|
-      #   {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
-      # }
-      # todo: api call
-      @available_environments = [
-        {'name' => 'Dev', 'value' => 'Dev'},
-        {'name' => 'Test', 'value' => 'Test'},
-        {'name' => 'Staging', 'value' => 'Staging'},
-        {'name' => 'Production', 'value' => 'Production'}
-      ]
-    end
-    #puts "get_available_environments() rtn: #{@available_environments.inspect}"
-    return @available_environments
   end
 
   def find_blueprint_by_name_or_id(val)
