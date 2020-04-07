@@ -301,7 +301,7 @@ class Morpheus::Cli::Apps
         if options[:environment]
           payload['environment'] = options[:environment]
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'text', 'required' => false}], options[:options])
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'optionSource' => 'environments'}], options[:options], @api_client)
           payload['environment'] = v_prompt['environment'] unless v_prompt['environment'].to_s.empty?
         end
         # payload['appContext'] = payload['environment'] if payload['environment']
