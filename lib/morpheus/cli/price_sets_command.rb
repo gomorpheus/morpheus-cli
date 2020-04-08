@@ -64,7 +64,7 @@ class Morpheus::Cli::PriceSetsCommand
 
       price_sets = json_response['priceSets']
       if price_sets.empty?
-        print yellow,"No price sets found.",reset,"\n"
+        print cyan,"No price sets found.",reset,"\n"
       else
         rows = price_sets.collect do |it|
           {
@@ -166,7 +166,7 @@ class Morpheus::Cli::PriceSetsCommand
         end
         print as_pretty_table(rows, [:id, :name, :pricing], options)
       else
-        print yellow,"No prices.",reset,"\n"
+        print cyan,"No prices.",reset,"\n"
       end
       print reset,"\n"
       return 0

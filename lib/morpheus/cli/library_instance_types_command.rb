@@ -178,7 +178,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         ]
         print as_pretty_table(instance_type_option_types, columns)
       else
-        # print yellow,"No option types found for this layout.","\n",reset
+        # print cyan,"No option types found for this layout.","\n",reset
       end
 
       instance_type_evars = instance_type['environmentVariables']
@@ -193,7 +193,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         ]
         print as_pretty_table(instance_type_evars, evar_columns)
       else
-        # print yellow,"No environment variables found for this instance type.","\n",reset
+        # print cyan,"No environment variables found for this instance type.","\n",reset
       end
 
       print_h2 "Layouts"
@@ -229,7 +229,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         ]
         print as_pretty_table(instance_type_layouts, layout_columns)
       else
-        print yellow,"No layouts found for this instance type.","\n",reset
+        print cyan,"No layouts found for this instance type.","\n",reset
       end
 
       print reset,"\n"

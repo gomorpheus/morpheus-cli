@@ -53,7 +53,7 @@ class Morpheus::Cli::IntegrationsCommand
       integrations = json_response['integrations']
 
       if integrations.empty?
-        print yellow,"No integrations found.",reset,"\n"
+        print cyan,"No integrations found.",reset,"\n"
       else
         rows = integrations.collect do |it|
           {

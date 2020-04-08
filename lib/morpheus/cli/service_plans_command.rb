@@ -74,7 +74,7 @@ class Morpheus::Cli::ServicePlanCommand
 
       plans = json_response['servicePlans']
       if plans.empty?
-        print yellow,"No service plans found.",reset,"\n"
+        print cyan,"No service plans found.",reset,"\n"
       else
         rows = plans.collect do |it|
           {
@@ -221,7 +221,7 @@ class Morpheus::Cli::ServicePlanCommand
         ]
         print as_pretty_table(rows, columns, options)
       else
-        print yellow,"No price sets.",reset,"\n"
+        print cyan,"No price sets.",reset,"\n"
       end
 
       print_permissions(service_plan['permissions'], ['plans', 'groupDefaults'])

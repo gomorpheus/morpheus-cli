@@ -89,7 +89,7 @@ class Morpheus::Cli::VirtualImages
       end
       print_h1 title, subtitles
       if images.empty?
-        print yellow,"No virtual images found.",reset,"\n"
+        print cyan,"No virtual images found.",reset,"\n"
       else
         rows = images.collect do |image|
           image_type = virtual_image_type_for_name_or_code(image['imageType'])
@@ -307,7 +307,7 @@ class Morpheus::Cli::VirtualImages
         image_types = json_response['virtualImageTypes']
         print_h1 "Morpheus Virtual Image Types"
         if image_types.nil? || image_types.empty?
-          print yellow,"No image types currently exist on this appliance. This could be a seed issue.",reset,"\n"
+          print cyan,"No image types found.",reset,"\n"
         else
           rows = image_types.collect do |lb_type|
             {name: lb_type['name'], code: lb_type['code']}

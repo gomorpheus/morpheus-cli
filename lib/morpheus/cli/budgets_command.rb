@@ -46,7 +46,7 @@ class Morpheus::Cli::BudgetsCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if budgets.empty?
-          print yellow,"No budgets found.",reset,"\n"
+          print cyan,"No budgets found.",reset,"\n"
         else
           columns = [
             {"ID" => lambda {|budget| budget['id'] } },
@@ -264,7 +264,7 @@ class Morpheus::Cli::BudgetsCommand
           print red,"Failed to render budget summary.",reset,"\n"
         end
       else
-        print yellow,"No budget stat data found.",reset,"\n"
+        print cyan,"No budget stat data found.",reset,"\n"
       end
       return 0
     rescue RestClient::Exception => e

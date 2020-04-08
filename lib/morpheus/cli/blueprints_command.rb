@@ -1733,7 +1733,7 @@ class Morpheus::Cli::BlueprintsCommand
       else
         print_h1 "Available Tiers"
         if tiers.empty?
-          print yellow,"No tiers found.",reset,"\n"
+          print cyan,"No tiers found.",reset,"\n"
         else
           print cyan
           tiers.each do |tier_name|

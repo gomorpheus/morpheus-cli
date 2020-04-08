@@ -187,7 +187,7 @@ class Morpheus::Cli::UserSourcesCommand
         print_description_list(columns, user_source_config)
         # print reset,"\n"
       else
-        print yellow,"No config found.","\n",reset
+        print cyan,"No config found.","\n",reset
       end
 
       role_mappings = user_source['roleMappings']
@@ -204,7 +204,7 @@ class Morpheus::Cli::UserSourcesCommand
         print as_pretty_table(role_mappings, role_mapping_columns)
         print "\n",reset
       else
-        print yellow,"No role mappings found for this user source.","\n",reset
+        print cyan,"No role mappings found for this user source.","\n",reset
       end
       return 0
     rescue RestClient::Exception => e
@@ -801,7 +801,7 @@ class Morpheus::Cli::UserSourcesCommand
         ]
         print as_pretty_table(my_option_types, columns)
       else
-        print yellow,"No option types found.","\n",reset
+        print cyan,"No option types found.","\n",reset
       end
 
       print reset,"\n"

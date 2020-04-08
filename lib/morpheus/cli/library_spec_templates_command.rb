@@ -163,7 +163,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
             puts "Path: #{file_content['contentPath']}"
           end
         else
-          print yellow,"No file content.",reset,"\n"
+          print cyan,"No file content.",reset,"\n"
         end
       end
 

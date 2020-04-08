@@ -83,7 +83,7 @@ class Morpheus::Cli::AccountGroupsCommand
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles, options
       if groups.empty?
-        print yellow,"No groups currently configured.",reset,"\n"
+        print cyan,"No groups found.",reset,"\n"
       else
         print_groups_table(groups, options)
         print_results_pagination(json_response)

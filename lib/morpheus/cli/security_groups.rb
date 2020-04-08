@@ -64,7 +64,7 @@ class Morpheus::Cli::SecurityGroups
       security_groups = json_response['securityGroups']
       
       if security_groups.empty?
-        print yellow,"No security groups found.",reset,"\n"
+        print cyan,"No security groups found.",reset,"\n"
       else
         active_id = @active_security_group[@appliance_name.to_sym]
         # table_color = options[:color] || cyan

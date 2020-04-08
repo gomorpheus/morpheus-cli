@@ -203,7 +203,7 @@ class Morpheus::Cli::Hosts
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
         if servers.empty?
-          print yellow,"No hosts found.",reset,"\n"
+          print cyan,"No hosts found.",reset,"\n"
         else
           # print_servers_table(servers)
           # server returns stats in a separate key stats => {"id" => {} }
@@ -1466,7 +1466,7 @@ class Morpheus::Cli::Hosts
     else
       print_h1 "Morpheus Server Types - Cloud: #{zone['name']}", [], options
       if cloud_server_types.nil? || cloud_server_types.empty?
-        print yellow,"No server types found for the selected cloud",reset,"\n"
+        print cyan,"No server types found for the selected cloud",reset,"\n"
       else
         cloud_server_types.each do |server_type|
           print cyan, "[#{server_type['code']}]".ljust(20), " - ", "#{server_type['name']}", "\n"

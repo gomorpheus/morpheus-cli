@@ -127,13 +127,9 @@ class Morpheus::Cli::UserGroupsCommand
       print_description_list(description_cols, user_group)
 
       ## Users
-      if users.size == 1
-        print_h2 "User (1)"
-      else
-        print_h2 "Users (#{users.size})"
-      end
+      print_h2 "Users (#{users.size})"
       if users.size == 0
-        print yellow,"No users",reset,"\n"
+        print cyan,"No users",reset,"\n"
       else
         user_columns = [
           {"ID" => lambda {|user| user['id'] } },

@@ -58,7 +58,7 @@ class Morpheus::Cli::WikiCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if pages.empty?
-          print yellow,"No wiki pages found.",reset,"\n"
+          print cyan,"No wiki pages found.",reset,"\n"
         else
           columns = [
             {"ID" => lambda {|page| page['id'] } },
@@ -386,7 +386,7 @@ class Morpheus::Cli::WikiCommand
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
         if categories.empty?
-          print yellow,"No wiki categories found.",reset,"\n"
+          print cyan,"No wiki categories found.",reset,"\n"
         else
           columns = [
             {"CATEGORY" => lambda {|page| page['name'] } },

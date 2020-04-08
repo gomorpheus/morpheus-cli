@@ -740,7 +740,7 @@ class Morpheus::Cli::Clouds
       print_h1 title, subtitles
 
       if cloud_types.empty?
-        print yellow,"No cloud types found.",reset,"\n"
+        print cyan,"No cloud types found.",reset,"\n"
       else
         print cyan
         cloud_types = cloud_types.select {|it| it['enabled'] }

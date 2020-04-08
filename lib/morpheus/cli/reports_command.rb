@@ -513,7 +513,7 @@ class Morpheus::Cli::ReportsCommand
       report_types = json_response['reportTypes']
       
       if report_types.empty?
-        print yellow,"No report types found.",reset,"\n"
+        print cyan,"No report types found.",reset,"\n"
       else
         columns = {
           "NAME" => 'name',

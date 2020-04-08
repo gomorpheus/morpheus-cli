@@ -46,7 +46,7 @@ class Morpheus::Cli::Deployments
         deployments = json_response['deployments']
         print_h1 "Morpheus Deployments"
         if deployments.empty?
-          print yellow,"No deployments currently configured.",reset,"\n"
+          print cyan,"No deployments found.",reset,"\n"
         else
           print cyan
           rows = deployments.collect do |deployment|
@@ -95,7 +95,7 @@ class Morpheus::Cli::Deployments
         versions = json_response['versions']
         print_h1 "Deployment Versions: #{deployment['name']}"
         if versions.empty?
-          print yellow,"No deployment versions currently exist.",reset,"\n"
+          print cyan,"No deployment versions found.",reset,"\n"
         else
           print cyan
           rows = versions.collect do |version|

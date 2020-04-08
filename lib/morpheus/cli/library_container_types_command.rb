@@ -189,7 +189,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         ]
         print as_pretty_table(evars, evar_columns)
       else
-        # print yellow,"No environment variables found for this node type.","\n",reset
+        # print cyan,"No environment variables found for this node type.","\n",reset
       end
 
       exposed_ports = container_type['containerPorts']
@@ -203,7 +203,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         ]
         print as_pretty_table(exposed_ports, columns)
       else
-        # print yellow,"No exposed ports found for this node type.","\n",reset
+        # print cyan,"No exposed ports found for this node type.","\n",reset
       end
 
       container_scripts = container_type['containerScripts'] || container_type['scripts']
@@ -215,7 +215,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         ]
         print as_pretty_table(container_scripts, columns)
       else
-        # print yellow,"No scripts found for this node type.","\n",reset
+        # print cyan,"No scripts found for this node type.","\n",reset
       end
 
       container_file_templates = container_type['containerTemplates'] || container_type['templates']
@@ -227,7 +227,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         ]
         print as_pretty_table(container_file_templates, columns)
       else
-        # print yellow,"No scripts found for this node type.","\n",reset
+        # print cyan,"No scripts found for this node type.","\n",reset
       end
 
       print reset,"\n"

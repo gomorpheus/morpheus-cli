@@ -158,7 +158,7 @@ class Morpheus::Cli::Instances
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
         if instances.empty?
-          print yellow,"No instances found.",reset,"\n"
+          print cyan,"No instances found.",reset,"\n"
         else
           # print_instances_table(instances)
           # server returns stats in a separate key stats => {"id" => {} }
@@ -1400,7 +1400,7 @@ class Morpheus::Cli::Instances
       if options[:include_scaling]
         print_h2 "Instance Scaling", options
         if instance_threshold.nil? || instance_threshold.empty?
-          print yellow,"No scaling settings applied to this instance.",reset,"\n"
+          print cyan,"No scaling settings applied to this instance.",reset,"\n"
         else
           print cyan
           print_instance_threshold_description_list(instance_threshold)
@@ -1477,7 +1477,7 @@ class Morpheus::Cli::Instances
       title = "Instance Containers: #{instance['name']} (#{instance['instanceType']['name']})"
       print_h1 title, [], options
       if containers.empty?
-        print yellow,"No containers found for instance.",reset,"\n"
+        print cyan,"No containers found for instance.",reset,"\n"
       else
 
         rows = containers.collect {|container| 
@@ -3009,7 +3009,7 @@ class Morpheus::Cli::Instances
     title = "Instance Scaling: [#{instance['id']}] #{instance['name']} (#{instance['instanceType']['name']})"
     print_h1 title, [], options
     if instance_threshold.empty?
-      print yellow,"No scaling settings applied to this instance.",reset,"\n"
+      print cyan,"No scaling settings applied to this instance.",reset,"\n"
     else
       # print_h1 "Threshold Settings", [], options
       print cyan

@@ -175,7 +175,7 @@ EOT
       rules = json_response['rules']
       print_h1 "Morpheus Security Group Rules for Security Group ID: #{security_group_id}"
       if rules.empty?
-        print yellow,"No Security Group Rules currently configured.",reset,"\n"
+        print yellow,"No security group rules currently configured.",reset,"\n"
       else
         rules = rules.sort {|x,y| x["id"] <=> y["id"] }
         rules.each do |rule|

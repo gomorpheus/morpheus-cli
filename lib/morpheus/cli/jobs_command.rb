@@ -79,7 +79,7 @@ class Morpheus::Cli::JobsCommand
       jobs = json_response['jobs']
 
       if jobs.empty?
-        print yellow,"No jobs found.",reset,"\n"
+        print cyan,"No jobs found.",reset,"\n"
       else
         rows = jobs.collect do |job|
           {
@@ -944,7 +944,7 @@ class Morpheus::Cli::JobsCommand
 
   def print_job_executions(execs, options={})
     if execs.empty?
-      print yellow,"No job executions found.",reset,"\n"
+      print cyan,"No job executions found.",reset,"\n"
     else
       rows = execs.collect do |ex|
         {

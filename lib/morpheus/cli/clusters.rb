@@ -87,7 +87,7 @@ class Morpheus::Cli::Clusters
       clusters = json_response['clusters']
       
       if clusters.empty?
-        print yellow,"No clusters found.",reset,"\n"
+        print cyan,"No clusters found.",reset,"\n"
       else
         print_clusters_table(clusters, options)
       end
@@ -244,7 +244,7 @@ class Morpheus::Cli::Clusters
         masters_json = @clusters_interface.list_masters(cluster['id'], options)
         if masters_json.nil? || masters_json['masters'].empty?
           print_h2 "Masters"
-          print yellow,"No masters found.",reset,"\n"
+          print cyan,"No masters found.",reset,"\n"
         else
           masters = masters_json['masters']
           print_h2 "Masters"
@@ -265,7 +265,7 @@ class Morpheus::Cli::Clusters
         workers_json = @clusters_interface.list_workers(cluster['id'], options)
         if workers_json.nil? || workers_json['workers'].empty?
           print_h2 "Workers"
-          print yellow,"No workers found.",reset,"\n"
+          print cyan,"No workers found.",reset,"\n"
         else
           workers = workers_json['workers']
           print_h2 "Workers"
@@ -1010,7 +1010,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       workers = json_response['workers']
       if workers.empty?
-        print yellow,"No workers found.",reset,"\n"
+        print cyan,"No workers found.",reset,"\n"
       else
         # more stuff to show here
         
@@ -1310,7 +1310,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       masters = json_response['masters']
       if masters.empty?
-        print yellow,"No masters found.",reset,"\n"
+        print cyan,"No masters found.",reset,"\n"
       else
         # more stuff to show here
         
@@ -1409,7 +1409,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       volumes = json_response['volumes']
       if volumes.empty?
-        print yellow,"No volumes found.",reset,"\n"
+        print cyan,"No volumes found.",reset,"\n"
       else
         # more stuff to show here
         rows = volumes.collect do |ns|
@@ -1524,7 +1524,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       services = json_response['services']
       if services.empty?
-        print yellow,"No services found.",reset,"\n"
+        print cyan,"No services found.",reset,"\n"
       else
         # more stuff to show here
         rows = services.collect do |service|
@@ -1641,7 +1641,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       jobs = json_response['jobs']
       if jobs.empty?
-        print yellow,"No jobs found.",reset,"\n"
+        print cyan,"No jobs found.",reset,"\n"
       else
         # more stuff to show here
         rows = jobs.collect do |job|
@@ -1767,7 +1767,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       containers = json_response['containers']
       if containers.empty?
-        print yellow,"No containers found.",reset,"\n"
+        print cyan,"No containers found.",reset,"\n"
       else
         # more stuff to show here
         rows = containers.collect do |it|
@@ -1928,7 +1928,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       container_groups = json_response["#{resource_type}s"]
       if container_groups.empty?
-        print yellow,"No #{resource_type}s found.",reset,"\n"
+        print cyan,"No #{resource_type}s found.",reset,"\n"
       else
         # more stuff to show here
         rows = container_groups.collect do |it|
@@ -2322,7 +2322,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       namespaces = json_response['namespaces']
       if namespaces.empty?
-        print yellow,"No namespaces found.",reset,"\n"
+        print cyan,"No namespaces found.",reset,"\n"
       else
         # more stuff to show here
         rows = namespaces.collect do |ns|
@@ -2567,7 +2567,7 @@ class Morpheus::Cli::Clusters
       print_h1 title, subtitles
       datastores = json_response['datastores']
       if datastores.empty?
-        print yellow,"No datastores found.",reset,"\n"
+        print cyan,"No datastores found.",reset,"\n"
       else
         # more stuff to show here
         rows = datastores.collect do |ds|

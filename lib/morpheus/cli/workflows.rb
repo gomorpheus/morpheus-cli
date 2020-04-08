@@ -351,7 +351,7 @@ class Morpheus::Cli::Workflows
         #task_names = tasks.collect {|it| it['name'] }
         print_h2 "Workflow Tasks"
         if tasks.empty?
-          print yellow,"No tasks in this workflow.",reset,"\n"
+          print cyan,"No tasks in this workflow.",reset,"\n"
         else
           print cyan
           # tasks.each_with_index do |taskSetTask, index|

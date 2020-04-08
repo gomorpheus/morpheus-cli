@@ -52,7 +52,7 @@ class Morpheus::Cli::ApprovalsCommand
 
       approvals = json_response['approvals']
       if approvals.empty?
-        print yellow,"No approvals found.",reset,"\n"
+        print cyan,"No approvals found.",reset,"\n"
       else
         rows = approvals.collect do |it|
           {
@@ -159,7 +159,7 @@ class Morpheus::Cli::ApprovalsCommand
         ]
         print as_pretty_table(rows, columns, options)
       else
-        print yellow,"No requested items.",reset,"\n"
+        print cyan,"No requested items.",reset,"\n"
       end
 
       print reset,"\n"
