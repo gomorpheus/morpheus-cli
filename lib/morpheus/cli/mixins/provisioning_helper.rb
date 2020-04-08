@@ -441,8 +441,8 @@ module Morpheus::Cli::ProvisioningHelper
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments()}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['environment'] if !v_prompt['environment'].empty?
 
-    # Tags
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Tags', 'type' => 'text', 'required' => false}], options[:options])
+    # Labels (tags)
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false}], options[:options])
     payload['instance']['tags'] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
 
     # Version and Layout
