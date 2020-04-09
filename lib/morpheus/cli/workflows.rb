@@ -29,15 +29,24 @@ class Morpheus::Cli::Workflows
 
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("-t", "--type TYPE", "Type of workflow. i.e. provision or operation. Default is provision.") do |val|
+        workflow_type = val.to_s.downcase
+        if workflow_type.include?('provision')
+          workflow_type = 'provision'
+        elsif workflow_type.include?('operation')
+          workflow_type = 'operation'
+        end
+        params['type'] = workflow_type
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = {}
       params.merge!(parse_list_options(options))
       @task_sets_interface.setopts(options)
       if options[:dry_run]
@@ -61,6 +70,9 @@ class Morpheus::Cli::Workflows
         title = "Morpheus Workflows"
         subtitles = []
         subtitles += parse_list_subtitles(options)
+        if params['type']
+          subtitles << "Type: #{params['type']}"
+        end
         print_h1 title, subtitles
         if task_sets.empty?
           print cyan,"No workflows found.",reset,"\n"
