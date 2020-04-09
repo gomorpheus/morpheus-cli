@@ -423,6 +423,13 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('environment')
       arbitrary_options.delete('instanceContext')
       arbitrary_options.delete('tags')
+      # these are used by prompt_network_interfaces
+      arbitrary_options.delete('networkInterface')
+      (2..10).each {|i| arbitrary_options.delete('networkInterface' + i.to_s) }
+      # these are used by prompt_volumes
+      arbitrary_options.delete('rootVolume')
+      arbitrary_options.delete('dataVolume')
+      (2..10).each {|i| arbitrary_options.delete('dataVolume' + i.to_s) }
       arbitrary_options.delete('lockedFields')
       # arbitrary_options.delete('ports')
       payload.deep_merge!(arbitrary_options)
