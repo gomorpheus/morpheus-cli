@@ -724,9 +724,26 @@ module Morpheus::Cli::ProvisioningHelper
           sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
         end
       end
+      sg_api_params = {zoneId: cloud_id, poolId: pool_id}
       has_security_groups = !!sg_option_type
+      available_security_groups = []
+      if sg_option_type && sg_option_type['type'] == 'select' && sg_option_type['optionSource']
+        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params)
+        available_security_groups = sg_option_results['data'].collect do |it|
+          {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
+        end
+      end
       if options[:security_groups]
-        payload['securityGroups'] = options[:security_groups].collect {|sg_id| {'id' => sg_id} }
+        # work with id or names, API expects ids though.
+        payload['securityGroups'] = options[:security_groups].collect {|sg_id| 
+          found_sg = available_security_groups.find {|it| sg_id && (sg_id.to_s == it['id'].to_s || sg_id.to_s == it['name'].to_s) }
+          if found_sg.nil?
+            print_red_alert "Security group not found by name or id '#{sg_id}'"
+            exit 1
+          end
+          {'id' => found_sg['id']}
+        }
+
       elsif has_security_groups
         do_prompt_sg = true
         if options[:default_security_groups]
@@ -736,7 +753,7 @@ module Morpheus::Cli::ProvisioningHelper
           do_prompt_sg = (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Modify security groups?", {:default => false}))
         end
         if do_prompt_sg
-          security_groups_array = prompt_security_groups(sg_option_type, {zoneId: cloud_id, poolId: pool_id}, options)
+          security_groups_array = prompt_security_groups(sg_option_type, sg_api_params, options)
           if !security_groups_array.empty?
             payload['securityGroups'] = security_groups_array.collect {|sg_id| {'id' => sg_id} }
           end
