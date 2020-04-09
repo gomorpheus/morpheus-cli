@@ -11,7 +11,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::Remote
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :add, :get, :update, :rename, :remove, :use, :unuse, :current
+  register_subcommands :list, :add, :get, :update, :rename, :remove, :use, :unuse, :current, :view
   register_subcommands :setup, :teardown, :check, :'check-all'
 
   set_default_subcommand :list
@@ -696,6 +696,75 @@ EOT
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def view(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [])
+      opts.footer = <<-EOT
+View remote appliance in a web browser.
+[name] is optional. This is the name of a remote.  Default is the current remote.
+This will automatically login with the current access token.
+EOT
+    end
+    optparse.parse!(args)
+    if args.count == 0
+      id_list = ['current']
+      #raise_command_error "wrong number of arguments, expected 1-N and got 0\n#{optparse}"
+    else
+      id_list = parse_id_list(args)
+    end
+    #connect(options)
+    return run_command_for_each_arg(id_list) do |arg|
+      _view_appliance(arg, options)
+    end
+  end
+
+  def _view_appliance(appliance_name, options)
+    appliance = nil
+    if appliance_name == "current"
+      appliance = ::Morpheus::Cli::Remote.load_active_remote()
+      if !appliance
+        raise_command_error "No current appliance, see `remote use`."
+      end
+      appliance_name = appliance[:name]
+    else
+      appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
+      if !appliance
+        raise_command_error "Remote not found by the name '#{appliance_name}'"
+      end
+    end
+    appliance_url = appliance[:url] || appliance[:host]
+    if appliance_url.to_s.empty?
+      raise_command_error "Remote appliance does not have a url?"
+    end
+    wallet = ::Morpheus::Cli::Credentials.new(appliance_name, nil).load_saved_credentials()
+    # try to auto login if we have a token
+    if wallet && wallet['access_token']
+      link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=/"
+    else
+      link = "#{appliance_url}"
+    end
+
+    open_command = nil
+    if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+      open_command = "start #{link}"
+    elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+      open_command = "open #{link}"
+    elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+      open_command = "xdg-open #{link}"
+    end
+
+    if options[:dry_run]
+      puts "system: #{open_command}"
+      return 0
+    end
+
+    system(open_command)
+    
+    return 0
   end
 
   def remove(args)
