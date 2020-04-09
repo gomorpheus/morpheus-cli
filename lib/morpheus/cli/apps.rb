@@ -393,12 +393,13 @@ class Morpheus::Cli::Apps
                       #instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:environment] = selected_environment ? selected_environment['code'] : nil
+                      instance_prompt_options[:default_security_groups] = scoped_instance_config['securityGroups'] ? scoped_instance_config['securityGroups'] : nil
+                      
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
                       #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
                       #instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
                       instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
-
                       # also allow arbritrary options passed as tierName.instanceIndex like Web.0.instance.layout.id=75
                       instance_extra_options = {}
                       if tier_extra_options && tier_extra_options[instance_index.to_s]
@@ -412,6 +413,7 @@ class Morpheus::Cli::Apps
                       help_field_prefix = "#{tier_name}.#{instance_index}" 
                       instance_prompt_options[:help_field_prefix] = help_field_prefix
                       instance_prompt_options[:options][:help_field_prefix] = help_field_prefix
+                      instance_prompt_options[:locked_fields] = scoped_instance_config['lockedFields']
                       # this provisioning helper method handles all (most) of the parsing and prompting
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
                       
@@ -424,6 +426,7 @@ class Morpheus::Cli::Apps
                       final_config.delete('environments')
                       final_config.delete('groups')
                       final_config.delete('clouds')
+                      final_config.delete('lockedFields')
                       # add config to payload
                       payload['tiers'][tier_name]['instances'] ||= []
                       payload['tiers'][tier_name]['instances'] << final_config

@@ -320,6 +320,18 @@ class Morpheus::Cli::Instances
       opts.on("--environment ENV", String, "Environment code") do |val|
         options[:environment] = val.to_s
       end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        #options[:tags] = val
+        options[:tags] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      end
+      opts.on('--tags LIST', String, "Tags") do |val|
+        #options[:tags] = val
+        options[:tags] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      end
+      opts.add_hidden_option('--tags')
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
       end
@@ -491,13 +503,18 @@ class Morpheus::Cli::Instances
       opts.on('--group GROUP', String, "Group Name or ID") do |val|
         options[:group] = val
       end
-      opts.on('--metadata LIST', String, "Metadata in the format 'name:value, name:value'") do |val|
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
         options[:metadata] = val
       end
-      opts.on('--tags LIST', String, "Tags") do |val|
-        params['tags'] = val
-        # params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq
+      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        #params['tags'] = val
+        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
+      opts.on('--tags LIST', String, "Tags") do |val|
+        #params['tags'] = val
+        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      end
+      opts.add_hidden_option('--tags')
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
@@ -1287,7 +1304,7 @@ class Morpheus::Cli::Instances
         "Version" => lambda {|it| it['instanceVersion'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Environment" => 'instanceContext',
-        "Tags" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
+        "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
         "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
         "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['username'] || it['createdBy']['id']) : '' },

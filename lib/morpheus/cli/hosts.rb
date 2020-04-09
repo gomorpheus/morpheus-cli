@@ -762,14 +762,6 @@ class Morpheus::Cli::Hosts
         })
 
         option_type_list = server_type['optionTypes']
-        # remove volume options if volumes were configured
-        if !payload['volumes'].empty?
-          option_type_list = reject_volume_option_types(option_type_list)
-        end
-        # remove networkId option if networks were configured above
-        if !payload['networkInterfaces'].empty?
-          option_type_list = reject_networking_option_types(option_type_list)
-        end
 
         # remove cpu and memory option types, which now come from the plan
         option_type_list = reject_service_plan_option_types(option_type_list)
