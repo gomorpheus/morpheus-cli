@@ -696,7 +696,7 @@ module Morpheus::Cli::ProvisioningHelper
     if locked_fields.include?('networks')
       # payload['networkInterfaces'] = options[:options]['networkInterfaces'] if options[:options]['networkInterfaces']
     else
-      if provision_type && provision_type["hasNetworks"] && locked_fields.include?('networkInterfaces')
+      if provision_type && provision_type["hasNetworks"]
         # prompt for network interfaces (if supported)
         begin
           network_interfaces = prompt_network_interfaces(cloud_id, provision_type["id"], pool_id, options)
