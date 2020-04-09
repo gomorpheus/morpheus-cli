@@ -223,25 +223,49 @@ class Morpheus::Cli::Users
       }
       print_description_list(description_cols, user)
 
-      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
-      available_field_options.each do |field, label|
-        if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
-          access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+      # backward compatibility
+      if user['access'].nil? && options[:include_features_access]
+        user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+        user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
 
-          print_h2 "#{label} Access", options
+        if user_feature_permissions
+          print_h2 "Feature Permissions", options
           print cyan
-
-          if access.count > 0
-            access.each {|it| it['access'] = get_access_string(it['access'])}
-
-            if ['features', 'instance_types'].include?(field)
-              print as_pretty_table(access, [:name, :code, :access], options)
-            else
-              print as_pretty_table(access, [:name, :access], options)
+          if user_feature_permissions.is_a?(Array)
+            rows = user_feature_permissions.collect do |it|
+              {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
             end
+            print as_pretty_table(rows, [:name, :code, :access], options)
           else
-            println yellow,"No #{label} Access Found.",reset
+            rows = user_feature_permissions.collect do |code, access|
+              {code: code, access: get_access_string(access) }
+            end
+            print as_pretty_table(rows, [:code, :access], options)
+          end
+        else
+          puts yellow,"No permissions found.",reset
+        end
+      else
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options.each do |field, label|
+          if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
+            access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+
+            print_h2 "#{label} Access", options
+            print cyan
+
+            if access.count > 0
+              access.each {|it| it['access'] = get_access_string(it['access'])}
+
+              if ['features', 'instance_types'].include?(field)
+                print as_pretty_table(access, [:name, :code, :access], options)
+              else
+                print as_pretty_table(access, [:name, :access], options)
+              end
+            else
+              println yellow,"No #{label} Access Found.",reset
+            end
           end
         end
       end
@@ -287,38 +311,74 @@ class Morpheus::Cli::Users
 
       json_response = @users_interface.permissions(account_id, user['id'])
 
-      if options[:json]
-        puts as_json(json_response, options, 'access')
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, 'access')
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['access'], options)
-        return 0
-      end
-
-      print_h1 "User Permissions: #{user['username']}", options
-
-      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
-      available_field_options.each do |field, label|
-        if !(field == 'sites' && is_tenant_account)
-          access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
-
-          print_h2 "#{label} Access", options
-          print cyan
-
-          if access.count > 0
-            access.each {|it| it['access'] = get_access_string(it['access'])}
-
-            if ['features', 'instance_types'].include?(field)
-              print as_pretty_table(access, [:name, :code, :access], options)
+      # backward compatibility
+      if !json_response['permissions'].nil?
+        if options[:json]
+          puts as_json(json_response, options, 'permissions')
+          return 0
+        elsif options[:yaml]
+          puts as_yaml(json_response, options, 'permissions')
+          return 0
+        elsif options[:csv]
+          puts records_as_csv(json_response['permissions'], options)
+          return 0
+        else
+          user_feature_permissions = nil
+          # permissions (Array) has replaced featurePermissions (map)
+          user_feature_permissions = json_response['permissions'] || json_response['featurePermissions']
+          print_h1 "User Permissions: #{user['username']}", options
+          if user_feature_permissions
+            print cyan
+            if user_feature_permissions.is_a?(Array)
+              rows = user_feature_permissions.collect do |it|
+                {name: it['name'], code: it['code'], access: get_access_string(it['access']) }
+              end
+              print as_pretty_table(rows, [:name, :code, :access], options)
             else
-              print as_pretty_table(access, [:name, :access], options)
+              rows = user_feature_permissions.collect do |code, access|
+                {code: code, access: get_access_string(access) }
+              end
+              print as_pretty_table(rows, [:code, :access], options)
             end
+
           else
-            println yellow,"No #{label} Access Found.",reset
+            print yellow,"No permissions found.",reset,"\n"
+          end
+        end
+      else
+        if options[:json]
+          puts as_json(json_response, options, 'access')
+          return 0
+        elsif options[:yaml]
+          puts as_yaml(json_response, options, 'access')
+          return 0
+        elsif options[:csv]
+          puts records_as_csv(json_response['access'], options)
+          return 0
+        end
+
+        print_h1 "User Permissions: #{user['username']}", options
+
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options.each do |field, label|
+          if !(field == 'sites' && is_tenant_account)
+            access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+
+            print_h2 "#{label} Access", options
+            print cyan
+
+            if access.count > 0
+              access.each {|it| it['access'] = get_access_string(it['access'])}
+
+              if ['features', 'instance_types'].include?(field)
+                print as_pretty_table(access, [:name, :code, :access], options)
+              else
+                print as_pretty_table(access, [:name, :access], options)
+              end
+            else
+              println yellow,"No #{label} Access Found.",reset
+            end
           end
         end
       end
