@@ -367,7 +367,7 @@ module Morpheus::Cli::ProvisioningHelper
           instance_name = name_prompt['name']
         else
           print_red_alert "Name must be unique"
-
+          exit 1 if no_prompt
           if options[:default_name] == name_prompt['name']
             options[:default_name] += '-2'
           end
