@@ -423,6 +423,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('environment')
       arbitrary_options.delete('instanceContext')
       arbitrary_options.delete('tags')
+      arbitrary_options.delete('networkInterface')
       arbitrary_options.delete('lockedFields')
       # arbitrary_options.delete('ports')
       payload.deep_merge!(arbitrary_options)
