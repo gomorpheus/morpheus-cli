@@ -462,7 +462,7 @@ class Morpheus::Cli::Clouds
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on( '-f', '--force', "Force Delete" ) do
+      opts.on( '-f', '--force', "Force refresh. Useful if the cloud is disabled." ) do
         query_params[:force] = 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
