@@ -3,6 +3,7 @@ require 'morpheus/cli/command_error'
 require 'morpheus/rest_client'
 require 'morpheus/formatters'
 require 'morpheus/logging'
+require 'morpheus/util'
 require 'term/ansicolor'
 
 Dir[File.dirname(__FILE__)  + "/ext/*.rb"].each {|file| require file }

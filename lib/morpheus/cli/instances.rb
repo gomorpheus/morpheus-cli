@@ -783,23 +783,11 @@ class Morpheus::Cli::Instances
 
       link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/provisioning/instances/#{instance['id']}#!wiki"
 
-      open_command = nil
-      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-        open_command = "start #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-        open_command = "open #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-        open_command = "xdg-open #{link}"
-      end
-
       if options[:dry_run]
-        puts "system: #{open_command}"
+        puts Morpheus::Util.open_url_command(link)
         return 0
       end
-
-      system(open_command)
-      
-      return 0
+      return Morpheus::Util.open_url(link)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -976,7 +964,7 @@ class Morpheus::Cli::Instances
       opts.on( '-n', '--node NODE_ID', "Scope console to specific Container or VM" ) do |node_id|
         options[:node_id] = node_id.to_i
       end
-      build_common_options(opts, options, [:remote])
+      build_common_options(opts, options, [:dry_run, :remote])
     end
     optparse.parse!(args)
     if args.count < 1
@@ -993,13 +981,11 @@ class Morpheus::Cli::Instances
         link += "?containerId=#{options[:node_id]}"
       end
 
-      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-        system "start #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-        system "open #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-        system "xdg-open #{link}"
+      if options[:dry_run]
+        puts Morpheus::Util.open_url_command(link)
+        return 0
       end
+      return Morpheus::Util.open_url(link)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

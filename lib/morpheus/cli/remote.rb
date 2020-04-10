@@ -706,7 +706,7 @@ EOT
       opts.on('--path PATH', String, "Specify a path to load. eg '/logs'" ) do |val|
         path = val
       end
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:dry_run])
       opts.footer = <<-EOT
 View remote appliance in a web browser.
 [name] is optional. This is the name of a remote.  Default is the current remote.
@@ -750,29 +750,16 @@ EOT
     end
     wallet = ::Morpheus::Cli::Credentials.new(appliance_name, nil).load_saved_credentials()
     # try to auto login if we have a token
+    link = "#{appliance_url}"
     if wallet && wallet['access_token']
       link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=#{path}"
-    else
-      link = "#{appliance_url}"
-    end
-
-    open_command = nil
-    if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-      open_command = "start #{link}"
-    elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-      open_command = "open #{link}"
-    elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-      open_command = "xdg-open #{link}"
     end
 
     if options[:dry_run]
-      puts "system: #{open_command}"
+      puts Morpheus::Util.open_url_command(link)
       return 0
     end
-
-    system(open_command)
-    
-    return 0
+    return Morpheus::Util.open_url(link)
   end
 
   def remove(args)

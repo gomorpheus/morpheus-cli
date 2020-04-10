@@ -1568,23 +1568,11 @@ class Morpheus::Cli::Hosts
         link << "#!#{options[:link_tab]}"
       end
 
-      open_command = nil
-      if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-        open_command = "start #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-        open_command = "open #{link}"
-      elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
-        open_command = "xdg-open #{link}"
-      end
-
       if options[:dry_run]
-        puts "system: #{open_command}"
+        puts Morpheus::Util.open_url_command(link)
         return 0
       end
-
-      system(open_command)
-      
-      return 0
+      return Morpheus::Util.open_url(link)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
