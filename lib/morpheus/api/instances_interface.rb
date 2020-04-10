@@ -217,10 +217,11 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
-    def import_snapshot(id, params={})
+  
+  def import_snapshot(id, params={}, payload={})
     url = "#{@base_url}/api/instances/#{id}/import-snapshot"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers}
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

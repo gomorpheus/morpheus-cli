@@ -2910,6 +2910,7 @@ class Morpheus::Cli::Instances
 
   def import_snapshot(args)
     options = {}
+    query_params = {}
     storage_provider_id = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
@@ -2919,9 +2920,8 @@ class Morpheus::Cli::Instances
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
     begin
@@ -2937,7 +2937,7 @@ class Morpheus::Cli::Instances
         options[:options] ||= {}
         options[:options]['storageProviderId'] = storage_provider_id if storage_provider_id
         storage_provider_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Storage Provider', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider.'}], options[:options], @api_client, {})
-        if !storage_provider_prompt['storageProviderId'].empty?
+        if !storage_provider_prompt['storageProviderId'].to_s.empty?
           payload['storageProviderId'] = storage_provider_prompt['storageProviderId']
         end
       rescue RestClient::Exception => e
@@ -2947,10 +2947,10 @@ class Morpheus::Cli::Instances
       end
       @instances_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.import_snapshot(instance['id'], payload)
+        print_dry_run @instances_interface.dry.import_snapshot(instance['id'], query_params, payload)
         return
       end
-      json_response = @instances_interface.import_snapshot(instance['id'], payload)
+      json_response = @instances_interface.import_snapshot(instance['id'], query_params, payload)
       if options[:json]
         puts as_json(json_response, options)
       else
