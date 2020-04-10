@@ -700,8 +700,12 @@ EOT
 
   def view(args)
     options = {}
+    path = "/"
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on('--path PATH', String, "Specify a path to load. eg '/logs'" ) do |val|
+        path = val
+      end
       build_common_options(opts, options, [])
       opts.footer = <<-EOT
 View remote appliance in a web browser.
@@ -718,11 +722,11 @@ EOT
     end
     #connect(options)
     return run_command_for_each_arg(id_list) do |arg|
-      _view_appliance(arg, options)
+      _view_appliance(arg, path, options)
     end
   end
 
-  def _view_appliance(appliance_name, options)
+  def _view_appliance(appliance_name, path, options)
     appliance = nil
     if appliance_name == "current"
       appliance = ::Morpheus::Cli::Remote.load_active_remote()
@@ -740,10 +744,14 @@ EOT
     if appliance_url.to_s.empty?
       raise_command_error "Remote appliance does not have a url?"
     end
+    path = path.to_s.empty? ? "/" : path
+    if path[0].chr != "/"
+      path = "/#{path}"
+    end
     wallet = ::Morpheus::Cli::Credentials.new(appliance_name, nil).load_saved_credentials()
     # try to auto login if we have a token
     if wallet && wallet['access_token']
-      link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=/"
+      link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=#{path}"
     else
       link = "#{appliance_url}"
     end
