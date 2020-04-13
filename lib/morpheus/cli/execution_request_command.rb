@@ -213,9 +213,9 @@ class Morpheus::Cli::ExecutionRequestCommand
       execution_request = json_response['executionRequest']
       print_green_success "Executing request #{execution_request['uniqueId']}"
       if do_refresh
-        get([execution_request['uniqueId'], "--refresh"])
+        get([execution_request['uniqueId'], "--refresh"] + (options[:remote] ? ["-r",options[:remote]] : []))
       else
-        get([execution_request['uniqueId']])
+        get([execution_request['uniqueId']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -288,9 +288,9 @@ class Morpheus::Cli::ExecutionRequestCommand
       execution_request = json_response['executionRequest']
       print_green_success "Executing request #{execution_request['uniqueId']} against lease"
       if do_refresh
-        get([execution_request['uniqueId'], "--refresh"])
+        get([execution_request['uniqueId'], "--refresh"] + (options[:remote] ? ["-r",options[:remote]] : []))
       else
-        get([execution_request['uniqueId']])
+        get([execution_request['uniqueId']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e

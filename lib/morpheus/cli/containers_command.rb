@@ -657,9 +657,9 @@ class Morpheus::Cli::ContainersCommand
       execution_request = json_response['executionRequest']
       print_green_success "Executing request #{execution_request['uniqueId']}"
       if do_refresh
-        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId'], "--refresh"])
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId'], "--refresh"]+ (options[:remote] ? ["-r",options[:remote]] : []))
       else
-        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']])
+        Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']]+ (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
