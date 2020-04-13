@@ -701,10 +701,14 @@ EOT
   def view(args)
     options = {}
     path = "/"
+    no_auth = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--path PATH', String, "Specify a path to load. eg '/logs'" ) do |val|
         path = val
+      end
+      opts.on('--no-auth PATH', String, "Do not attempt to login with access token." ) do |val|
+        no_auth = true
       end
       build_common_options(opts, options, [:dry_run])
       opts.footer = <<-EOT
@@ -722,11 +726,11 @@ EOT
     end
     #connect(options)
     return run_command_for_each_arg(id_list) do |arg|
-      _view_appliance(arg, path, options)
+      _view_appliance(arg, path, no_auth, options)
     end
   end
 
-  def _view_appliance(appliance_name, path, options)
+  def _view_appliance(appliance_name, path, no_auth, options)
     appliance = nil
     if appliance_name == "current"
       appliance = ::Morpheus::Cli::Remote.load_active_remote()
@@ -750,9 +754,11 @@ EOT
     end
     wallet = ::Morpheus::Cli::Credentials.new(appliance_name, nil).load_saved_credentials()
     # try to auto login if we have a token
-    link = "#{appliance_url}"
-    if wallet && wallet['access_token']
-      link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=#{path}"
+    link = "#{appliance_url}#{path}"
+    if no_auth == false
+      if wallet && wallet['access_token']
+        link = "#{appliance_url}/login/oauth-redirect?access_token=#{wallet['access_token']}\\&redirectUri=#{path}"
+      end
     end
 
     if options[:dry_run]
