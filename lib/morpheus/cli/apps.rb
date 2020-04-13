@@ -414,6 +414,7 @@ class Morpheus::Cli::Apps
                       instance_prompt_options[:help_field_prefix] = help_field_prefix
                       instance_prompt_options[:options][:help_field_prefix] = help_field_prefix
                       instance_prompt_options[:locked_fields] = scoped_instance_config['lockedFields']
+                      instance_prompt_options[:for_app] = true
                       # this provisioning helper method handles all (most) of the parsing and prompting
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
                       

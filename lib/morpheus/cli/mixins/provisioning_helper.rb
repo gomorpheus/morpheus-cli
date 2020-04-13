@@ -581,8 +581,11 @@ module Morpheus::Cli::ProvisioningHelper
         end
       end
       #todo: consolidate these, instances api looks for instance.plan.id and apps looks for plan.id
-      payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
-      payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
+      if options[:for_app]
+        payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
+      else
+        payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
+      end
     end
 
     # build config option types
