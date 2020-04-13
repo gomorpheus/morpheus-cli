@@ -360,6 +360,8 @@ EOT
         else
           out << "\texit: 0 "
         end
+        total_time_str = "#{benchmark_record.duration.round((benchmark_record.duration > 0.002) ? 3 : 6)}s"
+        out << "\t #{total_time_str.ljust(9, ' ')}"
       else
         benchmark_records = []
         n.times do |iteration_index|
