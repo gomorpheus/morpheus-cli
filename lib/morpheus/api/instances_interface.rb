@@ -267,14 +267,6 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  # deprecated in 4.0
-  def update_notes(id, payload)
-    url = "#{@base_url}/api/instances/#{id}/notes"
-    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
-    execute(opts)
-  end
-
   def history(id, params={})
     url = "#{@base_url}/api/instances/#{id}/history"
     headers = { params: params, authorization: "Bearer #{@access_token}" }

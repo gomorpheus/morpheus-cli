@@ -17,7 +17,7 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::LogsHelper
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :view, :add, :update, :update_notes, :remove, :cancel_removal, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
   register_subcommands :wiki, :update_wiki
   register_subcommands :exec => :execution_request
   #register_subcommands :firewall_disable, :firewall_enable
@@ -599,82 +599,6 @@ class Morpheus::Cli::Instances
         puts as_json(json_response, options)
       else
         print_green_success "Updated instance #{instance['name']}"
-        #list([])
-        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def update_notes(args)
-    usage = "Usage: morpheus instances update-notes [instance] [options]"
-    options = {}
-    params = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[instance]")
-      opts.on('--notes VALUE', String, "Notes content (Markdown)") do |val|
-        params['notes'] = val
-      end
-      opts.on('--file FILE', "File containing the notes content. This can be used instead of --notes") do |filename|
-        full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
-          params['notes'] = File.read(full_filename)
-        else
-          print_red_alert "File not found: #{full_filename}"
-          return 1
-        end
-        # use the filename as the name by default.
-        if !params['name']
-          params['name'] = File.basename(full_filename)
-        end
-      end
-      opts.on(nil, '--clear', "Clear current notes") do |val|
-        params['notes'] = ""
-      end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    if args.count != 1
-      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
-      return 1
-    end
-    connect(options)
-    print_error "#{yellow}DEPRECATION WARNING: `instances update-notes` is deprecated in 4.0, use `instances update-wiki` instead.#{reset}\n"
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-      return 1 if instance.nil?
-      new_group = nil
-      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        # support args and option parameters on top of payload
-        if !params.empty?
-          payload['instance'] ||= {}
-          payload['instance'].deep_merge!(params)
-        end
-      else
-        if params['notes'].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'notes', 'type' => 'code-editor', 'fieldLabel' => 'Notes', 'required' => true, 'description' => 'Notes (Markdown)'}], options[:options])
-          params['notes'] = v_prompt['notes']
-        end
-        payload = {}
-        payload['instance'] = params
-      end
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_notes(instance["id"], payload)
-        return
-      end
-      json_response = @instances_interface.update_notes(instance["id"], payload)
-
-      if options[:json]
-        puts as_json(json_response, options)
-      else
-        print_green_success "Updated notes for instance #{instance['name']}"
         #list([])
         get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
