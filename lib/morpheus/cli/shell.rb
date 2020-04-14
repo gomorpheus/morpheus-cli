@@ -562,8 +562,10 @@ class Morpheus::Cli::Shell
           cmd_number = matches[1].to_i
           cmd = matches[2]
 
-          @last_command_number = cmd_number
-          @history[@last_command_number] = cmd
+          if cmd_number > @last_command_number
+            @last_command_number = cmd_number
+          end
+          @history[cmd_number] = cmd
 
           # for Ctrl+R history searching
           Readline::HISTORY << cmd
