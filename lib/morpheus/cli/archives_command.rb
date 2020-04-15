@@ -1206,7 +1206,7 @@ class Morpheus::Cli::ArchivesCommand
         print_archive_file_links_table(archive_file_links)
         print_results_pagination(json_response, {:label => "link", :n_label => "links"})
       else
-        puts "No history found"
+        puts "No file links found"
       end
       print reset,"\n"
       return 0
