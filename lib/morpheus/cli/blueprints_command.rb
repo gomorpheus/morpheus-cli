@@ -1,15 +1,18 @@
 require 'morpheus/cli/cli_command'
-require 'morpheus/cli/mixins/provisioning_helper'
 
 class Morpheus::Cli::BlueprintsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::AccountsHelper # needed? replace with OptionSourceHelper
+  include Morpheus::Cli::OptionSourceHelper
+
   set_command_name :'blueprints'
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :'types' => :list_types
   register_subcommands :duplicate
   register_subcommands :'upload-image' => :upload_image
   register_subcommands :'update-permissions' => :update_permissions
+  register_subcommands :'update-owner' => :update_owner
   register_subcommands :'available-tiers'
   register_subcommands :'add-tier', :'update-tier', :'remove-tier', :'connect-tiers', :'disconnect-tiers'
   register_subcommands :'add-instance'
@@ -34,6 +37,7 @@ class Morpheus::Cli::BlueprintsCommand
     @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @clouds_interface = @api_client.clouds
+    @users_interface = @api_client.users
     @library_layouts_interface = @api_client.library_layouts
   end
 
@@ -42,16 +46,37 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-t', '--type CODE', "Blueprint Type") do |val|
+        params['type'] ||= []
+        params['type'] << val
+      end
+      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
+        params['ownerId'] ||= []
+        params['ownerId'] << val
+      end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        params['ownerId'] ||= []
+        params['ownerId'] << val
+      end
+      opts.add_hidden_option('--created-by')
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List blueprints."
     end
     optparse.parse!(args)
     connect(options)
     begin
-      params = {}
+      if params['ownerId']
+        params['ownerId'] = params['ownerId'].collect do |owner_id|
+          # user = find_user_by_username_or_id(nil, owner_id)
+          user = find_available_user_option(owner_id)
+          return 1 if user.nil?
+          user['id']
+        end
+      end
       params.merge!(parse_list_options(options))
       @blueprints_interface.setopts(options)
       if options[:dry_run]
@@ -97,32 +122,39 @@ class Morpheus::Cli::BlueprintsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
+      opts.banner = subcommand_usage("[blueprint]")
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
       opts.footer = "Get details about a blueprint.\n" +
-                    "[id] is required. This is the name or id of a blueprint."
+                    "[blueprint] is required. This is the name or id of a blueprint. Supports 1-N [instance] arguments."
     end
     optparse.parse!(args)
     if args.count < 1
-      puts optparse
-      exit 1
+      raise_command_error "wrong number of arguments, expected 1-N and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+
+  def _get(arg, options)
     connect(options)
     begin
       if options[:dry_run]
         @blueprints_interface.setopts(options)
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @blueprints_interface.dry.get(args[0].to_i)
+          print_dry_run @blueprints_interface.dry.get(arg.to_i)
         else
-          print_dry_run @blueprints_interface.dry.list({name:args[0]})
+          print_dry_run @blueprints_interface.dry.list({name:arg})
         end
         return
       end
       @blueprints_interface.setopts(options)
-      blueprint = find_blueprint_by_name_or_id(args[0])
+      blueprint = find_blueprint_by_name_or_id(arg)
       exit 1 if blueprint.nil?
 
       json_response = {'blueprint' => blueprint}  # skip redundant request
@@ -244,7 +276,7 @@ class Morpheus::Cli::BlueprintsCommand
             end
           else
             # print details
-            get([blueprint['id']])
+            get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
           end
         end
       end
@@ -258,13 +290,11 @@ class Morpheus::Cli::BlueprintsCommand
   def update(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [options]")
+      opts.banner = subcommand_usage("[blueprint] [options]")
       build_option_type_options(opts, options, update_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update a blueprint.\n" + 
-                    "[id] is required. This is the name or id of a blueprint.\n" +
-                    "[options] Available options include --name and --description. This will update only the specified values.\n" +
-                    "[--config] or [--config-file] can be used to replace the entire blueprint."
+                    "[blueprint] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
 
@@ -276,7 +306,6 @@ class Morpheus::Cli::BlueprintsCommand
     connect(options)
 
     begin
-
       blueprint = find_blueprint_by_name_or_id(args[0])
       return 1 if blueprint.nil?
 
@@ -311,10 +340,66 @@ class Morpheus::Cli::BlueprintsCommand
         unless options[:quiet]
           blueprint = json_response['blueprint']
           print_green_success "Updated blueprint #{blueprint['name']}"
-          details_options = [blueprint['id']]
-          get(details_options)
+          get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
         end
       end
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_owner(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[blueprint] [user]")
+      build_standard_update_options(opts, options)
+      opts.footer = "Update a blueprint owner.\n" + 
+                    "[blueprint] is required. This is the name or id of a blueprint.\n" +
+                    "[user] is required. This is the name or id of a user, or 'null'"
+    end
+    optparse.parse!(args)
+
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      blueprint = find_blueprint_by_name_or_id(args[0])
+      return 1 if blueprint.nil?
+      owner_id = args[1]
+      payload = {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        # no prompting, just merge passed options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      if owner_id == 'null'
+        payload['ownerId'] = nil
+      else
+        user = find_user_by_username_or_id(nil, owner_id)
+        return 1 if user.nil?
+        payload['ownerId'] = user['id']
+      end
+      @blueprints_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @blueprints_interface.dry.update_owner(blueprint['id'], payload)
+        return
+      end
+
+      json_response = @blueprints_interface.update_owner(blueprint['id'], payload)
+      render_result = render_with_format(json_response, options, 'blueprint')
+      return 0 if render_result
+
+      #blueprint = json_response['blueprint']
+      print_green_success "Updated blueprint #{blueprint['name']} owner"
+      get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -328,7 +413,7 @@ class Morpheus::Cli::BlueprintsCommand
     group_defaults_list = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [options]")
+      opts.banner = subcommand_usage("[blueprint] [options]")
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
       end
@@ -345,7 +430,7 @@ class Morpheus::Cli::BlueprintsCommand
       build_option_type_options(opts, options, update_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update a blueprint permissions.\n" + 
-                    "[id] is required. This is the name or id of a blueprint."
+                    "[blueprint] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
 
@@ -414,8 +499,7 @@ class Morpheus::Cli::BlueprintsCommand
         unless options[:quiet]
           blueprint = json_response['blueprint']
           print_green_success "Updated permissions for blueprint #{blueprint['name']}"
-          details_options = [blueprint['id']]
-          get(details_options)
+          get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
         end
       end
       return 0
@@ -430,10 +514,10 @@ class Morpheus::Cli::BlueprintsCommand
     image_type_name = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [file]")
+      opts.banner = subcommand_usage("[blueprint] [file]")
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Upload an image file to be used as the icon for a blueprint.\n" + 
-                    "[id] is required. This is the name or id of a blueprint.\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint.\n" +
                     "[file] is required. This is the local path of a file to upload [png|jpg|svg]."
     end
     optparse.parse!(args)
@@ -473,7 +557,7 @@ class Morpheus::Cli::BlueprintsCommand
         blueprint = json_response['blueprint']
         new_image_url = blueprint['image']
         print cyan, "Updated blueprint #{blueprint['name']} image.\nNew image url is: #{new_image_url}", reset, "\n\n"
-        get([blueprint['id']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -485,10 +569,10 @@ class Morpheus::Cli::BlueprintsCommand
   def duplicate(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [new name]")
+      opts.banner = subcommand_usage("[blueprint] [new name]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Duplicate a blueprint." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint." + "\n" +
                     "[new name] is required. This is the name for the clone."
     end
     optparse.parse!(args)
@@ -523,7 +607,7 @@ class Morpheus::Cli::BlueprintsCommand
       else
         new_blueprint = json_response["blueprint"] || {}
         print_green_success "Created duplicate blueprint '#{new_blueprint['name']}'"
-        #get([new_blueprint["id"]])
+        #get([new_blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
 
     rescue RestClient::Exception => e
@@ -535,10 +619,10 @@ class Morpheus::Cli::BlueprintsCommand
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
+      opts.banner = subcommand_usage("[blueprint]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a blueprint." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint."
+                    "[blueprint] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
 
@@ -577,7 +661,7 @@ class Morpheus::Cli::BlueprintsCommand
   def add_instance(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier] [instance-type]")
+      opts.banner = subcommand_usage("[blueprint] [tier] [instance-type]")
       # opts.on( '-g', '--group GROUP', "Group" ) do |val|
       #   options[:group] = val
       # end
@@ -589,7 +673,7 @@ class Morpheus::Cli::BlueprintsCommand
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a blueprint, adding an instance." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required and will be prompted for. This is the name of the tier." + "\n" +
                     "[instance-type] is required and will be prompted for. This is the type of instance."
     end
@@ -686,7 +770,7 @@ class Morpheus::Cli::BlueprintsCommand
             end
           else
             # print details
-            get([blueprint['name']])
+            get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
           end
         end
       end
@@ -702,7 +786,7 @@ class Morpheus::Cli::BlueprintsCommand
   def add_instance_config(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier] [instance]")
+      opts.banner = subcommand_usage("[blueprint] [tier] [instance]")
       opts.on( '-g', '--group GROUP', "Group" ) do |val|
         options[:group] = val
       end
@@ -717,7 +801,7 @@ class Morpheus::Cli::BlueprintsCommand
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a blueprint, adding an instance config." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
                     "[instance] is required. This is the type of instance."
     end
@@ -850,7 +934,7 @@ class Morpheus::Cli::BlueprintsCommand
         puts JSON.pretty_generate(json_response)
       else
         print_green_success "Instance added to blueprint #{blueprint['name']}"
-        get([blueprint['name']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
 
@@ -865,7 +949,7 @@ class Morpheus::Cli::BlueprintsCommand
     instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier] [instance] -g GROUP -c CLOUD")
+      opts.banner = subcommand_usage("[blueprint] [tier] [instance] -g GROUP -c CLOUD")
       opts.on( '-g', '--group GROUP', "Group" ) do |val|
         options[:group] = val
       end
@@ -880,7 +964,7 @@ class Morpheus::Cli::BlueprintsCommand
       # end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Update a blueprint, removing a specified instance config." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
                     "[instance] is required. This is the instance identifier, which may be the type, the name, or the index starting with 0." + "\n" +
                     "The config scope is specified with the -g GROUP, -c CLOUD and -e ENV. The -g and -c options are required."
@@ -1033,7 +1117,7 @@ class Morpheus::Cli::BlueprintsCommand
         puts JSON.pretty_generate(json_response)
       else
         print_green_success "Removed instance from blueprint."
-        get([blueprint['id']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
 
@@ -1057,13 +1141,13 @@ class Morpheus::Cli::BlueprintsCommand
     instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier] [instance]")
+      opts.banner = subcommand_usage("[blueprint] [tier] [instance]")
       # opts.on('--index NUMBER', Number, "Identify Instance by index within tier, starting with 0." ) do |val|
       #   instance_index = val.to_i
       # end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Update a blueprint, removing a specified instance." + "\n" +
-                    "[id] is required. This is the name or id of a blueprint." + "\n" +
+                    "[blueprint] is required. This is the name or id of a blueprint." + "\n" +
                     "[tier] is required. This is the name of the tier." + "\n" +
                     "[instance] is required. This is the instance identifier, which may be the type, the name, or the index starting with 0."
     end
@@ -1160,7 +1244,7 @@ class Morpheus::Cli::BlueprintsCommand
         puts JSON.pretty_generate(json_response)
       else
         print_green_success "Removed instance from blueprint."
-        get([blueprint['id']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
 
@@ -1176,7 +1260,7 @@ class Morpheus::Cli::BlueprintsCommand
     linked_tiers = nil
     tier_index = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier]")
+      opts.banner = subcommand_usage("[blueprint] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
         options[:name] = val
       end
@@ -1195,7 +1279,7 @@ class Morpheus::Cli::BlueprintsCommand
 
     if args.count < 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add-tier requires argument: [id]\n#{optparse}"
+      puts_error  "#{command_name} add-tier requires argument: [blueprint]\n#{optparse}"
       # puts optparse
       return 1
     end
@@ -1299,7 +1383,7 @@ class Morpheus::Cli::BlueprintsCommand
           end
         end
         # print details
-        get([blueprint['name']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -1315,7 +1399,7 @@ class Morpheus::Cli::BlueprintsCommand
     linked_tiers = nil
     tier_index = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier]")
+      opts.banner = subcommand_usage("[blueprint] [tier]")
       opts.on('--name VALUE', String, "Tier Name") do |val|
         new_tier_name = val
       end
@@ -1446,7 +1530,7 @@ class Morpheus::Cli::BlueprintsCommand
         puts JSON.pretty_generate(json_response)
       elsif !options[:quiet]
         print_green_success "Updated tier #{tier_name}"
-        get([blueprint['id']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
     rescue RestClient::Exception => e
@@ -1458,7 +1542,7 @@ class Morpheus::Cli::BlueprintsCommand
   def remove_tier(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [tier]")
+      opts.banner = subcommand_usage("[blueprint] [tier]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1513,7 +1597,7 @@ class Morpheus::Cli::BlueprintsCommand
         print "\n"
       else
         print_green_success "Removed tier #{tier_name}"
-        get([blueprint['name']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
 
     rescue RestClient::Exception => e
@@ -1525,7 +1609,7 @@ class Morpheus::Cli::BlueprintsCommand
   def connect_tiers(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [Tier1] [Tier2]")
+      opts.banner = subcommand_usage("[blueprint] [Tier1] [Tier2]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1611,7 +1695,7 @@ class Morpheus::Cli::BlueprintsCommand
         print "\n"
       else
         print_green_success "Connected 2 tiers for blueprint #{blueprint['name']}"
-        get([blueprint['name']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
 
     rescue RestClient::Exception => e
@@ -1623,7 +1707,7 @@ class Morpheus::Cli::BlueprintsCommand
   def disconnect_tiers(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [Tier1] [Tier2]")
+      opts.banner = subcommand_usage("[blueprint] [Tier1] [Tier2]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1701,7 +1785,7 @@ class Morpheus::Cli::BlueprintsCommand
         print "\n"
       else
         print_green_success "Connected 2 tiers for blueprint #{blueprint['name']}"
-        get([blueprint['name']])
+        get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
 
     rescue RestClient::Exception => e
@@ -1915,10 +1999,13 @@ class Morpheus::Cli::BlueprintsCommand
       {
         id: blueprint['id'],
         name: blueprint['name'],
-        description: blueprint['description'],
         type: blueprint['type'].kind_of?(Hash) ? blueprint['type']['name'] : blueprint['type'],
+        description: blueprint['description'],
         category: blueprint['category'],
-        tiers_summary: format_blueprint_tiers_summary(blueprint)
+        visibility: blueprint['visibility'].to_s.capitalize,
+        owner: blueprint['owner'] ? blueprint['owner']['username'] : '',
+        tenant: blueprint['tenant'] ? blueprint['tenant']['name'] : '',
+        tiers_summary: format_blueprint_tiers_summary(blueprint),
       }
     end
 
@@ -1930,10 +2017,13 @@ class Morpheus::Cli::BlueprintsCommand
     columns = [
       :id,
       :name,
-      :description,
       :type,
+      :description,
       :category,
-      {:tiers_summary => {:display_name => "TIERS", :max_width => tiers_col_width} }
+      :owner,
+      :tenant,
+      :visibility,
+      {:tiers_summary => {:display_name => "TIERS", :max_width => tiers_col_width} },
     ]
     if opts[:include_fields]
       columns = opts[:include_fields]
@@ -2006,11 +2096,35 @@ class Morpheus::Cli::BlueprintsCommand
     description_cols = {
       "ID" => 'id',
       "Name" => 'name',
-      "Description" => 'description',
       "Type" => lambda {|it| it['type'].kind_of?(Hash) ? it['type']['name'] : it['type'] },
+      "Description" => 'description',
       "Category" => 'category',
       "Image" => lambda {|it| it['config'] ? (it['config']['image'] == '/assets/apps/template.png' ? '(default)' : it['config']['image']) : '' },
+      "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
+      "Tenant" => lambda {|it| it['tenant'] ? it['tenant']['name'] : '' },
       "Visibility" => 'visibility',
+      "Group Access" => lambda {|it| 
+        group_access_str = ""
+        begin
+          rows = []
+          if blueprint['resourcePermission']
+            if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
+              rows.push({"name" => 'All'})
+            end
+            if blueprint['resourcePermission']['sites']
+              blueprint['resourcePermission']['sites'].each do |site|
+                rows.push(site)
+              end
+            end
+          else
+            # rows.push({"name" => 'All'})
+          end
+          group_access_str = rows.collect {|it| it['default'] ? "#{it['name']} (default)" : "#{it['name']}"}.join(',')
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Error parsing group access: #{ex}" if Morpheus::Logging.debug?
+        end
+        group_access_str
+      },
       "Tiers" => lambda {|it| 
           tiers = []
           if blueprint["config"]["tiers"].is_a?(Hash)
@@ -2040,28 +2154,6 @@ class Morpheus::Cli::BlueprintsCommand
         # "Containers" => lambda {|it| 
         #     i wish
         # },
-      "Group Access" => lambda {|it| 
-        group_access_str = ""
-        begin
-          rows = []
-          if blueprint['resourcePermission']
-            if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
-              rows.push({"name" => 'All'})
-            end
-            if blueprint['resourcePermission']['sites']
-              blueprint['resourcePermission']['sites'].each do |site|
-                rows.push(site)
-              end
-            end
-          else
-            # rows.push({"name" => 'All'})
-          end
-          group_access_str = rows.collect {|it| it['default'] ? "#{it['name']} (default)" : "#{it['name']}"}.join(',')
-        rescue => ex
-          Morpheus::Logging::DarkPrinter.puts "Error parsing group access: #{ex}" if Morpheus::Logging.debug?
-        end
-        group_access_str
-      }
     }
 
     print_description_list(description_cols, blueprint)

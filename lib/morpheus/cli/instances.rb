@@ -3,18 +3,15 @@ require 'rest_client'
 require 'optparse'
 require 'filesize'
 require 'morpheus/cli/cli_command'
-require 'morpheus/cli/mixins/accounts_helper'
-require 'morpheus/cli/mixins/provisioning_helper'
-require 'morpheus/cli/mixins/processes_helper'
-require 'morpheus/cli/mixins/logs_helper'
-require 'morpheus/cli/option_types'
 
 class Morpheus::Cli::Instances
   include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::AccountsHelper # needed? replace with OptionSourceHelper
+  include Morpheus::Cli::OptionSourceHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::LogsHelper
+
   set_command_name :instances
   set_command_description "View and manage instances."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
@@ -66,9 +63,13 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
-      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
         options[:created_by] = val
       end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        options[:created_by] = val
+      end
+      opts.add_hidden_option('--created-by')
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
@@ -111,6 +112,7 @@ class Morpheus::Cli::Instances
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
 
       params['showDeleted'] = true if options[:pendingRemoval]
@@ -191,7 +193,7 @@ class Morpheus::Cli::Instances
               name: instance['name'],
               connection: format_instance_connection_string(instance),
               environment: instance['instanceContext'],
-              user: instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'],
+              user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
               nodes: instance['containers'].count,
               status: format_instance_status(instance, cyan),
               type: instance['instanceType']['name'],
@@ -206,7 +208,7 @@ class Morpheus::Cli::Instances
           }
           columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
               :type, :version, :environment, 
-              {:user => {:display_name => "CREATED BY", :max_width => 20}}, 
+              {:user => {:display_name => "OWNER", :max_width => 20}}, 
               :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
           # custom pretty table columns ... this is handled in as_pretty_table now(), 
           # todo: remove all these.. and try to always pass rows as the json data itself..
@@ -239,9 +241,13 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
-      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
         options[:created_by] = val
       end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        options[:created_by] = val
+      end
+      opts.add_hidden_option('--created-by')
       opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
         options[:phrase] = phrase
       end
@@ -275,6 +281,7 @@ class Morpheus::Cli::Instances
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
       
       @instances_interface.setopts(options)
@@ -603,6 +610,64 @@ class Morpheus::Cli::Instances
         get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_owner(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [user]")
+      build_standard_update_options(opts, options)
+      opts.footer = "Update an instance owner.\n" + 
+                    "[instance] is required. This is the name or id of a instance.\n" +
+                    "[user] is required. This is the name or id of a user, or 'null'"
+    end
+    optparse.parse!(args)
+
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      owner_id = args[1]
+      payload = {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        # no prompting, just merge passed options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      if owner_id == 'null'
+        payload['ownerId'] = nil
+      else
+        # user = find_user_by_username_or_id(nil, owner_id)
+        user = find_available_user_option(owner_id)
+        return 1 if user.nil?
+        payload['ownerId'] = user['id']
+      end
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.update_owner(instance['id'], payload)
+        return
+      end
+
+      json_response = @instances_interface.update_owner(instance['id'], payload)
+      render_result = render_with_format(json_response, options, 'instance')
+      return 0 if render_result
+
+      #instance = json_response['instance']
+      print_green_success "Updated instance #{instance['name']} owner"
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
+
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1217,7 +1282,13 @@ class Morpheus::Cli::Instances
         "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
         "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
-        "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['username'] || it['createdBy']['id']) : '' },
+        "Owner" => lambda {|it| 
+          if it['owner']
+            (it['owner']['username'] || it['owner']['id'])
+          else
+            it['createdBy'] ? (it['createdBy']['username'] || it['createdBy']['id']) : '' 
+          end
+        },
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
         "Connection" => lambda {|it| format_instance_connection_string(it) },

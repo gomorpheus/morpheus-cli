@@ -146,6 +146,7 @@ class Morpheus::Cli::Hosts
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
       
       cluster = nil
@@ -366,6 +367,7 @@ class Morpheus::Cli::Hosts
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
       @servers_interface.setopts(options)
       if options[:dry_run]

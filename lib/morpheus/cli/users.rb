@@ -217,6 +217,7 @@ class Morpheus::Cli::Users
           "Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
           "Username" => 'username',
           "Email" => 'email',
+          "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
           "Role" => lambda {|it| format_user_role_names(it) },
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }

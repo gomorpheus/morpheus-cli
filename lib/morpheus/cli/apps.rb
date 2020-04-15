@@ -11,7 +11,8 @@ require 'morpheus/cli/mixins/logs_helper'
 
 class Morpheus::Cli::Apps
   include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::AccountsHelper # needed? replace with OptionSourceHelper
+  include Morpheus::Cli::OptionSourceHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::LogsHelper
@@ -20,6 +21,7 @@ class Morpheus::Cli::Apps
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
+  register_subcommands :'update-owner' => :update_owner
   #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
@@ -54,9 +56,13 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
         options[:created_by] = val
       end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        options[:created_by] = val
+      end
+      opts.add_hidden_option('--created-by')
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
@@ -81,6 +87,7 @@ class Morpheus::Cli::Apps
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
 
       params['showDeleted'] = true if options[:pendingRemoval]
@@ -125,9 +132,13 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
-      opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
+      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
         options[:created_by] = val
       end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        options[:created_by] = val
+      end
+      opts.add_hidden_option('--created-by')
       opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
         options[:phrase] = phrase
       end
@@ -144,6 +155,7 @@ class Morpheus::Cli::Apps
         created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
+        # params['ownerId'] = created_by_ids # 4.2.1+
       end
       @apps_interface.setopts(options)
       if options[:dry_run]
@@ -827,6 +839,63 @@ class Morpheus::Cli::Apps
     end
   end
 
+  def update_owner(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [user]")
+      build_standard_update_options(opts, options)
+      opts.footer = "Update an app owner.\n" + 
+                    "[app] is required. This is the name or id of a app.\n" +
+                    "[user] is required. This is the name or id of a user, or 'null'"
+    end
+    optparse.parse!(args)
+
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+      owner_id = args[1]
+      payload = {}
+      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      else
+        # no prompting, just merge passed options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+      end
+      if owner_id == 'null'
+        payload['ownerId'] = nil
+      else
+        # user = find_user_by_username_or_id(nil, owner_id)
+        user = find_available_user_option(owner_id)
+        return 1 if user.nil?
+        payload['ownerId'] = user['id']
+      end
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.update_owner(app['id'], payload)
+        return
+      end
+
+      json_response = @apps_interface.update_owner(app['id'], payload)
+      render_result = render_with_format(json_response, options, 'app')
+      return 0 if render_result
+
+      #app = json_response['app']
+      print_green_success "Updated app #{app['name']} owner"
+      get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
   def add_instance(args)
     options = {}
