@@ -48,7 +48,6 @@ module Morpheus::Cli::AccountsHelper
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Account not found by id #{id}"
-        return nil
       else
         raise e
       end
@@ -103,7 +102,6 @@ module Morpheus::Cli::AccountsHelper
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Role not found by id #{id}"
-        return nil
       else
         raise e
       end
@@ -142,7 +140,6 @@ module Morpheus::Cli::AccountsHelper
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "User not found by id #{id}"
-        return nil
       else
         raise e
       end
@@ -203,7 +200,6 @@ module Morpheus::Cli::AccountsHelper
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "User Group not found by id #{id}"
-        return nil
       else
         raise e
       end
