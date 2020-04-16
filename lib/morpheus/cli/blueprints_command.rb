@@ -12,7 +12,6 @@ class Morpheus::Cli::BlueprintsCommand
   register_subcommands :duplicate
   register_subcommands :'upload-image' => :upload_image
   register_subcommands :'update-permissions' => :update_permissions
-  register_subcommands :'update-owner' => :update_owner
   register_subcommands :'available-tiers'
   register_subcommands :'add-tier', :'update-tier', :'remove-tier', :'connect-tiers', :'disconnect-tiers'
   register_subcommands :'add-instance'
@@ -54,7 +53,7 @@ class Morpheus::Cli::BlueprintsCommand
         params['type'] ||= []
         params['type'] << val
       end
-      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
         params['ownerId'] ||= []
         params['ownerId'] << val
       end
@@ -215,7 +214,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_blueprint_option_types(false))
       opts.on('-t', '--type TYPE', String, "Blueprint Type. Default is morpheus.") do |val|
-        options[:blueprint_type] = val.to_s
+        options[:blueprint_type] = parse_blueprint_type(val.to_s)
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new blueprint.\n" + 
@@ -288,42 +287,57 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def update(args)
-    options = {}
+    params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [options]")
       build_option_type_options(opts, options, update_blueprint_option_types(false))
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val == 'null' ? nil : val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Update a blueprint.\n" + 
                     "[blueprint] is required. This is the name or id of a blueprint."
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      puts optparse
-      exit 1
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
-
     connect(options)
-
     begin
       blueprint = find_blueprint_by_name_or_id(args[0])
       return 1 if blueprint.nil?
-
       payload = {}
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       if options[:payload]
         payload = options[:payload]
-        payload.deep_merge!(passed_options) unless passed_options.empty?
+        payload.deep_merge!(parse_passed_options(options))
       else
         # no prompting, just merge passed options
         payload = blueprint["config"]
-        payload.deep_merge!(passed_options) unless passed_options.empty?
-
-        if passed_options.empty?
-          print_red_alert "Specify at least one option to update"
-          puts optparse
-          return 1
+      end
+      payload.deep_merge!(parse_passed_options(options))
+      # Owner
+      if options.key?(:owner)
+        owner_id = options[:owner]
+        if owner_id.to_s.empty?
+          # allow clearing
+          owner_id = nil
+        elsif options[:owner]
+          if owner_id.to_s =~ /\A\d{1,}\Z/
+            # allow id without lookup
+          else
+            user = find_available_user_option(owner_id)
+            return 1 if user.nil?
+            owner_id = user['id']
+          end
         end
+        # payload['blueprint'] ||= {}
+        # payload['blueprint']['ownerId'] = owner_id
+        payload['ownerId'] = owner_id
+      end
+      if payload.empty?
+        # this wont happen because its sending back the current config
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
       @blueprints_interface.setopts(options)
       if options[:dry_run]
@@ -350,68 +364,11 @@ class Morpheus::Cli::BlueprintsCommand
     end
   end
 
-  def update_owner(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[blueprint] [user]")
-      build_standard_update_options(opts, options)
-      opts.footer = "Update a blueprint owner.\n" + 
-                    "[blueprint] is required. This is the name or id of a blueprint.\n" +
-                    "[user] is required. This is the name or id of a user, or 'null'"
-    end
-    optparse.parse!(args)
-
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
-    connect(options)
-
-    begin
-      blueprint = find_blueprint_by_name_or_id(args[0])
-      return 1 if blueprint.nil?
-      owner_id = args[1]
-      payload = {}
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!(passed_options) unless passed_options.empty?
-      else
-        # no prompting, just merge passed options
-        payload.deep_merge!(passed_options) unless passed_options.empty?
-      end
-      if owner_id == 'null'
-        payload['ownerId'] = nil
-      else
-        user = find_user_by_username_or_id(nil, owner_id)
-        return 1 if user.nil?
-        payload['ownerId'] = user['id']
-      end
-      @blueprints_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @blueprints_interface.dry.update_owner(blueprint['id'], payload)
-        return
-      end
-
-      json_response = @blueprints_interface.update_owner(blueprint['id'], payload)
-      render_result = render_with_format(json_response, options, 'blueprint')
-      return 0 if render_result
-
-      #blueprint = json_response['blueprint']
-      print_green_success "Updated blueprint #{blueprint['name']} owner"
-      get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      return 0
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
   def update_permissions(args)
+    params, payload, options = {}, {}, {}
     group_access_all = nil
     group_access_list = nil
     group_defaults_list = nil
-    options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [options]")
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
@@ -426,6 +383,9 @@ class Morpheus::Cli::BlueprintsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val == 'null' ? nil : val
       end
       build_option_type_options(opts, options, update_blueprint_option_types(false))
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -442,48 +402,54 @@ class Morpheus::Cli::BlueprintsCommand
     connect(options)
 
     begin
-
       blueprint = find_blueprint_by_name_or_id(args[0])
       return 1 if blueprint.nil?
-
-      payload = nil
       if options[:payload]
         payload = options[:payload]
-      else
-        payload = {
-          'blueprint' => {
-          }
-        }
-        
-        # allow arbitrary -O options
-        payload['blueprint'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-
-        # Group Access
-        if group_access_all != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['all'] = group_access_all
+      end
+      payload['blueprint'] ||= {}
+      payload.deep_merge!(parse_passed_options(options))
+      # Group Access
+      if group_access_all != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['all'] = group_access_all
+      end
+      if group_access_list != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+          site = {"id" => site_id.to_i}
+          if group_defaults_list && group_defaults_list.include?(site_id)
+            site["default"] = true
+          end
+          site
         end
-        if group_access_list != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
-            site = {"id" => site_id.to_i}
-            if group_defaults_list && group_defaults_list.include?(site_id)
-              site["default"] = true
-            end
-            site
+      end
+      # Visibility
+      if options['visibility'] != nil
+        payload['blueprint']['visibility'] = options['visibility'].to_s.downcase
+      end
+      # Owner
+      if options.key?(:owner)
+        owner_id = options[:owner]
+        if owner_id.to_s.empty?
+          # allow clearing
+          owner_id = nil
+        elsif options[:owner]
+          if owner_id.to_s =~ /\A\d{1,}\Z/
+            # allow id without lookup
+          else
+            user = find_available_user_option(owner_id)
+            return 1 if user.nil?
+            owner_id = user['id']
           end
         end
-
-        # Tenants
-        # if options['tenants']
-        #   payload['tenantPermissions'] = {}
-        #   payload['tenantPermissions']['accounts'] = options['tenants']
-        # end
-        
-        # Visibility
-        if options['visibility'] != nil
-          payload['blueprint']['visibility'] = options['visibility']
-        end
+        payload['blueprint']['ownerId'] = owner_id
+      end
+      if payload['blueprint'] && payload['blueprint'].empty?
+        payload.delete('blueprint')
+      end
+      if payload.empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
       end
       @blueprints_interface.setopts(options)
       if options[:dry_run]
@@ -1999,7 +1965,7 @@ class Morpheus::Cli::BlueprintsCommand
       {
         id: blueprint['id'],
         name: blueprint['name'],
-        type: blueprint['type'].kind_of?(Hash) ? blueprint['type']['name'] : blueprint['type'],
+        type: blueprint['type'].kind_of?(Hash) ? blueprint['type']['name'] : format_blueprint_type(blueprint['type']),
         description: blueprint['description'],
         category: blueprint['category'],
         visibility: blueprint['visibility'].to_s.capitalize,
@@ -2130,7 +2096,7 @@ class Morpheus::Cli::BlueprintsCommand
           if blueprint["config"]["tiers"].is_a?(Hash)
             tiers = blueprint["config"]["tiers"].keys
           end
-          "#{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(',')}"
+          "(#{(tiers || []).size()}) #{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(', ')}"
         },
         "Instances" => lambda {|it| 
           instances = []
@@ -2149,7 +2115,7 @@ class Morpheus::Cli::BlueprintsCommand
             end
           end
           #"(#{instances.count})"
-          "(#{instances.count}) #{instances.collect {|it| it['instance'] ? it['instance']['type'] : (it['type'] || it['name']) }.join(',')}"
+          "(#{instances.count}) #{instances.collect {|it| it['instance'] ? it['instance']['type'] : (it['type'] || it['name']) }.join(', ')}"
         },
         # "Containers" => lambda {|it| 
         #     i wish
@@ -2237,7 +2203,7 @@ class Morpheus::Cli::BlueprintsCommand
           end  
           
         else
-          print white,"  Tier is empty, use `blueprints add-instance \"#{blueprint['name']}\" \"#{tier_name}\"`",reset,"\n"
+          #print cyan,"  Tier is empty, use `blueprints add-instance \"#{blueprint['name']}\" \"#{tier_name}\"`",reset,"\n"
         end
         # print "\n"
 
@@ -2245,8 +2211,9 @@ class Morpheus::Cli::BlueprintsCommand
       # print "\n"
 
     else
-      print white,"\nTemplate is empty, use `blueprints add-tier \"#{blueprint['name']}\"`",reset,"\n"
+      #print white,"\nTemplate is empty, use `blueprints add-tier \"#{blueprint['name']}\"`",reset,"\n"
     end
+    print reset,"\n"
   end
 
   # this parses the environments => groups => clouds tree structure

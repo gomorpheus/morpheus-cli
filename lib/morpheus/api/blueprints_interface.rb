@@ -33,12 +33,6 @@ class Morpheus::BlueprintsInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def update_owner(id, payload)
-    url = "#{@base_url}/api/blueprints/#{id}/owner"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
-  end
-
   def update_permissions(id, payload)
     url = "#{@base_url}/api/blueprints/#{id}/update-permissions"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

@@ -19,9 +19,11 @@ class Morpheus::Cli::Apps
   set_command_name :apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
+  register_subcommands :'prepare-apply' => :prepare_apply
+  register_subcommands :apply
+  register_subcommands :refresh
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
-  register_subcommands :'update-owner' => :update_owner
   #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
@@ -53,14 +55,21 @@ class Morpheus::Cli::Apps
   end
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
-        options[:created_by] = val
+      opts.on( '-t', '--type USER', "Owner Username or ID" ) do |val|
+        options[:type] = val
       end
-      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
-        options[:created_by] = val
+      opts.on( '--blueprint BLUEPRINT', "Blueprint Name or ID" ) do |val|
+        options[:blueprint] = val
+      end
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val
+      end
+      opts.on( '--created-by USER', "[DEPRECATED] Alias for --owner" ) do |val|
+        options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
@@ -80,11 +89,37 @@ class Morpheus::Cli::Apps
     end
     connect(options)
     begin
-      params = {}
+      if options[:type]
+        params['type'] = [options[:type]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+      end
+      if options[:blueprint]
+        blueprint_ids = [options[:blueprint]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+        params['blueprintId'] = blueprint_ids.collect do |blueprint_id|
+          if blueprint_id.to_s =~ /\A\d{1,}\Z/
+            return blueprint_id
+          else
+            blueprint = find_blueprint_by_name_or_id(blueprint_id)
+            return 1 if blueprint.nil?
+            blueprint['id']
+          end
+        end
+      end
+      if options[:owner]
+        owner_ids = [options[:owner]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+        params['ownerId'] = owner_ids.collect do |owner_id|
+          if owner_id.to_s =~ /\A\d{1,}\Z/
+            return owner_id
+          else
+            user = find_available_user_option(owner_id)
+            return 1 if user.nil?
+            user['id']
+          end
+        end
+      end
       params.merge!(parse_list_options(options))
       account = nil
-      if options[:created_by]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+      if options[:owner]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
         # params['ownerId'] = created_by_ids # 4.2.1+
@@ -132,11 +167,11 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
-      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
-        options[:created_by] = val
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val
       end
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
-        options[:created_by] = val
+        options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
       opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
@@ -151,8 +186,8 @@ class Morpheus::Cli::Apps
       params = {}
       params.merge!(parse_list_options(options))
       account = nil
-      if options[:created_by]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+      if options[:owner]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
         # params['ownerId'] = created_by_ids # 4.2.1+
@@ -635,10 +670,18 @@ class Morpheus::Cli::Apps
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
+        "Type" => lambda {|it| 
+          if it['type']
+            format_blueprint_type(it['type']) 
+          else
+            format_blueprint_type(it['blueprint'] ? it['blueprint']['type'] : nil) 
+          end
+        },
         "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : it['siteId'] },
         "Environment" => lambda {|it| it['appContext'] },
-        "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
+        #"Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Tiers" => lambda {|it| 
           # it['instanceCount']
           tiers = []
@@ -646,7 +689,7 @@ class Morpheus::Cli::Apps
           app_tiers.each do |app_tier|
             tiers << app_tier['tier']
           end
-          "#{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(',')}"
+          "(#{(tiers || []).size()}) #{tiers.collect {|it| it.is_a?(Hash) ? it['name'] : it }.join(',')}"
         },
         "Instances" => lambda {|it| 
           # it['instanceCount']
@@ -673,9 +716,9 @@ class Morpheus::Cli::Apps
 
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if app['status'] == 'pendingRemoval'
 
-      if app['blueprint'].nil?
-        description_cols.delete("Blueprint")
-      end
+      # if app['blueprint'].nil?
+      #   description_cols.delete("Blueprint")
+      # end
       # if app['description'].nil?
       #   description_cols.delete("Description")
       # end
@@ -688,7 +731,8 @@ class Morpheus::Cli::Apps
       end
 
       if app_tiers.empty?
-        puts yellow, "This app is empty", reset
+        #puts yellow, "This app is empty", reset
+        print reset,"\n"
       else
         app_tiers.each do |app_tier|
           # print_h2 "Tier: #{app_tier['tier']['name']}", options
@@ -750,7 +794,7 @@ class Morpheus::Cli::Apps
   end
 
   def update(args)
-    options = {}
+    params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app] [options]")
       #build_option_type_options(opts, options, update_app_option_types(false))
@@ -765,6 +809,9 @@ class Morpheus::Cli::Apps
       end
       opts.on( '--environment VALUE', String, "Environment" ) do |val|
         options[:environment] = val
+      end
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val == 'null' ? nil : val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run])
       opts.footer = "Update an app.\n" +
@@ -781,116 +828,218 @@ class Morpheus::Cli::Apps
     begin
       app = find_app_by_name_or_id(args[0])
       return 1 if app.nil?
-
-      payload = {}
       if options[:payload]
         payload = options[:payload]
-      else
-        payload = {
-          'app' => {id: app["id"]}
-        }
-        params = options[:options] || {}
-        if options[:name]
-          params['name'] = options[:name]
-        end
-        if options[:description]
-          params['description'] = options[:description]
-        end
-        if options[:environment]
-          # params['environment'] = options[:environment]
-          params['appContext'] = options[:environment]
-        end
-        if options[:group]
-          group = find_group_by_name_or_id_for_provisioning(options[:group])
-          return 1 if group.nil?
-          params['group'] = {'id' => group['id'], 'name' => group['name']}
-        end
-        if params.empty?
-          print_red_alert "Specify at least one option to update"
-          puts optparse
-          return 1
-        end
-        payload['app'].merge!(params)
-        # api bug requires this to be at the root level as well right now
-        if payload['app'] && payload['app']['group']
-          payload['group'] = payload['app']['group']
-        end
       end
+      payload['app'] ||= {}
+      payload.deep_merge!({'app' => parse_passed_options(options)})
+      if options[:name]
+        payload['app']['name'] = options[:name]
+      end
+      if options[:description]
+        payload['app']['description'] = options[:description]
+      end
+      if options[:environment]
+        # payload['app']['environment'] = options[:environment]
+        payload['app']['appContext'] = options[:environment]
+      end
+      if options[:group]
+        group = find_group_by_name_or_id_for_provisioning(options[:group])
+        return 1 if group.nil?
+        payload['app']['group'] = {'id' => group['id'], 'name' => group['name']}
+      end
+      if options.key?(:owner)
+        owner_id = options[:owner]
+        if owner_id.to_s.empty?
+          # allow clearing
+          owner_id = nil
+        elsif options[:owner]
+          if owner_id.to_s =~ /\A\d{1,}\Z/
+            # allow id without lookup
+          else
+            user = find_available_user_option(owner_id)
+            return 1 if user.nil?
+            owner_id = user['id']
+          end
+        end
+        payload['app']['ownerId'] = owner_id
+      end
+      if payload['app'] && payload['app'].empty?
+        payload.delete('app')
+      end
+      if payload.empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      end
+      
       @apps_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @apps_interface.dry.update(app["id"], payload)
         return
       end
-
       json_response = @apps_interface.update(app["id"], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Updated app #{app['name']}"
-        # print details
-        get_args = [app['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
-        get(get_args)
-      end
-
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+      print_green_success "Updated app #{app['name']}"
+      get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
   end
 
-  def update_owner(args)
-    options = {}
+  def refresh(args)
+    params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[app] [user]")
-      build_standard_update_options(opts, options)
-      opts.footer = "Update an app owner.\n" + 
-                    "[app] is required. This is the name or id of a app.\n" +
-                    "[user] is required. This is the name or id of a user, or 'null'"
+      opts.banner = subcommand_usage("[app] [options]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Refresh an app.
+[app] is required. This is the name or id of an app.
+This is only supported by certain types of apps.
+EOT
     end
     optparse.parse!(args)
-
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
     end
     connect(options)
 
     begin
       app = find_app_by_name_or_id(args[0])
       return 1 if app.nil?
-      owner_id = args[1]
+      # construct request
+      params.merge!(parse_query_options(options))
       payload = {}
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       if options[:payload]
         payload = options[:payload]
-        payload.deep_merge!(passed_options) unless passed_options.empty?
+        payload.deep_merge!(parse_passed_options(options))
       else
-        # no prompting, just merge passed options
-        payload.deep_merge!(passed_options) unless passed_options.empty?
+        payload.deep_merge!(parse_passed_options(options))
+        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
       end
-      if owner_id == 'null'
-        payload['ownerId'] = nil
-      else
-        # user = find_user_by_username_or_id(nil, owner_id)
-        user = find_available_user_option(owner_id)
-        return 1 if user.nil?
-        payload['ownerId'] = user['id']
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to refresh this app: #{app['name']}?")
+        return 9, "aborted command"
       end
       @apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @apps_interface.dry.update_owner(app['id'], payload)
+        print_dry_run @apps_interface.dry.refresh(app["id"], params, payload)
         return
       end
-
-      json_response = @apps_interface.update_owner(app['id'], payload)
-      render_result = render_with_format(json_response, options, 'app')
+      json_response = @apps_interface.refresh(app["id"], params, payload)
+      render_result = render_with_format(json_response, options)
       return 0 if render_result
+      print_green_success "Refreshed app #{app['name']}"
+      return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
-      #app = json_response['app']
-      print_green_success "Updated app #{app['name']} owner"
-      get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+  def prepare_apply(args)
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Prepare to apply an app.
+[app] is required. This is the name or id of an app.
+Template parameter values can be applied with -O templateParameter.foo=bar
+This only prints the app configuration that would be applied.
+It does not make any updates.
+This is only supported by certain types of apps.
+EOT
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+      # construct request
+      params.merge!(parse_query_options(options))
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
+      else
+        payload.deep_merge!(parse_passed_options(options))
+        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      end
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.prepare_apply(app["id"], params, payload)
+        return
+      end
+      json_response = @apps_interface.prepare_apply(app["id"], params, payload)
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+      # print_green_success "Prepared to apply app: #{app['name']}"
+      print_h1 "Prepared App: #{app['name']}"
+      app_config = json_response['data'] 
+      # app_config = json_response if app_config.nil?
+      puts as_yaml(app_config, options)
+      #return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      print "\n", reset
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
 
+  def apply(args)
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Apply an app.
+[app] is required. This is the name or id of an app.
+Template parameter values can be applied with -O templateParameter.foo=bar
+This is a way to apply an app with new configuration parameters to an app. 
+This prints the app configuration that would be applied.
+It does not make any updates.
+This is only supported by certain types of apps.
+EOT
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      app = find_app_by_name_or_id(args[0])
+      return 1 if app.nil?
+      # construct request
+      params.merge!(parse_query_options(options))
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
+      else
+        payload.deep_merge!(parse_passed_options(options))
+        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      end
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply this app: #{app['name']}?")
+        return 9, "aborted command"
+      end
+      @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.apply(app["id"], params, payload)
+        return
+      end
+      json_response = @apps_interface.apply(app["id"], params, payload)
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+      print_green_success "Applied app #{app['name']}"
+      #return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -1239,6 +1388,7 @@ class Morpheus::Cli::Apps
       exit 1
     end
   end
+
 
   def stop(args)
     options = {}
@@ -1977,8 +2127,8 @@ class Morpheus::Cli::Apps
     table_color = options[:color] || cyan
     rows = apps.collect do |app|
       tiers_str = format_app_tiers(app)
-      instances_str = (app['instanceCount'].to_i == 1) ? "1 Instance" : "#{app['instanceCount']} Instances"
-      containers_str = (app['containerCount'].to_i == 1) ? "1 Container" : "#{app['containerCount']} Containers"
+      instances_str = (app['instanceCount'].to_i == 1) ? "1" : "#{app['instanceCount']}"
+      containers_str = (app['containerCount'].to_i == 1) ? "1" : "#{app['containerCount']}"
       stats = app['stats']
       # app_stats = app['appStats']
       cpu_usage_str = !stats ? "" : generate_usage_bar((stats['cpuUsage'] || stats['cpuUsagePeak']).to_f, 100, {max_bars: 10})
@@ -1995,34 +2145,44 @@ class Morpheus::Cli::Apps
       {
         id: app['id'],
         name: app['name'],
+        description: app['description'],
+        blueprint: app['blueprint'] ? app['blueprint']['name'] : '',
+        type: app['type'] ? format_blueprint_type(app['type']) : (format_blueprint_type(app['blueprint'] ? app['blueprint']['type'] : nil)),
         group: app['group'] ? app['group']['name'] : app['siteId'],
         environment: app['appContext'],
         tiers: tiers_str,
         instances: instances_str,
         containers: containers_str,
-        account: app['account'] ? app['account']['name'] : nil,
+        owner: app['owner'] ? app['owner']['username'] : '',
+        tenant: app['account'] ? app['account']['name'] : nil,
         status: format_app_status(app, table_color),
         cpu: cpu_usage_str + cyan,
         memory: memory_usage_str + table_color,
-        storage: storage_usage_str + table_color
-        #dateCreated: format_local_dt(app['dateCreated'])
+        storage: storage_usage_str + table_color,
+        created: format_local_dt(app['dateCreated']),
+        updated: format_local_dt(app['lastUpdated'])
       }
     end
 
     columns = [
       :id,
       :name,
+      # :description,
+      :type,
+      :blueprint,
       :group,
       :environment,
+      :status,
       :tiers,
       :instances,
       :containers,
-      #:account,
-      :status,
-      #{:dateCreated => {:display_name => "Date Created"} },
       {:cpu => {:display_name => "MAX CPU"} },
       :memory,
-      :storage
+      :storage,
+      :owner,
+      #:tenant,
+      :created,
+      :updated
     ]
     
     # custom pretty table columns ...

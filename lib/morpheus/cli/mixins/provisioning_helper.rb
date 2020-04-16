@@ -1981,4 +1981,30 @@ module Morpheus::Cli::ProvisioningHelper
 
     return ports
   end
+
+  def format_blueprint_type(type_code)
+    return type_code.to_s # just show it as is
+    if type_code.to_s.empty?
+      type_code = "morpheus"
+    end
+    if type_code.to_s.downcase == "arm"
+      "ARM"
+    else
+      return type_code.to_s.capitalize
+    end
+  end
+
+  def parse_blueprint_type(type_code)
+    return type_code.to_s # just use it as is
+    # if type_code.to_s.empty?
+    #   type_code = "morpheus"
+    # end
+    if type_code.to_s.downcase == "arm"
+      "arm"
+    elsif type_code.to_s.downcase == "cloudformation"
+      type_code = "cloudFormation"
+    else
+      return type_code.to_s.downcase
+    end
+  end
 end

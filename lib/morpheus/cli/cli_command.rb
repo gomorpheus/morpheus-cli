@@ -128,6 +128,11 @@ module Morpheus
         raise_command_error "Invalid value for #{option} option"
       end
 
+      # this returns all the options passed in by -O, parsed all nicely into objects.
+      def parse_passed_options(options)
+        passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+        return passed_options
+      end
       # Appends Array of OptionType definitions to an OptionParser instance
       # This adds an option like --fieldContext.fieldName="VALUE"
       # @param opts [OptionParser]

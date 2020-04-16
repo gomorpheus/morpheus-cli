@@ -63,11 +63,11 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
-      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
-        options[:created_by] = val
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val
       end
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
-        options[:created_by] = val
+        options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
@@ -108,11 +108,13 @@ class Morpheus::Cli::Instances
       end
 
       account = nil
-      if options[:created_by]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+      #todo: user = find_available_user_option(owner_id)
+
+      if options[:owner]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
-        # params['ownerId'] = created_by_ids # 4.2.1+
+        params['ownerId'] = created_by_ids # 4.2.1+
       end
 
       params['showDeleted'] = true if options[:pendingRemoval]
@@ -154,8 +156,8 @@ class Morpheus::Cli::Instances
         if host
           subtitles << "Host: #{host['name']}".strip
         end
-        if options[:created_by]
-          subtitles << "Created By: #{options[:created_by]}"
+        if options[:owner]
+          subtitles << "Created By: #{options[:owner]}"
         end
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
@@ -241,11 +243,11 @@ class Morpheus::Cli::Instances
       opts.on( '-H', '--host HOST', "Host Name or ID" ) do |val|
         options[:host] = val
       end
-      opts.on( '--owner USER', "Owner User Username or ID" ) do |val|
-        options[:created_by] = val
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val
       end
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
-        options[:created_by] = val
+        options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
       opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
@@ -277,8 +279,8 @@ class Morpheus::Cli::Instances
       end
 
       account = nil
-      if options[:created_by]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+      if options[:owner]
+        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
         return if created_by_ids.nil?
         params['createdBy'] = created_by_ids
         # params['ownerId'] = created_by_ids # 4.2.1+
@@ -525,9 +527,13 @@ class Morpheus::Cli::Instances
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
-      opts.on('--created-by ID', String, "Created By User ID") do |val|
-        options[:created_by_id] = val
+      opts.on( '--owner USER', "Owner Username or ID" ) do |val|
+        options[:owner] = val == 'null' ? nil : val
       end
+      opts.on( '--created-by USER', "Alias for --owner" ) do |val|
+        options[:owner] = val == 'null' ? nil : val
+      end
+      opts.add_hidden_option('--created-by')
       # opts.on("--shutdown-days [DAYS]", Integer, "Automation: Shutdown Days") do |val|
       #   params['shutdownDays'] = val.to_s.empty? ? nil : val.to_i
       # end
@@ -584,17 +590,34 @@ class Morpheus::Cli::Instances
           payload['instance'].deep_merge!(params)
         end
       else
-        if params.empty? && options[:created_by_id].nil?
+        if options.key?(:owner) && [nil].include?(options[:owner])
+          # allow clearing
+          params['ownerId'] = nil
+        elsif options[:owner]
+          owner_id = options[:owner].to_s
+          if owner_id.to_s =~ /\A\d{1,}\Z/
+            # allow id without lookup
+          else
+            user = find_available_user_option(owner_id)
+            return 1 if user.nil?
+            owner_id = user['id']
+          end
+          params['ownerId'] = owner_id
+        end
+        if params.empty? && options[:owner].nil?
           print_red_alert "Specify at least one option to update"
           puts optparse
           exit 1
         end
         payload = {}
         payload['instance'] = params
-        if options[:created_by_id]
-          payload['createdById'] = options[:created_by_id].to_i
+        if options[:owner]
+          payload['createdById'] = options[:owner].to_i
+          payload['ownerId'] = options[:owner].to_i
         end
+
       end
+
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.update(instance["id"], payload)
@@ -610,64 +633,6 @@ class Morpheus::Cli::Instances
         get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def update_owner(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[instance] [user]")
-      build_standard_update_options(opts, options)
-      opts.footer = "Update an instance owner.\n" + 
-                    "[instance] is required. This is the name or id of a instance.\n" +
-                    "[user] is required. This is the name or id of a user, or 'null'"
-    end
-    optparse.parse!(args)
-
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
-    connect(options)
-
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-      return 1 if instance.nil?
-      owner_id = args[1]
-      payload = {}
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!(passed_options) unless passed_options.empty?
-      else
-        # no prompting, just merge passed options
-        payload.deep_merge!(passed_options) unless passed_options.empty?
-      end
-      if owner_id == 'null'
-        payload['ownerId'] = nil
-      else
-        # user = find_user_by_username_or_id(nil, owner_id)
-        user = find_available_user_option(owner_id)
-        return 1 if user.nil?
-        payload['ownerId'] = user['id']
-      end
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_owner(instance['id'], payload)
-        return
-      end
-
-      json_response = @instances_interface.update_owner(instance['id'], payload)
-      render_result = render_with_format(json_response, options, 'instance')
-      return 0 if render_result
-
-      #instance = json_response['instance']
-      print_green_success "Updated instance #{instance['name']} owner"
-      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      return 0
-
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

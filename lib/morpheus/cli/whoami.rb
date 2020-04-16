@@ -239,8 +239,8 @@ class Morpheus::Cli::Whoami
           print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
           print reset,"\n"
         else
-          print "\n", reset
-          print cyan, "No active group. See `groups use`\n",reset
+          # print "\n", reset
+          # print cyan, "No active group. See `groups use`\n",reset
           print reset,"\n"
         end
 
