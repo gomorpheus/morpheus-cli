@@ -495,9 +495,7 @@ class Morpheus::Cli::Instances
   end
 
   def update(args)
-    usage = "Usage: morpheus instances update [instance] [options]"
-    options = {}
-    params = {}
+    params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -553,71 +551,39 @@ class Morpheus::Cli::Instances
       instance = find_instance_by_name_or_id(args[0])
       return 1 if instance.nil?
       new_group = nil
-      if options[:group]
-        new_group = find_group_by_name_or_id_for_provisioning(options[:group])
-        return 1 if new_group.nil?
-        params['site'] = {'id' => new_group['id']}
-      end
-      if options[:metadata]
-        if options[:metadata] == "[]" || options[:metadata] == "null"
-          params['metadata'] = []
-        else
-          # parse string into format name:value, name:value
-          # merge IDs from current metadata
-          # todo: should allow quoted semicolons..
-          metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
-          metadata_list = metadata_list.collect do |it|
-            metadata_pair = it.split(":")
-            row = {}
-            row['name'] = metadata_pair[0].to_s.strip
-            row['value'] = metadata_pair[1].to_s.strip
-            existing_metadata = (instance['metadata'] || []).find { |m| m['name'] == it['name'] }
-            if existing_metadata
-              row['id'] = existing_metadata['id']
-            end
-            row
-          end
-          params['metadata'] = metadata_list
-        end
-      end
-      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-      payload = nil
+      
+      
       if options[:payload]
         payload = options[:payload]
-        # support args and option parameters on top of payload
-        if !params.empty?
-          payload['instance'] ||= {}
-          payload['instance'].deep_merge!(params)
-        end
-      else
-        if options.key?(:owner) && [nil].include?(options[:owner])
-          # allow clearing
-          params['ownerId'] = nil
-        elsif options[:owner]
-          owner_id = options[:owner].to_s
-          if owner_id.to_s =~ /\A\d{1,}\Z/
-            # allow id without lookup
-          else
-            user = find_available_user_option(owner_id)
-            return 1 if user.nil?
-            owner_id = user['id']
-          end
-          params['ownerId'] = owner_id
-        end
-        if params.empty? && options[:owner].nil?
-          print_red_alert "Specify at least one option to update"
-          puts optparse
-          exit 1
-        end
-        payload = {}
-        payload['instance'] = params
-        if options[:owner]
-          payload['createdById'] = options[:owner].to_i
-          payload['ownerId'] = options[:owner].to_i
-        end
-
       end
+      payload['instance'] ||= {}
+      payload.deep_merge!({'instance' => parse_passed_options(options)})
 
+      if options.key?(:owner) && [nil].include?(options[:owner])
+        # allow clearing
+        params['ownerId'] = nil
+      elsif options[:owner]
+        owner_id = options[:owner].to_s
+        if owner_id.to_s =~ /\A\d{1,}\Z/
+          # allow id without lookup
+        else
+          user = find_available_user_option(owner_id)
+          return 1 if user.nil?
+          owner_id = user['id']
+        end
+        params['ownerId'] = owner_id
+        #payload['createdById'] = options[:owner].to_i # pre 4.2.1 api
+      end
+      if params.empty? && options[:owner].nil?
+        print_red_alert "Specify at least one option to update"
+        puts optparse
+        exit 1
+      end
+      if !params.empty?
+        payload['instance'].deep_merge!(params)
+      end
+      payload.delete('instance') if payload['instance'] && payload['instance'].empty?
+      raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.update(instance["id"], payload)
