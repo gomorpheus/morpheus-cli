@@ -39,7 +39,7 @@ module Morpheus::Cli::PrintHelper
   # why this not stderr yet?  use print_error or if respond_to?(:my_terminal)
   def print_red_alert(msg)
     #$stderr.print "#{red}#{msg}#{reset}\n"
-    print "#{red}#{msg}#{reset}\n"
+    print_error "#{red}#{msg}#{reset}\n"
     #puts_error "#{red}#{msg}#{reset}"
   end
 

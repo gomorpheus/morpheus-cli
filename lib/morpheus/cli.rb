@@ -70,6 +70,7 @@ module Morpheus
 
       # all the known commands
       load 'morpheus/cli/remote.rb'
+      load 'morpheus/cli/ping.rb'
       load 'morpheus/cli/login.rb'
       load 'morpheus/cli/logout.rb'
       load 'morpheus/cli/whoami.rb'

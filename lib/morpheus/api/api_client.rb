@@ -279,6 +279,10 @@ class Morpheus::APIClient
     {url: @base_url, access_token: @access_token, refresh_token: @refresh_token, expires_at: @expires_at}
   end
 
+  def ping
+    Morpheus::PingInterface.new(common_iface_opts).setopts(@options)
+  end
+
   def auth
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
   end

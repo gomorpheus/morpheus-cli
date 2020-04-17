@@ -1065,7 +1065,7 @@ module Morpheus
         elsif options[:quiet]
           # note: returning non nil means the calling function knows to return rght away.. kinda weird..
           # but means we need less if options[:quiet] blocks in every action.
-          output = ""
+          return ""
         end
         if output
           if options[:outfile]
