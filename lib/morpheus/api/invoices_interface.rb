@@ -21,4 +21,11 @@ class Morpheus::InvoicesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def refresh(params={}, payload={})
+    url = "#{@base_url}/api/invoices/refresh"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
 end

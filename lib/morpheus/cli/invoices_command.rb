@@ -3,10 +3,11 @@ require 'date'
 
 class Morpheus::Cli::InvoicesCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::OptionSourceHelper
 
   set_command_name :'invoices'
 
-  register_subcommands :list, :get
+  register_subcommands :list, :get, :refresh
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -382,6 +383,84 @@ class Morpheus::Cli::InvoicesCommand
       print_rest_exception(e, options)
       return 1
     end
+  end
+
+  def refresh(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[--daily] [--costing] [--current] [-c CLOUD]")
+      opts.on( '--daily', "Refresh Daily Invoices" ) do
+        payload[:daily] = true
+      end
+      opts.on( '--costing', "Refresh Costing Data" ) do
+        payload[:costing] = true
+      end
+      opts.on( '--current', "Collect the most up to date costing data." ) do
+        payload[:current] = true
+      end
+      opts.on( '--date DATE', String, "Date to collect costing for. By default the cost data is collected for the end of the previous period." ) do |val|
+        payload[:date] = val.to_s
+      end
+      opts.on( '-c', '--cloud CLOUD', "Specify cloud(s) to refresh costing for." ) do |val|
+        payload[:clouds] ||= []
+        payload[:clouds] << val
+      end
+      opts.on( '--all', "Refresh costing for all clouds." ) do
+        payload[:all] = true
+      end
+      # opts.on( '-f', '--force', "Force Refresh" ) do
+      #   query_params[:force] = 'true'
+      # end
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Refresh invoices.
+By default, nothing is changed.
+Include --daily to regenerate invoice records.
+Include --costing to refresh actual costing data.
+Include --current to refresh costing data for the actual current time.
+To get the latest invoice costing data, include --daily --costing --current --all 
+EOT
+    end
+    optparse.parse!(args)
+    if args.count != 0
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    if options[:payload]
+      payload = options[:payload]
+    end
+    payload.deep_merge!(parse_passed_options(options))
+    # --clouds
+    if payload[:clouds]
+      payload[:clouds] = parse_id_list(payload[:clouds]).collect {|cloud_id|
+        if cloud_id.to_s =~ /\A\d{1,}\Z/
+          return cloud_id
+        else
+          cloud = find_cloud_option(cloud_id)
+          return 1 if cloud.nil?
+          cloud['id']
+        end
+      }
+    end
+    # are you sure?
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to refresh invoices?")
+      return 9, "aborted command"
+    end
+    # ok, make the request
+    @invoices_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoices_interface.dry.refresh(params, payload)
+      return
+    end
+    json_response = @invoices_interface.refresh(params, payload)
+    # render the result
+    render_result = render_with_format(json_response, options)
+    return 0 if render_result
+    # print output
+    print_green_success(json_response['msg'] || "Refreshing invoices...")
+    return 0
   end
 
   private
