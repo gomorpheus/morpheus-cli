@@ -459,7 +459,7 @@ EOT
     render_result = render_with_format(json_response, options)
     return 0 if render_result
     # print output
-    print_green_success(json_response['msg'] || "Refreshing invoices...")
+    print_green_success(json_response['msg'] || "Refreshing invoices")
     return 0
   end
 
