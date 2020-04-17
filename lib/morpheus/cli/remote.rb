@@ -13,6 +13,7 @@ class Morpheus::Cli::Remote
 
   register_subcommands :list, :add, :get, :update, :rename, :remove, :use, :unuse, :current, :view
   register_subcommands :setup, :teardown, :check, :'check-all'
+  register_subcommands :version => :print_version
 
   set_default_subcommand :list
 
@@ -326,6 +327,101 @@ EOT
 
   def refresh(args)
     check_appliance(args)
+  end
+
+  def check(args)
+    options = {}
+    checkall = false
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :quiet, :dry_run, :remote])
+      opts.on('-a', '--all', "Check all remotes.") do
+        checkall = true
+      end
+      opts.footer = <<-EOT
+Check the status of a remote appliance.
+[name] is optional. This is the name of a remote.  Default is the current remote. Can be passed as 'all'. to perform remote check-all.
+This makes a request to the configured appliance url and updates the status and version.
+EOT
+    end
+    optparse.parse!(args)
+    if checkall == true
+      return _check_all_appliances(options)
+    end
+    if args.count == 0
+      id_list = ['current']
+    else
+      id_list = parse_id_list(args)
+    end
+    # trick for remote check all
+    if id_list.length == 1 && id_list[0].to_s.downcase == 'all'
+      return _check_all_appliances(options)
+    end
+    #connect(options)
+    return run_command_for_each_arg(id_list) do |arg|
+      _check_appliance(arg, options)
+    end
+  end
+
+  def print_version(args)
+    options = {}
+    do_offline = false
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[remote]")
+      opts.on('--offline', '--offline', "Do this offline, without an api request. Returns the cached build version.") do
+        do_offline = true
+      end
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :quiet, :dry_run, :remote])
+      opts.footer = <<-EOT
+Print version of remote appliance.
+[name] is optional. This is the name of a remote.  Default is the current remote.
+This makes a request to the configured appliance url and updates the status and version.
+EOT
+    end
+    optparse.parse!(args)
+    # print version, default is current remote
+    appliance_name = nil
+    if args.count == 0
+      appliance_name = 'current'
+    elsif args.count == 1
+      appliance_name = args[0]
+    else
+      raise_command_error "No current appliance, see `remote use`."
+    end
+    exit_code, err = 0, nil
+    begin
+      appliance = nil
+      if appliance_name == "current"
+        appliance = ::Morpheus::Cli::Remote.load_active_remote()
+        if !appliance
+          raise_command_error "No current appliance, see `remote use`."
+        end
+      else
+        appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
+        if !appliance
+          raise_command_error "Remote not found by the name '#{appliance_name}'"
+        end
+      end
+      appliance_name = appliance[:name]
+
+      # found appliance, now refresh it  
+      # print "Checking remote url: #{appliance[:host]} ..."
+      if do_offline == false
+        appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name)
+      end
+
+      build_version = appliance[:build_version]
+      if build_version
+        print cyan,build_version.to_s,reset,"\n"
+        return 0
+      else
+        print yellow,"version unknown".to_s,reset,"\n"
+        return 1
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 
   def check(args)
