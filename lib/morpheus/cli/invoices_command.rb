@@ -67,9 +67,9 @@ class Morpheus::Cli::InvoicesCommand
         params['siteId'] ||= []
         params['siteId'] << val
       end
-      opts.on('--cloud ID', String, "Filter by Cloud") do |val|
-        params['zoneId'] ||= []
-        params['zoneId'] << val
+      opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
+        options[:clouds] ||= []
+        options[:clouds] << val
       end
       opts.on('--instance ID', String, "Filter by Instance") do |val|
         params['instanceId'] ||= []
@@ -118,14 +118,19 @@ class Morpheus::Cli::InvoicesCommand
     optparse.parse!(args)
     connect(options)
     if args.count > 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-      return 1
+      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
     end
     begin
+      # construct params
+      params.merge!(parse_list_options(options))
+      # parse --clouds
+      if options[:clouds]
+        cloud_ids = parse_cloud_id_list(options[:clouds])
+        return 1 if cloud_ids.nil?
+        params['zoneId'] = cloud_ids
+      end
       params['rawData'] = true if options[:show_raw_data]
       params['refId'] = ref_ids unless ref_ids.empty?
-      params.merge!(parse_list_options(options))
       @invoices_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @invoices_interface.dry.list(params)
