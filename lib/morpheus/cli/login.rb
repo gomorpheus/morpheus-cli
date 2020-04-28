@@ -104,9 +104,9 @@ EOT
         # Login Success!
         if !options[:quiet]
           if options[:test_only]
-            print green,"Success! Test Credentials verified for #{wallet['username']}@#{@appliance_name} #{@appliance_url}", reset, "\n"
+            print green,"Success! Test Credentials verified for #{wallet['username']}", reset, "\n"
           else
-            print green,"Success! Logged in as #{wallet['username']}@#{@appliance_name} #{@appliance_url}", reset, "\n"
+            print green,"Success! Logged in as #{wallet['username']}", reset, "\n"
           end
         end
         return 0 # ,  nil

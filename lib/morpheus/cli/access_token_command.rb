@@ -71,11 +71,11 @@ class Morpheus::Cli::AccessTokenCommand
     print_h1 "Morpheus Credentials", options
     description_cols = {
       "Username" => lambda {|wallet| wallet['username'] },
-      "Remote" => lambda {|wallet| "#{display_appliance(@appliance_name, @appliance_url)}" },
       "Access Token" => lambda {|wallet| wallet['access_token'] },
       "Refresh Token" => lambda {|wallet| wallet['refresh_token'] },
       "Login Date" => lambda {|wallet| format_local_dt(wallet['login_date']) },
       "Expire Date" => lambda {|wallet| wallet['expire_date'] ? format_local_dt(wallet['expire_date']) : "" },
+      # "Remote" => lambda {|wallet| display_appliance(@appliance_name, @appliance_url) },
     }
     print cyan
     puts as_description_list(@wallet, description_cols)
