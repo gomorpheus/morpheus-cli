@@ -139,14 +139,7 @@ EOT
           #"Response Time" => lambda {|it| format_sig_dig((it[:last_check][:took]/ 1000.to_f), 3) + "s" rescue "" },
           "Error" => {display_method: lambda {|it| 
             error_str = it[:last_check] ? it[:last_check][:error].to_s : "" 
-            # meh no need to show http status, :error explains it well enough usually
-            # check_status = it[:last_check] ? it[:last_check][:http_status] : nil
-            # if check_status && check_status != 200
-            #   "(HTTP #{check_status}) #{error_str}"
-            # else
-            #   error_str
-            # end
-            reset + error_str + cyan
+            error_str
           }, max_width: 30},
         }
         # when an active remote is in the list, add => prefix and padding to keep things aligned.
