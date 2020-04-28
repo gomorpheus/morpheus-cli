@@ -1099,11 +1099,9 @@ EOT
     end
 
     if current_appliance_name.to_s == appliance_name.to_s
-      # print_green_success "Remote #{display_appliance(appliance[:name], appliance[:url])} is still active"
-      print_green_success "Remote #{appliance[:name]} is still active"
+      print_green_success "Using remote #{display_appliance(appliance[:name], appliance[:url])}"
     else
-      # print_green_success "Remote #{display_appliance(appliance[:name], appliance[:url])} is now active"
-      print_green_success "Remote #{appliance[:name]} is now active"
+      print_green_success "Using remote #{display_appliance(appliance[:name], appliance[:url])}"
     end
     
     # recalculate session variables
@@ -1140,7 +1138,7 @@ EOT
       return 0
     end
     Morpheus::Cli::Remote.clear_active_appliance()
-    print_green_success "Remote #{display_appliance(@appliance_name, @appliance_url)} is no longer active"
+    print_green_success "Stopped using remote #{display_appliance(@appliance_name, @appliance_url)}"
     # recalculate session variables
     ::Morpheus::Cli::Remote.recalculate_variable_map()
     # return list([])
