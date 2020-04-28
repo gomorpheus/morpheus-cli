@@ -17,13 +17,10 @@ class Morpheus::Cli::AccessTokenCommand
 
   # connect overridden to skip login and return an exit_code
   def connect(options)
-    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true}))
+    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
     # automatically get @appliance_name, @appliance_url, @wallet
     if !@appliance_name
-      unless options[:quiet]
-        print yellow,"Please specify a Morpheus Appliance with -r or see the command `remote use`#{reset}\n"
-      end
-      return 1
+      raise_command_error "#{command_name} requires a remote to be specified, use -r [remote] or set the active remote with `remote use`"
     end
     if !@appliance_url
       unless options[:quiet]
@@ -35,7 +32,7 @@ class Morpheus::Cli::AccessTokenCommand
     if @wallet.nil? || @wallet['access_token'].nil?
       unless options[:quiet]
         print_error yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-        print_error yellow,"Use the 'login' command.",reset,"\n"
+        print_error yellow,"Use `login` to authenticate or try passing the --username option.",reset,"\n"
       end
       return 1
     end
@@ -130,7 +127,7 @@ class Morpheus::Cli::AccessTokenCommand
     # if @wallet.nil? || @wallet['access_token'].nil?
     #   unless options[:quiet]
     #     print_error yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-    #     print_error yellow,"Use the 'login' command.",reset,"\n"
+    #     print_error yellow,"Use `login` to authenticate or try passing the --username option.",reset,"\n"
     #   end
     #   return 1
     # end

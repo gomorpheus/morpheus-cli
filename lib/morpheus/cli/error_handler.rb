@@ -4,7 +4,7 @@ require 'json'
 require 'rest_client'
 require 'net/https'
 require 'morpheus/logging'
-require 'morpheus/cli/command_error'
+require 'morpheus/cli/errors'
 require 'morpheus/cli/expression_parser'
 
 class Morpheus::Cli::ErrorHandler
@@ -31,34 +31,38 @@ class Morpheus::Cli::ErrorHandler
       # raise err
       # @stderr.puts "#{red}#{err.message}#{reset}"
       puts_angry_error err.message
-      @stderr.puts "Try -h for help with this command."
+      @stderr.puts "Use -h to get help with this command."
       do_print_stacktrace = false
       # exit_code = 127
+    # when Morpheus::Cli::CommandArgumentsError
     when Morpheus::Cli::CommandError
       # @stderr.puts "#{red}#{err.message}#{reset}"
-      puts_angry_error err.message
+      # this should probably print the whole thing as red, but just does the first line for now.
+      message_lines = err.message.split(/\r?\n/)
+      first_line = message_lines.shift
+      puts_angry_error first_line
+      @stderr.puts message_lines.join("\n") unless message_lines.empty?
+      @stderr.puts "Use -h to get help with this command."
       do_print_stacktrace = false
       if err.exit_code
         exit_code = err.exit_code
       end
-      # @stderr.puts "Try -h for help with this command."
     when Morpheus::Cli::ExpressionParser::InvalidExpression
       # @stderr.puts "#{red}#{err.message}#{reset}"
       puts_angry_error err.message
       do_print_stacktrace = false
       exit_code = 99
     when SocketError
-      @stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
+      @stderr.puts "#{red}Error Communicating with the remote appliance.#{reset}"
       @stderr.puts "#{red}#{err.message}#{reset}"
     when RestClient::Exceptions::Timeout
-      @stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
+      @stderr.puts "#{red}Error Communicating with the remote appliance.#{reset}"
       @stderr.puts "#{red}#{err.message}#{reset}"
     when Errno::ECONNREFUSED
-      @stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
+      @stderr.puts "#{red}Error Communicating with the remote appliance.#{reset}"
       @stderr.puts "#{red}#{err.message}#{reset}"
-      # @stderr.puts "Try -h for help with this command."
     when OpenSSL::SSL::SSLError
-      @stderr.puts "#{red}Error Communicating with the Appliance.#{reset}"
+      @stderr.puts "#{red}Error Communicating with the remote appliance.#{reset}"
       @stderr.puts "#{red}#{err.message}#{reset}"
     when RestClient::Exception
       print_rest_exception(err, options)
@@ -125,7 +129,7 @@ class Morpheus::Cli::ErrorHandler
         rescue TypeError, JSON::ParserError => ex
         end
       else
-        @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
+        @stderr.print red, "Error Communicating with the remote appliance. #{e}", reset, "\n"
         if options[:json] || options[:debug]
           begin
             response = JSON.parse(e.response.to_s)
@@ -145,7 +149,7 @@ class Morpheus::Cli::ErrorHandler
         end
       end
     else
-      @stderr.print red, "Error Communicating with the Appliance. #{e}", reset, "\n"
+      @stderr.print red, "Error Communicating with the remote appliance. #{e}", reset, "\n"
     end
     # uh, having this print method return exit_code, err to standardize return values of methods that are still calling it, at the end just by chance..
     # return exit_code, err
@@ -204,7 +208,7 @@ class Morpheus::Cli::ErrorHandler
   end
 
   def print_rest_exception_request_and_response(e)
-    @stderr.puts "#{red}Error Communicating with the Appliance. (#{e.response.code})#{reset}"
+    @stderr.puts "#{red}Error Communicating with the remote appliance. (HTTP #{e.response.code})#{reset}"
     response = e.response
     request = response.instance_variable_get("@request")
     @stderr.print red
@@ -220,7 +224,9 @@ protected
   def puts_angry_error(*msgs)
     # @stderr.print "#{Term::ANSIColor.red}morpheus: #{Term::ANSIColor.reset}#{msg}\n"
     @stderr.print(Morpheus::Terminal.angry_prompt)
+    @stderr.print(Term::ANSIColor.red)
     @stderr.puts(*msgs)
+    @stderr.print(reset)
   end
 
   # def puts(*args)

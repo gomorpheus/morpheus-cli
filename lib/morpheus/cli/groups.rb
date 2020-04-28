@@ -10,6 +10,7 @@ require 'morpheus/logging'
 class Morpheus::Cli::Groups
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::OptionSourceHelper
 
   register_subcommands :list, :get, :add, :update, :use, :unuse, :add_cloud, :remove_cloud, :remove, :current => :print_current
   alias_subcommand :details, :get
@@ -22,8 +23,9 @@ class Morpheus::Cli::Groups
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
+    @groups_interface = @api_client.groups
+    @clouds_interface = @api_client.clouds
+    @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 
@@ -36,22 +38,21 @@ class Morpheus::Cli::Groups
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List groups (sites)."
+      build_standard_list_options(opts, options)
+      opts.footer = "List groups."
     end
     optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @groups_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @groups_interface.list(params)
-        return 0
-      end
-      json_response = @groups_interface.list(params)
-      render_result = render_with_format(json_response, options, 'groups')
-      return 0 if render_result
-
+    params.merge!(parse_list_options(options))
+    @groups_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @groups_interface.list(params)
+      return 0, nil
+    end
+    json_response = @groups_interface.list(params)
+    exit_code, err = 0, nil
+    render_response(json_response, options) do
       groups = json_response['groups']
       subtitles = []
       subtitles += parse_list_subtitles(options)
@@ -61,39 +62,24 @@ class Morpheus::Cli::Groups
       else
         print_groups_table(groups, options)
         print_results_pagination(json_response)
-        if @active_group_id
-          active_group = groups.find { |it| it['id'] == @active_group_id }
-          active_group = active_group || find_group_by_name_or_id(@active_group_id)
-          #unless @appliances.keys.size == 1
-            print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
-          #end
-        else
-          unless options[:remote]
-            # print cyan, "\n# => No active group, see `groups use`\n", reset
-          end
-        end
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return exit_code, err
   end
 
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a group.\n" + 
-                    "[name] is required. This is the name or id of a group. Supports 1-N arguments."
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a group.
+[name] is required. This is the name or id of a group. Supports 1-N arguments.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
@@ -140,12 +126,11 @@ class Morpheus::Cli::Groups
       # puts "Clouds: #{group['zones'].collect {|it| it['name'] }.join(', ')}"
       # puts "Hosts: #{group['serverCount']}"
       if is_active
-        puts "\n => This is the active group."
+        print "\n"
+        print cyan, "=> This is the active group", reset, "\n" # remove me...
       end
-
       print reset,"\n"
-
-      #puts instance
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -165,15 +150,11 @@ class Morpheus::Cli::Groups
       opts.on( '--use', '--use', "Make this the current active group" ) do
         use_it = true
       end
-
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Create a new group."
     end
     optparse.parse!(args)
-    # if args.count < 1
-    #   puts optparse
-    #   exit 1
-    # end
+    verify_args!(args:args, optparse:optparse, max:1)
     connect(options)
     begin
       # group = {name: args[0], location: params[:location]}
@@ -223,14 +204,11 @@ class Morpheus::Cli::Groups
       # opts.on( '-l', '--location LOCATION', "Location" ) do |val|
       #   params[:location] = val
       # end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update an existing group."
+      build_standard_update_options(opts, options)
+      opts.footer = "Update a group."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     begin
       group = find_group_by_name_or_id(args[0])
@@ -270,14 +248,11 @@ class Morpheus::Cli::Groups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]", "CLOUD")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Add a cloud to a group."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
     begin
       group = find_group_by_name_or_id(args[0])
@@ -313,15 +288,12 @@ class Morpheus::Cli::Groups
   def remove_cloud(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name]", "CLOUD")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[name] [cloud]")
+      build_standard_update_options(opts, options)
       opts.footer = "Remove a cloud from a group."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
     begin
       group = find_group_by_name_or_id(args[0])
@@ -358,15 +330,11 @@ class Morpheus::Cli::Groups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :auto_confirm, :remote])
+      build_standard_remove_options(opts, options)
       opts.footer = "Delete a group."
-      # more info to display here
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
@@ -397,42 +365,42 @@ class Morpheus::Cli::Groups
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.footer = "" +
-        "This sets the active group.\n" +
-        "The active group will be auto-selected for use during provisioning.\n" +
-        "You can still use the --group option to override this."
+      opts.footer = <<-EOT
+This sets the active group.
+The active group will be auto-selected for use during provisioning.
+[name] is required. This is the name or id of a group.
+EOT
       build_common_options(opts, options, [:quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      # todo: this is a problem for unprivileged users, need to use find_group_by_id_for_provisioning(group_id)
-      group = find_group_by_name_or_id(args[0])
-      if !group
-        print_red_alert "Group not found by name #{args[0]}"
-        return 1
-      end
-      if @active_group_id == group['id']
-        unless options[:quiet]
-          print reset,"Already using the group #{group['name']}","\n",reset
-        end
-      else
-        ::Morpheus::Cli::Groups.set_active_group(@appliance_name, group['id'])
-        # ::Morpheus::Cli::Groups.save_groups(@active_groups)
-        unless options[:quiet]
-          print cyan,"Switched active group to #{group['name']}","\n",reset
-        end
-        #list([])
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+    
+    group = find_group_option(args[0]) #uses /api/options
+    if !group
+      raise_command_error "Group not found by name #{args[0]}"
     end
+    exit_code, err = 0, nil
+    is_already_active = @active_group_id == group['id']
+    if is_already_active
+      unless options[:quiet]
+        print reset,"Already using the group #{group['name']}","\n",reset
+      end
+    else
+      ::Morpheus::Cli::Groups.set_active_group(@appliance_name, group['id'])
+      # ::Morpheus::Cli::Groups.save_groups(@active_groups)
+      unless options[:quiet]
+        print cyan,"Switched active group to #{group['name']}","\n",reset
+      end
+      #list([])
+    end
+    if is_already_active
+      print_green_success "Group #{group['name']} is still active"
+    else
+      print_green_success "Group #{group['name']} is now active"
+    end
+    return 0
+
 
   end
 
@@ -443,24 +411,23 @@ class Morpheus::Cli::Groups
       opts.footer = "" +
         "This will clear the current active group.\n" +
         "You will be prompted for a Group during provisioning."
-      build_common_options(opts, options, [])
+      build_common_options(opts, options, [:quiet, :remote])
     end
     optparse.parse!(args)
-    connect(options)
-
+    verify_args!(args:args, optparse:optparse, count:0)
+    connect(options.merge({:skip_verify_access_token => true, :skip_login => true}))
+    exit_code, err = 0, nil
     if @active_group_id
       ::Morpheus::Cli::Groups.clear_active_group(@appliance_name)
-      # unless options[:quiet]
-      #   print cyan
-      #   puts "Switched to no active group."
-      #   puts "You will be prompted for Group during provisioning."
-      #   print reset
-      # end
-      return true
+      # print_green_success "Group #{@active_group_id} is no longer active."
+      print_green_success "Group is no longer active."
+      return 0, nil
     else
-      puts "You are not using any group for appliance #{@appliance_name}"
-      #return false
+      # print reset,"You are not using any group for appliance #{@appliance_name}",reset,"\n"
+      print reset,"You are not using any group",reset,"\n"
+      # exit_code = 1
     end
+    return exit_code, err
   end
 
   def print_current(args)
@@ -673,13 +640,10 @@ class Morpheus::Cli::Groups
 
   def print_groups_table(groups, opts={})
     table_color = opts[:color] || cyan
-    active_group_id = @active_group_id # Morpheus::Cli::Groups.active_group
+    active_group = @active_group_id ? groups.find {|group| group['id'] == @active_group_id } : nil
     rows = groups.collect do |group|
-      is_active = @active_group_id && (@active_group_id == group['id'])
       {
-        active: (is_active ? "=>" : ""),
-        id: group['id'],
-        # name: is_active ? "#{green}#{group['name']}#{reset}#{table_color}" : group['name'],
+        id: active_group ? (((@active_group_id && (@active_group_id == group['id'])) ? "=> " : "   ") + group['id'].to_s) : group['id'],
         name: group['name'],
         location: group['location'],
         cloud_count: group['zones'] ? group['zones'].size : 0,
@@ -687,8 +651,8 @@ class Morpheus::Cli::Groups
       }
     end
     columns = [
-      {:active => {:display_name => ""}},
-      {:id => {:width => 10}},
+      #{:active => {:display_name => ""}},
+      {:id => {:display_name => (active_group ? "   ID" : "ID")}},
       {:name => {:width => 16}},
       {:location => {:width => 32}},
       {:cloud_count => {:display_name => "CLOUDS"}},

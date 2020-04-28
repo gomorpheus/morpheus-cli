@@ -9,6 +9,9 @@ class Morpheus::Cli::License
   register_subcommands :get, :install, :uninstall, :test
   # deprecated
   register_subcommands :decode, :apply
+
+  set_subcommands_hidden :decode, :apply
+  
   #alias_subcommand :details, :get
 
   def initialize() 

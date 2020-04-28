@@ -65,7 +65,7 @@ class Morpheus::Cli::ChangePasswordCommand
           raise_command_error "No current appliance, see `remote use`."
         end
         if !@current_remote[:username]
-          raise_command_error "You are not currently logged in to #{@current_remote[:name]} - #{@current_remote[:url] || @current_remote[:host]}"
+          raise_command_error "You are not currently logged in to #{display_appliance(@current_remote[:name], @current_remote[:url])}"
         end
         username = @current_remote[:username]
       end

@@ -1,13 +1,13 @@
-require 'optparse'
 require 'morpheus/cli/cli_command'
-require 'morpheus/cli/mixins/accounts_helper'
-require 'json'
 
 class Morpheus::Cli::RecentActivityCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'recent-activity'
+
+  # deprecated 4.2.10
+  set_command_hidden
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -19,58 +19,89 @@ class Morpheus::Cli::RecentActivityCommand
     @accounts_interface = @api_client.accounts
   end
 
-  def usage
-    "Usage: morpheus #{command_name}"
-  end
+  # def usage
+  #   "Usage: morpheus #{command_name}"
+  # end
 
   def handle(args)
+    print_error yellow,"[DEPRECATED] The command `recent-activity` is deprecated. It has been replaced by `activity list`.",reset,"\n"
     list(args)
   end
+
   def list(args)
-    options = {}
+    params, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
+      opts.on( '-u', '--user USER', "Username or ID" ) do |val|
+        options[:user] = val
+      end
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
         options[:start] = parse_time(val).utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
         options[:end] = parse_time(val).utc.iso8601
       end
-      build_common_options(opts, options, [:account, :query, :list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+List recent activity.
+This command is deprecated. Use `activity` instead.
+EOT
     end
+    # parse options
     optparse.parse!(args)
+    # parse arguments
+    verify_args!(args:args, count:0, optparse:optparse)
+    # establish connection to @remote_appliance
     connect(options)
-    begin
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
-      params = {}
-      params.merge!(parse_list_options(options))
-      if options[:start]
-        params['start'] = options[:start]
-      end
-      if options[:end]
-        params['end'] = options[:end]
-      end
-      @dashboard_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @dashboard_interface.dry.recent_activity(account_id, params)
-        return
-      end
-      json_response = @dashboard_interface.recent_activity(account_id, params)
+    # construct request
+    #params.merge!(parse_query_options(options)) # inject -Q PARAMS
+    params.merge!(parse_list_options(options)) # inject phrase,sort,max,offset and -Q PARAMS
+    # parse my options
+    # this api allows filter by params.accountId
+    # todo: use OptionSourceHelper parse_tenant_id() instead of AccountsHelper
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
+    if account_id
+      params['accountId'] = account_id
+    end
+    if options[:start]
+      params['start'] = options[:start]
+    end
+    if options[:end]
+      params['end'] = options[:end]
+    end
 
-      if options[:json]
-        puts as_json(json_response, options, "activity")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "activity")
-        return 0
-      elsif options[:csv]
-        # strip date lines
-        json_response['activity'] = json_response['activity'].reject {|it| it.keys.size == 1 && it.keys[0] == 'date' }
-        puts records_as_csv(json_response['activity'], options)
-        return 0
-      end
-      title = "Recent Activity"
+    # parse --user
+    if options[:user]
+      user_ids = parse_user_id_list(options[:user])
+      return 1 if user_ids.nil?
+      # userId limited to one right now
+      # params['userId'] = user_ids
+      params['userId'] = user_ids[0]
+    end
+    
+    # setup interface and check for dry run?
+    @dashboard_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @dashboard_interface.dry.recent_activity(params)
+      return 0, nil
+    end
+    
+    # make the request
+    json_response = @dashboard_interface.recent_activity(params)
+    
+    # determine exit status
+    exit_code, err = 0, nil
+    
+    # could error if there are no results.
+    # if json_response['activity'].empty?
+    #   exit_code = 3 
+    #   err = "0 results found"
+    # end
+    
+    # render output
+    render_response(json_response, options, "activity") do
+      title = "Activity"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       if options[:start]
@@ -85,37 +116,28 @@ class Morpheus::Cli::RecentActivityCommand
       if items.empty?
         puts "No activity found."
         print reset,"\n"
-        return 0
+      else
+        # JD: this api response is funky, no meta and it includes date objects
+        # ok then its gone, get good api response data gosh darnit!
+        # use /api/activity instead
+        items = items.select { |item| item['_id'] || item['name'] }
+        columns = [
+          # {"ID" => lambda {|item| item['id'] } },
+          # {"SEVERITY" => lambda {|item| format_activity_severity(item['severity']) } },
+          {"TYPE" => lambda {|item| item['activityType'] } },
+          {"AUTHOR" => lambda {|item| item['userName'] || '' } },
+          {"MESSAGE" => lambda {|item| item['message'] || '' } },
+          {"OBJECT" => lambda {|item| format_activity_display_object(item) } },
+          {"WHEN" => lambda {|item| format_local_dt(item['ts']) } }
+        ]
+        print as_pretty_table(items, columns, options)
+        print reset,"\n"
       end
-      # JD: this api response is funky, no meta and it includes date objects
-      items = items.select { |item| item['_id'] || item['name'] }
-      print_recent_activity_table(items, options)
-      print reset,"\n"
-      return 0
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+      return exit_code, err
     end
   end
 
-  def print_recent_activity_table(items, opts={})
-    columns = [
-      # {"ID" => lambda {|item| item['id'] } },
-      # {"SEVERITY" => lambda {|item| format_activity_severity(item['severity']) } },
-      {"TYPE" => lambda {|item| item['activityType'] } },
-      {"AUTHOR" => lambda {|item| item['userName'] || '' } },
-      {"MESSAGE" => lambda {|item| item['message'] || '' } },
-      # {"NAME" => lambda {|item| item['name'] } },
-      {"OBJECT" => lambda {|item| format_activity_display_object(item) } },
-      {"WHEN" => lambda {|item| format_local_dt(item['ts']) } }
-      # {"WHEN" => lambda {|item| "#{format_duration(item['ts'])} ago" } }
-    ]
-    if opts[:include_fields]
-      columns = opts[:include_fields]
-    end
-    print as_pretty_table(items, columns, opts)
-  end
+  protected
 
   def format_activity_severity(severity, return_color=cyan)
     out = ""

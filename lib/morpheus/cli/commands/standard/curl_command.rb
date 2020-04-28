@@ -58,11 +58,10 @@ EOT
       return false
     end
     
-    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true}))
+    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
 
     if !@appliance_name
-      print yellow,"Please specify a Morpheus Appliance with -r or see the command `remote use`#{reset}\n"
-      return false
+      raise_command_error "#{command_name} requires a remote to be specified, use -r [remote] or set the active remote with `remote use`"
     end
 
     # curry --insecure to curl

@@ -40,17 +40,14 @@ EOT
     end
     raw_cmd = "#{command_name} #{args.join(' ')}"
     optparse.parse!(args)
-    if args.count != 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, count: 0, optparse:optparse)
     if options[:do_flush]
       command_count = Morpheus::Cli::Shell.instance.history_commands_count
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to flush your command history (#{format_number(command_count)} #{command_count == 1 ? 'command' : 'commands'})?")
         return 9, "aborted command"
       end
-      Morpheus::Cli::Shell.instance.flush_history
+      flush_n = options[:max] ? options[:max] : nil
+      Morpheus::Cli::Shell.instance.flush_history(flush_n)
       return 0
     else
       Morpheus::Cli::Shell.instance.print_history(options)

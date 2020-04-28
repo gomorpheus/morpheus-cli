@@ -1,30 +1,16 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::DashboardInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @expires_at = expires_at
+
+  def get(params={})
+    headers = {params: params, authorization: "Bearer #{@access_token}"}
+    execute(method: :get, url: "/api/dashboard", headers: headers)
   end
 
-  def get(options={})
-    dashboard(options)
-  end
-
-  def dashboard(options={})
-    url = "#{@base_url}/api/dashboard"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    execute(method: :get, url: url, headers: headers)
-  end
-
-  def recent_activity(account_id=nil, options={})
-    url = "#{@base_url}/api/dashboard/recent-activity"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    headers[:params]['accountId'] = account_id if account_id
-    execute(method: :get, url: url, headers: headers)
+  # [DEPRECATED] Use ActivityInterface.list() instead.
+  def recent_activity(params={})
+    headers = {params: params, authorization: "Bearer #{@access_token}"}
+    execute(method: :get, url: "/api/dashboard/recent-activity", headers: headers)
   end
 
 end

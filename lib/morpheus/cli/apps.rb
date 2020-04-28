@@ -59,7 +59,7 @@ class Morpheus::Cli::Apps
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '-t', '--type USER', "Owner Username or ID" ) do |val|
+      opts.on( '-t', '--type TYPE', "Filter by type" ) do |val|
         options[:type] = val
       end
       opts.on( '--blueprint BLUEPRINT', "Blueprint Name or ID" ) do |val|
@@ -76,7 +76,17 @@ class Morpheus::Cli::Apps
         options[:details] = true
       end
       opts.on('--pending-removal', "Include apps pending removal.") do
-        options[:pendingRemoval] = true
+        options[:showDeleted] = true
+      end
+      opts.on('--pending-removal-only', "Only apps pending removal.") do
+        options[:deleted] = true
+      end
+      opts.on('--environment ENV', "Filter by environment code (appContext)") do |val|
+        # environment means appContext
+        params['environment'] = (params['environment'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
+      end
+      opts.on('--status STATUS', "Filter by status.") do |val|
+        params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List apps."
@@ -125,7 +135,8 @@ class Morpheus::Cli::Apps
         # params['ownerId'] = created_by_ids # 4.2.1+
       end
 
-      params['showDeleted'] = true if options[:pendingRemoval]
+      params['showDeleted'] = options[:showDeleted] if options.key?(:showDeleted)
+      params['deleted'] = options[:deleted] if options.key?(:deleted)
 
       @apps_interface.setopts(options)
       if options[:dry_run]

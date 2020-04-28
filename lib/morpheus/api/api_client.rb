@@ -33,7 +33,7 @@ class Morpheus::APIClient
     @refresh_token = refresh_token
     @base_url = base_url
     if @base_url.to_s.empty?
-      raise "#{self.class} requires option :url"
+      raise "#{self.class} initialized without a required option :url"
     end
     @base_url = @base_url.chomp("/")
     # todo: validate URI
@@ -74,8 +74,22 @@ class Morpheus::APIClient
   end
 
   # set this in your interface, eg. to 'application/json'
+  # or let it it default to json when payload is present.
   def default_content_type
     nil
+  end
+
+  # set default seconds for interface to timeout after
+  # or let it use system default? none, it should not timeout by default.. 
+  # I think execute() may use 30 seconds for get by default.
+  # and it should remove timeout when method is post, put, or delete
+  def default_timeout
+    nil
+  end
+
+  # Authorization is required, except for a couple commands like Ping and Setup
+  def authorization_required?
+    true
   end
 
   # common global options, hooray.
@@ -132,6 +146,14 @@ class Morpheus::APIClient
   #   :headers - Extra headers to add. This expects a Hash like {'Content-Type' => 'application/json'}.
   #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
   def execute(opts, options={})
+    # ok, always prepend @base_url, let the caller specify it exactly or leave it off.
+    # this allows the Interface definition be lazy and not specify the base_url in every call to execute()
+      # it will be used though...
+    if opts[:url]
+      if !opts[:url].include?(@base_url)
+        opts[:url] = "#{@base_url}#{opts[:url]}"
+      end
+    end
     # merge in common global @options
     if @options
       options = options.merge(@options)
@@ -139,23 +161,26 @@ class Morpheus::APIClient
       options = options.clone
     end
 
-    # default HTTP method
+    # determine HTTP method
     if opts[:method].nil?
-      # why not a default? you will get an error from RestClient
-      # opts[:method] = :get
+      opts[:method] = :get
     else
       # convert to lowercase Symbol like :get, :post, :put, or :delete
       opts[:method] = opts[:method].to_s.downcase.to_sym
     end
+    
+    # could validate method here...
 
     # apply default headers
     opts[:headers] ||= {}
     # Authorization: apply our access token
-    if @access_token
-      if opts[:headers][:authorization].nil? && opts[:headers]['Authorization'].nil?
-        opts[:headers][:authorization] = "Bearer #{@access_token}"
-      else
-        # authorization header has already been set.
+    if authorization_required?
+      if @access_token
+        if opts[:headers][:authorization].nil? && opts[:headers]['Authorization'].nil?
+          opts[:headers][:authorization] = "Bearer #{@access_token}"
+        else
+          # authorization header has already been set.
+        end
       end
     end
 
@@ -163,10 +188,20 @@ class Morpheus::APIClient
     if opts[:headers]['Content-Type'].nil? && default_content_type
       opts[:headers]['Content-Type'] = default_content_type
     end
+    
+    # default Content-Type to application/json if you pass a payload.
+    if opts[:headers]['Content-Type'].nil? && options[:payload]
+      opts[:headers]['Content-Type'] = 'application/json'
+    end
 
-    # use custom timeout eg. from --timeout option
-    if options[:timeout]
-      opts[:timeout] = options[:timeout].to_f
+    # always use custom timeout eg. from --timeout option
+    # or use default_timeout for GET requests only.
+    if opts[:timeout].nil?
+      if options[:timeout]
+        opts[:timeout] = options[:timeout].to_f
+      elsif default_timeout && opts[:method] == :get
+        opts[:timeout] = default_timeout.to_f
+      end
     end
 
     # add extra headers, eg. from --header option
@@ -176,7 +211,6 @@ class Morpheus::APIClient
     end
 
     # this is confusing, but RestClient expects :params inside the headers...?
-    # right?
     # move/copy params to headers.params for simplification.
     # remove this if issues arise
     if opts[:params] && (opts[:headers][:params].nil? || opts[:headers][:params].empty?)
@@ -275,24 +309,43 @@ class Morpheus::APIClient
     return self
   end
 
-  def common_iface_opts
-    {url: @base_url, access_token: @access_token, refresh_token: @refresh_token, expires_at: @expires_at}
+  def common_interface_options
+    {
+      url: @base_url, 
+      access_token: @access_token, 
+      refresh_token: @refresh_token, 
+      expires_at: @expires_at, 
+      client_id: @client_id
+    }
   end
 
   def ping
-    Morpheus::PingInterface.new(common_iface_opts).setopts(@options)
+    Morpheus::PingInterface.new(common_interface_options).setopts(@options)
   end
 
+  def setup
+    Morpheus::SetupInterface.new(common_interface_options).setopts(@options)
+  end
+  
   def auth
+    # Morpheus::AuthInterface.new(common_interface_options).setopts(@options)
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
   end
 
   def whoami
-    Morpheus::WhoamiInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::WhoamiInterface.new(common_interface_options).setopts(@options)
   end
 
   def user_settings
-    Morpheus::UserSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::UserSettingsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def dashboard
+    Morpheus::DashboardInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def activity
+    Morpheus::ActivityInterface.new(common_interface_options).setopts(@options)
   end
 
   def options
@@ -479,21 +532,12 @@ class Morpheus::APIClient
     Morpheus::OptionTypeListsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def dashboard
-    Morpheus::DashboardInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
-  end
-
   def power_schedules
     Morpheus::PowerSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
   def execute_schedules
     Morpheus::ExecuteSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
-  end
-
-  
-  def setup
-    Morpheus::SetupInterface.new(common_iface_opts).setopts(@options).setopts(@options)
   end
 
   def monitoring

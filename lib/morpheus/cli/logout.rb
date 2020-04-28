@@ -15,8 +15,8 @@ class Morpheus::Cli::Logout
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
-  def connect(opts)
-    #@api_client = establish_remote_appliance_connection(opts)
+  def connect(options)
+    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
   end
 
   def usage
@@ -32,12 +32,16 @@ class Morpheus::Cli::Logout
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       build_common_options(opts, options, [:remote, :quiet])
+      opts.footer = <<-EOT
+Logout of a remote appliance.
+This clears your credentials so that you will need to login again.
+EOT
     end
     optparse.parse!(args)
-    # connect(options)
+    verify_args!(args:args,count:0,optpare:optparse)
+    connect(options)
     # establish @appliance_name, @appliance_url, 
-    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true}))
-
+    #@api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
     begin
       if !@appliance_name
         print_error Morpheus::Terminal.angry_prompt

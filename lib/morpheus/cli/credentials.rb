@@ -40,7 +40,15 @@ module Morpheus
         password = nil
         wallet = nil
 
-        
+        # should not need this logic in here
+        if options[:remote_url]
+          # @appliance_name = options[:remote_url] 
+          # name should change too though or printing may be misleading.
+          # @appliance_name = "remote-url"
+          # @appliance_url = options[:remote_url]
+          # do not save when using --remote-url
+          do_save = false
+        end
 
         if options[:remote_token]
           # user passed in a token to login with.
@@ -48,7 +56,8 @@ module Morpheus
           # OR whoami should return other wallet info like access token or maybe just the expiration date
           # for now, it just stores the access token without other wallet info
           begin
-            whoami_interface = Morpheus::WhoamiInterface.new(options[:remote_token], nil, nil, @appliance_url)
+            # @setup_interface = Morpheus::SetupInterface.new({url:@appliance_url,access_token:@access_token})
+            whoami_interface = Morpheus::WhoamiInterface.new({url: @appliance_url, token: options[:remote_token]})
             whoami_interface.setopts(options)
             if options[:dry_run]
               print_dry_run whoami_interface.dry.get()
@@ -84,24 +93,15 @@ module Morpheus
             wallet = nil
           end
         else
-          
           # ok prompt for creds..
           username = options['username'] || options[:username] || nil
           password = options['password'] || options[:password] || nil
           
+          # what are these for? just use :username and :password
           if options[:remote_username]
             username = options[:remote_username]
             password = options[:remote_password]
-            if do_save == true
-              do_save = (options[:remote_url] ? false : true)
-            end
-          else
-            # maybe just if check if options[:test_only] != true
-            # if do_save == true
-            #   wallet = load_saved_credentials
-            # end  
           end
-
           if wallet.nil?
             unless options[:quiet] || options[:no_prompt]
               # if username.empty? || password.empty?
@@ -126,7 +126,7 @@ module Morpheus
               end
               if password.empty?
                 print "Password: #{required_blue_prompt} "
-                # wtf is this STDIN and $stdin and not my_terminal.stdin ?
+                # this should be my_terminal.stdin instead of STDIN and $stdin
                 password = STDIN.noecho(&:gets).chomp!
                 print "\n"
               else
@@ -185,14 +185,11 @@ module Morpheus
         end
 
         if do_save && @appliance_name
-
-
           begin
             # save pertinent session info to the appliance
             save_credentials(@appliance_name, wallet)
             now = Time.now.to_i
             appliance = ::Morpheus::Cli::Remote.load_remote(@appliance_name)
-            
             if wallet && wallet['access_token']
               save_credentials(@appliance_name, wallet)
             else

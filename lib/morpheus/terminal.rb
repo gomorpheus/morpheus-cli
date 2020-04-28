@@ -238,6 +238,21 @@ module Morpheus
         opts.on('--noprofile','--noprofile', "Do not read and execute the personal initialization script .morpheus_profile") do
           @noprofile = true
         end
+        # todo: make these work
+        # opts.on('--home','--home', "Morpheus client home directory, where configuration files are located. The default is MORPHEUS_CLI_HOME or HOME/.morpheus") do |val|
+        #   @use_home_directory = val
+        #   set_home_directory(@use_home_directory)
+        #   # that it? all done...
+        # end
+        # opts.on('-Z','--temporary', "Temporary shell. Use a temporary shell with the current remote configuration, credentials and commands loaded. Configuration changes and command history will not be saved.") do
+        #   @noprofile = true
+        #   @temporary_shell_mode = true
+        # end
+        # opts.on('-z','--clean', "Clean shell. Use a temporary shell without any remote configuration, credentials or command history loaded.") do
+        #   @noprofile = true
+        #   @temporary_shell_mode = true
+        #   @clean_shell_mode = true
+        # end
         opts.on('-C','--nocolor', "Disable ANSI coloring") do
           @coloring = false
           Term::ANSIColor::coloring = false
@@ -355,6 +370,29 @@ module Morpheus
       result = nil
       begin
         
+        # todo: no, this needs to be supported as --home for every darn command..
+        # add it to CliCommand build_common_options()
+        # use custom home directory from --home
+        # todo: this should happen in initialize..
+        # @use_home_directory
+        # need to get index, and delete both the switch and the arg after it
+        homedir = false
+        home_switch_index = args.index {|it| it == '--home' }
+        if args.find {|it| it == '--home' }
+          deleted_option = args.delete_at(home_switch_index)
+          home_dir = args.delete_at(home_switch_index)
+          @use_home_directory = home_dir
+          #puts "Setting home directory to #{@use_home_directory}"
+          set_home_directory(@use_home_directory)
+          # re-initialize some variables
+          # startup script
+          if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+            @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
+          else
+            @profile_dot_file = nil
+          end
+        end
+
         # execute startup script .morpheus_profile  unless --noprofile is passed
         # todo: this should happen in initialize..
         noprofile = false
@@ -363,6 +401,7 @@ module Morpheus
           args.delete_if {|it| it == '--noprofile' }
         end
 
+        
         if @profile_dot_file && !@profile_dot_file_has_run
           if !noprofile && File.exists?(@profile_dot_file.filename)
             execute_profile_script()
@@ -411,7 +450,7 @@ module Morpheus
           # all commands should be registered commands or aliases
           # ahh, but it could support expressions (), use -e for that ..
           # if !(Morpheus::Cli::CliRegistry.has_command?(cmd_name) || Morpheus::Cli::CliRegistry.has_alias?(cmd_name))
-          #   @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not recognized. See 'morpheus --help'."
+          #   @stderr.puts "#{@angry_prompt}'#{cmd_name}' is not recognized"
           #   #@stderr.puts usage
           #   return 127, nil
           # end
@@ -420,6 +459,7 @@ module Morpheus
             benchmark_name = "morpheus #{formatted_cmd}"
             benchmark_name.sub!(' -B', '')
             benchmark_name.sub!(' --benchmark', '')
+            #benchmark_name << " -B"
             start_benchmark(benchmark_name)
           end
 

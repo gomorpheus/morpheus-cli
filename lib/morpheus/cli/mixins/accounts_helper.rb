@@ -317,6 +317,8 @@ module Morpheus::Cli::AccountsHelper
     #print reset if table_color
   end
 
+  ## These user access formatted methods should probably move up to PrintHelper to be more ubiquitous.
+
   def format_user_role_names(user)
     role_names = ""
     if user && user['roles']
@@ -327,15 +329,89 @@ module Morpheus::Cli::AccountsHelper
     role_names
   end
 
-  def get_access_string(val)
-    val ||= 'none'
-    if val == 'none'
-      "#{white}#{val.to_s.capitalize}#{cyan}"
-    # elsif val == 'read'
-    #   "#{cyan}#{val.to_s.capitalize}#{cyan}"
+  def get_access_color(access)
+    access ||= 'none'
+    if access == 'none'
+      # maybe reset instead of white?
+      white
+    elsif access == 'read'
+      cyan
     else
-      "#{green}#{val.to_s.capitalize}#{cyan}"
+      green
     end
+  end
+
+  def get_access_string(access, return_color=cyan)
+    get_access_color(access) + access + return_color
+    # access ||= 'none'
+    # if access == 'none'
+    #   "#{white}#{access.to_s}#{return_color}"
+    # elsif access == 'read'
+    #   "#{cyan}#{access.to_s.capitalize}#{return_color}"
+    # else
+    #   "#{green}#{access.to_s}#{return_color}"
+    # end
+  end
+
+  # this outputs a string that matches the length of all available access levels
+  # for outputting in a grid that looks like this:
+  #
+  #  none
+  #              full
+  #              full
+  #          user
+  #      read
+  #              full
+  #  none
+  #
+  # Examples: format_permission_access("read")
+  #           format_permission_access("custom", "full,custom,none")
+  def format_access_string(access, access_levels=nil, return_color=cyan)
+    access = access.to_s.downcase.strip
+    if access.empty?
+      access = "none"
+    end
+    if access_levels.nil?
+      access_levels = ["none","read","user","full"]
+    elsif access_levels.is_a?(Array)
+      # access_levels = access_levels
+    else
+      # parse values like "full,custom,none"
+      access_levels = [access_levels].flatten.collect {|it| it.strip.split(",") }.flatten.collect {|it| it.strip }.compact
+    end
+    # build padded string that contains access eg. 'full' or '    read'
+    access_levels_string = access_levels.join(",")
+    padded_value = ""
+    access_levels.each do |a|
+      # handle some unusual access values
+      # print custom, and provision where 'user' normally is at index 1
+      if (access == "custom" || access == "provision") && a == "user"
+        padded_value << access
+      else
+        if access == a
+          padded_value << access
+        else
+          padded_value << " " * a.size
+        end
+      end
+    end
+    # no matching access was found, so just print it in one slot
+    if padded_value == ""
+      padded_value = " " * access_levels[0].to_s.size
+      padded_value << access
+    end
+    # strip any extra whitespace off the end
+    if padded_value.size > access_levels_string.size
+      padded_value = padded_value.rstrip
+    end
+    # ok build out string
+    out = ""
+    access_color = get_access_color(access)
+    out << access_color if access_color
+    out << padded_value
+    out << reset if access_color
+    out << return_color if return_color
+    return out
   end
 
 end

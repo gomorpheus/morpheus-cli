@@ -2,14 +2,19 @@ require 'morpheus/api/api_client'
 
 class Morpheus::PingInterface < Morpheus::APIClient
   
+  # no Authorization header is required
+  def authorization_required?
+    false
+  end
+
+  # health checks use a relatively small timeout by default
   def default_timeout
     5
   end
-  
-  def get(params={}, http_opts={})
-    url = "#{@base_url}/api/ping"
+
+  def get(params={})
     headers = {params: params}
-    execute(method: :get, url: url, headers: headers, timeout: (http_opts[:timeout] || default_timeout))
+    execute(method: :get, url: "/api/ping", headers: headers)
   end
 
 end

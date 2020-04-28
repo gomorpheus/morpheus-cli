@@ -176,7 +176,7 @@ class Morpheus::Cli::ReportsCommand
               "ID" => lambda {|it| it['id'] },
               "SECTION" => lambda {|it| it['section'] },
               "DATA" => lambda {|it| truncate_string(it['data'], data_width) }
-            }, options.merge({:responsive_table => false}))
+            }, options.merge({:wrap => true}))
             
           else
             print yellow, "No report data found.", reset, "\n"

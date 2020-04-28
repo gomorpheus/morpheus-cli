@@ -94,7 +94,7 @@ class Morpheus::Cli::Roles
       opts.on('-p','--permissions', "Display Permissions") do |val|
         options[:include_feature_access] = true
       end
-      opts.on('-f','--feature-access', "Display Feature Access [deprecated]") do |val|
+      opts.on('-f','--feature-access', "Display Permissions [deprecated]") do |val|
         options[:include_feature_access] = true
       end
       opts.add_hidden_option('--feature-access')
@@ -200,7 +200,7 @@ class Morpheus::Cli::Roles
           {
             code: it['code'],
             name: it['name'],
-            access: get_access_string(it['access']),
+            access: format_access_string(it['access']),
           }
         end
         if options[:sort]
@@ -219,13 +219,6 @@ class Morpheus::Cli::Roles
       end
 
       print_h2 "Global Access", options
-      # role_access_rows = [
-      #   {name: "Groups", access: get_access_string(json_response['globalSiteAccess']) },
-      #   {name: "Clouds", access: get_access_string(json_response['globalZoneAccess']) },
-      #   {name: "Instance Types", access: get_access_string(json_response['globalInstanceTypeAccess']) },
-      #   {name: "Blueprints", access: get_access_string(json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']) }
-      # ]
-      # puts as_pretty_table(role_access_rows, [:name, :access], options)
       puts as_pretty_table([json_response], [
         {"Groups" => lambda {|it| get_access_string(it['globalSiteAccess']) } },
         {"Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) } },
@@ -241,7 +234,7 @@ class Morpheus::Cli::Roles
           rows = json_response['sites'].collect do |it|
             {
               name: it['name'],
-              access: get_access_string(it['access']),
+              access: format_access_string(it['access'], ["none","read","full"]),
             }
           end
           print as_pretty_table(rows, [:name, :access], options)
@@ -262,7 +255,7 @@ class Morpheus::Cli::Roles
           rows = json_response['zones'].collect do |it|
             {
               name: it['name'],
-              access: get_access_string(it['access']),
+              access: format_access_string(it['access'], ["none","read","full"]),
             }
           end
           print as_pretty_table(rows, [:name, :access], options)
@@ -283,7 +276,7 @@ class Morpheus::Cli::Roles
           rows = json_response['instanceTypePermissions'].collect do |it|
             {
               name: it['name'],
-              access: get_access_string(it['access']),
+              access: format_access_string(it['access'], ["none","read","full"]),
             }
           end
           print as_pretty_table(rows, [:name, :access], options)
@@ -306,7 +299,7 @@ class Morpheus::Cli::Roles
           rows = blueprint_permissions.collect do |it|
             {
               name: it['name'],
-              access: get_access_string(it['access']),
+              access: format_access_string(it['access'], ["none","read","full"]),
             }
           end
           print as_pretty_table(rows, [:name, :access], options)
@@ -393,7 +386,7 @@ class Morpheus::Cli::Roles
           {
             code: it['code'],
             name: it['name'],
-            access: get_access_string(it['access']),
+            access: format_access_string(it['access']),
           }
         end
         if options[:sort]
@@ -1306,15 +1299,7 @@ class Morpheus::Cli::Roles
   end
 
   private
-  # def get_access_string(val)
-  #   val ||= 'none'
-  #   if val == 'none'
-  #     "#{white}#{val.to_s.capitalize}#{cyan}"
-  #   else
-  #     "#{green}#{val.to_s.capitalize}#{cyan}"
-  #   end
-  # end
-
+  
   def add_role_option_types
     [
       {'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},

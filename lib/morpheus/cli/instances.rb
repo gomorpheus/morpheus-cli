@@ -74,20 +74,20 @@ class Morpheus::Cli::Instances
         options[:details] = true
       end
       opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|
-        params['status'] ||= []
-        params['status'] << val
+        params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end
       opts.on('--pending-removal', "Include instances pending removal.") do
-        options[:pendingRemoval] = true
+        options[:showDeleted] = true
+      end
+      opts.on('--pending-removal-only', "Only instances pending removal.") do
+        options[:deleted] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."
     end
     optparse.parse!(args)
+    verify_args!(args:args, count:0, optparse:optparse)
     connect(options)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
-    end
     begin
       params.merge!(parse_list_options(options))
       group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -117,8 +117,9 @@ class Morpheus::Cli::Instances
         params['ownerId'] = created_by_ids # 4.2.1+
       end
 
-      params['showDeleted'] = true if options[:pendingRemoval]
-
+      params['showDeleted'] = true if options[:showDeleted]
+      params['deleted'] = true if options[:deleted]
+      
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
@@ -196,12 +197,14 @@ class Morpheus::Cli::Instances
               connection: format_instance_connection_string(instance),
               environment: instance['instanceContext'],
               user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
+              tenant: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
               nodes: instance['containers'].count,
               status: format_instance_status(instance, cyan),
               type: instance['instanceType']['name'],
               group: !instance['group'].nil? ? instance['group']['name'] : nil,
               cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil,
               version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
+              created: format_local_dt(instance['dateCreated']),
               cpu: cpu_usage_str + cyan,
               memory: memory_usage_str + cyan, 
               storage: storage_usage_str + cyan
@@ -210,6 +213,8 @@ class Morpheus::Cli::Instances
           }
           columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
               :type, :version, :environment, 
+              {:created => {:display_name => "CREATED"}}, 
+              # {:tenant => {:display_name => "TENANT"}}, 
               {:user => {:display_name => "OWNER", :max_width => 20}}, 
               :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
           # custom pretty table columns ... this is handled in as_pretty_table now(), 
@@ -1220,10 +1225,10 @@ class Morpheus::Cli::Instances
             it['createdBy'] ? (it['createdBy']['username'] || it['createdBy']['id']) : '' 
           end
         },
+        #"Tenant" => lambda {|it| it['tenant'] ? it['tenant']['name'] : '' },
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
         "Connection" => lambda {|it| format_instance_connection_string(it) },
-        #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Status" => lambda {|it| format_instance_status(it) }
       }
 
@@ -2267,7 +2272,7 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id or name list]")
-      opts.footer = "This outputs the list of the actions available to specified instance(s)."
+      opts.footer = "List the actions available to specified instance(s)."
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)

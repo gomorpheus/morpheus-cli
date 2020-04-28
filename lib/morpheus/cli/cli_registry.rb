@@ -1,7 +1,7 @@
 require 'term/ansicolor'
 require 'shellwords'
 require 'morpheus/logging'
-require 'morpheus/cli/command_error'
+require 'morpheus/cli/errors'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
 
@@ -81,7 +81,7 @@ module Morpheus
             instance.get(command_name).new.handle(args)
           else
             # todo: need to just return error instead of raise
-            raise Morpheus::Cli::CommandError.new("'#{command_name}' is not a command. See 'morpheus --help'.")
+            raise CommandNotFoundError.new("'#{command_name}' is not a morpheus command.")
           end
         end
 

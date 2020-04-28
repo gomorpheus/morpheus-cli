@@ -97,8 +97,12 @@ module Morpheus
         @no_prompt != true
       end
 
-      def raise_command_error(msg)
-        raise Morpheus::Cli::CommandError.new(msg)
+      def raise_command_error(msg, args=[], optparse=nil, exit_code=nil)
+        raise Morpheus::Cli::CommandError.new(msg, args, optparse, exit_code)
+      end
+
+      def raise_args_error(msg, args=[], optparse=nil, exit_code=nil)
+        raise Morpheus::Cli::CommandArgumentsError.new(msg, args, optparse, exit_code)
       end
 
       # parse_id_list splits returns the given id_list with its values split on a comma
@@ -221,24 +225,39 @@ module Morpheus
         opts
       end
 
-      def build_standard_list_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote] + includes, excludes)
-      end
+      ## the standard options for a command that makes api requests (most of them)
 
       def build_standard_get_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote] + includes, excludes)
+        build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :quiet, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_post_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:options, :payload, :json, :quiet, :dry_run, :remote] + includes, excludes)
+      end
+
+      def build_standard_put_options(opts, options, includes=[], excludes=[])
+        build_standard_post_options(opts, options, includes, excludes)
+      end
+
+      def build_standard_delete_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, [:auto_confirm, :query, :json, :quiet, :dry_run, :remote] + includes, excludes)
+      end
+
+      # list is GET that supports phrase,max,offset,sort,direction
+      def build_standard_list_options(opts, options, includes=[], excludes=[])
+        build_standard_get_options(opts, options, [:list] + includes, excludes=[])
       end
 
       def build_standard_add_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote] + includes, excludes)
+        build_standard_post_options(opts, options, includes, excludes)
       end
 
       def build_standard_update_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote] + includes, excludes)
+        build_standard_put_options(opts, options, includes, excludes)
       end
 
       def build_standard_remove_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote] + includes, excludes)
+        build_standard_delete_options(opts, options, includes, excludes)
       end
       
       # appends to the passed OptionParser all the generic options
@@ -502,9 +521,21 @@ module Morpheus
             opts.on( '-U', '--username USERNAME', "Username for authentication." ) do |val|
               options[:remote_username] = val
             end unless excludes.include?(:remote_username)
-            opts.on( '-P', '--password PASSWORD', "Password for authentication." ) do |val|
-              options[:remote_password] = val
-            end unless excludes.include?(:remote_password)
+            
+
+            unless excludes.include?(:remote_password)
+              opts.on( '-P', '--password PASSWORD', "Password for authentication." ) do |val|
+                options[:remote_password] = val
+              end
+              opts.on( '--password-file FILE', String, "Password File, read a file containing the password for authentication." ) do |val|
+                password_file = File.expand_path(val)
+                if !File.exists?(password_file) || !File.file?(password_file)
+                  raise ::OptionParser::InvalidOption.new("File not found: #{password_file}")
+                end
+                options[:remote_password] = File.read(password_file) # .strip
+              end
+              opts.add_hidden_option('--password-file') if opts.is_a?(Morpheus::Cli::OptionParser)
+            end
 
             # todo: also require this for talking to plain old HTTP
             opts.on('-I','--insecure', "Allow insecure HTTPS communication.  i.e. bad SSL certificate.") do |val|
@@ -627,7 +658,7 @@ module Morpheus
             end
             #opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on(nil, '--wrap', "Wrap table columns instead hiding them when terminal is not wide enough.") do
-              options[:responsive_table] = false
+              options[:wrap] = true
             end
           when :thin
             opts.on( '--thin', '--thin', "Format headers and columns with thin borders." ) do |val|
@@ -706,7 +737,8 @@ module Morpheus
 
 
         # Benchmark this command?
-        opts.on('-B','--benchmark', "Print benchmark time after the command is finished.") do
+        # Also useful for seeing exit status for every command.
+        opts.on('-B','--benchmark', "Print benchmark time and exit/error after the command is finished.") do
           options[:benchmark] = true
           # this is hacky, but working!  
           # shell handles returning to false
@@ -730,6 +762,15 @@ module Morpheus
           # end
         end
 
+        # A way to ensure debugging is off, it should go back on after the command is complete.
+        opts.on('--no-debug','--no-debug', "Disable debugging.") do
+          options[:debug] = false
+          Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::INFO)
+          ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
+        end
+        opts.add_hidden_option('--no-debug') if opts.is_a?(Morpheus::Cli::OptionParser)
+
+
         opts.on('-h', '--help', "Print this help" ) do
           puts opts
           exit # return 0 maybe?
@@ -744,6 +785,10 @@ module Morpheus
 
       def subcommands
         self.class.subcommands
+      end
+
+      def visible_subcommands
+        self.class.visible_subcommands
       end
 
       def subcommand_aliases
@@ -826,10 +871,8 @@ module Morpheus
         end
         cmd_method = subcommands[subcommand_name]
         if !cmd_method
-          print_error Morpheus::Terminal.angry_prompt
-          #puts_error "'#{subcommand_name}' is not recognized. See '#{my_help_command}'"
-          puts_error "'#{subcommand_name}' is not recognized.\n#{full_command_usage}"
-          return 127
+          error_msg = "'#{command_name} #{subcommand_name}' is not a morpheus command.\n#{full_command_usage}"
+          raise CommandNotFoundError.new(error_msg)
         end
         self.send(cmd_method, args[1..-1])
       end
@@ -862,96 +905,129 @@ module Morpheus
         return failed_result ? failed_result : cmd_results.last
       end
 
+      # def connect(options={})
+      #   Morpheus::Logging::DarkPrinter.puts "#{command_name} has not defined connect()" if Morpheus::Logging.debug?
+      # end
+
       # This supports the simple remote option eg. `instances add --remote "qa"`
       # It will establish a connection to the pre-configured appliance named "qa"
-      # The calling command can populate @appliances and/or @appliance_name
-      # Otherwise, the current active appliance is used...
+      # By default it will connect to the active (current) remote appliance
       # This returns a new instance of Morpheus::APIClient (and sets @access_token, and @appliance)
       # Your command should be ready to make api requests after this.
+      # This will prompt for credentials if none are found, use :skip_login
+      # Credentials will be saved unless --remote-url or --token is being used.
       def establish_remote_appliance_connection(options)
         # todo: probably refactor and don't rely on this method to set these instance vars
+        @remote_appliance = nil
         @appliance_name, @appliance_url, @access_token = nil, nil, nil
         @api_client = nil
-
-        appliance = nil # @appliance..why not? laff
-        if options[:remote]
+        @do_save_credentials = true
+        # skip saving if --remote-url or --username or --password are passed in
+        if options[:remote_url] || options[:remote_token] || options[:remote_username] || options[:remote_password]
+          @do_save_credentials = false
+        end
+        appliance = nil
+        if options[:remote_url]
+          # --remote-url means use an arbitrary url, do not save any appliance config
+          # appliance = {name:'remote-url', url:options[:remote_url]}
+          appliance = {url:options[:remote_url]}
+          appliance[:temporary] = true
+          #appliance[:status] = "ready" # or  "unknown"
+          # appliance[:last_check] = nil
+        elsif options[:remote]
+          # --remote means use the specified remote
           appliance = ::Morpheus::Cli::Remote.load_remote(options[:remote])
-          if !appliance
+          if appliance.nil?
             if ::Morpheus::Cli::Remote.appliances.empty?
-              raise_command_error "You have no appliances configured. See the `remote add` command."
+              raise_command_error "No remote appliances exist, see the command `remote add`."
             else
-              raise_command_error "Remote appliance not found by the name '#{options[:remote]}'"
+              raise_command_error "Remote appliance not found by the name '#{options[:remote]}', see `remote list`"
             end
           end
         else
+          # use active remote
           appliance = ::Morpheus::Cli::Remote.load_active_remote()
           if !appliance
             if ::Morpheus::Cli::Remote.appliances.empty?
-              raise_command_error "You have no appliances configured. See the `remote add` command."
+              raise_command_error "No remote appliances exist, see the command `remote add`"
             else
-              raise_command_error "No current appliance, see `remote use`."
+              raise_command_error "#{command_name} requires a remote to be specified, try the option -r [remote] or see the command `remote use`"
             end
           end
         end
+        @remote_appliance = appliance
         @appliance_name = appliance[:name]
-        @appliance_url = appliance[:host] || appliance[:url] # it's :host in the YAML..heh
-
+        @appliance_url = appliance[:url] || appliance[:host] # it used to store :host in the YAML
+        # set enable_ssl_verification
         # instead of toggling this global value
         # this should just be an attribute of the api client
         # for now, this fixes the issue where passing --insecure or --remote
         # would then apply to all subsequent commands...
-        if !Morpheus::Cli::Shell.insecure
-          if options[:insecure]
-            Morpheus::RestClient.enable_ssl_verification = false
-          else
-            if appliance[:insecure] && Morpheus::RestClient.ssl_verification_enabled?
-              Morpheus::RestClient.enable_ssl_verification = false
-            elsif !appliance[:insecure] && !Morpheus::RestClient.ssl_verification_enabled?
-              Morpheus::RestClient.enable_ssl_verification = true
-            end
-          end
+        allow_insecure = false
+        if options[:insecure] || appliance[:insecure] || Morpheus::Cli::Shell.insecure
+          allow_insecure = true
+        end
+        # Morpheus::RestClient.enable_ssl_verification = allow_insecure != true
+        if allow_insecure && Morpheus::RestClient.ssl_verification_enabled?
+          Morpheus::RestClient.enable_ssl_verification = false
+        elsif !allow_insecure && !Morpheus::RestClient.ssl_verification_enabled?
+          Morpheus::RestClient.enable_ssl_verification = true
         end
 
-        # todo: support old way of accepting --username and --password on the command line
+        # always support accepting --username and --password on the command line
         # it's probably better not to do that tho, just so it stays out of history files
-        
 
         # if !@appliance_name && !@appliance_url
         #   raise_command_error "Please specify a remote appliance with -r or see the command `remote use`"
         # end
 
-        Morpheus::Logging::DarkPrinter.puts "establishing connection to [#{@appliance_name}] #{@appliance_url}" if options[:debug]
-        #puts "#{dark} #=> establishing connection to [#{@appliance_name}] #{@appliance_url}#{reset}\n" if options[:debug]
+        Morpheus::Logging::DarkPrinter.puts "establishing connection to remote #{display_appliance(@appliance_name, @appliance_url)}" if Morpheus::Logging.debug?
 
+        if options[:no_authorization]
+          # maybe handle this here..
+          options[:skip_login] = true
+          options[:skip_verify_access_token] = true
+        end
 
         # ok, get some credentials.
-        # this prompts for username, password  without options[:no_prompt]
-        # uses saved credentials by default.
-        # passing --remote-url or --token or --username will skip loading saved credentials and trigger prompting
+        # use saved credentials by default or prompts for username, password.
+        # passing --remote-url will skip loading saved credentials and prompt for login to use with the url
+        # passing --token skips login prompting and uses the provided token.
+        # passing --token or --username will skip saving credentials to appliance config, they are just used for one command
+        # ideally this should not prompt now and wait until the client is used on a protected endpoint.
+        # @wallet = nil
         if options[:remote_token]
-          @access_token = options[:remote_token]
+          @wallet = {'access_token' => options[:remote_token]} #'username' => 'anonymous'
+        elsif options[:remote_url]
+          credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
+          unless options[:skip_login]
+            @wallet = credentials.request_credentials(options, @do_save_credentials)
+          end
         else
           credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
-          # @wallet = credentials.load_saved_credentials()
-          # @wallet = credentials.request_credentials(options)
-          if options[:remote_token]
-            @wallet = credentials.request_credentials(options, false)
-          elsif options[:remote_url] || options[:remote_username]
-            @wallet = credentials.request_credentials(options, false)
-          else
-            #@wallet = credentials.request_credentials(options)
+          # use saved credentials unless --username or passed
+          unless options[:remote_username]
             @wallet = credentials.load_saved_credentials()
           end
-          @access_token = @wallet ? @wallet['access_token'] : nil
-          # if @access_token.to_s.empty?
-          #   unless options[:no_prompt]
-          #     @wallet = credentials.request_credentials(options)
-          #     @access_token = @wallet ? @wallet['access_token'] : nil
-          #   end
-          # end
-          # bail if we got nothing still
-          unless options[:skip_verify_access_token]
-            verify_access_token!
+          # using active remote OR --remote flag
+          # used saved credentials or login
+          # ideally this sould not prompt now and wait  until the client is used on a protected endpoint.
+
+          
+          if @wallet.nil? || @wallet['access_token'].nil?
+            unless options[:skip_login]
+              @wallet = credentials.request_credentials(options, @do_save_credentials)
+            end
+          end
+          
+        end
+        @access_token = @wallet ? @wallet['access_token'] : nil
+
+        # validate we have a token
+        # hrm...
+        unless options[:skip_verify_access_token]
+          if @access_token.empty?
+            raise AuthorizationRequiredError.new("Failed to acquire access token for #{display_appliance(@appliance_name, @appliance_url)}. Verify your credentials are correct.")  
           end
         end
 
@@ -961,9 +1037,29 @@ module Morpheus
         return api_client
       end
 
-      def verify_access_token!
-        if @access_token.empty?
-          raise_command_error "Unable to acquire access token. Please verify your credentials and try again."
+      # verify_args! verifies that the right number of commands were passed
+      # and raises a command error if not.
+      # Example: verify_args!(args:args, count:1, optparse:optparse)
+      # this could go be done in optparse.parse instead perhaps
+      def verify_args!(opts={})
+        args = opts[:args] || []
+        if opts[:count]
+          if args.count < opts[:count]
+            raise_args_error("not enough arguments, expected #{opts[:count]} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+          elsif args.count > opts[:count]
+            raise_args_error("too many arguments, expected #{opts[:count]} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+          end
+        else
+          if opts[:min]
+            if args.count < opts[:min]
+              raise_args_error("not many arguments, expected #{opts[:min] || '0'}-#{opts[:max] || 'N'} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+            end
+          end
+          if opts[:max]
+            if args.count > opts[:max]
+              raise_args_error("too many arguments, expected #{opts[:min] || '0'}-#{opts[:max] || 'N'} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+            end
+          end
         end
         true
       end
@@ -1047,9 +1143,22 @@ module Morpheus
         payload
       end
 
-      # basic rendering for options :json, :yaml, :csv, :fields, and :outfile
+      def render_response(json_response, options, object_key=nil, &block)
+        render_result = render_with_format(json_response, options, object_key)
+        if render_result
+          return  0, nil
+        else
+          if block_given?
+            return yield
+          else
+            return 0, nil
+          end
+        end
+      end
+
+      # basic rendering for options :json, :yml, :csv, :quiet, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
-      def render_with_format(json_response, options, object_key=nil)
+      def render_with_format(json_response, options, object_key=nil, &block)
         output = nil
         if options[:json]
           output = as_json(json_response, options, object_key)
@@ -1073,6 +1182,17 @@ module Morpheus
           else
             puts output
           end
+        else
+          if block_given?
+            # invoke the user given block to render (print output)
+            # hope it returned something well formed, there's a parse method for that..
+            cmd_render_result = yield
+            # could try to support writing output to options[:outfile] here too.. 
+            # output is already printed inside block though
+            # if cmd_render_result
+            #   return output
+            # end
+          end 
         end
         return output
       end
@@ -1102,6 +1222,14 @@ module Morpheus
 
         def hidden_command
           !!@hidden_command
+        end
+
+        def set_subcommands_hidden(*cmds)
+          @hidden_subcommands ||= []
+          cmds.flatten.each do |cmd|
+            @hidden_subcommands << cmd.to_sym
+          end
+          @hidden_subcommands
         end
 
         def command_description
@@ -1156,6 +1284,17 @@ module Morpheus
 
         def subcommands
           @subcommands ||= {}
+        end
+
+        def visible_subcommands
+          cmds = subcommands.clone
+          if @hidden_subcommands && !@hidden_subcommands.empty?
+            @hidden_subcommands.each do |hidden_cmd|
+              cmds.delete(hidden_cmd.to_s)
+              cmds.delete(hidden_cmd.to_sym)
+            end
+          end
+          cmds
         end
 
         def has_subcommand?(cmd_name)

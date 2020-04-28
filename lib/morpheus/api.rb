@@ -1,5 +1,5 @@
 require 'morpheus/cli/version'
-require 'morpheus/cli/command_error'
+require 'morpheus/cli/errors'
 require 'morpheus/rest_client'
 require 'morpheus/formatters'
 #require 'morpheus/logging'

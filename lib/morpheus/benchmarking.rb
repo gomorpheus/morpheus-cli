@@ -229,34 +229,24 @@ module Morpheus::Benchmarking
       error_str = "#{@error}" # should inspect and format this
       out = ""
       
+      # show exit only if non 0
+      # so it looks like:
+      # command  time   [exit: 1]  [error:]
+      # instances list foo         0.049 seconds
+      # foo         0.001 seconds   exit: 1
+      out << "#{command_str.ljust(45, ' ')}"
+      out << "\t"
+      out << "#{time_str.ljust(15, ' ')}" # maybe use the format time: 0.021s
+      out << "\t"
       if @end_time
-        out << "#{command_str.ljust(30, ' ')}"
-      else
-        out << "#{command_str.ljust(30, ' ')}"
+        if @exit_code && @exit_code != 0
+          out << "\texit: #{exit_str.ljust(2, ' ')}"
+        end
+        if @error && @error != ""
+          out << "\terror: #{error_str.ljust(12, ' ')}"
+        end
       end
-
-      # if @end_time
-      #   out << "finished: #{command_str.ljust(30, ' ')}"
-      # else
-      #   out << "running: #{command_str.ljust(30, ' ')}"
-      # end
-      
-      #out = "benchmark: #{command_str.ljust(22, ' ')}   time: #{time_str.ljust(9, ' ')}   exit: #{exit_str.ljust(2, ' ')}"
-      # out = "benchmark: #{command_str.ljust(27, ' ')}   time: #{time_str.ljust(9, ' ')}   exit: #{exit_str.ljust(2, ' ')}"
-      #out = "time: #{time_str.ljust(9, ' ')}   exit: #{exit_str.ljust(2, ' ')}   exec: #{command_str}"
-      # how about a command you can copy and paste?
-      # out = "time: #{time_str.ljust(9, ' ')}   exit: #{exit_str.ljust(2, ' ')}   #{command_str}"
-      # out = "time: #{time_str.ljust(9, ' ')}   exit: #{exit_str.ljust(4, ' ')}   benchmark exec '#{command_str}'"
-      if @end_time || @exit_code
-        out << "\texit: #{exit_str.ljust(2, ' ')}"
-      end
-      if @end_time && @exit_code != 0 && @error
-        out << "\terror: #{error_str.ljust(12, ' ')}"
-      end
-
-      out << "\t#{time_str.ljust(9, ' ')}"
-      
-
+      #out << reset
       return out
     end
 

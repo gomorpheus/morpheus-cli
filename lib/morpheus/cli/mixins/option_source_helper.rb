@@ -100,6 +100,39 @@ module Morpheus::Cli::OptionSourceHelper
     end
   end
 
+  def get_tenant_options(refresh=false, api_params={})
+    if !@available_tenant_options || refresh
+      # source should be 'tenants' or 'allTenants'
+      # allTenants includes the current tenant
+      # I think we should always use that so you can use your own id
+      option_source = 'allTenants'
+      option_results = options_interface.options_for_source(option_source, api_params)
+        @available_tenant_options = option_results['data'].collect {|it|
+          {"name" => it["name"], "value" => it["value"], "id" => it["value"]}
+        }
+    end
+    return @available_tenant_options
+  end
+
+  def find_tenant_option(tenant_id, refresh=false, api_params={})
+    tenant_id = tenant_id.to_s.strip
+    tenant_id_downcase = tenant_id.to_s.downcase
+    if tenant_id == ""
+      print_red_alert "Tenant not found by for blank id"
+      return nil
+    end
+    tenants = get_tenant_options(refresh, api_params).select {|it| (it['name'].to_s.downcase == tenant_id_downcase || it['id'].to_s == tenant_id.to_s) }
+    if tenants.empty?
+      print_red_alert "Tenant not found by '#{tenant_id}'"
+      return nil
+    elsif tenants.size > 1
+      print_red_alert "#{tenants.size} tenants found by '#{tenant_id}'"
+      return nil
+    else
+      return tenants[0]
+    end
+  end
+
   # parse cloud names or IDs into a name, works with array or csv
   # skips validation of ID for now, just worry about translating names/codes
   # def parse_cloud_id_list(id_list)

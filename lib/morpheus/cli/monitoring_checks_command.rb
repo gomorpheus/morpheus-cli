@@ -28,9 +28,10 @@ class Morpheus::Cli::MonitoringChecksCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       # todo: api to load type id by name
-      # opts.on('--type VALUE', Array, "Filter by status. error,healthy,warning,muted") do |val|
-      #   params['checkType'] = val
-      # end
+      opts.on('-t', '--type TYPE', String, "Filter by Check Type") do |val|
+        options[:type] ||= []
+        options[:type] << val
+      end
       opts.on('--status VALUE', Array, "Filter by status. error,healthy,warning,muted") do |val|
         params['status'] = val
       end
@@ -40,6 +41,10 @@ class Morpheus::Cli::MonitoringChecksCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      if options[:type]
+        # API works with type code or name
+        params['type'] = options[:type]
+      end
       @monitoring_checks_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @monitoring_checks_interface.dry.list(params)
@@ -59,6 +64,9 @@ class Morpheus::Cli::MonitoringChecksCommand
       checks = json_response['checks']
       title = "Morpheus Monitoring Checks"
       subtitles = []
+      if options[:type]
+        subtitles << "Type: #{options[:type].join(',')}"
+      end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles, options
       if checks.empty?

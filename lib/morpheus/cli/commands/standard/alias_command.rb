@@ -63,11 +63,7 @@ EOT
       
     end
     optparse.parse!(args)
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1-N and got #{args.count}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min: 1)
     
     # make this super forgiving.. my name = command -j -O value=woot
     # the old way, as one argument "name='command'"
@@ -125,10 +121,7 @@ EOT
       opts.footer = "Export an alias, saving it to your .morpheus_profile for future use"
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min: 1)
     alias_names = args
     alias_names.each do |arg|
       if !Morpheus::Cli::CliRegistry.has_alias?(arg)

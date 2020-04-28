@@ -127,7 +127,7 @@ class Morpheus::Cli::ExecuteSchedulesCommand
       print cyan
       description_cols = {
         "ID" => lambda {|it| it['id'] },
-        #"Account" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
+        #"Tenant" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
         "Name" => lambda {|it| it['name'] },
         "Description" => lambda {|it| it['description'] },
         "Type" => lambda {|it| format_schedule_type(it['scheduleType']) },

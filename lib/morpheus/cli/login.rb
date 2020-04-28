@@ -14,7 +14,7 @@ class Morpheus::Cli::Login
   end
 
   def connect(opts)
-    #@api_client = establish_remote_appliance_connection(opts)
+    # @api_client = establish_remote_appliance_connection({:skip_verify_access_token => true, :skip_login => true}.merge(opts))
   end
 
   def usage
@@ -47,47 +47,27 @@ class Morpheus::Cli::Login
         options[:remote_token] = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote, :quiet], [:remote_username, :remote_password, :remote_token])
-      opts.footer = "Login to a remote appliance with a username and password or an access token.\n" +
-                    "[username] is required .\n" +
-                    "[password] is required.\n" +
-                    "Logging in with username and password will make an authentication api request to obtain an access token.\n" +
-                    "The --token option can be used to login with an existing token instead of username and password.\n" +
-                    "Using --token makes a whoami api request to validate the token.\n" +
-                    "If successful, the access token will be saved with the active session for the remote appliance.\n" +
-                    "This command will first logout any active session before attempting to login.\n" + 
-                    "The --test option can be used for testing credentials without updating your active session."
+      opts.footer = <<-EOT
+Login to a remote appliance with a username and password or using an access token.
+Logging in with username and password will make an authentication api request to obtain an access token.
+The --token option can be used to login with a valid access token instead of username and password.
+The specified token will be verified by making a whoami api request
+If successful, the access token will be saved with the active session for the remote appliance.
+This command will first logout any active session before attempting authorization.
+The --test option is available for testing credentials without updating your active session, neithing logging you out or in.
+EOT
                     
     end
     optparse.parse!(args)
-    if args.count > 2
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} list expects 0-2 arguments and received #{args.count}: #{args}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, max:2, optparse:optparse)
     username = args[0] if args[0]
     password = args[1] if args[1]
     
     # connect(options)
-    if options[:remote]
-      appliance = Morpheus::Cli::Remote.appliances[options[:remote].to_sym]
-      if appliance
-        @appliance_name, @appliance_url = options[:remote].to_sym, appliance[:host]
-      else
-        @appliance_name, @appliance_url = nil, nil
-      end
-      if !@appliance_name
-        print_error red, "You have no appliance named '#{options[:remote]}' configured. See the `remote list` command.", reset, "\n"
-        return 1
-      end
-    elsif options[:remote_url]
-      # --remote-url
-      @appliance_name, @appliance_url = nil, appliance[:remote_url]
-    else
-      @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-      if !@appliance_name
-        print_error yellow, "Please specify a remote appliance with -r or see the command `remote use`", reset, "\n"
-        return 1
-      end
+    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
+    
+    if @remote_appliance[:authenticated]
+      puts "You will be automatically logged out of your current session as '#{@remote_appliance[:username]}'"
     end
 
     begin
@@ -124,9 +104,9 @@ class Morpheus::Cli::Login
         # Login Success!
         if !options[:quiet]
           if options[:test_only]
-            print green,"Success! Credentials verified for #{wallet['username']}.", reset, "\n"
+            print green,"Success! Test Credentials verified for #{wallet['username']}@#{@appliance_name} #{@appliance_url}", reset, "\n"
           else
-            print green,"Success! Logged in to #{@appliance_name} as #{wallet['username']}.", reset, "\n"
+            print green,"Success! Logged in as #{wallet['username']}@#{@appliance_name} #{@appliance_url}", reset, "\n"
           end
         end
         return 0 # ,  nil

@@ -91,6 +91,20 @@ def format_duration(start_time, end_time=nil, format="human")
   format_duration_seconds(seconds, format)
 end
 
+def format_duration_ago(start_time, end_time=nil)
+  if !start_time
+    return ""
+  end
+  start_time = parse_time(start_time)
+  if end_time
+    end_time = parse_time(end_time)
+  else
+    end_time = Time.now
+  end
+  seconds = (end_time - start_time).abs
+  format_human_duration(seconds, true)
+end
+
 def format_duration_seconds(seconds, format="human")
   seconds = seconds.abs
   out = ""
@@ -120,7 +134,7 @@ end
 
 # returns a human readable time duration
 # @param seconds - duration in seconds
-def format_human_duration(seconds)
+def format_human_duration(seconds, show_relative=false)
   out = ""
   #seconds = seconds.round
   days, hours, minutes = (seconds / (60*60*24)).floor, (seconds / (60*60)).floor, (seconds / (60)).floor
@@ -152,18 +166,30 @@ def format_human_duration(seconds)
     ms = (seconds.to_f * 1000).to_i
     out << "#{ms}ms"
   else
-    seconds = seconds.floor
-    if seconds == 1
+    if seconds.floor == 1
       out << "1 second"
     else
-      out << "#{seconds} seconds"
+      out << "#{seconds.floor} seconds"
+    end
+  end
+  if show_relative
+    if seconds < 1
+      out = "just now"
+    else
+      out << " ago"
     end
   end
   out
 end
 
 def display_appliance(name, url)
-  "#{name} - #{url}"
+  if name.to_s == "" || name == 'remote-url'
+    # "#{url}"
+    "#{url}"
+  else
+    # "#{name} #{url}"
+    "[#{name}] #{url}"
+  end
 end
 
 def iso8601(dt)
@@ -321,6 +347,7 @@ def no_colors(str)
   str.to_s.gsub /\e\[\d+m/, ""
 end
 
+
 def format_number(n, opts={})
   delim = opts[:delimiter] || ','
   out = ""
@@ -335,6 +362,16 @@ def format_number(n, opts={})
   if decimal
     out << "." + decimal
   end
+  return out
+end
+
+def format_sig_dig(n, sig_dig=3)
+  out = ""
+  parts = n.to_f.round(sig_dig).to_s.split(".")
+  if parts.size > 1 && sig_dig
+    parts[1] = parts[1].ljust(sig_dig, "0")
+  end
+  out << parts.join(".")
   return out
 end
 

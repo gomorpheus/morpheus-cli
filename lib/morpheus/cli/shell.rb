@@ -96,7 +96,8 @@ class Morpheus::Cli::Shell
     @exploded_commands = []
     Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
       @exploded_commands << cmd.to_s
-      subcommands = klass.subcommands rescue []
+      #subcommands = klass.subcommands rescue []
+      subcommands = klass.visible_subcommands rescue []
       subcommands.keys.each do |sub_cmd|
         @exploded_commands << "#{cmd} #{sub_cmd}"
       end
@@ -118,7 +119,7 @@ class Morpheus::Cli::Shell
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       # change to a temporary home directory, delete it afterwards.
-      opts.on('-e','--exec EXPRESSION', "Execute the command(s) expression and exit.") do |val|
+      opts.on('-e','--exec EXPRESSION', "Execute the command expression and exit. Expression can be a single morpheus command or several by using parenthesis and operators (, ), &&, ||, and ;") do |val|
         @execute_mode = true
         @execute_mode_command = val
       end
@@ -129,43 +130,12 @@ class Morpheus::Cli::Shell
         @@insecure = true
         Morpheus::RestClient.enable_ssl_verification = false
       end
-       opts.on('-Z','--incognito', "Incognito mode. Use a temporary shell. Remotes are loaded without without saved credentials or history logging.") do
-        @incognito_mode = true
-        #@norc = true # perhaps?
-        tmpdir = ENV['MORPHEUS_CLI_TMPDIR'] || ENV['TMPDIR'] || ENV['TMP']
-        if !tmpdir
-          puts_error "Temporary directory not found. Use environment variable MORPHEUS_CLI_TMPDIR or TMPDIR or TMP"
-        end
-        @original_home_directory = my_terminal.home_directory
-        @temporary_home_directory = File.join(tmpdir, "morpheus-temp-shell-#{rand().to_s[2..7]}")
-        # change to a temporary home directory
-        Morpheus::Logging::DarkPrinter.puts "incognito mode" if Morpheus::Logging.debug?
-        Morpheus::Logging::DarkPrinter.puts "temporary home directory is #{@temporary_home_directory}" if Morpheus::Logging.debug?
-        my_terminal.set_home_directory(@temporary_home_directory)
-        # wow..this already has cached list of Remote.appliances
-        # this is kinda nice though..keep it for now, 
-        #Morpheus::Cli::Remote.load_appliance_file
-        
-        Morpheus::Cli::Remote.appliances.each do |app_name, app|
-          #app[:username] = "(anonymous)"
-          #app[:status] = "fresh"
-          app[:authenticated] = false
-          app.delete(:username)
-          app.delete(:last_login_at)
-          app.delete(:last_logout_at)
-          app.delete(:last_success_at)
-          app.delete(:last_check)
-          app.delete(:username)
-          app.delete(:error)
-          #app[:error] = "ho ho ho"
-        end
-        
-        # Morpheus::Cli::Remote.save_appliances(new_remote_config)
-
-        # Morpheus::Cli::Remote.clear_active_appliance
-        # Morpheus::Cli::Credentials.clear_saved_credentials(@appliance_name)
-        # Morpheus::Cli::Credentials.load_saved_credentials
-        # Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+      opts.on('-Z','--temporary', "Temporary shell. Use a temporary shell with the current remote configuration, credentials and history loaded. Temporary shells do not save changes to remote configuration changes and command history.") do
+        @temporary_shell_mode = true
+      end
+      opts.on('-z','--clean', "Clean shell. Use a temporary shell without any remote configuration, credentials or command history loaded.") do
+        @temporary_shell_mode = true
+        @clean_shell_mode = true
       end
       opts.on('-C','--nocolor', "Disable ANSI coloring") do
         Term::ANSIColor::coloring = false
@@ -174,7 +144,7 @@ class Morpheus::Cli::Shell
         Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
         ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
       end
-      opts.on('-B','--benchmark', "Print benchmark time after each command is finished, including shell itself." ) do
+      opts.on('-B','--benchmark', "Print benchmark time after each command is finished" ) do
         Morpheus::Benchmarking.enabled = true
         my_terminal.benchmarking = Morpheus::Benchmarking.enabled
       end
@@ -184,6 +154,107 @@ class Morpheus::Cli::Shell
       end
     end
     optparse.parse!(args)
+
+    # is this a temporary/temporary_shell shell?
+    # this works just by changing the cli home directory and updating appliances
+    if @temporary_shell_mode
+      #Morpheus::Logging::DarkPrinter.puts "temporary shell started" if Morpheus::Logging.debug?
+      # for now, always use the original home directory
+      # or else this will just keep growing deeper and deeper.
+      @parent_shell_directories ||= []
+      @parent_shell_directories << my_terminal.home_directory
+      @previous_home_directory = @parent_shell_directories.last
+      if @original_home_directory.nil?
+        @original_home_directory = @previous_home_directory
+      end
+      
+      #@norc = true # perhaps?
+      # instead of using TMPDIR, create tmp shell directory inside $MORPHEUS_CLI_HOME/tmp
+      # should chown these files too..
+      #tmpdir = ENV['MORPHEUS_CLI_TMPDIR'] || ENV['TMPDIR'] || ENV['TMP']
+      tmpdir = ENV['MORPHEUS_CLI_TMPDIR']
+      if !tmpdir
+        tmpdir = File.join(@original_home_directory, "tmp")
+      end
+      if !File.exists?(tmpdir)
+        # Morpheus::Logging::DarkPrinter.puts "creating tmpdir #{tmpdir}" if Morpheus::Logging.debug?
+        FileUtils.mkdir_p(tmpdir)
+      end
+      # this won't not happen since we mkdir above
+      if !File.exists?(tmpdir)
+        raise_command_error "Temporary directory not found. Use environment variable MORPHEUS_CLI_TMPDIR"
+      end
+      # change to a temporary home directory
+      @temporary_home_directory = File.join(tmpdir, "tmpshell-#{rand().to_s[2..7]}")
+      
+      #if !File.exists?(@temporary_home_directory)
+        Morpheus::Logging::DarkPrinter.puts "starting temporary shell at #{@temporary_home_directory}" if Morpheus::Logging.debug?
+        FileUtils.mkdir_p(@temporary_home_directory)
+      # end
+      
+
+      my_terminal.set_home_directory(@temporary_home_directory)
+
+
+      # wow..this already has cached list of Remote.appliances
+      # this is kinda nice though..keep it for now, 
+      #Morpheus::Cli::Remote.load_appliance_file
+      if @clean_shell_mode == true
+        # clean shell means no loading of remotes, aliases, history
+        # @norc = true
+        # todo: avoid writing files here and just work in memory for temporary shell
+        Morpheus::Cli::Remote.save_appliances({})
+      else
+        # keep remotes and credentials and activity or history
+        # this is done just by copying configuration files to the tmp home dir
+        # 
+        # should use Morpheus::Cli::DotFile.morpheus_profile_filename
+        # and # should use Morpheus::Cli::DotFile.morpheus_profile_filename
+        # this already got run though.. this temporary mode should work for any terminal command,
+        # not just in shell
+        # .morpheus_profile has aliases
+        # this has already been loaded, probably should reload it...
+        if File.exists?(File.join(@previous_home_directory, ".morpheus_profile"))
+          FileUtils.cp(File.join(@previous_home_directory, ".morpheus_profile"), File.join(@temporary_home_directory, ".morpheus_profile"))
+        end
+        if @norc != true
+          if File.exists?(File.join(@previous_home_directory, ".morpheusrc"))
+            FileUtils.cp(File.join(@previous_home_directory, ".morpheusrc"), File.join(@temporary_home_directory, ".morpheusrc"))
+          end
+        end
+        if File.exists?(File.join(@previous_home_directory, "appliances"))
+          FileUtils.cp(File.join(@previous_home_directory, "appliances"), File.join(@temporary_home_directory, "appliances"))
+        end
+        if File.exists?(File.join(@previous_home_directory, "credentials"))
+          FileUtils.cp(File.join(@previous_home_directory, "credentials"), File.join(@temporary_home_directory, "credentials"))
+        end
+        if File.exists?(File.join(@previous_home_directory, "groups"))
+          FileUtils.cp(File.join(@previous_home_directory, "groups"), File.join(@temporary_home_directory, "groups"))
+        end
+        # stay logged in
+        # maybe have a different option for removing just credentials, and command history..
+        Morpheus::Cli::Remote.appliances.each do |app_name, app|
+          #app[:username] = "(anonymous)"
+          #app[:status] = "fresh"
+          #app[:authenticated] = false
+          # app.delete(:active) # keep remote active..
+          #app.delete(:username)
+          #app.delete(:last_login_at)
+          #app.delete(:last_logout_at)
+          # app[:last_logout_at] = Time.now.to_i
+          # keep last_success and last check
+          #app.delete(:last_success_at)
+          #app.delete(:last_check)
+          #app.delete(:username)
+        end
+
+        # Morpheus::Cli::Remote.save_appliances(new_remote_config)
+        # Morpheus::Cli::Remote.clear_active_appliance
+        # Morpheus::Cli::Credentials.clear_saved_credentials(@appliance_name)
+        # Morpheus::Cli::Credentials.load_saved_credentials
+        # Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
+      end
+    end
 
     @history_logger ||= load_history_logger rescue nil
     @history_logger.info "shell started" if @history_logger
@@ -223,22 +294,33 @@ class Morpheus::Cli::Shell
       end
     end
     
-    # incognito mode, cover our tracks
+    # temporary_shell_mode, cover our tracks
     if @temporary_home_directory
-      if @temporary_home_directory.include?("morpheus-temp-shell")
+      if @temporary_home_directory.include?("tmpshell")
         begin
           FileUtils.remove_dir(@temporary_home_directory, true)
-          Morpheus::Logging::DarkPrinter.puts "cleaning up temporary home directory #{@temporary_home_directory}" if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "cleaning up temporary shell at #{@temporary_home_directory}" if Morpheus::Logging.debug?
         rescue
         end
       end
-      @temporary_home_directory = nil
-      if @original_home_directory
-        my_terminal.set_home_directory(@original_home_directory)
+      parent_shell_directory = @parent_shell_directories ? @parent_shell_directories.pop : nil
+      if parent_shell_directory
+        # switch terminal shell back to parent shell.  
+        # should just be forking instead of all this...
+        my_terminal.set_home_directory(parent_shell_directory)
+        if @original_home_directory && @original_home_directory == parent_shell_directory
+          # back to original shell, not temporary, right? 
+          # todo: probably need to reload shell here?
+          @temporary_home_directory = nil
+        else
+          # back to another temporary shell
+          # todo: probably need to reload shell here?
+          @temporary_home_directory = parent_shell_directory
+        end
+      else
+        # there was no parent, this would be weird since temporary_home_directory was true..
       end
-      @original_home_directory = nil
     end
-
     return result
   end
 
@@ -263,10 +345,12 @@ class Morpheus::Cli::Shell
         return 0
         #exit 0
       elsif input == 'help'
-
-        puts "You are in a morpheus client shell."
+        if @temporary_shell_mode
+          puts "You are in a (temporary) morpheus shell"
+        else
+          puts "You are in a morpheus shell."
+        end
         puts "See the available commands below."
-
 
         puts "\nCommands:"
         # commands = @morpheus_commands + @shell_commands
@@ -434,9 +518,11 @@ class Morpheus::Cli::Shell
           print "#{input}, how may I #{cyan}help#{reset} you?\n"
         end
         return 0
-      elsif input == "shell"
-        print "#{cyan}You are already in a shell.#{reset}\n"
-        return false
+      elsif input.strip =~ /^shell\s*/
+        # just allow shell to fall through
+        # we should reload the configs and history file after the sub shell process terminates though.
+        # actually, that looks like it is working just fine already...?
+        print cyan,"starting a subshell",reset,"\n"
       elsif input =~ /^\.\s/
         # dot alias for source <file>
         log_history_command(input)

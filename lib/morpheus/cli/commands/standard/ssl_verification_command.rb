@@ -8,12 +8,14 @@ class Morpheus::Cli::SslVerificationCommand
   include Morpheus::Cli::CliCommand
   set_command_name :'ssl-verification'
   set_command_hidden
-def usage
+
+  def usage
     <<-EOT
 Usage: morpheus #{command_name} [on|off]
-\tThis is intended for use in your morpheus scripts.
-\t"Enable [on] or Disable [off] SSL Verification for all your api requests."
-\tThe default is on.
+
+Set SSL Verification on or off.
+Enable [on] or disable [off] SSL Verification.
+If no arguments are passed, the current value is printed.
 EOT
   end
 
@@ -28,14 +30,13 @@ EOT
       end
     end
     optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, max:1)
     if args.count == 0
       puts Morpheus::RestClient.ssl_verification_enabled? ? "on" : "off"
-      return true
+      return Morpheus::RestClient.ssl_verification_enabled? ? 0 : 1
     end
-    if args.count > 1
-      puts optparse
-      return false
-    end
+
+
     if ["on", "enabled", "true", "1"].include?(args[0].to_s.strip.downcase)
       Morpheus::RestClient.enable_ssl_verification = true
     elsif ["off", "disabled", "false", "0"].include?(args[0].to_s.strip.downcase)

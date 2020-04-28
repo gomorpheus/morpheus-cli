@@ -38,13 +38,16 @@ module Morpheus::Cli::PrintHelper
   # puts red message to stderr
   # why this not stderr yet?  use print_error or if respond_to?(:my_terminal)
   def print_red_alert(msg)
-    #$stderr.print "#{red}#{msg}#{reset}\n"
-    print_error "#{red}#{msg}#{reset}\n"
+    $stderr.print "#{red}#{msg}#{reset}\n"
+    #print_error "#{red}#{msg}#{reset}\n"
     #puts_error "#{red}#{msg}#{reset}"
   end
 
   # puts green message to stdout
-  def print_green_success(msg)
+  def print_green_success(msg=nil)
+    if msg.nil?
+      msg = "success"
+    end
     print "#{green}#{msg}#{reset}\n"
   end
 
@@ -59,9 +62,20 @@ module Morpheus::Cli::PrintHelper
     # print_h1(title, options={})
     # print_h1(title, subtitles, options={})
     # this can go away when we have a dirty @current_options
+    
+    
+    # auto include remote name in h1 titles
+    # eg. Morpheus Instances [dev]
+    # if title && @appliance_name
+    #   title = "#{title} [#{@appliance_name}]"
+    # end
+    
     if subtitles.is_a?(Hash)
       options = subtitles
       subtitles = (options[:subtitles] || []).flatten
+    end
+    if subtitles.is_a?(String)
+      subtitles = [subtitles]
     end
     subtitles = (subtitles || []).flatten
     options ||= {}
@@ -728,7 +742,7 @@ module Morpheus::Cli::PrintHelper
     # could use some options[:preferred_columns] logic here to throw away in some specified order
     # --all fields disables this
     trimmed_columns = []
-    if options[:responsive_table] != false # && options[:include_fields].nil? && options[:all_fields] != true
+    if options[:wrap] != true # && options[:include_fields].nil? && options[:all_fields] != true
 
       begin
         term_width = current_terminal_width()

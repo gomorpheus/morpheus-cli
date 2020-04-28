@@ -51,7 +51,7 @@ The -g switch be used to regenerate the file.
 EOT
     end
     optparse.parse!(args)
-
+    verify_args!(args:args, optparse:optparse, count:0)
     if goto_wiki
       link = "https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual"
       if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
@@ -153,13 +153,15 @@ EOT
     begin
 
       manpage.print <<-ENDTEXT
+morpheus v#{Morpheus::Cli::VERSION}
+
 ## NAME
 
-    morpheus - the command line interface for interacting with the Morpheus Data appliance
+    morpheus - the command line interface for interacting with the Morpheus appliance
 
 ## SYNOPSIS
 
-    morpheus [command] [<args>]
+    morpheus [command] [<args>] [options]
 
 ## DESCRIPTION
 
@@ -168,9 +170,9 @@ EOT
     This is a command line interface for managing a Morpheus Appliance.
     All communication with the remote appliance is done via the Morpheus API.
 
-    To setup a new appliance, see the `remote add` and `remote setup` commands.
+    To get started, see the command `remote add` command.
 
-    To get started, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
+    To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
 
     To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com/features
 
@@ -220,7 +222,7 @@ ENDTEXT
       exit_code, err = terminal.execute("--help")
       manpage.print "```\n"
       manpage.print "\n"
-      # output help for every unhidden command
+      # output help for every command (that is not hidden)
       Morpheus::Cli::CliRegistry.all.keys.sort.each do |cmd|
         cmd_klass = Morpheus::Cli::CliRegistry.instance.get(cmd)
         cmd_instance = cmd_klass.new
@@ -237,7 +239,8 @@ ENDTEXT
           raise err unless err.success?
         end
         manpage.print "```\n"
-        subcommands = cmd_klass.subcommands
+        # subcommands = cmd_klass.subcommands
+        subcommands = cmd_klass.visible_subcommands
         if subcommands && subcommands.size > 0
           subcommands.sort.each do |subcommand, subcommand_method|
             Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug? && !options[:quiet]

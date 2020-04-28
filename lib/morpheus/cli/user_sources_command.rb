@@ -84,7 +84,7 @@ class Morpheus::Cli::UserSourcesCommand
       title = "Morpheus User Sources"
       subtitles = []
       if account
-        subtitles << "Account: #{account['name']}".strip
+        subtitles << "Tenant: #{account['name']}".strip
       end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
@@ -171,7 +171,7 @@ class Morpheus::Cli::UserSourcesCommand
         "Name" => lambda {|it| it['name'] },
         "Description" => lambda {|it| it['description'] },
         "Type" => lambda {|it| it['type'] },
-        "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         #"Subdomain" => lambda {|it| it['subdomain'] },
         "Login URL" => lambda {|it| it['loginURL'] },
         "Default Role" => lambda {|it| it['defaultAccountRole'] ? it['defaultAccountRole']['authority'] : '' },
@@ -223,7 +223,7 @@ class Morpheus::Cli::UserSourcesCommand
     default_role_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[account] [name]")
-      opts.on('--account ID', String, "Account this user source belongs to") do |val|
+      opts.on('--account ID', String, "Tenant this user source belongs to") do |val|
         account_id = val
       end
       opts.on('--type CODE', String, "User Source Type") do |val|
@@ -855,7 +855,7 @@ class Morpheus::Cli::UserSourcesCommand
       {"ID" => lambda {|user_source| user_source['id'] } },
       {"NAME" => lambda {|user_source| user_source['name'] } },
       {"TYPE" => lambda {|user_source| user_source['type'] } },
-      {"ACCOUNT" => lambda {|user_source| user_source['account'] ? user_source['account']['name'] : '' } },
+      {"TENANT" => lambda {|user_source| user_source['account'] ? user_source['account']['name'] : '' } },
       {"ACTIVE" => lambda {|user_source| format_boolean user_source['active'] } },
     ]
     if opts[:include_fields]

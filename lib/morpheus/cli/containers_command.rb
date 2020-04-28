@@ -362,7 +362,7 @@ class Morpheus::Cli::ContainersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[id list]")
-      opts.footer = "This outputs the list of the actions available to specified container(s)."
+      opts.footer = "List the actions available to specified container(s)."
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)

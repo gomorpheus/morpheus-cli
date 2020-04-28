@@ -17,26 +17,17 @@ class Morpheus::Cli::Whoami
 
   # no subcommands, just show()
 
-  def initialize()
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
-
-  def connect(opts)
-    #@api_client = establish_remote_appliance_connection(opts)
-    # begin
-      @api_client = establish_remote_appliance_connection(opts.merge({:no_prompt => true, :skip_verify_access_token => true}))
-      @groups_interface = @api_client.groups
-      @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
-    # rescue Morpheus::Cli::CommandError => err
-    #   puts_error err
-    # end
+  def connect(options)
+    # @api_client = establish_remote_appliance_connection(options)
+    @api_client = establish_remote_appliance_connection(options.merge({:skip_verify_access_token => true, :skip_login => true}))
+    @whoami_interface = @api_client.whoami
   end
 
   def handle(args)
-    show(args)
+    get(args)
   end
 
-  def show(args)
+  def get(args)
     options = {}
     params = {}
     username_only = false
@@ -46,12 +37,22 @@ class Morpheus::Cli::Whoami
       opts.on( '-n', '--name', "Print only your username." ) do
         username_only = true
       end
-      opts.on('-a','--all', "Display All Details (Feature Access)") do
+      opts.on('-a','--all', "Display All Details") do
         options[:include_feature_access] = true
+        options[:include_group_access] = true
+        options[:include_cloud_access] = true
+        options[:include_instance_type_access] = true
       end
-      opts.on('-f','--feature-access', "Display Feature Access") do
+      opts.on('-p','--permissions', "Display Permissions") do
         options[:include_feature_access] = true
+        # options[:include_group_access] = true
+        # options[:include_cloud_access] = true
+        # options[:include_instance_type_access] = true
       end
+      # opts.on('-f','--feature-access', "Display Feature Access") do
+      #   options[:include_feature_access] = true
+      # end
+      # opts.add_hidden_option('--feature-access')
       # these are things that morpheus users get has to display...
       # opts.on(nil,'--group-access', "Display Group Access") do
       #   options[:include_group_access] = true
@@ -62,63 +63,60 @@ class Morpheus::Cli::Whoami
       # opts.on(nil,'--instance-type-access', "Display Instance Type Access") do
       #   options[:include_instance_type_access] = true
       # end
-      opts.on('-a','--all-access', "Display All Access Lists") do
-        options[:include_feature_access] = true
-        options[:include_group_access] = true
-        options[:include_cloud_access] = true
-        options[:include_instance_type_access] = true
-      end
       opts.on('-t','--token-only', "Print your access token only") do
         access_token_only = true
       end
-      build_common_options(opts, options, [:json, :remote, :dry_run, :quiet])
+      opts.on('--offline', '--offline', "Do this offline without an api request to refresh the remote appliance status.") do
+        options[:do_offline] = true
+      end
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+View information about the current user.
+EOT
     end
     optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
     begin
-      # check to see if they have credentials instead of just trying to connect (and prompting)
-
-      if !@appliance_name
-        # never gets here..
-        #raise_command_error "Please specify a Morpheus Appliance with -r or see the command `remote use`"
-        print yellow,"Please specify a Morpheus Appliance with -r or see `remote use`.#{reset}\n"
-        return 1
+      if @access_token.nil?
+        print_error yellow,"You are not currently logged in",reset,"\n"
+        return 1, "no current user"
       end
-      
+      @whoami_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @api_client.whoami.setopts(options).dry.get(params)
+        print_dry_run @whoami_interface.dry.get(params)
         return 0
       end
 
-      # todo: fix potential issue here, should be able to use --remote-url or --username
-      # in which case you do not have to be logged in (saved credentials)...
-      # maybe just update connect() to do @api_client = establish_remote_appliance_connection(opts)
-      # wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).request_credentials(options)
-      wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials()
-      token = wallet ? wallet['access_token'] : nil
-      if !token
-        if options[:quiet]
-          return 1
-        elsif access_token_only
-          puts_error "(logged out)" # stderr probably
-          return 1
-        else
-          print yellow,"You are not currently logged in to #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-          print yellow,"Use the 'login' command.",reset,"\n"
-          return 1
-        end
-      end
-
       #json_response = load_whoami()
-
-      whoami_interface = @api_client.whoami.setopts(options)
-      whoami_response = whoami_interface.get()
+      whoami_response = nil
+      if options[:do_offline]
+        # if @remote_appliance && @remote_appliance[:username]
+        #   exit_code = 0
+        # else
+        #   exit_code = 1
+        # end
+        # no permissions, or even name stored atm, we should start storing that.
+        # then we can start checking permissions nd restricting command visibility.
+        whoami_response = {
+          "user": {
+            "username" => @remote_appliance ? @remote_appliance[:username] : nil
+          },
+          # "isMasterAccount" => true,
+          "permissions" => [],
+          "appliance" => {
+           "buildVersion" => @remote_appliance ? @remote_appliance[:build_version] : nil
+          }
+        }
+      else
+        whoami_response = @whoami_interface.get(params)
+      end
       json_response = whoami_response
       @current_user = whoami_response["user"]
-      if @current_user.empty?
-        print_red_alert "Unauthenticated. Please login."
-        exit 1
-      end
+      # if @current_user.nil?
+      #   print_red_alert "Unauthenticated. Please login."
+      #   exit 1
+      # end
       @is_master_account = whoami_response["isMasterAccount"]
       @user_permissions = whoami_response["permissions"]
 
@@ -128,62 +126,52 @@ class Morpheus::Cli::Whoami
         @appliance_build_verison = nil
       end
 
-      if access_token_only
-        if options[:quiet]
-          return @current_user ? 0 : 1
-        end
-        if @access_token.nil?
-          print yellow,"\n","No access token. Please login",reset,"\n"
-          return false
-        end
-        print cyan,@access_token.to_s,reset,"\n"
-        return 0
-      end
+      render_response(json_response, options) do
 
-      if username_only
-        if options[:quiet]
-          return @current_user ? 0 : 1
-        end
-        if @current_user.nil?
-          puts_error "(logged out)" # "(anonymous)" || ""
-          return 1
-        else
-          print cyan,@current_user['username'].to_s,reset,"\n"
+        if access_token_only
+          if options[:quiet]
+            return @current_user ? 0 : 1
+          end
+          if @access_token.nil?
+            print yellow,"\n","No access token. Please login",reset,"\n"
+            return false
+          end
+          print cyan,@access_token.to_s,reset,"\n"
           return 0
         end
-      end
 
-      
-      active_group = nil
-      begin
-        active_group = @active_group_id ? find_group_by_name_or_id(@active_group_id) : nil # via InfrastructureHelper mixin
-      rescue => err
-        if options[:debug]
-          print red,"Unable to determine active group: #{err}\n",reset
+        if username_only
+          if options[:quiet]
+            return @current_user ? 0 : 1
+          end
+          if @current_user.nil?
+            puts_error "(logged out)" # "(anonymous)" || ""
+            return 1
+          else
+            print cyan,@current_user['username'].to_s,reset,"\n"
+            return 0
+          end
         end
-      end
 
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
         if @current_user.nil?
           print yellow,"\n","No active session. Please login",reset,"\n"
           exit 1
         end
-
-        print_h1 "Current User", options
+        subtitles = []
+        #subtitles << "#{display_appliance(@appliance_name, @appliance_url)}"
+        print_h1 "Current User", subtitles, options
         print cyan
         print_description_list({
           "ID" => 'id',
-          "Account" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Account)" : '') },
-          # "First Name" => 'firstName',
-          # "Last Name" => 'lastName',
+          "Tenant" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Account)" : '') },
+          "First Name" => 'firstName',
+          "Last Name" => 'lastName',
           # "Name" => 'displayName',
-          "Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
+          #"Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
           "Username" => 'username',
           "Email" => 'email',
-          "Role" => lambda {|it| format_user_role_names(it) }
+          "Role" => lambda {|it| format_user_role_names(it) },
+          #"Remote" => lambda {|it| display_appliance(@appliance_name, @appliance_url) },
         }, @current_user)
         print cyan
 
@@ -196,12 +184,12 @@ class Morpheus::Cli::Whoami
               if @user_permissions.is_a?(Hash)
                 # api used to return map like [code:access]
                 rows = @user_permissions.collect do |code, access|
-                  {permission: code, access: get_access_string(access) }
+                  {permission: code, access: format_access_string(access) }
                 end
               else
                 # api now returns an array of objects like [[name:"Foo",code:"foo",access:"full"], ...]
                 rows = @user_permissions.collect do |it|
-                  {permission: (it['name'] || it['code']), access: get_access_string(it['access']) }
+                  {permission: (it['name'] || it['code']), access: format_access_string(it['access']) }
                 end
               end
               # api sort sux right now
@@ -215,34 +203,7 @@ class Morpheus::Cli::Whoami
           end
         end
 
-        print_h1 "Remote Appliance", options
-        print cyan
-        appliance_data = {
-          'name' => @appliance_name,
-          'url' => @appliance_url,
-          'buildVersion' => @appliance_build_verison
-        }
-        print_description_list({
-          "Name" => 'name',
-          "URL" => 'url',
-          "Version" => 'buildVersion'
-        }, appliance_data)
-
-        if active_group
-          print cyan
-          # print_h1 "Active Group", options
-          # print cyan
-          # print_description_list({
-          #   "ID" => 'id',
-          #   "Name" => 'name'
-          # }, active_group)
-          print cyan, "\n# => Currently using group #{active_group['name']}\n", reset
-          print reset,"\n"
-        else
-          # print "\n", reset
-          # print cyan, "No active group. See `groups use`\n",reset
-          print reset,"\n"
-        end
+        print reset, "\n"
 
         # save pertinent session info to the appliance
         begin
