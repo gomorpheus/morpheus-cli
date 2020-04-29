@@ -241,7 +241,7 @@ module Morpheus::Cli::OptionSourceHelper
   end
 
   def parse_tenant_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('tenants', id_list)
+    parse_option_source_id_list('allTenants', id_list)
   end
 
   # def parse_blueprints_id_list(id_list)
