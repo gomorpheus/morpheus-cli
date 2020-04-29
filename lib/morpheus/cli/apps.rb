@@ -2107,32 +2107,6 @@ EOT
   #   list
   # end
 
-  def find_app_by_id(id)
-    app_results = @apps_interface.get(id.to_i)
-    if app_results['app'].empty?
-      print_red_alert "App not found by id #{id}"
-      exit 1
-    end
-    return app_results['app']
-  end
-
-  def find_app_by_name(name)
-    app_results = @apps_interface.list({name: name})
-    if app_results['apps'].empty?
-      print_red_alert "App not found by name #{name}"
-      exit 1
-    end
-    return app_results['apps'][0]
-  end
-
-  def find_app_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_app_by_id(val)
-    else
-      return find_app_by_name(val)
-    end
-  end
-
   def print_apps_table(apps, options={})
     
     table_color = options[:color] || cyan

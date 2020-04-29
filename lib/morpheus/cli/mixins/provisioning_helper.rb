@@ -17,6 +17,14 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client.instances
   end
 
+  def apps_interface
+    @api_client.apps
+  end
+
+  def servers_interface
+    @api_client.servers
+  end
+
   def options_interface
     @api_client.options
   end
@@ -240,6 +248,111 @@ module Morpheus::Cli::ProvisioningHelper
     end
     instance = json_results['instances'][0]
     return instance
+  end
+
+  ## apps
+
+  def find_app_by_id(id)
+    app_results = apps_interface.get(id.to_i)
+    if app_results['app'].empty?
+      print_red_alert "App not found by id #{id}"
+      exit 1
+    end
+    return app_results['app']
+  end
+
+  def find_app_by_name(name)
+    app_results = apps_interface.list({name: name})
+    apps = app_results['apps']
+    if apps.empty?
+      print_red_alert "App not found by name #{name}"
+      exit 1
+    elsif apps.size > 1
+      print_red_alert "#{apps.size} apps exist with the name #{name}. Try using id instead"
+      exit 1
+    end
+
+    return app_results['apps'][0]
+  end
+
+  def find_app_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_app_by_id(val)
+    else
+      return find_app_by_name(val)
+    end
+  end
+
+  ## servers
+
+  def find_server_by_id(id)
+    begin
+      json_response = servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Server not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_server_by_name(name)
+    results = servers_interface.list({name: name})
+    if results['servers'].empty?
+      print_red_alert "Server not found by name #{name}"
+      exit 1
+    elsif results['servers'].size > 1
+      print_red_alert "Multiple servers exist with the name #{name}. Try using id instead"
+      exit 1
+    end
+    return results['servers'][0]
+  end
+
+  def find_server_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_server_by_id(val)
+    else
+      return find_server_by_name(val)
+    end
+  end
+
+  ## hosts is the same as servers, just says 'Host' instead of 'Server'
+
+  def find_host_by_id(id)
+    begin
+      json_response = servers_interface.get(id.to_i)
+      return json_response['server']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Host not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_host_by_name(name)
+    results = servers_interface.list({name: name})
+    if results['servers'].empty?
+      print_red_alert "Host not found by name #{name}"
+      exit 1
+    elsif results['servers'].size > 1
+      print_red_alert "#{results['servers'].size} hosts exist with the name #{name}. Try using id instead"
+      exit 1
+    end
+    return results['servers'][0]
+  end
+
+  def find_host_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_host_by_id(val)
+    else
+      return find_host_by_name(val)
+    end
   end
 
   def find_instance_type_layout_by_id(layout_id, id)

@@ -4,6 +4,8 @@ require 'morpheus/cli/mixins/processes_helper'
 class Morpheus::Cli::Processes
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProcessesHelper
+  include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::InfrastructureHelper
 
   set_command_name :'process'
 
@@ -16,9 +18,11 @@ class Morpheus::Cli::Processes
     #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
 
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
+  def connect(options)
+    @api_client = establish_remote_appliance_connection(options)
     @processes_interface = @api_client.processes
+    #@instances_interface = @api_client.instances
+    @clouds_interface = @api_client.clouds
   end
 
   def handle(args)
@@ -42,19 +46,23 @@ class Morpheus::Cli::Processes
         options[:show_output] = true
         options[:details] = true
       end
-      opts.on('--app ID', String, "Limit results to specific app(s).") do |val|
+      opts.on('--app APP', String, "Limit results to specific app(s).") do |val|
         params['appIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
-      opts.on('--instance ID', String, "Limit results to specific instance(s).") do |val|
+      opts.on('--instance INSTANCE', String, "Limit results to specific instance(s).") do |val|
         params['instanceIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
-      opts.on('--container ID', String, "Limit results to specific container(s).") do |val|
+      opts.on('--container CONTAINER', String, "Limit results to specific container(s).") do |val|
         params['containerIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
-      opts.on('--host ID', String, "Limit results to specific host(s).") do |val|
+      opts.on('--host HOST', String, "Limit results to specific host(s).") do |val|
         params['serverIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
-      opts.on('--cloud ID', String, "Limit results to specific cloud(s).") do |val|
+      opts.on('--server HOST', String, "Limit results to specific servers(s).") do |val|
+        params['serverIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
+      end
+      opts.add_hidden_option('--server')
+      opts.on('--cloud CLOUD', String, "Limit results to specific cloud(s).") do |val|
         params['zoneIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -69,6 +77,62 @@ class Morpheus::Cli::Processes
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      if params['instanceIds']
+        params['instanceIds'] = params['instanceIds'].collect do |instance_id|
+          if instance_id.to_s =~ /\A\d{1,}\Z/
+            # just allow instance IDs
+            instance_id.to_i
+          else
+            instance = find_instance_by_name_or_id(instance_id)
+            if instance.nil?
+              return 1, "instance not found for '#{instance_id}'" # never happens because find exits
+            end
+            instance['id']
+          end
+        end
+      end
+      if params['serverIds']
+        params['serverIds'] = params['serverIds'].collect do |server_id|
+          if server_id.to_s =~ /\A\d{1,}\Z/
+            # just allow server IDs
+            server_id.to_i
+          else
+            server = find_server_by_name_or_id(server_id)
+            if server.nil?
+              return 1, "server not found for '#{server_id}'" # never happens because find exits
+            end
+            server['id']
+          end
+        end
+      end
+      if params['appIds']
+        params['appIds'] = params['appIds'].collect do |app_id|
+          if app_id.to_s =~ /\A\d{1,}\Z/
+            # just allow app IDs
+            app_id.to_i
+          else
+            app = find_app_by_name_or_id(app_id)
+            if app.nil?
+              return 1, "app not found for '#{app_id}'" # never happens because find exits
+            end
+            app['id']
+          end
+        end
+      end
+      if params['zoneIds']
+        params['zoneIds'] = params['zoneIds'].collect do |zone_id|
+          if zone_id.to_s =~ /\A\d{1,}\Z/
+            # just allow zone IDs
+            zone_id.to_i
+          else
+            zone = find_cloud_by_name_or_id(zone_id)
+            if zone.nil?
+              return 1, "cloud not found for '#{zone_id}'" # never happens because find exits
+            end
+            zone['id']
+          end
+        end
+      end
       @processes_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @processes_interface.dry.list(params)
