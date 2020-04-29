@@ -83,7 +83,7 @@ EOT
     if options[:tenant]
       tenant_ids = parse_tenant_id_list(options[:tenant])
       return 1 if tenant_ids.nil?
-      params['tenantId'] = tenant_ids
+      params['tenantId'] = tenant_ids[0]
     end
     
     # execute the api request
