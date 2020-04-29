@@ -6,6 +6,7 @@ class Morpheus::Cli::Processes
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::OptionSourceHelper
 
   set_command_name :'process'
 
@@ -64,6 +65,10 @@ class Morpheus::Cli::Processes
       opts.add_hidden_option('--server')
       opts.on('--cloud CLOUD', String, "Limit results to specific cloud(s).") do |val|
         params['zoneIds'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
+      end
+      opts.on('--user USER', String, "Limit results to user(s).") do |val|
+        #params['userId'] = val.split(',').collect {|it| it.to_s.strip }.reject { |it| it.empty? }
+        options[:user] = val
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List historical processes."
@@ -132,6 +137,11 @@ class Morpheus::Cli::Processes
             zone['id']
           end
         end
+      end
+      if options[:user]
+        user = find_available_user_option(options[:user])
+        return 1, "user not found by '#{options[:user]}'" if user.nil?
+        params['userId'] = user['id']
       end
       @processes_interface.setopts(options)
       if options[:dry_run]

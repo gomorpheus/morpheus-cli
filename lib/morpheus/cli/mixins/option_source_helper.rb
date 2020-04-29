@@ -33,7 +33,7 @@ module Morpheus::Cli::OptionSourceHelper
 
   def find_available_user_option(name)
     users = get_available_user_options().select {|it| 
-      name && (it['name'].to_s == name.to_s || it['value'].to_s == name.to_s) }
+      name && (it['name'].to_s.downcase == name.to_s.downcase || it['value'].to_s == name.to_s) }
     if users.empty?
       print_red_alert "User not found by username or id '#{name}'"
       return nil
