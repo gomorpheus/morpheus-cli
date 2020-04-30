@@ -46,6 +46,14 @@ class Morpheus::LibraryLayoutsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def update_permissions(id, options)
+    url = build_url(nil, id) + "/permissions"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   private
 
   def build_url(instance_type_id=nil, id=nil)

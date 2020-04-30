@@ -1328,14 +1328,6 @@ class Morpheus::Cli::Roles
     end
   end
 
-  def find_instance_type_by_name(name)
-    results = @instance_types_interface.list({name: name})
-    if results['instanceTypes'].empty?
-      print_red_alert "Instance Type not found by name #{name}"
-      return nil
-    end
-    return results['instanceTypes'][0]
-  end
 
   def load_whoami
     whoami_response = @whoami_interface.get()

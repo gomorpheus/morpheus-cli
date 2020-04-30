@@ -6,11 +6,14 @@ require 'morpheus/cli/mixins/library_helper'
 
 class Morpheus::Cli::LibraryLayoutsCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
+  # make sure LibraryHelper is loaded after ProvisioningHelper because it overwrites some methods like find_instance_type_by_name
+  # ProvisioningHelper is needed just for permissions (resourcePermissions)
   include Morpheus::Cli::LibraryHelper
 
   set_command_name :'library-layouts'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove, :update_permissions
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -109,6 +112,9 @@ class Morpheus::Cli::LibraryLayoutsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      # opts.on( nil, '--permissions', "Display permissions" ) do
+      #   options[:show_perms] = true
+      # end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -124,6 +130,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
   end
 
   def _get(id, options)
+    exit_code, err = 0, nil
     instance_type_id = nil
     begin
       @library_layouts_interface.setopts(options)
@@ -261,8 +268,12 @@ class Morpheus::Cli::LibraryLayoutsCommand
         # print yellow,"No spec templates for this layout.","\n",reset
       end
 
-      print reset,"\n"
 
+      if options[:show_perms] || layout['permissions']
+        print_permissions(layout['permissions'], layout_permission_excludes)
+        print reset
+      end
+      return exit_code, err
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
@@ -327,9 +338,12 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Create a new layout." + "\n" +
-                    "[instance-type] is required and can be passed as --instance-type instead."
+      add_perms_options(opts, options, layout_permission_excludes)
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Create a new layout.
+[instance-type] is required and can be passed as --instance-type instead.
+EOT
     end
     optparse.parse!(args)
     if args.count > 1
@@ -442,6 +456,15 @@ class Morpheus::Cli::LibraryLayoutsCommand
 
         payload = {'instanceTypeLayout' => params}
         
+        # Resource Permissions (Groups only for layouts)
+        perms = prompt_permissions(options.merge({}), layout_permission_excludes)
+        perms_payload = {}
+        perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+        #perms_payload['tenantPermissions'] = perms['tenantPermissions'] if !perms['tenantPermissions'].nil?
+
+        payload['instanceTypeLayout']['permissions'] = perms_payload
+        payload['instanceTypeLayout']['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil? && !perms['resourcePool']['visibility'].nil?
+
       end
       @library_layouts_interface.setopts(options)
       if options[:dry_run]
@@ -456,7 +479,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
         return
       end
 
-      print_green_success "Added Layout #{params['name']}"
+      print_green_success "Added layout #{params['name']}"
 
       #get([json_response['instanceTypeLayout']['id']])
 
@@ -472,7 +495,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
     instance_type_id = nil
     evars = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[layout] [options]")
       opts.on('--name VALUE', String, "Name for this layout") do |val|
         params['name'] = val
       end
@@ -521,16 +544,18 @@ class Morpheus::Cli::LibraryLayoutsCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update a layout."
+      add_perms_options(opts, options, layout_permission_excludes)
+      build_standard_update_options(opts, options)
+            opts.footer = <<-EOT
+Update a layout.
+[layout] is required. This is the name or id of a layout.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
+    exit_code, err = 0, nil
+    
       layout = find_layout_by_name_or_id(nil, args[0])
       exit 1 if layout.nil?
       payload = nil
@@ -576,6 +601,16 @@ class Morpheus::Cli::LibraryLayoutsCommand
           end
         end
 
+        # perms
+        if options[:groupAccessAll] != nil || options[:groupAccessList]
+          perms = prompt_permissions(options.merge({no_prompt:true}), layout_permission_excludes)
+          perms_payload = {}
+          perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+          params.deep_merge!({'permissions' => perms_payload}) if !perms_payload.empty?
+        end
+        
+        params['visibility'] = options[:visibility] if !options[:visibility].nil?
+
         if params.empty?
           raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
@@ -596,12 +631,73 @@ class Morpheus::Cli::LibraryLayoutsCommand
         return
       end
 
-      print_green_success "Updated Layout #{params['name'] || layout['name']}"
+      print_green_success "Updated layout #{params['name'] || layout['name']}"
       #list([])
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    return exit_code, err
+  end
+
+  def update_permissions(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[layout]")
+      add_perms_options(opts, options, layout_permission_excludes)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update layout permissions.
+[layout] is required. This is the name or id of a layout.
+EOT
     end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    exit_code, err = 0, nil
+    # if !is_master_account
+    #   print_red_alert "Permissions only available for master account"
+    #   return 1
+    # end
+    layout = find_layout_by_name_or_id(nil, args[0])
+    return 1, "layout not found for #{args[0]}" if layout.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+      
+      perms = prompt_permissions(options.merge({}), layout_permission_excludes)
+      perms_payload = {}
+      perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+      payload.deep_merge!({'permissions' => perms_payload}) if !perms_payload.empty?
+      # resource_perms = {}
+      # resource_perms['all'] = true if options[:groupAccessAll]
+      # resource_perms['sites'] = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_i}} if !options[:groupAccessList].nil?
+      # if !resource_perms.empty? || !options[:tenants].nil?
+      #   payload['permissions'] = {}
+      #   payload['permissions']['resourcePermissions'] = resource_perms if !resource_perms.empty?
+      #   payload['permissions']['tenantPermissions'] = {'accounts' => options[:tenants]} if !options[:tenants].nil?
+      # end
+      # if !options[:visibility].nil?
+      #   payload['permissions'] = {}
+      #   payload['permissions']['visibility'] = options[:visibility]
+      # end
+    end
+
+    @library_layouts_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @library_layouts_interface.dry.update_permissions(layout['id'], payload)
+      return
+    end
+    json_response = @library_layouts_interface.update_permissions(layout['id'], payload)
+    render_response(json_response, options, 'instanceTypeLayout') do
+      # note: this api does not return 400 when it fails?
+      if json_response['success']
+        print_green_success "Updated layout permissions"
+      else
+        print_rest_errors(json_response, options)
+        exit_code, err = 3, (json_response['msg'] || "api did not return success:true")
+      end
+    end
+    return exit_code, err
   end
 
   def remove(args)
@@ -637,7 +733,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
         return
       end
 
-      print_green_success "Removed Layout #{layout['name']}"
+      print_green_success "Removed layout #{layout['name']}"
       #list([])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -712,4 +808,7 @@ class Morpheus::Cli::LibraryLayoutsCommand
     val.to_s # .capitalize
   end
 
+  def layout_permission_excludes
+    ['plans', 'groupDefaults', 'visibility', 'tenants']
+  end
 end

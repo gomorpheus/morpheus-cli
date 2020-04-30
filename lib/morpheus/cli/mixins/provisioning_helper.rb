@@ -1826,7 +1826,11 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       if !options[:groupAccessList].empty?
-        group_access = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_i}} || []
+        group_access = options[:groupAccessList].collect {|site_id| 
+          found_group = find_group_by_name_or_id_for_provisioning(site_id)
+          return 1, "group not found by #{site_id}" if found_group.nil?
+          {'id' => found_group['id']}
+        } || []
       elsif !options[:no_prompt]
         available_groups = options[:available_groups] || get_available_groups
 
@@ -1926,12 +1930,13 @@ module Morpheus::Cli::ProvisioningHelper
     # Prompts for multi tenant
     if available_accounts.count > 1
       visibility = options[:visibility]
+      if !excludes.include?('visibility')
+        if !visibility && !options[:no_prompt]
+          visibility = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
+        end
 
-      if !visibility && !options[:no_prompt]
-        visibility = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
+        permissions['resourcePool'] = {'visibility' => visibility} if visibility
       end
-
-      permissions['resourcePool'] = {'visibility' => visibility} if visibility
 
       # Tenants
       if !excludes.include?('tenants')
