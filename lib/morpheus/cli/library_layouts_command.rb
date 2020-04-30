@@ -666,7 +666,7 @@ EOT
     else
       payload.deep_merge!(parse_passed_options(options))
       
-      perms = prompt_permissions(options.merge({}), layout_permission_excludes)
+      perms = prompt_permissions(options.merge({no_prompt:true}), layout_permission_excludes)
       perms_payload = {}
       perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
       payload.deep_merge!({'permissions' => perms_payload}) if !perms_payload.empty?
