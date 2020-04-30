@@ -529,7 +529,7 @@ module Morpheus::Cli::ProvisioningHelper
       arbitrary_options.delete('cloud')
       arbitrary_options.delete('type')
       arbitrary_options.delete('name')
-      arbitrary_options.delete('version')
+      #arbitrary_options.delete('version')
       arbitrary_options.delete('layout')
       arbitrary_options.delete('servicePlan')
       arbitrary_options.delete('description')
@@ -583,6 +583,8 @@ module Morpheus::Cli::ProvisioningHelper
       layout_id = nil
       if options[:layout]
         layout_id = options[:layout]
+      # elsif options[:options]['layout']
+      #   layout_id = options[:options]['layout']
       end
       if layout_id.is_a?(Hash)
         layout_id = layout_id['id'] || layout_id['code'] || layout_id['name']
@@ -592,6 +594,8 @@ module Morpheus::Cli::ProvisioningHelper
         default_layout_value = nil
         if options[:version]
           version_value = options[:version]
+        elsif options[:options]['version']
+          version_value = options[:options]['version']
         else
           available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
           default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
