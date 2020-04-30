@@ -269,9 +269,11 @@ class Morpheus::Cli::LibraryLayoutsCommand
       end
 
 
-      if options[:show_perms] || layout['permissions']
+      if options[:show_perms] || (layout['permissions'] && !layout['permissions'].empty?)
         print_permissions(layout['permissions'], layout_permission_excludes)
         print reset
+      else
+        print reset,"\n"
       end
       return exit_code, err
     rescue RestClient::Exception => e
