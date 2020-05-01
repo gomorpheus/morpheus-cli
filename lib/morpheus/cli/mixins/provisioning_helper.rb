@@ -1838,7 +1838,7 @@ module Morpheus::Cli::ProvisioningHelper
           return 1, "group not found by #{site_id}" if found_group.nil?
           {'id' => found_group['id']}
         } || []
-      elsif !options[:no_prompt]
+      elsif !options[:no_prompt] && !all_groups
         available_groups = options[:available_groups] || get_available_groups
 
         if available_groups.empty?
