@@ -246,7 +246,7 @@ class Morpheus::Cli::NetworkGroupsCommand
         end
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true'
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
@@ -442,7 +442,7 @@ class Morpheus::Cli::NetworkGroupsCommand
         end
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true'
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
@@ -579,6 +579,12 @@ class Morpheus::Cli::NetworkGroupsCommand
           payload['networkGroup']['active'] = options['active']
         end
         
+        # pre 4.2.1, would error with data not found unless you pass something in here
+        # so pass foo=bar so you can update just resourcePermissions
+        if payload['networkGroup'] && payload['networkGroup'].empty? && payload['resourcePermissions']
+          payload['networkGroup']['foo'] = 'bar'
+        end
+
       end
       @network_groups_interface.setopts(options)
       if options[:dry_run]
