@@ -111,17 +111,18 @@ class Morpheus::Cli::LibraryLayoutsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[layout]")
       # opts.on( nil, '--permissions', "Display permissions" ) do
       #   options[:show_perms] = true
       # end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a layout.
+[layout] is required. This is the name or id of a layout.
+EOT
     end
+    verify_args!(args:args, optparse:optparse, min:1)
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
-    end
     connect(options)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
@@ -132,154 +133,151 @@ class Morpheus::Cli::LibraryLayoutsCommand
   def _get(id, options)
     exit_code, err = 0, nil
     instance_type_id = nil
-    begin
-      @library_layouts_interface.setopts(options)
-      if options[:dry_run]
-        if id.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @library_layouts_interface.dry.get(instance_type_id, id.to_i)
-        else
-          print_dry_run @library_layouts_interface.dry.list(instance_type_id, {name:id})
-        end
-        return
-      end
-      layout = find_layout_by_name_or_id(instance_type_id, id)
-      if layout.nil?
-        return 1
-      end
-      # skip redundant request
-      #json_response = @library_layouts_interface.get(instance_type_id, layout['id'])
-      json_response = {'instanceTypeLayout' => layout}
-      #layout = json_response['instanceTypeLayout']
-      if options[:json]
-        puts as_json(json_response, options, "instanceTypeLayout")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "instanceTypeLayout")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['instanceTypeLayout']], options)
-        return 0
-      end
-
-      print_h1 "Layout Details"
-      print cyan
-      description_cols = {
-        "ID" => lambda {|it| it['id'] },
-        "Name" => lambda {|it| it['name'] },
-        "Instance Type" => lambda {|it| it['instanceType']['name'] rescue '' },
-        #"Code" => lambda {|it| it['code'] },
-        "Version" => lambda {|it| it['instanceVersion'] },
-        "Description" => lambda {|it| it['description'] },
-        "Technology" => lambda {|it| format_layout_technology(it) },
-        "Min Memory" => lambda {|it| 
-          if it['memoryRequirement'].to_i != 0
-            (it['memoryRequirement'].to_i / (1024*1024)).to_s + " MB"
-          else
-            ""
-          end
-        },
-        "Workflow" => lambda {|it| 
-          if it['taskSets']
-            it['taskSets'][0]['name'] rescue ""
-          else
-            ""
-          end
-        },
-        # "Category" => lambda {|it| it['category'].to_s.capitalize },
-        # # "Logo" => lambda {|it| it['logo'].to_s },
-        # "Visiblity" => lambda {|it| it['visibility'].to_s.capitalize },
-        # "Environment Prefix" => lambda {|it| it['environmentPrefix'] },
-        # "Enable Settings" => lambda {|it| format_boolean it['hasSettings'] },
-        # "Enable Scaling" => lambda {|it| format_boolean it['hasAutoScale'] },
-        # "Supports Deployments" => lambda {|it| format_boolean it['hasDeployment'] },
-        # "Featured" => lambda {|it| format_boolean it['featured'] },
-        # "Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        # "Active" => lambda {|it| format_boolean it['active'] },
-        # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, layout)
-
-      
-
-      layout_evars = layout['environmentVariables']
-      if layout_evars && layout_evars.size > 0
-        print_h2 "Environment Variables"
-        evar_columns = [
-          {"NAME" => lambda {|it| it['name'] } },
-          {"VALUE" => lambda {|it| it['defaultValue'] } },
-          {"TYPE" => lambda {|it| it['valueType'].to_s.capitalize } },
-          {"EXPORT" => lambda {|it| format_boolean it['export'] } },
-          {"MASKED" => lambda {|it| format_boolean it['mask'] } },
-        ]
-        print as_pretty_table(layout_evars, evar_columns)
+    params = {}
+    params.merge!(parse_query_options(options))
+    @library_layouts_interface.setopts(options)
+    if options[:dry_run]
+      if id.to_s =~ /\A\d{1,}\Z/
+        print_dry_run @library_layouts_interface.dry.get(instance_type_id, id.to_i, params)
       else
-        # print yellow,"No environment variables found for this instance type.","\n",reset
+        print_dry_run @library_layouts_interface.dry.list(instance_type_id, params.merge({name:id}))
       end
-
-      layout_option_types = layout['optionTypes']
-      if layout_option_types && layout_option_types.size > 0
-        print_h2 "Option Types"
-        columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"NAME" => lambda {|it| it['name'] } },
-          {"TYPE" => lambda {|it| it['type'] } },
-          {"FIELD NAME" => lambda {|it| it['fieldName'] } },
-          {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
-          {"DEFAULT" => lambda {|it| it['defaultValue'] } },
-          {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
-        ]
-        print as_pretty_table(layout_option_types, columns)
-      else
-        # print yellow,"No option types found for this layout.","\n",reset
-      end
-
-      layout_node_types = layout['containerTypes']
-      if layout_node_types && layout_node_types.size > 0
-        print_h2 "Node Types"
-        # match UI sorting [version desc, name asc]
-        # or use something simpler like one of these
-        layout_node_types = layout_node_types.sort { |a,b| a['name'] <=> b['name'] }
-        # layout_node_types = layout_node_types.sort { |a,b| a['sortOrder'] <=> b['sortOrder'] }
-        node_type_columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"NAME" => lambda {|it| it['name'] } },
-          {"SHORT NAME" => lambda {|it| it['shortName'] } },
-          {"VERSION" => lambda {|it| it['containerVersion'] } },
-          {"TECHNOLOGY" => lambda {|it| it['provisionType'] ? it['provisionType']['name'] : '' } },
-          {"CATEGORY" => lambda {|it| it['category'] } },
-        ]
-        print as_pretty_table(layout_node_types, node_type_columns)
-      else
-        # print yellow,"No node types for this layout.","\n",reset
-      end
-
-      layout_spec_templates = layout['specTemplates']
-      if layout_spec_templates && layout_spec_templates.size > 0
-        print_h2 "Spec Templates"
-        layout_spec_templates = layout_spec_templates.sort { |a,b| a['name'] <=> b['name'] }
-        spec_template_columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"NAME" => lambda {|it| it['name'] } },
-          {"TYPE" => lambda {|it| it['type']['name'] rescue '' } }
-        ]
-        print as_pretty_table(layout_spec_templates, spec_template_columns)
-      else
-        # print yellow,"No spec templates for this layout.","\n",reset
-      end
-
-
-      if options[:show_perms] || (layout['permissions'] && !layout['permissions'].empty?)
-        print_permissions(layout['permissions'], layout_permission_excludes)
-        print reset
-      else
-        print reset,"\n"
-      end
-      return exit_code, err
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
+      return
+    end
+    layout = find_layout_by_name_or_id(instance_type_id, id)
+    if layout.nil?
       return 1
     end
+    # skip redundant request
+    #json_response = @library_layouts_interface.get(instance_type_id, layout['id'])
+    json_response = {'instanceTypeLayout' => layout}
+    #layout = json_response['instanceTypeLayout']
+    if options[:json]
+      puts as_json(json_response, options, "instanceTypeLayout")
+      return 0
+    elsif options[:yaml]
+      puts as_yaml(json_response, options, "instanceTypeLayout")
+      return 0
+    elsif options[:csv]
+      puts records_as_csv([json_response['instanceTypeLayout']], options)
+      return 0
+    end
+
+    print_h1 "Layout Details"
+    print cyan
+    description_cols = {
+      "ID" => lambda {|it| it['id'] },
+      "Name" => lambda {|it| it['name'] },
+      "Instance Type" => lambda {|it| it['instanceType']['name'] rescue '' },
+      #"Code" => lambda {|it| it['code'] },
+      "Version" => lambda {|it| it['instanceVersion'] },
+      "Description" => lambda {|it| it['description'] },
+      "Technology" => lambda {|it| format_layout_technology(it) },
+      "Min Memory" => lambda {|it| 
+        if it['memoryRequirement'].to_i != 0
+          (it['memoryRequirement'].to_i / (1024*1024)).to_s + " MB"
+        else
+          ""
+        end
+      },
+      "Workflow" => lambda {|it| 
+        if it['taskSets']
+          it['taskSets'][0]['name'] rescue ""
+        else
+          ""
+        end
+      },
+      # "Category" => lambda {|it| it['category'].to_s.capitalize },
+      # # "Logo" => lambda {|it| it['logo'].to_s },
+      # "Visiblity" => lambda {|it| it['visibility'].to_s.capitalize },
+      # "Environment Prefix" => lambda {|it| it['environmentPrefix'] },
+      # "Enable Settings" => lambda {|it| format_boolean it['hasSettings'] },
+      # "Enable Scaling" => lambda {|it| format_boolean it['hasAutoScale'] },
+      # "Supports Deployments" => lambda {|it| format_boolean it['hasDeployment'] },
+      # "Featured" => lambda {|it| format_boolean it['featured'] },
+      # "Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      # "Active" => lambda {|it| format_boolean it['active'] },
+      # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+    print_description_list(description_cols, layout)
+
+    
+
+    layout_evars = layout['environmentVariables']
+    if layout_evars && layout_evars.size > 0
+      print_h2 "Environment Variables"
+      evar_columns = [
+        {"NAME" => lambda {|it| it['name'] } },
+        {"VALUE" => lambda {|it| it['defaultValue'] } },
+        {"TYPE" => lambda {|it| it['valueType'].to_s.capitalize } },
+        {"EXPORT" => lambda {|it| format_boolean it['export'] } },
+        {"MASKED" => lambda {|it| format_boolean it['mask'] } },
+      ]
+      print as_pretty_table(layout_evars, evar_columns)
+    else
+      # print yellow,"No environment variables found for this instance type.","\n",reset
+    end
+
+    layout_option_types = layout['optionTypes']
+    if layout_option_types && layout_option_types.size > 0
+      print_h2 "Option Types"
+      columns = [
+        {"ID" => lambda {|it| it['id'] } },
+        {"NAME" => lambda {|it| it['name'] } },
+        {"TYPE" => lambda {|it| it['type'] } },
+        {"FIELD NAME" => lambda {|it| it['fieldName'] } },
+        {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+        {"DEFAULT" => lambda {|it| it['defaultValue'] } },
+        {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+      ]
+      print as_pretty_table(layout_option_types, columns)
+    else
+      # print yellow,"No option types found for this layout.","\n",reset
+    end
+
+    layout_node_types = layout['containerTypes']
+    if layout_node_types && layout_node_types.size > 0
+      print_h2 "Node Types"
+      # match UI sorting [version desc, name asc]
+      # or use something simpler like one of these
+      layout_node_types = layout_node_types.sort { |a,b| a['name'] <=> b['name'] }
+      # layout_node_types = layout_node_types.sort { |a,b| a['sortOrder'] <=> b['sortOrder'] }
+      node_type_columns = [
+        {"ID" => lambda {|it| it['id'] } },
+        {"NAME" => lambda {|it| it['name'] } },
+        {"SHORT NAME" => lambda {|it| it['shortName'] } },
+        {"VERSION" => lambda {|it| it['containerVersion'] } },
+        {"TECHNOLOGY" => lambda {|it| it['provisionType'] ? it['provisionType']['name'] : '' } },
+        {"CATEGORY" => lambda {|it| it['category'] } },
+      ]
+      print as_pretty_table(layout_node_types, node_type_columns)
+    else
+      # print yellow,"No node types for this layout.","\n",reset
+    end
+
+    layout_spec_templates = layout['specTemplates']
+    if layout_spec_templates && layout_spec_templates.size > 0
+      print_h2 "Spec Templates"
+      layout_spec_templates = layout_spec_templates.sort { |a,b| a['name'] <=> b['name'] }
+      spec_template_columns = [
+        {"ID" => lambda {|it| it['id'] } },
+        {"NAME" => lambda {|it| it['name'] } },
+        {"TYPE" => lambda {|it| it['type']['name'] rescue '' } }
+      ]
+      print as_pretty_table(layout_spec_templates, spec_template_columns)
+    else
+      # print yellow,"No spec templates for this layout.","\n",reset
+    end
+
+
+    if options[:show_perms] || (layout['permissions'] && !layout['permissions'].empty?)
+      print_permissions(layout['permissions'], layout_permission_excludes)
+      print reset
+    else
+      print reset,"\n"
+    end
+    return exit_code, err
   end
 
   def add(args)
@@ -461,7 +459,7 @@ EOT
         # Resource Permissions (Groups only for layouts)
         perms = prompt_permissions(options.merge({}), layout_permission_excludes)
         perms_payload = {}
-        perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+        perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].empty?
         #perms_payload['tenantPermissions'] = perms['tenantPermissions'] if !perms['tenantPermissions'].nil?
 
         payload['instanceTypeLayout']['permissions'] = perms_payload
@@ -607,7 +605,7 @@ EOT
         if options[:groupAccessAll] != nil || options[:groupAccessList]
           perms = prompt_permissions(options.merge({no_prompt:true}), layout_permission_excludes)
           perms_payload = {}
-          perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+          perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].empty?
           params.deep_merge!({'permissions' => perms_payload}) if !perms_payload.empty?
         end
         
@@ -666,22 +664,10 @@ EOT
     else
       payload.deep_merge!(parse_passed_options(options))
       
-      perms = prompt_permissions(options.merge({no_prompt:true}), layout_permission_excludes)
+      perms = prompt_permissions(options.merge({}), layout_permission_excludes)
       perms_payload = {}
-      perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+      perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].empty?
       payload.deep_merge!({'permissions' => perms_payload}) if !perms_payload.empty?
-      # resource_perms = {}
-      # resource_perms['all'] = true if options[:groupAccessAll]
-      # resource_perms['sites'] = options[:groupAccessList].collect {|site_id| {'id' => site_id.to_i}} if !options[:groupAccessList].nil?
-      # if !resource_perms.empty? || !options[:tenants].nil?
-      #   payload['permissions'] = {}
-      #   payload['permissions']['resourcePermissions'] = resource_perms if !resource_perms.empty?
-      #   payload['permissions']['tenantPermissions'] = {'accounts' => options[:tenants]} if !options[:tenants].nil?
-      # end
-      # if !options[:visibility].nil?
-      #   payload['permissions'] = {}
-      #   payload['permissions']['visibility'] = options[:visibility]
-      # end
     end
 
     @library_layouts_interface.setopts(options)
@@ -745,29 +731,30 @@ EOT
 
   private
 
-  def find_layout_by_name_or_id(instance_type_id, val)
+  def find_layout_by_name_or_id(instance_type_id, val, params={})
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_layout_by_id(instance_type_id, val)
+      return find_layout_by_id(instance_type_id, val, params)
     else
-      return find_layout_by_name(instance_type_id, val)
+      return find_layout_by_name(instance_type_id, val, params)
     end
   end
 
-  def find_layout_by_id(instance_type_id, id)
+  def find_layout_by_id(instance_type_id, id, params={})
     begin
-      json_response = @library_layouts_interface.get(instance_type_id, id.to_i)
+      json_response = @library_layouts_interface.get(instance_type_id, id.to_i, params)
       return json_response['instanceTypeLayout']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Instance Type not found by id #{id}"
+        print_rest_exception(e)
+        #print_red_alert "Layout not found by id #{id}"
       else
         raise e
       end
     end
   end
 
-  def find_layout_by_name(instance_type_id, name)
-    layouts = @library_layouts_interface.list(instance_type_id, {name: name.to_s})['instanceTypeLayouts']
+  def find_layout_by_name(instance_type_id, name, params={})
+    layouts = @library_layouts_interface.list(instance_type_id, params.merge({name: name.to_s}))['instanceTypeLayouts']
     if layouts.empty?
       print_red_alert "Layout not found by name #{name}"
       return nil
