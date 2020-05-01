@@ -251,7 +251,7 @@ class Morpheus::Cli::CloudDatastoresCommand
       end
       opts.add_hidden_option('-c') # prefer args[0] for [cloud]
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true'
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
