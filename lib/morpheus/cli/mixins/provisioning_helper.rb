@@ -90,7 +90,10 @@ module Morpheus::Cli::ProvisioningHelper
 
   def get_available_accounts(refresh=false)
     if !@available_accounts || refresh
-      @available_accounts = accounts_interface.list()['accounts']
+      # @available_accounts = accounts_interface.list()['accounts']
+      @available_accounts = options_interface.options_for_source("allTenants", {})['data'].collect {|it|
+        {"name" => it["name"], "value" => it["value"], "id" => it["value"]}
+      }
     end
     @available_accounts
   end
@@ -1928,7 +1931,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     permissions = {'resourcePermissions' => resource_perms}
 
-    available_accounts = get_available_accounts.collect {|it| {'name' => it['name'], 'value' => it['id']}}
+    available_accounts = get_available_accounts() #.collect {|it| {'name' => it['name'], 'value' => it['id']}}
     accounts = []
 
     # Prompts for multi tenant
