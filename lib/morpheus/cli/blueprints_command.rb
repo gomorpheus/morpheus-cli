@@ -372,7 +372,7 @@ class Morpheus::Cli::BlueprintsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [options]")
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
-        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val == '' || val.nil?
+        group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--group-access LIST', Array, "Group Access, comma separated list of group IDs.") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
