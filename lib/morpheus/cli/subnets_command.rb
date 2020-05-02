@@ -24,6 +24,7 @@ class Morpheus::Cli::SubnetsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @networks_interface = @api_client.networks
+    @network_pools_interface = @api_client.network_pools
     @network_types_interface = @api_client.network_types
     @subnets_interface = @api_client.subnets
     @subnet_types_interface = @api_client.subnet_types
@@ -125,7 +126,6 @@ class Morpheus::Cli::SubnetsCommand
     
   end
 
-
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -186,7 +186,7 @@ class Morpheus::Cli::SubnetsCommand
         "Secondary DNS" => 'dnsSecondary',
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
         "DHCP" => lambda {|it| format_boolean it['dhcpServer'] },
-        #"Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
+        "Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Active" => lambda {|it| format_boolean(it['active']) },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
@@ -285,6 +285,15 @@ class Morpheus::Cli::SubnetsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
+      opts.on('--pool ID', String, "Network Pool") do |val|
+        options['pool'] = val.to_i
+      end
+      opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
+        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--can-assign-pool [on|off]', String, "DHCP Server") do |val|
+        options['canAssignPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new subnet." + "\n" +
                     "--network is required. This is the name or id of a network." #+ "\n" +
@@ -303,6 +312,15 @@ class Morpheus::Cli::SubnetsCommand
     begin
       passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
+
+      # Network
+      prompt_results = prompt_for_network(network_id, options)
+      if prompt_results[:success]
+        network = prompt_results[:network]
+      else
+        return 1, "Network prompt failed."
+      end
+
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!({'subnet' => passed_options}) unless passed_options.empty?
@@ -310,14 +328,6 @@ class Morpheus::Cli::SubnetsCommand
       else
         payload = {'subnet' => {}}
         payload.deep_merge!({'subnet' => passed_options}) unless passed_options.empty?
-        
-        # Network
-        prompt_results = prompt_for_network(network_id, options)
-        if prompt_results[:success]
-          network = prompt_results[:network]
-        else
-          return 1, "Network prompt failed."
-        end
 
         # Name
         # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this subnet.'}], options[:options])
@@ -353,6 +363,28 @@ class Morpheus::Cli::SubnetsCommand
           #   payload['subnet']['cidr'] = v_prompt['cidr']
           # end
 
+        end
+
+        # DHCP
+        if options['dhcpServer']
+          payload['subnet']['dhcpServer'] = options['dhcpServer']
+        elsif subnet_type['dhcpServerEditable'] && payload['subnet']['dhcpServer'].nil? && !options[:no_prompt]
+          payload['subnet']['dhcpServer'] = Morpheus::Cli::OptionTypes.confirm("DHCP Server?", {:default=>false})
+        end
+
+        # Allow IP Override
+        if options['allowStaticOverride']
+          payload['subnet']['allowStaticOverride']
+        elsif !options[:no_prompt]
+          payload['subnet']['allowStaticOverride'] = Morpheus::Cli::OptionTypes.confirm("Allow IP Override?", {:default=>false})
+        end
+
+        # IP Pool
+        if options['pool']
+          payload['subnet']['pool'] = {'id' => options['pool']}
+        elsif subnet_type['canAssignPool'] && !options[:no_prompt]
+          network_pool_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "pool", 'type' => 'select', 'fieldLabel' => "Network Pool", 'selectOptions' => list_network_pool_options(), 'required' => false, 'description' => 'Select Network Pool'}], options[:options], @api_client, {zoneId: network['zone']['id']}, options[:no_prompt])["pool"]
+          payload['subnet']['pool'] = {'id' => network_pool_id} if network_pool_id
         end
 
         # Group Access
@@ -416,7 +448,6 @@ class Morpheus::Cli::SubnetsCommand
     end
   end
 
-
   def update(args)
     options = {}
     tenants = nil
@@ -461,6 +492,15 @@ class Morpheus::Cli::SubnetsCommand
       end
       opts.on('--active [on|off]', String, "Can be used to disable a subnet") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true'
+      end
+      opts.on('--pool ID', String, "Network Pool") do |val|
+        options['pool'] = val.to_i
+      end
+      opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
+        options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--can-assign-pool [on|off]', String, "DHCP Server") do |val|
+        options['canAssignPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a subnet." + "\n" +
@@ -525,6 +565,21 @@ class Morpheus::Cli::SubnetsCommand
         # Visibility
         if options['visibility'] != nil
           payload['subnet']['visibility'] = options['visibility']
+        end
+
+        # DHCP
+        if options['dhcpServer'] != nil
+          payload['subnet']['dhcpServer'] = options['dhcpServer']
+        end
+
+        # Allow IP Override
+        if options['allowStaticOverride'] != nil
+          payload['subnet']['allowStaticOverride']
+        end
+
+        # IP Pool
+        if options['pool'] != nil
+          payload['subnet']['pool'] = {'id' => options['pool']}
         end
 
       end
@@ -732,4 +787,9 @@ class Morpheus::Cli::SubnetsCommand
 
   private
 
+  def list_network_pool_options()
+    @network_pools_interface.list['networkPools'].collect do |np|
+      {'name' => np['name'], 'value' => np['id']}
+    end
+  end
 end
