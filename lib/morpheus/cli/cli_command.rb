@@ -518,6 +518,14 @@ module Morpheus
             opts.on( '-T', '--token TOKEN', "Access token for authentication with --remote. Saved credentials are used by default." ) do |val|
               options[:remote_token] = val
             end unless excludes.include?(:remote_token)
+            opts.on( '--token-file FILE', String, "Token File, read a file containing the access token." ) do |val|
+              token_file = File.expand_path(val)
+              if !File.exists?(token_file) || !File.file?(token_file)
+                raise ::OptionParser::InvalidOption.new("File not found: #{token_file}")
+              end
+              options[:remote_token] = File.read(token_file).to_s.split("\n").first.strip
+            end
+            opts.add_hidden_option('--token-file') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on( '-U', '--username USERNAME', "Username for authentication." ) do |val|
               options[:remote_username] = val
             end unless excludes.include?(:remote_username)
@@ -532,7 +540,8 @@ module Morpheus
                 if !File.exists?(password_file) || !File.file?(password_file)
                   raise ::OptionParser::InvalidOption.new("File not found: #{password_file}")
                 end
-                options[:remote_password] = File.read(password_file) # .strip
+                file_content = File.read(password_file) #.strip
+                options[:remote_password] = File.read(password_file).to_s.split("\n").first
               end
               opts.add_hidden_option('--password-file') if opts.is_a?(Morpheus::Cli::OptionParser)
             end
