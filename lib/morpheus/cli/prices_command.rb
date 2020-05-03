@@ -30,35 +30,40 @@ class Morpheus::Cli::PricesCommand
       opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
         params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--platform PLATFORM', Array, "Filter by platform eg. linux, windows") do |val|
+        params['platform'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
+      end
+      opts.on('--price-unit UNIT', Array, "Filter by priceUnit eg. hour, month") do |val|
+        params['priceUnit'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
+      end
+      opts.on('--currency CURRENCY', Array, "Filter by currency eg. usd") do |val|
+        params['currency'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
+      end
+      opts.on('--price-type TYPE', Array, "Filter by priceType eg. fixed,platform,software,compute,storage,platform,software,datastore,memory,cores,cpu,storage,platform,software,datastore") do |val|
+        params['priceType'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List prices."
     end
     optparse.parse!(args)
+    #verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
+    
+    params.merge!(parse_list_options(options))
+    params['phrase'] = args.join(' ') if args.count > 0 && params['phrase'].nil? # pass args as phrase, every list command should do this
+    load_whoami()
+    @prices_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @prices_interface.dry.list(params)
+      return
     end
-
-    begin
-      params.merge!(parse_list_options(options))
-
-      @prices_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @prices_interface.dry.list(params)
-        return
-      end
-      json_response = @prices_interface.list(params)
-
-      render_result = render_with_format(json_response, options, 'prices')
-      return 0 if render_result
-
+    json_response = @prices_interface.list(params)
+    prices = json_response['prices']
+    render_response(json_response, options, 'prices') do
       title = "Morpheus Prices"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
-
-      prices = json_response['prices']
       if prices.empty?
         print yellow,"No prices found.",reset,"\n"
       else
@@ -77,20 +82,17 @@ class Morpheus::Cli::PricesCommand
           }
         end
         columns = [
-            :id, :name, :active, :priceType, :tenant, :priceUnit, :priceAdjustment, :cost, :markup, :price
+            :id, :name, :active, {'PRICE TYPE' => :priceType}, :tenant, {'PRICE UNIT' => :priceUnit}, {'PRICE ADJUSTMENT' => :priceAdjustment}, :cost, :markup, :price
         ]
         columns.delete(:active) if !params['includeInactive']
 
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
-        print reset,"\n"
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 1,  "0 prices found" if prices.empty?
+    return 0, nil
   end
 
   def get(args)
@@ -552,7 +554,12 @@ class Morpheus::Cli::PricesCommand
   end
 
   def currency_sym(currency)
-    Money::Currency.new((currency || 'usd').to_sym).symbol
+    begin
+      Money::Currency.new((currency.to_s.empty? ? 'usd' : currency).to_sym).symbol
+    rescue
+      # sometimes '' is getting passed in here, so figure that out...
+      Money::Currency.new(:usd).symbol
+    end
   end
 
   def price_prefix(price)
@@ -570,7 +577,7 @@ class Morpheus::Cli::PricesCommand
   end
 
   def price_type_label(type)
-    price_types[type] || type.capitalize
+    price_types[type] || type.to_s.capitalize
   end
 
   def price_types

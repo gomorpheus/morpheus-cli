@@ -39,30 +39,20 @@ class Morpheus::Cli::PriceSetsCommand
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
+    params.merge!(parse_list_options(options))
+    params['phrase'] = args.join(' ') if args.count > 0 && params['phrase'].nil? # pass args as phrase, every list command should do this
+    @price_sets_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @price_sets_interface.dry.list(params)
+      return
     end
-
-    begin
-      params.merge!(parse_list_options(options))
-
-      @price_sets_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @price_sets_interface.dry.list(params)
-        return
-      end
-      json_response = @price_sets_interface.list(params)
-
-      render_result = render_with_format(json_response, options, 'priceSets')
-      return 0 if render_result
-
+    json_response = @price_sets_interface.list(params)
+    price_sets = json_response['priceSets']
+    render_response(json_response, options, 'priceSets') do
       title = "Morpheus Price Sets"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
-
-      price_sets = json_response['priceSets']
       if price_sets.empty?
         print cyan,"No price sets found.",reset,"\n"
       else
@@ -71,25 +61,24 @@ class Morpheus::Cli::PriceSetsCommand
               id: (it['active'] ? cyan : yellow) + it['id'].to_s,
               name: it['name'],
               active: format_boolean(it['active']),
-              price_unit: it['priceUnit'],
+              priceUnit: it['priceUnit'],
               type: price_set_type_label(it['type']),
               price_count: it['prices'].count.to_s + cyan
           }
         end
         columns = [
-            :id, :name, :active, :price_unit, :type, '# of prices' => :price_count
+            :id, :name, :active, :priceUnit, :type, '# OF PRICES' => :price_count
         ]
         columns.delete(:active) if !params['includeInactive']
-
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
-        print reset,"\n"
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if price_sets.empty?
+      return 1,  "0 price sets found"
+    else
+      return 0, nil
     end
   end
 

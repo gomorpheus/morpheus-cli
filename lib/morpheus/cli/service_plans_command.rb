@@ -34,45 +34,39 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
         params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List service plans."
     end
     optparse.parse!(args)
+    #verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
+
+    
+    params.merge!(parse_list_options(options))
+
+    if !options[:provisionType].nil?
+      type = find_provision_type(options[:provisionType])
+
+      if type.nil?
+        print_red_alert "Provision type #{options[:provisionType]} not found"
+        exit 1
+      end
+      params['provisionTypeId'] = type['id']
     end
 
-    begin
-      params.merge!(parse_list_options(options))
-
-      if !options[:provisionType].nil?
-        type = find_provision_type(options[:provisionType])
-
-        if type.nil?
-          print_red_alert "Provision type #{options[:provisionType]} not found"
-          exit 1
-        end
-        params['provisionTypeId'] = type['id']
-      end
-
-      @service_plans_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @service_plans_interface.dry.list(params)
-        return
-      end
-      json_response = @service_plans_interface.list(params)
-
-      render_result = render_with_format(json_response, options, 'servicePlans')
-      return 0 if render_result
-
+    @service_plans_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @service_plans_interface.dry.list(params)
+      return
+    end
+    json_response = @service_plans_interface.list(params)
+    plans = json_response['servicePlans']
+    render_response(json_response, options, 'servicePlans') do
       title = "Morpheus Service Plans"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
 
-      plans = json_response['servicePlans']
       if plans.empty?
         print cyan,"No service plans found.",reset,"\n"
       else
@@ -91,18 +85,18 @@ class Morpheus::Cli::ServicePlanCommand
           }
         end
         columns = [
-            :id, :name, :type, :active, :cores, :memory, :clouds, :visibility, :tenants, :price_sets
+            :id, :name, :type, :active, :cores, :memory, :clouds, :visibility, :tenants, {"PRICE SETS" => :price_sets}
         ]
         columns.delete(:active) if !params['includeInactive']
-
         print as_pretty_table(rows, columns, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if plans.empty?
+      return 1,  "0 plans found"
+    else
+      return 0, nil
     end
   end
 
