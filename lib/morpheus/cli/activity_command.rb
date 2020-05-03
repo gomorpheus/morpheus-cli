@@ -93,20 +93,14 @@ EOT
       return 0, nil
     end
     json_response = @activity_interface.list(params)
-    
-    # determine exit status
-
-    # error if there are no results
-    if json_response['activity'].empty?
-      exit_code = 3 
-      err = "No activity results found"
-    end
-    
-    # render output
+    activity = json_response["activity"]    
     render_response(json_response, options, "activity") do
-      title = "Activity"
+      title = "Morpheus Activity"
       subtitles = []
       subtitles += parse_list_subtitles(options)
+      if json_response["meta"] && json_response["meta"]["startDate"]
+        subtitles << "#{format_local_dt(json_response["meta"]["startDate"])} - #{format_local_dt(json_response["meta"]["endDate"])}"
+      end
       if options[:start]
         subtitles << "Start: #{options[:start]}"
       end
@@ -114,8 +108,7 @@ EOT
         subtitles << "End: #{options[:end]}"
       end
       print_h1 title, subtitles, options
-      records = json_response["activity"]
-      if records.empty?
+      if activity.empty?
         print yellow, "No activity found.",reset,"\n"
       else
         columns = [
@@ -136,12 +129,16 @@ EOT
 
           } },
         ]
-        print as_pretty_table(records, columns, options)
+        print as_pretty_table(activity, columns, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
     end
-    return exit_code, err
+    if activity.empty?
+      return 1,  "0 activity found"
+    else
+      return 0, nil
+    end
   end
 
   protected

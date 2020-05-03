@@ -69,16 +69,6 @@ module Morpheus
         @@ssl_verification_enabled = verify
       end
 
-      private
-
-      # unused eh?
-      def build_request_args(url, method, payload)
-        args = {url: url, method: method, payload: payload}
-        unless ssl_verification_enabled?
-          args[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
-        end
-        args
-      end
     end
   end
 end

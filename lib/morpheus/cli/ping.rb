@@ -26,14 +26,17 @@ class Morpheus::Cli::Ping
   def get(args)
     exit_code, err = 0, nil
     params, options = {}, {}
-    status_only, time_only = false, false
+    status_only, time_only, setup_check_only = false, false, false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
       opts.on( '-s', '--status', "Print only the status." ) do
         status_only = true
       end
-      opts.on( '-t', '--time', "Print only the time." ) do
+      opts.on( '-t', '--time', "Print only the response time." ) do
         time_only = true
+      end
+      opts.on( '--setup-needed?', "Print only if setup is needed or not, exit 1 if not." ) do
+        setup_check_only = true
       end
       # --timeout always works, this would just make it show up?
       # opts.on( '--timeout SECONDS', "Timeout for api requests. Default is 5 seconds." ) do |val|
@@ -110,10 +113,14 @@ EOT
         if json_response['applianceUrl']
           appliance[:appliance_url] = json_response['applianceUrl']
         end
-        # update setupNeeded? 
         # set status to ready if we have a version but no status yet for some reason
         if appliance[:build_version] && appliance[:status].nil?
           appliance[:status] = 'ready'
+        end
+        # update setupNeeded? 
+        if json_response['setupNeeded'] == true
+          # appliance[:setup_needed] = true
+          appliance[:status] = 'fresh'
         end
         # if took_sec
         #   appliance[:last_check] ||= {}
@@ -161,6 +168,20 @@ EOT
               print status_color, format_duration_seconds(took_sec), reset, "\n"
             else
               print_error status_color, format_duration_seconds(took_sec), reset, "\n"
+            end
+            return exit_code, err
+          elsif setup_check_only
+            status_color = format_appliance_status_color(appliance)
+            remote_status_string = format_appliance_status(appliance, cyan)
+            if appliance[:status] != 'fresh'
+              exit_code = 1
+            end
+            if appliance[:status] == 'fresh'
+              print cyan, "Yes, remote #{appliance[:name]} status is #{remote_status_string}","\n"
+            elsif appliance[:status] == 'ready'
+              print cyan, "No, remote #{appliance[:name]} status is #{remote_status_string} (already setup)","\n"
+            else
+              print_error cyan,"Uh oh, remote #{appliance[:name]} status is #{remote_status_string}",reset,"\n"
             end
             return exit_code, err
           else

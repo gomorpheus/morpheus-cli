@@ -9,159 +9,17 @@ class Morpheus::Cli::Setup
   
   set_command_name :setup
   
-  register_subcommands :check, :needed?, :init
+  register_subcommands :init
 
   # no authorization needed
-  def connect(opts={})
-    @api_client = establish_remote_appliance_connection({:no_authorization => true}.merge(opts))
+  def connect(options={})
+    @api_client = establish_remote_appliance_connection({:no_authorization => true, :skip_login => true}.merge(options))
     @setup_interface = @api_client.setup
   end
 
   def handle(args)
-    handle_subcommand(args)
-  end
-
-  def check(args)
-    exit_code, err = 0, nil
-    params, options = {}, {}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
-      opts.on('--offline', '--offline', "Do this offline without an api request to refresh the remote appliance status.") do
-        options[:do_offline] = true
-      end
-      build_standard_get_options(opts, options, [:quiet])
-      opts.footer = <<-EOT
-Check the status of the remote appliance.
-This updates the local client configuration with the remote status and version.
-EOT
-    end
-    optparse.parse!(args)
-    verify_args!(args:args, count:0, optparse:optparse)
-    connect(options)
-    # establish_remote_appliance_connection() sets this up for us
-    appliance = @remote_appliance
-    appliance_name = @remote_appliance[:name]
-    appliance_url = @remote_appliance[:url]
-
-    # construct parameters
-    params.merge!(parse_query_options(options))
-
-    # found appliance, now refresh it
-    
-    start_time = Time.now
-
-    # ok, make the api request
-    @setup_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @setup_interface.dry.check(params)
-      return
-    end
-
-    # actually, let the Remote class do that for this particular request
-    # json_response = @setup_interface.check(payload)
-    start_time = Time.now
-    appliance, check_json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name, params)
-    took_sec = (Time.now - start_time)
-
-    if appliance[:status] != 'ready' && appliance[:status] != 'fresh'
-      exit_code = 1
-      # this should not be needed here
-      # also, it is at appliance[:last_check][:error]
-      err = appliance[:error] || "remote status is #{appliance[:status]}"
-    end
-
-    if exit_code == 0
-      if appliance[:error]
-        exit_code = 1
-        err = "Check Failed: #{appliance[:error]}"
-      end
-    end
-
-    # render with standard formats like json,yaml,csv and quiet
-    if render_with_format(check_json_response, options)
-      return exit_code, err
-    end
-
-    print_green_success "Completed check of #{appliance_name} in #{took_sec.round(3)}s"
-
-    # return _get(appliance[:name], {})
-    # return Morpheus::Cli::Remote.new.handle(["get", appliance[:name]] + (options[:remote] ? ["-r",options[:remote]] : []))
-    # return _get(appliance[:name], {})
-    return Morpheus::Cli::Remote.new.handle(["get", appliance[:name]])
-    
-  end
-
-  def needed?(args)
-    exit_code, err = 0, nil
-    params, options = {}, {}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
-      opts.on('--offline', '--offline', "Do this offline without an api request to refresh the remote appliance status.") do
-        options[:do_offline] = true
-      end
-      build_standard_get_options(opts, options, [:quiet])
-      opts.footer = <<-EOT
-Check if the remote appliance needs to be setup or not.
-This will only exit 0 when the remote appliance is fresh and needs to be setup.
-EOT
-    end
-    optparse.parse!(args)
-    verify_args!(args:args, count:0, optparse:optparse)
-    connect(options)
-    # establish_remote_appliance_connection() sets this up for us
-    appliance = @remote_appliance
-    appliance_name = @remote_appliance[:name]
-    appliance_url = @remote_appliance[:url]
-
-    # construct parameters
-    params.merge!(parse_query_options(options))
-
-    # found appliance, now refresh it
-    
-    start_time = Time.now
-
-    # ok, make the api request
-    @setup_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @setup_interface.dry.check(params)
-      return
-    end
-
-    # actually, let the Remote class do that for this particular request
-    # json_response = @setup_interface.check(payload)
-    start_time = Time.now
-    if options[:do_offline]
-      if appliance[:status] == 'ready' || appliance[:status] == 'fresh'
-        json_response = {'success' => true, 'setupNeeded' => appliance[:setup_needed], 'buildVersion' => appliance[:build_version]}
-      else
-        json_response = {'setupNeeded' => false, 'buildVersion' => appliance[:build_version]}
-      end
-    else
-      appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(appliance_name, params)
-    end
-    took_sec = (Time.now - start_time)
-
-    if appliance[:status] != 'fresh'
-      exit_code = 1
-      # this should not be needed here
-      # also, it is at appliance[:last_check][:error]
-      err = appliance[:error] || "remote status is #{appliance[:status]} (not fresh)"
-    end
-
-    # render with standard formats like json,yaml,csv and quiet
-    render_response(json_response, options) do
-      #remote_name_str = display_appliance(@appliance_name, @appliance_url)
-      remote_name_str = @appliance_name
-      remote_status_string = format_appliance_status(appliance, cyan)
-      if appliance[:status] == 'fresh'
-        print cyan, "Yes, remote #{remote_name_str} status is #{remote_status_string}","\n"
-      elsif appliance[:status] == 'ready'
-        print cyan, "No, remote #{remote_name_str} status is #{remote_status_string} (already setup)","\n"
-      else
-        print_error cyan,"Uh oh, remote #{remote_name_str} status is #{remote_status_string}",reset,"\n"
-      end
-    end
-    return exit_code, err
+    #handle_subcommand(args)
+    init(args)
   end
 
   # this is a wizard that walks through the /api/setup controller
@@ -171,7 +29,8 @@ EOT
     params, payload = {}, {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
+      #opts.banner = subcommand_usage()
+      opts.banner = usage
       build_standard_add_options(opts, options, [:quiet, :auto_confirm])
       opts.on('--hubmode MODE','--hubmode MODE', "Choose an option for hub registration possible values are login, register, skip.") do |val|
         options[:hubmode] = val.to_s.downcase
@@ -529,6 +388,5 @@ EOT
     print "\n",reset
     return exit_code, err
   end
-
  
 end

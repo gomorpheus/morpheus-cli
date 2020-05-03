@@ -14,7 +14,7 @@ class Morpheus::Cli::Remote
 
   register_subcommands :list, :add, :get, :update, :rename, :remove, :use, :unuse, :clone, :current, :view
   # remote setup and remote check
-  # are now avaiable under setup check and setup init
+  # are now avaiable under ping and setup
   # they do the same thing
   register_subcommands :setup
   register_subcommands :check
@@ -206,7 +206,7 @@ Add a new remote to your morpheus client configuration.
 [url] is required. The URL of your appliance eg. https://demo.morpheusdata.com
 First, this inspects the remote url to check the appliance status and version.
 If remote is ready, it will prompt to login, see the command `login`.
-If remote is freshly installed, it will prompt to initialize the appliance, see the command `setup init`.
+If remote is freshly installed, it will prompt to initialize the appliance, see the command `setup`.
 The option --use can be included to start using the new remote right away.
 The remote will be used by default if it is the first remote in the configuration.
 The --quiet option can be used to to skip prompting.
@@ -1210,7 +1210,6 @@ EOT
 
   
   # This moved to the SetupCommand
-  # should probably deprecate `remote setup` and use `setup init` instead.
   def setup(args)
     print_error yellow,"[DEPRECATED] The command `remote setup [name]` is deprecated. It has been replaced by `setup init`.",reset,"\n"
     options = {}
