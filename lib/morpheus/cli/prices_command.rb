@@ -39,7 +39,7 @@ class Morpheus::Cli::PricesCommand
       opts.on('--currency CURRENCY', Array, "Filter by currency eg. usd") do |val|
         params['currency'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
       end
-      opts.on('--price-type TYPE', Array, "Filter by priceType eg. fixed,platform,software,compute,storage,platform,software,datastore,memory,cores,cpu,storage,platform,software,datastore") do |val|
+      opts.on('--price-type TYPE', Array, "Filter by priceType eg. fixed,platform,software,compute,storage,datastore,memory,cores,cpu") do |val|
         params['priceType'] = val.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
