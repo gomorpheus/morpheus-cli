@@ -14,7 +14,7 @@ class Morpheus::Cli::InvoicesCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @invoices_interface = @api_client.invoices
-    @invoice_line_items_interface = @api_client.invoices
+    @invoice_line_items_interface = @api_client.invoice_line_items
   end
 
   def handle(args)
@@ -69,8 +69,6 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--group ID', String, "Filter by Group") do |val|
         options[:groups] ||= []
         options[:groups] << val
-        # params['siteId'] ||= []
-        # params['siteId'] << val
       end
       opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
         options[:clouds] ||= []
@@ -87,14 +85,10 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--server ID', String, "Filter by Server (Host)") do |val|
         options[:servers] ||= []
         options[:servers] << val
-        # params['serverId'] ||= []
-        # params['serverId'] << val
       end
       opts.on('--user ID', String, "Filter by User") do |val|
         options[:users] ||= []
         options[:users] << val
-        # params['userId'] ||= []
-        # params['userId'] << val
       end
       opts.on('--project PROJECT', String, "View invoices for a project.") do |val|
         options[:projects] ||= []
@@ -527,15 +521,15 @@ EOT
         options[:show_prices] = true
         options[:show_raw_data] = true
       end
-      opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
-        options[:show_actual_costs] = true
-      end
-      opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
-        options[:show_costs] = true
-      end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
-        options[:show_prices] = true
-      end
+      # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
+      #   options[:show_actual_costs] = true
+      # end
+      # opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
+      #   options[:show_costs] = true
+      # end
+      # opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
+      #   options[:show_prices] = true
+      # end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
           params['refType'] = 'ComputeZone'
@@ -561,28 +555,32 @@ EOT
       end
       opts.add_hidden_option('--ref-id')
       opts.on('--group ID', String, "Filter by Group") do |val|
-        params['siteId'] ||= []
-        params['siteId'] << val
+        options[:groups] ||= []
+        options[:groups] << val
       end
       opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
         options[:clouds] ||= []
         options[:clouds] << val
       end
       opts.on('--instance ID', String, "Filter by Instance") do |val|
-        params['instanceId'] ||= []
-        params['instanceId'] << val
+        options[:instances] ||= []
+        options[:instances] << val
       end
       opts.on('--container ID', String, "Filter by Container") do |val|
         params['containerId'] ||= []
         params['containerId'] << val
       end
       opts.on('--server ID', String, "Filter by Server (Host)") do |val|
-        params['serverId'] ||= []
-        params['serverId'] << val
+        options[:servers] ||= []
+        options[:servers] << val
       end
       opts.on('--user ID', String, "Filter by User") do |val|
-        params['userId'] ||= []
-        params['userId'] << val
+        options[:users] ||= []
+        options[:users] << val
+      end
+      opts.on('--project PROJECT', String, "View invoices for a project.") do |val|
+        options[:projects] ||= []
+        options[:projects] << val
       end
       # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
       #   params['clusterId'] ||= []
@@ -621,11 +619,35 @@ EOT
     
     # construct params
     params.merge!(parse_list_options(options))
-    # parse --clouds
     if options[:clouds]
       cloud_ids = parse_cloud_id_list(options[:clouds])
-      return 1 if cloud_ids.nil?
+      return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
       params['zoneId'] = cloud_ids
+    end
+    if options[:groups]
+      group_ids = parse_group_id_list(options[:groups])
+      return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
+      params['siteId'] = group_ids
+    end
+    if options[:instances]
+      instance_ids = parse_instance_id_list(options[:instances])
+      return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
+      params['instanceId'] = instance_ids
+    end
+    if options[:servers]
+      server_ids = parse_server_id_list(options[:servers])
+      return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
+      params['serverId'] = server_ids
+    end
+    if options[:users]
+      user_ids = parse_user_id_list(options[:users])
+      return 1, "users not found for #{options[:users]}" if user_ids.nil?
+      params['userId'] = user_ids
+    end
+    if options[:projects]
+      project_ids = parse_project_id_list(options[:projects])
+      return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
+      params['projectId'] = project_ids
     end
     params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
@@ -666,7 +688,7 @@ EOT
           {"RATE" => lambda {|it| it['itemRate'] } },
           {"COST" => lambda {|it| format_money(it['itemCost']) } },
           {"PRICE" => lambda {|it| format_money(it['itemPrice']) } },
-          {"TAX" => lambda {|it| it['itemTax'] } },
+          {"TAX" => lambda {|it| format_money(it['itemTax']) } },
           # {"TERM" => lambda {|it| it['itemTerm'] } },
           "CREATED" => lambda {|it| format_local_dt(it['dateCreated']) },
           "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }

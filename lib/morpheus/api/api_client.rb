@@ -735,7 +735,7 @@ class Morpheus::APIClient
   end
 
   def invoice_line_items
-    Morpheus::ProjectsInterface.new(common_interface_options).setopts(@options)
+    Morpheus::InvoiceLineItemsInterface.new(common_interface_options).setopts(@options)
   end
 
   def guidance
