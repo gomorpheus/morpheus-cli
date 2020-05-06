@@ -257,13 +257,10 @@ class Morpheus::Cli::Clouds
       payload = nil
       if options[:payload]
         payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if options[:options]
-          payload['zone'] ||= {}
-          payload['zone'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
-        end
+        payload.deep_merge!({'zone' => parse_passed_options(options)})
       else
         cloud_payload = {name: args[0], description: params[:description]}
+        cloud_payload.deep_merge!(parse_passed_options(options))
         # use active group by default
         params[:group] ||= @active_group_id
 
