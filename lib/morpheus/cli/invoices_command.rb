@@ -3,15 +3,18 @@ require 'date'
 
 class Morpheus::Cli::InvoicesCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::OptionSourceHelper
 
   set_command_name :'invoices'
 
-  register_subcommands :list, :get, :refresh
+  register_subcommands :list, :get, :refresh,
+                       :list_line_items, :get_line_item
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @invoices_interface = @api_client.invoices
+    @invoice_line_items_interface = @api_client.invoices
   end
 
   def handle(args)
@@ -64,28 +67,38 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.add_hidden_option('--ref-id')
       opts.on('--group ID', String, "Filter by Group") do |val|
-        params['siteId'] ||= []
-        params['siteId'] << val
+        options[:groups] ||= []
+        options[:groups] << val
+        # params['siteId'] ||= []
+        # params['siteId'] << val
       end
       opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
         options[:clouds] ||= []
         options[:clouds] << val
       end
       opts.on('--instance ID', String, "Filter by Instance") do |val|
-        params['instanceId'] ||= []
-        params['instanceId'] << val
+        options[:instances] ||= []
+        options[:instances] << val
       end
       opts.on('--container ID', String, "Filter by Container") do |val|
         params['containerId'] ||= []
         params['containerId'] << val
       end
       opts.on('--server ID', String, "Filter by Server (Host)") do |val|
-        params['serverId'] ||= []
-        params['serverId'] << val
+        options[:servers] ||= []
+        options[:servers] << val
+        # params['serverId'] ||= []
+        # params['serverId'] << val
       end
       opts.on('--user ID', String, "Filter by User") do |val|
-        params['userId'] ||= []
-        params['userId'] << val
+        options[:users] ||= []
+        options[:users] << val
+        # params['userId'] ||= []
+        # params['userId'] << val
+      end
+      opts.on('--project PROJECT', String, "View invoices for a project.") do |val|
+        options[:projects] ||= []
+        options[:projects] << val
       end
       # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
       #   params['clusterId'] ||= []
@@ -117,17 +130,42 @@ class Morpheus::Cli::InvoicesCommand
     end
     optparse.parse!(args)
     connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+      options[:phrase] = args.join(" ")
     end
     begin
       # construct params
       params.merge!(parse_list_options(options))
-      # parse --clouds
       if options[:clouds]
         cloud_ids = parse_cloud_id_list(options[:clouds])
-        return 1 if cloud_ids.nil?
+        return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
         params['zoneId'] = cloud_ids
+      end
+      if options[:groups]
+        group_ids = parse_group_id_list(options[:groups])
+        return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
+        params['siteId'] = group_ids
+      end
+      if options[:instances]
+        instance_ids = parse_instance_id_list(options[:instances])
+        return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
+        params['instanceId'] = instance_ids
+      end
+      if options[:servers]
+        server_ids = parse_server_id_list(options[:servers])
+        return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
+        params['serverId'] = server_ids
+      end
+      if options[:users]
+        user_ids = parse_user_id_list(options[:users])
+        return 1, "users not found for #{options[:users]}" if user_ids.nil?
+        params['userId'] = user_ids
+      end
+      if options[:projects]
+        project_ids = parse_project_id_list(options[:projects])
+        return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
+        params['projectId'] = project_ids
       end
       params['rawData'] = true if options[:show_raw_data]
       params['refId'] = ref_ids unless ref_ids.empty?
@@ -142,12 +180,6 @@ class Morpheus::Cli::InvoicesCommand
       invoices = json_response['invoices']
       title = "Morpheus Invoices"
       subtitles = []
-      if params['status']
-        subtitles << "Status: #{params['status']}"
-      end
-      if params['alarmStatus'] == 'acknowledged'
-        subtitles << "(Acknowledged)"
-      end
       if params['startDate']
         subtitles << "Start Date: #{params['startDate']}"
       end
@@ -161,11 +193,17 @@ class Morpheus::Cli::InvoicesCommand
       else
         # current_date = Time.now
         # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
+        show_projects = invoices.find {|it| it['project'] } || (params['projectId'] || params['projectName'] || params['projectTag'])
         columns = [
           {"INVOICE ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
-          {"REF NAME" => lambda {|it| it['refName'] } },
+          {"REF NAME" => lambda {|it| it['refName'] } }
+        ] + (show_projects ? [
+          {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
+          {"PROJECT NAME" => lambda {|it| it['project'] ? it['project']['name'] : '' } },
+          {"PROJECT TAGS" => lambda {|it| it['project'] ? format_metadata(it['project']['tags']) : '' } }
+        ] : []) + [
           #{"INTERVAL" => lambda {|it| it['interval'] } },
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
           {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
@@ -251,12 +289,13 @@ class Morpheus::Cli::InvoicesCommand
       end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice."
+      opts.footer = <<-EOT
+Get details about a specific invoice.
+[id] is required. This is the id of an invoice.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
@@ -290,6 +329,9 @@ class Morpheus::Cli::InvoicesCommand
         "Ref ID" => lambda {|it| it['refId'] },
         "Ref Name" => lambda {|it| it['refName'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "Project ID" => lambda {|it| it['project'] ? it['project']['id'] : '' },
+        "Project Name" => lambda {|it| it['project'] ? it['project']['name'] : '' },
+        "Project Tags" => lambda {|it| it['project'] ? format_metadata(it['project']['tags']) : '' },
         "Power State" => lambda {|it| format_server_power_state(it) },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
@@ -302,8 +344,13 @@ class Morpheus::Cli::InvoicesCommand
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
       # remove columns that do not apply
-      if !invoice['plan']
+      if invoice['plan'].nil?
         description_cols.delete("Plan")
+      end
+      if invoice['project'].nil?
+        description_cols.delete("Project ID")
+        description_cols.delete("Project Name")
+        description_cols.delete("Project Tags")
       end
       if !['ComputeServer','Instance','Container'].include?(invoice['refType'])
         description_cols.delete("Power State")
@@ -466,6 +513,242 @@ EOT
     # print output
     print_green_success(json_response['msg'] || "Refreshing invoices")
     return 0
+  end
+
+  def list_line_items(args)
+    options = {}
+    params = {}
+    ref_ids = []
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+        options[:show_actual_costs] = true
+        options[:show_costs] = true
+        options[:show_prices] = true
+        options[:show_raw_data] = true
+      end
+      opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
+        options[:show_actual_costs] = true
+      end
+      opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
+        options[:show_costs] = true
+      end
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
+        options[:show_prices] = true
+      end
+      opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
+        if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
+          params['refType'] = 'ComputeZone'
+        elsif val.to_s.downcase == 'instance'
+          params['refType'] = 'Instance'
+        elsif val.to_s.downcase == 'server' || val.to_s.downcase == 'host'
+          params['refType'] = 'ComputeServer'
+        elsif val.to_s.downcase == 'cluster'
+          params['refType'] = 'ComputeServerGroup'
+        elsif val.to_s.downcase == 'group'
+          params['refType'] = 'ComputeSite'
+        elsif val.to_s.downcase == 'user'
+          params['refType'] = 'User'
+        else
+          params['refType'] = val
+        end
+      end
+      opts.on('--id ID', String, "Filter by Ref ID") do |val|
+        ref_ids << val
+      end
+      opts.on('--ref-id ID', String, "Filter by Ref ID") do |val|
+        ref_ids << val
+      end
+      opts.add_hidden_option('--ref-id')
+      opts.on('--group ID', String, "Filter by Group") do |val|
+        params['siteId'] ||= []
+        params['siteId'] << val
+      end
+      opts.on( '-c', '--cloud CLOUD', "Filter by Cloud" ) do |val|
+        options[:clouds] ||= []
+        options[:clouds] << val
+      end
+      opts.on('--instance ID', String, "Filter by Instance") do |val|
+        params['instanceId'] ||= []
+        params['instanceId'] << val
+      end
+      opts.on('--container ID', String, "Filter by Container") do |val|
+        params['containerId'] ||= []
+        params['containerId'] << val
+      end
+      opts.on('--server ID', String, "Filter by Server (Host)") do |val|
+        params['serverId'] ||= []
+        params['serverId'] << val
+      end
+      opts.on('--user ID', String, "Filter by User") do |val|
+        params['userId'] ||= []
+        params['userId'] << val
+      end
+      # opts.on('--cluster ID', String, "Filter by Cluster") do |val|
+      #   params['clusterId'] ||= []
+      #   params['clusterId'] << val
+      # end
+      opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
+        params['startDate'] = val #parse_time(val).utc.iso8601
+      end
+      opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is now.") do |val|
+        params['endDate'] = val #parse_time(val).utc.iso8601
+      end
+      opts.on('--period PERIOD', String, "Period in the format YYYYMM. This can be used instead of start/end.") do |val|
+        params['period'] = parse_period(val)
+      end
+      opts.on('--active [true|false]',String, "Filter by active.") do |val|
+        params['active'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on('--estimate [true|false]',String, "Filter by estimate.") do |val|
+        params['estimate'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on('--tenant ID', String, "View invoice line items for a tenant. Default is your own account.") do |val|
+        params['accountId'] = val
+      end
+      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
+        options[:show_raw_data] = true
+      end
+      build_standard_list_options(opts, options)
+      opts.footer = "List invoice line items."
+    end
+    optparse.parse!(args)
+    connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    
+    # construct params
+    params.merge!(parse_list_options(options))
+    # parse --clouds
+    if options[:clouds]
+      cloud_ids = parse_cloud_id_list(options[:clouds])
+      return 1 if cloud_ids.nil?
+      params['zoneId'] = cloud_ids
+    end
+    params['rawData'] = true if options[:show_raw_data]
+    params['refId'] = ref_ids unless ref_ids.empty?
+    @invoice_line_items_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoice_line_items_interface.dry.list(params)
+      return
+    end
+    json_response = @invoice_line_items_interface.list(params)
+    line_items = json_response['lineItems']
+    render_response(json_response, options, 'lineItems') do
+      title = "Morpheus Line Items"
+      subtitles = []
+      if params['startDate']
+        subtitles << "Start Date: #{params['startDate']}"
+      end
+      if params['endDate']
+        subtitles << "End Date: #{params['endDate']}"
+      end
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if line_items.empty?
+        print yellow,"No line items found.",reset,"\n"
+      else
+        # current_date = Time.now
+        # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
+        columns = [
+          {"INVOICE ID" => lambda {|it| it['invoiceId'] } },
+          {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
+          {"REF ID" => lambda {|it| it['refId'] } },
+          {"REF NAME" => lambda {|it| it['refName'] } },
+          #{"REF CATEGORY" => lambda {|it| it['refCategory'] } },
+          {"START" => lambda {|it| format_date(it['startDate']) } },
+          {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
+          {"USAGE TYPE" => lambda {|it| it['usageType'] } },
+          {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
+          {"USAGE" => lambda {|it| it['itemUsage'] } },
+          {"RATE" => lambda {|it| it['itemRate'] } },
+          {"COST" => lambda {|it| format_money(it['itemCost']) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice']) } },
+          {"TAX" => lambda {|it| it['itemTax'] } },
+          # {"TERM" => lambda {|it| it['itemTerm'] } },
+          "CREATED" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        ]
+
+        if options[:show_raw_data]
+          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
+        end
+        print as_pretty_table(line_items, columns, options)
+        print_results_pagination(json_response, {:label => "line item", :n_label => "line items"})
+      end
+      print reset,"\n"
+    end
+    if line_items.empty?
+      return 1, "no line items found"
+    else
+      return 0, nil
+    end
+  end
+  
+  def get_line_item(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
+        options[:show_raw_data] = true
+      end
+      build_standard_get_options(opts, options)
+      opts.footer = "Get details about a specific invoice line item."
+      opts.footer = <<-EOT
+Get details about a specific invoice line item.
+[id] is required. This is the id of an invoice line item.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+
+  def _get_line_item(id, options)
+    params = {}
+    if options[:show_raw_data]
+      params['rawData'] = true
+    end
+    @invoice_line_items_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoice_line_items_interface.dry.get(id, params)
+      return
+    end
+    json_response = @invoice_line_items_interface.get(id, params)
+    line_item = json_response['lineItem']
+    render_response(json_response, options, 'lineItem') do
+      print_h1 "Line Item Details"
+      print cyan
+      description_cols = {
+        "ID" => lambda {|it| it['id'] },
+        "Invoice ID" => lambda {|it| it['invoiceId'] },
+        "Type" => lambda {|it| format_invoice_ref_type(it) },
+        "Ref ID" => lambda {|it| it['refId'] },
+        "Ref Name" => lambda {|it| it['refName'] },
+        "Start" => lambda {|it| format_date(it['startDate']) },
+        "End" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' },
+        "Usage Type" => lambda {|it| it['usageType'] },
+        "Usage Category" => lambda {|it| it['usageCategory'] },
+        "Item Usage" => lambda {|it| it['itemUsage'] },
+        "Item Rate" => lambda {|it| it['itemRate'] },
+        "Item Cost" => lambda {|it| format_money(it['itemCost']) },
+        "Item Price" => lambda {|it| format_money(it['itemrPrice']) },
+        "Item Tax" => lambda {|it| format_money(it['itemTax']) },
+        "Item Term" => lambda {|it| it['itemTerm'] },
+        #"Tax Type" => lambda {|it| it['taxType'] },
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+      }
+      print_description_list(description_cols, line_item, options)
+      print reset,"\n"
+    end
+    return 0, nil
   end
 
   private

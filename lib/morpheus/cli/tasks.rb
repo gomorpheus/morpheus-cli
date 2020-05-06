@@ -715,14 +715,14 @@ class Morpheus::Cli::Tasks
         print_dry_run @tasks_interface.dry.update(task['id'], payload)
         return 0
       end
-      response = @tasks_interface.update(task['id'], payload)
+      json_response = @tasks_interface.update(task['id'], payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
-        if !response['success']
+        if !json_response['success']
           return 1
         end
       else
-        print_green_success "Task #{response['task']['name']} updated"
+        print_green_success "Task #{json_response['task']['name'] rescue ''} updated"
         get([task['id']])
       end
       return 0

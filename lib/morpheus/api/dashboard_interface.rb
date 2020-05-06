@@ -3,14 +3,12 @@ require 'morpheus/api/api_client'
 class Morpheus::DashboardInterface < Morpheus::APIClient
 
   def get(params={})
-    headers = {params: params, authorization: "Bearer #{@access_token}"}
-    execute(method: :get, url: "/api/dashboard", headers: headers)
+    execute(method: :get, url: "/api/dashboard", headers: {params: params})
   end
 
   # [DEPRECATED] Use ActivityInterface.list() instead.
   def recent_activity(params={})
-    headers = {params: params, authorization: "Bearer #{@access_token}"}
-    execute(method: :get, url: "/api/dashboard/recent-activity", headers: headers)
+    execute(method: :get, url: "/api/dashboard/recent-activity", headers: {params: params})
   end
 
 end

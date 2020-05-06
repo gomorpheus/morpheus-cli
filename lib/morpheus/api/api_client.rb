@@ -731,11 +731,19 @@ class Morpheus::APIClient
   end
 
   def invoices
-    Morpheus::InvoicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::InvoicesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def invoice_line_items
+    Morpheus::ProjectsInterface.new(common_interface_options).setopts(@options)
   end
 
   def guidance
     Morpheus::GuidanceInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  end
+
+  def projects
+    Morpheus::ProjectsInterface.new(common_interface_options).setopts(@options)
   end
 
   # add new interfaces here

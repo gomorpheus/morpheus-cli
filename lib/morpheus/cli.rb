@@ -170,6 +170,7 @@ module Morpheus
       load 'morpheus/cli/health_command.rb'
       load 'morpheus/cli/invoices_command.rb'
       load 'morpheus/cli/guidance_command.rb'
+      load 'morpheus/cli/projects_command.rb'
       # add new commands here...
 
     end

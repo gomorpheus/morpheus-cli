@@ -253,6 +253,12 @@ module Morpheus::Cli::ProvisioningHelper
     return instance
   end
 
+  def parse_instance_id_list(id_list)
+    parse_id_list(id_list).collect do |instance_id|
+      find_instance_by_name_or_id(instance_id)['id']
+    end
+  end
+
   ## apps
 
   def find_app_by_id(id)
@@ -322,6 +328,12 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+  def parse_server_id_list(id_list)
+    parse_id_list(id_list).collect do |server_id|
+      find_server_by_name_or_id(server_id)['id']
+    end
+  end
+
   ## hosts is the same as servers, just says 'Host' instead of 'Server'
 
   def find_host_by_id(id)
@@ -355,6 +367,12 @@ module Morpheus::Cli::ProvisioningHelper
       return find_host_by_id(val)
     else
       return find_host_by_name(val)
+    end
+  end
+
+  def parse_host_id_list(id_list)
+    parse_id_list(id_list).collect do |host_id|
+      find_host_by_name_or_id(host_id)['id']
     end
   end
 
@@ -1626,6 +1644,45 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     return evars
+  end
+
+  # Converts metadata tags array into a string like "name:value, foo:bar"
+  def format_metadata(tags)
+    if tags.nil? || tags.empty?
+      ""
+    elsif tags.instance_of?(Array)
+      tags.collect {|tag| "#{tag['name']}: #{tag['value']}" }.join(", ")
+    elsif tags.instance_of?(Hash)
+      tags.collect {|k,v| "#{k}: #{v}" }.join(", ")
+    else
+      tags.to_s
+    end
+  end
+
+  # Parses metadata tags object (string) into an array
+  def parse_metadata(val)
+    metadata = nil
+    if val
+      if val == "[]" || val == "null"
+        metadata = []
+      elsif val.is_a?(Array)
+        metadata = val
+      else
+        # parse string into format name:value, name:value
+        # merge IDs from current metadata
+        # todo: should allow quoted semicolons..
+        metadata_list = val.to_s.split(",").select {|it| !it.to_s.empty? }
+        metadata_list = metadata_list.collect do |it|
+          metadata_pair = it.include?(":") ? it.split(":") : it.split("=")
+          row = {}
+          row['name'] = metadata_pair[0].to_s.strip
+          row['value'] = metadata_pair[1].to_s.strip
+          row
+        end
+        metadata = metadata_list
+      end
+    end
+    return metadata
   end
 
   # Prompts user for environment variables for new instance

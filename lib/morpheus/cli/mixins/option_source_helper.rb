@@ -229,24 +229,27 @@ module Morpheus::Cli::OptionSourceHelper
   end
 
   def parse_cloud_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('clouds', id_list)
+    parse_option_source_id_list('clouds', id_list, api_params, refresh)
   end
 
   def parse_group_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('groups', id_list)
+    parse_option_source_id_list('groups', id_list, api_params, refresh)
   end
 
   def parse_user_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('users', id_list)
+    parse_option_source_id_list('users', id_list, api_params, refresh)
   end
 
   def parse_tenant_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('allTenants', id_list)
+    parse_option_source_id_list('allTenants', id_list, api_params, refresh)
   end
 
   # def parse_blueprints_id_list(id_list)
-  #   parse_option_source_id_list('blueprints', id_list)
+  #   parse_option_source_id_list('blueprints', id_list, api_params, refresh)
   # end
 
+  def parse_project_id_list(id_list, api_params={}, refresh=false)
+    parse_option_source_id_list('projects', id_list, api_params, refresh)
+  end
 
 end
