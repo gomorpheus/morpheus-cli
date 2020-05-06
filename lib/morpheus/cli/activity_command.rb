@@ -26,7 +26,7 @@ class Morpheus::Cli::ActivityCommand
         options[:type] ||= []
         options[:type] << val
       end
-      opts.on('--timeframe TIMEFRAME', String, "Timeframe, eg. hour,day,today,yesterday,week,month,quarter. Default is month") do |val|
+      opts.on('--timeframe TIMEFRAME', String, "Timeframe, eg. hour,day,today,yesterday,week,month,3months. Default is month") do |val|
         options[:timeframe] = val
       end
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start date to search for activity, can be used instead of --timeframe. Default is a month ago.") do |val|
