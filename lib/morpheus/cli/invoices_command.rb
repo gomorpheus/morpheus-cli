@@ -28,17 +28,17 @@ class Morpheus::Cli::InvoicesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
-        options[:show_actual_costs] = true
-        options[:show_costs] = true
+        options[:show_estimated_costs] = true
+        # options[:show_costs] = true
         options[:show_prices] = true
         options[:show_raw_data] = true
       end
-      opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
-        options[:show_actual_costs] = true
+      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
+        options[:show_estimated_costs] = true
       end
-      opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
-        options[:show_costs] = true
-      end
+      # opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
+      #   options[:show_costs] = true
+      # end
       opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
         options[:show_prices] = true
       end
@@ -214,35 +214,16 @@ class Morpheus::Cli::InvoicesCommand
             else
               format_money(it['totalCost'])
             end
-          } },
-          {"ACTUAL MTD" => lambda {|it| format_money(it['actualRunningCost']) } },
-          {"ACTUAL TOTAL" => lambda {|it| 
-            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['actualTotalCost'].to_f > 0
-              format_money(it['actualTotalCost']) + " (Projected)"
-            else
-              format_money(it['actualTotalCost'])
-            end
           } }
         ]
-        if options[:show_costs]
-          columns += [
-            {"COMPUTE" => lambda {|it| format_money(it['computeCost']) } },
-            # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
-            {"STORAGE" => lambda {|it| format_money(it['storageCost']) } },
-            {"NETWORK" => lambda {|it| format_money(it['networkCost']) } },
-            {"OTHER" => lambda {|it| format_money(it['extraCost']) } },
-          ]
-        end
-        if options[:show_actual_costs]
-          columns += [
-            {"ACTUAL COMPUTE" => lambda {|it| format_money(it['actualComputeCost']) } },
-            # {"ACTUAL MEMORY" => lambda {|it| format_money(it['actualMemoryCost']) } },
-            {"ACTUAL STORAGE" => lambda {|it| format_money(it['actualStorageCost']) } },
-            {"ACTUAL NETWORK" => lambda {|it| format_money(it['actualNetworkCost']) } },
-            {"ACTUAL OTHER" => lambda {|it| format_money(it['actualExtraCost']) } },
-          ]
-        end
-
+        
+        columns += [
+          {"COMPUTE" => lambda {|it| format_money(it['computeCost']) } },
+          # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
+          {"STORAGE" => lambda {|it| format_money(it['storageCost']) } },
+          {"NETWORK" => lambda {|it| format_money(it['networkCost']) } },
+          {"OTHER" => lambda {|it| format_money(it['extraCost']) } },
+        ]
         if options[:show_prices]
           columns += [
             {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice']) } },
@@ -260,7 +241,23 @@ class Morpheus::Cli::InvoicesCommand
             } }
           ]
         end
-
+        if options[:show_estimates]
+          columns += [
+            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost']) } },
+            {"TOTAL EST." => lambda {|it| 
+              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['estimatedTotalCost'].to_f > 0
+                format_money(it['estimatedTotalCost']) + " (Projected)"
+              else
+                format_money(it['estimatedTotalCost'])
+              end
+            } },
+            {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost']) } },
+            # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost']) } },
+            {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost']) } },
+            {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost']) } },
+            {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost']) } },
+          ]
+        end
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
@@ -384,9 +381,10 @@ EOT
       print "\n"
       # print_h2 "Costs"
       cost_rows = [
-        {label: 'Usage Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
-        {label: 'Usage Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
-        {label: 'Actual Cost'.upcase, compute: invoice['actualComputeCost'], memory: invoice['actualMemoryCost'], storage: invoice['actualStorageCost'], network: invoice['actualNetworkCost'], license: invoice['actualLicenseCost'], extra: invoice['actualExtraCost'], running: invoice['actualRunningCost'], total: invoice['actualTotalCost']},
+        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+        #{label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},,
+        #{label: 'Estimated Price'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
       ]
       cost_columns = {
         "" => lambda {|it| it[:label] },
