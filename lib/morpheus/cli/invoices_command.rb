@@ -28,13 +28,13 @@ class Morpheus::Cli::InvoicesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
-        options[:show_estimated_costs] = true
+        options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
         options[:show_raw_data] = true
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
-        options[:show_estimated_costs] = true
+        options[:show_estimates] = true
       end
       # opts.on('--costs', '--costs', "Display all costs: Compute, Memory, Storage, etc." ) do
       #   options[:show_costs] = true
@@ -275,6 +275,15 @@ class Morpheus::Cli::InvoicesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+        options[:show_estimates] = true
+        # options[:show_costs] = true
+        options[:show_prices] = true
+        options[:show_raw_data] = true
+      end
+      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
+        options[:show_estimates] = true
+      end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
@@ -383,9 +392,13 @@ EOT
       cost_rows = [
         {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
         {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
-        #{label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},,
-        #{label: 'Estimated Price'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
       ]
+      if options[:show_estimates]
+        cost_rows += [
+          {label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+          {label: 'Estimated Price'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+        ]
+      end
       cost_columns = {
         "" => lambda {|it| it[:label] },
         "Compute".upcase => lambda {|it| format_money(it[:compute]) },
