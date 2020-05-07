@@ -482,7 +482,7 @@ EOT
     if payload[:clouds]
       payload[:clouds] = parse_id_list(payload[:clouds]).collect {|cloud_id|
         if cloud_id.to_s =~ /\A\d{1,}\Z/
-          return cloud_id
+          cloud_id
         else
           cloud = find_cloud_option(cloud_id)
           return 1 if cloud.nil?
