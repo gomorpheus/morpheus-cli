@@ -1651,9 +1651,9 @@ module Morpheus::Cli::ProvisioningHelper
     if tags.nil? || tags.empty?
       ""
     elsif tags.instance_of?(Array)
-      tags.collect {|tag| "#{tag['name']}: #{tag['value']}" }.join(", ")
+      tags.collect {|tag| "#{tag['name']}: #{tag['value']}" }.sort.join(", ")
     elsif tags.instance_of?(Hash)
-      tags.collect {|k,v| "#{k}: #{v}" }.join(", ")
+      tags.collect {|k,v| "#{k}: #{v}" }.sort.join(", ")
     else
       tags.to_s
     end
