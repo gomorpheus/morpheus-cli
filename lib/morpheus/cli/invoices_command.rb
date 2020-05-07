@@ -196,7 +196,7 @@ class Morpheus::Cli::InvoicesCommand
         ] + (show_projects ? [
           {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
           {"PROJECT NAME" => lambda {|it| it['project'] ? it['project']['name'] : '' } },
-          {"PROJECT TAGS" => lambda {|it| it['project'] ? format_metadata(it['project']['tags']) : '' } }
+          {"PROJECT TAGS" => lambda {|it| it['project'] ? truncate_string(format_metadata(it['project']['tags']), 50) : '' } }
         ] : []) + [
           #{"INTERVAL" => lambda {|it| it['interval'] } },
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
