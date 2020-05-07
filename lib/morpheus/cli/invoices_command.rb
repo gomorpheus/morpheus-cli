@@ -459,7 +459,7 @@ EOT
       # opts.on( '-f', '--force', "Force Refresh" ) do
       #   query_params[:force] = 'true'
       # end
-      build_standard_update_options(opts, options, [:auto_confirm])
+      build_standard_update_options(opts, options, [:query, :auto_confirm])
       opts.footer = <<-EOT
 Refresh invoices.
 By default, nothing is changed.
@@ -470,10 +470,9 @@ To get the latest invoice costing data, include --daily --costing --current --al
 EOT
     end
     optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
+    params.merge!(parse_query_options(options))
     if options[:payload]
       payload = options[:payload]
     end
