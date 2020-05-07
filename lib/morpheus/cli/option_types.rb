@@ -320,7 +320,7 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
           end
         else
-          raise "select_prompt() requires selectOptions or optionSource!"
+          raise "option '#{field_key}' is type: 'select' and missing selectOptions or optionSource!"
         end
 
         # ensure the preselected value (passed as an option) is in the dropdown
