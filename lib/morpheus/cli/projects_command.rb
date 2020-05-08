@@ -7,7 +7,7 @@ class Morpheus::Cli::Projects
   # include Morpheus::Cli::InfrastructureHelper
   # include Morpheus::Cli::AccountsHelper
 
-  register_subcommands :list, :get, :add, :update, :remove,
+  register_subcommands :list, :get, :add, :update, :remove
                        # :add_tags, :remove_tags,
                        #:add_instance, :remove_instance
                        #:add_host, :remove_host
