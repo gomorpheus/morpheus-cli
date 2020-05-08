@@ -73,7 +73,6 @@ EOT
         # pre 4.2.1 api would return HTTP 400 here, but with setupNeeded=false
         # so fallback to the old /api/setup/check
         # this could be in the interface itself..
-        puts "e is : #{e.class}"
         if e.response && (e.response.code == 400 || e.response.code == 404 || e.response.code == 401)
           Morpheus::Logging::DarkPrinter.puts "HTTP 400 from /api/setup, falling back to older /api/setup/check" if Morpheus::Logging.debug?
           begin
@@ -97,6 +96,9 @@ EOT
       # my_terminal.execute("setup needed?")
       # theres a bug here with --remote-url :status == "unknown"
       # but hey, we got json back, so set status to "ready"
+      if appliance_status_json && appliance_status_json['setupNeeded'] == false
+        @remote_appliance[:status] == 'ready'
+      end
       remote_status_string = format_appliance_status(@remote_appliance, cyan)
       if appliance_status_json && appliance_status_json['setupNeeded'] == true
         # ok, setupNeeded
@@ -149,7 +151,7 @@ EOT
         puts "This is done to retrieve and install the license key for your appliance."
         puts "You have several options for how to proceed:"
         hub_action_dropdown.each_with_index do |hub_action, idx|
-          puts "#{idx+1}. #{hub_action['name']} [#{hub_action['value']}]"
+          puts "* #{hub_action['name']} [#{hub_action['value']}]"
         end
         print "\n", reset
 
