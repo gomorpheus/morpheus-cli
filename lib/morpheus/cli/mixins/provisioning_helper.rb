@@ -1697,7 +1697,7 @@ module Morpheus::Cli::ProvisioningHelper
     while add_another_metadata do
       field_context = "metadata#{metadata_index}"
       metadata = {}
-      metadata['id'] = nil
+      #metadata['id'] = nil
       metadata_label = metadata_index == 0 ? "Metadata Tag" : "Metadata Tag [#{metadata_index+1}]"
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => "#{metadata_label} Name", 'required' => true, 'description' => 'Metadata Tag Name.', 'defaultValue' => metadata['name']}], options[:options])
       # todo: metadata.type ?
