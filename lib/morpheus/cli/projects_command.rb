@@ -98,10 +98,7 @@ EOT
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[workflow]")
-      opts.on('--no-content', "Do not display script content." ) do
-        options[:no_content] = true
-      end
+      opts.banner = subcommand_usage("[project]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = <<-EOT
 Get details about a project.
