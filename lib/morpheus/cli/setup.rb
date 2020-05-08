@@ -60,14 +60,20 @@ EOT
     else
       payload.deep_merge!(parse_passed_options(options))
 
+      # JD: This should just do a Remote.check_appliance() first... needs to work with --remote-url though.
       # @setup_interface = Morpheus::SetupInterface.new({url:@appliance_url,access_token:@access_token})
       appliance_status_json = nil
       begin
         appliance_status_json = @setup_interface.get()
+      rescue RestClient::SSLCertificateNotVerified => e
+        @remote_appliance[:status] = 'ssl-error'
+        @remote_appliance[:last_check] ||= {}
+        @remote_appliance[:last_check][:error] = e.message
       rescue RestClient::Exception => e
         # pre 4.2.1 api would return HTTP 400 here, but with setupNeeded=false
         # so fallback to the old /api/setup/check
         # this could be in the interface itself..
+        puts "e is : #{e.class}"
         if e.response && (e.response.code == 400 || e.response.code == 404 || e.response.code == 401)
           Morpheus::Logging::DarkPrinter.puts "HTTP 400 from /api/setup, falling back to older /api/setup/check" if Morpheus::Logging.debug?
           begin
@@ -81,6 +87,11 @@ EOT
             end
           end
         end
+        if appliance_status_json.nil?
+          @remote_appliance[:status] = 'http-error'
+          @remote_appliance[:last_check] ||= {}
+          @remote_appliance[:last_check][:error] = e.message
+        end
       end
 
       # my_terminal.execute("setup needed?")
@@ -91,6 +102,11 @@ EOT
         # ok, setupNeeded
         # print_error cyan,"Setup is needed, status is #{remote_status_string}",reset,"\n"
       else
+        if @remote_appliance[:status] == 'ssl-error'
+          print_error cyan,"Setup unavailable, status is #{remote_status_string}","\n"
+          print_error "Try passing the --insecure option.",reset,"\n"
+          return 1, "setup unavailable"
+        end
         if options[:force] != true
           print_error cyan,"Setup unavailable, status is #{remote_status_string}",reset,"\n"
           #print_error red, "#{appliance_status_json['msg']}\n", reset

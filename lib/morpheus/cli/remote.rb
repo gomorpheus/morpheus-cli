@@ -366,18 +366,11 @@ EOT
     end
 
     # setup fresh appliance?
-    if appliance[:status] == 'fresh' # || appliance[:setup_needed] == true
-      if !appliance[:active]
-        if ::Morpheus::Cli::OptionTypes::confirm("Would you like to switch to using this remote now?", options.merge({default: true}))
-          use([appliance[:name]])
-          appliance[:active] = true # just in case, could reload instead with load_active_remote()
-        end
-      end
-
+    if appliance[:status] == 'fresh'
       print cyan
       puts "It looks like this appliance needs to be setup. Starting setup ..."
-      return setup([new_appliance_name])
-      # no need to login, setup() handles that
+      #return setup([new_appliance_name] + [Morpheus::Logging.debug? ? ["--debug"] : []])
+      return Morpheus::Cli::Setup.new.handle(["-r", new_appliance_name] + (Morpheus::Logging.debug? ? ["--debug"] : []))
     end
 
     # only login if you are using this remote
@@ -1211,7 +1204,7 @@ EOT
   
   # This moved to the SetupCommand
   def setup(args)
-    print_error yellow,"[DEPRECATED] The command `remote setup [name]` is deprecated. It has been replaced by `setup init`.",reset,"\n"
+    print_error yellow,"[DEPRECATED] The command `remote setup` is deprecated. It has been replaced by `setup`.",reset,"\n"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
@@ -1230,7 +1223,7 @@ and it may only be executed successfully one time.
 EOT
     end
     optparse.parse!(args)
-    verify_args!(args:args, max:1, optparse:optparse)
+    verify_args!(args:args, optparse:optparse, max:1)
     # just invoke the setup command.
     # for this to work, the argument [remote] must be the first argument.
     cmd_args = []
@@ -1240,7 +1233,7 @@ EOT
       # cmd_args = cmd_args + ["-r",remote_name, args]
       cmd_args = args + ["-r",remote_name, args]
     end
-    return Morpheus::Cli::Setup.new.init(cmd_args)
+    return Morpheus::Cli::Setup.new.handle(cmd_args)
   end
 
   def load_remote_by_name(appliance_name, allow_current=true)
