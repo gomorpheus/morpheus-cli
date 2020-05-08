@@ -287,6 +287,9 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
+      opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
+        options[:hide_line_items] = true
+      end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice."
       opts.footer = <<-EOT
@@ -433,6 +436,38 @@ EOT
         puts invoice['rawData']
       end
       
+      # Line Items
+      line_items = invoice['lineItems']
+      if line_items && line_items.size > 0 && options[:hide_line_items] != true
+
+        line_items_columns = [
+          {"INVOICE ID" => lambda {|it| it['invoiceId'] } },
+          {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
+          {"REF ID" => lambda {|it| it['refId'] } },
+          {"REF NAME" => lambda {|it| it['refName'] } },
+          #{"REF CATEGORY" => lambda {|it| it['refCategory'] } },
+          {"START" => lambda {|it| format_date(it['startDate']) } },
+          {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
+          {"USAGE TYPE" => lambda {|it| it['usageType'] } },
+          {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
+          {"USAGE" => lambda {|it| it['itemUsage'] } },
+          {"RATE" => lambda {|it| it['itemRate'] } },
+          {"COST" => lambda {|it| format_money(it['itemCost']) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice']) } },
+          {"TAX" => lambda {|it| format_money(it['itemTax']) } },
+          # {"TERM" => lambda {|it| it['itemTerm'] } },
+          "CREATED" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }
+        ]
+
+        if options[:show_raw_data]
+          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
+        end
+
+        print_h2 "Line Items"
+        print as_pretty_table(line_items, line_items_columns, options)
+        print_results_pagination({total: line_items.size, size: line_items.size})
+      end
 
       print reset,"\n"
       return 0
