@@ -339,10 +339,12 @@ EOT
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
         "Period" => lambda {|it| format_invoice_period(it) },
+        "Estimate" => lambda {|it| format_boolean(it['estimate']) },
         #"Interval" => lambda {|it| it['interval'] },
         "Start" => lambda {|it| format_date(it['startDate']) },
         "End" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' },
-        "Estimate" => lambda {|it| format_boolean(it['estimate']) },
+        "Ref Start" => lambda {|it| format_local_dt(it['refStart']) },
+        "Ref End" => lambda {|it| it['refEnd'] ? format_local_dt(it['refEnd']) : '' },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
