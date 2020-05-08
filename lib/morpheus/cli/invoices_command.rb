@@ -862,10 +862,8 @@ EOT
   def format_invoice_ref_type(it)
     if it['refType'] == 'ComputeZone'
       "Cloud"
-    elsif it['refType'] == 'Instance'
-      "Instance"
-    elsif it['refType'] == 'ComputeServer'
-      "Host"
+    # elsif it['refType'] == 'ComputeServer'
+    #   "Host"
     elsif it['refType'] == 'ComputeServerGroup'
       "Cluster"
     elsif it['refType'] == 'ComputeSite'
