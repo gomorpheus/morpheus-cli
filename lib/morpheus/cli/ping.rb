@@ -83,7 +83,7 @@ EOT
       rescue RestClient::Exception => e
         # api_exception = e
         # fallback to older /api/setup/check, which is also public and looks just about the same
-        if e.response.code == 404 || e.response.code == 401
+        if e.response && (e.response.code == 404 || e.response.code == 401)
           start_time = Time.now
           begin
             json_response = @setup_interface.check(params)

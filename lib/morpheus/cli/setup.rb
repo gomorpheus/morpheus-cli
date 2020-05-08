@@ -68,7 +68,7 @@ EOT
         # pre 4.2.1 api would return HTTP 400 here, but with setupNeeded=false
         # so fallback to the old /api/setup/check
         # this could be in the interface itself..
-        if e.response.code == 400
+        if e.response && (e.response.code == 400 || e.response.code == 404 || e.response.code == 401)
           Morpheus::Logging::DarkPrinter.puts "HTTP 400 from /api/setup, falling back to older /api/setup/check" if Morpheus::Logging.debug?
           begin
             appliance_status_json = @setup_interface.check()
@@ -94,7 +94,7 @@ EOT
         if options[:force] != true
           print_error cyan,"Setup unavailable, status is #{remote_status_string}",reset,"\n"
           #print_error red, "#{appliance_status_json['msg']}\n", reset
-          return 1, "already setup"
+          return 1, "setup unavailable"
         end
       end
 
