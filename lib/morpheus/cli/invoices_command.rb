@@ -463,7 +463,7 @@ EOT
         ]
 
         if options[:show_raw_data]
-          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
+          line_items_columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
 
         print_h2 "Line Items"
