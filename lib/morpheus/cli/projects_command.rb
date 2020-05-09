@@ -8,10 +8,7 @@ class Morpheus::Cli::Projects
   # include Morpheus::Cli::AccountsHelper
 
   register_subcommands :list, :get, :add, :update, :remove
-                       # :add_tags, :remove_tags,
-                       #:add_instance, :remove_instance
-                       #:add_host, :remove_host
-  
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @projects_interface = @api_client.projects
@@ -27,7 +24,7 @@ class Morpheus::Cli::Projects
   def list(args)
     params = {}
     options = {}
-    instance_ids, server_ids, cloud_ids = nil, nil, nil
+    instance_ids, server_ids, cloud_ids, resource_ids, owner_ids = nil, nil, nil, nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--instances [LIST]', Array, "Filter by Instance, comma separated list of instance names or IDs.") do |list|
@@ -39,9 +36,12 @@ class Morpheus::Cli::Projects
       opts.on('--clouds [LIST]', Array, "Filter by Cloud, comma separated list of cloud (zone) names or IDs.") do |list|
         cloud_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      # opts.on('--owner [LIST]', Array, "Owner, comma separated list of usernames or IDs.") do |list|
-      #   params['ownerId'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-      # end
+      opts.on('--resources [LIST]', Array, "Filter by Resources, comma separated list of resource IDs.") do |list|
+        resource_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--owners [LIST]', Array, "Owner, comma separated list of usernames or IDs.") do |list|
+        owner_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 List projects.
@@ -56,6 +56,8 @@ EOT
     # todo server and cloud, missing parse_server_id_list() too
     params['serverId'] = parse_server_id_list(server_ids) if server_ids
     params['cloudId'] = parse_cloud_id_list(cloud_ids) if cloud_ids
+    params['resourceId'] = parse_resource_id_list(resource_ids) if resource_ids
+    params['ownerId'] = parse_user_id_list(owner_ids) if owner_ids
     @projects_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @projects_interface.dry.list(params)
@@ -79,6 +81,7 @@ EOT
           {"INSTANCES" => lambda {|it| it['instances'].size rescue '' } },
           {"SERVERS" => lambda {|it| it['servers'].size rescue '' } },
           {"CLOUDS" => lambda {|it| it['clouds'].size rescue '' } },
+          {"RESOURCES" => lambda {|it| it['resources'].size rescue '' } },
           {"OWNER" => lambda {|it| it['owner'] ? it['owner']['username'] : '' } },
           {"DATE CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
           {"LAST UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
@@ -166,6 +169,14 @@ EOT
         print cyan
         print as_pretty_table(project_clouds, [:id, :name], options)
       end
+
+      project_resources = project["resources"] || project["accountResources"]
+      if project_resources && project_resources.size > 0
+        print_h2 "Resources"
+        print cyan
+        print as_pretty_table(project_resources, [:id, :name], options)
+      end
+
       print reset,"\n"
     end
     return 0, nil
@@ -174,7 +185,7 @@ EOT
   def add(args)
     exit_code, err = 0, nil
     params, options, payload = {}, {}, {}
-    project_name, description, metadata, instance_ids, server_ids, cloud_ids = nil, nil, nil, nil, nil, nil
+    project_name, description, metadata, instance_ids, server_ids, cloud_ids, resource_ids = nil, nil, nil, nil, nil, nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name NAME', String, "Project Name" ) do |val|
@@ -194,6 +205,9 @@ EOT
       end
       opts.on('--clouds [LIST]', Array, "Clouds, comma separated list of cloud names or IDs.") do |list|
         cloud_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--resources [LIST]', Array, "Resources, comma separated list of resource IDs.") do |list|
+        resource_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -225,11 +239,6 @@ EOT
         metadata = prompt_metadata(options)
         payload['project']['tags'] = metadata if metadata
       end
-      if instance_ids != nil
-        payload['project']['instances'] = parse_instance_id_list(instance_ids).collect { |it| {'id': it.to_i} }
-      else
-        # could prompt
-      end
       # --instances
       if instance_ids
         payload['project']['instances'] = parse_instance_id_list(instance_ids).collect { |it| {'id': it.to_i} }
@@ -241,6 +250,10 @@ EOT
       # --clouds
       if cloud_ids
         payload['project']['clouds'] = parse_cloud_id_list(cloud_ids).collect { |it| {'id': it.to_i} }
+      end
+      # --resources
+      if resource_ids
+        payload['project']['resources'] = parse_resource_id_list(resource_ids).collect { |it| {'id': it.to_i} }
       end
     end
     @projects_interface.setopts(options)
@@ -261,10 +274,11 @@ EOT
     exit_code, err = 0, nil
     params, options, payload = {}, {}, {}
     project_name, description, metadata, add_metadata, remove_metadata = nil, nil, nil, nil, nil
-    instance_ids, server_ids, cloud_ids = nil, nil, nil
+    instance_ids, server_ids, cloud_ids, resource_ids = nil, nil, nil, nil
     add_instance_ids, remove_instance_ids = nil, nil
     add_server_ids, remove_server_ids = nil, nil
     add_cloud_ids, remove_cloud_ids = nil, nil
+    add_resource_ids, remove_resource_ids = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[project] [options]")
       opts.on('--name NAME', String, "Project Name" ) do |val|
@@ -308,6 +322,15 @@ EOT
       end
       opts.on('--remove-clouds LIST', Array, "Remove Clouds, comma separated list of cloud names or IDs to remove.") do |list|
         remove_cloud_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--resources [LIST]', Array, "Resources, comma separated list of resource names or IDs.") do |list|
+        resource_ids = list ? list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq : []
+      end
+      opts.on('--add-resources LIST', Array, "Add Resources, comma separated list of resource names or IDs to add.") do |list|
+        add_resource_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+      end
+      opts.on('--remove-resources LIST', Array, "Remove Resources, comma separated list of resource names or IDs to remove.") do |list|
+        remove_resource_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
@@ -376,109 +399,19 @@ EOT
         return 1, "clouds not found" if remove_cloud_ids.nil?
         payload['project']['removeClouds'] = remove_cloud_ids.collect { |it| {'id': it.to_i} }
       end
-    end
-    @projects_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @projects_interface.dry.update(project['id'], payload)
-      return
-    end
-    json_response = @projects_interface.update(project['id'], payload)
-    project = json_response['project']
-    render_response(json_response, options, 'project') do
-      print_green_success "Project #{project['name']} updated"
-      exit_code, err = get([project['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-    end
-    return exit_code, err
-  end
-
-  def add_tags(args)
-    params = {}
-    options = {}
-    payload = {}
-    metadata = nil
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[project] [tag=value] [tag=value]")
-      opts.on('--tags TAGS', String, "Project Tags in the format 'name:value, name:value'. This will add/update project tags.") do |val|
-        metadata = val
+      # --resources
+      if resource_ids
+        payload['project']['resources'] = parse_resource_id_list(resource_ids).collect { |it| {'id': it.to_i} }
       end
-      build_standard_update_options(opts, options)
-      opts.footer = <<-EOT
-Add metadata tags to a project.
-[project] is required. This is the name or id of a project.
-[tag=value] is required. This is a metadata tag in the format name=value, 1-N may be passed.
-EOT
-    end
-    optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, min:1) # maybe min:2 instead ?
-    connect(options)
-    exit_code, err = 0, nil
-    if args.count > 1
-      metadata = args[1..-1].join(" ")
-    end
-    project = find_project_by_name_or_id(args[0])
-    return 1, "project not found by '#{args[0]}'" if project.nil?
-    # construct payload
-
-    if options[:payload]
-      payload = options[:payload]
-      payload.deep_merge!({'project' => parse_passed_options(options)})
-    else
-      payload['project'] = {}
-      payload.deep_merge!({'project' => parse_passed_options(options)})
-      if options[:metadata]
-        payload['project']['addTags'] = parse_metadata(metadata)
+      if add_resource_ids
+        add_resource_ids = parse_resource_id_list(add_resource_ids)
+        return 1, "resources not found" if add_resource_ids.nil?
+        payload['project']['addResources'] = add_resource_ids.collect { |it| {'id': it.to_i} }
       end
-    end
-    @projects_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @projects_interface.dry.update(project['id'], payload)
-      return
-    end
-    json_response = @projects_interface.update(project['id'], payload)
-    project = json_response['project']
-    render_response(json_response, options, 'project') do
-      print_green_success "Project #{project['name']} updated"
-      exit_code, err = get([project['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-    end
-    return exit_code, err
-  end
-
-  def remove_tags(args)
-    params = {}
-    options = {}
-    payload = {}
-    metadata = nil
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[project] [tags]")
-      opts.on('--tags TAGS', String, "Project Tags in the format 'name=value, name=value'. This will add/update project tags.") do |val|
-        metadata = val
-      end
-      build_standard_update_options(opts, options)
-      opts.footer = <<-EOT
-Remove metadata tags from a project.
-[project] is required. This is the name or id of a project.
-[tags] is required. This is a metadata tag in the format tag=value, tag2, tag3, 1-N may be passed, value is optional and must match if passed.
-EOT
-    end
-    optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, min:1) # maybe min:2 instead ?
-    connect(options)
-    exit_code, err = 0, nil
-    if args.count > 1
-      metadata = args[1..-1].join(" ")
-    end
-    project = find_project_by_name_or_id(args[0])
-    return 1, "project not found by '#{args[0]}'" if project.nil?
-    # construct payload
-
-    if options[:payload]
-      payload = options[:payload]
-      payload.deep_merge!({'project' => parse_passed_options(options)})
-    else
-      payload['project'] = {}
-      payload.deep_merge!({'project' => parse_passed_options(options)})
-      if metadata
-        payload['project']['removeTags'] = parse_metadata(metadata)
+      if remove_resource_ids
+        remove_resource_ids = parse_resource_id_list(remove_resource_ids)
+        return 1, "resources not found" if remove_resource_ids.nil?
+        payload['project']['removeResources'] = remove_resource_ids.collect { |it| {'id': it.to_i} }
       end
     end
     @projects_interface.setopts(options)

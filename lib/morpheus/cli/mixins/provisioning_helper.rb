@@ -259,6 +259,17 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+  ## resources
+
+  # todo: crud and /api/options for resources
+
+  def parse_resource_id_list(id_list)
+    parse_id_list(id_list).collect do |resource_id|
+      #find_resource_by_name_or_id(resource_id)['id']
+      resource_id
+    end
+  end
+
   ## apps
 
   def find_app_by_id(id)
