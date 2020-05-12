@@ -116,12 +116,12 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
+      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
+        options[:show_raw_data] = true
+      end
       opts.on('--totals', "View total costs and prices for all the invoices found.") do |val|
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
-      end
-      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
-        options[:show_raw_data] = true
       end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
@@ -271,7 +271,7 @@ class Morpheus::Cli::InvoicesCommand
           if invoice_totals
             print_h2 "Invoice Totals"
             invoice_totals_columns = {
-              "# Invoices" => lambda {|it| json_response['meta']['total'] rescue '' },
+              "# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
               "Total Price" => lambda {|it| format_money(it['actualTotalPrice']) },
               "Total Cost" => lambda {|it| format_money(it['actualTotalCost']) },
               "Running Price" => lambda {|it| format_money(it['actualRunningPrice']) },
@@ -312,6 +312,9 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
+      end
+      opts.on('-m', '--max-line-items NUMBER', "Maximum number of line items to display. Default is 5.") do |val|
+        options[:max_line_items] = val.to_i
       end
       opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
         options[:hide_line_items] = true
@@ -493,8 +496,10 @@ EOT
         end
 
         print_h2 "Line Items"
-        print as_pretty_table(line_items, line_items_columns, options)
-        print_results_pagination({total: line_items.size, size: line_items.size})
+        max_line_items = options[:max_line_items] ? options[:max_line_items].to_i : 5
+        paged_line_items = line_items.first(max_line_items)
+        print as_pretty_table(paged_line_items, line_items_columns, options)
+        print_results_pagination({total: line_items.size, size: paged_line_items.size}, {:label => "line item", :n_label => "line items"})
       end
 
       print reset,"\n"
@@ -603,6 +608,10 @@ EOT
       # opts.on('--prices', '--prices', "Display prices: Total, Compute, Memory, Storage, etc." ) do
       #   options[:show_prices] = true
       # end
+      opts.on('--invoice-id ID', String, "Filter by Invoice ID") do |val|
+        params['invoiceId'] ||= []
+        params['invoiceId'] << val
+      end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
           params['refType'] = 'ComputeZone'
@@ -679,6 +688,10 @@ EOT
       end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
+      end
+      opts.on('--totals', "View total costs and prices for all the invoices found.") do |val|
+        params['includeTotals'] = true
+        options[:show_invoice_totals] = true
       end
       build_standard_list_options(opts, options)
       opts.footer = "List invoice line items."
@@ -771,8 +784,36 @@ EOT
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
+        if options[:show_invoice_totals]
+          line_item_totals = json_response['lineItemTotals']
+          if line_item_totals
+            totals_row = line_item_totals.clone
+            totals_row['id'] = 'TOTAL:'
+            #totals_row['usageCategory'] = 'TOTAL:'
+            line_items = line_items + [totals_row]
+          end
+        end
         print as_pretty_table(line_items, columns, options)
         print_results_pagination(json_response, {:label => "line item", :n_label => "line items"})
+
+        # if options[:show_invoice_totals]
+        #   line_item_totals = json_response['lineItemTotals']
+        #   if line_item_totals
+        #     print_h2 "Line Items Totals"
+        #     invoice_totals_columns = {
+        #       "# Line Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
+        #       "Cost" => lambda {|it| format_money(it['itemCost']) },
+        #       "Price" => lambda {|it| format_money(it['itemPrice']) },
+        #       "Tax" => lambda {|it| format_money(it['itemTax']) },
+        #       "Usage" => lambda {|it| it['itemUsage'] },
+        #     }
+        #     print_description_list(invoice_totals_columns, line_item_totals)
+        #   else
+        #     print "\n"
+        #     print yellow, "No line item totals data", reset, "\n"
+        #   end
+        # end
+
       end
       print reset,"\n"
     end
