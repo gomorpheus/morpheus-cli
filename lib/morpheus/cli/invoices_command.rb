@@ -23,7 +23,7 @@ class Morpheus::Cli::InvoicesCommand
 
   def list(args)
     options = {}
-    params = {}
+    params = {'includeTotals' => true}
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
@@ -116,6 +116,10 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
+      opts.on('--totals', "View total costs and prices for all the invoices found.") do |val|
+        params['includeTotals'] = true
+        options[:show_invoice_totals] = true
+      end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
@@ -128,50 +132,48 @@ class Morpheus::Cli::InvoicesCommand
     if args.count > 0
       options[:phrase] = args.join(" ")
     end
-    begin
-      # construct params
-      params.merge!(parse_list_options(options))
-      if options[:clouds]
-        cloud_ids = parse_cloud_id_list(options[:clouds])
-        return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
-        params['zoneId'] = cloud_ids
-      end
-      if options[:groups]
-        group_ids = parse_group_id_list(options[:groups])
-        return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
-        params['siteId'] = group_ids
-      end
-      if options[:instances]
-        instance_ids = parse_instance_id_list(options[:instances])
-        return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
-        params['instanceId'] = instance_ids
-      end
-      if options[:servers]
-        server_ids = parse_server_id_list(options[:servers])
-        return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
-        params['serverId'] = server_ids
-      end
-      if options[:users]
-        user_ids = parse_user_id_list(options[:users])
-        return 1, "users not found for #{options[:users]}" if user_ids.nil?
-        params['userId'] = user_ids
-      end
-      if options[:projects]
-        project_ids = parse_project_id_list(options[:projects])
-        return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
-        params['projectId'] = project_ids
-      end
-      params['rawData'] = true if options[:show_raw_data]
-      params['refId'] = ref_ids unless ref_ids.empty?
-      @invoices_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @invoices_interface.dry.list(params)
-        return
-      end
-      json_response = @invoices_interface.list(params)
-      render_result = render_with_format(json_response, options, 'invoices')
-      return 0 if render_result
-      invoices = json_response['invoices']
+    # construct params
+    params.merge!(parse_list_options(options))
+    if options[:clouds]
+      cloud_ids = parse_cloud_id_list(options[:clouds])
+      return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
+      params['zoneId'] = cloud_ids
+    end
+    if options[:groups]
+      group_ids = parse_group_id_list(options[:groups])
+      return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
+      params['siteId'] = group_ids
+    end
+    if options[:instances]
+      instance_ids = parse_instance_id_list(options[:instances])
+      return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
+      params['instanceId'] = instance_ids
+    end
+    if options[:servers]
+      server_ids = parse_server_id_list(options[:servers])
+      return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
+      params['serverId'] = server_ids
+    end
+    if options[:users]
+      user_ids = parse_user_id_list(options[:users])
+      return 1, "users not found for #{options[:users]}" if user_ids.nil?
+      params['userId'] = user_ids
+    end
+    if options[:projects]
+      project_ids = parse_project_id_list(options[:projects])
+      return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
+      params['projectId'] = project_ids
+    end
+    params['rawData'] = true if options[:show_raw_data]
+    params['refId'] = ref_ids unless ref_ids.empty?
+    @invoices_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoices_interface.dry.list(params)
+      return
+    end
+    json_response = @invoices_interface.list(params)
+    invoices = json_response['invoices']
+    render_response(json_response, options, 'invoices') do
       title = "Morpheus Invoices"
       subtitles = []
       if params['startDate']
@@ -263,11 +265,35 @@ class Morpheus::Cli::InvoicesCommand
         end
         print as_pretty_table(invoices, columns, options)
         print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
+
+        if options[:show_invoice_totals]
+          invoice_totals = json_response['invoiceTotals']
+          if invoice_totals
+            print_h2 "Invoice Totals"
+            invoice_totals_columns = {
+              "# Invoices" => lambda {|it| json_response['meta']['total'] rescue '' },
+              "Total Price" => lambda {|it| format_money(it['actualTotalPrice']) },
+              "Total Cost" => lambda {|it| format_money(it['actualTotalCost']) },
+              "Running Price" => lambda {|it| format_money(it['actualRunningPrice']) },
+              "Running Cost" => lambda {|it| format_money(it['actualRunningCost']) },
+              # "Invoice Total Price" => lambda {|it| format_money(it['invoiceTotalPrice']) },
+              # "Invoice Total Cost" => lambda {|it| format_money(it['invoiceTotalCost']) },
+              # "Invoice Running Price" => lambda {|it| format_money(it['invoiceRunningPrice']) },
+              # "Invoice Running Cost" => lambda {|it| format_money(it['invoiceRunningCost']) },
+              # "Estimated Total Price" => lambda {|it| format_money(it['estimatedTotalPrice']) },
+              # "Estimated Total Cost" => lambda {|it| format_money(it['estimatedTotalCost']) },
+              # "Compute Price" => lambda {|it| format_money(it['computePrice']) },
+              # "Compute Cost" => lambda {|it| format_money(it['computeCost']) },
+            }
+            print_description_list(invoice_totals_columns, invoice_totals)
+          else
+            print "\n"
+            print yellow, "No invoice totals data", reset, "\n"
+          end
+        end
       end
       print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+      return 0, nil
     end
   end
   
@@ -558,7 +584,7 @@ EOT
 
   def list_line_items(args)
     options = {}
-    params = {}
+    params = {'includeTotals' => true}
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
@@ -722,6 +748,7 @@ EOT
         # current_date = Time.now
         # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
         columns = [
+          {"ID" => lambda {|it| it['id'] } },
           {"INVOICE ID" => lambda {|it| it['invoiceId'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
@@ -775,7 +802,7 @@ EOT
     connect(options)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
+      _get_line_item(arg, options)
     end
   end
 
