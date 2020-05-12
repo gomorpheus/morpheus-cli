@@ -306,6 +306,7 @@ class Morpheus::Cli::InvoicesCommand
         # options[:show_costs] = true
         options[:show_prices] = true
         options[:show_raw_data] = true
+        options[:max_line_items] = 10000
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
         options[:show_estimates] = true
