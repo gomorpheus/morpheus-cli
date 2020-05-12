@@ -23,7 +23,7 @@ class Morpheus::Cli::InvoicesCommand
 
   def list(args)
     options = {}
-    params = {'includeTotals' => true}
+    params = {}
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
@@ -584,7 +584,7 @@ EOT
 
   def list_line_items(args)
     options = {}
-    params = {'includeTotals' => true}
+    params = {}
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
