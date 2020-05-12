@@ -473,7 +473,7 @@ EOT
       if line_items && line_items.size > 0 && options[:hide_line_items] != true
 
         line_items_columns = [
-          {"INVOICE ID" => lambda {|it| it['invoiceId'] } },
+          {"ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
           {"REF NAME" => lambda {|it| it['refName'] } },
