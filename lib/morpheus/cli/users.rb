@@ -698,7 +698,7 @@ EOT
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 5},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'description' => "Role names (comma separated)", 'displayOrder' => 7},
-      {'fieldName' => 'receiveNotifications', 'fieldLabel' => 'receiveNotifications', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 58},
+      {'fieldName' => 'receiveNotifications', 'fieldLabel' => 'Receive Notifications?', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 58},
       {'fieldName' => 'linuxUsername', 'fieldLabel' => 'Linux Username', 'type' => 'text', 'required' => false, 'displayOrder' => 9},
       # {'fieldName' => 'linuxPassword', 'fieldLabel' => 'Linux Password', 'type' => 'password', 'required' => false, 'displayOrder' => 10},
       {'fieldName' => 'windowsUsername', 'fieldLabel' => 'Windows Username', 'type' => 'text', 'required' => false, 'displayOrder' => 11},
