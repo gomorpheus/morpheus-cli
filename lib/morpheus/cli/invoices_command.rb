@@ -465,7 +465,7 @@ EOT
 
       if options[:show_raw_data]
         print_h2 "Raw Data"
-        puts invoice['rawData']
+        puts as_json(invoice['rawData'], options)
       end
       
       # Line Items
@@ -884,6 +884,12 @@ EOT
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
       print_description_list(description_cols, line_item, options)
+      
+      if options[:show_raw_data]
+        print_h2 "Raw Data"
+        puts as_json(line_item['rawData'], options)
+      end
+
       print reset,"\n"
     end
     return 0, nil
