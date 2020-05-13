@@ -314,6 +314,10 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
+      opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
+        options[:show_raw_data] = true
+        options[:pretty_json] = true
+      end
       opts.on('-m', '--max-line-items NUMBER', "Maximum number of line items to display. Default is 5.") do |val|
         options[:max_line_items] = val.to_i
       end
@@ -465,7 +469,7 @@ EOT
 
       if options[:show_raw_data]
         print_h2 "Raw Data"
-        puts as_json(invoice['rawData'], options)
+        puts as_json(invoice['rawData'], {pretty_json:false}.merge(options))
       end
       
       # Line Items
@@ -832,6 +836,10 @@ EOT
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
+      opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
+        options[:show_raw_data] = true
+        options[:pretty_json] = true
+      end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice line item."
       opts.footer = <<-EOT
@@ -887,7 +895,7 @@ EOT
       
       if options[:show_raw_data]
         print_h2 "Raw Data"
-        puts as_json(line_item['rawData'], options)
+        puts as_json(line_item['rawData'], {pretty_json:false}.merge(options))
       end
 
       print reset,"\n"
