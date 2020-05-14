@@ -128,6 +128,11 @@ module Morpheus
               previous_command_result = nil
               current_operator = nil
               still_executing = true
+              # need to error before executing anything, could be dangerous otherwise!
+              # also maybe only pass flow commands if they have a space on either side..
+              if flow.include?("|")
+                raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "The PIPE (|) operator is not yet supported. You can wrap your arguments in quotations."
+              end
               flow.each do |flow_cmd|
                 if still_executing
                   if flow_cmd == '&&'
@@ -144,7 +149,8 @@ module Morpheus
                       still_executing = false
                     end
                   elsif flow_cmd == '|' # or with previous command
-                    raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "The PIPE (|) operator is not yet supported =["
+                    # todo, handle pipe!
+                    raise Morpheus::Cli::ExpressionParser::InvalidExpression.new "The PIPE (|) operator is not yet supported. You can wrap your arguments in quotations."
                     previous_command_result = nil
                     still_executing = false
                     # or just continue?

@@ -1303,7 +1303,7 @@ EOT
       #   options[:interval] = parse_time(val).utc.iso8601
       # end
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
-        params['level'] = params['level'] ? [params['level'], val].flatten : val
+        params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
       opts.on('--table', '--table', "Format ouput as a table.") do
         options[:table] = true
@@ -1346,6 +1346,7 @@ EOT
         end
       end
       params = {}
+      params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
       params.merge!(parse_list_options(options))
       params['query'] = params.delete('phrase') if params['phrase']
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction

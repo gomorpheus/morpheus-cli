@@ -457,7 +457,7 @@ class Morpheus::Cli::HealthCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
-        params['level'] = params['level'] ? [params['level'], val].flatten : val
+        params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
       opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
         start_date = parse_time(val) #.utc.iso8601
@@ -465,7 +465,7 @@ class Morpheus::Cli::HealthCommand
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
         end_date = parse_time(val) #.utc.iso8601
       end
-      opts.on('--table', '--table', "Format output as a table.") do
+      opts.on('-t', '--table', "Format output as a table.") do
         options[:table] = true
       end
       opts.on('-a', '--all', "Display all details: entire message." ) do
@@ -484,6 +484,7 @@ class Morpheus::Cli::HealthCommand
       # params['endDate'] = end_date.utc.iso8601 if end_date
       params['startMs'] = (start_date.to_i * 1000) if start_date
       params['endMs'] = (end_date.to_i * 1000) if end_date
+      params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
       params.merge!(parse_list_options(options))
       @health_interface.setopts(options)
       if options[:dry_run]
@@ -497,7 +498,7 @@ class Morpheus::Cli::HealthCommand
       title = "Morpheus Health Logs"
       subtitles = []
       if params['level']
-        subtitles << "Level: #{params['level']}"
+        subtitles << "Level: #{[params['level']].flatten.join(',')}"
       end
       if start_date
         subtitles << "Start: #{start_date}"

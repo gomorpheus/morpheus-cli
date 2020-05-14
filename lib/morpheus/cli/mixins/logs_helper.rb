@@ -45,6 +45,8 @@ module Morpheus::Cli::LogsHelper
     end
     out = ""
     table_color = options.key?(:color) ? options[:color] : cyan
+    term_width = current_terminal_width()
+    message_col_width = current_terminal_width() - (show_object ? 56 : 36)
     log_records.each do |log_entry|
       log_level = format_log_level(log_entry['level'], table_color, 6)
       out << table_color if table_color
@@ -52,15 +54,20 @@ module Morpheus::Cli::LogsHelper
       out << "#{log_level} "
       out << "[#{log_entry['ts']}] "
       if show_object
-        out << "(#{log_entry['typeCode']} #{log_entry['objectId']}) "
+        log_src = "#{log_entry['typeCode']} #{log_entry['objectId']}"
+        if options[:details] || options[:all]
+          # log_src = "#{log_entry['typeCode']} #{log_entry['objectId']}"
+        else
+          log_src = truncate_string(log_src, 20)
+        end
+        out << "(#{log_src}) "
       end
       log_msg = ""
       if options[:details] || options[:all]
-          log_msg = log_entry['message'].to_s.strip
-        else
-          # truncate_string(log_entry['message'].to_s.split.select {|it| it.to_s.strip != "" }.first, 100) 
-          log_msg = truncate_string(log_entry['message'].to_s.gsub("\r\n", " ").gsub("\n", " "), 100) 
-        end
+        log_msg = log_entry['message'].to_s.strip
+      else
+        log_msg = truncate_string(log_entry['message'].to_s.strip.gsub(/\r?\n/, " "), message_col_width)
+      end
       out << "- #{log_msg}"
       out << table_color if table_color
       out << "\n"
@@ -71,15 +78,17 @@ module Morpheus::Cli::LogsHelper
   def format_log_table(logs, options={}, show_object=true)
     out = ""
     table_color = options.key?(:color) ? options[:color] : cyan
+    term_width = current_terminal_width()
+    message_col_width = current_terminal_width() - (show_object ? 56 : 36)
     log_columns = [
       {"LEVEL" => lambda {|log_entry| format_log_level(log_entry['level'], table_color) } },
       {"DATE" => lambda {|log_entry| log_entry['ts'] } },
       {"SOURCE" => lambda {|log_entry| "#{log_entry['typeCode']} #{log_entry['objectId']}" } },
       {"MESSAGE" => lambda {|log_entry| 
         if options[:details] || options[:all]
-          log_entry['message'].to_s
+          log_entry['message'].to_s.strip
         else
-          truncate_string(log_entry['message'].to_s.split.first, 100) 
+          truncate_string(log_entry['message'].to_s.strip.gsub(/\r?\n/, " "), message_col_width)
         end
       } }
     ]
@@ -89,7 +98,7 @@ module Morpheus::Cli::LogsHelper
     # if options[:include_fields]
     #   columns = options[:include_fields]
     # end
-    out << as_pretty_table(logs, log_columns, options.merge(responsive_table:false))
+    out << as_pretty_table(logs, log_columns, options.merge(wrap:true))
     # out << "\n"
     return out
   end

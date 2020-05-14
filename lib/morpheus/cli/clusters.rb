@@ -836,7 +836,7 @@ class Morpheus::Cli::Clusters
         options[:end] = parse_time(val) #.utc.iso8601
       end
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
-        params['level'] = params['level'] ? [params['level'], val].flatten : val
+        params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
       opts.on('--table', '--table', "Format ouput as a table.") do
         options[:table] = true
@@ -854,6 +854,7 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       params = {}
+      params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
       params.merge!(parse_list_options(options))
       params['query'] = params.delete('phrase') if params['phrase']
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
