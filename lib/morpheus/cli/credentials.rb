@@ -57,7 +57,7 @@ module Morpheus
           # for now, it just stores the access token without other wallet info
           begin
             # @setup_interface = Morpheus::SetupInterface.new({url:@appliance_url,access_token:@access_token})
-            whoami_interface = Morpheus::WhoamiInterface.new({url: @appliance_url, token: options[:remote_token]})
+            whoami_interface = Morpheus::WhoamiInterface.new({url: @appliance_url, access_token: options[:remote_token]})
             whoami_interface.setopts(options)
             if options[:dry_run]
               print_dry_run whoami_interface.dry.get()
