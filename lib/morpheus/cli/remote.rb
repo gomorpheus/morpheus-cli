@@ -302,15 +302,12 @@ EOT
     # secure is the default, 
     # try to only store insecure:false in the appliances config
     if url.to_s =~ /^https\:/ && secure.nil?
-      if secure != nil
-        new_appliance_map[:insecure] = !secure
-      else
-        #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'secure', 'fieldLabel' => 'Secure', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'description' => 'Prevent insecure HTTPS communication, respect SSL errors.'}], options[:options])
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'insecure', 'fieldLabel' => 'Insecure (Ignore SSL Errors)', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Allow insecure HTTPS communication, ignore SSL errors.'}], options[:options])
-        if v_prompt['insecure'].to_s == 'true' || v_prompt['insecure'].to_s == 'on'
-          new_appliance_map[:insecure] = true
-        end
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'insecure', 'fieldLabel' => 'Insecure (Ignore SSL Errors)', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'description' => 'Allow insecure HTTPS communication, ignore SSL errors.'}], options[:options])
+      if v_prompt['insecure'].to_s == 'true' || v_prompt['insecure'].to_s == 'on'
+        new_appliance_map[:insecure] = true
       end
+    elsif secure != nil
+      new_appliance_map[:insecure] = !secure
     end
     
     # --use
