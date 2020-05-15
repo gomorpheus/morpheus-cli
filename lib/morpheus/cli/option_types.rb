@@ -622,14 +622,28 @@ module Morpheus
         if source_type == "local"
           # prompt for content
           if file_params['content'].nil?
-            file_params['content'] = multiline_prompt({'fieldContext' => full_field_key, 'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true})
+            if options[:no_prompt]
+              print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * Content [-O #{full_field_key}.content=] - File Content\n", Term::ANSIColor.reset
+              print "\n"
+              exit 1
+            else
+              file_params['content'] = multiline_prompt({'fieldContext' => full_field_key, 'fieldName' => 'content', 'type' => 'code-editor', 'fieldLabel' => 'Content', 'required' => true})
+            end
           end
         elsif source_type == "url"
           if file_params['url']
             file_params['contentPath'] = file_params.delete('url')
           end
           if file_params['contentPath'].nil?
-            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true})
+            if options[:no_prompt]
+              print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * URL [-O #{full_field_key}.url=] - Path of file in the repository\n", Term::ANSIColor.reset
+              print "\n"
+              exit 1
+            else
+              file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'url', 'fieldLabel' => 'URL', 'type' => 'text', 'required' => true})
+            end
           end
         elsif source_type == "repository"
           if file_params['repository'].nil?
@@ -637,10 +651,21 @@ module Morpheus
             file_params['repository'] = {'id' => repository_id}
           end
           if file_params['contentPath'].nil?
-            file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true})
+            if options[:no_prompt]
+              print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * File Path [-O #{full_field_key}.path=] - Path of file in the repository\n", Term::ANSIColor.reset
+              print "\n"
+              exit 1
+            else
+              file_params['contentPath'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'path', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => true})
+            end
           end
-          if file_params['contentRef'].nil?
-            file_params['contentRef'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'})
+          if !file_params.key?('contentRef')
+            if options[:no_prompt]
+              # pass
+            else
+              file_params['contentRef'] = generic_prompt({'fieldContext' => full_field_key, 'fieldName' => 'ref', 'fieldLabel' => 'Version Ref', 'type' => 'text'})
+            end
           end
         end
         return file_params
