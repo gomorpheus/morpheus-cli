@@ -216,7 +216,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
         option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
         payload.deep_merge!({'optionType' => option_type_payload})
-        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload['optionType'].empty?
       end
       @option_types_interface.setopts(options)
       if options[:dry_run]
