@@ -65,7 +65,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
             fieldLabel: option_type['fieldLabel'],
             fieldName: option_type['fieldName'],
             default: option_type['defaultValue'],
-            required: option_type['required'] ? 'yes' : 'no'
+            required: option_type['required'] ? 'yes' : 'no',
+            export: option_type['exportMeta'] ? 'yes' : 'no'
           }
         end
         print cyan
@@ -76,7 +77,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
           {:fieldLabel => {:display_name => "Field Label"} },
           {:fieldName => {:display_name => "Field Name"} },
           :default,
-          :required
+          :required,
+          :export,
         ], options)
         print reset
         print_results_pagination(json_response)
@@ -139,6 +141,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         "Placeholder" => 'placeHolder',
         "Default Value" => 'defaultValue',
         "Required" => lambda {|it| format_boolean(it['required']) },
+        "Export As Tag" => lambda {|it| it['exportMeta'].nil? ? '' : format_boolean(it['exportMeta']) },
       }, option_type)
       print reset,"\n"
       return 0
@@ -162,18 +165,14 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       payload = nil
       if options[:payload]
         payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if options[:options]
-          payload['optionType'] ||= {}
-          payload['optionType'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
-        end
+        payload.deep_merge!({'optionType' => parse_passed_options(options)})
       else
-        params = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client, options[:params])
-        if params.key?('required')
-          params['required'] = ['on','true'].include?(params['required'].to_s)
-        end
-        option_type_payload = params
-        payload = {optionType: option_type_payload}
+        payload = {}
+        payload.deep_merge!({'optionType' => parse_passed_options(options)})
+        option_type_payload = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client)
+        option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
+        option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
+        payload.deep_merge!({'optionType' => option_type_payload})
       end
       @option_types_interface.setopts(options)
       if options[:dry_run]
@@ -207,27 +206,17 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     begin
       option_type = find_option_type_by_name_or_id(args[0])
       exit 1 if option_type.nil?
-
       if options[:payload]
         payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if options[:options]
-          payload['optionType'] ||= {}
-          payload['optionType'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
-        end
+        payload.deep_merge!({'optionType' => parse_passed_options(options)})
       else
-        #params = options[:options] || {}
-        params = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client, options[:params])
-        if params.empty?
-          print_red_alert "Specify at least one option to update"
-          puts optparse
-          exit 1
-        end
-        if params.key?('required')
-          params['required'] = ['on','true'].include?(params['required'].to_s)
-        end
-        option_type_payload = params
-        payload = {optionType: option_type_payload}
+        payload = {}
+        payload.deep_merge!({'optionType' => parse_passed_options(options)})
+        option_type_payload = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client)
+        option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
+        option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
+        payload.deep_merge!({'optionType' => option_type_payload})
+        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
       end
       @option_types_interface.setopts(options)
       if options[:dry_run]
@@ -302,6 +291,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       {'fieldName' => 'placeHolder', 'fieldLabel' => 'Placeholder', 'type' => 'text', 'displayOrder' => 6},
       {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 7},
       {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 8},
+      {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Export as Tag.', 'displayOrder' => 9},
     ]
   end
 
