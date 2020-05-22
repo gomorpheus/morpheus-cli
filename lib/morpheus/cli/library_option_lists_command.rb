@@ -186,49 +186,42 @@ class Morpheus::Cli::LibraryOptionListsCommand
     my_option_types = nil
     list_type = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[type] [options]")
-      opts.on( '-t', '--type TYPE', "Option List Type. (rest, manual)" ) do |val|
-        list_type = val
-        # options[:options] ||= {}
-        # options[:options]['type'] = val
-      end
+      opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, new_option_type_list_option_types())
       build_standard_add_options(opts, options)
       opts.footer = "Create a new option list."
     end
     optparse.parse!(args)
-    
-    
+    verify_args!(args:args, optparse:optparse, max:1)
+    if args.count == 1
+      options[:options]['name'] = args[0]
+    end
+
     connect(options)
     begin
-      passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if !passed_options.empty?
-          payload['optionTypeList'] ||= {}
-          payload['optionTypeList'].deep_merge!(passed_options)
-        end
+        payload.deep_merge!({'optionTypeList' => parse_passed_options(options)})
       else
-        if !list_type
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true}], options[:options], @api_client, {})
-          list_type = v_prompt['type']
-        end
-        params = passed_options
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(list_type), options[:options], @api_client, options[:params])
-        params.deep_merge!(v_prompt)
-        params['type'] = list_type
-        if params['type'] == 'rest'
+        payload = {}
+        payload.deep_merge!({'optionTypeList' => parse_passed_options(options)})
+        list_payload = Morpheus::Cli::OptionTypes.prompt(new_option_type_list_option_types(), options[:options], @api_client, options[:params])
+        if list_payload['type'] == 'rest'
           # prompt for Source Headers
-          source_headers = prompt_source_headers(options)
-          if !source_headers.empty?
-            params['config'] ||= {}
-            params['config']['sourceHeaders'] = source_headers
+          if !(payload['optionTypeList']['config'] && payload['optionTypeList']['config']['sourceHeaders'])
+            source_headers = prompt_source_headers(options)
+            if !source_headers.empty?
+              list_payload['config'] ||= {}
+              list_payload['config']['sourceHeaders'] = source_headers
+            end
           end
         end
-        list_payload = params
-        payload = {'optionTypeList' => list_payload}
+        # tweak payload for API
+        ['ignoreSSLErrors', 'realTime'].each { |k|
+          list_payload[k] = ['on','true'].include?(list_payload[k].to_s) if list_payload.key?(k)
+        }
+        payload.deep_merge!({'optionTypeList' => list_payload})
       end
       @option_type_lists_interface.setopts(options)
       if options[:dry_run]
@@ -262,41 +255,31 @@ class Morpheus::Cli::LibraryOptionListsCommand
     begin
       option_type_list = find_option_type_list_by_name_or_id(args[0])
       exit 1 if option_type_list.nil?
-      passed_options = options[:options].reject {|k,v| k.is_a?(Symbol) }
       payload = nil
       if options[:payload]
         payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if !passed_options.empty?
-          payload['optionTypeList'] ||= {}
-          payload['optionTypeList'].deep_merge!(passed_options)
-        end
+        payload.deep_merge!({'optionTypeList' => parse_passed_options(options)})
       else
-        list_type = option_type_list['type']
-        prompt_options = update_option_type_list_option_types(list_type)
-        params = passed_options
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(prompt_options, options[:options], @api_client, options[:params])
-        params.deep_merge!(v_prompt)
-        
-        if list_type == 'rest'
+        payload = {}
+        payload.deep_merge!({'optionTypeList' => parse_passed_options(options)})
+        list_payload = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types(), options[:options], @api_client)
+        if list_payload['type'] == 'rest'
           # parse Source Headers
-          source_headers = prompt_source_headers(options.merge({no_prompt: true}))
-          if !source_headers.empty?
-            #params['config'] ||= option_type_list['config'] || {}
-            params['config'] ||= {}
-            params['config']['sourceHeaders'] = source_headers
+          if !(payload['optionTypeList']['config'] && payload['optionTypeList']['config']['sourceHeaders'])
+            source_headers = prompt_source_headers(options.merge({no_prompt: true}))
+            if !source_headers.empty?
+              #params['config'] ||= option_type_list['config'] || {}
+              params['config'] ||= {}
+              params['config']['sourceHeaders'] = source_headers
+            end
           end
         end
-        if params.empty?
-          print_red_alert "Specify at least one option to update"
-          puts optparse
-          exit 1
-        end
-        if params.key?('required')
-          params['required'] = ['on','true'].include?(params['required'].to_s)
-        end
-        list_payload = params
-        payload = {'optionTypeList' => list_payload}
+        # tweak payload for API
+        ['ignoreSSLErrors', 'realTime'].each { |k|
+          list_payload[k] = ['on','true'].include?(list_payload[k].to_s) if list_payload.key?(k)
+        }
+        payload.deep_merge!({'optionTypeList' => list_payload})
+        raise_command_error "Specify at least one option to update.\n#{optparse}" if payload['optionTypeList'].empty?
       end
       @option_type_lists_interface.setopts(options)
       if options[:dry_run]
@@ -355,42 +338,13 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
   private
 
-  def find_option_type_list_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_option_type_list_by_id(val)
-    else
-      return find_option_type_list_by_name(val)
-    end
-  end
-
-  def find_option_type_list_by_id(id)
-    begin
-      json_response = @option_type_lists_interface.get(id.to_i)
-      return json_response['optionTypeList']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Option List not found by id #{id}"
-        exit 1
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_option_type_list_by_name(name)
-    json_results = @option_type_lists_interface.list({name: name.to_s})
-    if json_results['optionTypeLists'].empty?
-      print_red_alert "Option List not found by name #{name}"
-      exit 1
-    end
-    option_type_list = json_results['optionTypeLists'][0]
-    return option_type_list
-  end
+  # finders are in LibraryHelper
 
   def get_available_option_list_types
     [
       {'name' => 'REST', 'value' => 'rest'}, 
       {'name' => 'Morpheus Api', 'value' => 'api'}, 
+      {'name' => 'LDAP', 'value' => 'ldap'}, 
       {'name' => 'Manual', 'value' => 'manual'}
     ]
   end
@@ -399,49 +353,31 @@ class Morpheus::Cli::LibraryOptionListsCommand
      get_available_option_list_types.find {|it| code == it['value'] || code == it['name'] }
   end
 
-  def new_option_type_list_option_types(list_type='rest')
-    if list_type.to_s.downcase == 'rest'
-      [
+  def new_option_type_list_option_types()
+    [
+        # rest
         {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
         {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-        #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
-        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
-        {'fieldName' => 'sourceUrl', 'fieldLabel' => 'Source Url', 'type' => 'text', 'required' => true, 'description' => "A REST URL can be used to fetch list data and is cached in the appliance database.", 'displayOrder' => 4},
-        {'fieldName' => 'ignoreSSLErrors', 'fieldLabel' => 'Ignore SSL Errors', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 5},
-        {'fieldName' => 'realTime', 'fieldLabel' => 'Real Time', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 6},
-        {'fieldName' => 'sourceMethod', 'fieldLabel' => 'Source Method', 'type' => 'select', 'selectOptions' => [{'name' => 'GET', 'value' => 'GET'}, {'name' => 'POST', 'value' => 'POST'}], 'defaultValue' => 'GET', 'required' => true, 'displayOrder' => 7},
+        {'code' => 'optionTypeList.type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true, 'description' => 'Option List Type. eg. rest, api, ldap, manual', 'displayOrder' => 3},
+        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 4},
+        {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'sourceUrl', 'fieldLabel' => 'Source Url', 'type' => 'text', 'required' => true, 'description' => "A REST URL can be used to fetch list data and is cached in the appliance database.", 'displayOrder' => 5},
+        {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'ignoreSSLErrors', 'fieldLabel' => 'Ignore SSL Errors', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 6},
+        {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'realTime', 'fieldLabel' => 'Real Time', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 7},
+        {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'sourceMethod', 'fieldLabel' => 'Source Method', 'type' => 'select', 'selectOptions' => [{'name' => 'GET', 'value' => 'GET'}, {'name' => 'POST', 'value' => 'POST'}], 'defaultValue' => 'GET', 'required' => true, 'displayOrder' => 8},
         # sourceHeaders component (is done afterwards manually)
-        {'fieldName' => 'initialDataset', 'fieldLabel' => 'Initial Dataset', 'type' => 'code-editor', 'description' => "Create an initial json dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'. However, if there is a translation script, that will also be passed through.", 'displayOrder' => 8},
-        {'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 9},
-        {'fieldName' => 'requestScript', 'fieldLabel' => 'Request Script', 'type' => 'code-editor', 'description' => "Create a js script to prepare the request. Return a data object as the body for a post, and return an array containing properties name and value for a get. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 10},
+        {'dependsOnCode' => 'optionTypeList.type:api', 'fieldName' => 'apiType', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'apiOptionLists', 'required' => true, 'description' => 'The code of the api list to use, eg. clouds, servers, etc.', 'displayOrder' => 9},
+        {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'sourceUsername', 'fieldLabel' => 'Source Username', 'type' => 'text', 'description' => "An LDAP Username for use when type is 'ldap'.", 'displayOrder' => 10},
+        {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'sourcePassword', 'fieldLabel' => 'Source Username', 'type' => 'text', 'description' => "An LDAP Password for use when type is 'ldap'.", 'displayOrder' => 11},
+        {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'ldapQuery', 'fieldLabel' => 'LDAP Query', 'type' => 'text', 'description' => "LDAP Queries are standard LDAP formatted queries where different objects can be searched. Dependent parameters can be loaded into the query using the <%=phrase%> syntax.", 'displayOrder' => 12},
+        {'dependsOnCode' => 'optionTypeList.type:rest|api|manual', 'fieldName' => 'initialDataset', 'fieldLabel' => 'Initial Dataset', 'type' => 'code-editor', 'description' => "Create an initial json dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'. However, if there is a translation script, that will also be passed through.", 'displayOrder' => 13},
+        {'dependsOnCode' => 'optionTypeList.type:rest|api|ldap', 'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 14},
+        {'dependsOnCode' => 'optionTypeList.type:rest|api', 'fieldName' => 'requestScript', 'fieldLabel' => 'Request Script', 'type' => 'code-editor', 'description' => "Create a js script to prepare the request. Return a data object as the body for a post, and return an array containing properties name and value for a get. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 15},
+      ]
 
-      ]
-    elsif list_type.to_s.downcase == 'api'
-      [
-        {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-        {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-        #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Rest', 'value' => 'rest'}, {'name' => 'Manual', 'value' => 'manual'}], 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
-        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
-        {'fieldName' => 'apiType', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'apiOptionLists', 'required' => true, 'description' => 'The code of the api list to use, eg. clouds, servers, etc.', 'displayOrder' => 6},
-        {'fieldName' => 'translationScript', 'fieldLabel' => 'Translation Script', 'type' => 'code-editor', 'description' => "Create a js script to translate the result data object into an Array containing objects with properties name, and value. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 9},
-        {'fieldName' => 'requestScript', 'fieldLabel' => 'Request Script', 'type' => 'code-editor', 'description' => "Create a js script to prepare the request. Return a data object as the body for a post, and return an array containing properties name and value for a get. The input data is provided as data and the result should be put on the global variable results.", 'displayOrder' => 10},
-      ]
-    elsif list_type.to_s.downcase == 'manual'
-      [
-        {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-        {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-        #{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Rest', 'value' => 'rest'}, {'name' => 'Manual', 'value' => 'manual'}], 'defaultValue' => 'rest', 'required' => true, 'displayOrder' => 3},
-        {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
-        {'fieldName' => 'initialDataset', 'fieldLabel' => 'Dataset', 'type' => 'code-editor', 'required' => true, 'description' => "Create an initial JSON or CSV dataset to be used as the collection for this option list. It should be a list containing objects with properties 'name', and 'value'.", 'displayOrder' => 4},
-      ]
-    else
-      print_red_alert "Unknown Option List type '#{list_type}'"
-      exit 1
-    end
   end
 
-  def update_option_type_list_option_types(list_type='rest')
-    list = new_option_type_list_option_types(list_type)
+  def update_option_type_list_option_types()
+    list = new_option_type_list_option_types()
     list.each {|it| 
       it.delete('required')
       it.delete('defaultValue')

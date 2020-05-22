@@ -502,4 +502,36 @@ module Morpheus::Cli::LibraryHelper
     return {success:true, data: spec_template_ids}
   end
 
+  def find_option_type_list_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_option_type_list_by_id(val)
+    else
+      return find_option_type_list_by_name(val)
+    end
+  end
+
+  def find_option_type_list_by_id(id)
+    begin
+      json_response = @option_type_lists_interface.get(id.to_i)
+      return json_response['optionTypeList']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Option List not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_option_type_list_by_name(name)
+    json_results = @option_type_lists_interface.list({name: name.to_s})
+    if json_results['optionTypeLists'].empty?
+      print_red_alert "Option List not found by name #{name}"
+      exit 1
+    end
+    option_type_list = json_results['optionTypeLists'][0]
+    return option_type_list
+  end
+
 end

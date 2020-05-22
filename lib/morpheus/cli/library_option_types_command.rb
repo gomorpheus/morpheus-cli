@@ -65,8 +65,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
             fieldLabel: option_type['fieldLabel'],
             fieldName: option_type['fieldName'],
             default: option_type['defaultValue'],
-            required: option_type['required'] ? 'yes' : 'no',
-            export: option_type['exportMeta'] ? 'yes' : 'no'
+            required: (option_type['required'].nil? ? '' : format_boolean(option_type['required'])),
+            export: (option_type['exportMeta'].nil? ? '' : format_boolean(option_type['exportMeta']))
           }
         end
         print cyan
@@ -170,6 +170,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         payload = {}
         payload.deep_merge!({'optionType' => parse_passed_options(options)})
         option_type_payload = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client)
+        # tweak payload for API
+        option_type_payload['optionList'] = {'id' => option_type_payload['optionList'].to_i} if option_type_payload['optionList'].is_a?(String) || option_type_payload['optionList'].is_a?(Numeric)
         option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
         option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
         payload.deep_merge!({'optionType' => option_type_payload})
@@ -213,6 +215,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         payload = {}
         payload.deep_merge!({'optionType' => parse_passed_options(options)})
         option_type_payload = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types, options[:options], @api_client)
+        # tweak payload for API
+        option_type_payload['optionList'] = {'id' => option_type_payload['optionList'].to_i} if option_type_payload['optionList'].is_a?(String) || option_type_payload['optionList'].is_a?(Numeric)
         option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
         option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
         payload.deep_merge!({'optionType' => option_type_payload})
@@ -285,13 +289,14 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-      {'fieldName' => 'fieldName', 'fieldLabel' => 'Field Name', 'type' => 'text', 'required' => true, 'description' => 'This is the input fieldName property that the value gets assigned to.', 'displayOrder' => 3},
-      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Text', 'value' => 'text'}, {'name' => 'Password', 'value' => 'password'}, {'name' => 'Number', 'value' => 'number'}, {'name' => 'Checkbox', 'value' => 'checkbox'}, {'name' => 'Select', 'value' => 'select'}, {'name' => 'Hidden', 'value' => 'hidden'}], 'defaultValue' => 'text', 'required' => true, 'displayOrder' => 4},
-      {'fieldName' => 'fieldLabel', 'fieldLabel' => 'Field Label', 'type' => 'text', 'required' => true, 'description' => 'This is the input label that shows typically to the left of a custom option.', 'displayOrder' => 5},
-      {'fieldName' => 'placeHolder', 'fieldLabel' => 'Placeholder', 'type' => 'text', 'displayOrder' => 6},
-      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 7},
-      {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => 'off', 'displayOrder' => 8},
-      {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Export as Tag.', 'displayOrder' => 9},
+      {'fieldName' => 'fieldName', 'fieldLabel' => 'Field Name', 'type' => 'text', 'required' => true, 'description' => 'This is the input property that the value gets assigned to.', 'displayOrder' => 3},
+      {'code' => 'optionType.type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Text', 'value' => 'text'}, {'name' => 'Password', 'value' => 'password'}, {'name' => 'Number', 'value' => 'number'}, {'name' => 'Checkbox', 'value' => 'checkbox'}, {'name' => 'Select', 'value' => 'select'}, {'name' => 'Hidden', 'value' => 'hidden'}], 'defaultValue' => 'text', 'required' => true, 'displayOrder' => 4},
+      {'fieldName' => 'optionList', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'optionTypeLists', 'required' => true, 'dependsOnCode' => 'optionType.type:select', 'description' => "The Option List to be the source of options when type is 'select'.", 'displayOrder' => 5},
+      {'fieldName' => 'fieldLabel', 'fieldLabel' => 'Field Label', 'type' => 'text', 'required' => true, 'description' => 'This is the input label that shows typically to the left of a custom option.', 'displayOrder' => 6},
+      {'fieldName' => 'placeHolder', 'fieldLabel' => 'Placeholder', 'type' => 'text', 'displayOrder' => 7},
+      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 8},
+      {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 9},
+      {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => false, 'description' => 'Export as Tag.', 'displayOrder' => 10},
     ]
   end
 
