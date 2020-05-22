@@ -47,7 +47,9 @@ module Morpheus
           end
         end
         # puts "Options Prompt #{options}"
-        option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |option_type|
+        # only sort if displayOrder is set
+        sorted_option_types = (option_types[0] && option_types[0]['displayOrder']) ? option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i } : option_types
+        sorted_option_types.each do |option_type|
           context_map = results
           value = nil
           value_found=false
@@ -71,17 +73,26 @@ module Morpheus
 
           # respect optionType.dependsOnCode
           if option_type['dependsOnCode'] && option_type['dependsOnCode'] != ""
-            # optionTypes can have this setting in the format code=value or code:value
+            # support formats code=value or code:value OR code:(value|value2|value3)
             parts = option_type['dependsOnCode'].include?("=") ? option_type['dependsOnCode'].split("=") : option_type['dependsOnCode'].split(":")
             depends_on_code = parts[0]
-            depends_on_value = parts[1]
+            depends_on_value = parts[1].to_s.strip
+            depends_on_values = []
+            if depends_on_value.size > 0
+              # strip parenthesis
+              if depends_on_value[0] && depends_on_value[0].chr == "("
+                depends_on_value = depends_on_value[1..-1]
+              end
+              depends_on_value.chomp(")")
+              depends_on_values = depends_on_value.split("|").collect { |it| it.strip }
+            end
             depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
             # could not find the dependent option type, proceed and prompt
             if !depends_on_option_type.nil?
               # dependent option type has a different value
               depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
               found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
-              if depends_on_value && depends_on_value != found_dep_value
+              if depends_on_values.size > 0 && !depends_on_values.include?(found_dep_value)
                 next
               end
             end
