@@ -210,8 +210,7 @@ class Morpheus::Cli::InvoicesCommand
           {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
           {"MTD" => lambda {|it| format_money(it['runningCost']) } },
           {"TOTAL" => lambda {|it| 
-
-            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalCost'].to_f > 0
+            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalCost'].to_f > 0 && get_current_period == it['period']
               format_money(it['totalCost']) + " (Projected)"
             else
               format_money(it['totalCost'])
@@ -235,7 +234,7 @@ class Morpheus::Cli::InvoicesCommand
             {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice']) } },
             {"MTD PRICE" => lambda {|it| format_money(it['runningPrice']) } },
             {"TOTAL PRICE" => lambda {|it| 
-              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalPrice'].to_f > 0
+              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalPrice'].to_f > 0 && get_current_period == it['period']
                 format_money(it['totalPrice']) + " (Projected)"
               else
                 format_money(it['totalPrice'])
@@ -247,7 +246,7 @@ class Morpheus::Cli::InvoicesCommand
           columns += [
             {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost']) } },
             {"TOTAL EST." => lambda {|it| 
-              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['estimatedTotalCost'].to_f > 0
+              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['estimatedTotalCost'].to_f > 0 && get_current_period == it['period']
                 format_money(it['estimatedTotalCost']) + " (Projected)"
               else
                 format_money(it['estimatedTotalCost'])
@@ -317,9 +316,6 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
         options[:show_raw_data] = true
         options[:pretty_json] = true
-      end
-      opts.on('-m', '--max-line-items NUMBER', "Maximum number of line items to display. Default is 5.") do |val|
-        options[:max_line_items] = val.to_i
       end
       opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
         options[:hide_line_items] = true
@@ -448,7 +444,7 @@ EOT
         "Other".upcase => lambda {|it| format_money(it[:extra]) },
         "MTD" => lambda {|it| format_money(it[:running]) },
         "Total".upcase => lambda {|it| 
-          if invoice['runningMultiplier'] && invoice['runningMultiplier'].to_i != 1 && it[:total].to_f.to_f > 0
+          if invoice['runningMultiplier'] && invoice['runningMultiplier'].to_i != 1 && it[:total].to_f.to_f > 0  && get_current_period == invoice['period']
             format_money(it[:total]) + " (Projected)"
           else
             format_money(it[:total])
@@ -501,8 +497,8 @@ EOT
         end
 
         print_h2 "Line Items"
-        max_line_items = options[:max_line_items] ? options[:max_line_items].to_i : 5
-        paged_line_items = line_items.first(max_line_items)
+        #max_line_items = options[:max_line_items] ? options[:max_line_items].to_i : 5
+        paged_line_items = line_items #.first(max_line_items)
         print as_pretty_table(paged_line_items, line_items_columns, options)
         print_results_pagination({total: line_items.size, size: paged_line_items.size}, {:label => "line item", :n_label => "line items"})
       end
@@ -1002,6 +998,11 @@ EOT
     end
   end
   
+  def get_current_period()
+    now = Time.now.utc
+    now.year.to_s + now.month.to_s.rjust(2,'0')
+  end
+
   def format_server_power_state(server, return_color=cyan)
     out = ""
     if server['powerState'] == 'on'
