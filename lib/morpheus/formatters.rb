@@ -388,14 +388,18 @@ def format_money(amount, currency='usd', opts={})
   #   # return exponent notation like 3.4e-09
   #   return currency_sym(currency).to_s + "#{amount}"
   else
-    rtn = amount.to_f.round(2).to_s
-    if rtn.index('.').nil?
-      rtn += '.00'
-    elsif rtn.split('.')[1].length < 2
-      rtn = rtn + (['0'] * (2 - rtn.split('.')[1].length) * '')
+    sigdig = opts[:sigdig] ? opts[:sigdig].to_i : 2
+    rtn = amount.to_f.round(sigdig).to_s
+    if sigdig > 0
+      dollars,cents = rtn.split(".")
+      if cents.nil?
+        rtn += ('.' + ('0' * sigdig))
+      elsif cents.length < sigdig
+        rtn += ('0' * (sigdig - cents.length))
+      end
     end
     dollars,cents = rtn.split(".")
-    rtn = currency_sym(currency).to_s + format_number(dollars.to_i.abs) + "." + cents
+    rtn = currency_sym(currency).to_s + format_number(dollars.to_i.abs) + (cents ? ("." + cents) : "")
 
     if dollars.to_i < 0
       rtn = "(#{rtn})"

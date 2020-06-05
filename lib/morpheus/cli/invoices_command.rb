@@ -27,11 +27,12 @@ class Morpheus::Cli::InvoicesCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+      opts.on('-a', '--all', "Display all details, costs and prices." ) do
+        options[:show_all] = true
         options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
-        options[:show_raw_data] = true
+        # options[:show_raw_data] = true
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
         options[:show_estimates] = true
@@ -123,6 +124,9 @@ class Morpheus::Cli::InvoicesCommand
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
       end
+      opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
+        options[:sigdig] = val.to_i
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
     end
@@ -194,7 +198,13 @@ class Morpheus::Cli::InvoicesCommand
           {"INVOICE ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
-          {"REF NAME" => lambda {|it| it['refName'] } }
+          {"REF NAME" => lambda {|it| 
+            if options[:show_all]
+              it['refName']
+            else
+              truncate_string_right(it['refName'], 100)
+            end
+          } }
         ] + (show_projects ? [
           {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
           {"PROJECT NAME" => lambda {|it| it['project'] ? it['project']['name'] : '' } },
@@ -204,59 +214,64 @@ class Morpheus::Cli::InvoicesCommand
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
           {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
           {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
-          #{"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
+          {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
+          #{"COST TYPE" => lambda {|it| it['costType'].to_s.capitalize } },
           {"PERIOD" => lambda {|it| format_invoice_period(it) } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
-          {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
-          {"MTD" => lambda {|it| format_money(it['runningCost']) } },
+          {"END" => lambda {|it| format_date(it['endDate']) } },
+        ] + (options[:show_all] ? [
+          {"REF START" => lambda {|it| format_dt(it['refStart']) } },
+          {"REF END" => lambda {|it| format_dt(it['refEnd']) } },
+        ] : []) + [
+          {"MTD" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TOTAL" => lambda {|it| 
             if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalCost'].to_f > 0 && get_current_period == it['period']
-              format_money(it['totalCost']) + " (Projected)"
+              format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
             else
-              format_money(it['totalCost'])
+              format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]})
             end
           } }
         ]
         
         columns += [
-          {"COMPUTE" => lambda {|it| format_money(it['computeCost']) } },
+          {"COMPUTE" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
           # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
-          {"STORAGE" => lambda {|it| format_money(it['storageCost']) } },
-          {"NETWORK" => lambda {|it| format_money(it['networkCost']) } },
-          {"OTHER" => lambda {|it| format_money(it['extraCost']) } },
+          {"STORAGE" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"NETWORK" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"OTHER" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
         ]
         if options[:show_prices]
           columns += [
-            {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice']) } },
-            # {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice']) } },
-            {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice']) } },
-            {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice']) } },
-            {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice']) } },
-            {"MTD PRICE" => lambda {|it| format_money(it['runningPrice']) } },
+            {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            # {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL PRICE" => lambda {|it| 
               if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalPrice'].to_f > 0 && get_current_period == it['period']
-                format_money(it['totalPrice']) + " (Projected)"
+                format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
               else
-                format_money(it['totalPrice'])
+                format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]})
               end
             } }
           ]
         end
         if options[:show_estimates]
           columns += [
-            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost']) } },
+            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL EST." => lambda {|it| 
               if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['estimatedTotalCost'].to_f > 0 && get_current_period == it['period']
-                format_money(it['estimatedTotalCost']) + " (Projected)"
+                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
               else
-                format_money(it['estimatedTotalCost'])
+                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]})
               end
             } },
-            {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost']) } },
-            # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost']) } },
-            {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost']) } },
-            {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost']) } },
-            {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost']) } },
+            {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
           ]
         end
         if options[:show_raw_data]
@@ -271,18 +286,18 @@ class Morpheus::Cli::InvoicesCommand
             print_h2 "Invoice Totals"
             invoice_totals_columns = {
               "# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
-              "Total Price" => lambda {|it| format_money(it['actualTotalPrice']) },
-              "Total Cost" => lambda {|it| format_money(it['actualTotalCost']) },
-              "Running Price" => lambda {|it| format_money(it['actualRunningPrice']) },
-              "Running Cost" => lambda {|it| format_money(it['actualRunningCost']) },
-              # "Invoice Total Price" => lambda {|it| format_money(it['invoiceTotalPrice']) },
-              # "Invoice Total Cost" => lambda {|it| format_money(it['invoiceTotalCost']) },
-              # "Invoice Running Price" => lambda {|it| format_money(it['invoiceRunningPrice']) },
-              # "Invoice Running Cost" => lambda {|it| format_money(it['invoiceRunningCost']) },
-              # "Estimated Total Price" => lambda {|it| format_money(it['estimatedTotalPrice']) },
-              # "Estimated Total Cost" => lambda {|it| format_money(it['estimatedTotalCost']) },
-              # "Compute Price" => lambda {|it| format_money(it['computePrice']) },
-              # "Compute Cost" => lambda {|it| format_money(it['computeCost']) },
+              "Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              "Total Cost" => lambda {|it| format_money(it['actualTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
+              "Running Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              "Running Cost" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Invoice Total Price" => lambda {|it| format_money(it['invoiceTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Invoice Total Cost" => lambda {|it| format_money(it['invoiceTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Invoice Running Price" => lambda {|it| format_money(it['invoiceRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Invoice Running Cost" => lambda {|it| format_money(it['invoiceRunningCost'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Estimated Total Price" => lambda {|it| format_money(it['estimatedTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Estimated Total Cost" => lambda {|it| format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Compute Price" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Compute Cost" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) },
             }
             print_description_list(invoice_totals_columns, invoice_totals)
           else
@@ -300,11 +315,11 @@ class Morpheus::Cli::InvoicesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+      opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
-        options[:show_raw_data] = true
+        # options[:show_raw_data] = true
         options[:max_line_items] = 10000
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Memory, Storage, etc." ) do
@@ -319,6 +334,9 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
         options[:hide_line_items] = true
+      end
+      opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
+        options[:sigdig] = val.to_i
       end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice."
@@ -368,13 +386,14 @@ EOT
         "Power State" => lambda {|it| format_server_power_state(it) },
         "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
-        "Period" => lambda {|it| format_invoice_period(it) },
         "Estimate" => lambda {|it| format_boolean(it['estimate']) },
+        #"Cost Type" => lambda {|it| it['costType'].to_s.capitalize },
+        "Period" => lambda {|it| format_invoice_period(it) },
         #"Interval" => lambda {|it| it['interval'] },
         "Start" => lambda {|it| format_date(it['startDate']) },
-        "End" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' },
-        "Ref Start" => lambda {|it| format_local_dt(it['refStart']) },
-        "Ref End" => lambda {|it| it['refEnd'] ? format_local_dt(it['refEnd']) : '' },
+        "End" => lambda {|it| format_date(it['endDate']) },
+        "Ref Start" => lambda {|it| format_dt(it['refStart']) },
+        "Ref End" => lambda {|it| format_dt(it['refEnd']) },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
@@ -394,27 +413,27 @@ EOT
 =begin
       print_h2 "Costs"
       cost_columns = {
-        "Compute" => lambda {|it| format_money(it['computeCost']) },
-        "Memory" => lambda {|it| format_money(it['memoryCost']) },
-        "Storage" => lambda {|it| format_money(it['storageCost']) },
-        "Network" => lambda {|it| format_money(it['networkCost']) },
-        "License" => lambda {|it| format_money(it['licenseCost']) },
-        "Other" => lambda {|it| format_money(it['extraCost']) },
-        "Running" => lambda {|it| format_money(it['runningCost']) },
-        "Total Cost" => lambda {|it| format_money(it['totalCost']) },
+        "Compute" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Memory" => lambda {|it| format_money(it['memoryCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Storage" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Network" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "License" => lambda {|it| format_money(it['licenseCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Other" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Running" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Total Cost" => lambda {|it| format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) },
       }
       print as_pretty_table([invoice], cost_columns, options)
 
       print_h2 "Prices"
       price_columns = {
-        "Compute" => lambda {|it| format_money(it['computePrice']) },
-        "Memory" => lambda {|it| format_money(it['memoryPrice']) },
-        "Storage" => lambda {|it| format_money(it['storagePrice']) },
-        "Network" => lambda {|it| format_money(it['networkPrice']) },
-        "License" => lambda {|it| format_money(it['licensePrice']) },
-        "Other" => lambda {|it| format_money(it['extraPrice']) },
-        "Running" => lambda {|it| format_money(it['runningPrice']) },
-        "Total Price" => lambda {|it| format_money(it['totalPrice']) },
+        "Compute" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Memory" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Storage" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Network" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "License" => lambda {|it| format_money(it['licensePrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Other" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Running" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Total Price" => lambda {|it| format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) },
       }
       print as_pretty_table([invoice], price_columns, options)
 =end
@@ -436,18 +455,18 @@ EOT
       end
       cost_columns = {
         "" => lambda {|it| it[:label] },
-        "Compute".upcase => lambda {|it| format_money(it[:compute]) },
-        "Memory".upcase => lambda {|it| format_money(it[:memory]) },
-        "Storage".upcase => lambda {|it| format_money(it[:storage]) },
-        "Network".upcase => lambda {|it| format_money(it[:network]) },
-        "License".upcase => lambda {|it| format_money(it[:license]) },
-        "Other".upcase => lambda {|it| format_money(it[:extra]) },
-        "MTD" => lambda {|it| format_money(it[:running]) },
+        "Compute".upcase => lambda {|it| format_money(it[:compute], 'usd', {sigdig:options[:sigdig]}) },
+        "Memory".upcase => lambda {|it| format_money(it[:memory], 'usd', {sigdig:options[:sigdig]}) },
+        "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
+        "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
+        "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
+        "Other".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
+        "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
         "Total".upcase => lambda {|it| 
           if invoice['runningMultiplier'] && invoice['runningMultiplier'].to_i != 1 && it[:total].to_f.to_f > 0  && get_current_period == invoice['period']
-            format_money(it[:total]) + " (Projected)"
+            format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
           else
-            format_money(it[:total])
+            format_money(it[:total], 'usd', {sigdig:options[:sigdig]})
           end
         },
       }
@@ -463,44 +482,47 @@ EOT
       end
       print as_pretty_table(cost_rows, cost_columns, options)
 
-      if options[:show_raw_data]
-        print_h2 "Raw Data"
-        puts as_json(invoice['rawData'], {pretty_json:false}.merge(options))
-      end
-      
       # Line Items
       line_items = invoice['lineItems']
       if line_items && line_items.size > 0 && options[:hide_line_items] != true
-
         line_items_columns = [
           {"ID" => lambda {|it| it['id'] } },
-          {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
+          {"REF TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
           {"REF NAME" => lambda {|it| it['refName'] } },
           #{"REF CATEGORY" => lambda {|it| it['refCategory'] } },
-          {"START" => lambda {|it| format_date(it['startDate']) } },
-          {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
+          {"START" => lambda {|it| format_dt(it['startDate']) } },
+          {"END" => lambda {|it| format_dt(it['endDate']) } },
           {"USAGE TYPE" => lambda {|it| it['usageType'] } },
           {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
-          {"COST" => lambda {|it| format_money(it['itemCost']) } },
-          {"PRICE" => lambda {|it| format_money(it['itemPrice']) } },
-          {"TAX" => lambda {|it| format_money(it['itemTax']) } },
+          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
           # {"TERM" => lambda {|it| it['itemTerm'] } },
-          "CREATED" => lambda {|it| format_local_dt(it['dateCreated']) },
-          "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }
+          {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
+          {"ITEM NAME" => lambda {|it| it['itemName'] } },
+          {"ITEM TYPE" => lambda {|it| it['itemType'] } },
+          {"ITEM DESCRIPTION" => lambda {|it| it['itemDescription'] } },
+          {"PRODUCT CODE" => lambda {|it| it['productCode'] } },
+          {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
         ]
-
         if options[:show_raw_data]
           line_items_columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
-
         print_h2 "Line Items"
         #max_line_items = options[:max_line_items] ? options[:max_line_items].to_i : 5
         paged_line_items = line_items #.first(max_line_items)
         print as_pretty_table(paged_line_items, line_items_columns, options)
         print_results_pagination({total: line_items.size, size: paged_line_items.size}, {:label => "line item", :n_label => "line items"})
+      end
+
+
+      if options[:show_raw_data]
+        print_h2 "Raw Data"
+        puts as_json(invoice['rawData'], {pretty_json:false}.merge(options))
       end
 
       print reset,"\n"
@@ -594,11 +616,11 @@ EOT
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-a', '--all', "Display all costs, prices and raw data" ) do
+      opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_actual_costs] = true
         options[:show_costs] = true
         options[:show_prices] = true
-        options[:show_raw_data] = true
+        # options[:show_raw_data] = true
       end
       # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, etc." ) do
       #   options[:show_actual_costs] = true
@@ -612,6 +634,10 @@ EOT
       opts.on('--invoice-id ID', String, "Filter by Invoice ID") do |val|
         params['invoiceId'] ||= []
         params['invoiceId'] << val
+      end
+      opts.on('--external-id ID', String, "Filter by External ID") do |val|
+        params['externalId'] ||= []
+        params['externalId'] << val
       end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
@@ -694,6 +720,9 @@ EOT
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
       end
+      opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
+        options[:sigdig] = val.to_i
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List invoice line items."
     end
@@ -769,15 +798,20 @@ EOT
           {"REF NAME" => lambda {|it| it['refName'] } },
           #{"REF CATEGORY" => lambda {|it| it['refCategory'] } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
-          {"END" => lambda {|it| it['endDate'] ? format_date(it['endDate']) : '' } },
+          {"END" => lambda {|it| format_date(it['endDate']) } },
           {"USAGE TYPE" => lambda {|it| it['usageType'] } },
           {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
-          {"COST" => lambda {|it| format_money(it['itemCost']) } },
-          {"PRICE" => lambda {|it| format_money(it['itemPrice']) } },
-          {"TAX" => lambda {|it| format_money(it['itemTax']) } },
+          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
           # {"TERM" => lambda {|it| it['itemTerm'] } },
+          {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
+          {"ITEM NAME" => lambda {|it| it['itemName'] } },
+          {"ITEM TYPE" => lambda {|it| it['itemType'] } },
+          {"ITEM DESCRIPTION" => lambda {|it| it['itemDescription'] } },
+          {"PRODUCT CODE" => lambda {|it| it['productCode'] } },
           "CREATED" => lambda {|it| format_local_dt(it['dateCreated']) },
           "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }
         ]
@@ -803,9 +837,9 @@ EOT
         #     print_h2 "Line Items Totals"
         #     invoice_totals_columns = {
         #       "# Line Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
-        #       "Cost" => lambda {|it| format_money(it['itemCost']) },
-        #       "Price" => lambda {|it| format_money(it['itemPrice']) },
-        #       "Tax" => lambda {|it| format_money(it['itemTax']) },
+        #       "Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
+        #       "Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        #       "Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
         #       "Usage" => lambda {|it| it['itemUsage'] },
         #     }
         #     print_description_list(invoice_totals_columns, line_item_totals)
@@ -835,6 +869,9 @@ EOT
       opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
         options[:show_raw_data] = true
         options[:pretty_json] = true
+      end
+      opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
+        options[:sigdig] = val.to_i
       end
       build_standard_get_options(opts, options)
       opts.footer = "Get details about a specific invoice line item."
@@ -879,11 +916,16 @@ EOT
         "Usage Category" => lambda {|it| it['usageCategory'] },
         "Item Usage" => lambda {|it| it['itemUsage'] },
         "Item Rate" => lambda {|it| it['itemRate'] },
-        "Item Cost" => lambda {|it| format_money(it['itemCost']) },
-        "Item Price" => lambda {|it| format_money(it['itemrPrice']) },
-        "Item Tax" => lambda {|it| format_money(it['itemTax']) },
+        "Item Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Item Price" => lambda {|it| format_money(it['itemrPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Item Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
         "Item Term" => lambda {|it| it['itemTerm'] },
         #"Tax Type" => lambda {|it| it['taxType'] },
+        "Item ID" => lambda {|it| it['itemId'] },
+        "Item Name" => lambda {|it| it['itemName'] },
+        "Item Type" => lambda {|it| it['itemType'] },
+        "Item Description" => lambda {|it| it['itemDescription'] },
+        "Product Code" => lambda {|it| it['productCode'] },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }

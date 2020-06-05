@@ -571,7 +571,7 @@ module Morpheus::Cli::PrintHelper
   # truncate_string truncates a string and appends the suffix "..."
   # @param value [String] the string to pad
   # @param width [Integer] the length to truncate to
-  # @param pad_char [String] the character to pad with. Default is ' '
+  # @param suffix [String] the character to pad right side with. Default is '...'
   def truncate_string(value, width, suffix="...")
     value = value.to_s
     # JD: hack alerty.. this sux, but it's a best effort to preserve values containing ascii coloring codes
@@ -596,6 +596,41 @@ module Morpheus::Cli::PrintHelper
           return value[0..width-(suffix.size+1)] + suffix
         else
           return value[0..width-1]
+        end
+      else
+        return value
+      end
+    end
+  end
+
+  # truncate_string truncates a string and appends the prefix "..."
+  # @param value [String] the string to pad
+  # @param width [Integer] the length to truncate to
+  # @param prefix [String] the character to pad left side with. Default is '...'
+  def truncate_string_right(value, width, prefix="...")
+    value = value.to_s
+    # JD: hack alerty.. this sux, but it's a best effort to preserve values containing ascii coloring codes
+    #     it stops working when there are words separated by ascii codes, eg. two diff colors
+    #     plus this is probably pretty slow...
+    uncolored_value = Term::ANSIColor.coloring? ? Term::ANSIColor.uncolored(value.to_s) : value.to_s
+    if uncolored_value != value
+      trimmed_value = nil
+      if uncolored_value.size > width
+        if prefix
+          trimmed_value = prefix + uncolored_value[(uncolored_value.size - width - prefix.size)..-1]
+        else
+          trimmed_value = uncolored_value[(uncolored_value.size - width)..-1]
+        end
+        return value.gsub(uncolored_value, trimmed_value)
+      else
+        return value
+      end
+    else
+      if value.size > width
+        if prefix
+          return prefix + value[(value.size - width - prefix.size)..-1]
+        else
+          return value[(value.size - width)..-1]
         end
       else
         return value
