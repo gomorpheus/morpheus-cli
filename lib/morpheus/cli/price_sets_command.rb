@@ -461,7 +461,7 @@ class Morpheus::Cli::PriceSetsCommand
   private
 
   def currency_sym(currency)
-    Money::Currency.new((currency || 'usd').to_sym).symbol
+    Money::Currency.new((currency.to_s != '' ? currency : 'usd').to_sym).symbol
   end
 
   def price_prefix(price)
