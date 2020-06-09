@@ -204,12 +204,7 @@ class Morpheus::Cli::InvoicesCommand
             else
               truncate_string_right(it['refName'], 100)
             end
-          } }
-        ] + (show_projects ? [
-          {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
-          {"PROJECT NAME" => lambda {|it| it['project'] ? it['project']['name'] : '' } },
-          {"PROJECT TAGS" => lambda {|it| it['project'] ? truncate_string(format_metadata(it['project']['tags']), 50) : '' } }
-        ] : []) + [
+          } },
           #{"INTERVAL" => lambda {|it| it['interval'] } },
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
           {"ACCOUNT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
@@ -257,6 +252,10 @@ class Morpheus::Cli::InvoicesCommand
             } }
           ]
         end
+        columns += [
+          {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
+        ]
         if options[:show_estimates]
           columns += [
             {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
@@ -273,6 +272,13 @@ class Morpheus::Cli::InvoicesCommand
             {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
           ]
+        end
+        if show_projects
+          columns += [
+          {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
+          {"PROJECT NAME" => lambda {|it| it['project'] ? it['project']['name'] : '' } },
+          {"PROJECT TAGS" => lambda {|it| it['project'] ? truncate_string(format_metadata(it['project']['tags']), 50) : '' } },
+        ]
         end
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
@@ -487,9 +493,9 @@ EOT
       if line_items && line_items.size > 0 && options[:hide_line_items] != true
         line_items_columns = [
           {"ID" => lambda {|it| it['id'] } },
-          {"REF TYPE" => lambda {|it| format_invoice_ref_type(it) } },
-          {"REF ID" => lambda {|it| it['refId'] } },
-          {"REF NAME" => lambda {|it| it['refName'] } },
+          #{"REF TYPE" => lambda {|it| format_invoice_ref_type(it) } },
+          #{"REF ID" => lambda {|it| it['refId'] } },
+          #{"REF NAME" => lambda {|it| it['refName'] } },
           #{"REF CATEGORY" => lambda {|it| it['refCategory'] } },
           {"START" => lambda {|it| format_dt(it['startDate']) } },
           {"END" => lambda {|it| format_dt(it['endDate']) } },
