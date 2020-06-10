@@ -44,21 +44,9 @@ class Morpheus::Cli::InvoicesCommand
         options[:show_prices] = true
       end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
-        if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
-          params['refType'] = 'ComputeZone'
-        elsif val.to_s.downcase == 'instance'
-          params['refType'] = 'Instance'
-        elsif val.to_s.downcase == 'server' || val.to_s.downcase == 'host'
-          params['refType'] = 'ComputeServer'
-        elsif val.to_s.downcase == 'cluster'
-          params['refType'] = 'ComputeServerGroup'
-        elsif val.to_s.downcase == 'group'
-          params['refType'] = 'ComputeSite'
-        elsif val.to_s.downcase == 'user'
-          params['refType'] = 'User'
-        else
-          params['refType'] = val
-        end
+        params['refType'] ||= []
+        values = val.split(",").collect {|it| it.strip }.select {|it| it != "" }
+        values.each { |it| params['refType'] << parse_invoice_ref_type(it) }
       end
       opts.on('--id ID', String, "Filter by Ref ID") do |val|
         ref_ids << val
@@ -646,21 +634,9 @@ EOT
         params['externalId'] << val
       end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
-        if val.to_s.downcase == 'cloud' || val.to_s.downcase == 'zone'
-          params['refType'] = 'ComputeZone'
-        elsif val.to_s.downcase == 'instance'
-          params['refType'] = 'Instance'
-        elsif val.to_s.downcase == 'server' || val.to_s.downcase == 'host'
-          params['refType'] = 'ComputeServer'
-        elsif val.to_s.downcase == 'cluster'
-          params['refType'] = 'ComputeServerGroup'
-        elsif val.to_s.downcase == 'group'
-          params['refType'] = 'ComputeSite'
-        elsif val.to_s.downcase == 'user'
-          params['refType'] = 'User'
-        else
-          params['refType'] = val
-        end
+        params['refType'] ||= []
+        values = val.split(",").collect {|it| it.strip }.select {|it| it != "" }
+        values.each { |it| params['refType'] << parse_invoice_ref_type(it) }
       end
       opts.on('--id ID', String, "Filter by Ref ID") do |val|
         ref_ids << val
@@ -997,6 +973,25 @@ EOT
       "Group"
     else
       it['refType']
+    end
+  end
+
+  def parse_invoice_ref_type(ref_type)
+    val = ref_type.to_s.downcase
+    if val == 'cloud' || val == 'zone'
+      'ComputeZone'
+    elsif val == 'instance'
+      'Instance'
+    elsif val == 'server' || val == 'host'
+      'ComputeServer'
+    elsif val == 'cluster'
+      'ComputeServerGroup'
+    elsif val == 'group' || val == 'site'
+      'ComputeSite'
+    elsif val == 'user'
+      'User'
+    else
+      ref_type
     end
   end
 
