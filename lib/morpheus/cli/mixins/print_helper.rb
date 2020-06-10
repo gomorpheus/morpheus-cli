@@ -550,10 +550,10 @@ module Morpheus::Cli::PrintHelper
     # label_width, justify = 0, "none"
     out = ""
     value = value.to_s
-    if do_wrap && value && Morpheus::Cli::PrintHelper.terminal_width
+    if do_wrap && value && value.include?(" ") && Morpheus::Cli::PrintHelper.terminal_width
       value_width = Morpheus::Cli::PrintHelper.terminal_width - label_width
       if value_width > 0 && value.gsub(/\e\[(\d+)m/, '').to_s.size > value_width
-        wrap_indent = label_width + 1 # plus 1 needs to go away
+        wrap_indent = label_width + 1
         value = wrap(value, value_width, wrap_indent)
       end
     end
@@ -907,13 +907,7 @@ module Morpheus::Cli::PrintHelper
     out << color if color
     rows.each do |row|
       value = row[:value].to_s
-      if do_wrap
-        if value_width && value_width < value.size
-          wrap_indent = label_width + 1
-          value = wrap(value, value_width, wrap_indent)
-        end
-      end
-      out << format_dt_dd(row[:label], value, label_width, justify) + "\n"
+      out << format_dt_dd(row[:label], value, label_width, justify, do_wrap) + "\n"
     end
     out << reset if color
     return out
