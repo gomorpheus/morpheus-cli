@@ -365,14 +365,8 @@ def format_number(n, opts={})
   return out
 end
 
-def format_sig_dig(n, sig_dig=3)
-  out = ""
-  parts = n.to_f.round(sig_dig).to_s.split(".")
-  if parts.size > 1 && sig_dig
-    parts[1] = parts[1].ljust(sig_dig, "0")
-  end
-  out << parts.join(".")
-  return out
+def format_sig_dig(n, sigdig=3)
+  sprintf("%.#{sigdig}f", n)
 end
 
 def currency_sym(currency)
@@ -382,26 +376,16 @@ end
 # returns currency amount formatted like "$4,5123.00". 0.00 is formatted as "$0"
 # this is not ideal
 def format_money(amount, currency='usd', opts={})
-  if amount.to_f == 0
+  amount = amount.to_f
+  if amount == 0
     return currency_sym(currency).to_s + "0"
   # elsif amount.to_f < 0.01
   #   # return exponent notation like 3.4e-09
   #   return currency_sym(currency).to_s + "#{amount}"
   else
     sigdig = opts[:sigdig] ? opts[:sigdig].to_i : 2
-    rtn = amount.to_f.round(sigdig).to_s
-    if sigdig > 0
-      dollars,cents = rtn.split(".")
-      if cents.nil?
-        rtn += ('.' + ('0' * sigdig))
-      elsif cents.length < sigdig
-        rtn += ('0' * (sigdig - cents.length))
-      end
-    end
-    dollars,cents = rtn.split(".")
-    rtn = currency_sym(currency).to_s + format_number(dollars.to_i.abs) + (cents ? ("." + cents) : "")
-
-    if dollars.to_i < 0
+    rtn = currency_sym(currency).to_s + sprintf("%.#{sigdig}f", amount)
+    if amount.to_i < 0
       rtn = "(#{rtn})"
       if opts[:minus_color]
         rtn = "#{opts[:minus_color]}#{rtn}#{opts[:return_color] || cyan}"
