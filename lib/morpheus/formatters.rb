@@ -384,7 +384,7 @@ def format_money(amount, currency='usd', opts={})
   #   return currency_sym(currency).to_s + "#{amount}"
   else
     sigdig = opts[:sigdig] ? opts[:sigdig].to_i : 2
-    rtn = currency_sym(currency).to_s + sprintf("%.#{sigdig}f", amount)
+    rtn = currency_sym(currency).to_s + format_number(sprintf("%.#{sigdig}f", amount))
     if amount.to_i < 0
       rtn = "(#{rtn})"
       if opts[:minus_color]
