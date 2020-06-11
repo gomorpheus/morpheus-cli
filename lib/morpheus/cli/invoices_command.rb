@@ -112,6 +112,11 @@ class Morpheus::Cli::InvoicesCommand
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
       end
+      opts.on('--totals-only', "View totals only") do |val|
+        params['includeTotals'] = true
+        options[:show_invoice_totals] = true
+        options[:totals_only] = true
+      end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
@@ -206,13 +211,10 @@ class Morpheus::Cli::InvoicesCommand
           {"REF START" => lambda {|it| format_dt(it['refStart']) } },
           {"REF END" => lambda {|it| format_dt(it['refEnd']) } },
         ] : []) + [
+          {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
           {"MTD" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TOTAL" => lambda {|it| 
-            if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalCost'].to_f > 0 && get_current_period == it['period']
-              format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
-            else
-              format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]})
-            end
+            format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
         
@@ -232,11 +234,7 @@ class Morpheus::Cli::InvoicesCommand
             {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL PRICE" => lambda {|it| 
-              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['totalPrice'].to_f > 0 && get_current_period == it['period']
-                format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
-              else
-                format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]})
-              end
+              format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
             } }
           ]
         end
@@ -248,11 +246,7 @@ class Morpheus::Cli::InvoicesCommand
           columns += [
             {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL EST." => lambda {|it| 
-              if it['runningMultiplier'] && it['runningMultiplier'].to_i != 1 && it['estimatedTotalCost'].to_f > 0 && get_current_period == it['period']
-                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
-              else
-                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]})
-              end
+              format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
             } },
             {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
             # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
@@ -271,13 +265,15 @@ class Morpheus::Cli::InvoicesCommand
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
-        print as_pretty_table(invoices, columns, options)
-        print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
+        unless options[:totals_only]
+          print as_pretty_table(invoices, columns, options)
+          print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
+        end
 
         if options[:show_invoice_totals]
           invoice_totals = json_response['invoiceTotals']
           if invoice_totals
-            print_h2 "Invoice Totals"
+            print_h2 "Invoice Totals" unless options[:totals_only]
             invoice_totals_columns = {
               "# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
               "Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
@@ -388,6 +384,7 @@ EOT
         "End" => lambda {|it| format_date(it['endDate']) },
         "Ref Start" => lambda {|it| format_dt(it['refStart']) },
         "Ref End" => lambda {|it| format_dt(it['refEnd']) },
+        # "Items" => lambda {|it| it['lineItems'].size rescue '' },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
@@ -435,46 +432,7 @@ EOT
       # current_date = Time.now
       # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
 
-      print "\n"
-      # print_h2 "Costs"
-      cost_rows = [
-        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
-        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
-      ]
-      if options[:show_estimates]
-        cost_rows += [
-          {label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
-          {label: 'Estimated Price'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
-        ]
-      end
-      cost_columns = {
-        "" => lambda {|it| it[:label] },
-        "Compute".upcase => lambda {|it| format_money(it[:compute], 'usd', {sigdig:options[:sigdig]}) },
-        "Memory".upcase => lambda {|it| format_money(it[:memory], 'usd', {sigdig:options[:sigdig]}) },
-        "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
-        "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
-        "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
-        "Other".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
-        "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
-        "Total".upcase => lambda {|it| 
-          if invoice['runningMultiplier'] && invoice['runningMultiplier'].to_i != 1 && it[:total].to_f.to_f > 0  && get_current_period == invoice['period']
-            format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + " (Projected)"
-          else
-            format_money(it[:total], 'usd', {sigdig:options[:sigdig]})
-          end
-        },
-      }
-      # remove columns that rarely have data...
-      if cost_rows.sum { |it| it[:memory].to_f } == 0
-        cost_columns.delete("Memory".upcase)
-      end
-      if cost_rows.sum { |it| it[:license].to_f } == 0
-        cost_columns.delete("License".upcase)
-      end
-      if cost_rows.sum { |it| it[:extra].to_f } == 0
-        cost_columns.delete("Other".upcase)
-      end
-      print as_pretty_table(cost_rows, cost_columns, options)
+      
 
       # Line Items
       line_items = invoice['lineItems']
@@ -513,6 +471,42 @@ EOT
         print_results_pagination({total: line_items.size, size: paged_line_items.size}, {:label => "line item", :n_label => "line items"})
       end
 
+      #print "\n"
+      print_h2 "Totals"
+      cost_rows = [
+        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+      ]
+      if options[:show_estimates]
+        cost_rows += [
+          {label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+          {label: 'Estimated Price'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+        ]
+      end
+      cost_columns = {
+        "" => lambda {|it| it[:label] },
+        "Compute".upcase => lambda {|it| format_money(it[:compute], 'usd', {sigdig:options[:sigdig]}) },
+        "Memory".upcase => lambda {|it| format_money(it[:memory], 'usd', {sigdig:options[:sigdig]}) },
+        "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
+        "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
+        "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
+        "Other".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
+        "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
+        "Total".upcase => lambda {|it| 
+          format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
+        },
+      }
+      # remove columns that rarely have data...
+      if cost_rows.sum { |it| it[:memory].to_f } == 0
+        cost_columns.delete("Memory".upcase)
+      end
+      if cost_rows.sum { |it| it[:license].to_f } == 0
+        cost_columns.delete("License".upcase)
+      end
+      if cost_rows.sum { |it| it[:extra].to_f } == 0
+        cost_columns.delete("Other".upcase)
+      end
+      print as_pretty_table(cost_rows, cost_columns, options)
 
       if options[:show_raw_data]
         print_h2 "Raw Data"
@@ -702,6 +696,11 @@ EOT
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
       end
+      opts.on('--totals-only', "View totals only") do |val|
+        params['includeTotals'] = true
+        options[:show_invoice_totals] = true
+        options[:totals_only] = true
+      end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
@@ -801,35 +800,37 @@ EOT
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
-        if options[:show_invoice_totals]
-          line_item_totals = json_response['lineItemTotals']
-          if line_item_totals
-            totals_row = line_item_totals.clone
-            totals_row['id'] = 'TOTAL:'
-            #totals_row['usageCategory'] = 'TOTAL:'
-            line_items = line_items + [totals_row]
-          end
-        end
-        print as_pretty_table(line_items, columns, options)
-        print_results_pagination(json_response, {:label => "line item", :n_label => "line items"})
-
         # if options[:show_invoice_totals]
         #   line_item_totals = json_response['lineItemTotals']
         #   if line_item_totals
-        #     print_h2 "Line Items Totals"
-        #     invoice_totals_columns = {
-        #       "# Line Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
-        #       "Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
-        #       "Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        #       "Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
-        #       "Usage" => lambda {|it| it['itemUsage'] },
-        #     }
-        #     print_description_list(invoice_totals_columns, line_item_totals)
-        #   else
-        #     print "\n"
-        #     print yellow, "No line item totals data", reset, "\n"
+        #     totals_row = line_item_totals.clone
+        #     totals_row['id'] = 'TOTAL:'
+        #     #totals_row['usageCategory'] = 'TOTAL:'
+        #     line_items = line_items + [totals_row]
         #   end
         # end
+        unless options[:totals_only]
+          print as_pretty_table(line_items, columns, options)
+          print_results_pagination(json_response, {:label => "line item", :n_label => "line items"})
+        end
+
+        if options[:show_invoice_totals]
+          line_item_totals = json_response['lineItemTotals']
+          if line_item_totals
+            print_h2 "Line Items Totals" unless options[:totals_only]
+            invoice_totals_columns = {
+              "# Line Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
+              "Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
+              "Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              "Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
+              "Usage" => lambda {|it| it['itemUsage'] },
+            }
+            print_description_list(invoice_totals_columns, line_item_totals)
+          else
+            print "\n"
+            print yellow, "No line item totals data", reset, "\n"
+          end
+        end
 
       end
       print reset,"\n"
