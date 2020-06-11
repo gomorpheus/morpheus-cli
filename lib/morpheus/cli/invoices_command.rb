@@ -274,12 +274,26 @@ class Morpheus::Cli::InvoicesCommand
           invoice_totals = json_response['invoiceTotals']
           if invoice_totals
             print_h2 "Invoice Totals" unless options[:totals_only]
-            invoice_totals_columns = {
-              "# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
-              "Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
-              "Total Cost" => lambda {|it| format_money(it['actualTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
-              "Running Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
-              "Running Cost" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) },
+            invoice_totals_columns = [
+              {"# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
+              {"MTD" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Total" => lambda {|it| format_money(it['actualTotalCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Compute" => lambda {|it| format_money(it['actualComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              # {"Memory" => lambda {|it| format_money(it['actualMemoryCost']) } },
+              {"Storage" => lambda {|it| format_money(it['actualSstorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Network" => lambda {|it| format_money(it['actualNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Other" => lambda {|it| format_money(it['actualExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            ] + (options[:show_prices] ? [
+              {"MTD Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Compute Price" => lambda {|it| format_money(it['actualComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              # {"Memory Price" => lambda {|it| format_money(it['actualMemoryPrice']) } },
+              {"Storage Price" => lambda {|it| format_money(it['actualSstoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Network Price" => lambda {|it| format_money(it['actualNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Other Price" => lambda {|it| format_money(it['actualExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            ] : [])
+              # "Running Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
+              # "Running Cost" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) },
               # "Invoice Total Price" => lambda {|it| format_money(it['invoiceTotalPrice'], 'usd', {sigdig:options[:sigdig]}) },
               # "Invoice Total Cost" => lambda {|it| format_money(it['invoiceTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
               # "Invoice Running Price" => lambda {|it| format_money(it['invoiceRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
@@ -288,7 +302,7 @@ class Morpheus::Cli::InvoicesCommand
               # "Estimated Total Cost" => lambda {|it| format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) },
               # "Compute Price" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) },
               # "Compute Cost" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) },
-            }
+            
             print_description_list(invoice_totals_columns, invoice_totals)
           else
             print "\n"
