@@ -653,9 +653,9 @@ EOT
       # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Other" ) do
       #   options[:show_costs] = true
       # end
-      # opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Other" ) do
-      #   options[:show_prices] = true
-      # end
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Other" ) do
+        options[:show_prices] = true
+      end
       opts.on('--invoice-id ID', String, "Filter by Invoice ID") do |val|
         params['invoiceId'] ||= []
         params['invoiceId'] << val
@@ -822,9 +822,10 @@ EOT
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
           {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
+        ] + (options[:show_prices] ? [
           {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          #{"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
-          # {"TERM" => lambda {|it| it['itemTerm'] } },
+          {"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
+        ] : []) + [
           {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
           {"ITEM NAME" => lambda {|it| it['itemName'] } },
           {"ITEM TYPE" => lambda {|it| it['itemType'] } },
@@ -855,13 +856,15 @@ EOT
           line_item_totals = json_response['lineItemTotals']
           if line_item_totals
             print_h2 "Line Items Totals" unless options[:totals_only]
-            invoice_totals_columns = {
-              "# Line Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' },
-              #"Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
-              #"Usage" => lambda {|it| it['itemUsage'] },
-              "Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
-              "Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
-            }
+            invoice_totals_columns = [
+              {"Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
+              #{"Usage" => lambda {|it| it['itemUsage'] } },
+              {"Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            ] + (options[:show_prices] ? [
+              {"Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              #{"Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
+          
+            ] : [])
             print_description_list(invoice_totals_columns, line_item_totals)
           else
             print "\n"
@@ -939,8 +942,8 @@ EOT
         "Item Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
         "Item Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
         #"Item Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
-        #"Item Term" => lambda {|it| it['itemTerm'] },
         #"Tax Type" => lambda {|it| it['taxType'] },
+        "Item Term" => lambda {|it| it['itemTerm'] },
         "Item ID" => lambda {|it| it['itemId'] },
         "Item Name" => lambda {|it| it['itemName'] },
         "Item Type" => lambda {|it| it['itemType'] },
