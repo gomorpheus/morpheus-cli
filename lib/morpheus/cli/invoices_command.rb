@@ -201,8 +201,7 @@ class Morpheus::Cli::InvoicesCommand
           #{"INTERVAL" => lambda {|it| it['interval'] } },
           {"CLOUD" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
           #{"TENANT" => lambda {|it| it['account'] ? it['account']['name'] : '' } },
-          {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
-          {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
+          
           #{"COST TYPE" => lambda {|it| it['costType'].to_s.capitalize } },
           {"PERIOD" => lambda {|it| format_invoice_period(it) } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
@@ -211,20 +210,17 @@ class Morpheus::Cli::InvoicesCommand
           {"REF START" => lambda {|it| format_dt(it['refStart']) } },
           {"REF END" => lambda {|it| format_dt(it['refEnd']) } },
         ] : []) + [
-          {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
+          {"COMPUTE" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
+          {"STORAGE" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"NETWORK" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"OTHER" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"MTD" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TOTAL" => lambda {|it| 
             format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
         
-        columns += [
-          {"COMPUTE" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
-          {"STORAGE" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"NETWORK" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"OTHER" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-        ]
         if options[:show_prices]
           columns += [
             {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
@@ -238,23 +234,24 @@ class Morpheus::Cli::InvoicesCommand
             } }
           ]
         end
-        columns += [
-          {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
-          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
-        ]
         if options[:show_estimates]
           columns += [
-            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"TOTAL EST." => lambda {|it| 
-              format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
-            } },
             {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
             # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"TOTAL EST." => lambda {|it| 
+              format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
+            } },
           ]
         end
+        columns += [
+          {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
+          {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
+          {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
+        ]
         if show_projects
           columns += [
           {"PROJECT ID" => lambda {|it| it['project'] ? it['project']['id'] : '' } },
@@ -262,6 +259,10 @@ class Morpheus::Cli::InvoicesCommand
           {"PROJECT TAGS" => lambda {|it| it['project'] ? truncate_string(format_metadata(it['project']['tags']), 50) : '' } },
         ]
         end
+        columns += [
+          {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
+        ]
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
         end
@@ -276,21 +277,21 @@ class Morpheus::Cli::InvoicesCommand
             print_h2 "Invoice Totals" unless options[:totals_only]
             invoice_totals_columns = [
               {"# Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
-              {"MTD" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"Total" => lambda {|it| format_money(it['actualTotalCost'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Compute" => lambda {|it| format_money(it['actualComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
               # {"Memory" => lambda {|it| format_money(it['actualMemoryCost']) } },
               {"Storage" => lambda {|it| format_money(it['actualStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Network" => lambda {|it| format_money(it['actualNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Other" => lambda {|it| format_money(it['actualExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"MTD" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Total" => lambda {|it| format_money(it['actualTotalCost'], 'usd', {sigdig:options[:sigdig]}) } },
             ] + (options[:show_prices] ? [
-              {"MTD Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Compute Price" => lambda {|it| format_money(it['actualComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
               # {"Memory Price" => lambda {|it| format_money(it['actualMemoryPrice']) } },
               {"Storage Price" => lambda {|it| format_money(it['actualStoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Network Price" => lambda {|it| format_money(it['actualNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
               {"Other Price" => lambda {|it| format_money(it['actualExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"MTD Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Total Price" => lambda {|it| format_money(it['actualTotalPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             ] : [])
               # "Running Price" => lambda {|it| format_money(it['actualRunningPrice'], 'usd', {sigdig:options[:sigdig]}) },
               # "Running Cost" => lambda {|it| format_money(it['actualRunningCost'], 'usd', {sigdig:options[:sigdig]}) },
