@@ -9,6 +9,9 @@ module Morpheus
   module Cli
     class CliRegistry
 
+      class BadCommandDefinition < StandardError
+      end
+
       class BadAlias < StandardError
       end
 

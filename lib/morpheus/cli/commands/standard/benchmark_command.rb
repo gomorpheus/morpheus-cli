@@ -7,11 +7,14 @@ class Morpheus::Cli::BenchmarkCommand
   include Morpheus::Cli::CliCommand
   set_command_name :'benchmark'
 
-  # control global benchmark toggle
-  register_subcommands :on, :off, :on?, :off?
-  # record your own benchmarks
-  register_subcommands :start, :stop, :status, :exec => :execute
-
+  register_subcommand :on, "Enable global benchmarking."
+  register_subcommand :off, "Disable global benchmarking."
+  register_subcommand :on?, "Print the value of the global benchmark setting. Exit 0 if on."
+  register_subcommand :off?, "Print the value of the global benchmark setting. Exit 0 if off."
+  register_subcommand :start, "Start recording a benchmark."
+  register_subcommand :stop, "Stop recording a benchmark."
+  register_subcommand :status, "Print status of benchmark."
+  register_subcommand :exec, :execute, "Benchmark a specified command or expression."
 
   # this would be cool, we should store all benchmarking results in memory or on disk =o
   # register_subcommands :list, :get, :put, :remove
@@ -35,7 +38,7 @@ class Morpheus::Cli::BenchmarkCommand
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Enable global benchmarking. 
+#{subcommand_description}
 This behaves the same as if you were to add the -B switch to every command.
 EOT
     end
@@ -65,7 +68,7 @@ EOT
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Disable global benchmarking. 
+#{subcommand_description}
 The default state for this setting is off.
 EOT
     end
@@ -95,7 +98,7 @@ EOT
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Print the value of the global benchmark setting. 
+#{subcommand_description}
 Exit 0 if on.
 EOT
     end
@@ -121,7 +124,7 @@ EOT
       opts.banner = subcommand_usage("")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Print the value of the global benchmark setting. 
+#{subcommand_description}
 Exit 0 if off.
 EOT
     end
@@ -149,7 +152,7 @@ EOT
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Start recording a benchmark.
+#{subcommand_description}
 [name] is required. This is just a name for the routine.
 This allows you to record how long it takes to run a series of commands.
 Just run `benchmark stop` when you are finished.
@@ -194,7 +197,7 @@ EOT
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Stop recording a benchmark.
+#{subcommand_description}
 [name] is optional. This is the name of the benchmark to stop. 
 The last benchmark is used by default.
 EOT
@@ -254,7 +257,7 @@ EOT
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Print status of benchmark.
+#{subcommand_description}
 [name] is optional. This is the name of the benchmark to inspect.
 The last benchmark is used by default.
 EOT
@@ -309,7 +312,7 @@ EOT
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Benchmark a specified command.
+#{subcommand_description}
 [command] is required. This is the command to execute
 EOT
     end

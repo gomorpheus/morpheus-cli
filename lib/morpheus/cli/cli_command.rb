@@ -808,6 +808,20 @@ module Morpheus
         self.class.subcommand_aliases
       end
 
+      # def subcommand_descriptions
+      #   self.class.subcommand_descriptions
+      # end
+
+      def get_subcommand_description(subcmd)
+        self.class.get_subcommand_description(subcmd)
+      end
+
+      def subcommand_description()
+        calling_method = caller[0][/`([^']*)'/, 1].to_s.sub('block in ', '')
+        subcommand_name = subcommands.key(calling_method)
+        subcommand_name ? get_subcommand_description(subcommand_name) : nil
+      end
+
       def default_subcommand
         self.class.default_subcommand
       end
@@ -849,8 +863,11 @@ module Morpheus
         if !subcommands.empty?
           out << "Commands:"
           out << "\n"
-          subcommands.sort.each {|cmd, method|
-            out << "\t#{cmd.to_s}\n"
+          subcommands.sort.each {|subcmd, method|
+            desc = get_subcommand_description(subcmd)
+            out << "\t#{subcmd.to_s}"
+            out << "\t#{desc}" if desc
+            out << "\n"
           }
         end
         # out << "\n"
@@ -1281,9 +1298,43 @@ module Morpheus
               v = cmd.to_s.gsub('-', '_')
               register_subcommands({(k) => v})
             else
-              raise "Unable to register command of type: #{cmd.class} #{cmd}"
+              raise Morpheus::Cli::CliRegistry::BadCommandDefinition.new("Unable to register command of type: #{cmd.class} #{cmd}")
             end
           }
+          return
+        end
+
+        # this might be the new hotness
+        # register_subcommand(:show) # do not do this, always define a description!
+        # register_subcommand(:list, "List things")
+        # register_subcommand("update-all", "update_all", "Update all things")
+        # If the command name =~ method, no need to pass both
+        # command names will have "-" swapped in for "_" and vice versa for method names.
+        def register_subcommand(*args)
+          args = args.flatten
+          cmd_name = args[0]
+          cmd_method = nil
+          cmd_desc = nil
+          if args.count == 1
+            cmd_method = cmd_name
+          elsif args.count == 2
+            if args[1].is_a?(Symbol)
+              cmd_method = args[1]
+            else
+              cmd_method = cmd_name
+              cmd_desc = args[1]
+            end
+          elsif args.count == 3
+            cmd_method = args[1]
+            cmd_desc = args[2]
+          else
+            raise Morpheus::Cli::CliRegistry::BadCommandDefinition.new("register_subcommand expects 1-3 arguments, got #{args.size} #{args.inspect}")
+          end
+          cmd_name = cmd_name.to_s.gsub("_", "-").to_sym
+          cmd_method = (cmd_method || cmd_name).to_s.gsub("-", "_").to_sym
+          cmd_definition = {(cmd_name) => cmd_method}
+          register_subcommands(cmd_definition)
+          add_subcommand_description(cmd_name, cmd_desc)
           return
         end
 
@@ -1343,6 +1394,31 @@ module Morpheus
         def remove_subcommand_alias(alias_cmd_name)
           @subcommand_aliases ||= {}
           @subcommand_aliases.delete(alias_cmd_name.to_s)
+        end
+
+        def subcommand_descriptions
+          @subcommand_descriptions ||= {}
+        end
+
+        def add_subcommand_description(cmd_name, description)
+          @subcommand_descriptions ||= {}
+          @subcommand_descriptions[cmd_name.to_s.gsub('_', '-')] = description
+        end
+
+        def get_subcommand_description(cmd_name)
+          desc = subcommand_descriptions[cmd_name.to_s.gsub('_', '-')]
+          if desc
+            return desc
+          else
+            cmd_method = subcommands.key(cmd_name)
+            return cmd_method ? subcommand_descriptions[cmd_method.to_s.gsub('_', '-')] : nil
+          end
+        end
+
+        def set_subcommand_descriptions(cmd_map)
+          cmd_map.each do |cmd_name, description|
+            add_subcommand_description(cmd_name, description)
+          end
         end
 
       end

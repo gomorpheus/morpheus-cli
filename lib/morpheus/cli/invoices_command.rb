@@ -275,15 +275,32 @@ class Morpheus::Cli::InvoicesCommand
 
         if options[:show_invoice_totals]
           invoice_totals = json_response['invoiceTotals']
+          print_h2 "Line Item Totals" unless options[:totals_only]
+          invoice_totals_columns = [
+            {"Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
+            {"Compute" => lambda {|it| format_money(it['actualComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Storage" => lambda {|it| format_money(it['actualStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Network" => lambda {|it| format_money(it['actualNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Extra" => lambda {|it| format_money(it['actualExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          ] + (options[:show_prices] ? [
+            {"Compute Price" => lambda {|it| format_money(it['actualComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Storage Price" => lambda {|it| format_money(it['actualStoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Network Price" => lambda {|it| format_money(it['actualNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"Extra Price" => lambda {|it| format_money(it['actualExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          ] : [])
+          print_description_list(invoice_totals_columns, line_item_totals)
+        end
+        if options[:show_invoice_totals]
+          invoice_totals = json_response['invoiceTotals']
           print_h2 "Invoice Totals (#{format_number(json_response['meta']['total']) rescue ''})"
 
           if invoice_totals
             cost_rows = [
-              {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost']},
+              {label: 'Cost', compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost']},
             ]
             if options[:show_prices]
               cost_rows += [
-                {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice']},
+                {label: 'Price', compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice']},
               ]
             end
             if options[:show_estimates]
@@ -855,7 +872,7 @@ EOT
         if options[:show_invoice_totals]
           line_item_totals = json_response['lineItemTotals']
           if line_item_totals
-            print_h2 "Line Items Totals" unless options[:totals_only]
+            print_h2 "Line Item Totals" unless options[:totals_only]
             invoice_totals_columns = [
               {"Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
               #{"Usage" => lambda {|it| it['itemUsage'] } },
