@@ -75,7 +75,7 @@ module Morpheus::Cli::OptionSourceHelper
 
   def get_cloud_options(refresh=false, api_params={})
     if !@available_cloud_options || refresh
-      option_results = options_interface.options_for_source('clouds', api_params)
+      option_results = options_interface.options_for_source('clouds', api_params.mege({'default' => 'false'}))
         @available_cloud_options = option_results['data'].collect {|it|
           {"name" => it["name"], "value" => it["value"], "id" => it["value"]}
         }
