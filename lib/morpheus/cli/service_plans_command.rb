@@ -650,13 +650,13 @@ class Morpheus::Cli::ServicePlanCommand
 
       if !plan
         print_red_alert "Service plan #{args[0]} not found"
-        exit 1
+        return 1
       end
 
-      if plan['active'] == true
-        print_green_success "Service plan #{plan['name']} already actived."
-        return 0
-      end
+      # if plan['active'] == true
+      #   print_green_success "Service plan #{plan['name']} already actived."
+      #   return 0
+      # end
 
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to activate the service plan '#{plan['name']}'?", options)
         return 9, "aborted command"
@@ -704,13 +704,13 @@ class Morpheus::Cli::ServicePlanCommand
 
       if !plan
         print_red_alert "Service plan #{args[0]} not found"
-        exit 1
+        return 1
       end
 
-      if plan['active'] == false
-        print_green_success "Service plan #{plan['name']} already deactived."
-        return 0
-      end
+      # if plan['active'] == false
+      #   print_green_success "Service plan #{plan['name']} already deactivated."
+      #   return 0
+      # end
 
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to deactivate the service plan '#{plan['name']}'?", options)
         return 9, "aborted command"
