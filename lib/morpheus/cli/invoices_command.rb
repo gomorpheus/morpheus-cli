@@ -34,13 +34,13 @@ class Morpheus::Cli::InvoicesCommand
         options[:show_prices] = true
         # options[:show_raw_data] = true
       end
-      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Other" ) do
+      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
         options[:show_estimates] = true
       end
-      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Other" ) do
+      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Extra" ) do
       #   options[:show_costs] = true
       # end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Other" ) do
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
         options[:show_prices] = true
       end
       opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
@@ -216,7 +216,7 @@ class Morpheus::Cli::InvoicesCommand
           # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
           {"STORAGE" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"NETWORK" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"OTHER" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"EXTRA" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"MTD" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TOTAL" => lambda {|it| 
             format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
@@ -229,7 +229,7 @@ class Morpheus::Cli::InvoicesCommand
             # {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"OTHER PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"EXTRA PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL PRICE" => lambda {|it| 
               format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
@@ -242,7 +242,7 @@ class Morpheus::Cli::InvoicesCommand
             # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"OTHER EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"EXTRA EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
             {"TOTAL EST." => lambda {|it| 
               format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
@@ -316,7 +316,7 @@ class Morpheus::Cli::InvoicesCommand
               "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
               "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
               "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
-              "Other".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
+              "Extra".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
               "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
               "Total".upcase => lambda {|it| 
                 format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
@@ -330,7 +330,7 @@ class Morpheus::Cli::InvoicesCommand
               cost_columns.delete("License".upcase)
             end
             if cost_rows.sum { |it| it[:extra].to_f } == 0
-              cost_columns.delete("Other".upcase)
+              cost_columns.delete("Extra".upcase)
             end
             print as_pretty_table(cost_rows, cost_columns, options)
           else
@@ -355,10 +355,10 @@ class Morpheus::Cli::InvoicesCommand
         # options[:show_raw_data] = true
         options[:max_line_items] = 10000
       end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Other" ) do
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
         options[:show_prices] = true
       end
-      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Other" ) do
+      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
         options[:show_estimates] = true
       end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
@@ -455,7 +455,7 @@ EOT
         "Storage" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) },
         "Network" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) },
         "License" => lambda {|it| format_money(it['licenseCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Other" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) },
+        "Extra" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) },
         "Running" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) },
         "Total Cost" => lambda {|it| format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) },
       }
@@ -468,7 +468,7 @@ EOT
         "Storage" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) },
         "Network" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) },
         "License" => lambda {|it| format_money(it['licensePrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Other" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) },
+        "Extra" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) },
         "Running" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) },
         "Total Price" => lambda {|it| format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) },
       }
@@ -544,7 +544,7 @@ EOT
         "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
         "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
         "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
-        "Other".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
+        "Extra".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
         "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
         "Total".upcase => lambda {|it| 
           format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
@@ -558,7 +558,7 @@ EOT
         cost_columns.delete("License".upcase)
       end
       if cost_rows.sum { |it| it[:extra].to_f } == 0
-        cost_columns.delete("Other".upcase)
+        cost_columns.delete("Extra".upcase)
       end
       print as_pretty_table(cost_rows, cost_columns, options)
 
@@ -664,13 +664,13 @@ EOT
         options[:show_prices] = true
         # options[:show_raw_data] = true
       end
-      # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Storage, Network, Other" ) do
+      # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Storage, Network, Extra" ) do
       #   options[:show_actual_costs] = true
       # end
-      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Other" ) do
+      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Extra" ) do
       #   options[:show_costs] = true
       # end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Other" ) do
+      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
         options[:show_prices] = true
       end
       opts.on('--invoice-id ID', String, "Filter by Invoice ID") do |val|
