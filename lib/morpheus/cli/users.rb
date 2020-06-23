@@ -16,9 +16,6 @@ class Morpheus::Cli::Users
   alias_subcommand :details, :get
   set_default_subcommand :list
 
-  #todo: TOO_SIMPL_REGEX = //i
-  # TOO_SIMPLE_ERROR = "Password too simple. Password must contain at least one uppercase letter, one lowercase letter, a number, and a symbol."
-
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
@@ -68,7 +65,7 @@ class Morpheus::Cli::Users
       if account
         subtitles << "Tenant: #{account['name']}".strip
       end
-      if params['global']
+      if params['global'] && json_response['global']
         subtitles << "(All Tenants)"
       end
       subtitles += parse_list_subtitles(options)
