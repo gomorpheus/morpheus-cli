@@ -518,7 +518,7 @@ class Morpheus::Cli::ImageBuilderCommand
       opts.on( '-K', '--keep-virtual-images', "Preserve associated virtual images" ) do
         query_params['keepVirtualImages'] = 'on'
       end
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
@@ -565,7 +565,7 @@ class Morpheus::Cli::ImageBuilderCommand
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image-build]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 

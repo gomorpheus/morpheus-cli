@@ -18,7 +18,7 @@ module Morpheus
         full_help_message
       end
 
-      def full_help_message
+      def full_help_message(opts={})
         out = ""
         #out << original_to_s
         if banner
@@ -40,8 +40,15 @@ module Morpheus
                 opt_description.to_s.strip.start_with?("--#{hidden_switch} ")
               end
             }
-            if !is_hidden
-              out  << opt_description
+            if is_hidden
+              if opts[:show_hidden_options]
+                # out << opt_description + " (hidden)"
+                out << opt_description
+              else
+                # hidden
+              end
+            else
+              out << opt_description
             end
           end
         end

@@ -609,7 +609,7 @@ class Morpheus::Cli::SubnetsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[subnet]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a subnet." + "\n" +
                     "[subnet] is required. This is the name or id of a subnet."
     end

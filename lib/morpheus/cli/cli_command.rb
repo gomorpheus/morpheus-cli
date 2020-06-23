@@ -285,13 +285,24 @@ module Morpheus
         while (option_key = option_keys.shift) do
           case option_key.to_sym
 
-          when :account
-            opts.on('-a','--account ACCOUNT', "Account Name or ID") do |val|
+          when :tenant, :account
+            # todo: let's deprecate this in favor of :tenant --tenant to keep -a reserved for --all perhaps?
+            opts.on('--tenant TENANT', String, "Tenant (Account) Name or ID") do |val|
               options[:account] = val
             end
-            opts.on('-A','--account-id ID', "Account ID") do |val|
+            opts.on('--tenant-id ID', String, "Tenant (Account) ID") do |val|
               options[:account_id] = val
             end
+            # todo: let's deprecate this in favor of :tenant --tenant to keep -a reserved for --all perhaps?
+            opts.on('-a','--account ACCOUNT', "Alias for --tenant") do |val|
+              options[:account] = val
+            end
+            opts.on('-A','--account-id ID', "Tenant (Account) ID") do |val|
+              options[:account_id] = val
+            end
+            opts.add_hidden_option('--tenant-id') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('-A, --account-id') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :options
             options[:options] ||= {}
@@ -783,7 +794,11 @@ module Morpheus
         end
         opts.add_hidden_option('--no-debug') if opts.is_a?(Morpheus::Cli::OptionParser)
 
-
+        opts.on('--hidden-help', "Print help that includes all the hidden options, like this one." ) do
+          puts opts.full_help_message({show_hidden_options:true})
+          exit # return 0 maybe?
+        end
+        opts.add_hidden_option('--hidden-help') if opts.is_a?(Morpheus::Cli::OptionParser)
         opts.on('-h', '--help', "Print this help" ) do
           puts opts
           exit # return 0 maybe?

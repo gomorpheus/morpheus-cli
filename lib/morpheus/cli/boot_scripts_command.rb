@@ -279,7 +279,7 @@ class Morpheus::Cli::BootScriptsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[boot-script]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
 
