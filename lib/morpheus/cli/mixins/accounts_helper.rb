@@ -154,7 +154,7 @@ module Morpheus::Cli::AccountsHelper
     elsif users.size > 1
       print_red_alert "#{users.size} users by username #{username}"
       print_users_table(users, {color: red, thin: true})
-      print reset,"\n\n"
+      print reset,"\n"
       return nil
     else
       return users[0]

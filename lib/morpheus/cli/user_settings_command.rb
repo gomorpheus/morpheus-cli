@@ -2,6 +2,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::UserSettingsCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::AccountsHelper
 
   set_command_name :'user-settings'
 
@@ -16,6 +17,7 @@ class Morpheus::Cli::UserSettingsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @user_settings_interface = @api_client.user_settings
+    @users_interface = @api_client.users
   end
 
   def handle(args)
@@ -28,11 +30,18 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get your user settings."
+      opts.footer = <<-EOT
+Get user settings. 
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -43,6 +52,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       params.merge!(parse_list_options(options))
       @user_settings_interface.setopts(options)
       if options[:dry_run]
@@ -96,6 +110,9 @@ class Morpheus::Cli::UserSettingsCommand
         }
         print cyan
         puts as_pretty_table(access_tokens, cols)
+      else
+        #print "\n"
+        print cyan, "\n", "No API access tokens found", "\n\n"
       end
       
       print reset #, "\n"
@@ -113,11 +130,18 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Update your user settings."
+      opts.footer = <<-EOT
+Update user settings.
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -128,6 +152,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       payload = {}
       if options[:payload]
         payload = options[:payload]
@@ -167,12 +196,19 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[file]")
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
-      opts.footer = "Update your avatar profile image.\n" +
-                    "[file] is required. This is the local path of a file to upload [png|jpg|svg]."
+      opts.footer = <<-EOT
+Update avatar profile image.
+[file] is required. This is the local path of a file to upload [png|jpg|svg].
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -193,6 +229,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.update_avatar(image_file, params)
@@ -221,11 +262,19 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
-      opts.footer = "Remove your avatar profile image."
+      opts.footer = <<-EOT
+Remove avatar profile image.
+[file] is required. This is the local path of a file to upload [png|jpg|svg].
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -236,6 +285,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       @user_settings_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_settings_interface.dry.remove_avatar(params)
@@ -265,12 +319,19 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:remote])
-      opts.footer = "View your avatar profile image.\n" +
-                    "This opens the avatar image url with a web browser."
+      opts.footer = <<-EOT
+View avatar profile image.
+This opens the avatar image url with a web browser.
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -281,7 +342,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
-      
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       json_response = @user_settings_interface.get(params)
       user_settings = json_response['user'] || json_response['userSettings']
       
@@ -312,12 +377,19 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[client-id]")
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Regenerate API access token for a specific client.\n" +
-                    "[client-id] is required. This is the id of an api client."
+      opts.footer = <<-EOT
+Regenerate API access token for a specific client.
+[client-id] is required. This is the id of an api client.
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -328,6 +400,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     params['clientId'] = args[0]
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       payload = {}
       @user_settings_interface.setopts(options)
       if options[:dry_run]
@@ -376,12 +453,19 @@ class Morpheus::Cli::UserSettingsCommand
       # opts.on("--client-id", "Client ID. eg. morph-api, morph-cli") do |val|
       #   params['clientId'] = val.to_s
       # end
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
       opts.on("--user-id ID", String, "User ID") do |val|
         params['userId'] = val.to_s
       end
+      #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Clear API access token for a specific client.\n" +
-                    "[client-id] or --all is required. This is the id of an api client."
+      opts.footer = <<-EOT
+Clear API access token for a specific client.
+[client-id] or --all is required. This is the id of an api client.
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -399,6 +483,11 @@ class Morpheus::Cli::UserSettingsCommand
       # clears all when clientId is omitted, no api parameter needed.
     end
     begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
       payload = {}
       @user_settings_interface.setopts(options)
       if options[:dry_run]
@@ -447,11 +536,17 @@ class Morpheus::Cli::UserSettingsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      # opts.on("-u", "--user USER", "User username or ID") do |val|
+      #   options[:user] = val.to_s
+      # end
       # opts.on("--user-id ID", String, "User ID") do |val|
       #   params['userId'] = val.to_s
       # end
+      # #opts.add_hidden_option('--user-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List available api clients."
+      opts.footer = <<-EOT
+List available api clients.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -462,6 +557,11 @@ class Morpheus::Cli::UserSettingsCommand
     end
     
     begin
+      # if options[:user]
+      #   user = find_user_by_username_or_id(nil, options[:user], {global:true})
+      #   return 1 if user.nil?
+      #   params['userId'] = user['id']
+      # end
       params.merge!(parse_list_options(options))
       @user_settings_interface.setopts(options)
       if options[:dry_run]
