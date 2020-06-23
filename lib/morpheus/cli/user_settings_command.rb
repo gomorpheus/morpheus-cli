@@ -89,6 +89,8 @@ class Morpheus::Cli::UserSettingsCommand
           #"ID" => lambda {|it| it['id'] },
           "CLIENT ID" => lambda {|it| it['clientId'] },
           "USERNAME" => lambda {|it| it['username'] },
+          "ACCESS TOKEN" => lambda {|it| it['maskedAccessToken'] },
+          "REFRESH TOKEN" => lambda {|it| it['maskedRefreshToken'] },
           "EXPIRATION" => lambda {|it| format_local_dt(it['expiration']) },
           "TTL" => lambda {|it| it['expiration'] ? (format_duration(it['expiration']) rescue '') : '' }
         }

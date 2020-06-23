@@ -16,10 +16,9 @@ class Morpheus::UsersInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def list(account_id, options={})
+  def list(account_id, params={})
     url = build_url(account_id)
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, timeout: 10, headers: headers}
     execute(opts)
   end

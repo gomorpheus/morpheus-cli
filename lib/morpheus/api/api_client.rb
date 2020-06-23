@@ -287,11 +287,14 @@ class Morpheus::APIClient
     return self
   end
 
-  def refresh_token()
-    if @refresh_token.nil?
+  def use_refresh_token(t=nil)
+    if t.nil?
+      t = @refresh_token
+    end
+    if t.nil?
       raise "#{self.class} does not currently have a refresh_token"
     end
-    response = auth.use_refresh_token(@refresh_token, self.client_id)
+    response = auth.use_refresh_token(t, self.client_id)
     @access_token = response['access_token']
     @refresh_token = response['refresh_token']
     if response['expires_in'] != nil

@@ -111,8 +111,18 @@ class Morpheus::Cli::AccessTokenCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:auto_confirm, :remote, :dry_run, :json, :quiet])
-      opts.footer = "Use your refresh token.\n" +
+      opts.on( '-T', '--token TOKEN', "Refresh Token to use. The saved credentials are used by default." ) do |val|
+        options[:refresh_token] = val
+      end
+      opts.on( '--token-file FILE', String, "Refresh Token File, read a file containing the refresh token." ) do |val|
+        token_file = File.expand_path(val)
+        if !File.exists?(token_file) || !File.file?(token_file)
+          raise ::OptionParser::InvalidOption.new("File not found: #{token_file}")
+        end
+        options[:refresh_token] = File.read(token_file).to_s.split("\n").first.strip
+      end
+      build_common_options(opts, options, [:auto_confirm, :remote, :dry_run, :json, :quiet], [:remote_username, :remote_password, :remote_token])
+      opts.footer = "Use the refresh token in your saved credentials, or a provided token.\n" +
                     "This will replace your current access and refresh tokens with a new values.\n" +
                     "Your current access token will be invalidated\n" +
                     "All other users or applications with access to your token will need to update to the new token."
@@ -131,15 +141,22 @@ class Morpheus::Cli::AccessTokenCommand
     #   end
     #   return 1
     # end
-    if @wallet['refresh_token'].nil?
-      unless options[:quiet]
-        print_error yellow,"No refresh token found for appliance #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-        print_error yellow,"Use the 'login' command.",reset,"\n"
+    refresh_token_value = nil
+    if options[:refresh_token]
+      refresh_token_value = options[:refresh_token]
+    else
+      if @wallet['refresh_token']
+        refresh_token_value = @wallet['refresh_token']
+      else
+        unless options[:quiet]
+          print_error yellow,"No refresh token found for appliance #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+          print_error yellow,"Use the 'login' command.",reset,"\n"
+        end
+        return 1
       end
-      return 1
     end
     if options[:dry_run]
-      print_dry_run Morpheus::AuthInterface.new({url:@appliance_url}).setopts(options).use_refresh_token(@wallet['refresh_token'])
+      print_dry_run Morpheus::AuthInterface.new({url:@appliance_url}).setopts(options).use_refresh_token(refresh_token_value)
       return 0
     end
     unless options[:quiet]
@@ -160,7 +177,7 @@ class Morpheus::Cli::AccessTokenCommand
 
     # ok, let's use our refresh token
     # this regenerates the current access token.
-    refresh_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).use_refresh_token(options)
+    refresh_result = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).use_refresh_token(refresh_token_value, options)
     new_wallet = refresh_result
     if options[:json]
       puts as_json(refresh_result, options)

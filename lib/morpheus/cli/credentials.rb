@@ -255,8 +255,7 @@ module Morpheus
         true
       end
 
-      def use_refresh_token(options = {})
-        #puts "use_refresh_token(#{options})"
+      def use_refresh_token(refresh_token_value, options = {})
         
         wallet = load_saved_credentials
 
@@ -265,11 +264,14 @@ module Morpheus
           return nil
         end
 
-        if wallet['refresh_token'].nil?
-          print_red_alert yellow,"No refresh token found for #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
-          return nil
+        if refresh_token_value.nil?
+          if wallet['refresh_token']
+            refresh_token_value = wallet['refresh_token']
+          else
+            print_red_alert yellow,"No refresh token found for #{display_appliance(@appliance_name, @appliance_url)}",reset,"\n"
+            return nil
+          end
         end
-
 
         username = wallet['username']
 
@@ -277,10 +279,10 @@ module Morpheus
           auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
           auth_interface.setopts(options)
           if options[:dry_run]
-            print_dry_run auth_interface.dry.use_refresh_token(wallet['refresh_token'])
+            print_dry_run auth_interface.dry.use_refresh_token(refresh_token_value)
             return nil
           end
-          json_response = auth_interface.use_refresh_token(wallet['refresh_token'])
+          json_response = auth_interface.use_refresh_token(refresh_token_value)
           #wallet = json_response
           login_date = Time.now
           expire_date = nil
@@ -311,6 +313,8 @@ module Morpheus
             print_rest_exception(e, options)
           end
           wallet = nil
+          # return now or else it will log them out
+          return nil
         end
 
         # save wallet to credentials file

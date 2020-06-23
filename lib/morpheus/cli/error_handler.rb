@@ -82,7 +82,7 @@ class Morpheus::Cli::ErrorHandler
           @stderr.puts err.to_s
         end
       else
-        @stderr.puts "Use --debug for more information."
+        @stderr.puts "Use -V or --debug for more verbose debugging information."
       end
     end
 
@@ -145,7 +145,7 @@ class Morpheus::Cli::ErrorHandler
             @stderr.print reset
           end
         else
-          @stderr.puts "Use --debug for more information."
+          @stderr.puts "Use -V or --debug for more verbose debugging information."
         end
       end
     else

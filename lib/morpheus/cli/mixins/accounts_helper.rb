@@ -47,7 +47,7 @@ module Morpheus::Cli::AccountsHelper
       return json_response['account']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Account not found by id #{id}"
+        print_red_alert "Tenant not found by id #{id}"
       else
         raise e
       end
@@ -57,7 +57,7 @@ module Morpheus::Cli::AccountsHelper
   def find_account_by_name(name)
     accounts = accounts_interface.list({name: name.to_s})['accounts']
     if accounts.empty?
-      print_red_alert "Account not found by name #{name}"
+      print_red_alert "Tenant not found by name #{name}"
       return nil
     elsif accounts.size > 1
       print_red_alert "#{accounts.size} accounts found by name #{name}"
@@ -125,17 +125,17 @@ module Morpheus::Cli::AccountsHelper
 
   alias_method :find_role_by_authority, :find_role_by_name
 
-  def find_user_by_username_or_id(account_id, val)
+  def find_user_by_username_or_id(account_id, val, params={})
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_user_by_id(account_id, val)
+      return find_user_by_id(account_id, val, params)
     else
-      return find_user_by_username(account_id, val)
+      return find_user_by_username(account_id, val, params)
     end
   end
 
-  def find_user_by_id(account_id, id)
+  def find_user_by_id(account_id, id, params={})
     begin
-      json_response = users_interface.get(account_id, id.to_i, {includePermissions:true})
+      json_response = users_interface.get(account_id, id.to_i, params)
       return json_response['user']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -146,8 +146,8 @@ module Morpheus::Cli::AccountsHelper
     end
   end
 
-  def find_user_by_username(account_id, username)
-    users = users_interface.list(account_id, {username: username.to_s})['users']
+  def find_user_by_username(account_id, username, params={})
+    users = users_interface.list(account_id, params.merge({username: username.to_s}))['users']
     if users.empty?
       print_red_alert "User not found by username #{username}"
       return nil
@@ -161,7 +161,7 @@ module Morpheus::Cli::AccountsHelper
     end
   end
 
-  def find_all_user_ids(account_id, usernames)
+  def find_all_user_ids(account_id, usernames, params={})
     user_ids = []
     if usernames.is_a?(String)
       usernames = usernames.split(",").collect {|it| it.to_s.strip }.select {|it| it }.uniq
@@ -170,11 +170,11 @@ module Morpheus::Cli::AccountsHelper
     end
     usernames.each do |username|
       # save a query
-      #user = find_user_by_username_or_id(nil, username)
+      #user = find_user_by_username_or_id(nil, username, params)
       if username.to_s =~ /\A\d{1,}\Z/
         user_ids << username.to_i
       else
-        user = find_user_by_username(account_id, username)
+        user = find_user_by_username(account_id, username, params)
         if user.nil?
           return nil
         else
@@ -306,9 +306,9 @@ module Morpheus::Cli::AccountsHelper
   def print_users_table(users, options={})
     table_color = options[:color] || cyan
     rows = users.collect do |user|
-      {id: user['id'], username: user['username'], name: user['displayName'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), account: user['account'] ? user['account']['name'] : nil}
+      {id: user['id'], username: user['username'], name: user['displayName'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), tenant: user['account'] ? user['account']['name'] : nil}
     end
-    columns = [:id, :account, :first, :last, :username, :email, :role]
+    columns = [:id, :first, :last, :username, :email, :role, :tenant]
     if options[:include_fields]
       columns = options[:include_fields] 
     end

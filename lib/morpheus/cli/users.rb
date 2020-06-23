@@ -35,9 +35,13 @@ class Morpheus::Cli::Users
   end
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       build_common_options(opts, options, [:account, :list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
       opts.footer = "List users."
     end
@@ -47,8 +51,7 @@ class Morpheus::Cli::Users
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-
-      params = {}
+      params['global'] = true if options[:global]
       params.merge!(parse_list_options(options))
       @users_interface.setopts(options)
       if options[:dry_run]
@@ -63,7 +66,10 @@ class Morpheus::Cli::Users
       title = "Morpheus Users"
       subtitles = []
       if account
-        subtitles << "Account: #{account['name']}".strip
+        subtitles << "Tenant: #{account['name']}".strip
+      end
+      if params['global']
+        subtitles << "(All Tenants)"
       end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles, options
@@ -83,9 +89,13 @@ class Morpheus::Cli::Users
   end
 
   def count(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       build_common_options(opts, options, [:account, :query, :remote, :dry_run])
       opts.footer = "Get the number of users."
     end
@@ -94,7 +104,7 @@ class Morpheus::Cli::Users
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-      params = {}
+      params['global'] = true if options[:global]
       params.merge!(parse_list_options(options))
       @users_interface.setopts(options)
       if options[:dry_run]
@@ -116,9 +126,11 @@ class Morpheus::Cli::Users
 
   def get(args)
     options = {}
-    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[username]")
+      opts.banner = subcommand_usage("[user]")
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       opts.on('-p','--permissions', "Display Permissions") do |val|
         options[:include_features_access] = true
         params['includeAccess'] = true
@@ -155,157 +167,161 @@ class Morpheus::Cli::Users
       opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
         options[:display_none_access] = true
       end
-      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a user." + "\n" +
-                    "[username] is required. This is the username or id of a user."
+      build_standard_get_options(opts, options, [:account])
+      opts.footer = <<-EOT
+Get details about a user.
+[user] is required. This is the username or id of a user. Supports 1-N arguments.
+EOT
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      puts optparse
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
-    begin
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
-      @users_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @users_interface.dry.get(account_id, args[0].to_i, params)
-        else
-          print_dry_run @users_interface.dry.get(account_id, {username: args[0]}, params)
-        end
-        return
-      end
-
-      if args[0].to_s =~ /\A\d{1,}\Z/
-        user_id = args[0].to_i
-      else
-        user = find_user_by_username(account_id, args[0])
-
-        if user.nil?
-          print_red_alert "User #{args[0]} not found"
-          exit 1
-        end
-        user_id = user['id']
-      end
-
-      user = @users_interface.get(account_id, user_id, params)['user']
-
-      if user.nil?
-        print_red_alert "User #{args[0]} not found"
-        exit 1
-      end
-
-      is_tenant_account = current_account['id'] != user['account']['id']
-
-      json_response =  {'user' => user}
-
-      if options[:json]
-        puts as_json(json_response, options, "user")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "user")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([user], options)
-        return 0
-      end
-
-      print_h1 "User Details", options
-      print cyan
-      description_cols = {
-          "ID" => 'id',
-          "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-          "First Name" => 'firstName',
-          "Last Name" => 'lastName',
-          # "Name" => 'displayName',
-          #"Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
-          "Username" => 'username',
-          "Email" => 'email',
-          "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
-          "Role" => lambda {|it| format_user_role_names(it) },
-          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, user)
-
-      # backward compatibility
-      if user['access'].nil? && options[:include_features_access]
-        user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
-        user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
-
-        if user_feature_permissions
-          print_h2 "Feature Permissions", options
-          print cyan
-          if user_feature_permissions.is_a?(Array)
-            rows = user_feature_permissions.collect do |it|
-              {name: it['name'], code: it['code'], access: format_access_string(it['access']) }
-            end
-            print as_pretty_table(rows, [:name, :code, :access], options)
-          else
-            rows = user_feature_permissions.collect do |code, access|
-              {code: code, access: format_access_string(access) }
-            end
-            print as_pretty_table(rows, [:code, :access], options)
-          end
-        else
-          puts yellow,"No permissions found.",reset
-        end
-      else
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
-        available_field_options.each do |field, label|
-          if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
-            access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
-
-            if field == "features"
-              # print_h2 "Permissions", options
-              print_h2 "#{label} Access", options
-            else
-              print_h2 "#{label} Access", options
-            end
-            print cyan
-
-            # access levels vary, default is none,read,user,full
-            available_access_levels = ["none","read","user","full"]
-            if field == 'sites' || field == 'zones' || field == 'instance_types' || field == 'app_templates'
-              available_access_levels = ["none","read","full"]
-            end
-            if access.count > 0
-              access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
-
-              if ['features', 'instance_types'].include?(field)
-                print as_pretty_table(access, [:name, :code, :access], options)
-              else
-                print as_pretty_table(access, [:name, :access], options)
-              end
-            else
-              println yellow,"No #{label} Access Found.",reset
-            end
-          end
-        end
-      end
-      print cyan
-      print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
     end
   end
 
+  def _get(id, options={})
+    args = [id] # heh
+    params = {}
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
+    params['global'] = true if options[:global]
+    @users_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @users_interface.dry.get(account_id, args[0].to_i, params)
+      else
+        print_dry_run @users_interface.dry.list(account_id, params.merge({username: args[0]}))
+      end
+      return
+    end
+
+    if args[0].to_s =~ /\A\d{1,}\Z/
+      user_id = args[0].to_i
+    else
+      user = find_user_by_username(account_id, args[0], params)
+      return 1 if user.nil?
+      user_id = user['id']
+    end
+    # always get by id, index does not return 'access'
+    json_response = @users_interface.get(account_id, user_id, params)
+    user = json_response['user']
+
+    if user.nil?
+      print_red_alert "User #{args[0]} not found"
+      exit 1
+    end
+
+    is_tenant_account = current_account['id'] != user['account']['id']
+
+    json_response =  {'user' => user}
+
+    if options[:json]
+      puts as_json(json_response, options, "user")
+      return 0
+    elsif options[:yaml]
+      puts as_yaml(json_response, options, "user")
+      return 0
+    elsif options[:csv]
+      puts records_as_csv([user], options)
+      return 0
+    end
+
+    print_h1 "User Details", options
+    print cyan
+    description_cols = {
+        "ID" => 'id',
+        "First Name" => 'firstName',
+        "Last Name" => 'lastName',
+        # "Name" => 'displayName',
+        #"Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
+        "Username" => 'username',
+        "Email" => 'email',
+        "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
+        "Role" => lambda {|it| format_user_role_names(it) },
+        "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+    print_description_list(description_cols, user)
+
+    # backward compatibility
+    if user['access'].nil? && options[:include_features_access]
+      user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+      user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
+
+      if user_feature_permissions
+        print_h2 "Feature Permissions", options
+        print cyan
+        if user_feature_permissions.is_a?(Array)
+          rows = user_feature_permissions.collect do |it|
+            {name: it['name'], code: it['code'], access: format_access_string(it['access']) }
+          end
+          print as_pretty_table(rows, [:name, :code, :access], options)
+        else
+          rows = user_feature_permissions.collect do |code, access|
+            {code: code, access: format_access_string(access) }
+          end
+          print as_pretty_table(rows, [:code, :access], options)
+        end
+      else
+        puts yellow,"No permissions found.",reset
+      end
+    else
+      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+      available_field_options.each do |field, label|
+        if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
+          access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+
+          if field == "features"
+            # print_h2 "Permissions", options
+            print_h2 "#{label} Access", options
+          else
+            print_h2 "#{label} Access", options
+          end
+          print cyan
+
+          # access levels vary, default is none,read,user,full
+          available_access_levels = ["none","read","user","full"]
+          if field == 'sites' || field == 'zones' || field == 'instance_types' || field == 'app_templates'
+            available_access_levels = ["none","read","full"]
+          end
+          if access.count > 0
+            access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
+
+            if ['features', 'instance_types'].include?(field)
+              print as_pretty_table(access, [:name, :code, :access], options)
+            else
+              print as_pretty_table(access, [:name, :access], options)
+            end
+          else
+            println yellow,"No #{label} Access Found.",reset
+          end
+        end
+      end
+    end
+    print cyan
+    print reset,"\n"
+    return 0
+  end
+
   def permissions(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[username]")
+      opts.banner = subcommand_usage("[user]")
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
         options[:display_none_access] = true
       end
       opts.footer = "Display Access for a user." + "\n" +
-                    "[username] is required. This is the username or id of a user."
+                    "[user] is required. This is the username or id of a user."
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
@@ -314,7 +330,8 @@ class Morpheus::Cli::Users
     begin
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-      user = find_user_by_username_or_id(account_id, args[0])
+      params['global'] = true if options[:global]
+      user = find_user_by_username_or_id(account_id, args[0], params)
       return 1 if user.nil?
       @users_interface.setopts(options)
       if options[:dry_run]
@@ -417,7 +434,7 @@ class Morpheus::Cli::Users
       build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
       opts.footer = <<-EOT
 Create a new user.
-[username] is required. Username of the new user
+[user] is required. Username of the new user
 [email] is required. Email address
 [first] is optional. First Name
 [last] is optional. Last Name
@@ -471,19 +488,20 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-      username = "" # json_response['user']['username']
-      username = payload['user']['username'] if payload['user'] && payload['user']['username']
-      if account
-        print_green_success "Added user #{username} to account #{account['name']}"
-      else
-        print_green_success "Added user #{username}"
+        username = "" # json_response['user']['username']
+        username = payload['user']['username'] if payload['user'] && payload['user']['username']
+        if account
+          print_green_success "Added user #{username} to account #{account['name']}"
+        else
+          print_green_success "Added user #{username}"
+        end
+        # details_options = [username]
+        # if account
+        #   details_options.push "--account-id", account['id'].to_s
+        # end
+        # get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
+        _get([payload['user']['id']], options)
       end
-      details_options = [username]
-      if account
-        details_options.push "--account-id", account['id'].to_s
-      end
-      get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
-    end
       
 
     rescue RestClient::Exception => e
@@ -497,7 +515,10 @@ EOT
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[username] [options]")
+      opts.banner = subcommand_usage("[user] [options]")
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       build_option_type_options(opts, options, update_user_option_types)
       build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
     end
@@ -508,8 +529,8 @@ EOT
 
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-
-      user = find_user_by_username_or_id(account_id, args[0])
+      params['global'] = true if options[:global]
+      user = find_user_by_username_or_id(account_id, args[0], params)
       return 1 if user.nil?
 
       # use --payload
@@ -551,11 +572,12 @@ EOT
           username = payload['user']['username']
         end
         print_green_success "Updated user #{username}"
-        details_options = [username]
-        if account
-          details_options.push "--account-id", account['id'].to_s
-        end
-        get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
+        # details_options = [username]
+        # if account
+        #   details_options.push "--account-id", account['id'].to_s
+        # end
+        # get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
+        _get(user["id"], options)
       end
 
     rescue RestClient::Exception => e
@@ -565,26 +587,30 @@ EOT
   end
 
   def change_password(args)
+    params = {}
     options = {}
     new_password = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[username] [password] [options]")
+      opts.banner = subcommand_usage("[user] [password] [options]")
+      opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
       # opts.on('--password VALUE', String, "New password") do |val|
       #   new_password = val
       # end
       build_standard_update_options(opts, options, [:account])
     end
     optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, min:1,max:2) # [username] [password]
+    verify_args!(args:args, optparse:optparse, min:1,max:2) # [user] [password]
     connect(options)
     exit_code, err = 0, nil
 
     # user can be scoped to account (tenant)
     account = find_account_from_options(options)
     account_id = account ? account['id'] : nil
-
+    params['global'] = true if options[:global]
     # fetch the user to update
-    user = find_user_by_username_or_id(account_id, args[0])
+    user = find_user_by_username_or_id(account_id, args[0], params)
     return 1 if user.nil?
     
     new_password = args[1] if args[1]
@@ -644,10 +670,14 @@ EOT
   end
 
   def remove(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[username]")
-      build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run])
+      opts.banner = subcommand_usage("[user]")
+        opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
+        options[:global] = true
+      end
+      build_standard_remove_options(opts, options, [:account])
     end
     optparse.parse!(args)
 
@@ -658,19 +688,18 @@ EOT
 
     connect(options)
     begin
-
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
-
-      user = find_user_by_username_or_id(account_id, args[0])
+      params['global'] = true if options[:global]
+      user = find_user_by_username_or_id(account_id, args[0], params)
       return 1 if user.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
-        exit
+        exit 9, "arborted"
       end
       @users_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @users_interface.dry.destroy(account_id, user['id'])
-        return
+        return 0
       end
       json_response = @users_interface.destroy(account_id, user['id'])
 
