@@ -87,7 +87,7 @@ module Morpheus
           rescue ::RestClient::Exception => e
             #raise e
             print_red_alert "Token not valid."
-            if options[:debug] || options[:debug]
+            if options[:debug]
               print_rest_exception(e, options)
             end
             wallet = nil

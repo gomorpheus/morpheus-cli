@@ -127,6 +127,8 @@ class Morpheus::Cli::ErrorHandler
         begin
           print_rest_errors(JSON.parse(err.response.to_s), options)
         rescue TypeError, JSON::ParserError => ex
+          # not json, just 404
+          @stderr.print red, "Error Communicating with the remote appliance. #{e}", reset, "\n"  
         end
       else
         @stderr.print red, "Error Communicating with the remote appliance. #{e}", reset, "\n"
