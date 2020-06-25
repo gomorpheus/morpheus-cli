@@ -39,6 +39,18 @@ class Morpheus::Cli::Users
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
         options[:global] = true
       end
+      opts.on('--role AUTHORITY', String, "Role Name (authority)") do |val|
+        params['role'] ||= []
+        val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }.each do |v|
+          params['role'] << v
+        end
+      end
+      opts.on('--role-id ID', String, "Role ID") do |val|
+        params['roleId'] ||= []
+        val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }.each do |v|
+          params['roleId'] << v
+        end
+      end
       build_standard_list_options(opts, options, [:account])
       opts.footer = "List users."
     end
