@@ -363,7 +363,7 @@ EOT
         else
           out << "\texit: 0 "
         end
-        total_time_str = "#{benchmark_record.duration.round((benchmark_record.duration > 0.002) ? 3 : 6)}s"
+        total_time_str = "#{benchmark_record.duration.round((benchmark_record.duration > 0.002) ? 3 : 6)} s"
         out << "\t #{total_time_str.ljust(9, ' ')}"
       else
         benchmark_records = []
@@ -384,8 +384,8 @@ EOT
         # all_durations = benchmark_records.collect {|benchmark_record| benchmark_record.duration }
         # total_duration = all_durations.inject(0.0) {|acc, i| acc + i }
         # avg_duration = total_duration / all_durations.size
-        # total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)}s"
-        # avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)}s"
+        # total_time_str = "#{total_duration.round((total_duration > 0.002) ? 3 : 6)} s"
+        # avg_time_str = "#{avg_duration.round((total_duration > 0.002) ? 3 : 6)} s"
 
         all_durations = []
         stats = {total: 0, avg: nil, min: nil, max: nil}
@@ -406,10 +406,10 @@ EOT
           stats[:avg] = stats[:total].to_f / all_durations.size
         end
 
-        total_time_str = "#{stats[:total].round((stats[:total] > 0.002) ? 3 : 6)}s"
-        min_time_str = stats[:min] ? "#{stats[:min].round((stats[:min] > 0.002) ? 3 : 6)}s" : ""
-        max_time_str = stats[:max] ? "#{stats[:max].round((stats[:max] > 0.002) ? 3 : 6)}s" : ""
-        avg_time_str = stats[:avg] ? "#{stats[:avg].round((stats[:avg] > 0.002) ? 3 : 6)}s" : ""
+        total_time_str = "#{stats[:total].round((stats[:total] > 0.002) ? 3 : 6)} s"
+        min_time_str = stats[:min] ? "#{stats[:min].round((stats[:min] > 0.002) ? 3 : 6)} s" : ""
+        max_time_str = stats[:max] ? "#{stats[:max].round((stats[:max] > 0.002) ? 3 : 6)} s" : ""
+        avg_time_str = stats[:avg] ? "#{stats[:avg].round((stats[:avg] > 0.002) ? 3 : 6)} s" : ""
 
         out = ""
         # <benchmark name or command>

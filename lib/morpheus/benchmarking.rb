@@ -218,9 +218,9 @@ module Morpheus::Benchmarking
       end
       duration_str = duration
       if @start_time && @end_time
-        time_str = "#{seconds} seconds"
+        time_str = "#{seconds} s"
       elsif @start_time
-        time_str = "#{seconds} seconds (running)"
+        time_str = "#{seconds} s (running)"
       else
         time_str = "(unstarted)"
       end
