@@ -212,89 +212,70 @@ EOT
     # always get by id, index does not return 'access'
     json_response = @users_interface.get(account_id, user_id, params)
     user = json_response['user']
+    render_response(json_response, options, "user") do
+      is_tenant_account = current_account['id'] != user['account']['id']
+      print_h1 "User Details", options
+      print cyan
+      print_description_list(user_column_definitions, user)
 
-    if user.nil?
-      print_red_alert "User #{args[0]} not found"
-      exit 1
-    end
+      # backward compatibility
+      if user['access'].nil? && options[:include_features_access]
+        user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+        user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
 
-    is_tenant_account = current_account['id'] != user['account']['id']
-
-    json_response =  {'user' => user}
-
-    if options[:json]
-      puts as_json(json_response, options, "user")
-      return 0
-    elsif options[:yaml]
-      puts as_yaml(json_response, options, "user")
-      return 0
-    elsif options[:csv]
-      puts records_as_csv([user], options)
-      return 0
-    end
-
-    print_h1 "User Details", options
-    print cyan
-    print_description_list(user_column_definitions, user)
-
-    # backward compatibility
-    if user['access'].nil? && options[:include_features_access]
-      user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
-      user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
-
-      if user_feature_permissions
-        print_h2 "Feature Permissions", options
-        print cyan
-        if user_feature_permissions.is_a?(Array)
-          rows = user_feature_permissions.collect do |it|
-            {name: it['name'], code: it['code'], access: format_access_string(it['access']) }
+        if user_feature_permissions
+          print_h2 "Feature Permissions", options
+          print cyan
+          if user_feature_permissions.is_a?(Array)
+            rows = user_feature_permissions.collect do |it|
+              {name: it['name'], code: it['code'], access: format_access_string(it['access']) }
+            end
+            print as_pretty_table(rows, [:name, :code, :access], options)
+          else
+            rows = user_feature_permissions.collect do |code, access|
+              {code: code, access: format_access_string(access) }
+            end
+            print as_pretty_table(rows, [:code, :access], options)
           end
-          print as_pretty_table(rows, [:name, :code, :access], options)
         else
-          rows = user_feature_permissions.collect do |code, access|
-            {code: code, access: format_access_string(access) }
-          end
-          print as_pretty_table(rows, [:code, :access], options)
+          puts yellow,"No permissions found.",reset
         end
       else
-        puts yellow,"No permissions found.",reset
-      end
-    else
-      available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
-      available_field_options.each do |field, label|
-        if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
-          access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-          access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options.each do |field, label|
+          if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
+            access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
 
-          if field == "features"
-            # print_h2 "Permissions", options
-            print_h2 "#{label} Access", options
-          else
-            print_h2 "#{label} Access", options
-          end
-          print cyan
-
-          # access levels vary, default is none,read,user,full
-          available_access_levels = ["none","read","user","full"]
-          if field == 'sites' || field == 'zones' || field == 'instance_types' || field == 'app_templates'
-            available_access_levels = ["none","read","full"]
-          end
-          if access.count > 0
-            access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
-
-            if ['features', 'instance_types'].include?(field)
-              print as_pretty_table(access, [:name, :code, :access], options)
+            if field == "features"
+              # print_h2 "Permissions", options
+              print_h2 "#{label} Access", options
             else
-              print as_pretty_table(access, [:name, :access], options)
+              print_h2 "#{label} Access", options
             end
-          else
-            println yellow,"No #{label} Access Found.",reset
+            print cyan
+
+            # access levels vary, default is none,read,user,full
+            available_access_levels = ["none","read","user","full"]
+            if field == 'sites' || field == 'zones' || field == 'instance_types' || field == 'app_templates'
+              available_access_levels = ["none","read","full"]
+            end
+            if access.count > 0
+              access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
+
+              if ['features', 'instance_types'].include?(field)
+                print as_pretty_table(access, [:name, :code, :access], options)
+              else
+                print as_pretty_table(access, [:name, :access], options)
+              end
+            else
+              println yellow,"No #{label} Access Found.",reset
+            end
           end
         end
       end
+      print reset,"\n"
     end
-    print cyan
-    print reset,"\n"
     return 0
   end
 

@@ -206,8 +206,10 @@ module Morpheus::Cli::AccountsHelper
       "Email" => 'email',
       "Role" => lambda {|it| format_user_role_names(it) },
       "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
+      "Status" => lambda {|it| format_user_status(it) },
+      "Last Login" => lambda {|it| format_duration_ago(it['lastLoginDate']) },
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
   end
 
@@ -215,6 +217,20 @@ module Morpheus::Cli::AccountsHelper
     columns = user_column_definitions
     columns.delete("Notifications")
     return columns.upcase_keys!
+  end
+
+  def format_user_status(user, return_color=cyan)
+    if user["enabled"] != true
+      red + "DISABLED" + return_color
+    elsif user["accountLocked"]
+      red + "ACCOUNT LOCKED" + return_color
+    elsif user["accountExpired"]
+      yellow + "ACCOUNT EXPIRED" + return_color
+    elsif user["passwordExpired"]
+      yellow + "PASSWORD EXPIRED" + return_color
+    else
+      green + "ACTIVE" + return_color
+    end
   end
 
   def find_user_by_username_or_id(account_id, val, params={})
