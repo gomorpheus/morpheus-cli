@@ -281,7 +281,7 @@ EOT
       #print cyan
       #puts "Initializing remote appliance at URL: #{@appliance_url}"
 
-      # Master Account
+      # Master Tenant
       print_h2 "Create Master Tenant", options
       account_option_types = [
         {'fieldName' => 'accountName', 'fieldLabel' => 'Master Tenant Name', 'type' => 'text', 'required' => true, 'defaultValue' => (hub_info ? hub_info['companyName'] : nil), 'description' => 'A unique name for the Master Tenant (account).'},

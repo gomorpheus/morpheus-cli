@@ -652,7 +652,7 @@ EOT
     connect(options)
     exit_code, err = 0, nil
     # if !is_master_account
-    #   print_red_alert "Permissions only available for master account"
+    #   print_red_alert "Permissions only available for master tenant"
     #   return 1
     # end
     layout = find_layout_by_name_or_id(nil, args[0])

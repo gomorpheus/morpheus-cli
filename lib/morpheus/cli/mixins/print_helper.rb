@@ -1171,14 +1171,25 @@ module Morpheus::Cli::PrintHelper
     out
   end
 
-  def anded_list(items)
+  def format_list(items, conjunction="and", limit=nil)
     items = items ? items.clone : []
+    if limit
+      items = items.first(limit)
+    end
     last_item = items.pop
     if items.empty?
       return "#{last_item}"
     else
-      return items.join(", ") + " and #{last_item}"
+      return items.join(", ") + (conjunction.to_s.empty? ? ", " : " #{conjunction} ") + "#{last_item}" + ((limit && limit < (items.size+1)) ? " ..." : "")
     end
+  end
+
+  def anded_list(items, limit=nil)
+    format_list(items, "and", limit)
+  end
+
+  def ored_list(items, limit=nil)
+    format_list(items, "or", limit)
   end
 
   def sleep_with_dots(sleep_seconds, dots=3, dot_chr=".")

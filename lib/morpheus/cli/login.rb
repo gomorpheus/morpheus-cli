@@ -106,6 +106,8 @@ EOT
           if options[:test_only]
             print green,"Success! Test Credentials verified for #{wallet['username']}", reset, "\n"
           else
+            # clear whoami cache, it will be lazily load_saved_credentials
+            ::Morpheus::Cli::Whoami.clear_whoami(@appliance_name, wallet['username'])
             print green,"Success! Logged in as #{wallet['username']}", reset, "\n"
           end
         end

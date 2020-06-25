@@ -154,7 +154,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       opts.on('--active [on|off]', String, "Can be used to enable / disable whitelabel feature") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on("--appliance-name NAME", String, "Appliance name. Only available to master account") do |val|
+      opts.on("--appliance-name NAME", String, "Appliance name. Only available to master tenant") do |val|
         params['applianceName'] = val == 'null' ? nil : val
       end
       opts.on("--disable-support-menu [on|off]", ['on','off'], "Can be used to disable support menu") do |val|

@@ -85,4 +85,25 @@ class Hash
     self
   end
 
+  def upcase_keys!
+    self.keys.each do |k| 
+      self[k.to_s.upcase] = self.delete(k)
+    end
+    self
+  end
+
+  def downcase_keys!
+    self.keys.each do |k|
+      self[k.to_s.downcase] = self.delete(k)
+    end
+    self
+  end
+
+  def capitalize_keys!
+    self.keys.each do |k|
+      self[k.to_s.capitalize] = self.delete(k)
+    end
+    self
+  end
+
 end

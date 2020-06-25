@@ -41,23 +41,24 @@ class Morpheus::Cli::TenantsCommand
   def list(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search phrase]")
+      build_standard_list_options(opts, options)
       opts.footer = "List tenants."
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    options[:phrase] = args.join(" ") if args.count > 0
     connect(options)
-    begin
-      params = {}
-      params.merge!(parse_list_options(options))
-      @accounts_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @accounts_interface.dry.list(params)
-        return 0
-      end
-      json_response = @accounts_interface.list(params)
-      render_result = render_with_format(json_response, options, 'accounts')
-      return 0 if render_result
+
+    params = {}
+    params.merge!(parse_list_options(options))
+    @accounts_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @accounts_interface.dry.list(params)
+      return 0, nil
+    end
+    json_response = @accounts_interface.list(params)
+    render_response(json_response, options, "accounts") do
       accounts = json_response['accounts']
       title = "Morpheus Tenants"
       subtitles = []
@@ -66,15 +67,13 @@ class Morpheus::Cli::TenantsCommand
       if accounts.empty?
         print cyan,"No tenants found.",reset,"\n"
       else
-        print_accounts_table(accounts)
+        print cyan
+        print as_pretty_table(accounts, list_account_column_definitions, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def count(args)
@@ -110,59 +109,47 @@ class Morpheus::Cli::TenantsCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
+      opts.banner = subcommand_usage("[tenant]")
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a tenant (account).
+[tenant] is required. This is the name or id of a tenant. Supports 1-N arguments.
+EOT
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
-    begin
-      @accounts_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @accounts_interface.dry.get(args[0].to_i)
-        else
-          print_dry_run @accounts_interface.dry.list({name:args[0]})
-        end
-        return
-      end
-      account = find_account_by_name_or_id(args[0])
-      exit 1 if account.nil?
-
-      json_response = {'account' => account}
-      render_result = render_with_format(json_response, options, 'account')
-      return 0 if render_result
-
-      print_h1 "Tenant Details", [], options
-      
-      description_cols = {
-        "ID" => 'id',
-        "Name" => 'name',
-        "Description" => 'description',
-        "Subdomain" => 'subdomain',
-        "Currency" => 'currency',
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
-        "Status" => lambda {|it| 
-          status_state = nil
-          if account['active']
-            status_state = "#{green}ACTIVE#{cyan}"
-          else
-            status_state = "#{red}INACTIVE#{cyan}"
-          end
-          status_state
-        },
-      }
-      print_description_list(description_cols, account)
-
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
     end
+  end
+
+  def _get(id, options={})
+    args = [id] # heh
+    @accounts_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @accounts_interface.dry.get(args[0].to_i)
+      else
+        print_dry_run @accounts_interface.dry.list({name:args[0]})
+      end
+      return
+    end
+    account = find_account_by_name_or_id(args[0])
+    exit 1 if account.nil?
+
+    json_response = {'account' => account}
+    render_result = render_with_format(json_response, options, 'account')
+    return 0 if render_result
+
+    print_h1 "Tenant Details", [], options
+    
+    print_description_list(account_column_definitions, account, options)
+
+    print reset,"\n"
+    return 0
+    
   end
 
   def add(args)

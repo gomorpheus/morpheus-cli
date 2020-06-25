@@ -1040,7 +1040,7 @@ class Morpheus::Cli::NetworkRoutersCommand
 
     begin
       if !is_master_account
-        print_red_alert "Permissions only available for master account"
+        print_red_alert "Permissions only available for master tenant"
         return 1
       end
 

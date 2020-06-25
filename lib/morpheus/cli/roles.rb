@@ -12,6 +12,7 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::WhoamiHelper
   register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -37,36 +38,28 @@ class Morpheus::Cli::Roles
   def list(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search phrase]")
+      build_standard_list_options(opts, options)
       opts.footer = "List roles."
     end
     optparse.parse!(args)
-
+    # verify_args!(args:args, optparse:optparse, count:0)
+    options[:phrase] = args.join(" ") if args.count > 0
     connect(options)
-    begin
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
-      
-      params = {}
-      params.merge!(parse_list_options(options))
-      @roles_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @roles_interface.dry.list(account_id, params), options
-        return
-      end
-      load_whoami()
-      json_response = @roles_interface.list(account_id, params)
-      if options[:json]
-        puts as_json(json_response, options, "roles")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "roles")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['roles'], options)
-        return 0
-      end
+
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
+    params = {}
+    params.merge!(parse_list_options(options))
+    @roles_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @roles_interface.dry.list(account_id, params), options
+      return 0, nil
+    end
+    load_whoami()
+    json_response = @roles_interface.list(account_id, params)
+
+    render_response(json_response, options, "roles") do
       roles = json_response['roles']
       title = "Morpheus Roles"
       subtitles = []
@@ -75,22 +68,20 @@ class Morpheus::Cli::Roles
       if roles.empty?
         print cyan,"No roles found.",reset,"\n"
       else
-        print_roles_table(roles, options.merge({is_master_account: @is_master_account}))
+        print cyan
+        columns = @is_master_account ? role_column_definitions : subtenant_role_column_definitions
+        print as_pretty_table(roles, columns.upcase_keys!, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def get(args)
     options = {}
-    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role]")
       opts.on('-p','--permissions', "Display Permissions") do |val|
         options[:include_feature_access] = true
       end
@@ -117,19 +108,26 @@ class Morpheus::Cli::Roles
         options[:include_instance_type_access] = true
         options[:include_blueprint_access] = true
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a role.\n" +
-                    "[name] is required. This is the name or id of a role."
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a role.
+[role] is required. This is the name (authority) or id of a role.
+EOT
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      puts optparse
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
-    begin
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, options)
+    end
+  end
+
+  def _get(id, options={})
+    args = [id] # heh
+    params = {}
+
+    
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
@@ -150,7 +148,7 @@ class Morpheus::Cli::Roles
       # refetch from show action, argh
       # json_response = @roles_interface.get(account_id, role['id'])
       # role = json_response['role']
-
+      load_whoami()
       json_response = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
         json_response = @roles_interface.get(account_id, args[0].to_i)
@@ -163,27 +161,13 @@ class Morpheus::Cli::Roles
         role = json_response['role']
       end
 
-      render_result = render_with_format(json_response, options, 'role')
-      return 0 if render_result
-
+      render_response(json_response, options, 'role') do
+      
       print cyan
       print_h1 "Role Details", options
       print cyan
-      description_cols = {
-        "ID" => 'id',
-        "Name" => 'authority',
-        "Description" => 'description',
-        "Scope" => lambda {|it| it['scope'] },
-        "Type" => lambda {|it| format_role_type(it) },
-        "Multitenant" => lambda {|it| 
-          format_boolean(it['multitenant']).to_s + (it['multitenantLocked'] ? " (LOCKED)" : "")
-        },
-        "Owner" => lambda {|it| role['owner'] ? role['owner']['name'] : '' },
-        #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, role)
+      columns = @is_master_account ? role_column_definitions : subtenant_role_column_definitions
+      print_description_list(columns, role, options)
 
       # print_h2 "Role Instance Limits", options
       # print cyan
@@ -310,13 +294,9 @@ class Morpheus::Cli::Roles
         # print "\n"
         # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
       end
-
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def list_permissions(args)
@@ -328,14 +308,9 @@ class Morpheus::Cli::Roles
                     "[role] is required. This is the name or id of a role."
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      puts optparse
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
+    
       account = find_account_from_options(options)
       account_id = account ? account['id'] : nil
 
@@ -406,14 +381,10 @@ class Morpheus::Cli::Roles
 
       print reset,"\n"
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
+    
   end
 
   def add(args)
-    usage = "Usage: morpheus roles add [options]"
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -519,7 +490,6 @@ class Morpheus::Cli::Roles
   end
 
   def update(args)
-    usage = "Usage: morpheus roles update [name] [options]"
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -599,7 +569,6 @@ class Morpheus::Cli::Roles
   end
 
   def remove(args)
-    usage = "Usage: morpheus roles remove [name]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
@@ -1311,7 +1280,6 @@ class Morpheus::Cli::Roles
     ]
   end
 
-  "A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use"
   def update_role_option_types
     add_role_option_types.reject {|it| ['roleType', 'baseRole'].include?(it['fieldName']) }
   end
@@ -1326,17 +1294,6 @@ class Morpheus::Cli::Roles
     else
       return match['value']
     end
-  end
-
-
-  def load_whoami
-    whoami_response = @whoami_interface.get()
-    @current_user = whoami_response["user"]
-    if @current_user.empty?
-      print_red_alert "Unauthenticated. Please login."
-      exit 1
-    end
-    @is_master_account = whoami_response["isMasterAccount"]
   end
 
   def role_type_options

@@ -1,11 +1,8 @@
-# require 'yaml'
-require 'io/console'
-require 'rest_client'
-require 'optparse'
 require 'morpheus/cli/cli_command'
 require 'morpheus/cli/mixins/whoami_helper'
 require 'morpheus/cli/mixins/accounts_helper'
-require 'json'
+require 'fileutils'
+require 'yaml'
 
 class Morpheus::Cli::Whoami
   include Morpheus::Cli::CliCommand
@@ -163,7 +160,7 @@ EOT
         print cyan
         print_description_list({
           "ID" => 'id',
-          "Tenant" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Account)" : '') },
+          "Tenant" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Tenant)" : '') },
           "First Name" => 'firstName',
           "Last Name" => 'lastName',
           # "Name" => 'displayName',
@@ -230,6 +227,116 @@ EOT
       # end
       return 1
     end
+  end
+
+  # Whoami class methods
+  class << self
+    include Term::ANSIColor
+
+    # @@whoami_cache is for caching the the contents the Whoami api results
+    # as YAML files at $home/whoami/$appliance_name/$user_id.json
+    @@whoami_cache = nil 
+
+    def whoami_cache
+      if @@whoami_cache.nil?
+        @@whoami_cache = {}
+      end
+      return @@whoami_cache
+    end
+
+    def clear_whoami_cache(appliance_name, user_id)
+      @@whoami_cache ||= {}
+      @@whoami_cache[appliance_name.to_s] ||= {}
+      @@whoami_cache[appliance_name.to_s][user_id.to_s] = result
+    end
+
+    def set_whoami_cache(appliance_name, user_id, result)
+      @@whoami_cache ||= {}
+      @@whoami_cache[appliance_name.to_s] ||= {}
+      @@whoami_cache[appliance_name.to_s][user_id.to_s] = result
+    end
+
+    def get_whoami_cache(appliance_name, user_id)
+      @@whoami_cache ||= {}
+      @@whoami_cache[appliance_name.to_s] ? @@whoami_cache[appliance_name.to_s][user_id.to_s] : nil
+    end
+
+    def whoami_file_path
+      File.join(Morpheus::Cli.home_directory, "cache", "whoami")
+    end
+
+    def save_whoami_file(appliance_name, user_id, json_response)
+      fn = File.join(whoami_file_path, appliance_name.to_s, user_id.to_s + ".json")
+      if !Dir.exists?(File.dirname(fn))
+        FileUtils.mkdir_p(File.dirname(fn))
+      end
+      Morpheus::Logging::DarkPrinter.puts "writing file #{fn}" if Morpheus::Logging.debug?
+      File.open(fn, 'w') {|f| f.write json_response.to_yaml }
+      FileUtils.chmod(0600, fn)
+      return json_response
+    end
+
+    def delete_whoami_file(appliance_name, user_id)
+      fn = File.join(whoami_file_path, appliance_name.to_s, user_id.to_s + ".json")
+      if File.exist?(fn)
+        #Morpheus::Logging::DarkPrinter.puts "deleting file #{fn}" if Morpheus::Logging.debug?
+        FileUtils.rm(fn)
+      end
+      return nil
+    end
+
+    def load_whoami_file(appliance_name, user_id)
+      raise "appliance_name is required" if appliance_name.to_s.empty?
+      raise "user_id is required" if user_id.to_s.empty?
+      fn = File.join(whoami_file_path, appliance_name.to_s, user_id.to_s + ".json")
+      if File.exist?(fn)
+        Morpheus::Logging::DarkPrinter.puts "reading file #{fn}" if Morpheus::Logging.debug?
+        return YAML.load_file(fn)
+      else
+        return nil
+      end
+    end
+
+    def save_whoami(appliance_name, user_id, result)
+      save_whoami_file(appliance_name, user_id, result)
+      set_whoami_cache(appliance_name, user_id, result)
+    end
+
+    def clear_whoami(appliance_name, user_id)
+      delete_whoami_file(appliance_name, user_id)
+      set_whoami_cache(appliance_name, user_id, nil)
+    end
+
+    def load_whoami(appliance_name, user_id, refresh=false)
+      result = nil
+      # load from cache (memory) or file or else api
+      if refresh == false
+        # load from memory
+        result = whoami_cache[appliance_name.to_s] ? whoami_cache[appliance_name.to_s][user_id.to_s] : nil
+        # load from file
+        if result.nil?
+          result = load_whoami_file(appliance_name, user_id)
+          set_whoami_cache(appliance_name, user_id, result)
+        end
+      end
+      # if result.nil?
+      #   # appliance needs to be passed in here...heh
+      #   appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
+      #   if appliance.nil?
+      #     raise "Remote not found for name '#{appliance_name}'"
+      #   end
+      #   wallet = ::Morpheus::Cli::Credentials.new(appliance[:name], appliance[:url]).load_saved_credentials()
+      #   if wallet.nil? || wallet['access_token'].nil?
+      #     raise "Access token not found for remote '#{appliance_name}'"
+      #   end
+      #   access_token = wallet['access_token']
+      #   whoami_interface = Morpheus::WhoamiInterface.new({url: appliance[:url], access_token: wallet['access_token']})
+      #   whoami_response = whoami_interface.get()
+      #   result = whoami_response
+      # end
+      return result
+    end
+
   end
 
 end

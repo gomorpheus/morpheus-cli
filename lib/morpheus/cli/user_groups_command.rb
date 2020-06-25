@@ -25,19 +25,24 @@ class Morpheus::Cli::UserGroupsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search phrase]")
+      build_standard_list_options(opts, options)
+      opts.footer = "List user groups."
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    options[:phrase] = args.join(" ") if args.count > 0
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @user_groups_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @user_groups_interface.dry.list(nil, params)
-        return
-      end
-      json_response = @user_groups_interface.list(nil, params)
+    
+    params.merge!(parse_list_options(options))
+    @user_groups_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @user_groups_interface.dry.list(nil, params)
+      return
+    end
+    json_response = @user_groups_interface.list(nil, params)
+
+    render_response(json_response, options, "userGroups") do
       if options[:json]
         puts as_json(json_response, options, "userGroups")
         return 0
@@ -56,15 +61,13 @@ class Morpheus::Cli::UserGroupsCommand
       if user_groups.empty?
         print cyan,"No user groups found.",reset,"\n"
       else
-        print_user_groups_table(user_groups, options)
-        print_results_pagination(json_response, {:label => "user group", :n_label => "user groups"})
-        # print_results_pagination(json_response)
+        print cyan
+        print as_pretty_table(user_groups, list_user_group_column_definitions, options)
+        print_results_pagination(json_response)
       end
       print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
   
   def get(args)
@@ -113,18 +116,7 @@ class Morpheus::Cli::UserGroupsCommand
 
       print_h1 "User Group Details"
       print cyan
-      description_cols = {
-        "ID" => lambda {|it| it['id'] },
-        #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        "Name" => lambda {|it| it['name'] },
-        "Description" => lambda {|it| it['description'] },
-        "Server Group" => lambda {|it| it['serverGroup'] },
-        "Sudo Access" => lambda {|it| format_boolean it['sudoAccess'] },
-        # "Shared User" => lambda {|it| format_boolean it['sharedUser'] },
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, user_group)
+      print_description_list(user_group_column_definitions, user_group, options)
 
       ## Users
       print_h2 "Users (#{users.size})"
@@ -516,43 +508,6 @@ class Morpheus::Cli::UserGroupsCommand
       columns = opts[:include_fields]
     end
     print as_pretty_table(user_groups, columns, opts)
-  end
-
-  def find_user_group_by_name_or_id(account_id, val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_user_group_by_id(account_id, val)
-    else
-      return find_user_group_by_name(account_id, val)
-    end
-  end
-
-  def find_user_group_by_id(account_id, id)
-    begin
-      json_response = @user_groups_interface.get(account_id, id.to_i)
-      return json_response['userGroup']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "User Group not found by id #{id}"
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_user_group_by_name(account_id, name)
-    user_groups = @user_groups_interface.list(account_id, {name: name.to_s})['userGroups']
-    if user_groups.empty?
-      print_red_alert "User Group not found by name #{name}"
-      return nil
-    elsif user_groups.size > 1
-      print_red_alert "#{user_groups.size} user groups found by name #{name}"
-      print_user_groups_table(user_groups, {color: red})
-      print_red_alert "Try using ID instead"
-      print reset,"\n"
-      return nil
-    else
-      return user_groups[0]
-    end
   end
 
 end

@@ -338,8 +338,8 @@ class Morpheus::Cli::InvoicesCommand
             print yellow, "No invoice totals data", reset, "\n"
           end
         end
+        print reset,"\n"
       end
-      print reset,"\n"
       return 0, nil
     end
   end

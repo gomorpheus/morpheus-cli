@@ -232,11 +232,11 @@ module Morpheus
       ## the standard options for a command that makes api requests (most of them)
 
       def build_standard_get_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :quiet, :dry_run, :remote] + includes, excludes)
+        build_common_options(opts, options, includes + [:query, :json, :yaml, :csv, :fields, :quiet, :dry_run, :remote], excludes)
       end
 
       def build_standard_post_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:options, :payload, :json, :quiet, :dry_run, :remote] + includes, excludes)
+        build_common_options(opts, options, includes + [:options, :payload, :json, :quiet, :dry_run, :remote], excludes)
       end
 
       def build_standard_put_options(opts, options, includes=[], excludes=[])
@@ -244,7 +244,7 @@ module Morpheus
       end
 
       def build_standard_delete_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, [:auto_confirm, :query, :json, :quiet, :dry_run, :remote] + includes, excludes)
+        build_common_options(opts, options, includes + [:auto_confirm, :query, :json, :quiet, :dry_run, :remote], excludes)
       end
 
       # list is GET that supports phrase,max,offset,sort,direction
@@ -470,7 +470,7 @@ module Morpheus
             end
 
             # arbitrary query parameters in the format -Q "category=web&phrase=nginx"
-            # opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'phrase=foobar&category=web'" ) do |val|
+            # opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'foo=bar&category=web'" ) do |val|
             #   options[:query_filters_raw] = val
             #   options[:query_filters] = {}
             #   # todo: smarter parsing
@@ -488,7 +488,7 @@ module Morpheus
 
           when :query, :query_filters
             # arbitrary query parameters in the format -Q "category=web&phrase=nginx"
-            opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'phrase=foobar&category=web'" ) do |val|
+            opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'foo=bar&category=web'" ) do |val|
               options[:query_filters_raw] = val
               options[:query_filters] = {}
               # todo: smarter parsing

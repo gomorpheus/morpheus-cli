@@ -33,6 +33,43 @@ module Morpheus::Cli::AccountsHelper
     @roles_interface
   end
 
+  ## Tenants (Accounts)
+
+  def account_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      # "Name" => lambda {|it| it['name'].to_s + (it['master'] ? " (Master Tenant)" : '') },
+      "Description" => 'description',
+      "Subdomain" => 'subdomain',
+      "# Instances" => 'stats.instanceCount',
+      "# Users" => 'stats.userCount',
+      "Role" => lambda {|it| it['role']['authority'] rescue nil },
+      "Master" => lambda {|it| format_boolean(it['master']) },
+      "Currency" => 'currency',
+      "Status" => lambda {|it| 
+        status_state = nil
+        if it['active']
+          status_state = "#{green}ACTIVE#{cyan}"
+        else
+          status_state = "#{red}INACTIVE#{cyan}"
+        end
+        status_state
+      },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
+  def list_account_column_definitions()
+    columns = account_column_definitions
+    columns.delete("Subdomain")
+    columns.delete("Master")
+    columns.delete("Currency")
+    return columns.upcase_keys!
+  end
+
+
   def find_account_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_account_by_id(val)
@@ -60,9 +97,9 @@ module Morpheus::Cli::AccountsHelper
       print_red_alert "Tenant not found by name #{name}"
       return nil
     elsif accounts.size > 1
-      print_red_alert "#{accounts.size} accounts found by name #{name}"
-      print_accounts_table(accounts, {color: red})
-      print_red_alert "Try using -A ID instead"
+      print_red_alert "Found #{accounts.size} tenants by name '#{name}'. Try using ID instead: #{format_list(accounts.collect {|it| it['id']}, 'or', 3)}"
+      print "\n"
+      print as_pretty_table(accounts, [:id, :name, :description], {color: red, thin: true})
       print reset,"\n"
       return nil
     else
@@ -85,6 +122,35 @@ module Morpheus::Cli::AccountsHelper
       account = nil # use current account
     end
     return account
+  end
+
+  ## Roles
+
+  def role_column_definitions(options={})
+    {
+      "ID" => 'id',
+      "Name" => 'authority',
+      "Description" => 'description',
+      #"Scope" => lambda {|it| it['scope'] },
+      "Type" => lambda {|it| format_role_type(it) },
+      "Multitenant" => lambda {|it| 
+        format_boolean(it['multitenant']).to_s + (it['multitenantLocked'] ? " (LOCKED)" : "")
+      },
+      "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
+      #"Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+  def subtenant_role_column_definitions(options={})
+    {
+      "ID" => 'id',
+      "Name" => 'authority',
+      "Description" => 'description',
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
   end
 
   def find_role_by_name_or_id(account_id, val)
@@ -114,9 +180,11 @@ module Morpheus::Cli::AccountsHelper
       print_red_alert "Role not found by name #{name}"
       return nil
     elsif roles.size > 1
-      print_red_alert "#{roles.size} roles by name #{name}"
-      print_roles_table(roles, {color: red, thin: true})
-      print reset,"\n\n"
+      print_red_alert "Found #{roles.size} roles by name '#{name}'. Try using ID instead: #{format_list(roles.collect {|it| it['id']}, 'or', 3)}"
+      print "\n"
+      # print as_pretty_table(accounts, [:id, :name, :description], {color: red, thin: true})
+      print as_pretty_table(roles, {"ID" => 'id', "Name" => 'authority',"Description" => 'description'}.upcase_keys!, {color: red, thin: true})
+      print reset,"\n"
       return nil
     else
       return roles[0]
@@ -124,6 +192,30 @@ module Morpheus::Cli::AccountsHelper
   end
 
   alias_method :find_role_by_authority, :find_role_by_name
+
+
+  ## Users
+
+  def user_column_definitions()
+    {
+      "ID" => 'id',
+      "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      "First Name" => 'firstName',
+      "Last Name" => 'lastName',
+      "Username" => 'username',
+      "Email" => 'email',
+      "Role" => lambda {|it| format_user_role_names(it) },
+      "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+  def list_user_column_definitions()
+    columns = user_column_definitions
+    columns.delete("Notifications")
+    return columns.upcase_keys!
+  end
 
   def find_user_by_username_or_id(account_id, val, params={})
     if val.to_s =~ /\A\d{1,}\Z/
@@ -152,8 +244,9 @@ module Morpheus::Cli::AccountsHelper
       print_red_alert "User not found by username #{username}"
       return nil
     elsif users.size > 1
-      print_red_alert "#{users.size} users by username #{username}"
-      print_users_table(users, {color: red, thin: true})
+      print_red_alert "Found #{users.size} users by username '#{username}'. Try using ID instead: #{format_list(users.collect {|it| it['id']}, 'or', 3)}"
+      print "\n"
+      print as_pretty_table(users, list_user_column_definitions, {color: red, thin: true})
       print reset,"\n"
       return nil
     else
@@ -185,6 +278,32 @@ module Morpheus::Cli::AccountsHelper
     user_ids
   end
 
+
+  ## User Groups
+
+  def user_group_column_definitions()
+    {
+      "ID" => lambda {|it| it['id'] },
+      #"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+      "Name" => lambda {|it| it['name'] },
+      "Description" => lambda {|it| it['description'] },
+      "Server Group" => lambda {|it| it['serverGroup'] },
+      "Sudo Access" => lambda {|it| format_boolean it['sudoAccess'] },
+      # "Shared User" => lambda {|it| format_boolean it['sharedUser'] },
+      "# Users" => lambda {|it| it['users'].size rescue nil },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+  def list_user_group_column_definitions()
+    columns = user_group_column_definitions
+    columns.delete("Sudo Access")
+    columns.delete("Server Group")
+    columns.delete("Updated")
+    return columns.upcase_keys!
+  end
+
   def find_user_group_by_name_or_id(account_id, val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_user_group_by_id(account_id, val)
@@ -212,44 +331,13 @@ module Morpheus::Cli::AccountsHelper
       print_red_alert "User Group not found by name #{name}"
       return nil
     elsif user_groups.size > 1
-      print_red_alert "#{user_groups.size} user groups found by name #{name}"
-      print_user_groups_table(user_groups, {color: red})
-      print_red_alert "Try using ID instead"
+      print_red_alert "Found #{user_groups.size} user groups by name '#{name}'. Try using ID instead: #{format_list(user_groups.collect {|it| it['id']}, 'or', 3)}"
+      print as_pretty_table(user_groups, [:id, :name, :description], {color: red, thin: true})
       print reset,"\n"
       return nil
     else
       return user_groups[0]
     end
-  end
-
-  def print_accounts_table(accounts, options={})
-    table_color = options.key?(:color) ? options[:color] : cyan
-    rows = accounts.collect do |account|
-      status_state = nil
-      if account['active']
-        status_state = "#{green}ACTIVE#{table_color}"
-      else
-        status_state = "#{red}INACTIVE#{table_color}"
-      end
-      {
-        id: account['id'],
-        name: account['name'],
-        description: account['description'],
-        role: account['role'] ? account['role']['authority'] : nil,
-        status: status_state,
-        dateCreated: format_local_dt(account['dateCreated'])
-      }
-    end
-    print table_color if table_color
-    print as_pretty_table(rows, [
-      :id,
-      :name,
-      :description,
-      :role,
-      {:dateCreated => {:display_name => "Date Created"} },
-      :status
-    ], options.merge({color:table_color}))
-    print reset if table_color
   end
 
   def format_role_type(role)
@@ -269,52 +357,6 @@ module Morpheus::Cli::AccountsHelper
     #   str = "(System) #{str}"
     # end
     return str
-  end
-
-  def print_roles_table(roles, options={})
-    table_color = options.key?(:color) ? options[:color] : cyan
-    rows = roles.collect do |role|
-      {
-        id: role['id'],
-        name: role['authority'],
-        description: role['description'],
-        scope: role['scope'],
-        multitenant: role['multitenant'] ? 'Yes' : 'No',
-        type: format_role_type(role),
-        owner: role['owner'] ? role['owner']['name'] : "System",
-        dateCreated: format_local_dt(role['dateCreated'])
-      }
-    end
-    columns = [
-      :id,
-      :name,
-      :description,
-      # options[:is_master_account] ? :scope : nil,
-      options[:is_master_account] ? :type : nil,
-      options[:is_master_account] ? :multitenant : nil,
-      options[:is_master_account] ? :owner : nil,
-      {:dateCreated => {:display_name => "Date Created"} }
-    ].compact
-    if options[:include_fields]
-      columns = options[:include_fields]
-    end
-    # print table_color if table_color
-    print as_pretty_table(rows, columns, options)
-    # print reset if table_color
-  end
-
-  def print_users_table(users, options={})
-    table_color = options[:color] || cyan
-    rows = users.collect do |user|
-      {id: user['id'], username: user['username'], name: user['displayName'], first: user['firstName'], last: user['lastName'], email: user['email'], role: format_user_role_names(user), tenant: user['account'] ? user['account']['name'] : nil}
-    end
-    columns = [:id, :first, :last, :username, :email, :role, :tenant]
-    if options[:include_fields]
-      columns = options[:include_fields] 
-    end
-    #print table_color if table_color
-    print as_pretty_table(rows, columns, options)
-    #print reset if table_color
   end
 
   ## These user access formatted methods should probably move up to PrintHelper to be more ubiquitous.

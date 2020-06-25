@@ -1,18 +1,31 @@
 require 'morpheus/cli/mixins/print_helper'
 
 # Mixin for Morpheus::Cli command classes
-# Provides common methods for fetching and printing accounts, roles, and users.
-# The including class must establish @accounts_interface, @roles_interface, @users_interface
+# Provides common methods for fetching and printing whoami information
 module Morpheus::Cli::WhoamiHelper
 
   def self.included(klass)
     klass.send :include, Morpheus::Cli::PrintHelper
   end
 
-  def load_whoami()
-    whoami_interface = @whoami_interface || @api_client.whoami
-    whoami_response = whoami_interface.get()
-    # whoami_response = @whoami_interface.get()
+  def load_whoami(refresh=false)
+    appliance = @remote_appliance # from establish_connection()
+    if appliance.nil?
+      print_red_alert "No current appliance. See `remote use`."
+      exit 1
+    end
+    # fetch from cache first
+    whoami_response = nil
+    cached_response = ::Morpheus::Cli::Whoami.load_whoami(appliance[:name], appliance[:username], refresh)
+    if cached_response
+      whoami_response = cached_response
+    else
+      whoami_interface = @whoami_interface || @api_client.whoami
+      whoami_response = whoami_interface.get()
+      # save the result to the cache
+      ::Morpheus::Cli::Whoami.save_whoami(appliance[:name], appliance[:username], whoami_response)
+    end
+
     @current_user = whoami_response["user"]
     if @current_user.empty?
       print_red_alert "Unauthenticated. Please login."

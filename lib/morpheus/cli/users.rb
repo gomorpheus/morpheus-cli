@@ -39,27 +39,25 @@ class Morpheus::Cli::Users
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
         options[:global] = true
       end
-      build_common_options(opts, options, [:account, :list, :query, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      build_standard_list_options(opts, options, [:account])
       opts.footer = "List users."
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    options[:phrase] = args.join(" ") if args.count > 0
     connect(options)
-    begin
-
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
-      params['global'] = true if options[:global]
-      params.merge!(parse_list_options(options))
-      @users_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @users_interface.dry.list(account_id, params)
-        return
-      end
-      json_response = @users_interface.list(account_id, params)
-      render_result = render_with_format(json_response, options, 'users')
-      return 0 if render_result
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
+    params['global'] = true if options[:global]
+    params.merge!(parse_list_options(options))
+    @users_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @users_interface.dry.list(account_id, params)
+      return 0, nil
+    end
+    json_response = @users_interface.list(account_id, params)
+    render_response(json_response, options, "users") do
       users = json_response['users']
-
       title = "Morpheus Users"
       subtitles = []
       if account
@@ -73,16 +71,13 @@ class Morpheus::Cli::Users
       if users.empty?
         print cyan,"No users found.",reset,"\n"
       else
-        print_users_table(users, options)
+        print cyan
+        print as_pretty_table(users, list_user_column_definitions, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-      
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
 
   def count(args)
@@ -228,21 +223,7 @@ EOT
 
     print_h1 "User Details", options
     print cyan
-    description_cols = {
-        "ID" => 'id',
-        "First Name" => 'firstName',
-        "Last Name" => 'lastName',
-        # "Name" => 'displayName',
-        #"Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
-        "Username" => 'username',
-        "Email" => 'email',
-        "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
-        "Role" => lambda {|it| format_user_role_names(it) },
-        "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-    }
-    print_description_list(description_cols, user)
+    print_description_list(user_column_definitions, user)
 
     # backward compatibility
     if user['access'].nil? && options[:include_features_access]
@@ -790,20 +771,20 @@ EOT
         roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
         add_another_role = true
         while add_another_role do
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
-            if v_prompt['roleId'].to_s.empty?
-              add_another_role = false
-            else
-              role_id = v_prompt['roleId']
-              roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
-            end
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
+          if v_prompt['roleId'].to_s.empty?
+            add_another_role = false
+          else
+            role_id = v_prompt['roleId']
+            roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
           end
         end
       end
-
-      roles = roles.compact
-      return roles
-
     end
 
+    roles = roles.compact
+    return roles
+
   end
+
+end
