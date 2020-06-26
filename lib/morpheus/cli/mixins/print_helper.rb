@@ -186,72 +186,48 @@ module Morpheus::Cli::PrintHelper
     payload = api_request[:payload] || api_request[:body]
     #Morpheus::Logging::DarkPrinter.puts "API payload is: (#{payload.class}) #{payload.inspect}"
     content_type = (headers && headers['Content-Type']) ? headers['Content-Type'] : 'application/x-www-form-urlencoded'
-    
+    # build output, either CURL or REQUEST
+    output = ""
+    if api_request[:curl] || options[:curl]
+      output = format_curl_command(http_method, url, headers, payload, options)
+    else
+      output = format_api_request(http_method, url, headers, payload, options)
+    end
+    # this is an extra scrub, should remove
+    if options[:scrub]
+      output = Morpheus::Logging.scrub_message(output)
+    end
     # write to a file?
     if options[:outfile]
-      output = ""
-      if api_request[:curl] || options[:curl]
-        output = format_curl_command(http_method, url, headers, payload, options)
-      else
-        # body payload
-        output = payload
-        if content_type == 'application/json'
-          if payload.is_a?(String)
-            begin
-              payload = JSON.parse(payload)
-            rescue => e
-              #payload = "(unparsable) #{payload}"
-            end
-          end
-          output = JSON.pretty_generate(payload)
-        else
-          if payload.is_a?(File)
-            pretty_size = "#{payload.size} B"
-            output = "File: #{payload.path} (#{pretty_size})"
-          elsif payload.is_a?(String)
-            output = payload
-          else
-            if content_type == 'application/x-www-form-urlencoded'
-              body_str = payload.to_s
-              begin
-                body_str = URI.encode_www_form(payload)
-              rescue => ex
-                # raise ex
-              end
-              output = body_str
-            else
-              begin
-                output = JSON.pretty_generate(payload)
-              rescue
-                output = payload.to_s
-              end
-            end
-          end
-        end
-      end
-      if options[:scrub]
-        output = Morpheus::Logging.scrub_message(output)
-      end
       print_result = print_to_file(output, options[:outfile], options[:overwrite])
-      return print_result
-    end
-
-    # curl output?
-    if api_request[:curl] || options[:curl]
-      print "\n"
-      puts "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}"
-      print format_curl_command(http_method, url, headers, payload, options)
-      print "\n"
+      # with_stdout_to_file(options[:outfile], options[:overwrite]) { print output }
+      print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
+      #return print_result
       return
     end
+    # print output
+    if api_request[:curl] || options[:curl]
+      #print "\n"
+      print "#{cyan}#{bold}#{dark}CURL COMMAND (DRY RUN)#{reset}\n"
+    else
+      #print "\n"
+      print "#{cyan}#{bold}#{dark}REQUEST (DRY RUN)#{reset}\n"
+    end
+    print output
+    # print reset, "\n"
+    # print reset
+    return
+  end
 
-    print "\n"
-    puts "#{cyan}#{bold}#{dark}REQUEST#{reset}"
+  def format_api_request(http_method, url, headers, payload=nil, options={})
+    out = ""
+    # out << "\n"
+    # out << "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
     request_string = "#{http_method.to_s.upcase} #{url}".strip
-    print request_string, "\n"
-    print cyan
+    out << request_string + "\n"
+    out << cyan
     if payload
-      print "\n"
+      out << "\n"
       if content_type == 'application/json'
         if payload.is_a?(String)
           begin
@@ -260,23 +236,23 @@ module Morpheus::Cli::PrintHelper
             #payload = "(unparsable) #{payload}"
           end
         end
-        puts "#{cyan}#{bold}#{dark}JSON#{reset}"
+        out << "#{cyan}#{bold}#{dark}JSON#{reset}\n"
         if options[:scrub]
-          print Morpheus::Logging.scrub_message(JSON.pretty_generate(payload))
+          out << Morpheus::Logging.scrub_message(JSON.pretty_generate(payload))
         else
-          print JSON.pretty_generate(payload)
+          out << JSON.pretty_generate(payload)
         end
       else
-        print "Content-Type: #{content_type}", "\n"
-        print reset
+        out << "Content-Type: #{content_type}" + "\n"
+        out << reset
         if payload.is_a?(File)
           pretty_size = "#{payload.size} B"
-          print "File: #{payload.path} (#{pretty_size})"
+          out << "File: #{payload.path} (#{pretty_size})"
         elsif payload.is_a?(String)
           if options[:scrub]
-            print Morpheus::Logging.scrub_message(payload)
+            out << Morpheus::Logging.scrub_message(payload)
           else
-            print payload
+            out << payload
           end
         else
           if content_type == 'application/x-www-form-urlencoded'
@@ -287,22 +263,23 @@ module Morpheus::Cli::PrintHelper
               # raise ex
             end
             if options[:scrub]
-              print Morpheus::Logging.scrub_message(body_str)
+              out << Morpheus::Logging.scrub_message(body_str)
             else
-              print body_str
+              out << body_str
             end
           else
             if options[:scrub]
-              print Morpheus::Logging.scrub_message(payload)
+              out << Morpheus::Logging.scrub_message(payload)
             else
-              print payload
+              out << payload
             end
           end
         end
       end
     end
-    print "\n"
-    print reset
+    # out << "\n"
+    out << reset
+    return out
   end
 
   # format_curl_command generates a valid curl command for the given api request
@@ -1201,7 +1178,7 @@ module Morpheus::Cli::PrintHelper
   end
 
   def print_to_file(txt, filename, overwrite=false, access_mode = 'w+')
-    Morpheus::Logging::DarkPrinter.puts "Writing #{txt.to_s.bytesize} bytes to file #{filename} ..." if Morpheus::Logging.debug?
+    Morpheus::Logging::DarkPrinter.puts "Writing #{txt.to_s.bytesize} bytes to file #{filename}" if Morpheus::Logging.debug?
     outfile = nil
     begin
       full_filename = File.expand_path(filename)
@@ -1222,7 +1199,6 @@ module Morpheus::Cli::PrintHelper
       end
       outfile = File.open(full_filename, access_mode)
       outfile.print(txt)
-      print "#{cyan}Wrote #{txt.to_s.bytesize} bytes to file #{filename}\n"
       return 0
     rescue => ex
       # puts_error "Error writing to outfile '#{filename}'. Error: #{ex}"
@@ -1230,6 +1206,52 @@ module Morpheus::Cli::PrintHelper
       return 1
     ensure
       outfile.close if outfile
+    end
+  end
+
+  def with_stdout_to_file(filename, overwrite=false, access_mode = 'w+', &block)
+    Morpheus::Logging::DarkPrinter.puts "Writing output to file #{filename}" if Morpheus::Logging.debug?
+    previous_stdout = my_terminal.stdout
+    outfile = nil
+    begin
+      full_filename = File.expand_path(filename)
+      if File.exists?(full_filename)
+        if !overwrite
+          print "#{red}Output file '#{filename}' already exists.#{reset}\n"
+          print "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
+          return 1
+        end
+      end
+      if Dir.exists?(full_filename)
+        print "#{red}Output file '#{filename}' is invalid. It is the name of an existing directory.#{reset}\n"
+        return 1
+      end
+      target_dir = File.dirname(full_filename)
+      if !Dir.exists?(target_dir)
+        FileUtils.mkdir_p(target_dir)
+      end
+      outfile = File.open(full_filename, access_mode)
+      # outfile.print(txt)
+      # ok just redirect stdout to the file
+      my_terminal.set_stdout(outfile)
+      result = yield
+      outfile.close if outfile
+      my_terminal.set_stdout(previous_stdout)
+      my_terminal.stdout.flush if my_terminal.stdout
+      # this does not work here.. i dunno why yet, it works in ensure though...
+      # print "#{cyan}Wrote #{File.size(full_filename)} bytes to file #{filename}\n"
+      if result
+        return result
+      else
+        return 0
+      end
+    rescue => ex
+      # puts_error "Error writing to outfile '#{filename}'. Error: #{ex}"
+      print_error "#{red}Error writing to file '#{filename}'.  Error: #{ex}#{reset}\n"
+      return 1
+    ensure
+      outfile.close if outfile
+      my_terminal.set_stdout(previous_stdout) if previous_stdout != my_terminal.stdout
     end
   end
 

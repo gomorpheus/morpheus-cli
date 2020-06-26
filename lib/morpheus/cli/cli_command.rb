@@ -699,16 +699,16 @@ module Morpheus
               #puts "#{cyan}#{dark} #=> DRY RUN#{reset}"
               # don't print this for --json combined with -d
               # print once and dont munge json
-              if !options[:curl] && !options[:json]
-                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
-              end
+              # if !options[:curl] && !options[:json]
+              #   puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              # end
               options[:dry_run] = true
             end
             opts.on(nil,'--curl', "Dry Run to output API request as a curl command.") do
               # print once and dont munge json
-              if !options[:dry_run] && !options[:json]
-                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
-              end
+              # if !options[:dry_run] && !options[:json]
+              #   puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              # end
               options[:dry_run] = true
               options[:curl] = true
             end
@@ -1188,22 +1188,10 @@ module Morpheus
         payload
       end
 
-      def render_response(json_response, options, object_key=nil, &block)
-        render_result = render_with_format(json_response, options, object_key)
-        if render_result
-          return  0, nil
-        else
-          if block_given?
-            return yield
-          else
-            return 0, nil
-          end
-        end
-      end
 
       # basic rendering for options :json, :yml, :csv, :quiet, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
-      def render_with_format(json_response, options, object_key=nil, &block)
+      def render_response(json_response, options, object_key=nil, &block)
         output = nil
         if options[:json]
           output = as_json(json_response, options, object_key)
@@ -1216,31 +1204,37 @@ module Morpheus
           else
             output = records_as_csv([row], options)
           end
-        elsif options[:quiet]
-          # note: returning non nil means the calling function knows to return rght away.. kinda weird..
-          # but means we need less if options[:quiet] blocks in every action.
-          return ""
         end
-        if output
-          if options[:outfile]
+        if options[:outfile]
+          if output
             print_to_file(output, options[:outfile], options[:overwrite])
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
           else
-            puts output
+            # uhhh ok lets try this
+            Morpheus::Logging::DarkPrinter.puts "using experimental feature: --outfile without a common format like json, yml or csv" if Morpheus::Logging.debug?
+            result = with_stdout_to_file(options[:outfile], options[:overwrite], 'w+', &block)
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
+            if result
+              return result
+            end
+            return 0, nil
           end
         else
           if block_given?
-            # invoke the user given block to render (print output)
-            # hope it returned something well formed, there's a parse method for that..
-            cmd_render_result = yield
-            # could try to support writing output to options[:outfile] here too.. 
-            # output is already printed inside block though
-            # if cmd_render_result
-            #   return output
-            # end
-          end 
+            result = yield
+            if result
+              return result
+            else
+              return 0, nil
+            end
+          else
+            # nil means nothing was rendered, some methods still using render_with_format() are relying on this
+            return nil
+          end
         end
-        return output
       end
+
+      alias :render_with_format :render_response
 
       module ClassMethods
 
