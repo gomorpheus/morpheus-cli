@@ -322,6 +322,10 @@ class Morpheus::APIClient
     }
   end
 
+  def doc
+    Morpheus::DocInterface.new(common_interface_options).setopts(@options)
+  end
+
   def ping
     Morpheus::PingInterface.new(common_interface_options).setopts(@options)
   end

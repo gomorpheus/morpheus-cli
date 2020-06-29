@@ -31,18 +31,31 @@ class Morpheus::Cli::ErrorHandler
       # raise err
       # @stderr.puts "#{red}#{err.message}#{reset}"
       puts_angry_error err.message
-      @stderr.puts "Use -h to get help with this command."
+      @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner
+      @stderr.puts "Try --help for more usage information"
       do_print_stacktrace = false
       # exit_code = 127
-    # when Morpheus::Cli::CommandArgumentsError
+    when Morpheus::Cli::CommandArgumentsError
+      puts_angry_error err.message
+      @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner
+      @stderr.puts "Try --help for more usage information"
+      do_print_stacktrace = false
+      if err.exit_code
+        exit_code = err.exit_code
+      end
+
     when Morpheus::Cli::CommandError
-      # @stderr.puts "#{red}#{err.message}#{reset}"
-      # this should probably print the whole thing as red, but just does the first line for now.
+      # this should probably always print the whole thing as red, but just does the first line for now.
+      # until verify_args! replaces raise_command_error where the full parser help is in the error message..
       message_lines = err.message.split(/\r?\n/)
       first_line = message_lines.shift
       puts_angry_error first_line
-      @stderr.puts message_lines.join("\n") unless message_lines.empty?
-      @stderr.puts "Use -h to get help with this command."
+      if !message_lines.empty?
+        @stderr.puts message_lines.join("\n") unless message_lines.empty?
+      else
+        @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner && message_lines.empty?
+        @stderr.puts "Try --help for more usage information"
+      end
       do_print_stacktrace = false
       if err.exit_code
         exit_code = err.exit_code

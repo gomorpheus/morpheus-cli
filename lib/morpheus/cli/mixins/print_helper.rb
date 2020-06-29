@@ -228,6 +228,7 @@ module Morpheus::Cli::PrintHelper
     out << cyan
     if payload
       out << "\n"
+      content_type = (headers && headers['Content-Type']) ? headers['Content-Type'] : 'application/x-www-form-urlencoded'
       if content_type == 'application/json'
         if payload.is_a?(String)
           begin
@@ -276,6 +277,7 @@ module Morpheus::Cli::PrintHelper
           end
         end
       end
+      out << "\n"
     end
     # out << "\n"
     out << reset

@@ -507,16 +507,17 @@ class Morpheus::Cli::Shell
         return 0
 
       elsif ["hello","hi","hey","hola"].include?(input.strip.downcase)
+        user_msg = input.strip.downcase
         # need a logged_in? method already damnit
-        #wallet = @wallet
         wallet = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url).load_saved_credentials
-        if wallet
-          # my_terminal.echo("#{input} %username!")
-          # todo: this morning|afternoon|evening would be pleasant
-          print "#{input} #{green}#{wallet['username']}#{reset}, how may I #{cyan}help#{reset} you?\n"
+        help_msg = case user_msg
+        when "hola"
+          "¿como puedo ayudarte? tratar #{cyan}help#{reset}"
         else
-          print "#{input}, how may I #{cyan}help#{reset} you?\n"
+          "how may I #{cyan}help#{reset} you?"
         end
+        greeting = "#{user_msg.capitalize}#{wallet ? (' '+green+wallet['username'].to_s+reset) : ''}, #{help_msg}#{reset}"
+        puts greeting
         return 0
       elsif input.strip =~ /^shell\s*/
         # just allow shell to fall through

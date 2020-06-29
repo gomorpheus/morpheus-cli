@@ -264,6 +264,7 @@ module Morpheus
         opts.on('-V','--debug', "Print extra output for debugging.") do |json|
           @terminal_log_level = Morpheus::Logging::Logger::DEBUG
           Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
+          # if !options[:quiet]
           ::RestClient.log = Morpheus::Logging.debug? ? Morpheus::Logging::DarkPrinter.instance : nil
         end
         opts.on('-v','--version', "Print the version.") do

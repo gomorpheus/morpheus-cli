@@ -1,5 +1,6 @@
 require 'yaml'
 require 'json'
+require 'fileutils'
 require 'morpheus/logging'
 require 'morpheus/benchmarking'
 require 'morpheus/cli/option_parser'
@@ -614,9 +615,17 @@ module Morpheus
             opts.add_hidden_option('json-raw') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :yaml
-            opts.on(nil, '--yaml', "YAML Output") do
-              options[:yaml] = true
-              options[:format] = :yaml
+            # -y for --yes and for --yaml
+            if includes.include?(:auto_confirm)
+              opts.on(nil, '--yaml', "YAML Output") do
+                options[:yaml] = true
+                options[:format] = :yaml
+              end
+            else
+              opts.on('-y', '--yaml', "YAML Output") do
+                options[:yaml] = true
+                options[:format] = :yaml
+              end
             end
             opts.on(nil, '--yml', "alias for --yaml") do
               options[:yaml] = true
@@ -1026,7 +1035,7 @@ module Morpheus
         #   raise_command_error "Please specify a remote appliance with -r or see the command `remote use`"
         # end
 
-        Morpheus::Logging::DarkPrinter.puts "establishing connection to remote #{display_appliance(@appliance_name, @appliance_url)}" if Morpheus::Logging.debug?
+        Morpheus::Logging::DarkPrinter.puts "establishing connection to remote #{display_appliance(@appliance_name, @appliance_url)}" if Morpheus::Logging.debug? # && !options[:quiet]
 
         if options[:no_authorization]
           # maybe handle this here..
@@ -1188,6 +1197,28 @@ module Morpheus
         payload
       end
 
+      def validate_outfile(outfile, options)
+        full_filename = File.expand_path(outfile)
+        outdir = File.dirname(full_filename)
+        if Dir.exists?(full_filename)
+          print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
+          return false
+        end
+        if !Dir.exists?(outdir)
+          if options[:mkdir]
+            print cyan,"Creating local directory #{outdir}",reset,"\n"
+            FileUtils.mkdir_p(outdir)
+          else
+            print_red_alert "[local-file] is invalid. Directory not found: #{outdir}"
+            return false
+          end
+        end
+        if File.exists?(full_filename) && !options[:overwrite]
+          print_red_alert "[local-file] is invalid. File already exists: #{outfile}\nUse -f to overwrite the existing file."
+          return false
+        end
+        return true
+      end
 
       # basic rendering for options :json, :yml, :csv, :quiet, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
@@ -1220,16 +1251,27 @@ module Morpheus
             return 0, nil
           end
         else
-          if block_given?
-            result = yield
-            if result
-              return result
-            else
-              return 0, nil
-            end
+          # --quiet means do not render, still want to print to outfile though
+          if options[:quiet]
+            return 0, nil
+          end
+          # render ouput generated above
+          if output
+            puts output
+            return 0, nil
           else
-            # nil means nothing was rendered, some methods still using render_with_format() are relying on this
-            return nil
+            # no render happened, so calling the block if given
+            if block_given?
+              result = yield
+              if result
+                return result
+              else
+                return 0, nil
+              end
+            else
+              # nil means nothing was rendered, some methods still using render_with_format() are relying on this
+              return nil
+            end
           end
         end
       end

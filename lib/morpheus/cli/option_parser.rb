@@ -4,7 +4,11 @@ module Morpheus
   module Cli
 
     # an enhanced OptionParser
-    # not used yet, maybe ever =o
+    # Modifications include
+    # * footer property to compliment banner with footer="Get details about a thing by ID."
+    # * hidden options with add_hidden_option "--not-in-help"
+    # * errors raised from parse! will have a reference to the parser itself.
+    #    this is useful so you can you print the banner (usage) message in your error handling
     class Morpheus::Cli::OptionParser < OptionParser
 
       attr_accessor :footer
@@ -73,7 +77,39 @@ module Morpheus
         @hidden_options
       end
 
-    end
+      # this needs mods too, but we dont use it...
+      # def parse
+      # end
 
+      def parse!(*args)
+        # it is actually # def parse(argv = default_argv, into: nil)
+        argv = [args].flatten() # args[0].flatten
+        #help_wanted = argv.find {|arg| arg == "--help" || arg ==  "-h" }
+        help_wanted = (argv.last == "--help" || argv.last ==  "-h") ? argv.last : nil
+        begin
+          return super(*args)
+        rescue OptionParser::ParseError => e
+          # last arg is --help
+          # maybe they just got the Try --help message and its on the end
+          # so strip all option arguments to avoid OptionParser::InvalidOption, etc.
+          # this is not ideal, it means you cannot pass these strings as the last argument to your command.
+          if help_wanted
+            argv = argv.reject {|arg| arg =~ /^\-+/ }
+            argv << help_wanted
+            return super(argv)
+          else
+            e.optparse = self
+            raise e
+          end
+          
+        end
+      end
+    end
   end
+end
+
+# ParseError is overridden to set parser reference.
+# todo: dont monkey patch like this
+class OptionParser::ParseError
+  attr_accessor :optparse
 end

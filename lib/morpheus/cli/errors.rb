@@ -3,7 +3,7 @@ module Morpheus::Cli
   # A standard error to raise in your CliCommand classes.
   class CommandError < StandardError
     
-    attr_reader :args, :exit_code
+    attr_reader :args, :optparse, :exit_code
       
     def initialize(msg, args=[], optparse=nil, exit_code=nil)
       @args = args
@@ -11,6 +11,7 @@ module Morpheus::Cli
       @exit_code = exit_code # || 1
       super(msg)
     end
+
   end
 
   # An error indicating the command was not recoginzed
@@ -24,7 +25,7 @@ module Morpheus::Cli
 
   # An error for wrong number of arguments
   # could use ::OptionParser::MissingArgument, ::OptionParser::NeedlessArgument
-  # maybe return an error code niftier than 1?
+  # maybe return an error code other than 1?
   class CommandArgumentsError < CommandError
 
     def initialize(msg, args=[], optparse=nil, exit_code=nil)
