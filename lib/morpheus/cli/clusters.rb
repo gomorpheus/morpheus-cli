@@ -609,15 +609,6 @@ class Morpheus::Cli::Clusters
         option_type_list = ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
           (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
 
-        # remove volume options if volumes were configured
-        if !server_payload['volumes'].empty?
-          option_type_list = reject_volume_option_types(option_type_list)
-        end
-        # remove networkId option if networks were configured above
-        if !server_payload['networkInterfaces'].empty?
-          option_type_list = reject_networking_option_types(option_type_list)
-        end
-
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
 
         # Worker count
@@ -1196,15 +1187,6 @@ class Morpheus::Cli::Clusters
           (['provisionType.vmware.host', 'provisionType.scvmm.host'].include?(type['code']) && cloud['config']['hideHostSelection'] == 'on') || # should this be truthy?
           (type['fieldContext'] == 'instance.networkDomain' && type['fieldName'] == 'id')
         } rescue [])
-
-        # remove volume options if volumes were configured
-        if !server_payload['volumes'].empty?
-          option_type_list = reject_volume_option_types(option_type_list)
-        end
-        # remove networkId option if networks were configured above
-        if !server_payload['networkInterfaces'].empty?
-          option_type_list = reject_networking_option_types(option_type_list)
-        end
 
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
 
