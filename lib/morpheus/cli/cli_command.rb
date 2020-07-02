@@ -708,16 +708,16 @@ module Morpheus
               #puts "#{cyan}#{dark} #=> DRY RUN#{reset}"
               # don't print this for --json combined with -d
               # print once and dont munge json
-              # if !options[:curl] && !options[:json]
-              #   puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
-              # end
+              if !options[:curl] && !options[:json]
+                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              end
               options[:dry_run] = true
             end
             opts.on(nil,'--curl', "Dry Run to output API request as a curl command.") do
               # print once and dont munge json
-              # if !options[:dry_run] && !options[:json]
-              #   puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
-              # end
+              if !options[:dry_run] && !options[:json]
+                puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
+              end
               options[:dry_run] = true
               options[:curl] = true
             end

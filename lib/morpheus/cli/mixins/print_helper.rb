@@ -208,10 +208,10 @@ module Morpheus::Cli::PrintHelper
     # print output
     if api_request[:curl] || options[:curl]
       #print "\n"
-      print "#{cyan}#{bold}#{dark}CURL COMMAND (DRY RUN)#{reset}\n"
+      print "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
     else
       #print "\n"
-      print "#{cyan}#{bold}#{dark}REQUEST (DRY RUN)#{reset}\n"
+      print "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
     end
     print output
     # print reset, "\n"
