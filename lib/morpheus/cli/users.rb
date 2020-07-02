@@ -426,15 +426,13 @@ EOT
       payload = {}
       if options[:payload]
         payload = options[:payload]
-        payload.deep_merge!(parse_passed_options(options))
+        payload.deep_merge!({'user' => parse_passed_options(options)})
       else
-        # merge -O options into normally parsed options
-        payload.deep_merge!(parse_passed_options(options))
+        payload.deep_merge!({'user' => parse_passed_options(options)})
         # remove role option_type, it is just for help display, the role prompt is separate down below
         prompt_option_types = add_user_option_types().reject {|it| 'role' == it['fieldName'] }
         v_prompt = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(v_prompt)
-
         # prompt for roles
         selected_roles = []
         selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
@@ -442,8 +440,8 @@ EOT
         roles = prompt_user_roles(account_id, nil, selected_roles, options)
         if !roles.empty?
           params['roles'] = roles.collect {|r| {id: r['id']} }
-        end      
-        payload = {'user' => params}
+        end
+        payload['user'].deep_merge!(params)
       end
       if options[:dry_run] && options[:json]
         puts as_json(payload, options)

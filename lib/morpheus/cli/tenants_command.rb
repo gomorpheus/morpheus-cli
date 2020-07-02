@@ -152,57 +152,46 @@ EOT
     
   end
 
+
   def add(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[options]")
+      opts.banner = subcommand_usage("[name]")
       build_option_type_options(opts, options, add_account_option_types)
-      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Create a new tenant.
+[name] is required. Name
+[role] is required. Base Role name or ID
+EOT
     end
     optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:0, max:2)
+    options[:options]['name'] = args[0] if args[0]
+    #options[:options]['role'] = {'id' => args[1]} if args[1]
     connect(options)
-    begin
-      if args.count > 1
-        raise_command_error "wrong number of arguments. Expected 0-1 and received #{args.count} #{args.join(' ')}\n#{optparse}", args, 127
-        #puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 0-1 and received #{args.count} #{args.join(' ')}\n#{optparse}"
-        #return 127
-      end
-      if args[0]
-        options[:options]['name'] = args[0]
-      end
-      params = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params])
-      #puts "parsed params is : #{params.inspect}"
-      account_keys = ['name', 'description', 'currency']
-      account_payload = params.select {|k,v| account_keys.include?(k) }
-      account_payload['currency'] = account_payload['currency'].to_s.empty? ? "USD" : account_payload['currency'].upcase
-      
-      if params['role'].to_s != ''
-        role = find_role_by_name(nil, params['role'])
-        exit 1 if role.nil?
-        account_payload['role'] = {id: role['id']}
-      end
-      payload = {account: account_payload}
-      if options[:dry_run] && options[:json]
-        puts as_json(payload, options)
-        return 0
-      end
-      @accounts_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @accounts_interface.dry.create(payload)
-        return
-      end
-      json_response = @accounts_interface.create(payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        print_green_success "Tenant #{account_payload['name']} added"
-        get([account_payload["name"]])
-      end
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    
+    object_key = 'account' # 'tenant' someday
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({object_key => parse_passed_options(options)})
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(add_account_option_types, options[:options], @api_client, options[:params])
+      payload.deep_merge!({object_key => v_prompt})
+    end
+    @accounts_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @accounts_interface.dry.create(payload)
+      return
+    end
+    json_response = @accounts_interface.create(payload)
+    render_response(json_response, options, object_key) do
+      account = json_response[object_key]
+      print_green_success "Tenant #{account['name']} added"
+      return _get(account["id"], options)
     end
   end
 
@@ -210,67 +199,53 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
-      opts.on('--active [on|off]', String, "Can be used to disable a network") do |val|
-        params['active'] = val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true'
-      end
+      opts.banner = subcommand_usage("[tenant]")
       build_option_type_options(opts, options, update_account_option_types)
-      build_common_options(opts, options, [:options, :json, :remote, :dry_run])
+      opts.on('--active [on|off]', String, "Can be used to disable a tenant") do |val|
+        options[:options]['active'] = val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true'
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an existing tenant.
+[tenant] is required. Tenant name or ID
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      print_red_alert "Specify at least one option to update"
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      account = find_account_by_name_or_id(args[0])
-      exit 1 if account.nil?
 
-      #params = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options], @api_client, options[:params])
-      params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-
-      if params.empty?
-        puts optparse
-        exit 1
+    account = find_account_by_name_or_id(args[0])
+    return [1, "account not found"] if account.nil?
+    object_key = 'account' # 'tenant' someday
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({object_key => parse_passed_options(options)})
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(update_account_option_types, options[:options].merge(:no_prompt => true), @api_client, options[:params])
+      payload.deep_merge!({object_key => v_prompt})
+      # remove empty role object.. todo: prompt() or deep_compact! needs to  handle this! 
+      if payload[object_key]['role'] && payload[object_key]['role'].empty?
+        payload[object_key].delete('role')
       end
-
-      #puts "parsed params is : #{params.inspect}"
-      #account_keys = ['name', 'description', 'currency']
-      account_payload = params
-      account_payload['currency'] = account_payload['currency'].upcase unless account_payload['currency'].to_s.empty?
-      
-      if params['role'].to_s != ''
-        role = find_role_by_name(nil, params['role'])
-        exit 1 if role.nil?
-        account_payload['role'] = {id: role['id']}
+      if payload[object_key].empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
-      payload = {account: account_payload}
-      if options[:dry_run] && options[:json]
-        puts as_json(payload, options)
-        return 0
-      end
-      @accounts_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @accounts_interface.dry.update(account['id'], payload)
-        return
-      end
-      json_response = @accounts_interface.update(account['id'], payload)
-
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        account_name = account_payload['name'] || account['name']
-        print_green_success "Tenant #{account_name} updated"
-        get([account_name])
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    @accounts_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @accounts_interface.dry.update(account['id'], payload)
+      return
+    end
+    json_response = @accounts_interface.update(account['id'], payload)
+    render_response(json_response, options, object_key) do
+      account = json_response[object_key]
+      print_green_success "Tenant #{account['name']} updated"
+      return _get(account["id"], options)
     end
   end
+
 
   def remove(args)
     options = {}
@@ -320,13 +295,21 @@ EOT
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-      {'fieldName' => 'role', 'fieldLabel' => 'Base Role', 'type' => 'text', 'displayOrder' => 3},
-      {'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'displayOrder' => 4}
+      {'fieldContext' => 'role', 'fieldName' => 'id', 'fieldLabel' => 'Base Role', 'type' => 'select', 'optionSource' => lambda { 
+        @roles_interface.list(nil, {roleType:'account'})['roles'].collect {|it|
+          {"name" => (it["authority"] || it["name"]), "value" => it["id"]}
+        }
+      }, 'displayOrder' => 3},
+      {'fieldName' => 'currency', 'fieldLabel' => 'Currency', 'type' => 'text', 'defaultValue' => 'USD', 'displayOrder' => 4}
     ]
   end
 
   def update_account_option_types
-    add_account_option_types
+    list = add_account_option_types()
+    # list = list.reject {|it| ["interval"].include? it['fieldName'] }
+    list.each {|it| it.delete('required') }
+    list.each {|it| it.delete('defaultValue') }
+    list
   end
 
 end
