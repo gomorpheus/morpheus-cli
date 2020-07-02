@@ -207,15 +207,15 @@ module Morpheus::Cli::PrintHelper
     end
     # print output
     if api_request[:curl] || options[:curl]
-      #print "\n"
+      print "\n"
       print "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
     else
-      #print "\n"
+      print "\n"
       print "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
     end
     print output
-    # print reset, "\n"
-    # print reset
+    print reset, "\n"
+    print reset
     return
   end
 
