@@ -457,22 +457,16 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
+        user = json_response['user']
         username = "" # json_response['user']['username']
-        username = payload['user']['username'] if payload['user'] && payload['user']['username']
+        username = user['username'] if user
         if account
           print_green_success "Added user #{username} to account #{account['name']}"
         else
           print_green_success "Added user #{username}"
         end
-        # details_options = [username]
-        # if account
-        #   details_options.push "--account-id", account['id'].to_s
-        # end
-        # get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
-        _get([payload['user']['id']], options)
+        return _get(user['id'], options)
       end
-      
-
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
@@ -531,7 +525,7 @@ EOT
         return
       end
       json_response = @users_interface.update(account_id, user['id'], payload)
-
+      user = json_response['user']
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -546,9 +540,8 @@ EOT
         #   details_options.push "--account-id", account['id'].to_s
         # end
         # get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
-        _get(user["id"], options)
+        return _get(user["id"], options)
       end
-
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
