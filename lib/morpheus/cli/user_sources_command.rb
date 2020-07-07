@@ -36,9 +36,13 @@ class Morpheus::Cli::UserSourcesCommand
     account_id = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--account ID', String, "Filter by Tenant") do |val|
+      opts.on( '--tenant TENANT', String, "Filter by Tenant" ) do |val|
         account_id = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Filter by Tenant" ) do |val|
+        account_id = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       # opts.on('--technology VALUE', String, "Filter by technology") do |val|
       #   params['provisionType'] = val
       # end
@@ -175,13 +179,15 @@ class Morpheus::Cli::UserSourcesCommand
         #"Subdomain" => lambda {|it| it['subdomain'] },
         "Login URL" => lambda {|it| it['loginURL'] },
         "Default Role" => lambda {|it| it['defaultAccountRole'] ? it['defaultAccountRole']['authority'] : '' },
+        "External Login" => lambda {|it| format_boolean it['externalLogin'] },
+        "Allow Custom Mappings" => lambda {|it| format_boolean it['allowCustomMappings'] },
         "Active" => lambda {|it| format_boolean it['active'] },
       }
       print_description_list(description_cols, user_source)
 
       # show config settings...
       user_source_config = user_source['config']
-      print_h2 "#{user_source['type']} Configuration"
+      print_h2 "User Source Config (#{user_source['type']})"
       if user_source_config
         columns = user_source_config.keys #.sort
         print_description_list(columns, user_source_config)
@@ -223,9 +229,13 @@ class Morpheus::Cli::UserSourcesCommand
     default_role_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[account] [name]")
-      opts.on('--account ID', String, "Tenant this user source belongs to") do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID the user source will belong to, default is your own." ) do |val|
         account_id = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID the user source will belong to, default is your own." ) do |val|
+        account_id = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       opts.on('--type CODE', String, "User Source Type") do |val|
         type_code = val
       end
@@ -235,6 +245,13 @@ class Morpheus::Cli::UserSourcesCommand
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
+      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+        params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+        params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--allowCustomMappings')
       opts.on('--role-mappings MAPPINGS', String, "Role Mappings FQN in the format id1:FQN1,id2:FQN2") do |val|
         role_mappings = {}
         val.split(',').collect {|it| it.strip.split(':') }.each do |pair|
@@ -258,7 +275,7 @@ class Morpheus::Cli::UserSourcesCommand
         default_role_id = val
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Create a new user source." + "\n" +
                     "[account] is required. This is the name or id of an account."
     end
@@ -275,7 +292,9 @@ class Morpheus::Cli::UserSourcesCommand
     if args[1]
       params['name'] = args[1]
     end
-    begin
+    
+
+
       # find the account first, or just prompt for that too please.
       if !account_id
         print_error Morpheus::Terminal.angry_prompt
@@ -287,11 +306,12 @@ class Morpheus::Cli::UserSourcesCommand
       account_id = account['id']
 
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'userSource' => parse_passed_options(options)})
       else
-        payload = {'userSource' => {}}
+        payload.deep_merge!({'userSource' => parse_passed_options(options)})
         
         # User Source Type
         user_source_types = @user_sources_interface.list_types({userSelectable: true})['userSourceTypes']
@@ -339,6 +359,13 @@ class Morpheus::Cli::UserSourcesCommand
           payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
         end
 
+        # Allow Custom Mappings
+        if !params['allowCustomMappings'].nil?
+          payload['userSource']['allowCustomMappings'] = ["on","true"].include?(params['allowCustomMappings'].to_s)
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowCustomMappings', 'type' => 'checkbox', 'fieldLabel' => 'Allow Custom Mappings', 'defaultValue' => false}], options[:options])
+          payload['userSource']['allowCustomMappings'] = ["on","true"].include?(v_prompt['allowCustomMappings'].to_s)
+        end
 
         if role_mappings
           payload['roleMappings'] = role_mappings
@@ -367,12 +394,8 @@ class Morpheus::Cli::UserSourcesCommand
       end
       user_source = json_response['userSource']
       print_green_success "Added User Source #{user_source['name']}"
-      get([user_source['id']])
+      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
   end
 
   def update(args)
@@ -389,6 +412,13 @@ class Morpheus::Cli::UserSourcesCommand
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
+      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+        params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+        params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--allowCustomMappings')
       opts.on('--role-mappings MAPPINGS', String, "Role Mappings in the format id1:FQN,id2:FQN2") do |val|
         role_mappings = {}
         val.split(',').collect {|it| it.strip.split(':') }.each do |pair|
@@ -407,7 +437,7 @@ class Morpheus::Cli::UserSourcesCommand
           end
         end
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update a user source." + "\n" +
                     "[name] is required. This is the name or id of a user source."
     end
@@ -420,11 +450,12 @@ class Morpheus::Cli::UserSourcesCommand
     begin
       user_source = find_user_source_by_name_or_id(nil, args[0])
       exit 1 if user_source.nil?
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'userSource' => parse_passed_options(options)})
       else
-        payload = {'userSource' => {}}
+        payload.deep_merge!({'userSource' => parse_passed_options(options)})
 
         # Name
         if params['name']
@@ -436,6 +467,11 @@ class Morpheus::Cli::UserSourcesCommand
           payload['userSource']['description'] = params['description']
         end
         
+        # Allow Custom Mappings
+        if !params['allowCustomMappings'].nil?
+          payload['userSource']['allowCustomMappings'] = params['allowCustomMappings']
+        end
+
         if role_mappings
           payload['roleMappings'] = role_mappings
         end
@@ -443,9 +479,6 @@ class Morpheus::Cli::UserSourcesCommand
         if role_mapping_names
           payload['roleMappingNames'] = role_mapping_names
         end
-
-        # support old -O options
-        payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
       end
       @user_sources_interface.setopts(options)
@@ -462,7 +495,7 @@ class Morpheus::Cli::UserSourcesCommand
       end
 
       print_green_success "Updated User Source #{params['name'] || user_source['name']}"
-      get([user_source['id']])
+      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -512,7 +545,7 @@ class Morpheus::Cli::UserSourcesCommand
       end
 
       print_green_success "Activated User Source #{user_source['name']}"
-      get([user_source['id']])
+      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -562,7 +595,7 @@ class Morpheus::Cli::UserSourcesCommand
       end
 
       print_green_success "Activated User Source #{user_source['name']}"
-      get([user_source['id']])
+      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -612,9 +645,9 @@ class Morpheus::Cli::UserSourcesCommand
         puts JSON.pretty_generate(json_response)
         return
       end
-
-      print_green_success "Activated User Source #{user_source['name']}"
-      get([user_source['id']])
+      # JD: uhh this updates the account too, it cannot be set per user source ...yet
+      print_green_success "Updated User Source #{user_source['name']} subdomain to '#{payload['subdomain']}'"
+      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
