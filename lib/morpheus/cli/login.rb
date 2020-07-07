@@ -52,15 +52,13 @@ Login to a remote appliance with a username and password or using an access toke
 Logging in with username and password will make an authentication api request to obtain an access token.
 [username] is required, this is the username of the Morpheus User
 [password] is required, this is the password of the Morpheus User
-Sub-tenant users will need to pass their tenant subdomain prefix like "{subdomain}\\{username}". 
-The default subdomain is the tenant account ID. Example: "2\\neo"
-
+Sub-tenant users will need to pass their tenant subdomain prefix. ie. {subdomain}\\{username}
+By default, the subdomain is the tenant account ID. Example: 2\\neo
 The --token option can be used to login with a valid access token instead of username and password.
 The specified token will be verified by making a whoami api request
 If successful, the access token will be saved with the active session for the remote appliance.
-This command will first logout any active session before attempting authorization.
-
-The --test option is available for testing credentials without updating your active session, neither logging you in or out.
+This command will first logout any active session before attempting authentication.
+The --test option can be used to test credentials without updating the stored credentials for the appliance, neither logging you in or out.
 EOT
                     
     end
