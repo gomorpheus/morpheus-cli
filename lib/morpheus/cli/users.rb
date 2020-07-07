@@ -130,6 +130,7 @@ class Morpheus::Cli::Users
 
   def get(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[user]")
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
@@ -182,13 +183,12 @@ EOT
     connect(options)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
+      _get(arg, params, options)
     end
   end
 
-  def _get(id, options={})
+  def _get(id, params, options={})
     args = [id] # heh
-    params = {}
     account = find_account_from_options(options)
     account_id = account ? account['id'] : nil
     params['global'] = true if options[:global]
@@ -474,7 +474,7 @@ EOT
         else
           print_green_success "Added user #{username}"
         end
-        return _get(user['id'], options)
+        return _get(user['id'], {}, options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -550,7 +550,7 @@ EOT
         #   details_options.push "--account-id", account['id'].to_s
         # end
         # get(details_options + (options[:remote] ? ["-r",options[:remote]] : []))
-        return _get(user["id"], options)
+        return _get(user["id"], {}, options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
