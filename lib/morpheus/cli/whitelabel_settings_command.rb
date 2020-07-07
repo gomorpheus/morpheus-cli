@@ -29,9 +29,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '-a', '--tenant TENANT', "Tenant Name or ID" ) do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       opts.on('--details', "Show full (not truncated) contents of Terms of Use, Privacy Policy, Override CSS" ) do
         options[:details] = true
       end
@@ -148,9 +152,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       opts.on('--active [on|off]', String, "Can be used to enable / disable whitelabel feature") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -314,9 +322,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage()
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
       opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       opts.on("--header-logo FILE", String, "Header logo image. Local path of a file to upload (png|jpg|svg)") do |val|
         options[:headerLogo] = val
       end
@@ -412,9 +424,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type]")
-      opts.on( '-a', '--tenant TENANT', "Tenant Name or ID" ) do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Reset your whitelabel image.\n" +
           "[image-type] is required. This is the whitelabel image type (#{@image_types.collect {|k,v| k}.join('|')})"
@@ -468,9 +484,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type]")
-      opts.on( '-a', '--tenant TENANT', "Tenant Name or ID" ) do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "View your image of specified [image-type].\n" +
           "[image-type] is required. This is the whitelabel image type (#{@image_types.collect {|k,v| k}.join('|')})\n" +
@@ -532,9 +552,13 @@ class Morpheus::Cli::WhitelabelSettingsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = opts.banner = subcommand_usage("[image-type] [local-file]")
-      opts.on( '-a', '--tenant TENANT', "Tenant Name or ID" ) do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID" ) do |val|
+        options[:account] = val
+      end
+      opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
       opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
         options[:overwrite] = true
       end
