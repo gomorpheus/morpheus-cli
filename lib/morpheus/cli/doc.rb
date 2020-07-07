@@ -91,7 +91,7 @@ EOT
     # construct the api request
     params.merge!(parse_list_options(options))
     # for now, always use .json, and just convert to yaml for display on cli side
-    openapi_format = options[:yaml] ? "yml" : "json"
+    openapi_format = options[:yaml] ? "yaml" : "json"
     # params['format'] = openapi_format
     # execute the api request
     @doc_interface.setopts(options)
@@ -118,6 +118,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[local-file]")
       # build_standard_get_options(opts, options, [], [:csv,:out])
+      opts.on(nil, '--yaml', "YAML Output") do
+        options[:yaml] = true
+        options[:format] = :yaml
+      end
       opts.on(nil, "--refresh", "Refresh the document. By default the swagger.yml and swagger.json are cached by the server.") do
         params['refresh'] = true
       end
@@ -147,7 +151,10 @@ EOT
     end
     # construct the api request
     params.merge!(parse_list_options(options))
-    openapi_format = options[:json] ? "json" : "yml"
+    if outfile.include?(".yml") || outfile.include?(".yaml")
+      options[:yaml] = true
+    end
+    openapi_format = options[:yaml] ? "yaml" : "json"
     params['format'] = openapi_format
     # execute the api request
     @doc_interface.setopts(options)
