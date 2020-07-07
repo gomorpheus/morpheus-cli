@@ -492,6 +492,7 @@ EOT
         options[:global] = true
       end
       build_option_type_options(opts, options, update_user_option_types)
+      build_option_type_options(opts, options, update_user_advanced_option_types)
       build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
     end
     optparse.parse!(args)
