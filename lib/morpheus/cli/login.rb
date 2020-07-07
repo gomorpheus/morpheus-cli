@@ -30,7 +30,7 @@ class Morpheus::Cli::Login
     username, password = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
-      opts.on( '-u', '--username USERNAME', "Username" ) do |val|
+      opts.on( '-u', '--username USERNAME', "Username. Sub-tenant users must format their username with a prefix like {subdomain}\\{username}" ) do |val|
         username = val
       end
       opts.on( '-p', '--password PASSWORD', "Password" ) do |val|
@@ -50,11 +50,17 @@ class Morpheus::Cli::Login
       opts.footer = <<-EOT
 Login to a remote appliance with a username and password or using an access token.
 Logging in with username and password will make an authentication api request to obtain an access token.
+[username] is required, this is the username of the Morpheus User
+[password] is required, this is the password of the Morpheus User
+Sub-tenant users will need to pass their tenant subdomain prefix like "{subdomain}\\{username}". 
+The default subdomain is the tenant account ID. Example: "2\\neo"
+
 The --token option can be used to login with a valid access token instead of username and password.
 The specified token will be verified by making a whoami api request
 If successful, the access token will be saved with the active session for the remote appliance.
 This command will first logout any active session before attempting authorization.
-The --test option is available for testing credentials without updating your active session, neithing logging you out or in.
+
+The --test option is available for testing credentials without updating your active session, neither logging you in or out.
 EOT
                     
     end
