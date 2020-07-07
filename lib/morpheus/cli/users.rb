@@ -402,6 +402,7 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[username] [email] [first] [last] [options]")
       build_option_type_options(opts, options, add_user_option_types)
+      build_option_type_options(opts, options, add_user_advanced_option_types)
       build_common_options(opts, options, [:account, :options, :payload, :json, :dry_run])
       opts.footer = <<-EOT
 Create a new user.
@@ -417,6 +418,9 @@ EOT
     options[:options]['email'] = args[1] if args[1]
     options[:options]['firstName'] = args[2] if args[2]
     options[:options]['lastName'] = args[3] if args[3]
+    if options[:options]['password']
+      options[:options]['passwordConfirmation'] = options[:options]['password']
+    end
     connect(options)
     begin
 
@@ -433,10 +437,15 @@ EOT
         prompt_option_types = add_user_option_types().reject {|it| 'role' == it['fieldName'] }
         v_prompt = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
         params.deep_merge!(v_prompt)
+        # do not prompt for advanced options
+        advanced_config = Morpheus::Cli::OptionTypes.no_prompt(add_user_advanced_option_types, options[:options], @api_client, options[:params])
+        advanced_config.deep_compact!
+        params.deep_merge!(advanced_config)
         # prompt for roles
         selected_roles = []
-        selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
-        selected_roles += params.delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['roles']
+        selected_roles += payload['user'].delete('roleId').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']['roleId']
+        selected_roles += payload['user'].delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']['role']
+        selected_roles += payload['user'].delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']['roles']
         roles = prompt_user_roles(account_id, nil, selected_roles, options)
         if !roles.empty?
           params['roles'] = roles.collect {|r| {id: r['id']} }
@@ -506,8 +515,9 @@ EOT
         params.deep_merge!(parse_passed_options(options))
         # user_prompt_output = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, payload['user'], @api_client)
         selected_roles = []
-        selected_roles += params.delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['role']
-        selected_roles += params.delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if params['roles']
+        selected_roles += payload['user'].delete('roleId').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']
+        selected_roles += payload['user'].delete('role').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']
+        selected_roles += payload['user'].delete('roles').split(',').collect {|r| r.strip.empty? ? nil : r.strip}.uniq if payload['user']
         roles = prompt_user_roles(account_id, user['id'], selected_roles, options.merge(no_prompt: true))
         # should it allow [] (no roles) ?
         if !roles.empty?
@@ -689,17 +699,29 @@ EOT
       {'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'required' => true, 'displayOrder' => 5},
       {'fieldName' => 'passwordConfirmation', 'fieldLabel' => 'Confirm Password', 'type' => 'password', 'required' => true, 'displayOrder' => 6},
       {'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'text', 'description' => "Role names (comma separated)", 'displayOrder' => 7},
-      {'fieldName' => 'receiveNotifications', 'fieldLabel' => 'Receive Notifications?', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 58},
+      {'fieldName' => 'receiveNotifications', 'fieldLabel' => 'Receive Notifications?', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 8}
+    ]
+  end
+
+  def add_user_advanced_option_types
+    [
       {'fieldName' => 'linuxUsername', 'fieldLabel' => 'Linux Username', 'type' => 'text', 'required' => false, 'displayOrder' => 9},
-      # {'fieldName' => 'linuxPassword', 'fieldLabel' => 'Linux Password', 'type' => 'password', 'required' => false, 'displayOrder' => 10},
-      {'fieldName' => 'windowsUsername', 'fieldLabel' => 'Windows Username', 'type' => 'text', 'required' => false, 'displayOrder' => 11},
-      # {'fieldName' => 'windowsPassword', 'fieldLabel' => 'Windows Password', 'type' => 'text', 'required' => false, 'displayOrder' => 12},
-      #  'linuxUsername','windowsUsername','linuxKeyPairId'
+      {'fieldName' => 'linuxPassword', 'fieldLabel' => 'Linux Password', 'type' => 'password', 'required' => false, 'displayOrder' => 10},
+      {'fieldName' => 'linuxKeyPairId', 'fieldLabel' => 'SSH Key', 'type' => 'select', 'optionSource' => 'keyPairs', 'required' => false, 'displayOrder' => 11},
+      {'fieldName' => 'windowsUsername', 'fieldLabel' => 'Windows Username', 'type' => 'text', 'required' => false, 'displayOrder' => 12},
+      {'fieldName' => 'windowsPassword', 'fieldLabel' => 'Windows Password', 'type' => 'text', 'required' => false, 'displayOrder' => 13},
     ]
   end
 
   def update_user_option_types
     add_user_option_types.collect {|it|
+      it['required'] = false
+      it
+    }
+  end
+
+  def update_user_advanced_option_types
+    add_user_advanced_option_types.collect {|it|
       it['required'] = false
       it
     }
@@ -723,7 +745,7 @@ EOT
 
     if available_roles.empty?
       print_red_alert "No available roles found."
-      return 1
+      exit 1
     end
     role_options = available_roles.collect {|role|
       {'name' => role['authority'], 'value' => role['id']}
@@ -745,25 +767,22 @@ EOT
         print_red_alert "Invalid Roles: #{invalid_role_names.join(', ')}"
         exit 1
       end
-    end
-
-    if roles.empty?
+    else
       no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
-      if !no_prompt
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => true}], options[:options])
-        role_id = v_prompt['roleId']
-        roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
-        add_another_role = true
-        while add_another_role do
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleId', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
-          if v_prompt['roleId'].to_s.empty?
-            add_another_role = false
-          else
-            role_id = v_prompt['roleId']
-            roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
-          end
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'role', 'fieldLabel' => 'Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => true}], options[:options])
+      role_id = v_prompt['role']
+      roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
+      add_another_role = !no_prompt
+      while add_another_role do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'role', 'fieldLabel' => 'Another Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => false}], options[:options])
+        if v_prompt['role'].to_s.empty?
+          add_another_role = false
+        else
+          role_id = v_prompt['role']
+          roles << available_roles.find {|r| r['id'].to_i == role_id.to_i }
         end
       end
+      
     end
 
     roles = roles.compact
