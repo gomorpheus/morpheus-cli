@@ -1218,7 +1218,6 @@ class Morpheus::Cli::Instances
         "Environment" => 'instanceContext',
         "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
         "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
-        "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
         "Owner" => lambda {|it| 
           if it['owner']
             (it['owner']['username'] || it['owner']['id'])
@@ -1228,11 +1227,17 @@ class Morpheus::Cli::Instances
         },
         #"Tenant" => lambda {|it| it['tenant'] ? it['tenant']['name'] : '' },
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        # "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+        "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
+        "Expire Date" => lambda {|it| it['expireDate'] ? format_local_dt(it['expireDate']) : '' },
+        "Shutdown Date" => lambda {|it| it['shutdownDate'] ? format_local_dt(it['shutdownDate']) : '' },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
         "Connection" => lambda {|it| format_instance_connection_string(it) },
         "Status" => lambda {|it| format_instance_status(it) }
       }
-
+      description_cols.delete("Power Schedule") if instance['powerSchedule'].nil?
+      description_cols.delete("Expire Date") if instance['expireDate'].nil?
+      description_cols.delete("Shutdown Date") if instance['shutdownDate'].nil?
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
 
       print_description_list(description_cols, instance)
