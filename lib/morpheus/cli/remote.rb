@@ -44,7 +44,7 @@ class Morpheus::Cli::Remote
     current_only = false
     do_check = false
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[search]")
       opts.on("-a",'--all', "Show all the appliance activity details") do
         show_all_activity = true
         options[:wrap] = true
@@ -61,8 +61,9 @@ List the configured remote appliances.
 EOT
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+      options[:phrase] = args.join(" ")
     end
     #connect(options)
     params.merge!(parse_list_options(options))
