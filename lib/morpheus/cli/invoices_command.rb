@@ -495,6 +495,7 @@ EOT
           {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
+          {"UNIT" => lambda {|it| it['rateUnit'] } },
           {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
           #{"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
@@ -838,6 +839,7 @@ EOT
           {"USAGE CATEGORY" => lambda {|it| it['usageCategory'] } },
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
+          {"UNIT" => lambda {|it| it['rateUnit'] } },
           {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
         ] + (options[:show_prices] ? [
           {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
