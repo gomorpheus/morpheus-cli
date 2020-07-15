@@ -173,6 +173,9 @@ class Morpheus::APIClient
 
     # apply default headers
     opts[:headers] ||= {}
+
+    is_multipart = (opts[:payload].is_a?(Hash) && opts[:payload][:multipart])
+
     # Authorization: apply our access token
     if authorization_required?
       if @access_token
@@ -184,15 +187,15 @@ class Morpheus::APIClient
       end
     end
 
-    # Content-Type: apply interface default
-    if opts[:headers]['Content-Type'].nil? && default_content_type
-      opts[:headers]['Content-Type'] = default_content_type
+    # Content-Type default is application/json
+    if opts[:headers]['Content-Type'].nil? && opts[:payload] && is_multipart == false
+      opts[:headers]['Content-Type'] = (default_content_type || 'application/json')
     end
-    
-    # default Content-Type to application/json if you pass a payload.
-    if opts[:headers]['Content-Type'].nil? && options[:payload]
-      opts[:headers]['Content-Type'] = 'application/json'
-    end
+
+    # this could be nice too..
+    # if opts[:headers]['Content-Type'] == 'application/json' && opts[:payload].is_a?(Hash)
+    #   opts[:payload] = opts[:payload].to_json
+    # end
 
     # always use custom timeout eg. from --timeout option
     # or use default_timeout for GET requests only.
@@ -213,9 +216,9 @@ class Morpheus::APIClient
     # this is confusing, but RestClient expects :params inside the headers...?
     # move/copy params to headers.params for simplification.
     # remove this if issues arise
-    if opts[:params] && (opts[:headers][:params].nil? || opts[:headers][:params].empty?)
-      opts[:headers][:params] = opts[:params] # .delete(:params) maybe?
-    end
+    # if opts[:params] && (opts[:headers][:params].nil? || opts[:headers][:params].empty?)
+    #   opts[:headers][:params] = opts.delete(:params) # .delete(:params) maybe?
+    # end
 
     # :command_options for these
     # if options[:curl]

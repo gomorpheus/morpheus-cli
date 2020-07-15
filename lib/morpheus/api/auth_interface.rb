@@ -15,7 +15,8 @@ class Morpheus::AuthInterface < Morpheus::APIClient
     url = "#{@base_url}/oauth/token"
     params = {grant_type: 'password', scope:'write', client_id: self.client_id, username: username}
     payload = {password: password}
-    opts = {method: :post, url: url, headers:{ params: params}, payload: payload, timeout: 5}
+    headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }
+    opts = {method: :post, url: url, headers: headers, params: params, payload: payload, timeout: 5}
     response = execute(opts)
     return response if @dry_run
     @access_token = response['access_token']
@@ -35,7 +36,8 @@ class Morpheus::AuthInterface < Morpheus::APIClient
     url = "#{@base_url}/oauth/token"
     params = {grant_type: 'refresh_token', scope:'write', client_id: self.client_id}
     payload = {refresh_token: refresh_token}
-    opts = {method: :post, url: url, headers:{ params: params}, payload: payload}
+    headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }
+    opts = {method: :post, url: url, headers: headers, params: params, payload: payload, timeout: 5}
     response = execute(opts)
     return response if @dry_run
     @access_token = response['access_token']
