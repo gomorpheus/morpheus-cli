@@ -1106,7 +1106,7 @@ module Morpheus
         else
           if opts[:min]
             if args.count < opts[:min]
-              raise_args_error("not many arguments, expected #{opts[:min] || '0'}-#{opts[:max] || 'N'} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+              raise_args_error("not enough arguments, expected #{opts[:min] || '0'}-#{opts[:max] || 'N'} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
             end
           end
           if opts[:max]
