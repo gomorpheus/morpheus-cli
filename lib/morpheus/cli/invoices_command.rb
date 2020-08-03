@@ -275,7 +275,7 @@ class Morpheus::Cli::InvoicesCommand
 
         if options[:show_invoice_totals]
           invoice_totals = json_response['invoiceTotals']
-          print_h2 "Line Item Totals" unless options[:totals_only]
+          print_h2 "Invoice Totals" unless options[:totals_only]
           invoice_totals_columns = [
             {"Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
             {"Compute" => lambda {|it| format_money(it['actualComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
@@ -288,7 +288,7 @@ class Morpheus::Cli::InvoicesCommand
             {"Network Price" => lambda {|it| format_money(it['actualNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
             {"Extra Price" => lambda {|it| format_money(it['actualExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
           ] : [])
-          print_description_list(invoice_totals_columns, line_item_totals)
+          print_description_list(invoice_totals_columns, invoice_totals)
         end
         if options[:show_invoice_totals]
           invoice_totals = json_response['invoiceTotals']
