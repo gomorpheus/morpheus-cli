@@ -176,7 +176,7 @@ morpheus v#{Morpheus::Cli::VERSION}
 
     To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com/features
 
-    To learn more about the Morpheus API, visit http://bertramdev.github.io/morpheus-apidoc/ 
+    To learn more about the Morpheus API, visit https://apidocs.morpheusdata.com
 
 ## GLOBAL OPTIONS
 
