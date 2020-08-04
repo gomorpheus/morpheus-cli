@@ -415,6 +415,7 @@ EOT
         "Type" => lambda {|it| format_invoice_ref_type(it) },
         "Ref ID" => lambda {|it| it['refId'] },
         "Ref Name" => lambda {|it| it['refName'] },
+        "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Power State" => lambda {|it| format_server_power_state(it) },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
