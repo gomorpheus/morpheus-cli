@@ -322,7 +322,7 @@ module Morpheus
         elsif option_type['optionSource']
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
-            select_options = option_type['optionSource'].call()
+            select_options = option_type['optionSource'].call(api_client, grails_params(api_params || {}))
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
             select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})

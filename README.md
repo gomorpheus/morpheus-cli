@@ -11,7 +11,11 @@ This library is a Ruby gem that provides a command line interface for interactin
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Install it using rubygems
+
+    $ gem install morpheus-cli
+
+Or add this line to your application's Gemfile:
 
     gem 'morpheus-cli'
 
@@ -19,15 +23,13 @@ And then execute:
 
     $ bundle install
 
-Or install it yourself as:
 
-    $ gem install morpheus-cli
 
 ## Usage
 
-### morpheus binary
+### morpheus command
 
-This gem installs the [morpheus](https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual) binary for executing commands in your shell environment. 
+This gem installs the [morpheus](https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual) binary for running commands in your terminal shell. 
 
 ```sh
 morpheus remote add demo https://demo.mymorpheus.com
@@ -36,6 +38,6 @@ morpheus instances list
 
 ### ruby code
 
-If you want to interface with your Morpheus appliance via ruby directly, you can use [Morpheus::APIClient](https://github.com/gomorpheus/morpheus-cli/wiki/APIClient) or [Morpheus::Terminal](https://github.com/gomorpheus/morpheus-cli/wiki/Terminal).
+If you are interested in interfacing with the Morpheus appliance in ruby directly, you can use [Morpheus::APIClient](https://github.com/gomorpheus/morpheus-cli/wiki/APIClient) or [Morpheus::Terminal](https://github.com/gomorpheus/morpheus-cli/wiki/Terminal).
 
 For more detailed usage information, visit the [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki).

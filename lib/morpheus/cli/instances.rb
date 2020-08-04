@@ -9,14 +9,22 @@ class Morpheus::Cli::Instances
   include Morpheus::Cli::AccountsHelper # needed? replace with OptionSourceHelper
   include Morpheus::Cli::OptionSourceHelper
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::DeploymentsHelper
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::LogsHelper
 
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :backup, :backups, :stop_service, :start_service, :restart_service, :resize, :clone, :envs, :setenv, :delenv, :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :console, :status_check, {:containers => :list_containers}, :scaling, {:'scaling-update' => :scaling_update}
-  register_subcommands :wiki, :update_wiki
-  register_subcommands :exec => :execution_request
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, 
+                       :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
+                       :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
+                       :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
+                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, 
+                       :console, :status_check, {:containers => :list_containers}, 
+                       :scaling, {:'scaling-update' => :scaling_update},
+                       :wiki, :update_wiki,
+                       {:exec => :execution_request},
+                       :deploys
   #register_subcommands :firewall_disable, :firewall_enable
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
@@ -43,6 +51,8 @@ class Morpheus::Cli::Instances
     @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @execution_request_interface = @api_client.execution_request
+    @deploy_interface = @api_client.deploy
+    @deployments_interface = @api_client.deployments
   end
   
   def handle(args)
@@ -1229,6 +1239,7 @@ class Morpheus::Cli::Instances
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
         "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
+        "Last Deployment" => lambda {|it| (it['lastDeploy'] ? "#{it['lastDeploy']['deployment']['name']} #{it['lastDeploy']['deploymentVersion']['userVersion']} at #{format_local_dt it['lastDeploy']['deployDate']}" : nil) rescue "" },
         "Expire Date" => lambda {|it| it['expireDate'] ? format_local_dt(it['expireDate']) : '' },
         "Shutdown Date" => lambda {|it| it['shutdownDate'] ? format_local_dt(it['shutdownDate']) : '' },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
@@ -1239,7 +1250,7 @@ class Morpheus::Cli::Instances
       description_cols.delete("Expire Date") if instance['expireDate'].nil?
       description_cols.delete("Shutdown Date") if instance['shutdownDate'].nil?
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
-
+      description_cols.delete("Last Deployment") if instance['lastDeploy'].nil?
       print_description_list(description_cols, instance)
 
       if instance['statusMessage']
@@ -3611,6 +3622,60 @@ class Morpheus::Cli::Instances
     end
   end
 
+  def deploys(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [search]")
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List deployments for an instance.
+[instance] is required. This is the name or id of an instance
+[search] is optional. Filters on deployment version identifier
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    if args.count > 1
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    # @deploy_interface.setopts(options)
+    # if options[:dry_run]
+    #   print_dry_run @deploy_interface.dry.list(instance['id'], params)
+    #   return
+    # end
+    # json_response = @deploy_interface.list(instance['id'], params)
+
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.deploys(instance['id'], params)
+      return
+    end
+    json_response = @instances_interface.deploys(instance['id'], params)
+
+    app_deploys = json_response['appDeploys']
+    render_response(json_response, options, 'appDeploys') do
+      print_h1 "Instance Deploys", ["#{instance['name']}"] + parse_list_subtitles(options), options
+      if app_deploys.empty?
+        print cyan,"No deployments found.",reset,"\n"
+      else
+        print as_pretty_table(app_deploys, app_deploy_column_definitions.upcase_keys!, options)
+        if json_response['meta']
+          print_results_pagination(json_response)
+        else
+          print_results_pagination({size:app_deploys.size,total:app_deploys.size.to_i})
+        end
+
+      end
+      print reset,"\n"
+    end
+    return 0
+  end
+
 private
 
   def find_zone_by_name_or_id(group_id, val)
@@ -3905,6 +3970,31 @@ private
       #{'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
     ]
+  end
+
+  def app_deploy_column_definitions
+    {
+      "ID" => 'id',
+      "Deployment" => lambda {|it| it['deployment']['name'] rescue '' },
+      "Version" => lambda {|it| (it['deploymentVersion']['userVersion'] || it['deploymentVersion']['version']) rescue '' },
+      "Deploy Date" => lambda {|it| format_local_dt(it['deployDate']) },
+      "Status" => lambda {|it| format_app_deploy_status(it['status']) },
+    }
+  end
+
+  def format_app_deploy_status(status, return_color=cyan)
+    out = ""
+    s = status.to_s.downcase
+    if s == 'deployed'
+      out << "#{green}#{s.upcase}#{return_color}"
+    elsif s == 'open' || s == 'archived' || s == 'committed'
+      out << "#{cyan}#{s.upcase}#{return_color}"
+    elsif s == 'failed'
+      out << "#{red}#{s.upcase}#{return_color}"
+    else
+      out << "#{yellow}#{s.upcase}#{return_color}"
+    end
+    out
   end
 
 end

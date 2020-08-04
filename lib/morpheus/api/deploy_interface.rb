@@ -10,71 +10,40 @@ class Morpheus::DeployInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
+  def base_path
+    # /api/deploys is now available in 5.0, switch to that eventually...
+    "/api/deploy"
+  end
+  def list(params={})
+    execute(method: :get, url: "#{base_path}", params: params)
+  end
 
-  def get(instanceId, options=nil)
-    url = "#{@base_url}/api/instances/#{instanceId}/deploy"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+  def get(instance_id, id, params={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}", params: params)
+  end
 
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
+  def create(instance_id, payload, params={})
+    if instance_id
+      execute(method: :post, url: "/api/instances/#{instance_id}/deploy", params: params, payload: payload.to_json)
+    else
+      execute(method: :post, url: "#{base_path}", params: params, payload: payload.to_json)
     end
-    execute(method: :get, url: url, headers: headers)
   end
 
-
-  def create(instanceId, options=nil)
-    url = "#{@base_url}/api/instances/#{instanceId}/deploy"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options || {}
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  def update(id, payload, params={})
+    validate_id!(id)
+    execute(url: "#{base_path}/#{id}", params: params, payload: payload.to_json, method: :put)
   end
 
-  def list_files(id)
-    url = "#{@base_url}/api/deploy/#{id}/files"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    execute(method: :get, url: url, headers: headers)
+  def destroy(id, params = {})
+    validate_id!(id)
+    execute(url: "#{base_path}/#{id}", params: params, method: :delete)
   end
 
-  # todo: use execute() to support @dry_run?
-  def upload_file(id,path,destination=nil)
-    url = "#{@base_url}/api/deploy/#{id}/files"
-    if !destination.empty?
-      url += "/#{destination}"
-    end
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream' }
-    opts = { method: :post, url: url, headers: headers, payload: File.new(path,'rb')}
-    if @dry_run
-      return opts
-    end
-    uri = URI.parse(url)
-    req = Net::HTTP::Post::Multipart.new uri.path,
-    "file" => UploadIO.new(File.new(path,'rb'), "image/jpeg", File.basename(path))
-    # todo: iterate headers and abstract th :upload_io to execute() too.
-    req['Authorization'] = "Bearer #{@access_token}"
-    res = Net::HTTP.start(uri.host, uri.port) do |http|
-      http.request(req)
-    end
-    res
+  def deploy(id, payload, params = {})
+    validate_id!(id)
+    execute(url: "#{base_path}/#{id}/deploy", params: params, payload: payload.to_json, method: :post)
   end
 
-  def destroy(id)
-    url = "#{@base_url}/api/deploy/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :delete, url: url, headers: headers)
-  end
-
-  def deploy(id, options)
-    url = "#{@base_url}/api/deploy/#{id}/deploy"
-    payload = options
-    if !options[:appDeploy].nil?
-      if !options[:appDeploy][:config].nil?
-        options[:appDeploy][:config] = options[:appDeploy][:config].to_json
-      end
-    end
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :post, url: url, headers: headers, timeout: nil, payload: payload.to_json)
-  end
 end

@@ -171,6 +171,8 @@ module Morpheus
       load 'morpheus/cli/invoices_command.rb'
       load 'morpheus/cli/guidance_command.rb'
       load 'morpheus/cli/projects_command.rb'
+      load 'morpheus/cli/backups_command.rb'
+      load 'morpheus/cli/backup_jobs_command.rb'
       # add new commands here...
 
     end

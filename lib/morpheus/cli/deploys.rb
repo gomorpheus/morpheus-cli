@@ -1,176 +1,321 @@
-# require 'yaml'
-require 'io/console'
-require 'rest_client'
-require 'filesize'
 require 'morpheus/cli/cli_command'
+require 'yaml'
 
 class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::DeploymentsHelper
 
-  set_command_name :deploy
+  # hidden until api support is added
+  set_command_hidden
+  
+  set_command_name :deploys
 
-  def initialize()
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
+  register_subcommands :list, :get, :add, :remove, :deploy
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @deploy_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).deploy
+    @instances_interface = @api_client.instances
+    @deploy_interface = @api_client.deploy
+    @deployments_interface = @api_client.deployments
   end
 
   def handle(args)
-    deploy(args)
+    handle_subcommand(args)
   end
 
-  def deploy(args)
-    options={}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = "Usage: morpheus deploy [environment]"
-      build_common_options(opts, options, [:remote, :dry_run])
-      opts.footer = "Deploy to an environment using the morpheus.yml file, located in the working directory."
-      # "todo: document me better!"
+  def list(args)
+    options = {}
+    params = {}
+    ref_ids = []
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[search]")
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List deploys.
+EOT
     end
     optparse.parse!(args)
     connect(options)
-    environment = 'production' # yikes!
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      environment = args[0]
+      options[:phrase] = args.join(" ")
     end
-    if load_deploy_file().nil?
-      puts "Morpheus Deploy File `morpheus.yml` not detected. Please create one and try again."
+    params.merge!(parse_list_options(options))
+    @deploy_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.dry.list(params)
       return
     end
+    json_response = @deploy_interface.list(params)
+    app_deploys = json_response[app_deploy_list_key]
+    render_response(json_response, options, app_deploy_list_key) do
+      print_h1 "Morpheus Deploys", parse_list_subtitles(options), options
+      if app_deploys.empty?
+        print cyan,"No deploys found.",reset,"\n"
+      else
+        print as_pretty_table(app_deploys, app_deploy_column_definitions.upcase_keys!, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    if app_deploys.empty?
+      return 1, "no deploys found"
+    else
+      return 0, nil
+    end
+  end
 
-    deploy_args = merged_deploy_args(environment)
-    if deploy_args['name'].nil?
-      puts "Instance not specified. Please specify the instance name and try again."
+  def get(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a specific instance deploy.
+[id] is required. This is the name or id of a deployment.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, params, options)
+    end
+  end
+
+  def _get(id, params, options)
+    @deploy_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.dry.get(id, params)
+      return 0
+    end
+    json_response = @deploy_interface.get(id, params)
+    app_deploy = json_response[app_deploy_object_key]
+    render_response(json_response, options, app_deploy_object_key) do
+      print_h1 "Deploy Details", [], options
+      print cyan
+      print_description_list(app_deploy_column_definitions, app_deploy)
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def add(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [deployment] [version] [options]")
+      build_option_type_options(opts, options, add_app_deploy_option_types)
+      build_option_type_options(opts, options, add_app_deploy_advanced_option_types)
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Create a new instance deploy.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:0, max:3)
+    options[:options]['instance'] = args[0] if args[0]
+    options[:options]['deployment'] = args[1] if args[1]
+    options[:options]['version'] = args[2] if args[2]
+    connect(options)
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(add_app_deploy_option_types, options[:options], @api_client, options[:params])
+      params.deep_merge!(v_prompt)
+      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(add_app_deploy_advanced_option_types, options[:options], @api_client, options[:params])
+      advanced_config.deep_compact!
+      params.deep_merge!(advanced_config)
+      payload[app_deploy_object_key].deep_merge!(params)
+    end
+    @deploy_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.dry.create(payload)
+      return 0, nil
+    end
+    json_response = @deploy_interface.create(payload)
+    app_deploy = json_response[app_deploy_object_key]
+    render_response(json_response, options, app_deploy_object_key) do
+      print_green_success "Deploying..."
+      return _get(app_deploy["id"], {}, options)
+    end
+    return 0, nil
+  end
+
+  def remove(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete an instance deploy.
+[id] is required. This is the name or id of a deploy.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    app_deploy = find_app_deploy_by_id(args[0])
+    return 1 if app_deploy.nil?
+    @deploy_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.dry.destroy(app_deploy['id'], params)
       return
     end
-
-    instance_results = @instances_interface.get(name: deploy_args['name'])
-    if instance_results['instances'].empty?
-      puts "Instance not found by name #{args[0]}"
-      return
+    json_response = @deploy_interface.destroy(app_deploy['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Removed deploy #{app_deploy['name']}"
     end
-    instance = instance_results['instances'][0]
-    instance_id = instance['id']
-    print_h1 "Morpheus Deployment"
-    if !deploy_args['script'].nil?
-      print cyan, bold, "  - Executing Pre Deploy Script...", reset, "\n"
+    return 0, nil
+  end
 
-      if !system(deploy_args['script'])
-        puts "Error executing pre script..."
-        return
+  def deploy(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      build_option_type_options(opts, options, update_app_deploy_option_types)
+      build_option_type_options(opts, options, update_app_deploy_advanced_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an instance deploy.
+[id] is required. This is the name or id of an instance deploy.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    app_deploy = find_app_deploy_by_id(args[0])
+    return 1 if app_deploy.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+      # do not prompt on update
+      v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_option_types, options[:options], @api_client, options[:params])
+      v_prompt.deep_compact!
+      params.deep_merge!(v_prompt)
+      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_advanced_option_types, options[:options], @api_client, options[:params])
+      advanced_config.deep_compact!
+      params.deep_merge!(advanced_config)
+      payload.deep_merge!({app_deploy_object_key => params})
+      if payload[app_deploy_object_key].empty? # || options[:no_prompt]
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
     end
     @deploy_interface.setopts(options)
-    @instances_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @deploy_interface.create(instance_id)
+      print_dry_run @deploy_interface.dry.update(app_deploy['id'], payload)
+      return
     end
-    # Create a new deployment record
-    deploy_result = @deploy_interface.create(instance_id)
-    app_deploy = deploy_result['appDeploy']
-    deployment_id = app_deploy['id']
-
-    # Upload Files
-    print "\n",cyan, bold, "Uploading Files...", reset, "\n"
-    current_working_dir = Dir.pwd
-    deploy_args['files'].each do |fmap|
-      Dir.chdir(fmap['path'] || current_working_dir)
-      files = Dir.glob(fmap['pattern'] || '**/*')
-      files.each do |file|
-        if File.file?(file)
-          print cyan,bold, "  - Uploading #{file} ...", reset, "\n"
-          destination = file.split("/")[0..-2].join("/")
-          if options[:dry_run]
-            print_dry_run @deploy_interface.upload_file(deployment_id,file,destination)
-          else
-            upload_result = @deploy_interface.upload_file(deployment_id,file,destination)
-          end
-        end
-      end
+    json_response = @deploy_interface.update(app_deploy['id'], payload)
+    app_deploy = json_response[app_deploy_object_key]
+    render_response(json_response, options, app_deploy_object_key) do
+      print_green_success "Deploying..."
+      return _get(app_deploy["id"], {}, options)
     end
-    print cyan, bold, "Upload Complete!", reset, "\n"
-    Dir.chdir(current_working_dir)
+    return 0, nil
+  end
+  private
 
-    if !deploy_args['post_script'].nil?
-      print cyan, bold, "Executing Post Script...", reset, "\n"
-      if !system(deploy_args['post_script'])
-        puts "Error executing post script..."
-        return
-      end
-    end
+   ## Deploys (AppDeploy)
 
-    deploy_payload = {}
-    if deploy_args['env']
-      evars = []
-      deploy_args['env'].each_pair do |key, value|
-        evars << {name: key, value: value, export: false}
-      end
-      payload = {envs: evars}
-      if options[:dry_run]
-        print_dry_run @instances_interface.create_env(instance_id, payload)
-        print_dry_run @instances_interface.restart(instance_id)
+  def app_deploy_object_key
+    'appDeploy'
+  end
+
+  def app_deploy_list_key
+    'appDeploys'
+  end
+
+  def find_app_deploy_by_id(id)
+    begin
+      json_response = @deploy_interface.get(id.to_i)
+      return json_response[app_deploy_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Deploy not found by id '#{id}'"
       else
-        @instances_interface.create_env(instance_id, payload)
-        @instances_interface.restart(instance_id)
+        raise e
       end
     end
-    if deploy_args['options']
-      deploy_payload = {
-        appDeploy: {
-          config: deploy_args['options']
+  end
+
+  def app_deploy_column_definitions
+    {
+      "ID" => 'id',
+      "Instance" => lambda {|it| it['instance'] ? it['instance']['name'] : it['instanceId'] },
+      "Deployment" => lambda {|it| it['deployment']['name'] rescue '' },
+      "Version" => lambda {|it| (it['deploymentVersion']['userVersion'] || it['deploymentVersion']['version']) rescue '' },
+      # "Version ID" => lambda {|it| (it['deploymentVersion']['id']) rescue '' },
+      "Deploy Date" => lambda {|it| format_local_dt(it['deployDate']) },
+      "Status" => lambda {|it| format_app_deploy_status(it['status']) },
+    }
+  end
+
+  def add_app_deploy_option_types
+    [
+      {'fieldName' => 'instance', 'fieldLabel' => 'Instance', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params|
+        @instances_interface.list({max:10000}.merge(api_params))['instances'].collect {|it|
+          {'name' => it['name'], 'value' => it['id'], 'id' => it['id']}
         }
-      }
-    end
-    if options[:dry_run]
-      print_dry_run @deploy_interface.deploy(deployment_id,deploy_payload)
+      }, 'required' => true, 'displayOrder' => 1},
+      {'fieldName' => 'deployment', 'fieldLabel' => 'Deployment', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params|
+        @deployments_interface.list({max:10000})['deployments'].collect {|it|
+          {'name' => it['name'], 'value' => it['id'], 'id' => it['id']}
+        }
+      }, 'required' => true, 'displayOrder' => 2},
+      {'fieldName' => 'version', 'fieldLabel' => 'Version', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params|
+        @deployments_interface.list_versions(api_params['deployment'], {max:10000})['versions'].collect {|it|
+          {'name' => (it['userVersion'] || it['version']), 'value' => it['id'], 'id' => it['id']}
+        }
+      }, 'required' => true, 'displayOrder' => 3}
+    ]
+  end
+
+  def add_app_deploy_advanced_option_types
+    [{'fieldName' => 'stageOnly', 'fieldLabel' => 'Stage Only', 'type' => 'checkbox', 'description' => 'If set to true the deploy will only be staged and not actually run', 'displayOrder' => 10}]
+  end
+
+  def update_app_deploy_option_types
+    add_app_deploy_option_types.collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
+  end
+
+  def update_app_deploy_advanced_option_types
+    add_app_deploy_advanced_option_types.collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
+  end
+
+  def format_app_deploy_status(status, return_color=cyan)
+    out = ""
+    s = status.to_s.downcase
+    if s == 'deployed'
+      out << "#{green}#{s.upcase}#{return_color}"
+    elsif s == 'open' || s == 'archived' || s == 'committed'
+      out << "#{cyan}#{s.upcase}#{return_color}"
+    elsif s == 'failed'
+      out << "#{red}#{s.upcase}#{return_color}"
     else
-      print cyan, bold, "Deploying to Servers...", reset, "\n"
-      @deploy_interface.deploy(deployment_id,deploy_payload)
-      print cyan, bold, "Deploy Successful!", reset, "\n"
+      out << "#{yellow}#{s.upcase}#{return_color}"
     end
-    
-  end
-  def list(args)
+    out
   end
 
-  def rollback(args)
-  end
-
-  # Loads a morpheus.yml file from within the current working directory.
-  # This file contains information necessary in the project to perform a deployment via the cli
-  #
-  # === Example File Attributes
-  # * +script+ - The initial script to run before uploading files
-  # * +name+ - The instance name we are deploying to (can be overridden in CLI)
-  # * +remote+ - Optional remote appliance name we are connecting to
-  # * +files+ - List of file patterns to use for uploading files and their target destination
-  # * +options+ - Map of deployment options depending on deployment type
-  # * +post_script+ - A post operation script to be run on the local machine
-  # * +stage_deploy+ - If set to true the deploy will only be staged and not actually run
-  #
-  # +NOTE: + It is also possible to nest these properties in an "environments" map to override based on a passed environment deploy name
-  #
-  def load_deploy_file
-    if !File.exist? "morpheus.yml"
-      puts "No morpheus.yml file detected in the current directory. Nothing to do."
-      return nil
-    end
-
-    @deploy_file = YAML.load_file("morpheus.yml")
-    return @deploy_file
-  end
-
-  def merged_deploy_args(environment)
-    environment = environment || production
-
-    deploy_args = @deploy_file.reject { |key,value| key == 'environment'}
-    if !@deploy_file['environment'].nil? && !@deploy_file['environment'][environment].nil?
-      deploy_args = deploy_args.merge(@deploy_file['environment'][environment])
-    end
-    return deploy_args
-  end
 end
+

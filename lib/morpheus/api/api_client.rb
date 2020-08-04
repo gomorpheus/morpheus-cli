@@ -756,6 +756,14 @@ class Morpheus::APIClient
     Morpheus::ProjectsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def backups
+    Morpheus::BackupsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def backup_jobs
+    Morpheus::BackupJobsInterface.new(common_interface_options).setopts(@options)
+  end
+
   # add new interfaces here
 
 end

@@ -244,7 +244,7 @@ module Morpheus::Cli::ProvisioningHelper
   end
 
   def find_instance_by_name(name)
-    json_results = instances_interface.get({name: name.to_s})
+    json_results = instances_interface.list({name: name.to_s})
     if json_results['instances'].empty?
       print_red_alert "Instance not found by name #{name}"
       exit 1

@@ -302,4 +302,9 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def deploys(id, params)
+    # todo: make this plural??
+    execute(method: :get, url: "/api/instances/#{id}/deploy", params: params)
+  end
+
 end

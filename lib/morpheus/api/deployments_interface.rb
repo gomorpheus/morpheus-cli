@@ -1,71 +1,60 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::DeploymentsInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @expires_at = expires_at
+class Morpheus::DeploymentsInterface < Morpheus::RestInterface
+
+  def base_path
+    "/api/deployments"
   end
 
-  def list(params={})
-    url = "#{@base_url}/api/deployments"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+  def list_versions(deployment_id, params={})
+    execute(method: :get, url: "#{base_path}/#{deployment_id}/versions", params: params)
   end
-  
-  def get(options=nil)
-    url = "#{@base_url}/api/deployments"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/deployments/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
+
+  def get_version(deployment_id, id, params={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{deployment_id}/versions/#{id}", params: params)
+  end
+
+  def create_version(deployment_id, payload, params={})
+    execute(method: :post, url: "#{base_path}/#{deployment_id}/versions", params: params, payload: payload.to_json)
+  end
+
+  def update_version(deployment_id, id, payload, params={})
+    validate_id!(id)
+    execute(method: :put, url: "#{base_path}/#{deployment_id}/versions/#{id}", params: params, payload: payload.to_json)
+  end
+
+  def destroy_version(deployment_id, id, params = {})
+    validate_id!(id)
+    execute(method: :delete, url: "#{base_path}/#{deployment_id}/versions/#{id}", params: params)
+  end
+
+  def list_files(deployment_id, id, params={})
+    execute(method: :get, url: "#{base_path}/#{deployment_id}/versions/#{id}/files", params: params)
+  end
+
+  # upload a file without multipart
+  # local_file is the full absolute local filename
+  # destination should be the full remote file path, including the file name.
+  def upload_file(deployment_id, id, local_file, destination, params={})
+    if destination.empty? || destination == "/" || destination == "." || destination.include?("../")
+      raise "#{self.class}.upload_file() passed a bad destination: '#{destination}'"
     end
-    execute(method: :get, url: url, headers: headers)
-  end
-
-  def list_versions(deployment_id,options=nil)
-    url = "#{@base_url}/api/deployments/#{deployment_id}/versions"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/deployments/#{deployment_id}/versions/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
+    url = "#{@base_url}/#{base_path}/#{deployment_id}/versions/#{id}/files"
+    if !destination.to_s.empty?
+      url += "/#{destination}"
     end
-    execute(method: :get, url: url, headers: headers)
+    # use URI to escape path
+    uri = URI.parse(url)
+    url = uri.path
+    # params[:filename] = File.basename(destination)
+    if !local_file.kind_of?(File)
+      local_file = File.new(local_file, 'rb')
+    end
+    payload = local_file
+    headers = {'Content-Type' => 'application/octet-stream'}
+    headers['Content-Length'] = local_file.size # File.size(local_file)
+    execute(method: :post, url: url, headers: headers, payload: payload, params: params, timeout: 172800)
   end
 
-  def get_version(deployment_id,version_id)
-    url = "#{@base_url}/api/deployments/#{deployment_id}/versions/#{version_id}"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    execute(method: :get, url: url, headers: headers)
-  end
-
-
-  def create(options)
-    url = "#{@base_url}/api/deployments"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
-  end
-
-  def update(id, options)
-    url = "#{@base_url}/api/deployments/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
-  end
-
-  def destroy(id)
-    url = "#{@base_url}/api/deployments/#{id}"
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :delete, url: url, headers: headers)
-  end
 end

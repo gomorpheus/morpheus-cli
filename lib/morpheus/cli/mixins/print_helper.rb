@@ -201,7 +201,7 @@ module Morpheus::Cli::PrintHelper
     if options[:outfile]
       print_result = print_to_file(output, options[:outfile], options[:overwrite])
       # with_stdout_to_file(options[:outfile], options[:overwrite]) { print output }
-      print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
+      print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes File.size(options[:outfile])})\n" unless options[:quiet]
       #return print_result
       return
     end
@@ -247,7 +247,8 @@ module Morpheus::Cli::PrintHelper
         out << "Content-Type: #{content_type}" + "\n"
         out << reset
         if payload.is_a?(File)
-          pretty_size = "#{payload.size} B"
+          #pretty_size = "#{payload.size} B"
+          pretty_size = format_bytes(payload.size)
           out << "File: #{payload.path} (#{pretty_size})"
         elsif payload.is_a?(String)
           if options[:scrub]
