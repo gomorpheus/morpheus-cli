@@ -295,6 +295,9 @@ class Morpheus::Cli::SecurityGroups
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
+      opts.on('--active [on|off]', String, "Can be used to disable a security group") do |val|
+        options[:options]['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a security group." + "\n" +
                     "[name] is required. This is the name of the security group."
@@ -468,6 +471,9 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
+      end
+      opts.on('--active [on|off]', String, "Can be used to disable a security group") do |val|
+        options[:options]['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a security group." + "\n" +
