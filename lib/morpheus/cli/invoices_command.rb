@@ -25,6 +25,7 @@ class Morpheus::Cli::InvoicesCommand
     options = {}
     params = {}
     ref_ids = []
+    query_tags = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
@@ -105,6 +106,11 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--tenant ID', String, "View invoices for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
+      opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+        k,v = val.split("=")
+        query_tags[k] ||= []
+        query_tags[k] << v
+      end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
@@ -163,6 +169,11 @@ class Morpheus::Cli::InvoicesCommand
     end
     params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
+    if query_tags && !query_tags.empty?
+      query_tags.each do |k,v|
+        params['tags.' + k] = v
+      end
+    end
     @invoices_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @invoices_interface.dry.list(params)
@@ -429,6 +440,7 @@ EOT
         "Ref Start" => lambda {|it| format_dt(it['refStart']) },
         "Ref End" => lambda {|it| format_dt(it['refEnd']) },
         "Items" => lambda {|it| it['lineItems'].size rescue '' },
+        "Tags" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Project ID" => lambda {|it| it['project'] ? it['project']['id'] : '' },
         "Project Name" => lambda {|it| it['project'] ? it['project']['name'] : '' },
         "Project Tags" => lambda {|it| it['project'] ? format_metadata(it['project']['tags']) : '' },
@@ -443,6 +455,9 @@ EOT
         description_cols.delete("Project ID")
         description_cols.delete("Project Name")
         description_cols.delete("Project Tags")
+      end
+      if invoice['metadata'].nil? || invoice['metadata'].empty?
+        description_cols.delete("Tags")
       end
       if !['ComputeServer','Instance','Container'].include?(invoice['refType'])
         description_cols.delete("Power State")
@@ -658,6 +673,7 @@ EOT
     options = {}
     params = {}
     ref_ids = []
+    query_tags = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
@@ -745,6 +761,11 @@ EOT
       opts.on('--tenant ID', String, "View invoice line items for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
+      # opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+      #   k,v = val.split("=")
+      #   query_tags[k] ||= []
+      #   query_tags[k] << v
+      # end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
@@ -804,6 +825,11 @@ EOT
     end
     params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
+    if query_tags && !query_tags.empty?
+      query_tags.each do |k,v|
+        params['tags.' + k] = v
+      end
+    end
     @invoice_line_items_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @invoice_line_items_interface.dry.list(params)
