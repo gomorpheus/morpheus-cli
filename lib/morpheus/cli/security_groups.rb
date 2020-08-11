@@ -156,8 +156,8 @@ class Morpheus::Cli::SecurityGroups
         "Description" => 'description',
         "Scoped Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : 'All' },
         "Source" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' },
-        # "Active" => lambda {|it| format_boolean(it['active']) },
         "Visibility" => 'visibility',
+        "Active" => lambda {|it| format_boolean(it['active']) },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.sort.join(', ') : '' },
       }
       print_description_list(description_cols, security_group)
