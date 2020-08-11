@@ -264,6 +264,7 @@ class Morpheus::Cli::InvoicesCommand
           {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
           {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
           {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
+          {"TAGS" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' } },
         ]
         if show_projects
           columns += [
