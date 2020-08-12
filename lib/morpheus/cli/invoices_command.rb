@@ -287,23 +287,6 @@ class Morpheus::Cli::InvoicesCommand
 
         if options[:show_invoice_totals]
           invoice_totals = json_response['invoiceTotals']
-          print_h2 "Invoice Totals" unless options[:totals_only]
-          invoice_totals_columns = [
-            {"Invoices" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
-            {"Compute" => lambda {|it| format_money(it['actualComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Storage" => lambda {|it| format_money(it['actualStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Network" => lambda {|it| format_money(it['actualNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Extra" => lambda {|it| format_money(it['actualExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          ] + (options[:show_prices] ? [
-            {"Compute Price" => lambda {|it| format_money(it['actualComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Storage Price" => lambda {|it| format_money(it['actualStoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Network Price" => lambda {|it| format_money(it['actualNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"Extra Price" => lambda {|it| format_money(it['actualExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          ] : [])
-          print_description_list(invoice_totals_columns, invoice_totals)
-        end
-        if options[:show_invoice_totals]
-          invoice_totals = json_response['invoiceTotals']
           print_h2 "Invoice Totals (#{format_number(json_response['meta']['total']) rescue ''})"
 
           if invoice_totals
@@ -317,8 +300,8 @@ class Morpheus::Cli::InvoicesCommand
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Estimated Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']},
-                {label: 'Estimated Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']},
+                {label: 'Estimated Cost', compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']},
+                {label: 'Estimated Price', compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']},
               ]
             end
             cost_columns = {
