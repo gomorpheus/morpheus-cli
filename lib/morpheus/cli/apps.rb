@@ -603,22 +603,28 @@ class Morpheus::Cli::Apps
       rescue TypeError, JSON::ParserError => ex
         print_error red, "Failed to parse JSON response: #{ex}", reset, "\n"
       end
-      # The default way to print errors, except instances => []
-      (json_response['errors'] || {}).each do |error_key, error_msg|
-        if error_key != 'instances'
-          print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
+      if json_response && (json_response['errors'].nil? || json_response['errors'].empty?)
+        # The default way to print error msg
+        print_rest_exception(e, options)
+      else
+        # print errors and look for special errors.instances
+        # todo: just handle sub lists of errors default error handler (print_rest_exception)
+        (json_response['errors'] || {}).each do |error_key, error_msg|
+          if error_key != 'instances'
+            print_error red, " * #{error_key} : #{error_msg}", reset, "\n"
+          end
         end
-      end
-      # looks for special error format like instances.instanceErrors 
-      if json_response['errors'] && json_response['errors']['instances']
-        json_response['errors']['instances'].each do |error_obj|
-          tier_name = error_obj['tier']
-          instance_index = error_obj['index']
-          instance_errors = error_obj['instanceErrors']
-          print_error red, "#{tier_name} : #{instance_index}", reset, "\n"
-          if instance_errors
-            instance_errors.each do |err_key, err_msg|
-              print_error red, " * #{err_key} : #{err_msg}", reset, "\n"
+        # looks for special error format like instances.instanceErrors 
+        if json_response['errors'] && json_response['errors']['instances']
+          json_response['errors']['instances'].each do |error_obj|
+            tier_name = error_obj['tier']
+            instance_index = error_obj['index']
+            instance_errors = error_obj['instanceErrors']
+            print_error red, "#{tier_name} : #{instance_index}", reset, "\n"
+            if instance_errors
+              instance_errors.each do |err_key, err_msg|
+                print_error red, " * #{err_key} : #{err_msg}", reset, "\n"
+              end
             end
           end
         end
