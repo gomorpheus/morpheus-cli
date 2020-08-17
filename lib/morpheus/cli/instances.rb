@@ -556,18 +556,12 @@ class Morpheus::Cli::Instances
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
       instance = find_instance_by_name_or_id(args[0])
       return 1 if instance.nil?
-      new_group = nil
-      
-      
       if options[:payload]
         payload = options[:payload]
       end
@@ -589,10 +583,40 @@ class Morpheus::Cli::Instances
         params['ownerId'] = owner_id
         #payload['createdById'] = options[:owner].to_i # pre 4.2.1 api
       end
-      if params.empty? && options[:owner].nil?
-        print_red_alert "Specify at least one option to update"
-        puts optparse
-        exit 1
+      if options[:group]
+        group = find_group_by_name_or_id_for_provisioning(options[:group])
+        if group.nil?
+          return 1, "group not found"
+        end
+        payload['instance']['site'] = {'id' => group['id']}
+      end
+      # metadata tags
+      # if options[:options]['metadata'].is_a?(Array) && !options[:metadata]
+      #   options[:metadata] = options[:options]['metadata']
+      # end
+      if options[:metadata]
+        metadata = []
+        if options[:metadata] == "[]" || options[:metadata] == "null"
+          payload['instance']['metadata'] = []
+        elsif options[:metadata].is_a?(Array)
+          payload['instance']['metadata'] = options[:metadata]
+        else
+          # parse string into format name:value, name:value
+          # merge IDs from current metadata
+          # todo: should allow quoted semicolons..
+          metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
+          metadata_list = metadata_list.collect do |it|
+            metadata_pair = it.split(":")
+            row = {}
+            row['name'] = metadata_pair[0].to_s.strip
+            row['value'] = metadata_pair[1].to_s.strip
+            row
+          end
+          payload['instance']['metadata'] = metadata_list
+        end
+      end
+      if payload['instance'].empty? && params.empty? && options[:owner].nil?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
       if !params.empty?
         payload['instance'].deep_merge!(params)
