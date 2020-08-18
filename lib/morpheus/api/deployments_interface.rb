@@ -1,4 +1,4 @@
-require 'morpheus/api/api_client'
+require 'morpheus/api/rest_interface'
 
 class Morpheus::DeploymentsInterface < Morpheus::RestInterface
 
