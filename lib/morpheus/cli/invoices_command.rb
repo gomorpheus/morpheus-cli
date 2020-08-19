@@ -44,7 +44,7 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
         options[:show_prices] = true
       end
-      opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
+      opts.on('-t', '--type TYPE', "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         params['refType'] ||= []
         values = val.split(",").collect {|it| it.strip }.select {|it| it != "" }
         values.each { |it| params['refType'] << parse_invoice_ref_type(it) }
@@ -683,7 +683,7 @@ EOT
         params['externalId'] ||= []
         params['externalId'] << val
       end
-      opts.on('--type TYPE', String, "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
+      opts.on('-t', '--type TYPE', "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         params['refType'] ||= []
         values = val.split(",").collect {|it| it.strip }.select {|it| it != "" }
         values.each { |it| params['refType'] << parse_invoice_ref_type(it) }
