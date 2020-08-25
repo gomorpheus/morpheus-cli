@@ -1237,17 +1237,18 @@ module Morpheus
           end
         end
         if options[:outfile]
+          full_outfile = File.expand_path(options[:outfile])
           if output
             print_to_file(output, options[:outfile], options[:overwrite])
-            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(full_outfile)} B)\n" unless options[:quiet]
           else
             # uhhh ok lets try this
-            Morpheus::Logging::DarkPrinter.puts "using experimental feature: --outfile without a common format like json, yml or csv" if Morpheus::Logging.debug?
+            Morpheus::Logging::DarkPrinter.puts "using experimental feature: --out without a common format like json, yml or csv" if Morpheus::Logging.debug?
             result = with_stdout_to_file(options[:outfile], options[:overwrite], 'w+', &block)
-            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(options[:outfile])} B)\n" unless options[:quiet]
-            if result
+            if result && result != 0
               return result
             end
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(full_outfile)} B)\n" unless options[:quiet]
             return 0, nil
           end
         else
