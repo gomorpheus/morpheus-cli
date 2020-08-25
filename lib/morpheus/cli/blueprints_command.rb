@@ -62,11 +62,15 @@ class Morpheus::Cli::BlueprintsCommand
         params['ownerId'] << val
       end
       opts.add_hidden_option('--created-by')
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List blueprints."
     end
     optparse.parse!(args)
     connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     begin
       if params['ownerId']
         params['ownerId'] = params['ownerId'].collect do |owner_id|
@@ -125,7 +129,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about a blueprint.\n" +
                     "[blueprint] is required. This is the name or id of a blueprint. Supports 1-N [instance] arguments."
     end
@@ -154,8 +158,9 @@ class Morpheus::Cli::BlueprintsCommand
       end
       @blueprints_interface.setopts(options)
       blueprint = find_blueprint_by_name_or_id(arg)
-      exit 1 if blueprint.nil?
-
+      if blueprint.nil?
+        return 1, "blueprint not found"
+      end
       json_response = {'blueprint' => blueprint}  # skip redundant request
       #json_response = @blueprints_interface.get(blueprint['id'])
       blueprint = json_response['blueprint']
@@ -165,43 +170,13 @@ class Morpheus::Cli::BlueprintsCommand
         unless options[:json] || options[:yaml] || options[:csv]
           options[:yaml] = true
         end
-        blueprint_config = blueprint['config']
-        render_result = render_with_format(blueprint_config, options)
-        return 0 if render_result
+        return render_with_format(blueprint['config'], options)
       end
-
-      render_result = render_with_format(json_response, options, 'blueprint')
-      return 0 if render_result
-
-      print_h1 "Blueprint Details"
-      
-      print_blueprint_details(blueprint)
-
-      if blueprint['resourcePermission'].nil?
-        #print "\n", "No group access found", "\n"
-      else
-        # print_h2 "Group Access"
-        # rows = []
-        # if blueprint['resourcePermission']['allSites'] || blueprint['resourcePermission']['all']
-        #   rows.push({"name" => 'All'})
-        # end
-        # if blueprint['resourcePermission']['sites']
-        #   blueprint['resourcePermission']['sites'].each do |site|
-        #     rows.push(site)
-        #   end
-        # end
-        # rows = rows.collect do |site|
-        #   {group: site['name'], default: site['default'] ? 'Yes' : ''}
-        # end
-        # # columns = [:group, :default]
-        # columns = [:group]
-        # print cyan
-        # print as_pretty_table(rows, columns)
-        # print reset,"\n"
+      render_response(json_response, options, 'blueprint') do
+        print_h1 "Blueprint Details"
+        print_blueprint_details(blueprint)
       end
-
-      #print reset,"\n"
-      return 0
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -216,17 +191,12 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on('-t', '--type TYPE', String, "Blueprint Type. Default is morpheus.") do |val|
         options[:blueprint_type] = parse_blueprint_type(val.to_s)
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Create a new blueprint.\n" + 
                     "[name] is required. This is the name of the new blueprint."
     end
     optparse.parse!(args)
-    if args.count > 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args}\n#{optparse}"
-      return 1
-    end
-    options[:options] ||= {}
+    verify_args!(args:args, optparse:optparse, min:0, max:1)
     if args[0]
       options[:options]['name'] = args[0]
     end
@@ -248,9 +218,7 @@ class Morpheus::Cli::BlueprintsCommand
         end
         params = Morpheus::Cli::OptionTypes.prompt(add_blueprint_option_types, options[:options], @api_client, options[:params])
         params.deep_compact!
-        #blueprint_payload = params.select {|k,v| ['name', 'description', 'category'].include?(k) }
         # expects no namespace, just the config
-        #payload = blueprint_payload
         payload.deep_merge!(params)
       end
       @blueprints_interface.setopts(options)
@@ -260,12 +228,8 @@ class Morpheus::Cli::BlueprintsCommand
       end
 
       json_response = @blueprints_interface.create(payload)
-
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        blueprint = json_response["blueprint"]
+      blueprint = json_response['blueprint']
+      render_response(json_response, options, 'blueprint') do
         print_green_success "Added blueprint #{blueprint['name']}"
         if !options[:no_prompt]
           if options[:payload].nil? && ::Morpheus::Cli::OptionTypes::confirm("Would you like to add a tier now?", options.merge({default: false}))
@@ -275,11 +239,11 @@ class Morpheus::Cli::BlueprintsCommand
             end
           else
             # print details
-            get([blueprint['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+            return _get(blueprint["id"], options)
           end
         end
       end
-      return 0
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -294,7 +258,7 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on( '--owner USER', "Owner Username or ID" ) do |val|
         options[:owner] = val == 'null' ? nil : val
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update a blueprint.\n" + 
                     "[blueprint] is required. This is the name or id of a blueprint."
     end
@@ -388,7 +352,7 @@ class Morpheus::Cli::BlueprintsCommand
         options[:owner] = val == 'null' ? nil : val
       end
       build_option_type_options(opts, options, update_blueprint_option_types(false))
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update a blueprint permissions.\n" + 
                     "[blueprint] is required. This is the name or id of a blueprint."
     end
@@ -586,7 +550,7 @@ class Morpheus::Cli::BlueprintsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      build_standard_remove_options(opts, options)
       opts.footer = "Delete a blueprint." + "\n" +
                     "[blueprint] is required. This is the name or id of a blueprint."
     end
@@ -2123,6 +2087,7 @@ class Morpheus::Cli::BlueprintsCommand
     }
 
     print_description_list(description_cols, blueprint)
+    print reset,"\n"
     # print_h2 "Tiers"
     if blueprint["config"] && blueprint["config"]["tiers"] && blueprint["config"]["tiers"].keys.size != 0
       print cyan
@@ -2213,7 +2178,8 @@ class Morpheus::Cli::BlueprintsCommand
     else
       #print white,"\nTemplate is empty, use `blueprints add-tier \"#{blueprint['name']}\"`",reset,"\n"
     end
-    print reset,"\n"
+    # print reset,"\n"
+    print reset
   end
 
   # this parses the environments => groups => clouds tree structure
