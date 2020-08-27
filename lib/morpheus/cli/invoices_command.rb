@@ -193,9 +193,8 @@ class Morpheus::Cli::InvoicesCommand
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if invoices.empty?
-        unless options[:totals_only]
-          print cyan,"No invoices found.",reset,"\n"
-        end
+        print cyan,"No invoices found.",reset,"\n"
+        print reset,"\n"
       else
         # current_date = Time.now
         # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
