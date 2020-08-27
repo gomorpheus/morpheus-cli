@@ -851,7 +851,7 @@ class Morpheus::Cli::Tasks
         elsif target_type == 'appliance'
           # cool, run it locally.
         else
-          raise_command_error "missing required option: --instance or --host\n#{optparse}"
+          raise_command_error "missing required option: --instance or --host or --appliance\n#{optparse}"
         end
 
         # todo: prompt to task optionTypes for customOptions
