@@ -46,11 +46,15 @@ class Morpheus::Cli::Clouds
       opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
         options[:zone_type] = val
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List clouds."
     end
     optparse.parse!(args)
     connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     begin
       if options[:zone_type]
         cloud_type = cloud_type_for_name(options[:zone_type])
@@ -71,15 +75,7 @@ class Morpheus::Cli::Clouds
       end
 
       json_response = @clouds_interface.list(params)
-      if options[:json]
-        puts as_json(json_response, options, "zones")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "zones")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['zones'], options)
-      else
+      render_response(json_response, options, 'zones') do
         clouds = json_response['zones']
         title = "Morpheus Clouds"
         subtitles = []
@@ -99,6 +95,7 @@ class Morpheus::Cli::Clouds
         end
         print reset,"\n"
       end
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
