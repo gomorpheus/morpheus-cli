@@ -970,7 +970,7 @@ class Morpheus::Cli::JobsCommand
   def format_status(status_string, return_color=cyan)
     out = ""
     if status_string
-      if ['success', 'successful', 'ok'].include?(status_string)
+      if ['complete','success', 'successful', 'ok'].include?(status_string)
         out << "#{green}#{status_string.upcase}"
       elsif ['error', 'offline', 'failed', 'failure'].include?(status_string)
         out << "#{red}#{status_string.upcase}"
