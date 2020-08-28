@@ -832,6 +832,7 @@ class Morpheus::Cli::Tasks
         payload = options[:payload]
         payload.deep_merge!({'job' => passed_options})  unless passed_options.empty?
       else
+        # always parse instances and/or hosts
         if instance_ids.size > 0 && server_ids.size > 0
           raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
         elsif instance_ids.size > 0
@@ -848,11 +849,22 @@ class Morpheus::Cli::Tasks
             servers << server
           end
           params['servers'] = servers.collect {|it| it['id'] }
-        elsif target_type == 'appliance'
-          # cool, run it locally.
-        else
-          raise_command_error "missing required option: --instance or --host or --appliance\n#{optparse}"
         end
+        # validate requires inputs based on task executeTarget
+        if task['executeTarget'] == 'resource'
+          if instance_ids.empty? && server_ids.empty?
+            # todo: prompt for Context: None,Instance,Server and then Instance(s) or Server(s)
+            raise_command_error "missing required option: --instance or --host\n#{optparse}"
+          end
+        elsif task['executeTarget'] == 'local'
+          # no targetType required for local
+        elsif task['executeTarget'] == 'remote'
+          # not sure about this one
+        else
+          # unknown executeTarget
+        end
+        
+
 
         # todo: prompt to task optionTypes for customOptions
         if task['optionTypes']
@@ -877,15 +889,17 @@ class Morpheus::Cli::Tasks
         puts as_json(json_response, options)
         return json_response['success'] ? 0 : 1
       else
-        target_desc = ""
+        target_desc = nil
         if instances.size() > 0
           target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
         elsif servers.size() > 0
           target_desc = (servers.size() == 1) ? "host #{servers[0]['name']}" : "#{servers.size()} hosts"
-        elsif target_type == 'appliance'
-          target_desc = "appliance"
         end
-        print_green_success "Executing task #{task['name']} on #{target_desc}"
+        if target_desc
+          print_green_success "Executing task #{task['name']} on #{target_desc}"
+        else
+          print_green_success "Executing task #{task['name']}"
+        end
         # todo: refresh, use get processId and load process record isntead? err
         if json_response["jobExecution"] && json_response["jobExecution"]["id"]
           get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
