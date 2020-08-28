@@ -768,7 +768,7 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on('-D', '--details [on|off]', String, "Can be used to enable / disable execution details. Default if on") do |val|
+      opts.on('-D', '--details [on|off]', String, "Can be used to enable / disable execution details. Default is on") do |val|
         options[:details] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
