@@ -870,9 +870,9 @@ class Morpheus::Cli::Tasks
         if task['optionTypes']
           
         end
-
-        params['targetType'] = target_type
-
+        if target_type
+          params['targetType'] = target_type
+        end
         job_payload = {}
         job_payload.deep_merge!(params)
         job_payload.deep_merge!(passed_options) unless passed_options.empty?

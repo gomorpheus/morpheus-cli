@@ -632,9 +632,9 @@ class Morpheus::Cli::Workflows
           }
           custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
         end
-
-        params['targetType'] = target_type
-
+        if target_type
+          params['targetType'] = target_type
+        end
         job_payload = {}
         job_payload.deep_merge!(params)
         passed_options.delete('customOptions')
