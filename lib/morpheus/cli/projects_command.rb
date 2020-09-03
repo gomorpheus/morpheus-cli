@@ -102,7 +102,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[project]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options, [:find_by_name])
       opts.footer = <<-EOT
 Get details about a project.
 [project] is required. This is the name or id of a project.
@@ -127,8 +127,8 @@ EOT
       end
       return
     end
-    project = find_project_by_name_or_id(id)
-    exit 1 if project.nil?
+    project = options[:find_by_name] ? find_project_by_name(id) : find_project_by_name_or_id(id)
+    return 1, "project not found by '#{id}'" if project.nil?
     # refetch it by id
     json_response = {'project' => project}
     unless id.to_s =~ /\A\d{1,}\Z/
@@ -332,7 +332,7 @@ EOT
       opts.on('--remove-resources LIST', Array, "Remove Resources, comma separated list of resource names or IDs to remove.") do |list|
         remove_resource_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      build_standard_update_options(opts, options)
+      build_standard_update_options(opts, options, [:find_by_name])
       opts.footer = <<-EOT
 Update a project.
 [project] is required. This is the name or id of a project.
@@ -342,7 +342,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     exit_code, err = 0, nil
-    project = find_project_by_name_or_id(args[0])
+    project = options[:find_by_name] ? find_project_by_name(args[0]) : find_project_by_name_or_id(args[0])
     return 1, "project not found by '#{args[0]}'" if project.nil?
     # construct payload
     if options[:payload]
@@ -433,7 +433,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[project]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      build_standard_remove_options(opts, options, [:find_by_name])
       # opts.on( '-f', '--force', "Force Delete" ) do
       #   params[:force] = true
       # end
@@ -446,7 +446,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     exit_code, err = 0, nil
-    project = find_project_by_name_or_id(args[0])
+    project = options[:find_by_name] ? find_project_by_name(args[0]) : find_project_by_name_or_id(args[0])
     return 1, "project not found by '#{args[0]}'" if project.nil?
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the project #{project['name']}?")
       return 9, "aborted command"

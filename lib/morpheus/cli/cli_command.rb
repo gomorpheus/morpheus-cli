@@ -524,6 +524,12 @@ module Morpheus
               end
             end
 
+          when :find_by_name
+            opts.on('--find-by-name', "Always treat the identifier argument as a name, never an ID. Useful for specifying names that look like numbers. eg. '1234'" ) do
+              options[:find_by_name] = true
+            end
+            # opts.add_hidden_option('--find-by-name') if opts.is_a?(Morpheus::Cli::OptionParser)
+
           when :remote
             opts.on( '-r', '--remote REMOTE', "Remote name. The current remote is used by default." ) do |val|
               options[:remote] = val
