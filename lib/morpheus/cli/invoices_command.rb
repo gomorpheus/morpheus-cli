@@ -299,8 +299,8 @@ class Morpheus::Cli::InvoicesCommand
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Estimated Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']},
-                {label: 'Estimated Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']},
+                {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']},
+                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']},
               ]
             end
             cost_columns = {
@@ -533,8 +533,8 @@ EOT
       end
       if options[:show_estimates]
         cost_rows += [
-          {label: 'Estimated Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
-          {label: 'Estimated Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice']},
+          {label: 'Metered Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+          {label: 'Metered Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice']},
         ]
       end
       cost_columns = {
