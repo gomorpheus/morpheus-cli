@@ -326,6 +326,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
+        options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a resource pool." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud."
@@ -436,6 +439,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           payload['resourcePool']['active'] = options['active']
         else
           payload['resourcePool']['active'] = true
+        end
+
+        # Default
+        if options['defaultPool'] != nil
+          payload['resourcePool']['defaultPool'] = options['defaultPool']
         end
         
         # Visibility
@@ -552,6 +560,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
+        options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a resource pool." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud." + "\n"
@@ -640,6 +651,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         # Active
         if options['active'] != nil
           payload['resourcePool']['active'] = options['active']
+        end
+
+        # Default
+        if options['defaultPool'] != nil
+          payload['resourcePool']['defaultPool'] = options['defaultPool']
         end
         
         # Visibility
