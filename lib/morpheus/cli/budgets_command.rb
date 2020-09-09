@@ -570,16 +570,16 @@ class Morpheus::Cli::BudgetsCommand
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 1},
       # {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true},
       {'fieldName' => 'scope', 'fieldLabel' => 'Scope', 'code' => 'budget.scope', 'type' => 'select', 'selectOptions' => [{'name'=>'Account','value'=>'account'},{'name'=>'Tenant','value'=>'tenant'},{'name'=>'Cloud','value'=>'cloud'},{'name'=>'Group','value'=>'group'},{'name'=>'User','value'=>'user'}], 'defaultValue' => 'account', 'required' => true, 'displayOrder' => 3},
-      {'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("tenants", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:tenant', 'displayOrder' => 4},
-      {'fieldName' => 'user', 'fieldLabel' => 'User', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldName' => 'user', 'fieldLabel' => 'User', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params|
         @options_interface.options_for_source("users", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:user', 'displayOrder' => 5},
-      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("groups", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:group', 'displayOrder' => 6},
-      {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("clouds", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
       {'fieldName' => 'year', 'fieldLabel' => 'Period', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies to. Default is the current year.", 'displayOrder' => 8},
