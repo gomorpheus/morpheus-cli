@@ -244,15 +244,14 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     options = {}
     params = {}
     logo_file = nil
-    option_type_ids = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_option_type_options(opts, options, add_instance_type_option_types())
       opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
         if list.nil?
-          option_type_ids = []
+          params['optionTypes'] = []
         else
-          option_type_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -348,6 +347,13 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_instance_type_option_types())
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          params['optionTypes'] = []
+        else
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
       opts.footer = "Update an instance type." + "\n" +
                     "[name] is required. This is the name or id of a instance type."
     end
@@ -375,6 +381,14 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         params['hasSettings'] = ['on','true','1'].include?(params['hasSettings'].to_s) if params.key?('hasSettings')
         params['hasAutoScale'] = ['on','true','1'].include?(params['hasAutoScale'].to_s) if params.key?('hasAutoScale')
         params['hasDeployment'] = ['on','true','1'].include?(params['hasDeployment'].to_s) if params.key?('hasDeployment')
+        if params['optionTypes']
+          prompt_results = prompt_for_option_types(params, options, @api_client)
+          if prompt_results[:success]
+            params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+          else
+            return 1
+          end
+        end
         if params.empty?
           puts optparse
           #option_lines = update_instance_type_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
