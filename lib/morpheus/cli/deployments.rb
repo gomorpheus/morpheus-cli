@@ -388,7 +388,7 @@ EOT
       deployment = find_deployment_by_name_or_id(args[0])
       return 1 if deployment.nil?
     else
-      deployment_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deploymentId', 'fieldLabel' => 'Deployment', 'type' => 'select', 'required' => true, 'description' => 'Deployment to add version to', 'optionSource' => lambda {
+      deployment_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deploymentId', 'fieldLabel' => 'Deployment', 'type' => 'select', 'required' => true, 'description' => 'Deployment to add version to', 'optionSource' => lambda { |api_client, api_params|
         @deployments_interface.list(max:10000)['deployments'].collect {|it|
           {'name' => it['name'], 'value' => it['id']}
         }

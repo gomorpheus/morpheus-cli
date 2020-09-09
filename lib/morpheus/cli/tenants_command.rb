@@ -295,7 +295,7 @@ EOT
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-      {'fieldContext' => 'role', 'fieldName' => 'id', 'fieldLabel' => 'Base Role', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldContext' => 'role', 'fieldName' => 'id', 'fieldLabel' => 'Base Role', 'type' => 'select', 'optionSource' => lambda {  |api_client, api_params|
         @roles_interface.list(nil, {roleType:'account'})['roles'].collect {|it|
           {"name" => (it["authority"] || it["name"]), "value" => it["id"]}
         }

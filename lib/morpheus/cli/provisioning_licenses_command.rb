@@ -478,7 +478,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
 
   def add_license_option_types
     [
-      {'fieldName' => 'licenseType', 'fieldLabel' => 'License Type', 'type' => 'select', 'optionSource' => lambda { 
+      {'fieldName' => 'licenseType', 'fieldLabel' => 'License Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         # @options_interface.options_for_source("licenseTypes", {})['data']
         get_license_types_dropdown()
       }, 'required' => true, 'displayOrder' => 1},
@@ -493,7 +493,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
         # @options_interface.options_for_source("virtualImages", {})['data']
         get_virtual_images_dropdown()
       }, 'displayOrder' => 9},
-      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'type' => 'multiSelect', 'optionSource' => lambda { 
+      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'type' => 'multiSelect', 'optionSource' => lambda { |api_client, api_params| 
         @options_interface.options_for_source("allTenants", {})['data']
       }, 'displayOrder' => 10},
     ]
