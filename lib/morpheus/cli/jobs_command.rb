@@ -304,7 +304,7 @@ class Morpheus::Cli::JobsCommand
           job_options = @jobs_interface.options(job_type_id)
 
           # prompt task / workflow
-          if job_type['code'] == 'morpheus.task'
+          if job_type['code'].include?('morpheus.task')
             params['task'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'task.id', 'fieldLabel' => 'Task', 'type' => 'select', 'required' => true, 'optionSource' => 'tasks'}], options[:options], @api_client, {})['task']
           else
             params['workflow'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'workflow.id', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => true, 'optionSource' => 'operationTaskSets'}], options[:options], @api_client, {})['workflow']
@@ -324,6 +324,7 @@ class Morpheus::Cli::JobsCommand
         end
 
         # workflow
+        task_set = nil
         if !options[:workflow].nil?
           task_set = find_by_name_or_id('task_set', options[:workflow])
 
@@ -334,6 +335,27 @@ class Morpheus::Cli::JobsCommand
           params['workflow'] = {'id' => task_set['id']}
           job_type_id = load_job_type_id_by_code('morpheus.workflow')
         end
+        # load workflow if we havent yet
+        if (params['workflow'] && params['workflow']['id']) && task_set.nil?
+          task_set = find_by_name_or_id('task_set', params['workflow']['id'])
+          if task_set.nil?
+            print_red_alert "Workflow #{params['workflow']['id']} not found"
+            exit 1
+          end
+        end
+        # prompt for custom options for workflow
+        custom_option_types = task_set ? task_set['optionTypes'] : nil
+        if custom_option_types && custom_option_types.size() > 0
+          # they are all returned in a single array right now, so skip prompting for the jobType optionTypes
+          custom_option_types.reject! { |it| it['code'] && it['code'].include?('job.type') }
+          custom_option_types = custom_option_types.collect {|it|
+            it['fieldContext'] = 'customOptions'
+            it
+          }
+          custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
+          params['customOptions'] = custom_options['customOptions']
+        end
+
 
         # load options based upon job type + task / taskset
         job_options = @jobs_interface.options(job_type_id, {'taskId' => params['task'] ? params['task']['id'] : nil, 'workflowId' => params['workflow'] ? params['workflow']['id'] : nil})

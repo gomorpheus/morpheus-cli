@@ -623,7 +623,7 @@ class Morpheus::Cli::Workflows
           #raise_command_error "missing required option: --instance, --host or --appliance\n#{optparse}"
         end
 
-        # todo: prompt to workflow optionTypes for customOptions
+        # prompt to workflow optionTypes for customOptions
         custom_options = nil
         if workflow['optionTypes'] && workflow['optionTypes'].size() > 0
           custom_option_types = workflow['optionTypes'].collect {|it|
