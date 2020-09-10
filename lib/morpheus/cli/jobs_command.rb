@@ -304,7 +304,7 @@ class Morpheus::Cli::JobsCommand
           job_options = @jobs_interface.options(job_type_id)
 
           # prompt task / workflow
-          if job_type['code'].include?('morpheus.task')
+          if ['morpheus.task.jobType', 'morpheus.task'].include?(job_type['code'])
             params['task'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'task.id', 'fieldLabel' => 'Task', 'type' => 'select', 'required' => true, 'optionSource' => 'tasks'}], options[:options], @api_client, {})['task']
           else
             params['workflow'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'workflow.id', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => true, 'optionSource' => 'operationTaskSets'}], options[:options], @api_client, {})['workflow']
@@ -320,7 +320,7 @@ class Morpheus::Cli::JobsCommand
             exit 1
           end
           params['task'] = {'id' => task['id']}
-          job_type_id = load_job_type_id_by_code('morpheus.task')
+          job_type_id = load_job_type_id_by_code('morpheus.task.jobType') || load_job_type_id_by_code('morpheus.task')
         end
 
         # workflow
@@ -333,7 +333,7 @@ class Morpheus::Cli::JobsCommand
             exit 1
           end
           params['workflow'] = {'id' => task_set['id']}
-          job_type_id = load_job_type_id_by_code('morpheus.workflow')
+          job_type_id = load_job_type_id_by_code('morpheus.workflow.jobType') || load_job_type_id_by_code('morpheus.workflow')
         end
         # load workflow if we havent yet
         if (params['workflow'] && params['workflow']['id']) && task_set.nil?
