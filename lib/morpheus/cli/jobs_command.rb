@@ -102,15 +102,15 @@ class Morpheus::Cli::JobsCommand
         if stats = json_response['stats']
           label_width = 17
 
-          print_h2 "Executions Stats - Last 7 Days"
+          print_h2 "Execution Stats - Last 7 Days"
           print cyan
 
           print "Jobs".rjust(label_width, ' ') + ": #{stats['jobCount']}\n"
           print "Executions Today".rjust(label_width, ' ') + ": #{stats['todayCount']}\n"
           print "Daily Executions".rjust(label_width, ' ') + ": " + stats['executionsPerDay'].join(' | ') + "\n"
           print "Total Executions".rjust(label_width, ' ') + ": #{stats['execCount']}\n"
-          print "Completed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execSuccessRate'].to_f, 100) + "#{stats['execSuccess']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
-          print "Failed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execFailedRate'].to_f, 100) + "#{stats['execFailed']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
+          print "Completed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execSuccessRate'].to_f, 100, {bar_color:green}) + "#{stats['execSuccess']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
+          print "Failed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execFailedRate'].to_f, 100, {bar_color:red}) + "#{stats['execFailed']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
         end
         print reset,"\n"
       end
