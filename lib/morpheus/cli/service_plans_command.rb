@@ -409,9 +409,9 @@ class Morpheus::Cli::ServicePlanCommand
           while Morpheus::Cli::OptionTypes.confirm("Add #{price_sets.empty? ? '' : 'another '}price set?", {:default => false}) do
             price_unit = prompt_price_unit(options)
 
-            avail_price_sets ||= @price_sets_interface.list['priceSets'].collect {|it| {'name' => it['name'], 'value' => it['id'], 'priceUnit' => it['priceUnit']}}
+            avail_price_sets ||= @price_sets_interface.list({'priceUnit' => price_unit, 'max' => 10000})['priceSets'].collect {|it| {'name' => it['name'], 'value' => it['id'], 'priceUnit' => it['priceUnit']}}
 
-            if price_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceSet', 'type' => 'select', 'fieldLabel' => 'Price Set', 'selectOptions' => avail_price_sets.reject {|it| it['priceUnit'] != price_unit}, 'required' => false, 'description' => 'Select Price.'}],options[:options],@api_client,{}, options[:no_prompt], true)['priceSet']
+            if price_set_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priceSet', 'type' => 'select', 'fieldLabel' => 'Price Set', 'selectOptions' => avail_price_sets, 'required' => false, 'description' => 'Select Price.'}],options[:options],@api_client,{}, options[:no_prompt], true)['priceSet']
               price_set = avail_price_sets.find {|it| it['value'] == price_set_id}
               price_sets << {'id' => price_set['value'], 'priceUnit' => price_set['priceUnit']}
               avail_price_sets.reject! {|it| it['value'] == price_set_id}
