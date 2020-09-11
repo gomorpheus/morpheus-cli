@@ -110,7 +110,7 @@ EOT
     if curl_data
       #todo: curl_data.gsub("'","\\'")
       curl_cmd << " --data '#{curl_data}'"
-      if api_path !~ /^\/oauth/ 
+      if api_path !~ /^\/?oauth/
         if !(options[:headers] && options[:headers]['Content-Type'])
           curl_cmd << " -H \"Content-Type: application/json\""
         end
