@@ -9,15 +9,20 @@ class Morpheus::Cli::CurlCommand
   set_command_hidden
 
   def handle(args)
-    split_args = args.join(" ").split(" -- ")
-    args = split_args[0].split(" ")
-    curl_args = split_args[1] ? split_args[1].split(" ") : []
+    # support syntax for arbitrary curl args after " -- " 
+    # eg. curl /api/instances -- -ksv
+    split_index = args.index("--")
+    curl_args = []
+    if split_index
+      if args.length > (split_index + 1)
+        curl_args = args[(split_index + 1)..-1]
+      end
+      args = args[0..(split_index - 1)]
+    end
     curl_method = nil
     curl_data = nil
     curl_verbsose = false
     show_progress = false
-    # puts "args is : #{args}"
-    # puts "curl_args is : #{curl_args}"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus curl [path] -- [*args]"
@@ -98,16 +103,27 @@ EOT
     end
     curl_cmd << " \"#{url}\""
     if @access_token
-      curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
+      if !(options[:headers] && options[:headers]['Authorization'])
+        curl_cmd << " -H \"Authorization: Bearer #{@access_token}\""
+      end
     end
     if curl_data
       #todo: curl_data.gsub("'","\\'")
       curl_cmd << " --data '#{curl_data}'"
+      if api_path !~ /^\/oauth/ 
+        if !(options[:headers] && options[:headers]['Content-Type'])
+          curl_cmd << " -H \"Content-Type: application/json\""
+        end
+      end
+    end
+    if options[:headers]
+      options[:headers].each do |k,v|
+        curl_cmd << " -H \"#{k}: #{v}\""
+      end
     end
     if !curl_args.empty?
       curl_cmd << " " + curl_args.join(' ')
     end
-    
     # Morpheus::Logging::DarkPrinter.puts "#{curl_cmd}" if Morpheus::Logging.debug?
     curl_cmd_str = options[:scrub] ? Morpheus::Logging.scrub_message(curl_cmd) : curl_cmd
 
