@@ -67,8 +67,6 @@ module Morpheus
       # all standard commands
       Dir[File.dirname(__FILE__)  + "/cli/commands/standard/**/*.rb"].each {|file| load file }
 
-      # shell scripting commands
-
       # all the known commands
       load 'morpheus/cli/remote.rb'
       load 'morpheus/cli/doc.rb'
