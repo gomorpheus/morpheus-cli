@@ -596,10 +596,14 @@ class Morpheus::Cli::NetworkPoolsCommand
   def add_ip(args)
     options = {}
     params = {}
+    next_free_ip = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[network-pool] [ip]")
+      opts.banner = subcommand_usage("[network-pool] [ip] [--next]")
       opts.on('--ip-address VALUE', String, "IP Address for this network pool IP") do |val|
         options[:options]['ipAddress'] = val
+      end
+      opts.on('--next-free-ip', '--next-free-ip', "Use the next available ip address. This can be used instead of specifying an ip address") do
+        next_free_ip = true
       end
       opts.on('--hostname VALUE', String, "Hostname for this network pool IP") do |val|
         options[:options]['hostname'] = val
@@ -607,11 +611,13 @@ class Morpheus::Cli::NetworkPoolsCommand
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new network pool IP." + "\n" +
                     "[network-pool] is required. This is the name or id of a network pool.\n" +
-                    "[ip] is required and can be passed as --ip-address instead."
+                    "[ip] is required or --next-free-ip to use the next available address instead."
     end
     optparse.parse!(args)
-    if args.count < 1 || args.count > 2
-      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
+    if next_free_ip
+      verify_args!(args:args, count:1, optparse:optparse)
+    else
+      verify_args!(args:args, min:1, max:2, optparse:optparse)
     end
     connect(options)
     begin
@@ -639,8 +645,10 @@ class Morpheus::Cli::NetworkPoolsCommand
         payload['networkPoolIp'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
         # IP Address
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipAddress', 'fieldLabel' => 'IP Address', 'type' => 'text', 'required' => true, 'description' => 'IP Address for this network pool IP.'}], options[:options])
-        payload['networkPoolIp']['ipAddress'] = v_prompt['ipAddress'] unless v_prompt['ipAddress'].to_s.empty?
+        unless next_free_ip
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipAddress', 'fieldLabel' => 'IP Address', 'type' => 'text', 'required' => true, 'description' => 'IP Address for this network pool IP.'}], options[:options])
+          payload['networkPoolIp']['ipAddress'] = v_prompt['ipAddress'] unless v_prompt['ipAddress'].to_s.empty?
+        end
 
         # Hostname
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname for this network pool IP.'}], options[:options])
