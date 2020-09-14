@@ -94,6 +94,7 @@ EOT
         "Linux Key Pair" => lambda {|it| it['linuxKeyPairId'] },
         "Windows Username" => lambda {|it| it['windowsUsername'] },
         "Windows Password" => lambda {|it| it['windowsPassword'] },
+        "Default Persona" => lambda {|it| it['defaultPersona'] ? it['defaultPersona']['name'] : '' },
       }
       print_description_list(description_cols, user_settings)      
 
