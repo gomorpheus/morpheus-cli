@@ -489,13 +489,17 @@ module Morpheus
 
           when :query, :query_filters
             # arbitrary query parameters in the format -Q "category=web&phrase=nginx"
+            # or pass it many times like -Q foo=bar -Q hello=world
             opts.on( '-Q', '--query PARAMS', "Query parameters. PARAMS format is 'foo=bar&category=web'" ) do |val|
-              options[:query_filters_raw] = val
-              options[:query_filters] = {}
-              # todo: smarter parsing
+              if options[:query_filters_raw] && !options[:query_filters_raw].empty?
+                options[:query_filters_raw] += ("&" + val)
+              else
+                options[:query_filters_raw] = val
+              end
+              options[:query_filters] ||= {}
               val.split('&').each do |filter| 
                 k, v = filter.split('=')
-                # allow "woot:true instead of woot=true"
+                # allow woot:true instead of woot=true
                 if (k.include?(":") && v == nil)
                   k, v = k.split(":")
                 end
