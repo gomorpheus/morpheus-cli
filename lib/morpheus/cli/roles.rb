@@ -13,7 +13,7 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
-  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access'
+  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access', :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-persona-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -101,12 +101,20 @@ class Morpheus::Cli::Roles
       opts.on('-b','--blueprint-access', "Display Blueprint Access") do
         options[:include_blueprint_access] = true
       end
-      opts.on('-a','--all-access', "Display All Access Lists") do
+      opts.on(nil,'--catalog-item-type-access', "Display Catalog Item Type Access") do
+        options[:include_catalog_item_types_access] = true
+      end
+      opts.on(nil,'--personas', "Display Persona Access") do
+        options[:include_personas_access] = true
+      end
+      opts.on('-a','--all', "Display All Access Lists") do
         options[:include_feature_access] = true
         options[:include_group_access] = true
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
         options[:include_blueprint_access] = true
+        options[:include_catalog_item_types_access] = true
+        options[:include_personas_access] = true
       end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
@@ -198,6 +206,7 @@ EOT
           rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
         end
         print as_pretty_table(rows, [:code, :name, :access], options)
+        print reset,"\n"
       else
         print cyan,"Use --permissions to list permissions","\n"
       end
@@ -208,6 +217,7 @@ EOT
         {"Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) } },
         {"Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) } },
         {"Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) } },
+        {"Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) } },
       ], options)
 
       #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
@@ -225,6 +235,7 @@ EOT
         else
           print cyan,"Use -g, --group-access to list custom access","\n"
         end
+        print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
@@ -246,6 +257,7 @@ EOT
         else
           print cyan,"Use -c, --cloud-access to list custom access","\n"
         end
+        print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
@@ -267,6 +279,7 @@ EOT
         else
           print cyan,"Use -i, --instance-type-access to list custom access","\n"
         end
+        print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
@@ -290,12 +303,54 @@ EOT
         else
           print cyan,"Use -b, --blueprint-access to list custom access","\n"
         end
+        print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
       end
-      print reset,"\n"
+
+      
+      catalog_item_type_global_access = json_response['globalCatalogItemTypeAccess']
+      catalog_item_type_permissions = json_response['catalogItemTypePermissions'] || []
+      print cyan
+      # print_h2 "catalog_item_type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}", options
+      # print "\n"
+      if catalog_item_type_global_access == 'custom'
+        print_h2 "Catalog Item Type Access", options
+        if options[:include_catalog_item_types_access]
+          rows = catalog_item_type_permissions.collect do |it|
+            {
+              name: it['name'],
+              access: format_access_string(it['access'], ["none","read","full"]),
+            }
+          end
+          print as_pretty_table(rows, [:name, :access], options)
+        else
+          print cyan,"Use -b, --catalog-item-type-access to list custom access","\n"
+        end
+      else
+        # print "\n"
+        # print cyan,bold,"Catalog Item Type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}",reset,"\n"
+      end
+      
+
+      persona_permissions = json_response['personaPermissions'] || json_response['personas'] || []
+      if options[:include_catalog_item_types_access]
+        print_h2 "Persona Access", options
+        rows = persona_permissions.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'], ["none","read","full"]),
+          }
+        end
+        print as_pretty_table(rows, [:name, :access], options)
+        print reset,"\n"        
+      end
+
+      # print reset,"\n"
+      
     end
+
     return 0, nil
   end
 
@@ -446,6 +501,9 @@ EOT
               v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '}], options[:options])
               role_payload['multitenantLocked'] = ['on','true'].include?(v_prompt['multitenantLocked'].to_s)
             end
+            # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'optionSource' => 'personas', 'description' => 'Default Persona'}], options[:options], @api_client)
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => [{'name'=>'Service Catalog','value'=>'serviceCatalog'},{'name'=>'Standard','value'=>'standard'}], 'description' => 'Default Persona'}], options[:options], @api_client)
+            role_payload['defaultPersona'] = {'code' => v_prompt['defaultPersona']} unless v_prompt['defaultPersona'].to_s.strip.empty?
           end
         end
 
@@ -1258,6 +1316,249 @@ EOT
           print_green_success "Role #{role['authority']} access updated for all blueprints"
         else
           print_green_success "Role #{role['authority']} access updated for blueprint #{blueprint['name']}"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_global_catalog_item_type_access(args)
+    usage = "Usage: morpheus roles update-global-catalog-item-type-access [name] [full|custom|none]"
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+
+    if args.count < 2
+      puts optparse
+      exit 1
+    end
+    name = args[0]
+    access_value = args[1].to_s.downcase
+    if !['full', 'custom', 'none'].include?(access_value)
+      puts optparse
+      exit 1
+    end
+
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      exit 1 if role.nil?
+
+      params = {permissionCode: 'CatalogItemType', access: access_value}
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_permission(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Role #{role['authority']} global catalog item type access updated"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_catalog_item_type_access(args)
+    options = {}
+    catalog_item_type_id = nil
+    access_value = nil
+    do_all = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      opts.on( '--catalog-item-type ID', String, "Catalog Item Type ID or Name" ) do |val|
+        catalog_item_type_id = val
+      end
+      opts.on( nil, '--all', "Update all catalog item types at once." ) do
+        do_all = true
+      end
+      opts.on( '--access VALUE', String, "Access value [full|none]" ) do |val|
+        access_value = val
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update role access for an catalog item type or all types.\n" +
+                    "[name] is required. This is the name or id of a role.\n" + 
+                    "--catalog-item-type or --all is required. This is the name or id of a catalog item type.\n" + 
+                    "--access is required. This is the new access value."
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+    name = args[0]
+    # support old usage: [name] [catalog_item_type] [access]
+    catalog_item_type_id ||= args[1]
+    access_value ||= args[2]
+
+    if (!catalog_item_type_id && !do_all) || !access_value
+      puts_error optparse
+      return 1
+    end
+    
+    access_value = access_value.to_s.downcase
+
+    if !['full', 'none'].include?(access_value)
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      return 1 if role.nil?
+
+      role_json = @roles_interface.get(account_id, role['id'])
+      catalog_item_type_global_access = role_json['globalCatalogItemTypeAccess']
+      catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || []
+      if catalog_item_type_global_access != 'custom'
+        print "\n", red, "Global Catalog Item Type Access is currently: #{catalog_item_type_global_access.to_s.capitalize}"
+        print "\n", "You must first set it to Custom via `morpheus roles update-global-catalog-item-type-access \"#{name}\" custom`"
+        print "\n\n", reset
+        return 1
+      end
+
+      # hacky, but support name or code lookup via the list returned in the show payload
+      catalog_item_type = nil
+      if !do_all
+        if catalog_item_type_id.to_s =~ /\A\d{1,}\Z/
+          catalog_item_type = catalog_item_type_permissions.find {|b| b['id'] == catalog_item_type_id.to_i }
+        else
+          catalog_item_type = catalog_item_type_permissions.find {|b| b['name'] == catalog_item_type_id }
+        end
+        if catalog_item_type.nil?
+          print_red_alert "Catalog Item Type not found: '#{catalog_item_type_id}'"
+          return 1
+        end
+      end
+
+      params = {}
+      if do_all
+        params['allCatalogItemTypes'] = true
+      else
+        params['catalogItemTypeId'] = catalog_item_type['id']
+      end
+      params['access'] = access_value
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_catalog_item_type(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_catalog_item_type(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        if do_all
+          print_green_success "Role #{role['authority']} access updated for all catalog item types"
+        else
+          print_green_success "Role #{role['authority']} access updated for catalog item type #{catalog_item_type['name']}"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_persona_access(args)
+    options = {}
+    persona_id = nil
+    access_value = nil
+    do_all = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [serviceCatalog|standard]")
+      opts.on( '--persona CODE', String, "Persona Code" ) do |val|
+        persona_id = val
+      end
+      opts.on( nil, '--all', "Update all personas at once." ) do
+        do_all = true
+      end
+      opts.on( '--access VALUE', String, "Access value [full|none]" ) do |val|
+        access_value = val
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update role access for an persona or personas.\n" +
+                    "[name] is required. This is the name or id of a role.\n" + 
+                    "--persona or --all is required. This is the code of a persona.\n" + 
+                    "--access is required. This is the new access value."
+    end
+    optparse.parse!(args)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+    name = args[0]
+    # support old usage: [name] [persona] [access]
+    persona_id ||= args[1]
+    access_value ||= args[2]
+
+    if (!persona_id && !do_all) || !access_value
+      puts_error optparse
+      return 1
+    end
+    
+    access_value = access_value.to_s.downcase
+
+    if !['full', 'none'].include?(access_value)
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      return 1 if role.nil?
+
+      role_json = @roles_interface.get(account_id, role['id'])
+      
+      # no lookup right now, pass the code serviceCatalog|standard
+      persona_code = persona_id
+
+      params = {}
+      if do_all
+        params['allPersonas'] = true
+      else
+        params['personaCode'] = persona_code
+      end
+      params['access'] = access_value
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_persona(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_persona(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        if do_all
+          print_green_success "Role #{role['authority']} access updated for all personas"
+        else
+          print_green_success "Role #{role['authority']} access updated for persona #{persona_code}"
         end
       end
       return 0

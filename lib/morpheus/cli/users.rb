@@ -161,12 +161,22 @@ class Morpheus::Cli::Users
         options[:include_app_templates_access] = true
         params['includeAccess'] = true
       end
+      opts.on(nil,'--catalog-item-type-access', "Display Catalog Item Type Access") do
+        options[:include_catalog_item_types_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on(nil,'--personas', "Display Persona Access") do
+        options[:include_personas_access] = true
+        params['includeAccess'] = true
+      end
       opts.on(nil,'--all', "Display All Access Lists") do
         options[:include_features_access] = true
         options[:include_sites_access] = true
         options[:include_zones_access] = true
         options[:include_instance_types_access] = true
         options[:include_app_templates_access] = true
+        options[:include_catalog_item_types_access] = true
+        options[:include_personas_access] = true
         params['includeAccess'] = true
       end
       opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
@@ -241,7 +251,8 @@ EOT
           puts yellow,"No permissions found.",reset
         end
       else
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
+         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Types', 'personas' => 'Personas'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
             access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]

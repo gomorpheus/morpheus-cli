@@ -136,6 +136,7 @@ module Morpheus::Cli::AccountsHelper
       "Multitenant" => lambda {|it| 
         format_boolean(it['multitenant']).to_s + (it['multitenantLocked'] ? " (LOCKED)" : "")
       },
+      "Default Persona" => lambda {|it| it['defaultPersona'] ? it['defaultPersona']['name'] : '(standard)' },
       "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
       #"Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
