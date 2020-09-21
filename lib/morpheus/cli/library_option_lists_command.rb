@@ -90,6 +90,9 @@ class Morpheus::Cli::LibraryOptionListsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_standard_get_options(opts, options)
+      opts.on(nil,'--no-items', "Do not display List Items") do |val|
+        options[:no_list_items] = true
+      end
       opts.footer = "Get details about an option list.\n" + 
                     "[name] is required. This is the name or id of an option list. Supports 1-N [name] arguments."
     end
@@ -166,15 +169,20 @@ class Morpheus::Cli::LibraryOptionListsCommand
           print_h2 "Translation Script"
           print reset,"#{option_type_list['translationScript']}","\n",reset
         end
+        if !option_type_list['requestScript'].empty?
+          print_h2 "Request Script"
+          print reset,"#{option_type_list['requestScript']}","\n",reset
+        end
       end
-      print_h2 "List Items"
-      if option_type_list['listItems']
-        print as_pretty_table(option_type_list['listItems'], ['name', 'value'], options)
-      else
-        puts "No data"
+      if options[:no_list_items] != true
+        list_items = option_type_list['listItems']
+        if list_items && list_items.size > 0
+          print_h2 "List Items"
+          print as_pretty_table(list_items, [:name, :value], options)
+          print_results_pagination({size: list_items.size, total: list_items.size})
+        end
       end
       print reset,"\n"
-
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
