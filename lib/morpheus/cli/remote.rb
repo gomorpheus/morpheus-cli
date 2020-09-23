@@ -137,7 +137,6 @@ EOT
             check_str
           },
           "Response Time" => lambda {|it| format_duration_milliseconds(it[:last_check][:took]) rescue "" },
-          #"Response Time" => lambda {|it| format_sig_dig((it[:last_check][:took]/ 1000.to_f), 3) + "s" rescue "" },
           "Error" => {display_method: lambda {|it| 
             error_str = it[:last_check] ? it[:last_check][:error].to_s : "" 
             error_str
@@ -1283,7 +1282,6 @@ EOT
         end
       },
       "Response Time" => lambda {|it| format_duration_milliseconds(it[:last_check][:took]) rescue "" },
-      #"Response Time" => lambda {|it| format_sig_dig((it[:last_check][:took]/ 1000.to_f), 3) + "s" rescue "" },
       "Status" => lambda {|it| format_appliance_status(it, cyan) },
       "Error" => lambda {|it| 
         error_str = it[:last_check] ? it[:last_check][:error] : "" 

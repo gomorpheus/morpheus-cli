@@ -392,6 +392,9 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
+      opts.on( nil, '--costs', "Display Cost and Price" ) do
+        options[:include_costs] = true
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is provisioned,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "provisioned,failed"
         if !val.to_s.empty?
@@ -453,7 +456,7 @@ class Morpheus::Cli::Hosts
       title = "Host Details"
       print_h1 title, [], options
       print cyan
-      print_description_list({
+      server_columns = {
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
@@ -463,12 +466,23 @@ class Morpheus::Cli::Hosts
         "Type" => lambda {|it| it['computeServerType'] ? it['computeServerType']['name'] : 'unmanaged' },
         "Platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Agent" => lambda {|it| it['agentInstalled'] ? "#{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}" : '(not installed)' },
         "Status" => lambda {|it| format_server_status(it) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
         "Power" => lambda {|it| format_server_power_state(it) },
-      }, server)
+      }
       
+      if server['hourlyCost'].to_f == 0
+        server_columns.delete("Cost")
+      end
+      if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
+        server_columns.delete("Price")
+      end
+
+      print_description_list(server_columns, server)
+
       if server['statusMessage']
         print_h2 "Status Message", options
         if server['status'] == 'failed'
@@ -485,6 +499,16 @@ class Morpheus::Cli::Hosts
 
       print_h2 "Host Usage", options
       print_stats_usage(stats)
+
+      if options[:include_costs]
+        print_h2 "Host Cost"
+        cost_columns = {
+          "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+          "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        }
+        print_description_list(cost_columns, server)
+      end
+
       print reset, "\n"
 
 

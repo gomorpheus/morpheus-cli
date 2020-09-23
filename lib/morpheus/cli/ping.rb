@@ -199,7 +199,6 @@ EOT
               "Version" => lambda {|it| appliance[:build_version] },
               # "Active" => lambda {|it| it[:active] ? "Yes " + format_is_current() : "No" },
               "Response Time" => lambda {|it| format_duration_seconds(took_sec) },
-              #"Response Time" => lambda {|it| format_sig_dig(took_sec, 3) + "s" rescue "" },
               # "Error" => lambda {|it| error_string },
               "Status" => lambda {|it| format_appliance_status(appliance, cyan) },
             }

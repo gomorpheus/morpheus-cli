@@ -1148,6 +1148,9 @@ class Morpheus::Cli::Instances
       opts.on( nil, '--scaling', "Display Instance Scaling Settings" ) do
         options[:include_scaling] = true
       end
+      opts.on( nil, '--costs', "Display Cost and Price" ) do
+        options[:include_costs] = true
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
@@ -1249,6 +1252,8 @@ class Morpheus::Cli::Instances
         "Layout" => lambda {|it| it['layout'] ? it['layout']['name'] : '' },
         "Version" => lambda {|it| it['instanceVersion'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        # "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        # "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Environment" => 'instanceContext',
         "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
         "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
@@ -1304,6 +1309,16 @@ class Morpheus::Cli::Instances
         print_h2 "Instance Usage", options
         print_stats_usage(stats)
       end
+
+      if options[:include_costs]
+        print_h2 "Instance Cost"
+        cost_columns = {
+          "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+          "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        }
+        print_description_list(cost_columns, instance)
+      end
+
       print reset, "\n"
 
       # if options[:include_lb]

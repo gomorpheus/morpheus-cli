@@ -35,6 +35,9 @@ class Morpheus::Cli::ContainersCommand
       opts.on( nil, '--actions', "Display Available Actions" ) do
         options[:include_available_actions] = true
       end
+      opts.on( nil, '--costs', "Display Cost and Price" ) do
+        options[:include_costs] = true
+      end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
         if !val.to_s.empty?
@@ -99,6 +102,8 @@ class Morpheus::Cli::ContainersCommand
         "Name" => lambda {|it| it['server'] ? it['server']['name'] : '(no server)' }, # there is a server.displayName too?
         "Type" => lambda {|it| it['containerType'] ? it['containerType']['name'] : '' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
+        # "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        # "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Instance" => lambda {|it| it['instance'] ? it['instance']['name'] : '' },
         "Host" => lambda {|it| it['server'] ? it['server']['name'] : '' },
         "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
@@ -131,6 +136,15 @@ class Morpheus::Cli::ContainersCommand
         else
           print "#{yellow}No available actions#{reset}\n\n"
         end
+      end
+
+      if options[:include_costs]
+        print_h2 "Container Cost"
+        cost_columns = {
+          "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+          "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        }
+        print_description_list(cost_columns, container)
       end
 
       print reset, "\n"
