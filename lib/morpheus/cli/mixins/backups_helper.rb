@@ -1,6 +1,6 @@
 require 'morpheus/cli/mixins/print_helper'
 # Mixin for Morpheus::Cli command classes
-# Provides common methods for infrastructure management
+# Provides common methods for backups management
 module Morpheus::Cli::BackupsHelper
 
   def self.included(klass)
@@ -8,13 +8,11 @@ module Morpheus::Cli::BackupsHelper
   end
 
   def backups_interface
-    # @api_client.groups
     raise "#{self.class} has not defined @backups_interface" if @backups_interface.nil?
     @backups_interface
   end
 
-  def backup_jobs_interface
-    # @api_client.groups
+  def backup_jobs_interfaces
     raise "#{self.class} has not defined @backup_jobs_interface" if @backup_jobs_interface.nil?
     @backup_jobs_interface
   end

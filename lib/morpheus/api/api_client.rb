@@ -764,6 +764,11 @@ class Morpheus::APIClient
     Morpheus::BackupJobsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def catalog_item_types
+    Morpheus::CatalogItemTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  
   # add new interfaces here
 
 end

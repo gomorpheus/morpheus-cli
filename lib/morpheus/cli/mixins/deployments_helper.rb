@@ -10,7 +10,6 @@ module Morpheus::Cli::DeploymentsHelper
   ## Deployments
 
   def deployments_interface
-    # @api_client.groups
     raise "#{self.class} has not defined @deployments_interface" if @deployments_interface.nil?
     @deployments_interface
   end

@@ -1285,4 +1285,50 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
+  # convert JSON or YAML string to a map
+  def parse_json_or_yaml(config, parsers = [:json, :yaml])
+    rtn = {success: false, data: nil, err: nil}
+    err = nil
+    config = config.strip
+    if config[0..2] == "---"
+      parsers = [:yaml]
+    end
+    # ok only parse json for strings that start with {, consolidated yaml can look like json and cause issues}
+    if config[0] && config[0].chr == "{" && config[-1] && config[-1].chr == "}"
+      parsers = [:json]
+    end
+    parsers.each do |parser|
+      if parser == :yaml
+        begin
+          # todo: one method to parse and return Hash
+          # load does not raise an exception, it just returns the bad string
+          #YAML.parse(config)
+          config_map = YAML.load(config)
+          if !config_map.is_a?(Hash)
+            raise "Failed to parse config as YAML"
+          end
+          rtn[:data] = config_map
+          rtn[:success] = true
+          break
+        rescue => ex
+          rtn[:err] = ex if rtn[:err].nil?
+        end
+      elsif parser == :json
+        begin
+          config_map = JSON.parse(config)
+          rtn[:data] = config_map
+          rtn[:success] = true
+          break
+        rescue => ex
+          rtn[:err] = ex if rtn[:err].nil?
+        end
+      end
+    end
+    return rtn
+  end
+
+  def parse_yaml_or_json(config, parsers = [:yaml, :json])
+    parse_json_or_yaml(config, parsers)
+  end
+
 end

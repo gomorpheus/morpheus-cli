@@ -215,6 +215,9 @@ EOT
       print_dry_run @backups_interface.dry.destroy(backup['id'], params)
       return
     end
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the backup #{backup['name']}?")
+      return 9, "aborted command"
+    end
     json_response = @backups_interface.destroy(backup['id'], params)
     render_response(json_response, options) do
       print_green_success "Removed backup #{backup['name']}"

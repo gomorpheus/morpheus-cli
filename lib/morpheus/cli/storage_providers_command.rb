@@ -42,71 +42,39 @@ class Morpheus::Cli::StorageProvidersCommand
   def list(args)
     options = {}
     params = {}
+    ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search]")
+      build_standard_list_options(opts, options)
       opts.footer = "List storage buckets."
     end
     optparse.parse!(args)
-    if args.count != 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got #{args.count}\n#{optparse}"
-      return 1
-    end
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @storage_providers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @storage_providers_interface.dry.list(params)
-        return
-      end
-      json_response = @storage_providers_interface.list(params)
-      storage_providers = json_response["storageBuckets"]
-      if options[:json]
-        puts as_json(json_response, options, "storageBuckets")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "storageBuckets")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(storage_providers, options)
-        return 0
-      end
-      title = "Morpheus Storage Buckets"
-      subtitles = []
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-      if storage_providers.empty?
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @storage_providers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @storage_providers_interface.dry.list(params)
+      return
+    end
+    json_response = @storage_providers_interface.list(params)
+    storage_buckets = json_response['storageBuckets']
+    render_response(json_response, options, 'storageBuckets') do
+      print_h1 "Morpheus Storage Buckets", parse_list_subtitles(options), options
+      if storage_buckets.empty?
         print cyan,"No storage buckets found.",reset,"\n"
       else
-        rows = storage_providers.collect {|storage_provider| 
-          row = {
-            id: storage_provider['id'],
-            name: storage_provider['name'],
-            provider: format_storage_provider_type(storage_provider), 
-            bucket: format_bucket_name(storage_provider), 
-            backups: storage_provider['defaultBackupTarget'] ? 'Yes' : 'No', 
-            deployments: storage_provider['defaultDeploymentTarget'] ? 'Yes' : 'No', 
-            virtualImages: storage_provider['defaultVirtualImageTarget'] ? 'Yes' : 'No', 
-          }
-          row
-        }
-        columns = [:id, :name, {:provider => {:display_name => "Provider Type".upcase} }, {:bucket => {:display_name => "Bucket Name".upcase} }, :backups, :deployments]
-        if options[:include_fields]
-          columns = options[:include_fields]
-          rows = storage_providers
-        end
-        print cyan
-        print as_pretty_table(rows, columns, options)
-        print reset
-        print_results_pagination(json_response, {:label => "storage bucket", :n_label => "storage buckets"})
+        print as_pretty_table(storage_buckets, storage_bucket_column_definitions.upcase_keys!, options)
+        print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if storage_buckets.empty?
+      return 1, "no storage buckets found"
+    else
+      return 0, nil
     end
   end
 
@@ -1232,6 +1200,22 @@ class Morpheus::Cli::StorageProvidersCommand
 
   private
 
+  def storage_bucket_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      # "Description" => 'description',
+      "Provider Type" => lambda {|it| format_storage_provider_type(it) },
+      "Bucket Name" => lambda {|it| format_bucket_name(it) },
+      # "Source" => lambda {|it| it['source'] },
+      "Backups" => lambda {|it| format_boolean(it['defaultBackupTarget']) },
+      "Deployments" => lambda {|it| format_boolean(it['defaultDeploymentTarget']) },
+      "Virtual Images" => lambda {|it| format_boolean(it['defaultVirtualImageTarget']) },
+      # "Archive Snapshots" => lambda {|it| format_boolean(it['copyToStore']) },
+      # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
 
   def get_storage_provider_types()
     [
