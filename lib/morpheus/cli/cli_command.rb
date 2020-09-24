@@ -194,7 +194,7 @@ module Morpheus
           if option_type['placeHolder']
             value_label = option_type['placeHolder']
           elsif option_type['type'] == 'checkbox'
-            value_label = 'on|off' # or.. true|false
+            value_label = '[on|off]' # or.. true|false
           elsif option_type['type'] == 'number'
             value_label = 'NUMBER'
           elsif option_type['type'] == 'multiSelect'
@@ -204,12 +204,16 @@ module Morpheus
           # elsif option['type'] == 'select'
           end
           opts.on("--#{full_field_name} #{value_label}", String, description) do |val|
-            # attempt to parse JSON, this allows blank arrays for multiSelect like --tenants []
-            if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
-              begin
-                val = JSON.parse(val)
-              rescue
-                Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+            if option_type['type'] == 'checkbox'
+              val = (val.to_s != 'false' && val.to_s != 'off')
+            else
+              # attempt to parse JSON, this allows blank arrays for multiSelect like --tenants []
+              if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
+                begin
+                  val = JSON.parse(val)
+                rescue
+                  Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+                end
               end
             end
             cur_namespace = custom_options

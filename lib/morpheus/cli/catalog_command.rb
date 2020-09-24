@@ -29,6 +29,12 @@ class Morpheus::Cli::CatalogCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
+      opts.on( '--enabled [on|off]', String, "Filter by enabled" ) do |val|
+        params['enabled'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
+      opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
+        params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog items."
     end
@@ -121,7 +127,9 @@ EOT
     render_response(json_response, options, catalog_item_type_object_key) do
       print_h1 "Catalog Item Type Details", [], options
       print cyan
-      print_description_list(catalog_item_type_column_definitions, catalog_item_type)
+      show_columns = catalog_item_type_column_definitions
+      show_columns.delete("Blueprint") unless catalog_item_type['blueprint']
+      print_description_list(show_columns, catalog_item_type)
       if config && options[:no_config] != true
         print_h2 "Config YAML"
         
@@ -327,6 +335,7 @@ EOT
       "Name" => 'name',
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
+      "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
       #"Config" => lambda {|it| it['config'] },
@@ -337,10 +346,14 @@ EOT
 
   def format_catalog_type(catalog_item_type)
     out = ""
-    # api should start returning type: "blueprint" and "blueprint": {"name":my blueprint"} }
+    # api "blueprint": {"name":my blueprint"} }
     # instead of cryptic refType
     if catalog_item_type['type']
-      out << (catalog_item_type['type']['name'] || catalog_item_type['type']['code']) rescue catalog_item_type['type'].to_s
+      if catalog_item_type['type'].is_a?(String)
+        out << catalog_item_type['type'].to_s.capitalize
+      else
+        out << (catalog_item_type['type']['name'] || catalog_item_type['type']['code']) rescue catalog_item_type['type'].to_s
+      end
     else
       ref_type = catalog_item_type['refType']
       if ref_type == 'InstanceType'
