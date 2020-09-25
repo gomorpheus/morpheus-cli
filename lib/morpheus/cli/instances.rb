@@ -96,7 +96,10 @@ class Morpheus::Cli::Instances
       opts.footer = "List instances."
     end
     optparse.parse!(args)
-    verify_args!(args:args, count:0, optparse:optparse)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     connect(options)
     begin
       params.merge!(parse_list_options(options))

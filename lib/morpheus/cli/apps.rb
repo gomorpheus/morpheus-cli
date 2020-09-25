@@ -92,10 +92,9 @@ class Morpheus::Cli::Apps
       opts.footer = "List apps."
     end
     optparse.parse!(args)
-    if args.count != 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} list expects 0 arguments and received #{args.count}: #{args}\n#{optparse}"
-      return 1
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
     end
     connect(options)
     begin

@@ -119,6 +119,10 @@ class Morpheus::Cli::Hosts
     end
     optparse.parse!(args)
     connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     begin
       params.merge!(parse_list_options(options))
       account = nil
