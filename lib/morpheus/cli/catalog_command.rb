@@ -6,6 +6,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::CatalogCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::CatalogHelper
+  include Morpheus::Cli::LibraryHelper
   include Morpheus::Cli::OptionSourceHelper
 
   # hide until 5.1 when update api is fixed and service-catalog endpoints are available
@@ -17,6 +18,7 @@ class Morpheus::Cli::CatalogCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @catalog_item_types_interface = @api_client.catalog_item_types
+    @option_types_interface = @api_client.option_types
   end
 
   def handle(args)
@@ -130,9 +132,25 @@ EOT
       show_columns = catalog_item_type_column_definitions
       show_columns.delete("Blueprint") unless catalog_item_type['blueprint']
       print_description_list(show_columns, catalog_item_type)
+
+      if catalog_item_type['optionTypes'] && catalog_item_type['optionTypes'].size > 0
+        print_h2 "Option Types"
+        opt_columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          {"NAME" => lambda {|it| it['name'] } },
+          {"TYPE" => lambda {|it| it['type'] } },
+          {"FIELD NAME" => lambda {|it| it['fieldName'] } },
+          {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+          {"DEFAULT" => lambda {|it| it['defaultValue'] } },
+          {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+        ]
+        print as_pretty_table(catalog_item_type['optionTypes'], opt_columns)
+      else
+        # print cyan,"No option types found for this catalog item.","\n",reset
+      end
+
       if config && options[:no_config] != true
         print_h2 "Config YAML"
-        
         #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
         #print reset,(as_yaml(config, options) rescue config),"\n",reset
         config_string = as_yaml(config, options) rescue config
@@ -151,6 +169,7 @@ EOT
         end
         print reset,config_string.chomp("\n"),"\n",reset
       end
+
       print reset,"\n"
     end
     return 0, nil
@@ -162,6 +181,42 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_catalog_item_type_option_types)
+      opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
+        options[:config_file] = val.to_s
+        file_content = nil
+        full_filename = File.expand_path(options[:config_file])
+        if File.exists?(full_filename)
+          file_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        parse_result = parse_json_or_yaml(file_content)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          #raise_command_error "Failed to parse config as valid YAML or JSON."
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          params['optionTypes'] = []
+        else
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--optionTypes [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          params['optionTypes'] = []
+        else
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.add_hidden_option('--optionTypes')
       build_option_type_options(opts, options, add_catalog_item_type_advanced_option_types)
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -206,6 +261,15 @@ EOT
           params['config'] = config_map
         end
       end
+      if params['optionTypes']
+        # todo: move to optionSource, so it will be /api/options/optionTypes  lol
+        prompt_results = prompt_for_option_types(params, options, @api_client)
+        if prompt_results[:success]
+          params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1
+        end
+      end
       payload[catalog_item_type_object_key].deep_merge!(params)
     end
     @catalog_item_types_interface.setopts(options)
@@ -229,6 +293,42 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[catalog item type] [options]")
       build_option_type_options(opts, options, update_catalog_item_type_option_types)
+      opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
+        options[:config_file] = val.to_s
+        file_content = nil
+        full_filename = File.expand_path(options[:config_file])
+        if File.exists?(full_filename)
+          file_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        parse_result = parse_json_or_yaml(file_content)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          #raise_command_error "Failed to parse config as valid YAML or JSON."
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          params['optionTypes'] = []
+        else
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.on('--optionTypes [x,y,z]', Array, "List of Option Type IDs") do |list|
+        if list.nil?
+          params['optionTypes'] = []
+        else
+          params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+      end
+      opts.add_hidden_option('--optionTypes')
       build_option_type_options(opts, options, update_catalog_item_type_advanced_option_types)
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
@@ -379,6 +479,7 @@ EOT
       {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true},
       {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList'},
+      #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.'},
       {'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'required' => true, 'description' => 'JSON or YAML'}
     ]
   end
