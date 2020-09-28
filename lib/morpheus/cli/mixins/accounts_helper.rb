@@ -197,7 +197,7 @@ module Morpheus::Cli::AccountsHelper
 
   ## Users
 
-  def user_column_definitions()
+  def user_column_definitions(opts={})
     {
       "ID" => 'id',
       "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
@@ -207,15 +207,15 @@ module Morpheus::Cli::AccountsHelper
       "Email" => 'email',
       "Role" => lambda {|it| format_user_role_names(it) },
       "Notifications" => lambda {|it| it['receiveNotifications'].nil? ? '' : format_boolean(it['receiveNotifications']) },
-      "Status" => lambda {|it| format_user_status(it) },
+      "Status" => lambda {|it| format_user_status(it, opts[:color] || cyan) },
       "Last Login" => lambda {|it| format_duration_ago(it['lastLoginDate']) },
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
   end
 
-  def list_user_column_definitions()
-    columns = user_column_definitions
+  def list_user_column_definitions(opts={})
+    columns = user_column_definitions(opts)
     columns.delete("Notifications")
     return columns.upcase_keys!
   end
@@ -262,8 +262,8 @@ module Morpheus::Cli::AccountsHelper
       return nil
     elsif users.size > 1
       print_red_alert "Found #{users.size} users by username '#{username}'. Try using ID instead: #{format_list(users.collect {|it| it['id']}, 'or', 3)}"
-      print "\n"
-      print as_pretty_table(users, list_user_column_definitions, {color: red, thin: true})
+      print_error "\n"
+      print_error as_pretty_table(users, list_user_column_definitions({color: red}), {color: red, thin: true})
       print reset,"\n"
       return nil
     else
