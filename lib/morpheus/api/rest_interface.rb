@@ -31,10 +31,4 @@ class Morpheus::RestInterface < Morpheus::APIClient
     execute(method: :delete, url: "#{base_path}/#{id}", params: params)
   end
 
-  protected
-
-  def validate_id!(id)
-    raise "#{self.class} passed a blank id!" if id.to_s.strip.empty?
-  end
-
 end

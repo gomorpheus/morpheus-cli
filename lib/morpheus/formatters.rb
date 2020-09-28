@@ -388,7 +388,7 @@ end
 
 # returns currency amount formatted like "$4,5123.00". 0.00 is formatted as "$0"
 # this is not ideal
-def format_money(amount, currency='usd', opts={})
+def format_currency(amount, currency='usd', opts={})
   amount = amount.to_f
   if amount == 0
     return currency_sym(currency).to_s + "0"
@@ -409,3 +409,9 @@ def format_money(amount, currency='usd', opts={})
     rtn
   end
 end
+
+alias :format_money :format_currency
+
+# def format_money(amount, currency='usd', opts={})
+#   format_currency(amount, currency, opts)
+# end

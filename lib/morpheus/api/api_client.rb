@@ -768,7 +768,16 @@ class Morpheus::APIClient
     Morpheus::CatalogItemTypesInterface.new(common_interface_options).setopts(@options)
   end
 
+  def billing
+    Morpheus::BillingInterface.new(common_interface_options).setopts(@options)
+  end
   
   # add new interfaces here
+
+  protected
+
+  def validate_id!(id)
+    raise "#{self.class} passed a blank id!" if id.to_s.strip.empty?
+  end
 
 end

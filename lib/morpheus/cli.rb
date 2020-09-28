@@ -173,6 +173,7 @@ module Morpheus
       load 'morpheus/cli/backups_command.rb'
       load 'morpheus/cli/backup_jobs_command.rb'
       load 'morpheus/cli/catalog_command.rb'
+      load 'morpheus/cli/usage_command.rb'
       # add new commands here...
 
     end
