@@ -768,6 +768,10 @@ class Morpheus::APIClient
     Morpheus::CatalogItemTypesInterface.new(common_interface_options).setopts(@options)
   end
 
+  def usage
+    Morpheus::UsageInterface.new(common_interface_options).setopts(@options)
+  end
+
   def billing
     Morpheus::BillingInterface.new(common_interface_options).setopts(@options)
   end

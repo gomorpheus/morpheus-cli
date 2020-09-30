@@ -2,18 +2,18 @@ require 'morpheus/cli/cli_command'
 
 # CLI command usages
 # UI is Costing - Usage
-# API is /billing and returns usages
+# API is /usage and returns usages
 class Morpheus::Cli::UsageCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::OptionSourceHelper
 
   set_command_name :'usage'
 
-  register_subcommands :list #, :list_tenant, :list_clouds, :list_zones, :list_zones, :list_zones, :list_zones
+  register_subcommands :list, :get
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @billing_interface = @api_client.billing
+    @usage_interface = @api_client.usage
   end
 
   def handle(args)
@@ -33,10 +33,10 @@ class Morpheus::Cli::UsageCommand
         options[:cloud] = val
       end
       opts.on('--start DATE', String, "Start date in the format YYYY-MM-DD.") do |val|
-        params['startDate'] = val #parse_time(val).utc.iso8601
+        params['startDate'] = val # parse_time(val).utc.iso8601
       end
-      opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is now.") do |val|
-        params['endDate'] = val #parse_time(val).utc.iso8601
+      opts.on('--end DATE', String, "End date in the format YYYY-MM-DD. Default is the current date.") do |val|
+        params['endDate'] = val # parse_time(val).utc.iso8601
       end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 5.") do |val|
         options[:sigdig] = val.to_i
@@ -64,12 +64,12 @@ class Morpheus::Cli::UsageCommand
       }
     end
 
-    @billing_interface.setopts(options)
+    @usage_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @billing_interface.dry.list(params)
+      print_dry_run @usage_interface.dry.list(params)
       return
     end
-    json_response = @billing_interface.list(params)
+    json_response = @usage_interface.list(params)
     usages = json_response[usage_list_key]
     render_response(json_response, options, usage_list_key) do
       print_h1 "Morpheus Usages", parse_list_subtitles(options), options
@@ -85,6 +85,7 @@ class Morpheus::Cli::UsageCommand
           "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
           "End Date" => lambda {|it| format_local_dt(it['endDate']) },
           "Usage Status" => lambda {|it| format_usage_status(it) },
+          "Usage Cost" => lambda {|it| format_money(it['costDetails']['cost'], it['currency'] || 'USD', {sigdig: (options[:sigdig] || 5)}) },
           "Usage Price" => lambda {|it| format_money(it['price'], it['currency'] || 'USD', {sigdig: (options[:sigdig] || 5)}) },
         }
         print as_pretty_table(usages, list_columns.upcase_keys!, options)
@@ -99,6 +100,58 @@ class Morpheus::Cli::UsageCommand
     end
   end
 
+  def get(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[usage]")
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a specific usage.
+[usage] is required. This is the id of a usage record.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, params, options)
+    end
+  end
+
+  def _get(id, params, options)
+    usage = nil
+    @usage_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @usage_interface.dry.get(id, params)
+      return
+    end
+    json_response = @usage_interface.get(id, params)
+    usage = json_response[usage_object_key]
+    render_response(json_response, options, usage_object_key) do
+      print_h1 "Usage Details", [], options
+      print cyan
+      show_columns = {
+        "ID" => 'id',
+        "Cloud" => 'zoneName',
+        "Type" => lambda {|it| format_usage_type(it) },
+        "Name" => 'name',
+        "Plan" => 'planName',
+        "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
+        "End Date" => lambda {|it| format_local_dt(it['endDate']) },
+        "Usage Status" => lambda {|it| format_usage_status(it) },
+        "Usage Cost" => lambda {|it| format_money(it['costDetails']['cost'], it['currency'] || 'USD', {sigdig: (options[:sigdig] || 5)}) },
+        "Usage Price" => lambda {|it| format_money(it['price'], it['currency'] || 'USD', {sigdig: (options[:sigdig] || 5)}) },
+      }
+      print_description_list(show_columns, usage)
+
+      # print_h2 "Applicable Prices"
+      
+      print reset,"\n"
+    end
+    return 0, nil
+  end
   
   private
 
@@ -141,9 +194,9 @@ class Morpheus::Cli::UsageCommand
     #return usage['status'].to_s.capitalize
     status_string = usage['status'].to_s
     if status_string == 'stopped'
-      return "#{cyan}#{status_string.upcase}#{return_color}"
+      return "#{red}#{status_string.upcase}#{return_color}"
     else
-      return "#{cyan}#{status_string.upcase}#{return_color}"
+      return "#{green}#{status_string.upcase}#{return_color}"
     end
   end
 

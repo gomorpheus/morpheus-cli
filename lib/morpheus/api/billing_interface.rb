@@ -6,6 +6,7 @@ class Morpheus::BillingInterface < Morpheus::APIClient
     "/api/billing"
   end
 
+  # this is an alias for /usage
   def list(params={})
     execute(method: :get, url: "#{base_path}", params: params)
   end
