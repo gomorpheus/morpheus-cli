@@ -174,7 +174,7 @@ morpheus v#{Morpheus::Cli::VERSION}
 
     To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
 
-    To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com/features
+    To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com
 
     To learn more about the Morpheus API, visit https://apidocs.morpheusdata.com
 
@@ -319,10 +319,10 @@ The `appliances` YAML file contains a list of known appliances, keyed by name.
 Example:
 ```yaml
 :qa:
-  :host: https://qa.mycoolsite.com
+  :host: https://qa.mymorpheus.com
   :active: true
 :production:
-  :host: https://morpheus.mycoolsite.com
+  :host: https://mymorpheus.com
   :active: false
 ```
 
@@ -357,20 +357,11 @@ An example startup script might look like this:
 ```
 # .morpheusrc
 
-# aliases
-alias our-instances='instances list -c "Our Cloud"'
-
-# switch to our appliance that we created with `remote add morphapp1`
-remote use morphapp1
-
-# greeting
-echo "Welcome back human,  have fun!"
-
-# print current user information
-whoami
-
-# print the list of instances in our cloud
-our-instances
+set-prompt "%cyan%username%reset@%magenta%remote %cyanmorpheus> %reset"
+version
+remote current
+echo "Welcome back %username"
+echo
 
 ```
 
