@@ -595,7 +595,7 @@ EOT
     if args.count != 0
       raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
-    connect(options) # needed?
+    #connect(options) # needed?
     _check_all_appliances(options)
   end
   
@@ -826,6 +826,12 @@ EOT
         options[:do_offline] = true
       end
       build_common_options(opts, options, [:json,:yaml,:csv,:fields, :quiet])
+      opts.footer = <<-EOT
+Print details about the a remote appliance.
+[name] is optional. This is the name of a remote. 
+By default, the current appliance is used.
+Returns an error if the specified remote is not found, or there is no current remote.
+EOT
     end
     optparse.parse!(args)
     id_list = nil
@@ -843,7 +849,16 @@ EOT
 
   def _get(appliance_name, options)
     exit_code, err = 0, nil
-    
+    if appliance_name == 'current'
+      current_appliance = ::Morpheus::Cli::Remote.load_active_remote()
+      if current_appliance.nil?
+        #raise_command_error "No current appliance, see the command `remote use`"
+        unless options[:quiet]
+          print yellow, "No current appliance, see the command `remote use`", reset, "\n"
+        end
+        return 1, "No current appliance"
+      end
+    end
     appliance = load_remote_by_name(appliance_name)
     appliance_name = appliance[:name]
     appliance_url = appliance[:url]
@@ -1039,15 +1054,14 @@ EOT
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-[name] is required. This is the name of a remote, see the command `remote list`.
+[name] is required. This is the name of a remote to begin using.
 Start using a remote, making it the active (current) remote appliance.
 This switches the remote context of your client configuration for all subsequent commands.
-So rely on 'remote use' with caution.
 It is important to always be aware of the context your commands are running in.
 The command `remote current` will return the current remote information.
-Also, instead of using an active remote, the -r option can be specified in your commands.
+Instead of using an active remote, the -r option can be specified with each command.
 
-It is recommeneded to set a custom prompt to show the remote name.
+It is recommeneded to set a custom prompt to show the current remote name.
 For example, add the following to your .morpheusrc file:
 
   # set your shell prompt to display the current username and remote
@@ -1155,13 +1169,22 @@ EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, count:0, optparse:optparse)
-    connect(options)
+    #connect(options)
+
+    current_appliance = ::Morpheus::Cli::Remote.load_active_remote()
+    if current_appliance.nil?
+      #raise_command_error "No current appliance, see the command `remote use`"
+      unless options[:quiet]
+        print yellow, "No current appliance, see the command `remote use`", reset, "\n"
+      end
+      return 1, "No current appliance"
+    end
 
     # this does the same thing
     #return _get("current", options)
-
-    # appliance = load_remote_by_name("current")
-    appliance = @remote_appliance
+    appliance = current_appliance
+    #appliance = load_remote_by_name("current")
+    #appliance = @remote_appliance
     exit_code, err = 0, nil
     if appliance.nil?
       raise_command_error "no current remote appliance, see command `remote add`."
