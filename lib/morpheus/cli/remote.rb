@@ -23,6 +23,8 @@ class Morpheus::Cli::Remote
 
   set_default_subcommand :list
 
+  set_subcommands_hidden :setup # this is going away too
+
   def initialize()
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end
