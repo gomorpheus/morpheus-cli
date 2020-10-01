@@ -355,7 +355,6 @@ Example:
   :active: true
 :production:
   :host: https://mymorpheus.com
-  :active: false
 ```
 
 ### credentials file
