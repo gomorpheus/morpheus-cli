@@ -169,4 +169,11 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
   
+  def snapshots(id, params={})
+    url = "#{@base_url}/api/servers/#{id}/snapshots"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end

@@ -19,7 +19,7 @@ class Morpheus::Cli::Instances
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
                        :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
-                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, 
+                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshots,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
@@ -2890,6 +2890,52 @@ class Morpheus::Cli::Instances
         return
       else
         print_green_success "Running workflow #{workflow['name']} on instance #{instance['name']} ..."
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def snapshots(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      # no pagination yet
+      # build_standard_list_options(opts, options)
+      build_standard_get_options(opts, options)
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      params = {}
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.snapshots(instance['id'], params)
+        return
+      end
+      json_response = @instances_interface.snapshots(instance['id'], params)
+      snapshots = json_response['snapshots']      
+      render_response(json_response, options, 'snapshots') do
+        print_h1 "Snapshots: #{instance['name']} (#{instance['instanceType']['name']})", [], options
+        if snapshots.empty?
+          print cyan,"No snapshots found",reset,"\n"
+        else
+          snapshot_column_definitions = {
+            "ID" => lambda {|it| it['id'] },
+            "Name" => lambda {|it| it['name'] },
+            "Description" => lambda {|it| it['snapshotType'] ? (it['snapshotType']['name'] || it['snapshotType']['code']) : '' },
+            "Date Created" => lambda {|it| format_local_dt(it['snapshotCreated']) },
+            "Status" => lambda {|it| format_snapshot_status(it) }
+          }
+          print cyan
+          print as_pretty_table(snapshots, snapshot_column_definitions.upcase_keys!, options)
+          print_results_pagination({size: snapshots.size, total: snapshots.size})
+        end
+        print reset, "\n"
       end
       return 0
     rescue RestClient::Exception => e

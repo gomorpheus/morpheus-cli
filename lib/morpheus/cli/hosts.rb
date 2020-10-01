@@ -16,10 +16,11 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::LogsHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :run_workflow, :make_managed, :upgrade_agent
-  register_subcommands :'types' => :list_types
-  register_subcommands :exec => :execution_request
-  register_subcommands :wiki, :update_wiki
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
+                       :run_workflow, :make_managed, :upgrade_agent, :snapshots,
+                       {:'types' => :list_types},
+                       {:exec => :execution_request},
+                       :wiki, :update_wiki
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -1801,6 +1802,53 @@ class Morpheus::Cli::Hosts
       else
         print_green_success "Updated wiki page for host #{host['name']}"
         wiki([host['id']])
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def snapshots(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      # no pagination yet
+      # build_standard_list_options(opts, options)
+      build_standard_get_options(opts, options)
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    begin
+      server = find_host_by_name_or_id(args[0])
+      return 1 if server.nil?
+      params = {}
+      @servers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.snapshots(server['id'], params)
+        return
+      end
+      json_response = @servers_interface.snapshots(server['id'], params)
+      snapshots = json_response['snapshots']      
+      render_response(json_response, options, 'snapshots') do
+        print_h1 "Snapshots: #{server['name']}", [], options
+        if snapshots.empty?
+          print cyan,"No snapshots found",reset,"\n"
+        else
+          snapshot_column_definitions = {
+            "ID" => lambda {|it| it['id'] },
+            "Name" => lambda {|it| it['name'] },
+            "Description" => lambda {|it| it['snapshotType'] ? (it['snapshotType']['name'] || it['snapshotType']['code']) : '' },
+            "Date Created" => lambda {|it| format_local_dt(it['snapshotCreated']) },
+            "Status" => lambda {|it| format_snapshot_status(it) }
+          }
+          print cyan
+          print as_pretty_table(snapshots, snapshot_column_definitions.upcase_keys!, options)
+          print_results_pagination({size: snapshots.size, total: snapshots.size})
+        end
+        print reset, "\n"
       end
       return 0
     rescue RestClient::Exception => e

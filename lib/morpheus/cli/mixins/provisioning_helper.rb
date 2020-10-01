@@ -2200,4 +2200,19 @@ module Morpheus::Cli::ProvisioningHelper
       return type_code.to_s.downcase
     end
   end
+
+  def format_snapshot_status(snapshot, return_color=cyan)
+    out = ""
+    status_string = snapshot['status'].to_s
+    if status_string == 'complete'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'creating'
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'failed'
+      out << "#{red}#{status_string.upcase}#{return_color}"
+    else
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
 end

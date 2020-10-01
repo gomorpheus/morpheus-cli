@@ -218,6 +218,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
   
+  def snapshots(instance_id, params={})
+    url = "#{@base_url}/api/instances/#{instance_id}/snapshots"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def import_snapshot(id, params={}, payload={})
     url = "#{@base_url}/api/instances/#{id}/import-snapshot"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
