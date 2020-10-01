@@ -153,7 +153,7 @@ EOT
     begin
 
       manpage.print <<-ENDTEXT
-sweet #{prog_name} v#{Morpheus::Cli::VERSION}
+#{prog_name} v#{Morpheus::Cli::VERSION}
 
 ## NAME
 
