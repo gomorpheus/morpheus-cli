@@ -153,7 +153,7 @@ EOT
     begin
 
       manpage.print <<-ENDTEXT
-morpheus v#{Morpheus::Cli::VERSION}
+sweet #{prog_name} v#{Morpheus::Cli::VERSION}
 
 ## NAME
 
@@ -170,7 +170,7 @@ morpheus v#{Morpheus::Cli::VERSION}
     This is a command line interface for managing a Morpheus Appliance.
     All communication with the remote appliance is done via the Morpheus API.
 
-    To get started, see the command `remote add` command.
+    To get started, see the command `#{prog_name} remote add` command.
 
     To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
 
@@ -213,7 +213,7 @@ morpheus v#{Morpheus::Cli::VERSION}
 ENDTEXT
       
       terminal = Morpheus::Terminal.new($stdin, manpage)
-      Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus --help`" if Morpheus::Logging.debug? && !options[:quiet]
+      Morpheus::Logging::DarkPrinter.puts "appending command help `#{prog_name} --help`" if Morpheus::Logging.debug? && !options[:quiet]
 
       manpage.print "\n"
       manpage.print "## morpheus\n"
@@ -226,7 +226,7 @@ ENDTEXT
       Morpheus::Cli::CliRegistry.all.keys.sort.each do |cmd|
         cmd_klass = Morpheus::Cli::CliRegistry.instance.get(cmd)
         cmd_instance = cmd_klass.new
-        Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} --help`" if Morpheus::Logging.debug? && !options[:quiet]
+        Morpheus::Logging::DarkPrinter.puts "appending command help `#{prog_name} #{cmd} --help`" if Morpheus::Logging.debug? && !options[:quiet]
         #help_cmd = "morpheus #{cmd} --help"
         #help_output = `#{help_cmd}`
         manpage.print "\n"
@@ -243,7 +243,7 @@ ENDTEXT
         subcommands = cmd_klass.visible_subcommands
         if subcommands && subcommands.size > 0
           subcommands.sort.each do |subcommand, subcommand_method|
-            Morpheus::Logging::DarkPrinter.puts "appending command help `morpheus #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug? && !options[:quiet]
+            Morpheus::Logging::DarkPrinter.puts "appending command help `#{prog_name} #{cmd} #{subcommand} --help`" if Morpheus::Logging.debug? && !options[:quiet]
             manpage.print "\n"
             manpage.print "#### morpheus #{cmd} #{subcommand}\n"
             manpage.print "\n"
@@ -289,7 +289,7 @@ morpheus> remote list
 Morpheus Appliances
 ==================
 
-You have no appliances configured. See the `remote add` command.
+You have no appliances configured. See the `#{prog_name} remote add` command.
 
 ```
 
@@ -349,7 +349,7 @@ This may be inhibited by using the `--noprofile` option.
 
 ### .morpheusrc file
 
-When started as an interactive shell with the `morpheus shell` command,
+When started as an interactive shell with the `#{prog_name} shell` command,
 Morpheus reads and executes `$MORPHEUS_CLI_HOME/.morpheusrc` (if it exists). This may be inhibited by using the `--norc` option. 
 
 An example startup script might look like this:

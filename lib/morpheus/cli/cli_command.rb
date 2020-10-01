@@ -830,6 +830,10 @@ module Morpheus
         opts
       end
 
+      def prog_name
+        self.class.prog_name
+      end
+
       def command_name
         self.class.command_name
       end
@@ -870,14 +874,14 @@ module Morpheus
 
       def usage
         if !subcommands.empty?
-          "Usage: morpheus #{command_name} [command] [options]"
+          "Usage: #{prog_name} #{command_name} [command] [options]"
         else
-          "Usage: morpheus #{command_name} [options]"
+          "Usage: #{prog_name} #{command_name} [options]"
         end
       end
 
       def my_help_command
-        "morpheus #{command_name} --help"
+        "#{prog_name} #{command_name} --help"
       end
 
       def subcommand_usage(*extra)
@@ -888,7 +892,7 @@ module Morpheus
           extra.shift
         end
         #extra = ["[options]"] if extra.empty?
-        "Usage: morpheus #{command_name} #{subcommand_name} #{extra.join(' ')}".squeeze(' ').strip
+        "Usage: #{prog_name} #{command_name} #{subcommand_name} #{extra.join(' ')}".squeeze(' ').strip
       end
 
       # a string to describe the usage of your command
@@ -939,7 +943,7 @@ module Morpheus
         end
         cmd_method = subcommands[subcommand_name]
         if !cmd_method
-          error_msg = "'#{command_name} #{subcommand_name}' is not a morpheus command.\n#{full_command_usage}"
+          error_msg = "'#{command_name} #{subcommand_name}' is not a #{prog_name} command.\n#{full_command_usage}"
           raise CommandNotFoundError.new(error_msg)
         end
         self.send(cmd_method, args[1..-1])
@@ -1294,6 +1298,10 @@ module Morpheus
       alias :render_with_format :render_response
 
       module ClassMethods
+
+        def prog_name
+          "morpheus"
+        end
 
         def set_command_name(cmd_name)
           @command_name = cmd_name
