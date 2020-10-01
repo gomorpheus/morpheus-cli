@@ -9,7 +9,7 @@ class Morpheus::Cli::ManCommand
 
   # this should be read only anyway...
   @@default_editor = "less" # ENV['EDITOR']
-  
+
   def handle(args)
     options = {}
     regenerate = false
@@ -27,6 +27,12 @@ class Morpheus::Cli::ManCommand
       end
       opts.on('-g','--generate', "Regenerate the manual file") do
         regenerate = true
+      end
+      opts.on('-o','--out FILE', "Write manual file to a custom location") do |val|
+        options[:outfile] = val
+      end
+      opts.on('--overwrite', '--overwrite', "Overwrite output file if it already exists.") do |val|
+        options[:overwrite] = true
       end
       opts.on('-q','--quiet', "Do not open manual, for use with the -g option.") do
         options[:quiet] = true
@@ -47,7 +53,8 @@ class Morpheus::Cli::ManCommand
       end
       opts.footer = <<-EOT
 Open the morpheus manual located at #{Morpheus::Cli::ManCommand.man_file_path}
-The -g switch be used to regenerate the file.
+The -g option can be used to regenerate the file.
+The --out FILE option be used to write the manual file to a custom location.
 EOT
     end
     optparse.parse!(args)
@@ -65,17 +72,34 @@ EOT
     end
 
     fn = Morpheus::Cli::ManCommand.man_file_path
+    if options[:outfile]
+      regenerate = true
+      fn = File.expand_path(options[:outfile])
+      if File.directory?(fn)
+        # if you give me a directory, could still work and use the default filename
+        # fn = File.join(fn, "CLI-Manual-#{Morpheus::Cli::VERSION}.md")
+        # raise_command_error "outfile is invalid. It is the name of an existing directory: #{fn}"
+        print_error "#{red}Output file '#{fn}' is invalid.#{reset}\n"
+        print_error "#{red}It is the name of an existing directory.#{reset}\n"
+        return 1
+      end
+      if File.exists?(fn) && options[:overwrite] != true
+        print_error "#{red}Output file '#{fn}' already exists.#{reset}\n"
+        print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
+        return 1
+      end
+    end
+    exit_code, err = 0, nil
     if regenerate || !File.exists?(fn)
       #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug? && !options[:quiet]
-      Morpheus::Cli::ManCommand.generate_manual(options)
+      exit_code, err = Morpheus::Cli::ManCommand.generate_manual(options)
     end
     
     if options[:quiet]
-      return 0, nil
+      return exit_code, err
     end
     
     Morpheus::Logging::DarkPrinter.puts "opening manual file #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
-    
     
     if open_as_link # not used atm
       link = "file://#{fn}"
@@ -138,6 +162,14 @@ EOT
     # todo: use pandoc or something else to convert the CLI-Manual.md to a man page
     # and install it, so the os command `man morpheus` will work too.
     fn = man_file_path()
+    if options[:outfile]
+      fn = File.expand_path(options[:outfile])
+      if File.exists?(fn) && options[:overwrite] != true
+        print_error "#{red}Output file '#{options[:outfile]}' already exists.#{reset}\n"
+        print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
+        return 1, "output file already exists"
+      end
+    end
     if !Dir.exists?(File.dirname(fn))
       FileUtils.mkdir_p(File.dirname(fn))
     end
@@ -374,7 +406,7 @@ ENDTEXT
       terminal = Morpheus::Terminal.new()
     end
 
-    return true
+    return 0, nil
   end
 
 end
