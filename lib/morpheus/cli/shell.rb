@@ -336,6 +336,11 @@ class Morpheus::Cli::Shell
     #Morpheus::Logging::DarkPrinter.puts "Shell command: #{input}"
     input = input.to_s.strip
 
+    # allow pasting in commands that have 'morpheus ' prefix
+    if input[0..(prog_name.size)] == "#{prog_name} "
+      input = input[(prog_name.size + 1)..-1] || ""
+    end
+
     if !input.empty?
 
       if input == 'exit'
