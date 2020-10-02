@@ -6,6 +6,7 @@ class Morpheus::Cli::Deploy
   include Morpheus::Cli::DeploymentsHelper
 
   set_command_name :deploy
+  set_command_description "Deploy to an instance from a morpheus.yml file."
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)

@@ -6,7 +6,7 @@ class Morpheus::Cli::Deploys
   include Morpheus::Cli::DeploymentsHelper
   
   set_command_name :deploys
-
+  set_command_description "View and manage instance deploys."
   register_subcommands :list, :get, :add, :update, :remove, :deploy
 
   def connect(opts)

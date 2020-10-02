@@ -4,6 +4,8 @@ class Morpheus::Cli::Deployments
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::DeploymentsHelper
 
+  set_command_description "View and manage deployments, including versions and files."
+
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :list_versions, :get_version, :add_version, :update_version, :remove_version
   alias_subcommand :versions, :'list-versions'

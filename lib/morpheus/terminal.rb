@@ -277,8 +277,12 @@ module Morpheus
         end
       end
       out << "Commands:\n"
-      Morpheus::Cli::CliRegistry.all.keys.sort.each {|cmd|
-        out << "\t#{cmd.to_s}\n"
+      sorted_commands = Morpheus::Cli::CliRegistry.all.values.sort { |x,y| x.command_name.to_s <=> y.command_name.to_s }
+      sorted_commands.each {|cmd|
+        # JD: not ready to show description yet, gotta finish filling in every command first
+        # maybe change 'View and manage' to something more concise like 'Manage'
+        # out << "\t#{cmd.command_name.to_s.ljust(28, ' ')} #{cmd.command_description}\n"
+        out << "\t#{cmd.command_name.to_s}\n"
       }
       # out << "Options:\n"
       out << optparse.to_s

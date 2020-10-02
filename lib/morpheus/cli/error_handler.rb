@@ -25,6 +25,13 @@ class Morpheus::Cli::ErrorHandler
     #@stderr.puts "#{dark}Handling error #{err.class} - #{err}#{reset}"
 
     case (err)
+    # when Morpheus::Cli::CommandNotFoundError
+    #   puts_angry_error err.message
+    #   @stderr.puts "Try help to see a list of available commands"
+    #   do_print_stacktrace = false
+    #   if err.exit_code
+    #     exit_code = err.exit_code
+    #   end
     when ::OptionParser::InvalidOption, ::OptionParser::AmbiguousOption, 
         ::OptionParser::MissingArgument, ::OptionParser::InvalidArgument, 
         ::OptionParser::NeedlessArgument

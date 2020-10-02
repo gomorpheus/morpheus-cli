@@ -6,7 +6,9 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::HistoryCommand
   include Morpheus::Cli::CliCommand
   set_command_name :'history'
-  set_command_hidden
+  set_command_description "View morpheus shell command history"
+  # hidden for now because it is a shell command, shouldnt just be shell command though
+  set_command_hidden 
 
   # todo: support all the other :list options too, not just max
   # AND start logging every terminal command, not just shell...

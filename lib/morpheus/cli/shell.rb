@@ -92,6 +92,13 @@ class Morpheus::Cli::Shell
   def recalculate_auto_complete_commands
     @morpheus_commands = Morpheus::Cli::CliRegistry.all.keys.reject {|k| [:shell].include?(k) }
     @shell_commands = [:clear, :history, :reload, :help, :exit]
+    @shell_command_descriptions = {
+      :clear => "Clear terminal output and move cursor to the top", 
+      :history => "View morpheus shell command history", 
+      :reload => "Reload the shell, can be useful when developing", 
+      :help => "Print this help", 
+      :exit => "Exit the morpheus shell"
+    }
     @alias_commands = Morpheus::Cli::CliRegistry.all_aliases.keys
     @exploded_commands = []
     Morpheus::Cli::CliRegistry.all.each do |cmd, klass|
@@ -350,26 +357,36 @@ class Morpheus::Cli::Shell
         return 0
         #exit 0
       elsif input == 'help'
+        out = ""
         if @temporary_shell_mode
-          puts "You are in a (temporary) morpheus shell"
+          out << "You are in a (temporary) morpheus shell\n"
         else
-          puts "You are in a morpheus shell."
+          out << "You are in a morpheus shell.\n"
         end
-        puts "See the available commands below."
+        out <<  "See the available commands below.\n"
 
-        puts "\nCommands:"
+        out << "\nCommands:"
         # commands = @morpheus_commands + @shell_commands
-        @morpheus_commands.sort.each {|cmd|
-          puts "\t#{cmd.to_s}"
+        # @morpheus_commands.sort.each {|cmd|
+        #   out <<  "\t#{cmd.to_s}\n"
+        # }
+        sorted_commands = Morpheus::Cli::CliRegistry.all.values.sort { |x,y| x.command_name.to_s <=> y.command_name.to_s }
+        sorted_commands.each {|cmd|
+          # JD: not ready to show description yet, gotta finish filling in every command first
+          # maybe change 'View and manage' to something more concise like 'Manage'
+          # out << "\t#{cmd.command_name.to_s.ljust(28, ' ')} #{cmd.command_description}\n"
+          out << "\t#{cmd.command_name.to_s}\n"
         }
         #puts "\n"
-        puts "\nShell Commands:"
+        out <<  "\nShell Commands:\n"
         @shell_commands.each {|cmd|
-          puts "\t#{cmd.to_s}"
+          # out << "\t#{cmd.to_s.ljust(28, ' ')} #{@shell_command_descriptions ? @shell_command_descriptions[cmd] : ''}\n"
+          out <<  "\t#{cmd.to_s}\n"
         }
-        puts "\n"
-        puts "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
-        #print "\n"
+        out << "\n"
+        out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+        out << "\n"
+        print out
         return 0
       elsif input =~ /^\s*#/
         Morpheus::Logging::DarkPrinter.puts "ignored comment: #{input}" if Morpheus::Logging.debug?
