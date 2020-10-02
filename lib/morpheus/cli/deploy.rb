@@ -19,7 +19,7 @@ class Morpheus::Cli::Deploy
     options={}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus deploy [environment]"
-      build_common_options(opts, options, [:auto_confirm, :remote, :dry_run])
+      build_common_options(opts, options, [:auto_confirm, :quiet, :remote, :dry_run])
       opts.footer = <<-EOT
 Deploy to an instance using the morpheus.yml file, located in the working directory.
 [environment] is optional. Merge settings under environments.{environment}. Default is no environment.
@@ -110,57 +110,72 @@ EOT
     deploy_type = deploy_args['type'] || 'files'
     #deploy_type = "files" if deploy_type.to_s.downcase == "file"
 
+    deploy_config = deploy_args['options'] || deploy_args['config']
+
     # ok do it
     # fetch/create deployment, create deployment version, upload files, and deploy it to instance.
 
-    print_h1 "Morpheus Deployment"
+    unless options[:quiet]
 
-    columns = {
-      "Instance" => :name,
-      "Deployment" => :deployment,
-      "Version" => :version,
-      "Deploy Type" => :type,
-      "Script" => :script,
-      "Post Script" => :post_script,
-      "Files" => :files,
-      "Git Url" => :git_url,
-      "Git Ref" => :git_ref,
-      "Fetch Url" => :fetch_url,
-      "Environment" => :environment,
-    }
-    pretty_file_config = deploy_args['files'] ? deploy_args['files'].collect {|it|
-      [(it['path'] ? "path: #{it['path']}" : nil), (it['pattern'] ? "pattern: #{it['pattern']}" : nil)].compact.join(", ")
-    }.join(", ") : "(none)"
-    deploy_settings = {
-      :name => instance_name,
-      :deployment => deployment_name,
-      :version => version_number,
-      :script => deploy_args['script'],
-      :post_script => deploy_args['post_script'],
-      :files => pretty_file_config,
-      :type => format_deploy_type(deploy_type),
-      :git_url => deploy_args['gitUrl'] || (deploy_type == "git" ? deploy_args['url'] : nil),
-      :git_ref => deploy_args['gitRef'] || (deploy_type == "git" ? deploy_args['ref'] : nil),
-      :fetch_url => deploy_args['fetchUrl'] || (deploy_type == "fetch" ? deploy_args['url'] : nil),
-      # :files => deploy_args['files'],
-      # :files => deploy_files.size,
-      # :file_config => (deploy_files.size == 1 ? deploy_files[0][:destination] : deploy_args['files'])
-      :environment => environment
-    }
-    columns.delete("Script") if deploy_settings[:script].nil?
-    columns.delete("Post Script") if deploy_settings[:post_script].nil?
-    columns.delete("Environment") if deploy_settings[:environment].nil?
-    columns.delete("Files") if deploy_type != "files"
-    columns.delete("Git Url") if deploy_settings[:git_url].nil?
-    columns.delete("Git Ref") if deploy_settings[:git_ref].nil?
-    columns.delete("Fetch Url") if deploy_settings[:fetch_url].nil?
-    print_description_list(columns, deploy_settings)
-    print reset, "\n"
+      print_h1 "Morpheus Deployment", options
+
+      columns = {
+        "Instance" => :name,
+        "Deployment" => :deployment,
+        "Version" => :version,
+        "Deploy Type" => :type,
+        "Script" => :script,
+        "Post Script" => :post_script,
+        "Files" => :files,
+        "Git Url" => :git_url,
+        "Git Ref" => :git_ref,
+        "Fetch Url" => :fetch_url,
+        "Environment" => :environment,
+      }
+      pretty_file_config = deploy_args['files'] ? deploy_args['files'].collect {|it|
+        [(it['path'] ? "path: #{it['path']}" : nil), (it['pattern'] ? "pattern: #{it['pattern']}" : nil)].compact.join(", ")
+      }.join(", ") : "(none)"
+      deploy_settings = {
+        :name => instance_name,
+        :deployment => deployment_name,
+        :version => version_number,
+        :script => deploy_args['script'],
+        :post_script => deploy_args['post_script'],
+        :files => pretty_file_config,
+        :type => format_deploy_type(deploy_type),
+        :git_url => deploy_args['gitUrl'] || (deploy_type == "git" ? deploy_args['url'] : nil),
+        :git_ref => deploy_args['gitRef'] || (deploy_type == "git" ? deploy_args['ref'] : nil),
+        :fetch_url => deploy_args['fetchUrl'] || (deploy_type == "fetch" ? deploy_args['url'] : nil),
+        # :files => deploy_args['files'],
+        # :files => deploy_files.size,
+        # :file_config => (deploy_files.size == 1 ? deploy_files[0][:destination] : deploy_args['files'])
+        :environment => environment
+      }
+      columns.delete("Script") if deploy_settings[:script].nil?
+      columns.delete("Post Script") if deploy_settings[:post_script].nil?
+      columns.delete("Environment") if deploy_settings[:environment].nil?
+      columns.delete("Files") if deploy_type != "files"
+      columns.delete("Git Url") if deploy_settings[:git_url].nil?
+      columns.delete("Git Ref") if deploy_settings[:git_ref].nil?
+      columns.delete("Fetch Url") if deploy_settings[:fetch_url].nil?
+      print_description_list(columns, deploy_settings)
+      print reset, "\n"
+
+      if deploy_config
+        print_h2 "Config Options", options
+        print cyan
+        puts as_json(deploy_config)
+        print "\n\n", reset
+      end
+
+    end # unless options[:quiet]
 
     if !deploy_args['script'].nil?
       # do this for dry run too since this is usually what creates the files to be uploaded
-      print cyan, "Executing Pre Deploy Script...", reset, "\n"
-      puts "running command: #{deploy_args['script']}"
+      unless options[:quiet]
+        print cyan, "Executing Pre Deploy Script...", reset, "\n"
+        puts "running command: #{deploy_args['script']}"
+      end
       if !system(deploy_args['script'])
         raise_command_error "Error executing pre script..."
       end
@@ -192,7 +207,9 @@ EOT
       if deploy_files.empty?
         raise_command_error "0 files found for: #{deploy_args['files'].inspect}"
       else
-        print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+        unless options[:quiet]
+          print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+        end
       end
     elsif deploy_type == "git"
       # make it work with simpler config, url instead of gitUrl
@@ -229,7 +246,7 @@ EOT
     elsif deploy_type == "fetch"
       confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
     end
-    puts confirm_warning
+    puts confirm_warning if !options[:quiet]
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm(confirm_message)
       return 9, "aborted command"
     end
@@ -315,7 +332,7 @@ EOT
     # Upload Files
     if deploy_type == "files"
       if deploy_files && !deploy_files.empty?
-        print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n"
+        print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n" if !options[:quiet]
         current_working_dir = Dir.pwd
         deploy_files.each do |f|
           destination = f[:destination]
@@ -328,16 +345,16 @@ EOT
             print reset, "\n" if !options[:quiet]
           end
         end
-        print cyan, "Upload Complete!", reset, "\n"
+        print cyan, "Upload Complete!", reset, "\n" if !options[:quiet]
         Dir.chdir(current_working_dir)
       else
-        print "\n",cyan, "0 files to upload", reset, "\n"
+        print "\n",cyan, "0 files to upload", reset, "\n" if !options[:quiet]
       end
     end
 
     if !deploy_args['post_script'].nil?
-      print cyan, "Executing Post Script...", reset, "\n"
-      puts "running command: #{deploy_args['post_script']}"
+      print cyan, "Executing Post Script...", reset, "\n" if !options[:quiet]
+      puts "running command: #{deploy_args['post_script']}" if !options[:quiet]
       if !system(deploy_args['post_script'])
         raise_command_error "Error executing post script..."
       end
@@ -370,6 +387,10 @@ EOT
     if stage_only
       payload['appDeploy']['stageOnly'] = true
     end
+    # config/options to apply to deployment
+    if deploy_config
+      payload['appDeploy']['config'] = deploy_config
+    end
     app_deploy_id = nil
     if options[:dry_run]
       print_dry_run @deploy_interface.dry.create(instance_id, payload)
@@ -381,10 +402,12 @@ EOT
       deploy_result = @deploy_interface.create(instance_id, payload)
       app_deploy = deploy_result['appDeploy']
       app_deploy_id = app_deploy['id']
-      if app_deploy['status'] == 'staged'
-        print_green_success "Staged Deploy #{deployment_name} version #{version_number} to instance #{instance_name}"
-      else
-        print_green_success "Deploying #{deployment_name} version #{version_number} to instance #{instance_name}"
+      if !options[:quiet]
+        if app_deploy['status'] == 'staged'
+          print_green_success "Staged Deploy #{deployment_name} version #{version_number} to instance #{instance_name}"
+        else
+          print_green_success "Deploying #{deployment_name} version #{version_number} to instance #{instance_name}"
+        end
       end
     end
     return 0, nil
