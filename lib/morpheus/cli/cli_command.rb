@@ -715,7 +715,7 @@ module Morpheus
           
 
           when :dry_run
-            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it") do
+            opts.on('-d','--dry-run', "Dry Run, print the API request instead of executing it.") do
               # todo: this should print after parsing obv..
               # need a hook after parse! or a standard_handle(options) { ... } paradigm
               # either that or hook it up in every command somehow, maybe a hook on connect()
@@ -727,7 +727,7 @@ module Morpheus
               end
               options[:dry_run] = true
             end
-            opts.on(nil,'--curl', "Dry Run to output API request as a curl command.") do
+            opts.on(nil,'--curl', "Curl, print the API request as a curl command instead of executing it.") do
               # print once and dont munge json
               if !options[:dry_run] && !options[:json]
                 puts "#{cyan}#{bold}#{dark}DRY RUN#{reset}"
