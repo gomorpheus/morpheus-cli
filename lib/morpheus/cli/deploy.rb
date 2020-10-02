@@ -107,6 +107,9 @@ EOT
     instance = instance_results['instances'][0]
     instance_id = instance['id']
 
+    deploy_type = deploy_args['type'] || 'files'
+    #deploy_type = "files" if deploy_type.to_s.downcase == "file"
+
     # ok do it
     # fetch/create deployment, create deployment version, upload files, and deploy it to instance.
 
@@ -116,14 +119,18 @@ EOT
       "Instance" => :name,
       "Deployment" => :deployment,
       "Version" => :version,
+      "Deploy Type" => :type,
       "Script" => :script,
       "Post Script" => :post_script,
       "Files" => :files,
+      "Git Url" => :git_url,
+      "Git Ref" => :git_ref,
+      "Fetch Url" => :fetch_url,
       "Environment" => :environment,
     }
-    pretty_file_config = deploy_args['files'].collect {|it|
+    pretty_file_config = deploy_args['files'] ? deploy_args['files'].collect {|it|
       [(it['path'] ? "path: #{it['path']}" : nil), (it['pattern'] ? "pattern: #{it['pattern']}" : nil)].compact.join(", ")
-    }.join(", ")
+    }.join(", ") : "(none)"
     deploy_settings = {
       :name => instance_name,
       :deployment => deployment_name,
@@ -131,6 +138,10 @@ EOT
       :script => deploy_args['script'],
       :post_script => deploy_args['post_script'],
       :files => pretty_file_config,
+      :type => format_deploy_type(deploy_type),
+      :git_url => deploy_args['gitUrl'] || (deploy_type == "git" ? deploy_args['url'] : nil),
+      :git_ref => deploy_args['gitRef'] || (deploy_type == "git" ? deploy_args['ref'] : nil),
+      :fetch_url => deploy_args['fetchUrl'] || (deploy_type == "fetch" ? deploy_args['url'] : nil),
       # :files => deploy_args['files'],
       # :files => deploy_files.size,
       # :file_config => (deploy_files.size == 1 ? deploy_files[0][:destination] : deploy_args['files'])
@@ -139,6 +150,10 @@ EOT
     columns.delete("Script") if deploy_settings[:script].nil?
     columns.delete("Post Script") if deploy_settings[:post_script].nil?
     columns.delete("Environment") if deploy_settings[:environment].nil?
+    columns.delete("Files") if deploy_type != "files"
+    columns.delete("Git Url") if deploy_settings[:git_url].nil?
+    columns.delete("Git Ref") if deploy_settings[:git_ref].nil?
+    columns.delete("Fetch Url") if deploy_settings[:fetch_url].nil?
     print_description_list(columns, deploy_settings)
     print reset, "\n"
 
@@ -153,33 +168,69 @@ EOT
 
     # Find Files to Upload
     deploy_files = []
-    if deploy_args['files'].nil? || deploy_args['files'].empty? || !deploy_args['files'].is_a?(Array)
-      raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload"
-    else
-      #print "\n",cyan, "Finding Files...", reset, "\n"
-      current_working_dir = Dir.pwd
-      deploy_args['files'].each do |fmap|
-        Dir.chdir(fmap['path'] || current_working_dir)
-        files = Dir.glob(fmap['pattern'] || '**/*')
-        files.each do |file|
-          if File.file?(file)
-            destination = file.split("/")[0..-2].join("/")
-            # deploy_files << {filepath: File.expand_path(file), destination: destination}
-            deploy_files << {filepath: File.expand_path(file), destination: file}
+    if deploy_type == "files"
+      if deploy_args['files'].nil? || deploy_args['files'].empty? || !deploy_args['files'].is_a?(Array)
+        raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload"
+      else
+        #print "\n",cyan, "Finding Files...", reset, "\n"
+        current_working_dir = Dir.pwd
+        deploy_args['files'].each do |fmap|
+          Dir.chdir(fmap['path'] || current_working_dir)
+          files = Dir.glob(fmap['pattern'] || '**/*')
+          files.each do |file|
+            if File.file?(file)
+              destination = file.split("/")[0..-2].join("/")
+              # deploy_files << {filepath: File.expand_path(file), destination: destination}
+              deploy_files << {filepath: File.expand_path(file), destination: file}
+            end
           end
         end
+        #print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+        Dir.chdir(current_working_dir)
       end
-      #print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
-      Dir.chdir(current_working_dir)
+
+      if deploy_files.empty?
+        raise_command_error "0 files found for: #{deploy_args['files'].inspect}"
+      else
+        print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+      end
+    elsif deploy_type == "git"
+      # make it work with simpler config, url instead of gitUrl
+      if deploy_args['gitUrl'].nil? && deploy_args['url']
+        deploy_args['gitUrl'] = deploy_args['url'] # .delete('url') maybe?
+      end
+      if deploy_args['gitRef'].nil? && deploy_args['ref']
+        deploy_args['gitRef'] = deploy_args['ref'] # .delete('ref') maybe?
+      end
+      if deploy_args['gitRef'].nil?
+        raise_command_error "fetchUrl not specified. Please specify the git url to fetch the deploy files from."
+      end
+      if deploy_args['gitRef'].nil?
+        #raise_command_error "gitRef not specified. Please specify the git reference to use. eg. main"
+        # deploy_args['gitRef'] = "main"
+      end
+    elsif deploy_type == "git"
+      # make it work with simpler config, url instead of fetchUrl
+      if deploy_args['fetchUrl'].nil? && deploy_args['url']
+        deploy_args['fetchUrl'] = deploy_args['url'] # .delete('url') maybe?
+      end
+      if deploy_args['fetchUrl'].nil?
+        raise_command_error "fetchUrl not specified. Please specify the url to fetch the deploy files from."
+      end
+      
     end
 
-    if deploy_files.empty?
-      raise_command_error "0 files found for: #{deploy_args['files'].inspect}"
-    else
-      print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+    confirm_warning = ""
+    confirm_message = "Are you sure you want to perform this action?"
+    if deploy_type == "files"
+      confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
+    elsif deploy_type == "git"
+      confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
+    elsif deploy_type == "fetch"
+      confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
     end
-
-    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to create deployment version #{version_number} (#{deploy_files.size} #{deploy_files.size == 1 ? 'file' : 'files'}) and deploy it to instance #{instance['name']}?")
+    puts confirm_warning
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm(confirm_message)
       return 9, "aborted command"
     end
     
@@ -262,27 +313,27 @@ EOT
 
     
     # Upload Files
-    if deploy_files && !deploy_files.empty?
-      print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n"
-      current_working_dir = Dir.pwd
-      deploy_files.each do |f|
-        destination = f[:destination]
-        if options[:dry_run]
-          print_dry_run @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
-        else
-          print cyan,"  - Uploading #{f[:destination]} ...", reset if !options[:quiet]
-          upload_result = @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
-          #print green + "SUCCESS" + reset + "\n" if !options[:quiet]
-          print reset, "\n" if !options[:quiet]
+    if deploy_type == "files"
+      if deploy_files && !deploy_files.empty?
+        print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n"
+        current_working_dir = Dir.pwd
+        deploy_files.each do |f|
+          destination = f[:destination]
+          if options[:dry_run]
+            print_dry_run @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
+          else
+            print cyan,"  - Uploading #{f[:destination]} ...", reset if !options[:quiet]
+            upload_result = @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
+            #print green + "SUCCESS" + reset + "\n" if !options[:quiet]
+            print reset, "\n" if !options[:quiet]
+          end
         end
+        print cyan, "Upload Complete!", reset, "\n"
+        Dir.chdir(current_working_dir)
+      else
+        print "\n",cyan, "0 files to upload", reset, "\n"
       end
-      print cyan, "Upload Complete!", reset, "\n"
-      Dir.chdir(current_working_dir)
-    else
-      print "\n",cyan, "0 files to upload", reset, "\n"
     end
-
-    # TODO: support deploying other deployTypes too, git and fetch
 
     if !deploy_args['post_script'].nil?
       print cyan, "Executing Post Script...", reset, "\n"
@@ -326,15 +377,14 @@ EOT
       app_deploy_id = ':appDeployId'
     else
       # Create a new appDeploy record, without stageOnly, this actually does the deployment
-      print cyan, "Deploying #{deployment_name} version #{version_number} to instance #{instance_name} ...", reset, "\n"
+      #print cyan, "Deploying #{deployment_name} version #{version_number} to instance #{instance_name} ...", reset, "\n"
       deploy_result = @deploy_interface.create(instance_id, payload)
       app_deploy = deploy_result['appDeploy']
       app_deploy_id = app_deploy['id']
-      # print_green_success "Deploy Successful!"
-      if stage_only
-        print_green_success "Deploy staged"
+      if app_deploy['status'] == 'staged'
+        print_green_success "Staged Deploy #{deployment_name} version #{version_number} to instance #{instance_name}"
       else
-        print_green_success "Deploying..."
+        print_green_success "Deploying #{deployment_name} version #{version_number} to instance #{instance_name}"
       end
     end
     return 0, nil

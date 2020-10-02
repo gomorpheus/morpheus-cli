@@ -146,4 +146,8 @@ module Morpheus::Cli::DeploymentsHelper
     out
   end
 
+  def format_deploy_type(val)
+    return val
+  end
+
 end

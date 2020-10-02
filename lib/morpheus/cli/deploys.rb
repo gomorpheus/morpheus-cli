@@ -178,10 +178,18 @@ EOT
     json_response = @deploy_interface.create(instance_id, payload)
     app_deploy = json_response[app_deploy_object_key]
     render_response(json_response, options, app_deploy_object_key) do
-      if payload[app_deploy_object_key]['stageOnly']
-        print_green_success "Deploy staged"
+      if app_deploy['status'] == 'staged'
+        begin
+          print_green_success "Staged Deploy #{app_deploy['deployment']['name']} version #{app_deploy['deploymentVersion']['userVersion']} to instance #{app_deploy['instance']['name']}"
+        rescue => ex
+          print_green_success "Staged Deploy"
+        end
       else
-        print_green_success "Deploying..."
+        begin
+          print_green_success "Deploying #{app_deploy['deployment']['name']} version #{app_deploy['deploymentVersion']['userVersion']} to instance #{app_deploy['instance']['name']}"
+        rescue => ex
+          print_green_success "Deploying"
+        end
       end
       return _get(app_deploy["id"], {}, options)
     end

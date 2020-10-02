@@ -514,7 +514,7 @@ EOT
     end
     json_response = @deployments_interface.destroy_version(deployment['id'], deployment_version['id'], params)
     render_response(json_response, options) do
-      print_green_success "Removed deployment version #{deployment_version['userVersion']}"
+      print_green_success "Removed deployment #{deployment['name']} version #{deployment_version['userVersion']}"
     end
     return 0, nil
   end

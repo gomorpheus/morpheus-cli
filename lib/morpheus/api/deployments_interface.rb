@@ -40,7 +40,8 @@ class Morpheus::DeploymentsInterface < Morpheus::RestInterface
     if destination.empty? || destination == "/" || destination == "." || destination.include?("../")
       raise "#{self.class}.upload_file() passed a bad destination: '#{destination}'"
     end
-    url = "#{@base_url}/#{base_path}/#{deployment_id}/versions/#{id}/files"
+    # url = "#{@base_url}/#{base_path}/#{deployment_id}/versions/#{id}/files"
+    url = "#{base_path}/#{deployment_id}/versions/#{id}/files"
     if !destination.to_s.empty?
       url += "/#{destination}"
     end
