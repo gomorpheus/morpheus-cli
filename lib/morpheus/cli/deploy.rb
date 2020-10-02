@@ -330,7 +330,12 @@ EOT
       deploy_result = @deploy_interface.create(instance_id, payload)
       app_deploy = deploy_result['appDeploy']
       app_deploy_id = app_deploy['id']
-      print_green_success "Deploy Successful!"
+      # print_green_success "Deploy Successful!"
+      if stage_only
+        print_green_success "Deploy staged"
+      else
+        print_green_success "Deploying..."
+      end
     end
     return 0, nil
   end

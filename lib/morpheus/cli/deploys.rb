@@ -179,7 +179,7 @@ EOT
     app_deploy = json_response[app_deploy_object_key]
     render_response(json_response, options, app_deploy_object_key) do
       if payload[app_deploy_object_key]['stageOnly']
-        print_green_success "Staging Deploy..."
+        print_green_success "Deploy staged"
       else
         print_green_success "Deploying..."
       end

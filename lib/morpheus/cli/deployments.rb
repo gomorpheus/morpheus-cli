@@ -277,6 +277,9 @@ EOT
     connect(options)
     deployment = find_deployment_by_name_or_id(args[0])
     return 1 if deployment.nil?
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment #{deployment['name']}?")
+      return 9, "aborted command"
+    end
     @deployments_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @deployments_interface.dry.destroy(deployment['id'], params)
@@ -501,12 +504,15 @@ EOT
         return 1, "deployment version not found for '#{id}'"
       end
     end
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment version #{deployment_version['userVersion']}?")
+      return 9, "aborted command"
+    end
     @deployments_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @deployments_interface.dry.destroy(deployment['id'], params)
+      print_dry_run @deployments_interface.dry.destroy_version(deployment['id'], deployment_version['id'], params)
       return
     end
-    json_response = @deployments_interface.destroy(deployment['id'], params)
+    json_response = @deployments_interface.destroy_version(deployment['id'], deployment_version['id'], params)
     render_response(json_response, options) do
       print_green_success "Removed deployment version #{deployment_version['userVersion']}"
     end
