@@ -18,7 +18,7 @@ class Morpheus::DeployInterface < Morpheus::APIClient
     execute(method: :get, url: "#{base_path}", params: params)
   end
 
-  def get(instance_id, id, params={})
+  def get(id, params={})
     validate_id!(id)
     execute(method: :get, url: "#{base_path}/#{id}", params: params)
   end

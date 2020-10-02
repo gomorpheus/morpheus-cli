@@ -4,13 +4,10 @@ require 'yaml'
 class Morpheus::Cli::Deploys
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::DeploymentsHelper
-
-  # hidden until api support is added
-  set_command_hidden
   
   set_command_name :deploys
 
-  register_subcommands :list, :get, :add, :remove, :deploy
+  register_subcommands :list, :get, :add, :update, :remove, :deploy
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -109,9 +106,45 @@ EOT
       opts.banner = subcommand_usage("[instance] [deployment] [version] [options]")
       build_option_type_options(opts, options, add_app_deploy_option_types)
       build_option_type_options(opts, options, add_app_deploy_advanced_option_types)
+      opts.on(nil, "--stageOnly", "Stage Only, do not run the deployment right away.") do |val|
+        params['stageOnly'] = true
+      end
+      opts.on("-c", "--config JSON", String, "Config for deployment") do |val|
+        parse_result = parse_json_or_yaml(val)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
+        options[:config_file] = val.to_s
+        file_content = nil
+        full_filename = File.expand_path(options[:config_file])
+        if File.exists?(full_filename)
+          file_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        parse_result = parse_json_or_yaml(file_content)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          #raise_command_error "Failed to parse config as valid YAML or JSON."
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new instance deploy.
+The new deployment is deployed right away, unless --stage-only is
 EOT
     end
     optparse.parse!(args)
@@ -134,11 +167,102 @@ EOT
       payload[app_deploy_object_key].deep_merge!(params)
     end
     @deploy_interface.setopts(options)
+    instance_id = payload[app_deploy_object_key]['instance']
     if options[:dry_run]
-      print_dry_run @deploy_interface.dry.create(payload)
+      print_dry_run @deploy_interface.dry.create(instance_id, payload)
       return 0, nil
     end
-    json_response = @deploy_interface.create(payload)
+    # unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to deploy?")
+    #   return 9, "aborted command"
+    # end
+    json_response = @deploy_interface.create(instance_id, payload)
+    app_deploy = json_response[app_deploy_object_key]
+    render_response(json_response, options, app_deploy_object_key) do
+      if payload[app_deploy_object_key]['stageOnly']
+        print_green_success "Staging Deploy..."
+      else
+        print_green_success "Deploying..."
+      end
+      return _get(app_deploy["id"], {}, options)
+    end
+    return 0, nil
+  end
+
+  def update(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on("-c", "--config JSON", String, "Config for deployment") do |val|
+        parse_result = parse_json_or_yaml(val)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
+        options[:config_file] = val.to_s
+        file_content = nil
+        full_filename = File.expand_path(options[:config_file])
+        if File.exists?(full_filename)
+          file_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        parse_result = parse_json_or_yaml(file_content)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          #raise_command_error "Failed to parse config as valid YAML or JSON."
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      #build_option_type_options(opts, options, update_app_deploy_option_types)
+      #build_option_type_options(opts, options, update_app_deploy_advanced_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an instance deploy.
+[id] is required. This is the name or id of an instance deploy.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    app_deploy = find_app_deploy_by_id(args[0])
+    return 1 if app_deploy.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
+      # do not prompt on update
+      #v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_option_types, options[:options], @api_client, options[:params])
+      #v_prompt.deep_compact!
+      #params.deep_merge!(v_prompt)
+      #advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_advanced_option_types, options[:options], @api_client, options[:params])
+      #advanced_config.deep_compact!
+      #params.deep_merge!(advanced_config)
+      payload.deep_merge!({app_deploy_object_key => params})
+      if payload[app_deploy_object_key].empty? # || options[:no_prompt]
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
+    end
+    @deploy_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deploy_interface.dry.update(app_deploy['id'], payload)
+      return
+    end
+    json_response = @deploy_interface.update(app_deploy['id'], payload)
     app_deploy = json_response[app_deploy_object_key]
     render_response(json_response, options, app_deploy_object_key) do
       print_green_success "Deploying..."
@@ -163,6 +287,9 @@ EOT
     connect(options)
     app_deploy = find_app_deploy_by_id(args[0])
     return 1 if app_deploy.nil?
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deploy #{app_deploy['id']}?")
+      return 9, "aborted command"
+    end
     @deploy_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @deploy_interface.dry.destroy(app_deploy['id'], params)
@@ -170,7 +297,7 @@ EOT
     end
     json_response = @deploy_interface.destroy(app_deploy['id'], params)
     render_response(json_response, options) do
-      print_green_success "Removed deploy #{app_deploy['name']}"
+      print_green_success "Removed deploy #{app_deploy['id']}"
     end
     return 0, nil
   end
@@ -181,11 +308,43 @@ EOT
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
-      build_option_type_options(opts, options, update_app_deploy_option_types)
-      build_option_type_options(opts, options, update_app_deploy_advanced_option_types)
-      build_standard_update_options(opts, options)
+      opts.on("-c", "--config JSON", String, "Config for deployment") do |val|
+        parse_result = parse_json_or_yaml(val)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
+        options[:config_file] = val.to_s
+        file_content = nil
+        full_filename = File.expand_path(options[:config_file])
+        if File.exists?(full_filename)
+          file_content = File.read(full_filename)
+        else
+          print_red_alert "File not found: #{full_filename}"
+          return 1
+        end
+        parse_result = parse_json_or_yaml(file_content)
+        config_map = parse_result[:data]
+        if config_map.nil?
+          # todo: bubble up JSON.parse error message
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          #raise_command_error "Failed to parse config as valid YAML or JSON."
+        else
+          params['config'] = config_map
+          options[:options]['config'] = params['config'] # or file_content
+        end
+      end
+      #build_option_type_options(opts, options, update_app_deploy_option_types)
+      #build_option_type_options(opts, options, update_app_deploy_advanced_option_types)
+      build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
-Update an instance deploy.
+Deploy an instance deploy.
 [id] is required. This is the name or id of an instance deploy.
 EOT
     end
@@ -201,23 +360,26 @@ EOT
     else
       payload.deep_merge!({app_deploy_object_key => parse_passed_options(options)})
       # do not prompt on update
-      v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_option_types, options[:options], @api_client, options[:params])
-      v_prompt.deep_compact!
-      params.deep_merge!(v_prompt)
-      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_advanced_option_types, options[:options], @api_client, options[:params])
-      advanced_config.deep_compact!
-      params.deep_merge!(advanced_config)
+      #v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_option_types, options[:options], @api_client, options[:params])
+      #v_prompt.deep_compact!
+      #params.deep_merge!(v_prompt)
+      #advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_app_deploy_advanced_option_types, options[:options], @api_client, options[:params])
+      #advanced_config.deep_compact!
+      #params.deep_merge!(advanced_config)
       payload.deep_merge!({app_deploy_object_key => params})
-      if payload[app_deploy_object_key].empty? # || options[:no_prompt]
-        raise_command_error "Specify at least one option to update.\n#{optparse}"
-      end
+      # if payload[app_deploy_object_key].empty? # || options[:no_prompt]
+      #   raise_command_error "Specify at least one option to update.\n#{optparse}"
+      # end
+    end
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to deploy #{app_deploy['deployment']['name']} version #{app_deploy['deploymentVersion']['userVersion']} to instance #{app_deploy['instance']['name']}?")
+      return 9, "aborted command"
     end
     @deploy_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @deploy_interface.dry.update(app_deploy['id'], payload)
       return
     end
-    json_response = @deploy_interface.update(app_deploy['id'], payload)
+    json_response = @deploy_interface.deploy(app_deploy['id'], payload)
     app_deploy = json_response[app_deploy_object_key]
     render_response(json_response, options, app_deploy_object_key) do
       print_green_success "Deploying..."
@@ -225,6 +387,7 @@ EOT
     end
     return 0, nil
   end
+
   private
 
    ## Deploys (AppDeploy)
@@ -305,9 +468,9 @@ EOT
   def format_app_deploy_status(status, return_color=cyan)
     out = ""
     s = status.to_s.downcase
-    if s == 'deployed'
+    if s == 'deployed' || s == 'committed'
       out << "#{green}#{s.upcase}#{return_color}"
-    elsif s == 'open' || s == 'archived' || s == 'committed'
+    elsif s == 'open' || s == 'archived'
       out << "#{cyan}#{s.upcase}#{return_color}"
     elsif s == 'failed'
       out << "#{red}#{s.upcase}#{return_color}"
