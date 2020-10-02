@@ -131,4 +131,19 @@ module Morpheus::Cli::DeploymentsHelper
     end
   end
 
+  def format_app_deploy_status(status, return_color=cyan)
+    out = ""
+    s = status.to_s.downcase
+    if s == 'deployed' || s == 'committed'
+      out << "#{green}#{s.upcase}#{return_color}"
+    elsif s == 'open' || s == 'archived'
+      out << "#{cyan}#{s.upcase}#{return_color}"
+    elsif s == 'failed'
+      out << "#{red}#{s.upcase}#{return_color}"
+    else
+      out << "#{yellow}#{s.upcase}#{return_color}"
+    end
+    out
+  end
+
 end
