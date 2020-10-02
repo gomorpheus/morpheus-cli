@@ -52,7 +52,7 @@ It is possible to nest these properties in an "environments" map to override bas
 Example
 ==================
 
-name: neatsite
+name: mysite
 version: 5.0
 script: "rake build"
 files: 
