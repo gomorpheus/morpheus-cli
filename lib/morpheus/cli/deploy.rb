@@ -315,7 +315,7 @@ EOT
     end
     # stageOnly means do not actually deploy yet, can invoke @deploy_interface.deploy(deployment['id']) later
     # there is no cli command for that yet though..
-    stage_only = deploy_args['stage_deploy'] || deploy_args['stage_only'] || deploy_args['stageOnly']
+    stage_only = deploy_args['stage'] || deploy_args['stage_deploy'] || deploy_args['stage_only'] || deploy_args['stageOnly']
     if stage_only
       payload['appDeploy']['stageOnly'] = true
     end
