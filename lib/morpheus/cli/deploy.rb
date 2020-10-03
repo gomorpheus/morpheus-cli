@@ -341,7 +341,7 @@ EOT
       payload = {
         'version' => {
           'userVersion' => version_number,
-          'deployType' => (deploy_args['type'] || deploy_args['deployType'] || 'file')
+          'deployType' => deploy_type
         } 
       }
       payload['version']['fetchUrl'] = deploy_args['fetchUrl'] if deploy_args['fetchUrl']
