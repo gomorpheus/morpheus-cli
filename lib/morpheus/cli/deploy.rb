@@ -24,25 +24,30 @@ class Morpheus::Cli::Deploy
 Deploy to an instance using the morpheus.yml file, located in the working directory.
 [environment] is optional. Merge settings under environments.{environment}. Default is no environment.
 
-First this parses the morpheus.yml file and merges the specified environment settings.
-The specified instance must exist and the specified version must not exist.
-If the settings are valid, the new deployment version will be created and 
-all the specified files are uploaded to the new deployment version.
-Finally, it deploys the new version to the instance.
+First the morpheus.yml YAML file is parsed, merging the specified environment's nested settings.
+The specified instance must exist and the specified deployment version must not exist.
+If the settings are valid, the new deployment version will be created.
+If is a file type deployment, all the discovered files are uploaded to the new deployment version.
+Finally, it deploys the new version to the instance using any specified config options.
 
 The morpheus.yml should be located in the working directory.
-This file contains the information necessary to perform a deployment via the cli.
+This YAML file contains the settings that specify how to execute the deployment.
 
 File Settings
 ==================
 
-* name - (required) The instance name we are deploying to and, by default, name of the deployment being created.
+* name - (required) The instance name being deployed to, also the default name of the deployment.
 * version - (required) The version identifier of the deployment being created (userVersion)
 * deployment - The name of the deployment being created, name is used by default
-* script - The initial script to run before looking for files to upload.
-* files - List of file patterns to use for uploading files and their target destination. 
+* type - The type of deployment, file, 'git' or 'fetch', default is 'file'.
+* script - The initial script to run, happens before finding the files to be uploaded.
+* files - (required) List of file patterns to use for uploading files and their target destination. 
           Each item should contain path and pattern, path may be relative to the working directory, default pattern is: '**/*'
-* options - Map of deployment options depending on deployment type
+          only applies to type 'file'
+* url - (required) The url to fetch files from, only applies to types 'git' and 'fetch'.
+* ref - The git reference, default is master (main), only applies to type git.
+* config - Map of deployment config options depending on deployment type
+* options - alias for config
 * post_script - A post operation script to be run on the local machine
 * stage_only - If set to true the deploy will only be staged and not actually run
 * environments - Map of objects that contain nested properties for each environment name
@@ -61,6 +66,16 @@ environments:
   production:
     files:
     - path: production-build
+
+
+Git Example
+==================
+
+name: morpheus-apidoc
+version: 5.0.0
+type: git
+url: "https://github.com/gomorpheus/morpheus-apidoc"
+
 EOT
     end
     optparse.parse!(args)
@@ -107,8 +122,23 @@ EOT
     instance = instance_results['instances'][0]
     instance_id = instance['id']
 
-    deploy_type = deploy_args['type'] || 'files'
-    #deploy_type = "files" if deploy_type.to_s.downcase == "file"
+    # auto detect type, default to file
+    deploy_type = deploy_args['type'] || deploy_args['deployType']
+    if deploy_type.nil?
+      if deploy_args['gitUrl']
+        deploy_type = 'git'
+      elsif deploy_args['fetchUrl'] || deploy_args['url']
+        deploy_type = 'fetch'
+      end
+    end
+    if deploy_type.nil?
+      deploy_type = "file"
+    end
+    deploy_url = deploy_args['url'] || deploy_args['fetchUrl'] || deploy_args['gitUrl']
+    if deploy_url.nil? && (deploy_type == "git" || deploy_type == "fetch")
+      raise_command_error "Deploy type '#{deploy_type}' requires a url to be specified"
+    end
+    #deploy_type = "file" if deploy_type.to_s.downcase == "files"
 
     deploy_config = deploy_args['options'] || deploy_args['config']
 
@@ -154,7 +184,7 @@ EOT
       columns.delete("Script") if deploy_settings[:script].nil?
       columns.delete("Post Script") if deploy_settings[:post_script].nil?
       columns.delete("Environment") if deploy_settings[:environment].nil?
-      columns.delete("Files") if deploy_type != "files"
+      columns.delete("Files") if deploy_type != "file" && deploy_type != "files"
       columns.delete("Git Url") if deploy_settings[:git_url].nil?
       columns.delete("Git Ref") if deploy_settings[:git_ref].nil?
       columns.delete("Fetch Url") if deploy_settings[:fetch_url].nil?
@@ -183,7 +213,7 @@ EOT
 
     # Find Files to Upload
     deploy_files = []
-    if deploy_type == "files"
+    if deploy_type == "file" || deploy_type == "files"
       if deploy_args['files'].nil? || deploy_args['files'].empty? || !deploy_args['files'].is_a?(Array)
         raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload"
       else
@@ -239,7 +269,7 @@ EOT
 
     confirm_warning = ""
     confirm_message = "Are you sure you want to perform this action?"
-    if deploy_type == "files"
+    if deploy_type == "file" || deploy_type == "files"
       confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
     elsif deploy_type == "git"
       confirm_warning = "This will create deployment #{deployment_name} version #{version_number} and deploy it to instance #{instance['name']}."
@@ -330,7 +360,7 @@ EOT
 
     
     # Upload Files
-    if deploy_type == "files"
+    if deploy_type == "file" || deploy_type == "files"
       if deploy_files && !deploy_files.empty?
         print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n" if !options[:quiet]
         current_working_dir = Dir.pwd
