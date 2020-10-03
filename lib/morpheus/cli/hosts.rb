@@ -115,7 +115,7 @@ class Morpheus::Cli::Hosts
       opts.on('--non-tag-compliant', "Displays only servers with tag compliance warnings." ) do
         params[:tagCompliant] = false
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List hosts."
     end
     optparse.parse!(args)
@@ -245,31 +245,66 @@ class Morpheus::Cli::Hosts
             end
             row = {
               id: server['id'],
-              tenant: server['account'] ? server['account']['name'] : server['accountId'],
               name: server['name'],
+              hostname: server['hostname'],
               platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-              cloud: server['zone'] ? server['zone']['name'] : '',
               type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+              tenant: server['account'] ? server['account']['name'] : server['accountId'],
+              owner: server['owner'] ? server['owner']['username'] : server['owner'],
+              cloud: server['zone'] ? server['zone']['name'] : '',
+              ip: server['externalIp'],
+              internal_ip: server['internalIp'],
               nodes: server['containers'] ? server['containers'].size : '',
-              status: format_server_status(server, cyan),
+              # status: format_server_status(server, cyan),
+              status: (options[:details]||options[:all_fields]) ? format_server_status(server, cyan) : format_server_status_friendly(server, cyan),
               power: format_server_power_state(server, cyan),
               cpu: cpu_usage_str + cyan,
               memory: memory_usage_str + cyan,
-              storage: storage_usage_str + cyan
+              storage: storage_usage_str + cyan,
+              created: format_local_dt(server['dateCreated']),
+              updated: format_local_dt(server['lastUpdated']),
             }
             row
           }
-          columns = [:id, :name, :type, :cloud, :nodes, :status, :power]
-          if multi_tenant
-            columns.insert(4, :tenant)
+          # columns = [:id, :name, :type, :cloud, :ip, :internal_ip, :nodes, :status, :power]
+          columns = {
+            "ID" => :id,
+            "Name" => :name,
+            "Hostname" => :hostname,
+            "Type" => :type,
+            "Owner" => :owner,
+            "Tenant" => :tenant,
+            "Cloud" => :cloud,
+            "IP" => :ip,
+            "Private IP" => :internal_ip,
+            "Nodes" => :nodes,
+            "Status" => :status,
+            "Power" => :power,
+            "CPU" => :cpu,
+            "Memory" => :memory,
+            "Storage" => :storage,
+            "Created" => :created,
+            "Updated" => :updated,
+          }
+          if options[:details] != true
+            columns.delete("Hostname")
+            columns.delete("Private IP")
+            columns.delete("Owner")
+            columns.delete("Tenant")
+            columns.delete("Power")
+            columns.delete("Created")
+            columns.delete("Updated")
           end
-          columns += [:cpu, :memory, :storage]
-          # custom pretty table columns ...
-          if options[:include_fields]
-            columns = options[:include_fields]
+          if !multi_tenant
+            columns.delete("Tenant")
           end
+          # columns += [:cpu, :memory, :storage]
+          # # custom pretty table columns ...
+          # if options[:include_fields]
+          #   columns = options[:include_fields]
+          # end
           print cyan
-          print as_pretty_table(rows, columns, options)
+          print as_pretty_table(rows, columns.upcase_keys!, options)
           print reset
           print_results_pagination(json_response)
         end
@@ -464,27 +499,31 @@ class Morpheus::Cli::Hosts
       server_columns = {
         "ID" => 'id',
         "Name" => 'name',
+        "Hostname" => 'hostname',
         "Description" => 'description',
-        "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+        "Owner" => lambda {|it| it['account'] ? it['owner']['username'] : '' },
+        "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         #"Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
+        "IP" => lambda {|it| it['externalIp'] },
+        "Private IP" => lambda {|it| it['internalIp'] },
         "Type" => lambda {|it| it['computeServerType'] ? it['computeServerType']['name'] : 'unmanaged' },
         "Platform" => lambda {|it| it['serverOs'] ? it['serverOs']['name'].upcase : 'N/A' },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
         "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Agent" => lambda {|it| it['agentInstalled'] ? "#{server['agentVersion'] || ''} updated at #{format_local_dt(server['lastAgentUpdate'])}" : '(not installed)' },
-        "Status" => lambda {|it| format_server_status(it) },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].size : 0 },
-        "Power" => lambda {|it| format_server_power_state(it) },
+        # "Status" => lambda {|it| format_server_status(it) },
+        # "Power" => lambda {|it| format_server_power_state(it) },
+        "Status" => lambda {|it| format_server_status_friendly(it) }, # combo
       }
-      
-      if server['hourlyCost'].to_f == 0
-        server_columns.delete("Cost")
-      end
-      if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
-        server_columns.delete("Price")
-      end
+      server_columns.delete("Hostname") if server['hostname'].to_s.empty? || server['hostname'] == server['name']
+      server_columns.delete("IP") if server['externalIp'].to_s.empty?
+      server_columns.delete("Private IP") if server['internalIp'].to_s.empty?
+      # server_columns.delete("Tenant") if multi_tenant != true
+      server_columns.delete("Cost") if server['hourlyCost'].to_f == 0
+      server_columns.delete("Price") if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
 
       print_description_list(server_columns, server)
 
@@ -1973,11 +2012,38 @@ class Morpheus::Cli::Hosts
 
   def format_server_status(server, return_color=cyan)
     out = ""
-    status_string = server['status']
-    # todo: colorize, upcase?
-    out << status_string.to_s
+    status_string = server['status'].to_s.downcase
+    if status_string == 'provisioned'
+      out = "#{cyan}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out = "#{cyan}#{status_string.upcase}#{cyan}"
+    elsif status_string == 'failed' or status_string == 'error'
+      out = "#{red}#{status_string.upcase}#{return_color}"
+    else
+      out = "#{yellow}#{status_string.upcase}#{return_color}"
+    end
     out
   end
+
+  def format_server_status_friendly(server, return_color=cyan)
+    out = ""
+    status_string = server['status'].to_s.downcase
+    if status_string == 'provisioned'
+      # out = format_server_power_state(server, return_color)
+      # make it looks like format_instance_status
+      if server['powerState'] == 'on'
+        out << "#{green}RUNNING#{return_color}"
+      elsif server['powerState'] == 'off'
+        out << "#{red}STOPPED#{return_color}"
+      else
+        out << "#{white}#{server['powerState'].to_s.upcase}#{return_color}"
+      end
+    else
+      out = format_server_status(server, return_color)
+    end
+    out
+  end
+  
 
    def make_managed_option_types(connected=true)
     [
