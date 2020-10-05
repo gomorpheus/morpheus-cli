@@ -131,6 +131,14 @@ module Morpheus::Cli::DeploymentsHelper
     end
   end
 
+  def format_deployment_version_number(deployment_version)
+    if deployment_version
+      deployment_version['userVersion'] || deployment_version['version'] || ''
+    else
+      ''
+    end
+  end
+
   def format_app_deploy_status(status, return_color=cyan)
     out = ""
     s = status.to_s.downcase

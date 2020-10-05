@@ -83,7 +83,7 @@ EOT
       if id.to_s =~ /\A\d{1,}\Z/
         id
       else
-        deployment = find_deployment_by_name(id)
+        deployment = find_deployment_by_name_or_id(id)
         if deployment
           deployment['id']
         else
@@ -316,7 +316,7 @@ EOT
     if id.to_s =~ /\A\d{1,}\Z/
       id = id.to_i
     else
-      deployment_version = find_deployment_version_by_name(deployment['id'], id)
+      deployment_version = find_deployment_version_by_name_or_id(deployment['id'], id)
       if deployment_version
         id = deployment_version['id']
       else
@@ -339,25 +339,16 @@ EOT
       columns = {
         "ID" => 'id',
         "Deployment" => lambda {|it| deployment['name'] },
-        "Version" => 'userVersion',
+        "Version" => lambda {|it| format_deployment_version_number(it) },
         "Deploy Type" => lambda {|it| it['deployType'] },
-        "URL" => lambda {|it| 
-          if it['deployType'] == 'fetch'
-            "#{it['fetchUrl']}"
-          elsif it['deployType'] == 'git'
-            "#{it['gitUrl']}"
-          end
-        },
-        "Ref" => lambda {|it| 
-          if it['deployType'] == 'git'
-            "#{it['gitRef']}"
-          end
-        },
+        "Deploy Type" => lambda {|it| it['deployType'] },
+        "URL" => lambda {|it| it['fetchUrl'] || it['gitUrl'] || it['url'] },
+        "Ref" => lambda {|it| it['gitRef'] || it['ref'] },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
       }
       if deployment_version['deployType'] == 'git'
-        columns['Git URL'] = columns['URL']
+        
       elsif deployment_version['deployType'] == 'fetch'
         columns['Fetch URL'] = columns['URL']
         columns.delete('Ref')
@@ -490,21 +481,11 @@ EOT
     verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
     deployment = find_deployment_by_name_or_id(args[0])
-    return 1 if deployment.nil?
+    return 1, "deployment not found" if deployment.nil?
     id = args[1]
-
-    if id.to_s =~ /\A\d{1,}\Z/
-      id = id.to_i
-    else
-      deployment_version = find_deployment_version_by_name(deployment['id'], id)
-      if deployment_version
-        id = deployment_version['id']
-      else
-        # raise_command_error "deployment not found for '#{id}'"
-        return 1, "deployment version not found for '#{id}'"
-      end
-    end
-    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment version #{deployment_version['userVersion']}?")
+    deployment_version = find_deployment_version_by_name_or_id(deployment['id'], id)
+    return 1, "version not found" if deployment_version.nil?
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the deployment version #{format_deployment_version_number(deployment_version)}?")
       return 9, "aborted command"
     end
     @deployments_interface.setopts(options)
@@ -514,7 +495,7 @@ EOT
     end
     json_response = @deployments_interface.destroy_version(deployment['id'], deployment_version['id'], params)
     render_response(json_response, options) do
-      print_green_success "Removed deployment #{deployment['name']} version #{deployment_version['userVersion']}"
+      print_green_success "Removed deployment #{deployment['name']} version #{format_deployment_version_number(deployment_version)}"
     end
     return 0, nil
   end
@@ -565,7 +546,7 @@ EOT
   def deployment_version_column_definitions
     {
       "ID" => 'id',
-      "Version" => 'userVersion',
+      "Version" => lambda {|it| format_deployment_version_number(it) },
       "Deploy Type" => lambda {|it| it['deployType'] },
       "URL" => lambda {|it| 
         if it['deployType'] == 'fetch'
