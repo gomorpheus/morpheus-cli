@@ -757,6 +757,51 @@ EOT
     end
   end
 
+  def remove_file(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[deployment] [version] [file] [options]")
+      opts.on( '-f', '--force', "Force remove, use this to delete directories and all of their contents at once." ) do
+        params['force'] = true
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete a deployment file.
+[deployment] is required. This is the name or id of a deployment.
+[version] is required. This is the version identifier of a deployment version.
+[file] is required. This is the name of the file to be deleted.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:2, max:3)
+    connect(options)
+    deployment = find_deployment_by_name_or_id(args[0])
+    return 1, "deployment not found" if deployment.nil?
+    id = args[1]
+    deployment_version = find_deployment_version_by_name_or_id(deployment['id'], id)
+    return 1, "version not found" if deployment_version.nil?
+    # could look it up here, or allow a directory instead of a single file
+    filename = args[2]
+    if filename.nil?
+      #raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload", args, optparse
+      filename = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'file', 'fieldLabel' => 'Files', 'type' => 'text', 'required' => true, 'description' => 'Files or directories to upload'}], options[:options])['file'].to_s #.split(",").collect {|it| it.to_s.strip }.select { |it| it != "" }
+    end
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the file #{filename}?")
+      return 9, "aborted command"
+    end
+    @deployments_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deployments_interface.dry.destroy_file(deployment['id'], deployment_version['id'], filename, params)
+      return
+    end
+    json_response = @deployments_interface.destroy_file(deployment['id'], deployment_version['id'], filename, params)
+    render_response(json_response, options) do
+      print_green_success "Removed deployment file #{filename}"
+    end
+    return 0, nil
+  end
+
   private
 
   def deployment_column_definitions

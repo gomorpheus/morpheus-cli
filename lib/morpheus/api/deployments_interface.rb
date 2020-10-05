@@ -58,4 +58,22 @@ class Morpheus::DeploymentsInterface < Morpheus::RestInterface
     execute(method: :post, url: url, headers: headers, payload: payload, params: params, timeout: 172800)
   end
 
+  # upload a file without multipart
+  # local_file is the full absolute local filename
+  # destination should be the full remote file path, including the file name.
+  def destroy_file(deployment_id, id, destination, params={})
+    if destination.empty? || destination == "/" || destination == "." || destination.include?("../")
+      raise "#{self.class}.upload_file() passed a bad destination: '#{destination}'"
+    end
+    # url = "#{@base_url}/#{base_path}/#{deployment_id}/versions/#{id}/files"
+    url = "#{base_path}/#{deployment_id}/versions/#{id}/files"
+    if !destination.to_s.empty?
+      url += "/#{destination}"
+    end
+    # use URI to escape path
+    uri = URI.parse(url)
+    url = uri.path
+    execute(method: :delete, url: url, params: params)
+  end
+
 end
