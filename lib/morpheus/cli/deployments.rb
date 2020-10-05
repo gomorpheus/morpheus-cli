@@ -8,7 +8,7 @@ class Morpheus::Cli::Deployments
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :list_versions, :get_version, :add_version, :update_version, :remove_version
-  register_subcommands :list_files, :upload_file #, :remove_file
+  register_subcommands :list_files, :upload_file, :remove_file
   alias_subcommand :versions, :'list-versions'
 
   def initialize()
@@ -298,6 +298,9 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[deployment] [version] [options]")
+      opts.on(nil, '--no-files', "Do not show files") do
+        options[:no_files] = true
+      end
       build_option_type_options(opts, options, add_deployment_version_option_types)
       build_option_type_options(opts, options, add_deployment_version_advanced_option_types)
       build_standard_add_options(opts, options)
@@ -332,6 +335,13 @@ EOT
     end
     json_response = @deployments_interface.get_version(deployment['id'], id, params)
     deployment_version = json_response['version']
+    deploy_type = deployment_version['deployType'] || deployment_version['type']
+    deployment_files_response = nil
+    deployment_files = nil
+    if options[:no_files] != true
+      deployment_files_response = @deployments_interface.list_files(deployment['id'], deployment_version['id'], params)
+      deployment_files = deployment_files_response.is_a?(Array) ? deployment_files_response : deployment_files_response['files']
+    end
     render_response(json_response, options, 'version') do
       # print_h1 "Deployment Version Details", [deployment['name']], options
       print_h1 "Deployment Version Details", [], options
@@ -348,8 +358,9 @@ EOT
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
       }
       if deployment_version['deployType'] == 'git'
-        
+        options[:no_files] = true
       elsif deployment_version['deployType'] == 'fetch'
+        options[:no_files] = true
         columns['Fetch URL'] = columns['URL']
         columns.delete('Ref')
       else
@@ -358,6 +369,18 @@ EOT
       end
       print_description_list(columns, deployment_version)
       print reset,"\n"
+
+      if options[:no_files] != true
+        print_h2 "Deployment Files", options
+        if !deployment_files || deployment_files.empty?
+          print cyan,"No files found.",reset,"\n"
+        else
+          print as_pretty_table(deployment_files, deployment_file_column_definitions.upcase_keys!, options)
+          print_results_pagination({size:deployment_files.size,total:deployment_files.size.to_i})
+        end
+        print reset,"\n"
+      end
+
     end
     return 0, nil
   end
@@ -505,8 +528,6 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[deployment] [version] [path] [options]")
-      build_option_type_options(opts, options, add_deployment_version_option_types)
-      build_option_type_options(opts, options, add_deployment_version_advanced_option_types)
       build_standard_list_options(opts, options)
       opts.footer = <<-EOT
 List files in a deployment version.
@@ -532,14 +553,17 @@ EOT
       return
     end
     json_response = @deployments_interface.list_files(deployment['id'], deployment_version['id'], params)
-    # files = json_response['files']
-    # odd, api just returns an array, fix that plz
+    # odd, api used to just return an array
     deployment_files = json_response.is_a?(Array) ? json_response : json_response['files']
     render_response(json_response, options) do
       print_h1 "Deployment Files", ["#{deployment['name']} #{format_deployment_version_number(deployment_version)}"]
-      print as_pretty_table(deployment_files, deployment_file_column_definitions.upcase_keys!, options)
-      #print_results_pagination(json_response)
-      print "\n"
+      if !deployment_files || deployment_files.empty?
+        print cyan,"No files found.",reset,"\n"
+      else
+        print as_pretty_table(deployment_files, deployment_file_column_definitions.upcase_keys!, options)
+        #print_results_pagination(json_response)
+        print_results_pagination({size:deployment_files.size,total:deployment_files.size.to_i})
+      end
       print reset,"\n"
     end
     return 0, nil
@@ -835,8 +859,8 @@ EOT
     {
       #"ID" => 'id',
       "Name" => 'name',
-      "Type" => lambda {|it| it['isDirectory'] ? "directory" : (it["contentType"] || "file") },
-      "Size" => lambda {|it| it['isDirectory'] ? "" : format_bytes_short(it['contentLength']) },
+      "Type" => lambda {|it| (it['directory'] || it['isDirectory']) ? "directory" : (it["contentType"] || "file") },
+      "Size" => lambda {|it| (it['directory'] || it['isDirectory']) ? "" : format_bytes_short(it['contentLength']) },
       #"Content Type" => lambda {|it| it['contentType'] },
       # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
