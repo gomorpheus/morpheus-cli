@@ -390,7 +390,11 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[deployment] [version] [options]")
+      opts.on('-t', '--type CODE', String, "Deploy Type, file, git or fetch, default is file.") do |val|
+        options[:options]['deployType'] = val
+      end
       build_option_type_options(opts, options, add_deployment_version_option_types)
+      opts.add_hidden_option('--deployType')
       build_option_type_options(opts, options, add_deployment_version_advanced_option_types)
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -762,7 +766,11 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[deployment] [version] [file] [options]")
-      opts.on( '-f', '--force', "Force remove, use this to delete directories and all of their contents at once." ) do
+      opts.on( '-R', '--recursive', "Delete a directory and all of its files. This must be passed if specifying a directory." ) do
+        # do_recursive = true
+        params['force'] = true
+      end
+      opts.on( '-f', '--force', "Force delete, this will do a recursive delete of directories." ) do
         params['force'] = true
       end
       build_standard_remove_options(opts, options)
