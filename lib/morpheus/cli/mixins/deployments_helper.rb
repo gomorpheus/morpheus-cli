@@ -51,9 +51,10 @@ module Morpheus::Cli::DeploymentsHelper
       return nil
     elsif deployments.size > 1
       print_red_alert "#{deployments.size} deployments found by name '#{name}'"
+      print_error "\n"
       puts_error as_pretty_table(deployments, [:id, :name], {color:red})
       print_red_alert "Try using ID instead"
-      print reset,"\n"
+      print_error reset,"\n"
       return nil
     else
       return deployments[0]
@@ -122,9 +123,10 @@ module Morpheus::Cli::DeploymentsHelper
       return nil
     elsif deployment_versions.size > 1
       print_red_alert "#{deployment_versions.size} deployment versions found by version '#{name}'"
+      print_error "\n"
       puts_error as_pretty_table(deployment_versions, {"ID" => 'id', "VERSION" => 'userVersion'}, {color:red})
       print_red_alert "Try using ID instead"
-      print reset,"\n"
+      print_error reset,"\n"
       return nil
     else
       return deployment_versions[0]

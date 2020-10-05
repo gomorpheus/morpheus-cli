@@ -8,6 +8,7 @@ class Morpheus::Cli::Deployments
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :list_versions, :get_version, :add_version, :update_version, :remove_version
+  register_subcommands :list_files, :upload_file #, :remove_file
   alias_subcommand :versions, :'list-versions'
 
   def initialize()
@@ -341,7 +342,6 @@ EOT
         "Deployment" => lambda {|it| deployment['name'] },
         "Version" => lambda {|it| format_deployment_version_number(it) },
         "Deploy Type" => lambda {|it| it['deployType'] },
-        "Deploy Type" => lambda {|it| it['deployType'] },
         "URL" => lambda {|it| it['fetchUrl'] || it['gitUrl'] || it['url'] },
         "Ref" => lambda {|it| it['gitRef'] || it['ref'] },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
@@ -500,6 +500,239 @@ EOT
     return 0, nil
   end
 
+  def list_files(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[deployment] [version] [path] [options]")
+      build_option_type_options(opts, options, add_deployment_version_option_types)
+      build_option_type_options(opts, options, add_deployment_version_advanced_option_types)
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List files in a deployment version.
+[deployment] is required. This is the name or id of a deployment.
+[version] is required. This is the deployment version identifier
+[path] is optional. This is a the directory to search for files under.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:2, max: 3)
+    connect(options)
+    params.merge!(parse_list_options(options))
+    deployment = find_deployment_by_name_or_id(args[0])
+    return 1, "deployment not found for '#{args[0]}'" if deployment.nil?
+    deployment_version = find_deployment_version_by_name_or_id(deployment['id'], args[1])
+    return 1, "deployment version not found for '#{args[1]}'" if deployment_version.nil?
+    if args[2]
+      params['filePath'] = args[2]
+    end
+    @deployments_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @deployments_interface.dry.list_files(deployment['id'], deployment_version['id'], params)
+      return
+    end
+    json_response = @deployments_interface.list_files(deployment['id'], deployment_version['id'], params)
+    # files = json_response['files']
+    # odd, api just returns an array, fix that plz
+    deployment_files = json_response.is_a?(Array) ? json_response : json_response['files']
+    render_response(json_response, options) do
+      print_h1 "Deployment Files", ["#{deployment['name']} #{format_deployment_version_number(deployment_version)}"]
+      print as_pretty_table(deployment_files, deployment_file_column_definitions.upcase_keys!, options)
+      #print_results_pagination(json_response)
+      print "\n"
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def upload_file(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[deployment] [version] [files]")
+      opts.on('--files LIST', String, "Files to upload") do |val|
+        val_list = val.to_s.split(",").collect {|it| it.to_s.strip }.select { |it| it != "" }
+        options[:files] ||= []
+        options[:files] += val_list
+      end
+      opts.on('--workdir DIRECTORY', String, "Working directory to switch to before uploading files, determines the paths of the uploaded files. The current working directory of your terminal is used by default.") do |val|
+        options[:workdir] = File.expand_path(val)
+        if !File.directory?(options[:workdir])
+          raise_command_error "invalid directory: #{val}"
+        end
+      end
+      opts.on('--destination FILEPATH', String, "Destination filepath for file being uploaded, should include full filename and extension. Only applies when uploading a single file.") do |val|
+        options[:destination] = val
+      end
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Upload one or more files or directories to a deployment version.
+[deployment] is required. This is the name or id of a deployment.
+[version] is required. This is the deployment version identifier
+[files] is required. This is a list of files or directories to be uploaded. Glob pattern format supported eg. build/*.html
+EOT
+    end
+    optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, min:0, max:2)
+    connect(options)
+
+    # fetch deployment
+    deployment = nil
+    if args[0]
+      deployment = find_deployment_by_name_or_id(args[0])
+      return 1 if deployment.nil?
+    else
+      all_deployments = @deployments_interface.list(max:10000)['deployments']
+      deployment_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deployment', 'fieldLabel' => 'Deployment', 'type' => 'select', 'required' => true, 'description' => 'Deployment identifier (name or ID)', 'optionSource' => lambda { |api_client, api_params|
+        all_deployments.collect {|it| {'name' => it['name'], 'value' => it['id']} }
+      }}], options[:options])['deployment']
+      deployment = all_deployments.find {|it| deployment_id == it['id'] || deployment_id == it['name'] }
+      raise_command_error "Deployment not found for '#{deployment_id}'" if deployment.nil?
+    end
+
+    # fetch deployment version
+    deployment_version = nil
+    if args[1]
+      deployment_version = find_deployment_version_by_name_or_id(deployment['id'], args[1])
+      return 1 if deployment_version.nil?
+    else
+      all_deployment_versions = @deployments_interface.list_versions(deployment['id'], {max:10000})['versions']
+      deployment_version_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'version', 'fieldLabel' => 'Version', 'type' => 'select', 'required' => true, 'description' => 'Deployment Version identifier (version or ID) to upload files to', 'optionSource' => lambda { |api_client, api_params|
+        all_deployment_versions.collect {|it| {'name' => it['version'] || it['userVersion'], 'value' => it['id']} }
+      }}], options[:options])['version']
+      deployment_version = all_deployment_versions.find {|it| deployment_version_id == it['id'] || deployment_version_id == it['userVersion'] || deployment_version_id == it['version'] }
+      raise_command_error "Deployment Version not found for '#{deployment_version_id}'" if deployment_version.nil?
+    end
+
+
+    # Determine which files to find
+    file_patterns = []
+    # [files] is args 3 - N
+    if args.size > 2
+      file_patterns += args[2..-1]
+    end
+    if options[:files]
+      file_patterns += options[:files]
+    end
+    if file_patterns.empty?
+      #raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload", args, optparse
+      file_patterns = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'files', 'fieldLabel' => 'Files', 'type' => 'text', 'required' => true, 'description' => 'Files or directories to upload'}], options[:options])['files'].to_s.split(",").collect {|it| it.to_s.strip }.select { |it| it != "" }
+    end
+
+    # Find Files to Upload
+    deploy_files = []
+    
+    #print "\n",cyan, "Finding Files...", reset, "\n" unless options[:quiet]
+    original_working_dir = Dir.pwd
+    base_working_dir = options[:workdir] || original_working_dir
+    begin
+      file_patterns.each do |file_pattern|
+        # start in the working directory
+        # to preserve relative paths in upload file destinations
+        # allow passing just build  instead  build/**/*
+        Dir.chdir(base_working_dir)
+        fmap = nil
+        full_file_pattern = File.expand_path(file_pattern)
+        if File.exists?(full_file_pattern)
+          if File.directory?(full_file_pattern)
+            fmap = {'path' => full_file_pattern, 'pattern' => '**/*'}
+          else
+            fmap = {'path' => File.dirname(full_file_pattern), 'pattern' => File.basename(full_file_pattern)}
+          end
+        else
+          fmap = {'path' => nil, 'pattern' => file_pattern}
+        end
+        if fmap['path']
+          Dir.chdir(File.expand_path(fmap['path']))
+        end
+        files = Dir.glob(fmap['pattern'] || '**/*')
+        if files.empty?
+          raise_command_error "Found 0 files for file pattern '#{file_pattern}'"
+        end
+        files.each do |file|
+          if File.file?(file)
+            destination = file.split("/")[0..-2].join("/")
+            # deploy_files << {filepath: File.expand_path(file), destination: destination}
+            # absolute path was given, so no path is given to the destination file
+            # maybe apply options[:destination] as prefix here
+            # actually just do destination.sub!(base_working_dir, '')
+            if file[0].chr == "/"
+              deploy_files << {filepath: File.expand_path(file), destination: File.basename(file)}
+            else
+              deploy_files << {filepath: File.expand_path(file), destination: file}
+            end
+          end
+        end
+      end
+      #print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+    rescue => ex
+      # does not happen, just in case
+      #print_error "An error occured while searching for files to upload: #{ex}"
+      raise ex
+    ensure
+      Dir.chdir(original_working_dir)
+    end
+      
+    # make sure we have something to upload.
+    if deploy_files.empty?
+      raise_command_error "0 files found for: #{file_patterns.join(', ')}"
+    else
+      unless options[:quiet]
+        print cyan, "Found #{deploy_files.size} Files to Upload!", reset, "\n"
+      end
+    end
+
+    # support uploading a local file to a custom destination
+    # this only works for a single file right now, should be better
+    # could try to add destination + filename
+    # for now expect filename to be included in destination
+    if options[:destination]
+      if deploy_files.size == 1
+        deploy_files[0][:destination] = options[:destination]
+      else
+        raise_command_error "--destination can only specified for a single file upload, not #{deploy_files} files.", args, optparse
+      end
+    end
+
+    confirm_message = "Are you sure you want to upload #{deploy_files.size} files to deployment #{deployment['name']} #{format_deployment_version_number(deployment_version)}?"
+    if deploy_files.size == 1
+      confirm_message = "Are you sure you want to upload file #{deploy_files[0][:destination]} to deployment #{deployment['name']} #{format_deployment_version_number(deployment_version)}?"
+    end
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm(confirm_message)
+      return 9, "aborted command"
+    end
+
+    @deployments_interface.setopts(options)
+
+    # Upload Files
+    if deploy_files && !deploy_files.empty?
+      print "\n",cyan, "Uploading #{deploy_files.size} Files...", reset, "\n" if !options[:quiet]
+      deploy_files.each do |f|
+        destination = f[:destination]
+        if options[:dry_run]
+          print_dry_run @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
+        else
+          print cyan,"  - Uploading #{f[:destination]} ...", reset if !options[:quiet]
+          upload_result = @deployments_interface.upload_file(deployment['id'], deployment_version['id'], f[:filepath], f[:destination])
+          #print green + "SUCCESS" + reset + "\n" if !options[:quiet]
+          print reset, "\n" if !options[:quiet]
+        end
+      end
+      if options[:dry_run]
+        return 0, nil
+      end
+      #print cyan, "Upload Complete!", reset, "\n" if !options[:quiet]
+      if options[:quiet]
+        return 0, nil
+      else
+        print_green_success "Upload Complete!"
+        return get_version([deployment["id"], deployment_version['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      end
+    else
+      raise_command_error "No files to upload!"
+    end
+  end
+
   private
 
   def deployment_column_definitions
@@ -593,6 +826,20 @@ EOT
       it.delete('required')
       it.delete('defaultValue')
       it
+    }
+  end
+
+  # Deployment Files
+
+  def deployment_file_column_definitions
+    {
+      #"ID" => 'id',
+      "Name" => 'name',
+      "Type" => lambda {|it| it['isDirectory'] ? "directory" : (it["contentType"] || "file") },
+      "Size" => lambda {|it| it['isDirectory'] ? "" : format_bytes_short(it['contentLength']) },
+      #"Content Type" => lambda {|it| it['contentType'] },
+      # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
   end
 

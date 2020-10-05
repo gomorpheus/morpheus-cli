@@ -215,7 +215,7 @@ EOT
     deploy_files = []
     if deploy_type == "file" || deploy_type == "files"
       if deploy_args['files'].nil? || deploy_args['files'].empty? || !deploy_args['files'].is_a?(Array)
-        raise_command_error "Files not specified. Please specify files array, each item may specify a path or pattern of file(s) to upload"
+        raise_command_error "Files not specified. Please specify the files to include, each item may specify a path or pattern of file(s) to upload"
       else
         #print "\n",cyan, "Finding Files...", reset, "\n"
         current_working_dir = Dir.pwd
