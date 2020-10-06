@@ -8,7 +8,7 @@ class Morpheus::Cli::Deployments
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :list_versions, :get_version, :add_version, :update_version, :remove_version
-  register_subcommands :list_files, :upload_file, :remove_file
+  register_subcommands :list_files, :upload, :remove_file
   alias_subcommand :versions, :'list-versions'
 
   def initialize()
@@ -573,7 +573,7 @@ EOT
     return 0, nil
   end
 
-  def upload_file(args)
+  def upload(args)
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
