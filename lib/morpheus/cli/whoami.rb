@@ -160,15 +160,15 @@ EOT
         print cyan
         print_description_list({
           "ID" => 'id',
-          "Tenant" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Tenant)" : '') },
-          "First Name" => 'firstName',
-          "Last Name" => 'lastName',
-          # "Name" => 'displayName',
-          #"Name" => lambda {|it| it['firstName'] ? it['displayName'] : '' },
           "Username" => 'username',
+          # "First Name" => 'firstName',
+          # "Last Name" => 'lastName',
+          # "Name" => 'displayName',
+          "Name" => lambda {|it| "#{it['firstName']} #{it['lastName']}".strip },
           "Email" => 'email',
+          "Tenant" => lambda {|it| (it['account'] ? it['account']['name'] : '') + (@is_master_account ? " (Master Tenant)" : '') },
           "Role" => lambda {|it| format_user_role_names(it) },
-          #"Remote" => lambda {|it| display_appliance(@appliance_name, @appliance_url) },
+          "Remote" => lambda {|it| display_appliance(@appliance_name, @appliance_url) },
         }, @current_user)
         print cyan
 
