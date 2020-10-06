@@ -544,6 +544,9 @@ module Morpheus
           # value = input.empty? ? option_type['defaultValue'] : input
           if input == '?' && value.nil?
             help_prompt(option_type)
+          elsif input.chomp == '' && value.nil?
+            # just hit enter right away to skip this
+            value_found = true
           elsif input.chomp == 'EOF'
             value_found = true
           else
