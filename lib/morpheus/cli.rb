@@ -77,6 +77,7 @@ module Morpheus
       load 'morpheus/cli/whoami.rb'
       load 'morpheus/cli/access_token_command.rb'
       load 'morpheus/cli/user_settings_command.rb'
+      load 'morpheus/cli/search_command.rb'
       load 'morpheus/cli/dashboard_command.rb'
       load 'morpheus/cli/recent_activity_command.rb' # deprecated, removing soon
       load 'morpheus/cli/activity_command.rb'

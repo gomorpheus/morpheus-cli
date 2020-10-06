@@ -346,6 +346,10 @@ class Morpheus::APIClient
     Morpheus::WhoamiInterface.new(common_interface_options).setopts(@options)
   end
 
+  def search
+    Morpheus::SearchInterface.new(common_interface_options).setopts(@options)
+  end
+
   def user_settings
     Morpheus::UserSettingsInterface.new(common_interface_options).setopts(@options)
   end
