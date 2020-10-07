@@ -110,10 +110,12 @@ class Morpheus::Cli::Hosts
         options[:details] = true
       end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
-        k,v = val.split("=")
-        options[:tags] ||= {}
-        options[:tags][k] ||= []
-        options[:tags][k] << v
+        val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          options[:tags] ||= {}
+          options[:tags][k] ||= []
+          options[:tags][k] << v
+        end
       end
       opts.on('--tag-compliant', "Displays only servers that are valid according to applied tag policies. Does not show servers that do not have tag policies." ) do
         params[:tagCompliant] = true

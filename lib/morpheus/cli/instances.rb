@@ -93,10 +93,12 @@ class Morpheus::Cli::Instances
         options[:deleted] = true
       end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
-        k,v = val.split("=")
-        options[:tags] ||= {}
-        options[:tags][k] ||= []
-        options[:tags][k] << v
+        val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          options[:tags] ||= {}
+          options[:tags][k] ||= []
+          options[:tags][k] << v
+        end
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."
