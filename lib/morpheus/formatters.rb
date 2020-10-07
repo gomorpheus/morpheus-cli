@@ -399,6 +399,7 @@ def format_currency(amount, currency='usd', opts={})
     sigdig = opts[:sigdig] ? opts[:sigdig].to_i : 2 # max decimal digits
     min_sigdig = opts[:min_sigdig] ? opts[:min_sigdig].to_i : 2 # min decimal digits
     display_value = format_sig_dig(amount, sigdig, min_sigdig, opts[:pad_zeros])
+    display_value = format_number(display_value) # commas
     rtn = currency_sym(currency).to_s + display_value
     if amount.to_i < 0
       rtn = "(#{rtn})"
