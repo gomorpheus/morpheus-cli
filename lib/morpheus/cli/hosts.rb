@@ -109,6 +109,12 @@ class Morpheus::Cli::Hosts
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
+      opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+        k,v = val.split("=")
+        options[:tags] ||= {}
+        options[:tags][k] ||= []
+        options[:tags][k] << v
+      end
       opts.on('--tag-compliant', "Displays only servers that are valid according to applied tag policies. Does not show servers that do not have tag policies." ) do
         params[:tagCompliant] = true
       end
@@ -162,6 +168,11 @@ class Morpheus::Cli::Hosts
           cluster = find_cluster_by_name_or_id(options[:cluster])
           return 1 if cluster.nil?
           params['clusterId'] = cluster['id']
+        end
+      end
+      if options[:tags] && !options[:tags].empty?
+        options[:tags].each do |k,v|
+          params['tags.' + k] = v
         end
       end
 

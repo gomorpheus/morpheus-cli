@@ -92,6 +92,12 @@ class Morpheus::Cli::Instances
       opts.on('--pending-removal-only', "Only instances pending removal.") do
         options[:deleted] = true
       end
+      opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+        k,v = val.split("=")
+        options[:tags] ||= {}
+        options[:tags][k] ||= []
+        options[:tags][k] << v
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."
     end
@@ -132,7 +138,11 @@ class Morpheus::Cli::Instances
 
       params['showDeleted'] = true if options[:showDeleted]
       params['deleted'] = true if options[:deleted]
-      
+      if options[:tags] && !options[:tags].empty?
+        options[:tags].each do |k,v|
+          params['tags.' + k] = v
+        end
+      end
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
