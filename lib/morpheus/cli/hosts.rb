@@ -114,7 +114,7 @@ class Morpheus::Cli::Hosts
           k,v = value_pair.strip.split("=")
           options[:tags] ||= {}
           options[:tags][k] ||= []
-          options[:tags][k] << v
+          options[:tags][k] << (v || '')
         end
       end
       opts.on('--tag-compliant', "Displays only servers that are valid according to applied tag policies. Does not show servers that do not have tag policies." ) do

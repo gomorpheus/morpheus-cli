@@ -97,7 +97,7 @@ class Morpheus::Cli::Instances
           k,v = value_pair.strip.split("=")
           options[:tags] ||= {}
           options[:tags][k] ||= []
-          options[:tags][k] << v
+          options[:tags][k] << (v || '')
         end
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
