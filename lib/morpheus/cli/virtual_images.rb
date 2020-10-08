@@ -145,7 +145,7 @@ EOT
         print_dry_run @virtual_images_interface.dry.get(id.to_i)
         return
       end
-      json_response = @virtual_images_interface.get(id)
+      json_response = @virtual_images_interface.get(id.to_i)
       image = json_response['virtualImage']
       image_config = image['config'] || {}
       image_files = json_response['cloudFiles'] || json_response['files']
