@@ -25,7 +25,6 @@ class Morpheus::Cli::InvoicesCommand
     options = {}
     params = {}
     ref_ids = []
-    query_tags = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
@@ -107,9 +106,12 @@ class Morpheus::Cli::InvoicesCommand
         params['accountId'] = val
       end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
-        k,v = val.split("=")
-        query_tags[k] ||= []
-        query_tags[k] << v
+        val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          options[:tags] ||= {}
+          options[:tags][k] ||= []
+          options[:tags][k] << (v || '')
+        end
       end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
@@ -169,8 +171,8 @@ class Morpheus::Cli::InvoicesCommand
     end
     params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
-    if query_tags && !query_tags.empty?
-      query_tags.each do |k,v|
+    if options[:tags] && !options[:tags].empty?
+      options[:tags].each do |k,v|
         params['tags.' + k] = v
       end
     end
@@ -656,7 +658,6 @@ EOT
     options = {}
     params = {}
     ref_ids = []
-    query_tags = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
@@ -744,11 +745,14 @@ EOT
       opts.on('--tenant ID', String, "View invoice line items for a tenant. Default is your own account.") do |val|
         params['accountId'] = val
       end
-      # opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
-      #   k,v = val.split("=")
-      #   query_tags[k] ||= []
-      #   query_tags[k] << v
-      # end
+      opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+        val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          options[:tags] ||= {}
+          options[:tags][k] ||= []
+          options[:tags][k] << (v || '')
+        end
+      end
       opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
         options[:show_raw_data] = true
       end
@@ -808,8 +812,8 @@ EOT
     end
     params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
-    if query_tags && !query_tags.empty?
-      query_tags.each do |k,v|
+    if options[:tags] && !options[:tags].empty?
+      options[:tags].each do |k,v|
         params['tags.' + k] = v
       end
     end
