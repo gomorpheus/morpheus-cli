@@ -5,6 +5,7 @@ module Morpheus
   module Cli
     module OptionTypes
       include Term::ANSIColor
+      # include Morpheus::Cli::PrintHelper
 
       def self.confirm(message,options={})
         if options[:yes] == true
@@ -115,7 +116,7 @@ module Morpheus
           # use the value passed in the options map
           if cur_namespace.respond_to?('key?') && cur_namespace.key?(field_name)
             value = cur_namespace[field_name]
-            input_value = ['select', 'multiSelect'].include?(option_type['type']) && option_type['fieldInput'] ? cur_namespace[option_type['fieldInput']] : nil
+            input_value = ['select', 'multiSelect','typeahead', 'multiTypeahead'].include?(option_type['type']) && option_type['fieldInput'] ? cur_namespace[option_type['fieldInput']] : nil
             if option_type['type'] == 'number'
               value = value.to_s.include?('.') ? value.to_f : value.to_i
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
@@ -130,7 +131,17 @@ module Morpheus
                 select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (api_params || {}).merge(results), true)
               end
               value = select_value_list
-              
+            elsif option_type['type'] == 'typeahead'
+              value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (api_params || {}).merge(results), true)
+            elsif option_type['type'] == 'multiTypeahead'
+              # support value as csv like "thing1, thing2"
+              value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
+              input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
+              select_value_list = []
+              value_list.each_with_index do |v, i|
+                select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (api_params || {}).merge(results), true)
+              end
+              value = select_value_list
             end
             if options[:always_prompt] != true
               value_found = true
@@ -147,7 +158,7 @@ module Morpheus
           no_prompt = no_prompt || options[:no_prompt]
           if no_prompt
             if !value_found
-              if option_type['defaultValue'] != nil && !['select', 'multiSelect'].include?(option_type['type'])
+              if option_type['defaultValue'] != nil && !['select', 'multiSelect','typeahead','multiTypeahead'].include?(option_type['type'])
                 value = option_type['defaultValue']
                 value_found = true
               end
@@ -156,6 +167,10 @@ module Morpheus
                 # and prints the available options on error
                 if ['select', 'multiSelect'].include?(option_type['type'])
                   value = select_prompt(option_type, api_client, (api_params || {}).merge(results), true)
+                  value_found = !!value
+                end
+                if ['typeahead', 'multiTypeahead'].include?(option_type['type'])
+                  value = typeahead_prompt(option_type, api_client, (api_params || {}).merge(results), true)
                   value_found = !!value
                 end
                 if !value_found
@@ -197,6 +212,18 @@ module Morpheus
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
                   if addn_value = select_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
+                    value << addn_value
+                  else
+                    break
+                  end
+                end
+              end
+            elsif ['typeahead', 'multiTypeahead'].include?(option_type['type'])
+              value = typeahead_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
+              if value && option_type['type'] == 'multiTypeahead'
+                value = [value]
+                while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
+                  if addn_value = typeahead_prompt(option_type, api_client, (api_params || {}).merge(results), options[:no_prompt], nil, paging_enabled)
                     value << addn_value
                   else
                     break
@@ -310,11 +337,12 @@ module Morpheus
         value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
         default_value = option_type['defaultValue']
         default_value = default_value['id'] if default_value && default_value.is_a?(Hash) && !default_value['id'].nil?
+        api_params ||= {}
         # local array of options
         if option_type['selectOptions']
           # calculate from inline lambda
           if option_type['selectOptions'].is_a?(Proc)
-            select_options = option_type['selectOptions'].call()
+            select_options = option_type['selectOptions'].call(api_client, grails_params(api_params || {}))
           else
             # todo: better type validation
             select_options = option_type['selectOptions']
@@ -325,7 +353,7 @@ module Morpheus
             select_options = option_type['optionSource'].call(api_client, grails_params(api_params || {}))
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], api_client, {'optionTypeId' => option_type['id']})
+            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}).merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
             select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
@@ -345,7 +373,7 @@ module Morpheus
             print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
             if select_options && select_options.size > 10
               display_select_options(option_type, select_options.first(10))
-              puts " (#{select_options.size-1} more)"
+              puts " (#{select_options.size-10} more)"
             else
               display_select_options(option_type, select_options)
             end
@@ -388,7 +416,7 @@ module Morpheus
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
               if select_options && select_options.size > 10
                 display_select_options(option_type, select_options.first(10))
-                puts " (#{select_options.size-1} more)"
+                puts " (#{select_options.size-10} more)"
               else
                 display_select_options(option_type, select_options)
               end
@@ -450,6 +478,154 @@ module Morpheus
             value_found = true
           end
         end
+
+        # wrap in object when using fieldInput
+        if value && !option_type['fieldInput'].nil?
+          value = {option_type['fieldName'].split('.').last => value, option_type['fieldInput'] => (no_prompt ? option_type['defaultInputValue'] : field_input_prompt(option_type))}
+        end
+        value
+      end
+
+      # this works like select_prompt, but refreshes options with ?query=value between inputs
+      # paging_enabled is ignored right now
+      def self.typeahead_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
+        select_options = []
+        field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+        help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
+        input = ""
+        value_found = false
+        value = nil
+        value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
+        default_value = option_type['defaultValue']
+        default_value = default_value['id'] if default_value && default_value.is_a?(Hash) && !default_value['id'].nil?
+
+        while !value_found do
+          # ok get input, refresh options and see if it matches
+          # if matches one, cool otherwise print matches and reprompt or error
+          if use_value
+            input = use_value
+          elsif no_prompt
+            input = default_value
+          else
+            Readline.completion_append_character = ""
+            Readline.basic_word_break_characters = ''
+            Readline.completion_proc = proc {|s| 
+              matches = []
+              available_options = (select_options || [])
+              available_options.each{|option| 
+                if option['name'] && option['name'] =~ /^#{Regexp.escape(s)}/
+                  matches << option['name']
+                # elsif option['id'] && option['id'].to_s =~ /^#{Regexp.escape(s)}/
+                elsif option[value_field] && option[value_field].to_s == s
+                  matches << option['name']
+                end
+              }
+              matches
+            }
+            # prompt for typeahead input value
+            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for options]: ", false).to_s
+            input = input.chomp.strip
+          end
+
+          # just hit enter, use [default] if set
+          if input.empty? && default_value
+            input = default_value.to_s
+          end
+          
+          # not required and no value? ok proceed
+          if input.to_s == "" && option_type['required'] != true
+            value_found = true
+            value = nil # or "" # hmm
+            #next
+            break
+          end
+
+          # required and no value? you need help
+          # if input.to_s == "" && option_type['required'] == true
+          #   help_prompt(option_type)
+          #   display_select_options(option_type, select_options) unless select_options.empty?
+          #   next
+          # end
+
+          # looking for help with this input
+          if input == '?'
+            help_prompt(option_type)
+            display_select_options(option_type, select_options) unless select_options.empty?
+            next
+          end
+
+          # just hit enter? scram
+          # looking for help with this input
+          # if input == ""
+          #   help_prompt(option_type)
+          #   display_select_options(option_type, select_options)
+          #   next
+          # end
+
+          # this is how typeahead works, it keeps refreshing the options with a new ?query={value}
+          # query_value = (value || use_value || default_value || '')
+          query_value = (input || '')
+          api_params ||= {}
+          api_params['query'] = query_value
+          # skip refresh if you just hit enter
+          if !query_value.empty?
+            select_options = load_options(option_type, api_client, api_params, query_value)
+          end
+
+          # match input to option name or value
+          # actually that is redundant, it should already be filtered to matches
+          # and can just do this:
+          # select_option = select_options.size == 1 ? select_options[0] : nil
+          select_option = select_options.find{|b| (b[value_field] && (b[value_field].to_s == input.to_s)) || ((b[value_field].nil? || b[value_field].empty?) && (input == "")) }
+          if select_option.nil?
+            select_option = select_options.find{|b| b['name'] && b['name'] == input }
+          end
+
+          # found matching value, else did not find a value, show matching options and prompt again or error
+          if select_option
+            value = select_option[value_field]
+            set_last_select(select_option)
+            value_found = true
+          else
+            if use_value || no_prompt
+              # todo: make this nicer
+              # help_prompt(option_type)
+              print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+              if select_options && select_options.size > 10
+                display_select_options(option_type, select_options.first(10))
+                puts " (#{select_options.size-10} more)"
+              else
+                display_select_options(option_type, select_options)
+              end
+              print "\n"
+              if select_options.empty?
+                print "The value '#{input}' matched 0 options.\n"
+                # print "Please try again.\n"
+              else
+                print "The value '#{input}' matched #{select_options.size()} options.\n"
+                print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
+                # print "Please try again.\n"
+              end
+              print "\n"
+              exit 1
+            else
+              #help_prompt(option_type)
+              display_select_options(option_type, select_options)
+              print "\n"
+              if select_options.empty?
+                print "The value '#{input}' matched 0 options.\n"
+                print "Please try again.\n"
+              else
+                print "The value '#{input}' matched #{select_options.size()} options.\n"
+                print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
+                print "Please try again.\n"
+              end
+              print "\n"
+              # reprompting now...
+            end
+          end
+        end # end while !value_found
 
         # wrap in object when using fieldInput
         if value && !option_type['fieldInput'].nil?
@@ -685,6 +861,42 @@ module Morpheus
         return file_params
       end
 
+      def self.load_options(option_type, api_client, api_params, query_value=nil)
+        select_options = []
+        # local array of options
+        if option_type['selectOptions']
+          # calculate from inline lambda
+          if option_type['selectOptions'].is_a?(Proc)
+            select_options = option_type['selectOptions'].call(api_client, grails_params(api_params || {}))
+          else
+            select_options = option_type['selectOptions']
+          end
+          # filter options ourselves
+          if query_value.to_s != ""
+            filtered_options = select_options.select { |it| it['value'].to_s == query_value.to_s }
+            if filtered_options.empty?
+              filtered_options = select_options.select { |it| it['name'].to_s == query_value.to_s }
+            end
+            select_options = filtered_options
+          end
+        elsif option_type['optionSource']
+          # calculate from inline lambda
+          if option_type['optionSource'].is_a?(Proc)
+            select_options = option_type['optionSource'].call(api_client, grails_params(api_params || {}))
+          elsif option_type['optionSource'] == 'list'
+            # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
+            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}).merge({'optionTypeId' => option_type['id']}))
+          else
+            # remote optionSource aka /api/options/$optionSource?
+            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
+          end
+        else
+          raise "option '#{field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
+        end
+
+        return select_options
+      end
+
       def self.help_prompt(option_type)
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
@@ -694,6 +906,11 @@ module Morpheus
         else
           print Term::ANSIColor.green,"  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - ", Term::ANSIColor.reset , "#{option_type['description']}\n"
         end
+        if option_type['type'].to_s == 'typeahead'
+          print "This is a typeahead input. Enter the name or value of an option.\n"
+          print "If the specified input matches more than one option, they will be printed and you will be prompted again.\n"
+          print "the matching options will be shown and you can try again.\n"
+        end
       end
 
 
@@ -701,7 +918,8 @@ module Morpheus
         api_client.options.options_for_source(source,params)['data']
       end
 
-      def self.display_select_options(opt, select_options = [], paging = nil)
+      def self.format_select_options_help(opt, select_options = [], paging = nil)
+        out = ""
         header = opt['fieldLabel'] ? "#{opt['fieldLabel']} Options" : "Options"
         if paging
           offset = paging[:cur_page] * paging[:page_size]
@@ -709,11 +927,18 @@ module Morpheus
           header = "#{header} (#{offset+1}-#{limit+1} of #{paging[:total]})"
           select_options = select_options[(offset)..(limit)]
         end
-        puts "\n#{header}"
-        puts "==============="
+        out = ""
+        out << "\n"
+        out << "#{header}\n"
+        out << "===============\n"
         select_options.each do |option|
-          puts " * #{option['name']} [#{option['value']}]"
+          out << " * #{option['name']} [#{option['value']}]\n"
         end
+        return out
+      end
+
+      def self.display_select_options(opt, select_options = [], paging = nil)
+        puts format_select_options_help(opt, select_options, paging)
       end
 
       def self.format_option_types_help(option_types, opts={})

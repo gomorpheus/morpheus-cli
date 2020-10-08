@@ -416,3 +416,24 @@ alias :format_money :format_currency
 # def format_money(amount, currency='usd', opts={})
 #   format_currency(amount, currency, opts)
 # end
+
+def format_list(items, conjunction="and", limit=nil)
+  items = items ? items.clone : []
+  if limit
+    items = items.first(limit)
+  end
+  last_item = items.pop
+  if items.empty?
+    return "#{last_item}"
+  else
+    return items.join(", ") + (conjunction.to_s.empty? ? ", " : " #{conjunction} ") + "#{last_item}" + ((limit && limit < (items.size+1)) ? " ..." : "")
+  end
+end
+
+def anded_list(items, limit=nil)
+  format_list(items, "and", limit)
+end
+
+def ored_list(items, limit=nil)
+  format_list(items, "or", limit)
+end
