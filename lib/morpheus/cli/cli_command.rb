@@ -309,6 +309,15 @@ module Morpheus
             opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.add_hidden_option('-A, --account-id') if opts.is_a?(Morpheus::Cli::OptionParser)
 
+          when :details
+            opts.on('-a', '--all', "Show all details." ) do
+              options[:details] = true
+            end
+            opts.on('--details', '--details', "Show more details" ) do
+              options[:details] = true
+            end
+            opts.add_hidden_option('--details')
+
           when :options
             options[:options] ||= {}
             opts.on( '-O', '--option OPTION', "Option in the format -O field=\"value\"" ) do |option|

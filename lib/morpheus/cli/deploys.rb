@@ -67,7 +67,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_standard_get_options(opts, options)
+      build_standard_get_options(opts, options, [:details])
       opts.footer = <<-EOT
 Get details about a specific instance deploy.
 [id] is required. This is the name or id of a deployment.
@@ -90,10 +90,18 @@ EOT
     end
     json_response = @deploy_interface.get(id, params)
     app_deploy = json_response[app_deploy_object_key]
+    deploy_config = app_deploy['config']
     render_response(json_response, options, app_deploy_object_key) do
       print_h1 "Deploy Details", [], options
       print cyan
       print_description_list(app_deploy_column_definitions, app_deploy)
+
+      if options[:details] && deploy_config && !deploy_config.empty?
+        print_h2 "Config", options
+        print cyan
+        print as_description_list(deploy_config, deploy_config.keys, options)
+      end
+
       print reset,"\n"
     end
     return 0, nil
@@ -106,7 +114,7 @@ EOT
       opts.banner = subcommand_usage("[instance] [deployment] [version] [options]")
       build_option_type_options(opts, options, add_app_deploy_option_types)
       build_option_type_options(opts, options, add_app_deploy_advanced_option_types)
-      opts.on(nil, "--stageOnly", "Stage Only, do not run the deployment right away.") do |val|
+      opts.on(nil, "--stage", "Stage Only, do not run the deployment right away.") do |val|
         params['stageOnly'] = true
       end
       opts.on("-c", "--config JSON", String, "Config for deployment") do |val|
@@ -144,7 +152,8 @@ EOT
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new instance deploy.
-The new deployment is deployed right away, unless --stage-only is
+This deploys a specific deployment version to a target instance.
+By default the deployment is run right away, unless the --stage option is used.
 EOT
     end
     optparse.parse!(args)
