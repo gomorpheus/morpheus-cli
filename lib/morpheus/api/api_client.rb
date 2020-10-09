@@ -342,6 +342,10 @@ class Morpheus::APIClient
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
   end
 
+  def forgot
+    Morpheus::ForgotPasswordInterface.new(common_interface_options).setopts(@options)
+  end
+
   def whoami
     Morpheus::WhoamiInterface.new(common_interface_options).setopts(@options)
   end

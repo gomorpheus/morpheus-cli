@@ -74,6 +74,7 @@ module Morpheus
       load 'morpheus/cli/setup.rb'
       load 'morpheus/cli/login.rb'
       load 'morpheus/cli/logout.rb'
+      load 'morpheus/cli/forgot_password.rb'
       load 'morpheus/cli/whoami.rb'
       load 'morpheus/cli/access_token_command.rb'
       load 'morpheus/cli/user_settings_command.rb'
