@@ -70,7 +70,7 @@ EOT
       build_standard_get_options(opts, options, [:details])
       opts.footer = <<-EOT
 Get details about a specific instance deploy.
-[id] is required. This is the name or id of a deployment.
+[id] is required. This is the id of an instance deploy.
 EOT
     end
     optparse.parse!(args)
@@ -248,7 +248,7 @@ EOT
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update an instance deploy.
-[id] is required. This is the name or id of an instance deploy.
+[id] is required. This is the id of an instance deploy.
 EOT
     end
     optparse.parse!(args)
@@ -296,7 +296,7 @@ EOT
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
 Delete an instance deploy.
-[id] is required. This is the name or id of a deploy.
+[id] is required. This is the id of an instance deploy.
 EOT
     end
     optparse.parse!(args)
@@ -362,7 +362,7 @@ EOT
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Deploy an instance deploy.
-[id] is required. This is the name or id of an instance deploy.
+[id] is required. This is the id of an instance deploy.
 EOT
     end
     optparse.parse!(args)
