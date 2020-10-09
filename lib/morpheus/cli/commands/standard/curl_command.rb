@@ -147,9 +147,7 @@ EOT
         puts output_lines.join("\n")
       end
       begin
-        json_data = JSON.parse(last_line)
-        json_string = JSON.pretty_generate(json_data)
-        puts json_string
+        puts as_json(JSON.parse(last_line), options)
       rescue => ex
         Morpheus::Logging::DarkPrinter.puts "failed to parse curl result as JSON data Error: #{ex.message}" if Morpheus::Logging.debug?
         puts last_line
