@@ -41,7 +41,7 @@ class Morpheus::Cli::CurlCommand
       opts.on( '--progress', '--progress', "Display progress output by excluding the -s option." ) do
         show_progress = true
       end
-      build_common_options(opts, options, [:dry_run, :remote])
+      build_common_options(opts, options, [:dry_run, :json, :remote])
       opts.add_hidden_option('--curl')
       #opts.add_hidden_option('--scrub')
       opts.footer = <<-EOT
@@ -140,7 +140,7 @@ EOT
     print reset
     # print result
     curl_output = `#{curl_cmd}`
-    if options[:pretty]
+    if options[:pretty] || options[:json]
       output_lines = curl_output.split("\n")
       last_line = output_lines.pop
       if output_lines.size > 0
