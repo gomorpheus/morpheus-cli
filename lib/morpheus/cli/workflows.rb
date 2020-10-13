@@ -32,7 +32,7 @@ class Morpheus::Cli::Workflows
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[search]")
       opts.on("-t", "--type TYPE", "Type of workflow. i.e. provision or operation. Default is provision.") do |val|
         workflow_type = val.to_s.downcase
         if workflow_type.include?('provision')
@@ -42,50 +42,43 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
+      opts.footer = "List workflows."
     end
     optparse.parse!(args)
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @task_sets_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @task_sets_interface.dry.get(params)
-        return
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @task_sets_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @task_sets_interface.dry.get(params)
+      return
+    end
+    json_response = @task_sets_interface.get(params)
+    task_sets = json_response['taskSets']
+    render_response(json_response, options, 'taskSets') do
+      title = "Morpheus Workflows"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      if params['type']
+        subtitles << "Type: #{params['type']}"
       end
-      json_response = @task_sets_interface.get(params)
-      task_sets = json_response['taskSets']
-      # print result and return output
-      if options[:json]
-        puts as_json(json_response, options, "taskSets")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['taskSets'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "taskSets")
-        return 0
+      print_h1 title, subtitles
+      if task_sets.empty?
+        print cyan,"No workflows found.",reset,"\n"
       else
-        task_sets = json_response['taskSets']
-        title = "Morpheus Workflows"
-        subtitles = []
-        subtitles += parse_list_subtitles(options)
-        if params['type']
-          subtitles << "Type: #{params['type']}"
-        end
-        print_h1 title, subtitles
-        if task_sets.empty?
-          print cyan,"No workflows found.",reset,"\n"
-        else
-          print cyan
-          print_workflows_table(task_sets)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
+        print cyan
+        print_workflows_table(task_sets)
+        print_results_pagination(json_response)
       end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+      print reset,"\n"
+    end
+    if task_sets.empty?
+      return 1, "no workflows found"
+    else
+      return 0, nil
     end
   end
 

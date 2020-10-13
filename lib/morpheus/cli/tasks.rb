@@ -27,34 +27,31 @@ class Morpheus::Cli::Tasks
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[search]")
       opts.on('-t', '--type x,y,z', Array, "Filter by task type code(s)") do |val|
         params['taskTypeCodes'] = val
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
+      opts.footer = "List tasks."
     end
     optparse.parse!(args)
-    if args.count > 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @tasks_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @tasks_interface.dry.list(params)
-        return
-      end
-      json_response = @tasks_interface.list(params)
-
-      render_result = render_with_format(json_response, options, 'tasks')
-      return 0 if render_result
-      
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @tasks_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @tasks_interface.dry.list(params)
+      return
+    end
+    json_response = @tasks_interface.list(params)
+    tasks = json_response['tasks']
+    render_response(json_response, options, 'tasks') do
       title = "Morpheus Tasks"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
-      tasks = json_response['tasks']
       if tasks.empty?
         print cyan,"No tasks found.",reset,"\n"
       else
@@ -63,11 +60,13 @@ class Morpheus::Cli::Tasks
         print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    if tasks.empty?
+      return 1, "no tasks found"
+    else
+      return 0, nil
+    end
+    
   end
 
   def get(args)
