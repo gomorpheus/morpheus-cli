@@ -611,13 +611,13 @@ module Morpheus
             end
             # opts.add_hidden_option('-H') if opts.is_a?(Morpheus::Cli::OptionParser)
             # opts.add_hidden_option('--header') if opts.is_a?(Morpheus::Cli::OptionParser)
-            opts.add_hidden_option('--headers') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('-H, --header') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           #when :timeout
             opts.on( '--timeout SECONDS', "Timeout for api requests. Default is typically 30 seconds." ) do |val|
               options[:timeout] = val ? val.to_f : nil
             end
-            # opts.add_hidden_option('--timeout') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('--timeout') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :auto_confirm
             opts.on( '-y', '--yes', "Auto Confirm" ) do
