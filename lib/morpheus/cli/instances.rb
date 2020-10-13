@@ -92,7 +92,13 @@ class Morpheus::Cli::Instances
       opts.on('--pending-removal-only', "Only instances pending removal.") do
         options[:deleted] = true
       end
-      opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
+      opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
+        val.split(",").each do |k|
+          options[:labels] ||= []
+          options[:labels] << k.strip
+        end
+      end
+      opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
           k,v = value_pair.strip.split("=")
           options[:tags] ||= {}
@@ -140,11 +146,13 @@ class Morpheus::Cli::Instances
 
       params['showDeleted'] = true if options[:showDeleted]
       params['deleted'] = true if options[:deleted]
-      if options[:tags] && !options[:tags].empty?
+      params['labels'] = options[:labels] if options[:labels]
+      if options[:tags]
         options[:tags].each do |k,v|
           params['tags.' + k] = v
         end
       end
+
       @instances_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @instances_interface.dry.list(params)
@@ -359,18 +367,16 @@ class Morpheus::Cli::Instances
       opts.on("--environment ENV", String, "Environment code") do |val|
         options[:environment] = val.to_s
       end
-      opts.on('--metadata LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
         options[:metadata] = val
       end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        #options[:tags] = val
-        options[:tags] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
-      opts.on('--tags LIST', String, "Tags") do |val|
-        #options[:tags] = val
-        options[:tags] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
-      end
-      opts.add_hidden_option('--tags')
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
       end
@@ -540,18 +546,17 @@ class Morpheus::Cli::Instances
       opts.on('--group GROUP', String, "Group Name or ID") do |val|
         options[:group] = val
       end
-      opts.on('--metadata LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
         options[:metadata] = val
       end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        #params['tags'] = val
+        # todo switch this from 'tags' to 'labels'
         params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
-      opts.on('--tags LIST', String, "Tags") do |val|
-        #params['tags'] = val
-        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
-      end
-      opts.add_hidden_option('--tags')
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
@@ -622,6 +627,9 @@ class Morpheus::Cli::Instances
           metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
           metadata_list = metadata_list.collect do |it|
             metadata_pair = it.split(":")
+            if metadata_pair.size == 1 && it.include?("=")
+              metadata_pair = it.split("=")
+            end
             row = {}
             row['name'] = metadata_pair[0].to_s.strip
             row['value'] = metadata_pair[1].to_s.strip

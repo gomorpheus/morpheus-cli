@@ -596,11 +596,13 @@ module Morpheus::Cli::ProvisioningHelper
     v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments()}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['environment'] if !v_prompt['environment'].empty?
 
-    # Labels (tags)
-    if options[:tags]
-      payload['instance']['tags'] = options[:tags].is_a?(Array) ? options[:tags] : options[:tags].to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq
+    # Labels (Provisioning API still refers to these as tags)
+    # and tags (metadata tags) is called metadata.
+    # todo: switch this from 'tags' to labels' when the api changes
+    if options[:labels]
+      payload['instance']['tags'] = options[:labels].is_a?(Array) ? options[:labels] : options[:labels].to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq
     else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false}], options[:options])
       payload['instance']['tags'] = v_prompt['tags'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['tags'].empty?
     end
 
@@ -976,6 +978,9 @@ module Morpheus::Cli::ProvisioningHelper
         metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
         metadata_list = metadata_list.collect do |it|
           metadata_pair = it.split(":")
+          if metadata_pair.size < 2 && it.include?("=")
+            metadata_pair = it.split("=")
+          end
           row = {}
           row['name'] = metadata_pair[0].to_s.strip
           row['value'] = metadata_pair[1].to_s.strip
