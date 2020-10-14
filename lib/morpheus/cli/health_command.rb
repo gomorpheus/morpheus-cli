@@ -475,8 +475,8 @@ class Morpheus::Cli::HealthCommand
       opts.footer = "List health logs. These are the logs of the morpheus appliance itself."
     end
     optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count > 0
+      options[:phrase] = args.join(" ")
     end
     connect(options)
     begin

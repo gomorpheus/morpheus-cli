@@ -34,7 +34,7 @@ class Morpheus::Cli::LogsCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
+      opts.banner = subcommand_usage("[search]")
       opts.on('--hosts HOSTS', String, "Filter logs to specific Host ID(s)") do |val|
         params['servers'] = val.to_s.split(",").collect {|it| it.to_s.strip }.select {|it| it }.compact
       end
@@ -72,18 +72,21 @@ class Morpheus::Cli::LogsCommand
         options[:details] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List logs for a container.\n" +
-                    "[id] is required. This is the id of a container."
+      opts.footer = "List logs for all hosts and containers."
     end
     optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    if args.count > 0
+      options[:phrase] = args.join(" ")
     end
     connect(options)
     begin
       params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
       params.merge!(parse_list_options(options))
-      params['query'] = params.delete('phrase') if params['phrase']
+      if params['phrase']
+        options.delete(:phrase)
+        search_phrase = params.delete('phrase')
+        params['query'] = search_phrase
+      end
       params['order'] = params['direction'] unless params['direction'].nil? # old api version expects order instead of direction
       params['startMs'] = (options[:start].to_i * 1000) if options[:start]
       params['endMs'] = (options[:end].to_i * 1000) if options[:end]
