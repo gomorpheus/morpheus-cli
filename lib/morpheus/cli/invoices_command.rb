@@ -29,10 +29,14 @@ class Morpheus::Cli::InvoicesCommand
       opts.banner = subcommand_usage()
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_all] = true
+        options[:show_dates] = true
         options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
         # options[:show_raw_data] = true
+      end
+      opts.on('--dates', "Display Ref Start, Ref End, etc.") do |val|
+        options[:show_dates] = true
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
         options[:show_estimates] = true
@@ -205,6 +209,7 @@ class Morpheus::Cli::InvoicesCommand
           {"INVOICE ID" => lambda {|it| it['id'] } },
           {"TYPE" => lambda {|it| format_invoice_ref_type(it) } },
           {"REF ID" => lambda {|it| it['refId'] } },
+          {"REF UUID" => lambda {|it| it['refUuid'] } },
           {"REF NAME" => lambda {|it| 
             if options[:show_all]
               it['refName']
@@ -220,9 +225,11 @@ class Morpheus::Cli::InvoicesCommand
           {"PERIOD" => lambda {|it| format_invoice_period(it) } },
           {"START" => lambda {|it| format_date(it['startDate']) } },
           {"END" => lambda {|it| format_date(it['endDate']) } },
-        ] + (options[:show_all] ? [
+        ] + ((options[:show_dates] || options[:show_all]) ? [
           {"REF START" => lambda {|it| format_dt(it['refStart']) } },
           {"REF END" => lambda {|it| format_dt(it['refEnd']) } },
+          # {"LAST COST DATE" => lambda {|it| format_local_dt(it['lastCostDate']) } },
+          # {"LAST ACTUAL DATE" => lambda {|it| format_local_dt(it['lastActualDate']) } },
         ] : []) + [
           {"COMPUTE" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
           # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
@@ -274,9 +281,15 @@ class Morpheus::Cli::InvoicesCommand
           {"PROJECT TAGS" => lambda {|it| it['project'] ? truncate_string(format_metadata(it['project']['tags']), 50) : '' } },
         ]
         end
+        if options[:show_dates]
+          columns += [
+            {"LAST COST DATE" => lambda {|it| format_local_dt(it['lastCostDate']) } },
+            {"LAST ACTUAL DATE" => lambda {|it| format_local_dt(it['lastActualDate']) } },
+          ]
+        end
         columns += [
           {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
-          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
+          {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
         ]
         if options[:show_raw_data]
           columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
