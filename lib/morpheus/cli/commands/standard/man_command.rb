@@ -202,7 +202,7 @@ EOT
     This is a command line interface for managing a Morpheus Appliance.
     All communication with the remote appliance is done via the Morpheus API.
 
-    To get started, see the command `#{prog_name} remote add` command.
+    Use the command `#{prog_name} remote add` to connect to your Morpheus appliance.
 
     To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
 
