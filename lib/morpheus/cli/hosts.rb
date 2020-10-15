@@ -514,7 +514,7 @@ class Morpheus::Cli::Hosts
         "Name" => 'name',
         "Hostname" => 'hostname',
         "Description" => 'description',
-        "Owner" => lambda {|it| it['account'] ? it['owner']['username'] : '' },
+        "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         #"Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
