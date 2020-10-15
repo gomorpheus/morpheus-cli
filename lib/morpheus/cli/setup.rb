@@ -9,7 +9,7 @@ class Morpheus::Cli::Setup
   
   set_command_name :setup
   
-  register_subcommands :init
+  # register_subcommands :init
 
   # no authorization needed
   def connect(options={})
