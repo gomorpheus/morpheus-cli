@@ -15,7 +15,10 @@ class Morpheus::Cli::ReportsCommand
     @reports_interface = @api_client.reports
   end
 
-  register_subcommands :list, :get, :run, :view, :export, :remove, :types
+  register_subcommands :list, :get, :run, :view, :export, :remove
+  register_subcommands :'list-types' => :list_types
+  alias_subcommand :types, :'list-types'
+  register_subcommands :'get-type' => :get_type
   
   def default_refresh_interval
     5
@@ -466,33 +469,30 @@ class Morpheus::Cli::ReportsCommand
     end
   end
 
-  def types(args)
+  def list_types(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List report types."
     end
     optparse.parse!(args)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     connect(options)
-    begin
-      params = {}
-      params.merge!(parse_list_options(options))
-      
-      @reports_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @reports_interface.dry.types(params)
-        return
-      end
+    params.merge!(parse_list_options(options))
+    
+    @reports_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @reports_interface.dry.types(params)
+      return
+    end
 
-      json_response = @reports_interface.types(params)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
-      
-
+    json_response = @reports_interface.types(params)
+    report_types = json_response['reportTypes']
+    render_response(json_response, options, 'reportTypes') do
       title = "Morpheus Report Types"
       subtitles = []
       subtitles += parse_list_subtitles(options)
@@ -520,13 +520,75 @@ class Morpheus::Cli::ReportsCommand
         end
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if report_types.empty?
+      return 1, "no report types found"
+    else
+      return 0, nil
     end
   end
 
+  def get_type(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get report type
+[name] is required. This is the name of a report type
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    verify_args!(args:args, optparse:optparse, min:1)
+    params.merge!(parse_query_options(options))
+    params['name'] = args.join(" ")
+    @reports_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @reports_interface.dry.types(params)
+      return
+    end
+    
+    # json_response = @reports_interface.types(params)
+    # api does not have a show() action right now... so find by code or name only
+    report_type = find_report_type_by_name_or_code_id(params['name'])
+    return 1 if report_type.nil?
+    
+    # json_response = @reports_interface.get_type(report_type['id'])
+    # report_type = json_response['reportType']
+    json_response = {'reportType' => report_type}
+    render_response(json_response, options, 'reportType') do
+      print_h1 "Report Type Details", [], options
+      
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Code" => 'code',
+        "Description" => 'description',
+        "Category" => 'category'
+      }
+      print_description_list(description_cols, report_type)
+
+      print_h2 "Option Types", options
+      opt_columns = [
+        {"ID" => lambda {|it| it['id'] } },
+        {"NAME" => lambda {|it| it['name'] } },
+        {"TYPE" => lambda {|it| it['type'] } },
+        {"FIELD NAME" => lambda {|it| it['fieldName'] } },
+        {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+        {"DEFAULT" => lambda {|it| it['defaultValue'] } },
+        {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+      ]
+      option_types = report_type['optionTypes']
+      sorted_option_types = (option_types && option_types[0] && option_types[0]['displayOrder']) ? option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i } : option_types
+      print as_pretty_table(sorted_option_types, opt_columns)
+
+      print reset,"\n"
+    end
+    return 0, nil
+    
+  end
 
   def find_report_result_by_id(id)
     begin
@@ -551,7 +613,7 @@ class Morpheus::Cli::ReportsCommand
   end
 
   def find_report_type_by_id(id)
-    @all_report_types ||= @reports_interface.list({max: 1000})['reportTypes'] || []
+    @all_report_types ||= @reports_interface.types({max: 10000})['reportTypes'] || []
     report_types = @all_report_types.select { |it| id && it['id'] == id.to_i }
     if report_types.empty?
       print_red_alert "Report Type not found by id #{id}"
@@ -570,7 +632,7 @@ class Morpheus::Cli::ReportsCommand
   end
 
   def find_report_type_by_name_or_code(name)
-    @all_report_types ||= @reports_interface.list({max: 1000})['reportTypes'] || []
+    @all_report_types ||= @reports_interface.types({max: 10000})['reportTypes'] || []
     report_types = @all_report_types.select { |it| name && it['code'] == name || it['name'] == name }
     if report_types.empty?
       print_red_alert "Report Type not found by code #{name}"
