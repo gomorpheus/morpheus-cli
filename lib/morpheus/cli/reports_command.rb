@@ -271,10 +271,10 @@ class Morpheus::Cli::ReportsCommand
 
         # Report Types tell us what the available filters are...
         report_option_types = report_type['optionTypes'] || []
-        report_option_types = report_option_types.collect {|it|
-          it['fieldContext'] = nil
-          it
-        }
+        # report_option_types = report_option_types.collect {|it|
+        #   it['fieldContext'] = nil
+        #   it
+        # }
         # pluck out optionTypes like the UI does..
         metadata_option_type = nil
         if report_option_types.find {|it| it['fieldName'] == 'metadata' }
