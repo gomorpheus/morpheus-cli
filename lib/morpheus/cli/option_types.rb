@@ -73,9 +73,15 @@ module Morpheus
           field_name = namespaces.pop
 
           # respect optionType.dependsOnCode
-          if option_type['dependsOnCode'] && option_type['dependsOnCode'] != ""
+          # i guess this switched to visibleOnCode, respect one or the other
+          visible_option_check_value = option_type['dependsOnCode']
+          if !option_type['visibleOnCode'].to_s.empty?
+            visible_option_check_value = option_type['visibleOnCode']
+          end
+          if !visible_option_check_value.to_s.empty?
             # support formats code=value or code:value OR code:(value|value2|value3)
-            parts = option_type['dependsOnCode'].include?("=") ? option_type['dependsOnCode'].split("=") : option_type['dependsOnCode'].split(":")
+            # OR fieldContext.fieldName=value
+            parts = visible_option_check_value.include?("=") ? visible_option_check_value.split("=") : visible_option_check_value.split(":")
             depends_on_code = parts[0]
             depends_on_value = parts[1].to_s.strip
             depends_on_values = []
@@ -88,14 +94,29 @@ module Morpheus
               depends_on_values = depends_on_value.split("|").collect { |it| it.strip }
             end
             depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
-            # could not find the dependent option type, proceed and prompt
-            if !depends_on_option_type.nil?
+            if !depends_on_option_type
+              depends_on_option_type = option_types.find {|it| 
+                (it['fieldContext'] ? "#{it['fieldContext']}.#{it['fieldName']}" : it['fieldName']) == depends_on_code
+              }
+            end
+            if depends_on_option_type
               # dependent option type has a different value
               depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
               found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
-              if depends_on_values.size > 0 && !depends_on_values.include?(found_dep_value)
-                next
+              if depends_on_values.size > 0
+                # must be in the specified values
+                # todo: uhh this actually needs to change to parse regex
+                if !depends_on_values.include?(found_dep_value)
+                  next
+                end
+              else
+                # no value found
+                if found_dep_value.to_s.empty?
+                  next
+                end
               end
+            else
+              # could not find the dependent option type, proceed and prompt
             end
           end
 
