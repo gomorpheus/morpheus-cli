@@ -17,8 +17,8 @@ class Morpheus::Cli::ReportsCommand
 
   register_subcommands :list, :get, :run, :view, :export, :remove
   register_subcommands :'list-types' => :list_types
-  alias_subcommand :types, :'list-types'
   register_subcommands :'get-type' => :get_type
+  alias_subcommand :types, :'list-types'
   
   def default_refresh_interval
     5
@@ -286,6 +286,13 @@ class Morpheus::Cli::ReportsCommand
 
         v_prompt = Morpheus::Cli::OptionTypes.prompt(report_option_types, options[:options], @api_client)
         payload.deep_merge!({'report' => v_prompt}) unless v_prompt.empty?
+
+        # strip out fieldContext: 'config' please
+        # just report.startDate instead of report.config.startDate
+        if payload['report']['config'].is_a?(Hash)
+          payload['report']['config']
+          payload['report'].deep_merge!(payload['report'].delete('config'))
+        end
 
         if metadata_option_type
           if !options[:options]['metadata']
