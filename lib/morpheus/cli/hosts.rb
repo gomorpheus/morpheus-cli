@@ -54,9 +54,13 @@ class Morpheus::Cli::Hosts
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
-        options[:account] = val
+      opts.on('-a', '--all', "Display all details: memory and storage usage used / max values." ) do
+        options[:details] = true
       end
+      opts.on('--details', "Display all details: alias for --all" ) do
+        options[:details] = true
+      end
+      opts.add_hidden_option('--details')
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -105,6 +109,9 @@ class Morpheus::Cli::Hosts
       end
       opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
         options[:created_by] = val
+      end
+      opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
+        options[:account] = val
       end
       opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
         options[:details] = true
@@ -208,6 +215,9 @@ class Morpheus::Cli::Hosts
         multi_tenant = json_response['multiTenant'] == true
         title = "Morpheus Hosts"
         subtitles = []
+        if account
+          subtitles << "Tenant: #{account['name']}".strip
+        end
         if group
           subtitles << "Group: #{group['name']}".strip
         end
