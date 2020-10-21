@@ -2180,6 +2180,62 @@ module Morpheus::Cli::ProvisioningHelper
     return ports
   end
 
+  def format_instance_status(instance, return_color=cyan)
+    out = ""
+    status_string = instance['status'].to_s
+    if status_string == 'running'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'stopped' or status_string == 'failed'
+      out << "#{red}#{status_string.upcase}#{return_color}"
+    else
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+
+  def format_instance_connection_string(instance)
+    if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+      connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+    end
+  end
+
+  def format_container_status(container, return_color=cyan)
+    out = ""
+    status_string = container['status'].to_s
+    if status_string == 'running'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'stopped' or status_string == 'failed'
+      out << "#{red}#{status_string.upcase}#{return_color}"
+    else
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+
+  def format_container_connection_string(container)
+    if !container['ports'].nil? && container['ports'].empty? == false
+      connection_string = "#{container['ip']}:#{container['ports'][0]['external']}"
+    else
+      # eh? more logic needed here i think, see taglib morph:containerLocationMenu
+      connection_string = "#{container['ip']}"
+    end
+  end
+  
+  def format_instance_container_display_name(instance, plural=false)
+    #<span class="info-label">${[null,'docker'].contains(instance.layout?.provisionType?.code) ? 'Containers' : 'Virtual Machines'}:</span> <span class="info-value">${instance.containers?.size()}</span>
+    v = plural ? "Containers" : "Container"
+    if instance && instance['layout'] && instance['layout'].key?("provisionTypeCode")
+      if [nil, 'docker'].include?(instance['layout']["provisionTypeCode"])
+        v = plural ? "Virtual Machines" : "Virtual Machine"
+      end
+    end
+    return v
+  end
+
   def format_blueprint_type(type_code)
     return type_code.to_s # just show it as is
     if type_code.to_s.empty?

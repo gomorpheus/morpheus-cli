@@ -437,3 +437,7 @@ end
 def ored_list(items, limit=nil)
   format_list(items, "or", limit)
 end
+
+def format_name_values(obj)
+  obj.collect {|k,v| "#{k}: #{v}"}.join(", ")
+end

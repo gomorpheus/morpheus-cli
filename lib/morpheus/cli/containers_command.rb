@@ -699,28 +699,4 @@ private
     end
   end
 
-  def format_container_status(container, return_color=cyan)
-    out = ""
-    status_string = container['status'].to_s
-    if status_string == 'running'
-      out << "#{green}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'stopped' or status_string == 'failed'
-      out << "#{red}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'unknown'
-      out << "#{white}#{status_string.upcase}#{return_color}"
-    else
-      out << "#{yellow}#{status_string.upcase}#{return_color}"
-    end
-    out
-  end
-
-  def format_container_connection_string(container)
-    if !container['ports'].nil? && container['ports'].empty? == false
-      connection_string = "#{container['ip']}:#{container['ports'][0]['external']}"
-    else
-      # eh? more logic needed here i think, see taglib morph:containerLocationMenu
-      connection_string = "#{container['ip']}"
-    end
-  end
-
 end

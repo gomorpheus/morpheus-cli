@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 # CLI command self service
 # UI is Tools: Self Service - Catalog Items
 # API is /catalog-item-types and returns catalogItemTypes
-class Morpheus::Cli::CatalogCommand
+class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::CatalogHelper
   include Morpheus::Cli::LibraryHelper
@@ -11,7 +11,7 @@ class Morpheus::Cli::CatalogCommand
 
   # hide until 5.1 when update api is fixed and service-catalog endpoints are available
   set_command_hidden  
-  set_command_name :'catalog'
+  set_command_name :'catalog-types'
 
   register_subcommands :list, :get, :add, :update, :remove
   

@@ -175,7 +175,8 @@ module Morpheus
       load 'morpheus/cli/projects_command.rb'
       load 'morpheus/cli/backups_command.rb'
       load 'morpheus/cli/backup_jobs_command.rb'
-      load 'morpheus/cli/catalog_command.rb'
+      load 'morpheus/cli/catalog_item_types_command.rb' # catalog-types
+      load 'morpheus/cli/service_catalog_command.rb' # catalog
       load 'morpheus/cli/usage_command.rb'
       # add new commands here...
 
