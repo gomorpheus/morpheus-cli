@@ -10,15 +10,16 @@ class Morpheus::Cli::ServiceCatalogCommand
 
   # set_command_name :'service-catalog'
   set_command_name :'catalog'
+  set_command_description "Service Catalog (Persona)"
 
+  # dashboard
   register_subcommands :dashboard
-  
   # catalog (catalogItemTypes)
   register_subcommands :'list-types' => :list_types
   register_subcommands :'get-type' => :get_type
   alias_subcommand :types, :'list-types'
   
-  # inventory IS the main crud here
+  # inventory (items) IS the main crud here
   register_subcommands :list, :get, :remove
 
   # cart / orders
@@ -42,7 +43,60 @@ class Morpheus::Cli::ServiceCatalogCommand
   end
 
   def dashboard(args)
-    raise_command_error "Not yet implemented"
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+View service catalog dashboard.
+Provides and overview of available types, recent orders and inventory.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, max:0)
+    connect(options)
+  
+    params.merge!(parse_list_options(options))
+    @service_catalog_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @service_catalog_interface.dry.dashboard(params)
+      return
+    end
+    json_response = @service_catalog_interface.dashboard(params)
+    catalog_item_types = json_response['catalogItemTypes']
+    
+    recent_items = json_response['recentItems']
+    featured_items = json_response['featuredItems']
+    inventory_items = json_response['inventoryItems']
+    cart = json_response['cart']
+    current_invoice = json_response['currentInvoice']
+    
+    render_response(json_response, options, catalog_item_type_object_key) do
+      print_h1 "Service Catalog Dashboard", [], options
+      print cyan
+      
+      print_h2 "Catalog Types"
+      print as_pretty_table(catalog_item_types, {
+        "NAME" => lambda {|it| it['name'] },
+        "DESCRIPTION" => lambda {|it| it['description'] },
+        "FEATURED" => lambda {|it| format_boolean it['featured'] },
+      }, options)
+      print reset,"\n"
+
+      print_h2 "Recently Ordered"
+      print as_pretty_table(recent_items, {
+        "TYPE" => lambda {|it| it['type']['name'] rescue '' },
+        "NAME" => lambda {|it| it['name'] }
+      }, options)
+      print reset,"\n"
+
+      print_h2 "Inventory"
+      print as_pretty_table(recent_items, catalog_item_column_definitions.upcase_keys!, options)
+      print reset,"\n"
+
+    end
+    return 0, nil
   end
 
   def list_types(args)

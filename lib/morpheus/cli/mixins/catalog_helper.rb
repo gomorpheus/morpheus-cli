@@ -39,7 +39,7 @@ module Morpheus::Cli::CatalogHelper
       return json_response[catalog_item_type_object_key]
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "catalog_item_type not found by id '#{id}'"
+        print_red_alert "catalog item type not found by id '#{id}'"
       else
         raise e
       end
@@ -53,7 +53,7 @@ module Morpheus::Cli::CatalogHelper
       print_red_alert "catalog_item_type not found by name '#{name}'"
       return nil
     elsif catalog_item_types.size > 1
-      print_red_alert "#{catalog_item_types.size} catalog_item_types found by name '#{name}'"
+      print_red_alert "#{catalog_item_types.size} catalog item types found by name '#{name}'"
       puts_error as_pretty_table(catalog_item_types, [:id, :name], {color:red})
       print_red_alert "Try using ID instead"
       print reset,"\n"
