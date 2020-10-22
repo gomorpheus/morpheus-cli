@@ -383,12 +383,18 @@ def format_sig_dig(n, sigdig=3, min_sigdig=nil, pad_zeros=false)
 end
 
 def currency_sym(currency)
-  Money::Currency.new((currency || 'usd').to_sym).symbol
+  Money::Currency.new((currency || 'USD').to_sym).symbol
 end
 
 # returns currency amount formatted like "$4,5123.00". 0.00 is formatted as "$0"
 # this is not ideal
-def format_currency(amount, currency='usd', opts={})
+def format_currency(amount, currency='USD', opts={})
+  # currency '' should probably error, like money gem does
+  if currency.to_s.empty?
+    currency = 'USD'
+  end
+  currency = currency.to_s.upcase
+
   amount = amount.to_f
   if amount == 0
     return currency_sym(currency).to_s + "0"
