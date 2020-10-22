@@ -9,9 +9,8 @@ class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::LibraryHelper
   include Morpheus::Cli::OptionSourceHelper
 
-  # hide until 5.1 when update api is fixed and service-catalog endpoints are available
-  set_command_hidden  
   set_command_name :'catalog-types'
+  set_command_description "Self Service: View and manage catalog item types"
 
   register_subcommands :list, :get, :add, :update, :remove
   

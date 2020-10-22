@@ -10,7 +10,7 @@ class Morpheus::Cli::ServiceCatalogCommand
 
   # set_command_name :'service-catalog'
   set_command_name :'catalog'
-  set_command_description "Service Catalog (Persona)"
+  set_command_description "Service Catalog Persona: View catalog and manage inventory"
 
   # dashboard
   register_subcommands :dashboard
@@ -50,7 +50,7 @@ class Morpheus::Cli::ServiceCatalogCommand
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 View service catalog dashboard.
-Provides and overview of available types, recent orders and inventory.
+Provides an overview of available catalog item types, recent orders and inventory.
 EOT
     end
     optparse.parse!(args)
@@ -65,34 +65,142 @@ EOT
     end
     json_response = @service_catalog_interface.dashboard(params)
     catalog_item_types = json_response['catalogItemTypes']
-    
-    recent_items = json_response['recentItems']
-    featured_items = json_response['featuredItems']
-    inventory_items = json_response['inventoryItems']
-    cart = json_response['cart']
+    catalog_meta = json_response['catalogMeta'] || {}
+    recent_items = json_response['recentItems'] || {}
+    featured_items = json_response['featuredItems'] || []
+    inventory_items = json_response['inventoryItems'] || []
+    inventory_meta = json_response['inventoryMeta'] || {}
+    cart = json_response['cart'] || {}
+    cart_items = cart['items'] || []
+    cart_stats = cart['stats'] || {}
     current_invoice = json_response['currentInvoice']
     
     render_response(json_response, options, catalog_item_type_object_key) do
-      print_h1 "Service Catalog Dashboard", [], options
+      print_h1 "Catalog Dashboard", [], options
       print cyan
       
-      print_h2 "Catalog Types"
+      # dashboard_columns = [
+      #   {"CATALOG" => lambda {|it| catalog_meta['total'] } },
+      #   {"INVENTORY" => lambda {|it| inventory_items.size rescue '' } },
+      #   {"CART" => lambda {|it| it['cart']['items'].size rescue '' } },
+      # ]
+      # print as_pretty_table([json_response], dashboard_columns, options)
+
+      print_h2 "Catalog Items"
       print as_pretty_table(catalog_item_types, {
         "NAME" => lambda {|it| it['name'] },
         "DESCRIPTION" => lambda {|it| it['description'] },
         "FEATURED" => lambda {|it| format_boolean it['featured'] },
       }, options)
-      print reset,"\n"
+      # print reset,"\n"
 
-      print_h2 "Recently Ordered"
-      print as_pretty_table(recent_items, {
-        "TYPE" => lambda {|it| it['type']['name'] rescue '' },
-        "NAME" => lambda {|it| it['name'] }
-      }, options)
-      print reset,"\n"
+      if recent_items && recent_items.size() > 0
+        print_h2 "Recently Ordered"
+        print as_pretty_table(recent_items, {
+          "ID" => lambda {|it| it['id'] },
+          "NAME" => lambda {|it| it['name'] },
+          "TYPE" => lambda {|it| it['type']['name'] rescue '' },
+          "QTY" => lambda {|it| it['quantity'] },
+          "ORDER DATE" => lambda {|it| format_local_dt(it['orderDate']) },
+          # "STATUS" => lambda {|it| format_catalog_item_status(it) },
+          # "CONFIG" => lambda {|it| truncate_string(format_name_values(it['config']), 50) },
+        }, options)
+        # print reset,"\n"
+      end
 
-      print_h2 "Inventory"
-      print as_pretty_table(recent_items, catalog_item_column_definitions.upcase_keys!, options)
+      if recent_items && recent_items.size() > 0
+        print_h2 "Inventory"
+        print as_pretty_table(inventory_items, {
+          "ID" => lambda {|it| it['id'] },
+          "NAME" => lambda {|it| it['name'] },
+          "TYPE" => lambda {|it| it['type']['name'] rescue '' },
+          "QTY" => lambda {|it| it['quantity'] },
+          "ORDER DATE" => lambda {|it| format_local_dt(it['orderDate']) },
+          # "STATUS" => lambda {|it| format_catalog_item_status(it) },
+          # "CONFIG" => lambda {|it| format_name_values(it['config']) },
+        }, options)
+        print_results_pagination(inventory_meta)
+      else
+        # print_h2 "Inventory"
+        # print cyan, "Inventory is empty", reset, "\n"
+      end
+      
+      # print reset,"\n"
+
+      if current_invoice
+        print_h2 "Current Invoice"
+        print cyan
+        invoice_columns = {
+          # todo: invoice needs to return a currency!!!
+          "Compute" => lambda {|it| format_money(it['computePrice'], cart_stats['currency']) },
+          "Storage" => lambda {|it| format_money(it['storagePrice'], cart_stats['currency']) },
+          "Memory" => lambda {|it| format_money(it['memoryPrice'], cart_stats['currency']) },
+          "Network" => lambda {|it| format_money(it['networkPrice'], cart_stats['currency']) },
+          "Extra" => lambda {|it| format_money(it['extraPrice'], cart_stats['currency']) },
+          "MTD" => lambda {|it| format_money(it['runningPrice'], cart_stats['currency']) },
+          "Total (Projected)" => lambda {|it| format_money(it['totalPrice'], cart_stats['currency']) },
+          #"Items" => lambda {|it| cart['items'].size },
+          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+        }
+        invoice_columns.delete("Storage") unless current_invoice['storagePrice'] && current_invoice['storagePrice'].to_f > 0
+        invoice_columns.delete("Memory") unless current_invoice['memoryPrice'] && current_invoice['memoryPrice'].to_f > 0
+        invoice_columns.delete("Network") unless current_invoice['networkPrice'] && current_invoice['networkPrice'].to_f > 0
+        invoice_columns.delete("Extra") unless current_invoice['extraPrice'] && current_invoice['extraPrice'].to_f > 0
+        print as_pretty_table(current_invoice, invoice_columns.upcase_keys!, options)
+      end
+
+      if cart
+        
+        # get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        
+        print_h2 "Cart"
+        print cyan
+        if cart['items'].size() > 0
+          # cart_columns = {
+          #   "Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
+          #   "Total" => lambda {|it| 
+          #     begin
+          #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit']}")
+          #     rescue => ex
+          #       raise ex
+          #       # no cart stats eh?
+          #     end
+          #   },
+          # }
+          # print as_pretty_table(cart, cart_columns.upcase_keys!, options)
+
+
+          cart_item_columns = [
+            {"ID" => lambda {|it| it['id'] } },
+            #{"NAME" => lambda {|it| it['name'] } },
+            {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
+            {"QTY" => lambda {|it| it['quantity'] } },
+            {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
+            {"STATUS" => lambda {|it| 
+              status_string = format_catalog_item_status(it)
+              if it['errorMessage'].to_s != ""
+                status_string << " - #{it['errorMessage']}"
+              end
+              status_string
+            } },
+            {"CONFIG" => lambda {|it| 
+              truncate_string(format_name_values(it['config']), 50)
+            } },
+          ]
+          print as_pretty_table(cart_items, cart_item_columns)
+        
+          print reset,"\n"
+          print cyan
+          puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+          # print reset,"\n"
+
+        else
+          print cyan, "Cart is empty", reset, "\n"
+        end
+        
+      end
+      
       print reset,"\n"
 
     end
@@ -368,7 +476,7 @@ EOT
     cart_items = cart['items'] || []
     cart_stats = cart['stats'] || {}
     render_response(json_response, options, 'cart') do
-      print_h1 "Cart Details", [], options
+      print_h1 "Catalog Cart", [], options
       if cart_items && cart_items.size > 0
         print cyan
         cart_show_columns = {
