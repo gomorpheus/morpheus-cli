@@ -493,11 +493,13 @@ EOT
   end
 
   def update_catalog_item_type_option_types
-    add_catalog_item_type_option_types.collect {|it|
+    list = add_catalog_item_type_option_types.collect {|it|
       it.delete('required')
       it.delete('defaultValue')
       it
     }
+    list = list.reject {|it| ["type"].include? it['fieldName'] }
+    list
   end
 
   def update_catalog_item_type_advanced_option_types
