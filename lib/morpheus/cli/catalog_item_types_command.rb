@@ -5,7 +5,6 @@ require 'morpheus/cli/cli_command'
 # API is /catalog-item-types and returns catalogItemTypes
 class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::CliCommand
-  include Morpheus::Cli::CatalogHelper
   include Morpheus::Cli::LibraryHelper
   include Morpheus::Cli::OptionSourceHelper
 
@@ -260,14 +259,11 @@ EOT
           params['config'] = config_map
         end
       end
-      if params['optionTypes']
-        # todo: move to optionSource, so it will be /api/options/optionTypes  lol
-        prompt_results = prompt_for_option_types(params, options, @api_client)
-        if prompt_results[:success]
-          params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
-        else
-          return 1
-        end
+      prompt_results = prompt_for_option_types(params, options, @api_client)
+      if prompt_results[:success]
+        params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+      else
+        return 1, "failed to parse optionTypes"
       end
       payload[catalog_item_type_object_key].deep_merge!(params)
     end
@@ -374,6 +370,15 @@ EOT
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map
+        end
+      end
+      if params['optionTypes']
+        # todo: move to optionSource, so it will be /api/options/optionTypes  lol
+        prompt_results = prompt_for_option_types(params, options, @api_client)
+        if prompt_results[:success]
+          params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1, "failed to parse optionTypes"
         end
       end
       payload.deep_merge!({catalog_item_type_object_key => params})
@@ -501,6 +506,52 @@ EOT
       it.delete('defaultValue')
       it
     }
+  end
+
+  def catalog_item_type_object_key
+    'catalogItemType'
+  end
+
+  def catalog_item_type_list_key
+    'catalogItemTypes'
+  end
+
+  def find_catalog_item_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_catalog_item_type_by_id(val)
+    else
+      return find_catalog_item_type_by_name(val)
+    end
+  end
+
+  def find_catalog_item_type_by_id(id)
+    begin
+      json_response = @catalog_item_types_interface.get(id.to_i)
+      return json_response[catalog_item_type_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "catalog item type not found by id '#{id}'"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_catalog_item_type_by_name(name)
+    json_response = @catalog_item_types_interface.list({name: name.to_s})
+    catalog_item_types = json_response[catalog_item_type_list_key]
+    if catalog_item_types.empty?
+      print_red_alert "catalog_item_type not found by name '#{name}'"
+      return nil
+    elsif catalog_item_types.size > 1
+      print_red_alert "#{catalog_item_types.size} catalog item types found by name '#{name}'"
+      puts_error as_pretty_table(catalog_item_types, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return catalog_item_types[0]
+    end
   end
 
 end
