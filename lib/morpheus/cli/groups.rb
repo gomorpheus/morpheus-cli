@@ -52,7 +52,7 @@ class Morpheus::Cli::Groups
     end
     json_response = @groups_interface.list(params)
     exit_code, err = 0, nil
-    render_response(json_response, options) do
+    render_response(json_response, options, "groups") do
       groups = json_response['groups']
       subtitles = []
       subtitles += parse_list_subtitles(options)
