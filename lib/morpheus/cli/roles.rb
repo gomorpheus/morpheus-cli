@@ -552,7 +552,7 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[role] [options]")
       build_option_type_options(opts, options, update_role_option_types)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
@@ -630,7 +630,7 @@ EOT
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -770,41 +770,46 @@ EOT
     group_name = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role] [group] [access]")
       opts.on( '-g', '--group GROUP', "Group name or id" ) do |val|
         group_name = val
       end
       opts.on( nil, '--all', "Update all groups at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|read|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for a group or all groups.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
                     "--group or --all is required. This is the name or id of a group.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+
+    # usage: update-group-access [role] [access] --all
+    #        update-group-access [role] [group] [access]
     name = args[0]
-    # support old usage: [name] [group] [access]
-    group_name ||= args[1]
-    access_value ||= args[2]
-
-    if (!group_name && !do_all) || !access_value
-      puts optparse
-      return 1
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      group_id = args[1] if args[1]
+      access_value = args[2] if args[2]
     end
-    
+    if !group_id && !do_all
+      raise_command_error("missing required argument: [group] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
     access_value = access_value.to_s.downcase
-
-    if !['full', 'read', 'none'].include?(access_value)
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
       puts optparse
       return 1
     end
@@ -915,6 +920,7 @@ EOT
     cloud_name = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-c', '--cloud CLOUD', "Cloud name or id" ) do |val|
@@ -924,7 +930,7 @@ EOT
       opts.on( nil, '--all', "Update all clouds at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|read|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       opts.on( '-g', '--group GROUP', "Group to find cloud in" ) do |val|
@@ -932,32 +938,34 @@ EOT
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for a cloud or all clouds.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
                     "--cloud or --all is required. This is the name or id of a cloud.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    # usage: update-cloud-access [role] [access] --all
+    #        update-cloud-access [role] [cloud] [access]
     name = args[0]
-    # support old usage: [name] [cloud] [access]
-    cloud_name ||= args[1]
-    access_value ||= args[2]
-
-    if (!cloud_name && !do_all) || !access_value
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      cloud_id = args[1] if args[1]
+      access_value = args[2] if args[2]
+    end
+    if !cloud_id && !do_all
+      raise_command_error("missing required argument: [cloud] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
+    access_value = access_value.to_s.downcase
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
       puts optparse
       return 1
-    end
-    puts "cloud_name is : #{cloud_name}"
-    puts "access_value is : #{access_value}"
-    access_value = access_value.to_s.downcase
-
-    if !['full', 'none'].include?(access_value)
-      puts optparse
-      exit 1
     end
 
     connect(options)
@@ -1025,10 +1033,10 @@ EOT
   end
 
   def update_global_instance_type_access(args)
-    usage = "Usage: morpheus roles update-global-instance-type-access [name] [full|custom|none]"
+    usage = "Usage: morpheus roles update-global-instance-type-access [role] [full|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1077,22 +1085,23 @@ EOT
     instance_type_name = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role] [type] [access]")
       opts.on( '--instance-type INSTANCE_TYPE', String, "Instance Type name" ) do |val|
         instance_type_name = val
       end
       opts.on( nil, '--all', "Update all instance types at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|read|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for an instance type or all instance types.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
                     "--instance-type or --all is required. This is the name of an instance type.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1101,7 +1110,7 @@ EOT
       return 1
     end
     name = args[0]
-    # support old usage: [name] [instance-type] [access]
+    # support old usage: [role] [instance-type] [access]
     instance_type_name ||= args[1]
     access_value ||= args[2]
 
@@ -1170,10 +1179,10 @@ EOT
   end
 
   def update_global_blueprint_access(args)
-    usage = "Usage: morpheus roles update-global-blueprint-access [name] [full|custom|none]"
+    usage = "Usage: morpheus roles update-global-blueprint-access [role] [full|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1222,42 +1231,46 @@ EOT
     blueprint_id = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role] [blueprint] [access]")
       opts.on( '--blueprint ID', String, "Blueprint ID or Name" ) do |val|
         blueprint_id = val
       end
       opts.on( nil, '--all', "Update all blueprints at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|read|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for an blueprint or all blueprints.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
                     "--blueprint or --all is required. This is the name or id of a blueprint.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    # usage: update-blueprint-access [role] [access] --all
+    #        update-blueprint-access [role] [blueprint] [access]
     name = args[0]
-    # support old usage: [name] [blueprint] [access]
-    blueprint_id ||= args[1]
-    access_value ||= args[2]
-
-    if (!blueprint_id && !do_all) || !access_value
-      puts_error optparse
-      return 1
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      blueprint_id = args[1] if args[1]
+      access_value = args[2] if args[2]
     end
-    
+    if !blueprint_id && !do_all
+      raise_command_error("missing required argument: [blueprint] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
     access_value = access_value.to_s.downcase
-
-    if !['full', 'none'].include?(access_value)
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
       puts optparse
       return 1
     end
@@ -1327,10 +1340,10 @@ EOT
   end
 
   def update_global_catalog_item_type_access(args)
-    usage = "Usage: morpheus roles update-global-catalog-item-type-access [name] [full|custom|none]"
+    usage = "Usage: morpheus roles update-global-catalog-item-type-access [role] [full|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -1379,42 +1392,46 @@ EOT
     catalog_item_type_id = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role] [catalog-item-type] [access]")
       opts.on( '--catalog-item-type ID', String, "Catalog Item Type ID or Name" ) do |val|
         catalog_item_type_id = val
       end
       opts.on( nil, '--all', "Update all catalog item types at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for an catalog item type or all types.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
                     "--catalog-item-type or --all is required. This is the name or id of a catalog item type.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    # usage: update-catalog_item_type-access [role] [access] --all
+    #        update-catalog_item_type-access [role] [catalog-item-type] [access]
     name = args[0]
-    # support old usage: [name] [catalog_item_type] [access]
-    catalog_item_type_id ||= args[1]
-    access_value ||= args[2]
-
-    if (!catalog_item_type_id && !do_all) || !access_value
-      puts_error optparse
-      return 1
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      catalog_item_type_id = args[1] if args[1]
+      access_value = args[2] if args[2]
     end
-    
+    if !catalog_item_type_id && !do_all
+      raise_command_error("missing required argument: [catalog-item-type] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
     access_value = access_value.to_s.downcase
-
-    if !['full', 'none'].include?(access_value)
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
       puts optparse
       return 1
     end
@@ -1489,7 +1506,7 @@ EOT
     do_all = false
     allowed_access_values = ['full', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [serviceCatalog|standard]")
+      opts.banner = subcommand_usage("[role] [persona] [access]")
       opts.on( '--persona CODE', String, "Persona Code" ) do |val|
         persona_id = val
       end
@@ -1501,14 +1518,14 @@ EOT
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for a persona or all personas.\n" +
-                    "[name] is required. This is the name or id of a role.\n" + 
-                    "--persona or --all is required. This is the code of a persona.\n" + 
+                    "[role] is required. This is the name or id of a role.\n" + 
+                    "--persona or --all is required. This is the code of a persona. Service Catalog or Standard\n" + 
                     "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
-    # usage: update [role] [access] --all
-    #        update [role] [persona] [access]
+    # usage: update-persona-access [role] [access] --all
+    #        update-persona-access [role] [persona] [access]
     name = args[0]
     if do_all
       verify_args!(args:args, optparse:optparse, min:1, max:2)
