@@ -935,7 +935,7 @@ EOT
       opts.on('--remove-instances [true|false]', String, "Remove instances. Default is true. Applies to apps only.") do |val|
         params[:removeInstances] = ['true','on','1',''].include?(val.to_s.downcase)
       end
-      opts.on( '-B', '--keep-backups [true|false]', "Preserve copy of backups. Default if false." ) do
+      opts.on( '-B', '--keep-backups [true|false]', "Preserve copy of backups. Default is false." ) do
         params[:keepBackups] = ['true','on','1',''].include?(val.to_s.downcase)
       end
       opts.on('--preserve-volumes [on|off]', String, "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
