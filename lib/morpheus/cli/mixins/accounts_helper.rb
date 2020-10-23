@@ -401,7 +401,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def get_access_string(access, return_color=cyan)
-    get_access_color(access) + access + return_color
+    get_access_color(access) + access.to_s + return_color.to_s
     # access ||= 'none'
     # if access == 'none'
     #   "#{white}#{access.to_s}#{return_color}"
@@ -426,10 +426,14 @@ module Morpheus::Cli::AccountsHelper
   # Examples: format_permission_access("read")
   #           format_permission_access("custom", "full,custom,none")
   def format_access_string(access, access_levels=nil, return_color=cyan)
+    # nevermind all this, just colorized access level
+    return get_access_string(access, return_color)
+    
     access = access.to_s.downcase.strip
     if access.empty?
       access = "none"
     end
+
     if access_levels.nil?
       access_levels = ["none","read","user","full"]
     elsif access_levels.is_a?(Array)
