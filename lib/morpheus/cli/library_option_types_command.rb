@@ -129,7 +129,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
 
       print_h1 "Option Type Details"
       print cyan
-      print_description_list({
+      columns = {
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
@@ -138,11 +138,14 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         # "Field Name" => 'fieldName',
         "Full Field Name" => lambda {|it| [it['fieldContext'], it['fieldName']].select {|it| !it.to_s.empty? }.join('.') },
         "Type" => lambda {|it| it['type'].to_s.capitalize },
+        "Option List" => lambda {|it| it['optionList'] ? it['optionList']['name'] : nil },
         "Placeholder" => 'placeHolder',
         "Default Value" => 'defaultValue',
         "Required" => lambda {|it| format_boolean(it['required']) },
         "Export As Tag" => lambda {|it| it['exportMeta'].nil? ? '' : format_boolean(it['exportMeta']) },
-      }, option_type)
+      }
+      columns.delete("Option List") if option_type['optionList'].nil?
+      print as_description_list(option_type, columns, options)
       print reset,"\n"
       return 0
     rescue RestClient::Exception => e
