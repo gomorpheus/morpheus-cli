@@ -64,6 +64,13 @@ class Morpheus::Cli::Instances
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-a', '--all', "Display all details: memory and storage usage used / max values." ) do
+        options[:details] = true
+      end
+      opts.on('--details', "Display all details: alias for --all" ) do
+        options[:details] = true
+      end
+      opts.add_hidden_option('--details')
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -80,9 +87,6 @@ class Morpheus::Cli::Instances
         options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
-      opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
-        options[:details] = true
-      end
       opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end

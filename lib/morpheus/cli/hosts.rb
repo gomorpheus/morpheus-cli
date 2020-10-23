@@ -344,7 +344,7 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
-      opts.on( '-a', '--account ACCOUNT', "Account Name or ID" ) do |val|
+      opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
