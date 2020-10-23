@@ -72,9 +72,6 @@ class Morpheus::Cli::Apps
         options[:owner] = val
       end
       opts.add_hidden_option('--created-by')
-      opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
-        options[:details] = true
-      end
       opts.on('--pending-removal', "Include apps pending removal.") do
         options[:showDeleted] = true
       end
@@ -87,6 +84,9 @@ class Morpheus::Cli::Apps
       end
       opts.on('--status STATUS', "Filter by status.") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
+      end
+      opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
+        options[:details] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List apps."

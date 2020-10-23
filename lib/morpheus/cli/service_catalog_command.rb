@@ -458,13 +458,9 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-a', '--all', "Display all details: item configuration." ) do
+      opts.on('-a', '--details', "Display all details: item configuration." ) do
         options[:details] = true
       end
-      opts.on('--details', "Display all details: alias for --all" ) do
-        options[:details] = true
-      end
-      opts.add_hidden_option('--details')
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details of current cart and the items in it.
@@ -826,10 +822,7 @@ EOT
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating the order.") do
         options[:validate_only] = true
       end
-      opts.on('-a', '--all', "Display all details: item configuration." ) do
-        options[:details] = true
-      end
-      opts.on('--details', "Display all details: alias for --all" ) do
+      opts.on('-a', '--details', "Display all details: item configuration." ) do
         options[:details] = true
       end
       build_standard_add_options(opts, options)

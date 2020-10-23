@@ -64,13 +64,6 @@ class Morpheus::Cli::Instances
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-a', '--all', "Display all details: memory and storage usage used / max values." ) do
-        options[:details] = true
-      end
-      opts.on('--details', "Display all details: alias for --all" ) do
-        options[:details] = true
-      end
-      opts.add_hidden_option('--details')
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -109,6 +102,9 @@ class Morpheus::Cli::Instances
           options[:tags][k] ||= []
           options[:tags][k] << (v || '')
         end
+      end
+      opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
+        options[:details] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instances."

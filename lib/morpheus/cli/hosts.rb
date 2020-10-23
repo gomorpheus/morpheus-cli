@@ -54,13 +54,6 @@ class Morpheus::Cli::Hosts
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-a', '--all', "Display all details: memory and storage usage used / max values." ) do
-        options[:details] = true
-      end
-      opts.on('--details', "Display all details: alias for --all" ) do
-        options[:details] = true
-      end
-      opts.add_hidden_option('--details')
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
       end
@@ -113,9 +106,6 @@ class Morpheus::Cli::Hosts
       opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
-      opts.on('--details', "Display more details: memory and storage usage used / max values." ) do
-        options[:details] = true
-      end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
         val.split(",").each do |value_pair|
           k,v = value_pair.strip.split("=")
@@ -129,6 +119,9 @@ class Morpheus::Cli::Hosts
       end
       opts.on('--non-tag-compliant', "Displays only servers with tag compliance warnings." ) do
         params[:tagCompliant] = false
+      end
+      opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
+        options[:details] = true
       end
       build_standard_list_options(opts, options)
       opts.footer = "List hosts."
