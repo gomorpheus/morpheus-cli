@@ -445,5 +445,9 @@ def ored_list(items, limit=nil)
 end
 
 def format_name_values(obj)
-  obj.collect {|k,v| "#{k}: #{v}"}.join(", ")
+  if obj.is_a?(Hash)
+    obj.collect {|k,v| "#{k}: #{v}"}.join(", ")
+  else
+    ""
+  end
 end

@@ -776,7 +776,7 @@ class Morpheus::APIClient
     Morpheus::CatalogItemTypesInterface.new(common_interface_options).setopts(@options)
   end
 
-  def service_catalog
+  def catalog
     Morpheus::ServiceCatalogInterface.new(common_interface_options).setopts(@options)
   end
 

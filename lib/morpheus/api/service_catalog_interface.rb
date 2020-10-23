@@ -3,7 +3,8 @@ require 'morpheus/api/api_client'
 class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
 
   def base_path
-    "/api/service-catalog"
+    # "/api/service-catalog"
+    "/api/catalog"
   end
 
   # dashboard
@@ -13,30 +14,30 @@ class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
 
   # list catalog types available for ordering
   def list_types(params={})
-    execute(method: :get, url: "#{base_path}/catalog", params: params)
+    execute(method: :get, url: "#{base_path}/types", params: params)
   end
 
   # get specific catalog type
   def get_type(id, params={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/catalog/#{id}", params: params)
+    execute(method: :get, url: "#{base_path}/types/#{id}", params: params)
   end
 
   # list catalog inventory (items)
   def list_inventory(params={})
-    execute(method: :get, url: "#{base_path}/inventory", params: params)
+    execute(method: :get, url: "#{base_path}/items", params: params)
   end
 
   # get catalog inventory item
   def get_inventory(id, params={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/inventory/#{id}", params: params)
+    execute(method: :get, url: "#{base_path}/items/#{id}", params: params)
   end
 
   # delete a catalog inventory item
   def destroy_inventory(id, params = {})
     validate_id!(id)
-    execute(method: :delete, url: "#{base_path}/inventory/#{id}", params: params)
+    execute(method: :delete, url: "#{base_path}/items/#{id}", params: params)
   end
 
   # get cart (one per user)
@@ -81,4 +82,8 @@ class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
     execute(method: :delete, url: "#{base_path}/cart", params: params)
   end
 
+  # create an order from scratch, without using a cart
+  def create_order(payload, params={})
+    execute(method: :post, url: "#{base_path}/orders", params: params, payload: payload.to_json)
+  end
 end

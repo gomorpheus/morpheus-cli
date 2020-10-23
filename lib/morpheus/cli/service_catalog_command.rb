@@ -1,10 +1,11 @@
 require 'morpheus/cli/cli_command'
 
-# CLI command for the Service Catalog (Persona)
-# Dashboard / Catalog / Inventory
-class Morpheus::Cli::ServiceCatalogCommand
+# CLI command for the Service Catalog (Persona): Dashboard / Catalog / Inventory
+# Inventory Items are the main actions, list, get, remove
+# The add command adds to the cart and checkout places an order with the cart.
+# The add-order command allows submitting a new order at once.
+class Morpheus::Cli::CatalogCommand
   include Morpheus::Cli::CliCommand
-  #include Morpheus::Cli::CatalogHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::OptionSourceHelper
 
@@ -25,15 +26,19 @@ class Morpheus::Cli::ServiceCatalogCommand
   # cart / orders
   register_subcommands :cart => :get_cart
   register_subcommands :'update-cart' => :update_cart
-  register_subcommands :'add' => :add_cart_item
+  register_subcommands :add
   #register_subcommands :'update-cart-item' => :update_cart_item
   register_subcommands :'remove-cart-item' => :remove_cart_item
   register_subcommands :'clear-cart' => :clear_cart
   register_subcommands :checkout
 
+  # create and submit cart in one action
+  # maybe call this place-order instead?
+  register_subcommands :'add-order' => :add_order
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @service_catalog_interface = @api_client.service_catalog
+    @service_catalog_interface = @api_client.catalog
     # @instances_interface = @api_client.instances
     @option_types_interface = @api_client.option_types
   end
@@ -80,7 +85,7 @@ EOT
       print cyan
       
       # dashboard_columns = [
-      #   {"CATALOG" => lambda {|it| catalog_meta['total'] } },
+      #   {"TYPES" => lambda {|it| catalog_meta['total'] } },
       #   {"INVENTORY" => lambda {|it| inventory_items.size rescue '' } },
       #   {"CART" => lambda {|it| it['cart']['items'].size rescue '' } },
       # ]
@@ -305,8 +310,8 @@ EOT
         print_h2 "Configuration Options"
         print as_pretty_table(catalog_item_type['optionTypes'], {
           "LABEL" => lambda {|it| it['fieldLabel'] },
-          "TYPE" => lambda {|it| it['type'] },
           "NAME" => lambda {|it| it['fieldName'] },
+          "TYPE" => lambda {|it| it['type'] },
           "REQUIRED" => lambda {|it| format_boolean it['required'] },
         })
       else
@@ -477,97 +482,7 @@ EOT
     cart_stats = cart['stats'] || {}
     render_response(json_response, options, 'cart') do
       print_h1 "Catalog Cart", [], options
-      if cart_items && cart_items.size > 0
-        print cyan
-        cart_show_columns = {
-          #"Order ID" => 'id',
-          "Order Name" => 'name',
-          "Order Items" => lambda {|it| cart['items'].size },
-          "Order Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
-          "Order Status" => lambda {|it| format_order_status(it) },
-          #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}" },
-          #"Items" => lambda {|it| cart['items'].size },
-          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
-        }
-        if options[:details] != true
-          cart_show_columns.delete("Order Items")
-          cart_show_columns.delete("Order Qty")
-          cart_show_columns.delete("Order Status")
-        end
-        cart_show_columns.delete("Order Name") if cart['name'].to_s.empty?
-        # if !cart_show_columns.empty?
-        #   print_description_list(cart_show_columns, cart)
-        #   print reset, "\n"
-        # end
-
-        if options[:details]
-          if !cart_show_columns.empty?
-            print_description_list(cart_show_columns, cart)
-            # print reset, "\n"
-          end
-          #print_h2 "Cart Items"
-          cart_items.each_with_index do |cart_item, index|
-            item_config = cart_item['config']
-            cart_item_columns = [
-              {"ID" => lambda {|it| it['id'] } },
-              #{"NAME" => lambda {|it| it['name'] } },
-              {"Type" => lambda {|it| it['type']['name'] rescue '' } },
-              {"Qty" => lambda {|it| it['quantity'] } },
-              {"Price" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
-              {"Status" => lambda {|it| 
-                status_string = format_catalog_item_status(it)
-                if it['errorMessage'].to_s != ""
-                  status_string << " - #{it['errorMessage']}"
-                end
-                status_string
-              } },
-              # {"Config" => lambda {|it| format_name_values(it['config']) } },
-            ]
-            print_h2(index == 0 ? "Item" : "Item #{index+1}", options)
-            print as_description_list(cart_item, cart_item_columns, options)
-            print "\n", reset
-            if item_config && !item_config.keys.empty?
-              print_h2("Configuration", options)
-              print as_description_list(item_config, item_config.keys, options)
-            end
-          end
-          print "\n", reset
-        else
-          if !cart_show_columns.empty?
-            print_description_list(cart_show_columns, cart)
-            print reset, "\n"
-          end
-          #print_h2 "Cart Items"
-          cart_item_columns = [
-            {"ID" => lambda {|it| it['id'] } },
-            #{"NAME" => lambda {|it| it['name'] } },
-            {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
-            {"QTY" => lambda {|it| it['quantity'] } },
-            {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
-            {"STATUS" => lambda {|it| 
-              status_string = format_catalog_item_status(it)
-              if it['errorMessage'].to_s != ""
-                status_string << " - #{it['errorMessage']}"
-              end
-              status_string
-            } },
-            {"CONFIG" => lambda {|it| 
-              truncate_string(format_name_values(it['config']), 50)
-            } },
-          ]
-          print as_pretty_table(cart_items, cart_item_columns)
-        end
-        print reset,"\n"
-        print cyan
-        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
-        print reset,"\n"
-        
-      else
-        print yellow,"Cart is empty","\n",reset
-        print reset,"\n"
-      end
-
+      print_order_details(cart, options)
     end
     if cart_items.empty?
       return 1, "cart is empty"
@@ -623,7 +538,7 @@ EOT
     return 0, nil
   end
 
-  def add_cart_item(args)
+  def add(args)
     options = {}
     params = {}
     payload = {}
@@ -632,6 +547,9 @@ EOT
       opts.banner = subcommand_usage("[type] [options]")
       opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
         type_id = val.to_s
+      end
+      opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips adding the item.") do
+        options[:validate_only] = true
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
@@ -686,23 +604,47 @@ EOT
       }
       if catalog_option_types && !catalog_option_types.empty?
         config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, {})['config']
-        params.deep_merge!({'config' => config_prompt})
+        payload[add_item_object_key].deep_merge!({'config' => config_prompt})
       end
-      payload.deep_merge!({add_item_object_key => params})
+    end
+    if options[:validate_only]
+      params['validateOnly'] = true
     end
     @service_catalog_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.create_cart_item(payload)
+      print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
       return
     end
-    json_response = @service_catalog_interface.create_cart_item(payload)
-    #cart = json_response['cart']
-    #cart = @service_catalog_interface.get_cart()['cart']
-    render_response(json_response, options, 'cart') do
-      print_green_success "Added item to cart"
-      get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    json_response = @service_catalog_interface.create_cart_item(payload, params)
+    cart_item = json_response['item']
+    render_response(json_response, options) do
+      if options[:validate_only]
+        if json_response['success']
+          print_green_success(json_response['msg'] || "Item is valid")
+          print_h2 "Validated Cart Item", [], options
+          cart_item_columns = {
+            "Type" => lambda {|it| it['type']['name'] rescue '' },
+            "Qty" => lambda {|it| it['quantity'] },
+            "Price" => lambda {|it| format_money(it['price'] , it['currency']) },
+            "Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
+          }
+          print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
+          print reset, "\n"
+        else
+          # not needed because it will be http 400
+          print_rest_errors(json_response, options)
+        end
+      else
+        print_green_success "Added item to cart"
+        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+      end
     end
-    return 0, nil
+    if json_response['success']
+      return 0, nil
+    else
+      # not needed because it will be http 400
+      return 1, json_response['msg'] || 'request failed'
+    end
   end
 
   def update_cart_item(args)
@@ -748,7 +690,7 @@ EOT
               #{"NAME" => lambda {|it| it['name'] } },
               {"Type" => lambda {|it| it['type']['name'] rescue '' } },
               {"Qty" => lambda {|it| it['quantity'] } },
-              {"Price" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
+              {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
             ]
           puts_error as_pretty_table(matching_items, cart_item_columns, {color:red})
           print_red_alert "Try using ID instead"
@@ -864,9 +806,198 @@ EOT
     json_response = @service_catalog_interface.checkout(payload, params)
     render_response(json_response, options) do
       print_green_success "Order placed"
-      #get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
       # ok so this is delayed because list does not return all statuses right now..
       #list([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def add_order(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating the order.") do
+        options[:validate_only] = true
+      end
+      opts.on('-a', '--all', "Display all details: item configuration." ) do
+        options[:details] = true
+      end
+      opts.on('--details', "Display all details: alias for --all" ) do
+        options[:details] = true
+      end
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Place an order for new inventory.
+This allows creating a new order without using the cart.
+The order must contain one or more items, each with a valid type and configuration.
+By default the order is placed right away.
+Use the --validate option to validate and review the order without actually placing it.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:0)
+    connect(options)
+    if args.count > 0
+      type_id = args.join(" ")
+    end
+    payload = {}
+    order_object_key = 'order'
+    payload = {order_object_key => {} }
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({order_object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({order_object_key => parse_passed_options(options)})
+
+      # Prompt for 1-N Types
+      still_prompting = options[:no_prompt] != true
+      available_catalog_item_types = @service_catalog_interface.list_types({max:10000})['catalogItemTypes'].collect {|it|
+        {'name' => it['name'], 'value' => it['id']}
+      }
+      type_cache = {} # prevent repeat lookups
+      while still_prompting do
+        item_payload = {}
+        # prompt for Type
+        type_id = nil
+        if type_id
+          catalog_item_type = type_cache[type_id.to_s] || find_catalog_item_type_by_name_or_id(type_id)
+          return [1, "catalog item type not found"] if catalog_item_type.nil?
+        elsif
+          type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => available_catalog_item_types, 'required' => true, 'description' => 'Catalog Item Type name or id'}], options[:options], @api_client, options[:params])['type']
+          catalog_item_type = type_cache[type_id.to_s] || find_catalog_item_type_by_name_or_id(type_id.to_s)
+          return [1, "catalog item type not found"] if catalog_item_type.nil?
+        end
+        catalog_type_cache[type_id.to_s] = catalog_item_type
+        # use name instead of id
+        item_payload['type'] = {'name' => catalog_item_type['name']}
+        #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
+
+        # this is silly, need to load by id to get optionTypes
+        # maybe do ?name=foo&includeOptionTypes=true 
+        if catalog_item_type['optionTypes'].nil?
+          catalog_item_type = find_catalog_item_type_by_id(catalog_item_type['id'])
+          return [1, "catalog item type not found"] if catalog_item_type.nil?
+        end
+        catalog_option_types = catalog_item_type['optionTypes']
+        # instead of config.customOptions just use config...
+        catalog_option_types = catalog_option_types.collect {|it|
+          it['fieldContext'] = 'config'
+          it
+        }
+        if catalog_option_types && !catalog_option_types.empty?
+          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, {})['config']
+          item_payload.deep_merge!({'config' => config_prompt})
+        end
+        
+        payload[order_object_key]['items'] ||= []
+        payload[order_object_key]['items'] << item_payload
+
+        still_prompting =  Morpheus::Cli::OptionTypes.confirm("Add another item?")
+      end
+      
+      
+    end
+    if options[:validate_only]
+      params['validateOnly'] = true
+      #payload['validateOnly'] = true
+    end
+    @service_catalog_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @service_catalog_interface.dry.create_order(payload, params)
+      return
+    end
+    json_response = @service_catalog_interface.create_order(payload, params)
+    order = json_response['order'] || json_response['cart']
+    render_response(json_response, options) do
+      if options[:validate_only]
+        if json_response['success']
+          print_green_success(json_response['msg'] || "Order is valid")
+          print_h2 "Review Order", [], options
+          print_order_details(order, options)
+        else
+          # not needed because it will be http 400
+          print_rest_errors(json_response, options)
+        end
+      else
+        print_green_success "Order placed"
+        print_h2 "Order Details", [], options
+        print_order_details(order, options)
+      end
+    end
+    if json_response['success']
+      return 0, nil
+    else
+      # not needed because it will be http 400
+      return 1, json_response['msg'] || 'request failed'
+    end
+  end
+
+  def remove(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [options]")
+      opts.on('--remove-instances [on|off]', ['on','off'], "Remove instances. Default is true. Applies to apps only.") do |val|
+        params[:removeInstances] = val.nil? ? 'on' : val
+      end
+      opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
+        params[:keepBackups] = 'true'
+      end
+      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
+        params[:preserveVolumes] = val.nil? ? 'true' : val
+      end
+      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
+        params[:releaseEIPs] = val.nil? ? 'on' : val
+      end
+      opts.on( '-f', '--force', "Force Delete" ) do
+        params[:force] = 'on'
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete a catalog inventory item.
+This removes the item from the inventory and deprovisions the associated instance(s).
+[id] is required. This is the id of a catalog inventory item.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+
+    catalog_item = find_catalog_item_by_id(args[0])
+    return 1 if catalog_item.nil?
+    
+    is_app = (catalog_item['type']['type'] == 'app' || catalog_item['type']['type'] == 'blueprint') rescue false
+    
+    params.merge!(parse_query_options(options))
+    # delete dialog
+    delete_prompt_options = [
+      {'fieldName' => 'removeInstances', 'fieldLabel' => 'Remove Instances', 'type' => 'checkbox', 'defaultValue' => true},
+      {'fieldName' => 'keepBackups', 'fieldLabel' => 'Preserve Backups', 'type' => 'checkbox', 'defaultValue' => false},
+      {'fieldName' => 'preserveVolumes', 'fieldLabel' => 'Preserve Volumes', 'type' => 'checkbox', 'defaultValue' => false},
+      # {'fieldName' => 'releaseEIPs', 'fieldLabel' => 'Release EIPs. Default is on. Applies to Amazon only.', 'type' => 'checkbox', 'defaultValue' => true},
+      # {'fieldName' => 'force', 'fieldLabel' => 'Force Delete', 'type' => 'checkbox', 'defaultValue' => false},
+    ]
+    if !is_app
+      delete_prompt_options.reject! {|it| it['fieldName'] == 'removeInstances'}
+    end
+    options[:options][:no_prompt] = true if options[:yes] # -y could always mean do not prompt too..
+    v_prompt = Morpheus::Cli::OptionTypes.prompt(delete_prompt_options, options[:options], @api_client)
+    v_prompt.booleanize! # 'on' => true
+    params.deep_merge!(v_prompt)
+
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the inventory item #{catalog_item['id']} '#{catalog_item['name']}'?")
+      return 9, "aborted command"
+    end
+    @service_catalog_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @service_catalog_interface.dry.destroy_inventory(catalog_item['id'], params)
+      return
+    end
+    json_response = @service_catalog_interface.destroy_inventory(catalog_item['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Removing catalog item"
     end
     return 0, nil
   end
@@ -1013,6 +1144,8 @@ EOT
       out << "#{cyan}#{status_string.upcase}#{return_color}"
     elsif status_string == 'FAILED'
       out << "#{red}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'DELETED'
+      out << "#{red}#{status_string.upcase}#{return_color}" # cyan maybe?
     else
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     end
@@ -1038,4 +1171,97 @@ EOT
     out
   end
 
+  def print_order_details(cart, options)
+    cart_items = cart['items'] || []
+    cart_stats = cart['stats'] || {}
+    if cart_items && cart_items.size > 0
+      print cyan
+      cart_show_columns = {
+        #"Order ID" => 'id',
+        "Order Name" => 'name',
+        "Order Items" => lambda {|it| cart['items'].size },
+        "Order Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
+        "Order Status" => lambda {|it| format_order_status(it) },
+        #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}" },
+        #"Items" => lambda {|it| cart['items'].size },
+        # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+      }
+      if options[:details] != true
+        cart_show_columns.delete("Order Items")
+        cart_show_columns.delete("Order Qty")
+        cart_show_columns.delete("Order Status")
+      end
+      cart_show_columns.delete("Order Name") if cart['name'].to_s.empty?
+      # if !cart_show_columns.empty?
+      #   print_description_list(cart_show_columns, cart)
+      #   print reset, "\n"
+      # end
+
+      if options[:details]
+        if !cart_show_columns.empty?
+          print_description_list(cart_show_columns, cart)
+          # print reset, "\n"
+        end
+        #print_h2 "Cart Items"
+        cart_items.each_with_index do |cart_item, index|
+          item_config = cart_item['config']
+          cart_item_columns = [
+            {"ID" => lambda {|it| it['id'] } },
+            #{"NAME" => lambda {|it| it['name'] } },
+            {"Type" => lambda {|it| it['type']['name'] rescue '' } },
+            {"Qty" => lambda {|it| it['quantity'] } },
+            {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
+            {"Status" => lambda {|it| 
+              status_string = format_catalog_item_status(it)
+              if it['errorMessage'].to_s != ""
+                status_string << " - #{it['errorMessage']}"
+              end
+              status_string
+            } },
+            # {"Config" => lambda {|it| format_name_values(it['config']) } },
+          ]
+          print_h2(index == 0 ? "Item" : "Item #{index+1}", options)
+          print as_description_list(cart_item, cart_item_columns, options)
+          print "\n", reset
+          if item_config && !item_config.keys.empty?
+            print_h2("Configuration", options)
+            print as_description_list(item_config, item_config.keys, options)
+          end
+        end
+        print "\n", reset
+      else
+        if !cart_show_columns.empty?
+          print_description_list(cart_show_columns, cart)
+          print reset, "\n"
+        end
+        #print_h2 "Cart Items"
+        cart_item_columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          #{"NAME" => lambda {|it| it['name'] } },
+          {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
+          {"QTY" => lambda {|it| it['quantity'] } },
+          {"PRICE" => lambda {|it| format_money(it['price'] , it['currency']) } },
+          {"STATUS" => lambda {|it| 
+            status_string = format_catalog_item_status(it)
+            if it['errorMessage'].to_s != ""
+              status_string << " - #{it['errorMessage']}"
+            end
+            status_string
+          } },
+          {"CONFIG" => lambda {|it| 
+            truncate_string(format_name_values(it['config']), 50)
+          } },
+        ]
+        print as_pretty_table(cart_items, cart_item_columns)
+      end
+      print reset,"\n"
+      print cyan
+      puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+      print reset,"\n"
+    else
+      print cyan,"Cart is empty","\n",reset
+      print reset,"\n"
+    end
+  end
 end

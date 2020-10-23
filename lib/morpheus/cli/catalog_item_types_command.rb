@@ -75,7 +75,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[catalog item type]")
+      opts.banner = subcommand_usage("[type]")
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
@@ -85,7 +85,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific catalog item type.
-[catalog item type] is required. This is the name or id of a catalog item type.
+[type] is required. This is the name or id of a catalog item type.
 EOT
     end
     optparse.parse!(args)
@@ -158,7 +158,7 @@ EOT
         if config_lines.size > max_lines
           config_string = config_lines.first(max_lines).join("\n")
           config_string << "\n\n"
-          config_string << "(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)"
+          config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
           #config_string << "\n"
         end
         # strip --- yaml header
@@ -286,7 +286,7 @@ EOT
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[catalog item type] [options]")
+      opts.banner = subcommand_usage("[type] [options]")
       build_option_type_options(opts, options, update_catalog_item_type_option_types)
       opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
         options[:config_file] = val.to_s
@@ -328,7 +328,7 @@ EOT
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update a catalog item type.
-[catalog item type] is required. This is the name or id of a catalog item type.
+[type] is required. This is the name or id of a catalog item type.
 EOT
     end
     optparse.parse!(args)
@@ -404,11 +404,11 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[catalog item type] [options]")
+      opts.banner = subcommand_usage("[type] [options]")
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
-Delete a catalog_item_type.
-[catalog item type] is required. This is the name or id of a catalog item type.
+Delete a catalog item type.
+[type] is required. This is the name or id of a catalog item type.
 EOT
     end
     optparse.parse!(args)
