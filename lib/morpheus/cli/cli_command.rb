@@ -847,6 +847,10 @@ module Morpheus
         self.class.command_name
       end
 
+      def command_description
+        self.class.command_description
+      end
+
       def subcommands
         self.class.subcommands
       end
@@ -920,6 +924,10 @@ module Morpheus
             out << "\t#{desc}" if desc
             out << "\n"
           }
+        end
+        if command_description
+          out << "\n"
+          out << "#{command_description}\n"
         end
         # out << "\n"
         out
