@@ -326,7 +326,7 @@ EOT
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          print cyan,"Use -b, --catalog-item-type-access to list custom access","\n"
+          print cyan,"Use --catalog-item-type-access to list custom access","\n"
         end
       else
         # print "\n"
