@@ -680,7 +680,8 @@ EOT
     # match cart item on id OR type.name
     if item_id.nil?
       cart_item_option_type = {'fieldName' => 'id', 'fieldLabel' => 'Cart Item', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
-          cart_items.collect {|ci| {'name' => ci['name'], 'value' => ci['id']} }
+          # cart_items.collect {|ci| {'name' => ci['name'], 'value' => ci['id']} }
+          cart_items.collect {|ci| {'name' => (ci['type']['name'] rescue ci['name']), 'value' => ci['id']} }
         }, 'required' => true, 'description' => 'Cart Item to be removed'}
       item_id = Morpheus::Cli::OptionTypes.prompt([cart_item_option_type], options[:options], @api_client)['id']
     end
