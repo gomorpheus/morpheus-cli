@@ -507,8 +507,7 @@ EOT
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
-Update your cart.
---name is optional, this is custom identifier for your catalog order
+Update your cart settings, such as name.
 EOT
     end
     optparse.parse!(args)
