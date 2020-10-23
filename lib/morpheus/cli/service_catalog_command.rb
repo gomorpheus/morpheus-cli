@@ -845,11 +845,12 @@ EOT
     payload = {}
     order_object_key = 'order'
     payload = {order_object_key => {} }
+    passed_options = parse_passed_options(options)
     if options[:payload]
       payload = options[:payload]
-      payload.deep_merge!({order_object_key => parse_passed_options(options)})
+      payload.deep_merge!({order_object_key => passed_options}) unless passed_options.empty?
     else
-      payload.deep_merge!({order_object_key => parse_passed_options(options)})
+      payload.deep_merge!({order_object_key => passed_options}) unless passed_options.empty?
 
       # Prompt for 1-N Types
       still_prompting = options[:no_prompt] != true
