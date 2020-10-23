@@ -157,53 +157,56 @@ EOT
         print as_pretty_table(current_invoice, invoice_columns.upcase_keys!, options)
       end
 
-      if cart
-        
-        # get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
-        
-        print_h2 "Cart"
-        print cyan
-        if cart['items'].size() > 0
-          # cart_columns = {
-          #   "Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
-          #   "Total" => lambda {|it| 
-          #     begin
-          #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit']}")
-          #     rescue => ex
-          #       raise ex
-          #       # no cart stats eh?
-          #     end
-          #   },
-          # }
-          # print as_pretty_table(cart, cart_columns.upcase_keys!, options)
-
-
-          cart_item_columns = [
-            {"ID" => lambda {|it| it['id'] } },
-            #{"NAME" => lambda {|it| it['name'] } },
-            {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
-            {"QTY" => lambda {|it| it['quantity'] } },
-            {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
-            {"STATUS" => lambda {|it| 
-              status_string = format_catalog_item_status(it)
-              if it['errorMessage'].to_s != ""
-                status_string << " - #{it['errorMessage']}"
-              end
-              status_string
-            } },
-            {"CONFIG" => lambda {|it| 
-              truncate_string(format_name_values(it['config']), 50)
-            } },
-          ]
-          print as_pretty_table(cart_items, cart_item_columns)
-        
-          print reset,"\n"
+      show_cart = false
+      if show_cart
+        if cart
+          
+          # get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          
+          print_h2 "Cart"
           print cyan
-          puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
-          # print reset,"\n"
+          if cart['items'].size() > 0
+            # cart_columns = {
+            #   "Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
+            #   "Total" => lambda {|it| 
+            #     begin
+            #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit']}")
+            #     rescue => ex
+            #       raise ex
+            #       # no cart stats eh?
+            #     end
+            #   },
+            # }
+            # print as_pretty_table(cart, cart_columns.upcase_keys!, options)
 
-        else
-          print cyan, "Cart is empty", reset, "\n"
+
+            cart_item_columns = [
+              {"ID" => lambda {|it| it['id'] } },
+              #{"NAME" => lambda {|it| it['name'] } },
+              {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
+              {"QTY" => lambda {|it| it['quantity'] } },
+              {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
+              {"STATUS" => lambda {|it| 
+                status_string = format_catalog_item_status(it)
+                if it['errorMessage'].to_s != ""
+                  status_string << " - #{it['errorMessage']}"
+                end
+                status_string
+              } },
+              {"CONFIG" => lambda {|it| 
+                truncate_string(format_name_values(it['config']), 50)
+              } },
+            ]
+            print as_pretty_table(cart_items, cart_item_columns)
+          
+            print reset,"\n"
+            print cyan
+            puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+            # print reset,"\n"
+
+          else
+            print cyan, "Cart is empty", reset, "\n"
+          end
         end
         
       end
