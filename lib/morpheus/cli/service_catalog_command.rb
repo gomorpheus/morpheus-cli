@@ -862,7 +862,7 @@ EOT
           catalog_item_type = type_cache[type_id.to_s] || find_catalog_item_type_by_name_or_id(type_id.to_s)
           return [1, "catalog item type not found"] if catalog_item_type.nil?
         end
-        catalog_type_cache[type_id.to_s] = catalog_item_type
+        type_cache[type_id.to_s] = catalog_item_type
         # use name instead of id
         item_payload['type'] = {'name' => catalog_item_type['name']}
         #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
