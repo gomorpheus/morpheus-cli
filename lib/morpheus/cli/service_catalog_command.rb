@@ -102,10 +102,10 @@ EOT
       if recent_items && recent_items.size() > 0
         print_h2 "Recently Ordered"
         print as_pretty_table(recent_items, {
-          "ID" => lambda {|it| it['id'] },
-          "NAME" => lambda {|it| it['name'] },
+          #"ID" => lambda {|it| it['id'] },
+          #"NAME" => lambda {|it| it['name'] },
           "TYPE" => lambda {|it| it['type']['name'] rescue '' },
-          "QTY" => lambda {|it| it['quantity'] },
+          #"QTY" => lambda {|it| it['quantity'] },
           "ORDER DATE" => lambda {|it| format_local_dt(it['orderDate']) },
           # "STATUS" => lambda {|it| format_catalog_item_status(it) },
           # "CONFIG" => lambda {|it| truncate_string(format_name_values(it['config']), 50) },
