@@ -132,7 +132,9 @@ EOT
       
       # print reset,"\n"
 
-      if current_invoice
+      # problematic right now, invoice has all user activity, not just catalog
+      show_invoice = false
+      if current_invoice && show_invoice
         print_h2 "Current Invoice"
         print cyan
         invoice_columns = {
