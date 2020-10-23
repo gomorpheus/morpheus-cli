@@ -1484,8 +1484,10 @@ EOT
   def update_persona_access(args)
     options = {}
     persona_id = nil
+    name = nil
     access_value = nil
     do_all = false
+    allowed_access_values = ['full', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [serviceCatalog|standard]")
       opts.on( '--persona CODE', String, "Persona Code" ) do |val|
@@ -1494,34 +1496,37 @@ EOT
       opts.on( nil, '--all', "Update all personas at once." ) do
         do_all = true
       end
-      opts.on( '--access VALUE', String, "Access value [full|none]" ) do |val|
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for an persona or personas.\n" +
+      opts.footer = "Update role access for a persona or all personas.\n" +
                     "[name] is required. This is the name or id of a role.\n" + 
                     "--persona or --all is required. This is the code of a persona.\n" + 
-                    "--access is required. This is the new access value."
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    # usage: update [role] [access] --all
+    #        update [role] [persona] [access]
     name = args[0]
-    # support old usage: [name] [persona] [access]
-    persona_id ||= args[1]
-    access_value ||= args[2]
-
-    if (!persona_id && !do_all) || !access_value
-      puts_error optparse
-      return 1
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      persona_id = args[1] if args[1]
+      access_value = args[2] if args[2]
     end
-    
+    if !persona_id && !do_all
+      raise_command_error("missing required argument: [persona] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
     access_value = access_value.to_s.downcase
-
-    if !['full', 'none'].include?(access_value)
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
       puts optparse
       return 1
     end
@@ -1573,12 +1578,13 @@ EOT
   
   def add_role_option_types
     [
-      {'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-      {'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user', 'displayOrder' => 3},
-      {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4},
-      {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5},
-      {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. ', 'displayOrder' => 6}
+      {'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
+      {'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user'},
+      {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text'},
+      {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use'},
+      {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '},
+      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => [{'name'=>'Service Catalog','value'=>'serviceCatalog'},{'name'=>'Standard','value'=>'standard'}], 'description' => 'Default Persona'}
     ]
   end
 
