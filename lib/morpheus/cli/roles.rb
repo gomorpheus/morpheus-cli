@@ -211,56 +211,70 @@ EOT
         print cyan,"Use --permissions to list permissions","\n"
       end
 
+      has_group_access = true
+      has_cloud_access = true
       print_h2 "Global Access", options
-      puts as_pretty_table([json_response], [
-        {"Groups" => lambda {|it| get_access_string(it['globalSiteAccess']) } },
-        {"Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) } },
-        {"Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) } },
-        {"Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) } },
-        {"Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) } },
-      ], options)
-
-      #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
-      print cyan
-      if json_response['globalSiteAccess'] == 'custom'
-        print_h2 "Group Access", options
-        if options[:include_group_access]
-          rows = json_response['sites'].collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'], ["none","read","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use -g, --group-access to list custom access","\n"
-        end
-        print reset,"\n"
+      global_access_columns = {
+        "Groups" => lambda {|it| get_access_string(it['globalSiteAccess']) },
+        "Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) },
+        "Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) },
+        "Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) },
+        "Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) },
+      }
+      if role['roleType'].to_s.downcase == 'account'
+        global_access_columns.delete("Groups")
+        has_group_access = false
       else
-        # print "\n"
-        # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
+        global_access_columns.delete("Clouds")
+        has_cloud_access = false
+      end
+      puts as_pretty_table([json_response], global_access_columns, options)
+
+      if has_group_access
+        #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
+        print cyan
+        if json_response['globalSiteAccess'] == 'custom'
+          print_h2 "Group Access", options
+          if options[:include_group_access]
+            rows = json_response['sites'].collect do |it|
+              {
+                name: it['name'],
+                access: format_access_string(it['access'], ["none","read","full"]),
+              }
+            end
+            print as_pretty_table(rows, [:name, :access], options)
+          else
+            print cyan,"Use -g, --group-access to list custom access","\n"
+          end
+          print reset,"\n"
+        else
+          # print "\n"
+          # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
+        end
       end
       
-      print cyan
-      #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
-      #print "\n"
-      if json_response['globalZoneAccess'] == 'custom'
-        print_h2 "Cloud Access", options
-        if options[:include_cloud_access]
-          rows = json_response['zones'].collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'], ["none","read","full"]),
-            }
+      if has_cloud_access
+        print cyan
+        #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
+        #print "\n"
+        if json_response['globalZoneAccess'] == 'custom'
+          print_h2 "Cloud Access", options
+          if options[:include_cloud_access]
+            rows = json_response['zones'].collect do |it|
+              {
+                name: it['name'],
+                access: format_access_string(it['access'], ["none","read","full"]),
+              }
+            end
+            print as_pretty_table(rows, [:name, :access], options)
+          else
+            print cyan,"Use -c, --cloud-access to list custom access","\n"
           end
-          print as_pretty_table(rows, [:name, :access], options)
+          print reset,"\n"
         else
-          print cyan,"Use -c, --cloud-access to list custom access","\n"
+          # print "\n"
+          # print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
         end
-        print reset,"\n"
-      else
-        # print "\n"
-        # print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
       end
 
       print cyan
@@ -335,7 +349,8 @@ EOT
       
 
       persona_permissions = json_response['personaPermissions'] || json_response['personas'] || []
-      if options[:include_catalog_item_types_access]
+      # if options[:include_personas_access]
+      if persona_permissions
         print_h2 "Persona Access", options
         rows = persona_permissions.collect do |it|
           {
