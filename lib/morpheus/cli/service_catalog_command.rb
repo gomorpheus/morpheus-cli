@@ -223,9 +223,6 @@ EOT
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on( '--enabled [on|off]', String, "Filter by enabled" ) do |val|
-        params['enabled'] = (val.to_s != 'false' && val.to_s != 'off')
-      end
       opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
         params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
       end
@@ -336,11 +333,8 @@ EOT
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on( '--enabled [on|off]', String, "Filter by enabled" ) do |val|
-        params['enabled'] = (val.to_s != 'false' && val.to_s != 'off')
-      end
-      opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
-        params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
+      opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
+        type_id = val.to_s
       end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog inventory."
@@ -938,20 +932,20 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [options]")
-      opts.on('--remove-instances [on|off]', ['on','off'], "Remove instances. Default is true. Applies to apps only.") do |val|
-        params[:removeInstances] = val.nil? ? 'on' : val
+      opts.on('--remove-instances [true|false]', String, "Remove instances. Default is true. Applies to apps only.") do |val|
+        params[:removeInstances] = ['true','on','1',''].include?(val.to_s.downcase)
       end
-      opts.on( '-B', '--keep-backups', "Preserve copy of backups" ) do
-        params[:keepBackups] = 'true'
+      opts.on( '-B', '--keep-backups [true|false]', "Preserve copy of backups. Default if false." ) do
+        params[:keepBackups] = ['true','on','1',''].include?(val.to_s.downcase)
       end
-      opts.on('--preserve-volumes [on|off]', ['on','off'], "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
-        params[:preserveVolumes] = val.nil? ? 'true' : val
+      opts.on('--preserve-volumes [on|off]', String, "Preserve Volumes. Default is off. Applies to certain types only.") do |val|
+        params[:preserveVolumes] = ['true','on','1',''].include?(val.to_s.downcase)
       end
-      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
-        params[:releaseEIPs] = val.nil? ? 'on' : val
+      opts.on('--releaseEIPs [true|false]', String, "Release EIPs. Default is on. Applies to Amazon only.") do |val|
+        params[:releaseEIPs] = ['true','on','1',''].include?(val.to_s.downcase)
       end
       opts.on( '-f', '--force', "Force Delete" ) do
-        params[:force] = 'on'
+        params[:force] = true
       end
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
@@ -971,12 +965,14 @@ EOT
     
     params.merge!(parse_query_options(options))
     # delete dialog
+    # we do not have provisioning settings right now to know if we can prompt for volumes / eips
+    # skip force because it is excessive prompting...
     delete_prompt_options = [
       {'fieldName' => 'removeInstances', 'fieldLabel' => 'Remove Instances', 'type' => 'checkbox', 'defaultValue' => true},
       {'fieldName' => 'keepBackups', 'fieldLabel' => 'Preserve Backups', 'type' => 'checkbox', 'defaultValue' => false},
-      {'fieldName' => 'preserveVolumes', 'fieldLabel' => 'Preserve Volumes', 'type' => 'checkbox', 'defaultValue' => false},
+      #{'fieldName' => 'preserveVolumes', 'fieldLabel' => 'Preserve Volumes', 'type' => 'checkbox', 'defaultValue' => false},
       # {'fieldName' => 'releaseEIPs', 'fieldLabel' => 'Release EIPs. Default is on. Applies to Amazon only.', 'type' => 'checkbox', 'defaultValue' => true},
-      # {'fieldName' => 'force', 'fieldLabel' => 'Force Delete', 'type' => 'checkbox', 'defaultValue' => false},
+      #{'fieldName' => 'force', 'fieldLabel' => 'Force Delete', 'type' => 'checkbox', 'defaultValue' => false},
     ]
     if !is_app
       delete_prompt_options.reject! {|it| it['fieldName'] == 'removeInstances'}
