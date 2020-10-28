@@ -1237,7 +1237,15 @@ class Morpheus::Cli::Instances
       instance = json_response['instance']
       stats = instance['stats'] || json_response['stats'] || {}
       # load_balancers = json_response['loadBalancers'] || {}
-
+      # metadata tags used to be returned as metadata and are now returned as tags
+      # the problem is tags is what we used to call Labels (keywords)
+      # the api will change to tags and labels, so handle the old format as long as metadata is returned.
+      tags, labels = nil, nil
+      if instance.key?('metadata')
+        tags, labels = instance['metadata'], instance['tags']
+      else
+        tags, labels = instance['tags'], instance['labels']
+      end
       # containers are fetched via separate api call
       containers = nil
       if options[:include_containers]
@@ -1279,7 +1287,7 @@ class Morpheus::Cli::Instances
         # "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Environment" => 'instanceContext',
         "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
-        "Metadata" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
+        "Tags" => lambda {|it| tags ? tags.collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Owner" => lambda {|it| 
           if it['owner']
             (it['owner']['username'] || it['owner']['id'])
@@ -1298,11 +1306,14 @@ class Morpheus::Cli::Instances
         "Connection" => lambda {|it| format_instance_connection_string(it) },
         "Status" => lambda {|it| format_instance_status(it) }
       }
+      description_cols.delete("Labels") if labels.nil? || labels.empty?
+      description_cols.delete("Tags") if tags.nil? || tags.empty?
       description_cols.delete("Power Schedule") if instance['powerSchedule'].nil?
       description_cols.delete("Expire Date") if instance['expireDate'].nil?
       description_cols.delete("Shutdown Date") if instance['shutdownDate'].nil?
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
       description_cols.delete("Last Deployment") if instance['lastDeploy'].nil?
+      #description_cols.delete("Environment") if instance['instanceContext'].nil?
       print_description_list(description_cols, instance)
 
       if instance['statusMessage']

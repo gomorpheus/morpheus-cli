@@ -8,6 +8,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::VirtualImages
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::ProvisioningHelper
 
   register_subcommands :list, :get, :add, :add_file, :remove_file, :update, :remove, :types => :virtual_image_types
   alias_subcommand :details, :get
@@ -43,6 +44,17 @@ class Morpheus::Cli::VirtualImages
       opts.on('--system', "System Images" ) do
         options[:filterType] = 'System'
       end
+      opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
+        val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          options[:tags] ||= {}
+          options[:tags][k] ||= []
+          options[:tags][k] << (v || '')
+        end
+      end
+      opts.on('-a', '--details', "Show more details." ) do
+        options[:details] = true
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List virtual images."
     end
@@ -58,6 +70,11 @@ class Morpheus::Cli::VirtualImages
     end
     if options[:filterType]
       params[:filterType] = options[:filterType]
+    end
+    if options[:tags]
+      options[:tags].each do |k,v|
+        params['tags.' + k] = v
+      end
     end
     @virtual_images_interface.setopts(options)
     if options[:dry_run]
@@ -82,16 +99,35 @@ class Morpheus::Cli::VirtualImages
       if images.empty?
         print cyan,"No virtual images found.",reset,"\n"
       else
-        # print as_pretty_table(images, virtual_image_column_definitions.upcase_keys!, options)
-        rows = images.collect do |image|
-          image_type = virtual_image_type_for_name_or_code(image['imageType'])
-          image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
-          {name: image['name'], id: image['id'], type: image_type_display, source: image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}"), storage: !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default', size: image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}"}
+        virtual_image_column_definitions = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Type" => lambda {|it| 
+            # yick, api should return the type with every virtualImage
+            image_type = virtual_image_type_for_name_or_code(it['imageType'])
+            image_type ? "#{image_type['name']}" : it['imageType']
+          },
+          "Operating System" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, 
+          "Storage" => lambda {|it| !it['storageProvider'].nil? ? it['storageProvider']['name'] : 'Default' }, 
+          "Size" => lambda {|it| it['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{it['rawSize']} B").pretty}" },
+          "Visibility" => lambda {|it| it['visibility'] },
+          # "Tenant" => lambda {|it| it['account'].instance_of?(Hash) ? it['account']['name'] : it['ownerId'] },
+          "Tenants" => lambda {|it| format_list(it['accounts'].collect {|a| a['name'] }, '', 3) rescue '' },
+          "Source" => lambda {|it| format_virtual_image_source(it) }, 
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+          "Tags" => lambda {|it| it['tags'] ? it['tags'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
+        }
+        if json_response['multiTenant'] != true
+          virtual_image_column_definitions.delete("Visibility")
+          virtual_image_column_definitions.delete("Tenants")
         end
-        columns = [:id, :name, :type, :storage, :size, :source]
-        columns = options[:include_fields] if options[:include_fields]
-        print cyan
-        print as_pretty_table(rows, columns, options)
+        if options[:details] != true
+          virtual_image_column_definitions.delete("Tags")
+          virtual_image_column_definitions.delete("Created")
+          virtual_image_column_definitions.delete("Updated")
+        end
+        print as_pretty_table(images, virtual_image_column_definitions.upcase_keys!, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -108,8 +144,11 @@ class Morpheus::Cli::VirtualImages
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image]")
-      opts.on('--details', "Show more details." ) do
+      opts.on('-a', '--details', "Show more details." ) do
         options[:details] = true
+      end
+      opts.on('--tags LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
+        options[:tags] = val
       end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
@@ -148,6 +187,7 @@ EOT
       json_response = @virtual_images_interface.get(id.to_i)
       image = json_response['virtualImage']
       image_config = image['config'] || {}
+      image_volumes = image['volumes'] || []
       image_files = json_response['cloudFiles'] || json_response['files']
       image_type = virtual_image_type_for_name_or_code(image['imageType'])
       image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
@@ -157,35 +197,39 @@ EOT
           "ID" => 'id',
           "Name" => 'name',
           "Type" => lambda {|it| image_type_display },
+          "Operating System" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, 
           "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
           "Size" => lambda {|it| image['rawSize'].nil? ? 'Unknown' : "#{Filesize.from("#{image['rawSize']} B").pretty}" },
           "Azure Publisher" => lambda {|it| image_config['publisher'] },
           "Azure Offer" => lambda {|it| image_config['offer'] },
           "Azure Sku" => lambda {|it| image_config['sku'] },
           "Azure Version" => lambda {|it| image_config['version'] },
-          "Source" => lambda {|it| image['userUploaded'] ? "#{green}UPLOADED#{cyan}" : (image['systemImage'] ? 'SYSTEM' : "#{white}SYNCED#{cyan}") }, 
-          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+          "Source" => lambda {|it| format_virtual_image_source(it) }, 
+          "Tags" => lambda {|it| it['tags'] ? it['tags'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
+          "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
         }
+        description_cols.delete("Tags") if image['tags'].nil? || image['tags'].empty?
         if image['imageType'] == "azure-reference" || image['imageType'] == "azure"
           description_cols.delete("Size")
           description_cols.delete("Storage")
           description_cols["Source"] = lambda {|it| "#{bold}#{cyan}AZURE#{reset}#{cyan}" }
         else
-          description_cols.delete("Azure Marketplace")
-          description_cols.delete("Azure Marketplace Publisher")
-          description_cols.delete("Azure Marketplace Sku")
-          description_cols.delete("Azure Marketplace Offer")
-          description_cols.delete("Azure Marketplace Version")
+          description_cols.delete("Azure Publisher")
+          description_cols.delete("Azure Sku")
+          description_cols.delete("Azure Offer")
+          description_cols.delete("Azure Version")
         end
         advanced_description_cols = {
-          "OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" },
+          #"OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, # displayed above as Operating System
           "Min Memory" => lambda {|it| it['minRam'].to_i != 0 ? Filesize.from("#{it['minRam']} B").pretty : "" },
+          # "Min Disk" => lambda {|it| it['minDisk'].to_i != 0 ? Filesize.from("#{it['minDisk']} B").pretty : "" },
           "Cloud Init?" => lambda {|it| format_boolean it['osType'] },
           "Install Agent?" => lambda {|it| format_boolean it['osType'] },
           "SSH Username" => lambda {|it| it['sshUsername'] },
           "SSH Password" => lambda {|it| it['sshPassword'] },
           "User Data" => lambda {|it| it['userData'] },
+          "Owner" => lambda {|it| it['tenant'].instance_of?(Hash) ? it['tenant']['name'] : it['ownerId'] },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Tenants" => lambda {|it| format_tenants(it['accounts']) },
           "Auto Join Domain?" => lambda {|it| format_boolean it['isAutoJoinDomain'] },
@@ -200,14 +244,27 @@ EOT
         end
         print_description_list(description_cols, image)
 
+        if image_volumes && !image_volumes.empty?
+          print_h2 "Volumes", options
+          image_volume_rows = image_volumes.collect do |image_volume|
+            {name: image_volume['name'], size: Filesize.from("#{image_volume['rawSize']} B").pretty}
+          end
+          print cyan
+          print as_pretty_table(image_volume_rows, [:name, :size])
+          print cyan
+          # print "\n", reset
+        end
+
         if image_files
           print_h2 "Files (#{image_files.size})"
           # image_files.each {|image_file|
           #   pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
           #   print cyan,"  =  #{image_file['name']} [#{pretty_filesize}]", "\n"
           # }
+          # size property changed to GB to match volumes
+          # contentLength is bytes
           image_file_rows = image_files.collect do |image_file|
-            {filename: image_file['name'], size: Filesize.from("#{image_file['size']} B").pretty}
+            {filename: image_file['name'], size: Filesize.from("#{image_file['contentLength'] || image_file['size']} B").pretty}
           end
           print cyan
           print as_pretty_table(image_file_rows, [:filename, :size])
@@ -218,8 +275,9 @@ EOT
           print_h2 "Config", options
           print cyan
           print as_description_list(image_config, image_config.keys, options)
-          print "\n", reset
+          # print "\n", reset
         end
+
         print reset,"\n"
       end
       return 0, nil
@@ -238,60 +296,68 @@ EOT
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
+        options[:tags] = val
+      end
+      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update project tags.") do |val|
+        options[:add_tags] = val
+      end
+      opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|
+        options[:remove_tags] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a virtual image." + "\n" +
                     "[name] is required. This is the name or id of a virtual image."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
 
     connect(options)
-    begin
-      image = find_virtual_image_by_name_or_id(image_name)
-      return 1 if image.nil?
+    
+    virtual_image = find_virtual_image_by_name_or_id(image_name)
+    return 1 if virtual_image.nil?
 
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        if options[:options]
-          payload['virtualImage'] ||= {}
-          payload['virtualImage'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
-        end
+    passed_options = parse_passed_options(options)
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({virtual_image_object_key => passed_options}) unless passed_options.empty?
+    else
+      virtual_image_payload = passed_options
+      if tenants_list
+        virtual_image_payload['accounts'] = tenants_list
+      end
+      # metadata tags
+      if options[:tags]
+        virtual_image_payload['tags'] = parse_metadata(options[:tags])
       else
-        params = options[:options] || {}
-        if params.empty? && tenants_list.nil?
-          puts optparse
-          option_lines = update_virtual_image_option_types().collect {|it| "\t-O #{it['fieldContext'] ? (it['fieldContext'] + '.') : ''}#{it['fieldName']}=\"value\"" }.join("\n")
-          puts "\nAvailable Options:\n#{option_lines}\n\n"
-          exit 1
-        end
-        if tenants_list
-          params['accounts'] = tenants_list
-        end
-        payload = {'virtualImage' => params}
+        # tags = prompt_metadata(options)
+        # payload[virtual_image_object_key]['tags'] = tags of tags
       end
-      @virtual_images_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @virtual_images_interface.dry.update(image['id'], payload)
-        return
+      # metadata tags
+      if options[:add_tags]
+        virtual_image_payload['addTags'] = parse_metadata(options[:add_tags])
       end
-      response = @virtual_images_interface.update(image['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        if !response['success']
-          exit 1
-        end
-      else
-        print "\n", cyan, "Virtual Image #{image['name']} updated", reset, "\n\n"
+      if options[:remove_tags]
+        virtual_image_payload['removeTags'] = parse_metadata(options[:remove_tags])
       end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+      if virtual_image_payload.empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
+      payload = {'virtualImage' => virtual_image_payload}
     end
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.update(virtual_image['id'], payload)
+      return
+    end
+    json_response = @virtual_images_interface.update(virtual_image['id'], payload)
+    render_response(json_response, options, 'virtualImage') do
+      print_green_success "Updated virtual image #{virtual_image['name']}"
+      _get(virtual_image["id"], {}, options)
+    end
+    return 0, nil
+    
   end
 
   def virtual_image_types(args)
@@ -367,6 +433,9 @@ EOT
         else
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('--tags LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
+        options[:tags] = val
       end
       # build_option_type_options(opts, options, add_virtual_image_option_types)
       # build_option_type_options(opts, options, add_virtual_image_advanced_option_types)
@@ -450,6 +519,14 @@ EOT
       if tenants_list
         virtual_image_payload['accounts'] = tenants_list
       end
+      # metadata tags
+        if options[:tags]
+          tags = parse_metadata(options[:tags])
+          virtual_image_payload['tags'] = tags if tags
+        else
+          # tags = prompt_metadata(options)
+          # virtual_image_payload['tags'] = tags of tags
+        end
       # fix issue with api returning imageType vmware instead of vmdk
       if virtual_image_payload && virtual_image_payload['imageType'] == 'vmware'
         virtual_image_payload['imageType'] == 'vmdk'
@@ -719,16 +796,17 @@ EOT
     tmp_option_types = [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       #{'fieldName' => 'imageType', 'fieldLabel' => 'Image Type', 'type' => 'select', 'optionSource' => 'virtualImageTypes', 'required' => true, 'description' => 'Select Virtual Image Type.', 'displayOrder' => 2},
-      {'fieldName' => 'osType', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => false, 'description' => 'Select OS Type.', 'displayOrder' => 3},
-      {'fieldName' => 'minRam', 'fieldLabel' => 'Minimum Memory (MB)', 'type' => 'number', 'required' => false, 'description' => 'Minimum Memory (MB)', 'displayOrder' => 4},
-      {'fieldName' => 'isCloudInit', 'fieldLabel' => 'Cloud Init Enabled?', 'type' => 'checkbox', 'required' => false, 'description' => 'Cloud Init Enabled?', 'displayOrder' => 5},
-      {'fieldName' => 'installAgent', 'fieldLabel' => 'Install Agent?', 'type' => 'checkbox', 'required' => false, 'description' => 'Install Agent?', 'displayOrder' => 6},
+      {'fieldName' => 'osType', 'fieldLabel' => 'Operating System', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => false, 'description' => 'Select Operating System.', 'displayOrder' => 3},
+      {'fieldName' => 'minRamGB', 'fieldLabel' => 'Minimum Memory (GB)', 'type' => 'number', 'required' => false, 'description' => 'Minimum Memory (GB)', 'displayOrder' => 4},
+      # {'fieldName' => 'minDiskGB', 'fieldLabel' => 'Minimum Disk (GB)', 'type' => 'number', 'required' => false, 'description' => 'Minimum Memory (GB)', 'displayOrder' => 4},
+      {'fieldName' => 'isCloudInit', 'fieldLabel' => 'Cloud Init Enabled?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Cloud Init Enabled?', 'displayOrder' => 5},
+      {'fieldName' => 'installAgent', 'fieldLabel' => 'Install Agent?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Install Agent?', 'displayOrder' => 6},
       {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => false, 'description' => 'Enter an SSH Username', 'displayOrder' => 7},
       {'fieldName' => 'sshPassword', 'fieldLabel' => 'SSH Password', 'type' => 'password', 'required' => false, 'description' => 'Enter an SSH Password', 'displayOrder' => 8},
       {'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Storage Provider', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider.', 'displayOrder' => 9},
       {'fieldName' => 'userData', 'fieldLabel' => 'Cloud-Init User Data', 'type' => 'textarea', 'required' => false, 'displayOrder' => 10},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 40},
-      {'fieldName' => 'isAutoJoinDomain', 'fieldLabel' => 'Auto Join Domain?', 'type' => 'checkbox', 'required' => false, 'description' => 'Auto Join Domain?', 'category' => 'advanced', 'displayOrder' => 40},
+      {'fieldName' => 'isAutoJoinDomain', 'fieldLabel' => 'Auto Join Domain?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Auto Join Domain?', 'category' => 'advanced', 'displayOrder' => 40},
       {'fieldName' => 'virtioSupported', 'fieldLabel' => 'VirtIO Drivers Loaded?', 'type' => 'checkbox', 'defaultValue' => 'on', 'required' => false, 'description' => 'VirtIO Drivers Loaded?',  'category' => 'advanced', 'displayOrder' => 40},
       {'fieldName' => 'vmToolsInstalled', 'fieldLabel' => 'VM Tools Installed?', 'type' => 'checkbox', 'defaultValue' => 'on', 'required' => false, 'description' => 'VM Tools Installed?',  'category' => 'advanced', 'displayOrder' => 40},
       {'fieldName' => 'isForceCustomization', 'fieldLabel' => 'Force Guest Customization?', 'type' => 'checkbox', 'defaultValue' => 'off', 'required' => false, 'description' => 'Force Guest Customization?',  'category' => 'advanced', 'displayOrder' => 40},
@@ -767,7 +845,10 @@ EOT
 
   def update_virtual_image_option_types(image_type = nil)
     list = add_virtual_image_option_types(image_type)
-    list.each {|it| it['required'] = false }
+    list.each {|it| 
+      it.delete('required')
+      it.delete('defaultValue')
+    }
     list
   end
 
@@ -815,6 +896,19 @@ EOT
     rtn['sku'] = sku_value
     rtn['version'] = version_value
     return rtn
+  end
+
+  def format_virtual_image_source(virtual_image, return_color=cyan)
+    out = ""
+    if virtual_image['userUploaded']
+      # out << "#{green}UPLOADED#{return_color}"
+      out << "#{cyan}UPLOADED#{return_color}"
+    elsif virtual_image['systemImage']
+      out << "#{cyan}SYSTEM#{return_color}"
+    else
+      out << "#{cyan}SYNCED#{return_color}"
+    end
+    out
   end
 
 end
