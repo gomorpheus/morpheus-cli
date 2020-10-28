@@ -223,7 +223,7 @@ EOT
         advanced_description_cols = {
           #"OS Type" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, # displayed above as Operating System
           "Min Memory" => lambda {|it| it['minRam'].to_i != 0 ? Filesize.from("#{it['minRam']} B").pretty : "" },
-          # "Min Disk" => lambda {|it| it['minDisk'].to_i != 0 ? Filesize.from("#{it['minDisk']} B").pretty : "" },
+          "Min Disk" => lambda {|it| it['minDisk'].to_i != 0 ? Filesize.from("#{it['minDisk']} B").pretty : "" },
           "Cloud Init?" => lambda {|it| format_boolean it['osType'] },
           "Install Agent?" => lambda {|it| format_boolean it['osType'] },
           "SSH Username" => lambda {|it| it['sshUsername'] },
