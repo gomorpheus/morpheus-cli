@@ -120,7 +120,10 @@ class Morpheus::Cli::Hosts
       opts.on('--non-tag-compliant', "Displays only servers with tag compliance warnings." ) do
         params[:tagCompliant] = false
       end
-      opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
+      opts.on('--stats', "Display values for memory and storage usage used / max values." ) do
+        options[:stats] = true
+      end
+      opts.on('-a', '--details', "Display all details: hostname, private ip, plan, stats, etc." ) do
         options[:details] = true
       end
       build_standard_list_options(opts, options)
@@ -251,7 +254,7 @@ class Morpheus::Cli::Hosts
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details]
+            if options[:details] || options[:stats]
               if stats['maxMemory'] && stats['maxMemory'].to_i != 0
                 memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
               end
@@ -262,12 +265,14 @@ class Morpheus::Cli::Hosts
             row = {
               id: server['id'],
               name: server['name'],
+              external_name: server['externalName'],
               hostname: server['hostname'],
               platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
               type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
               tenant: server['account'] ? server['account']['name'] : server['accountId'],
               owner: server['owner'] ? server['owner']['username'] : server['owner'],
               cloud: server['zone'] ? server['zone']['name'] : '',
+              plan: server['plan'] ? server['plan']['name'] : '',
               ip: server['externalIp'],
               internal_ip: server['internalIp'],
               nodes: server['containers'] ? server['containers'].size : '',
@@ -286,11 +291,13 @@ class Morpheus::Cli::Hosts
           columns = {
             "ID" => :id,
             "Name" => :name,
+            "External Name" => :external_name,
             "Hostname" => :hostname,
             "Type" => :type,
             "Owner" => :owner,
             "Tenant" => :tenant,
             "Cloud" => :cloud,
+            "Plan" => :plan,
             "IP" => :ip,
             "Private IP" => :internal_ip,
             "Nodes" => :nodes,
@@ -303,13 +310,19 @@ class Morpheus::Cli::Hosts
             "Updated" => :updated,
           }
           if options[:details] != true
+            columns.delete("External Name")
             columns.delete("Hostname")
+            columns.delete("Plan")
             columns.delete("Private IP")
             columns.delete("Owner")
             columns.delete("Tenant")
             columns.delete("Power")
             columns.delete("Created")
             columns.delete("Updated")
+          end
+          # hide External Name if there are none
+          if !servers.find {|it| it['externalName'] && it['externalName'] != it['name']}
+            columns.delete("External Name")
           end
           if !multi_tenant
             columns.delete("Tenant")

@@ -103,7 +103,10 @@ class Morpheus::Cli::Instances
           options[:tags][k] << (v || '')
         end
       end
-      opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
+      opts.on('--stats', "Display values for memory and storage usage used / max values." ) do
+        options[:stats] = true
+      end
+      opts.on('-a', '--details', "Display all details: plan, stats, etc" ) do
         options[:details] = true
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -216,7 +219,7 @@ class Morpheus::Cli::Instances
             cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
             memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
             storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details]
+            if options[:details] || options[:stats]
               if stats['maxMemory'] && stats['maxMemory'].to_i != 0
                 memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
               end
@@ -234,8 +237,9 @@ class Morpheus::Cli::Instances
               nodes: instance['containers'].count,
               status: format_instance_status(instance, cyan),
               type: instance['instanceType']['name'],
-              group: !instance['group'].nil? ? instance['group']['name'] : nil,
-              cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil,
+              group: instance['group'] ? instance['group']['name'] : nil,
+              cloud: instance['cloud'] ? instance['cloud']['name'] : nil,
+              plan: instance['plan'] ? instance['plan']['name'] : '',
               version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
               created: format_local_dt(instance['dateCreated']),
               cpu: cpu_usage_str + cyan,
@@ -249,12 +253,13 @@ class Morpheus::Cli::Instances
               {:created => {:display_name => "CREATED"}}, 
               # {:tenant => {:display_name => "TENANT"}}, 
               {:user => {:display_name => "OWNER", :max_width => 20}}, 
+              :plan,
               :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
           # custom pretty table columns ... this is handled in as_pretty_table now(), 
           # todo: remove all these.. and try to always pass rows as the json data itself..
-          # if options[:include_fields]
-          #   columns = options[:include_fields]
-          # end
+          if options[:details] != true
+            columns.delete(:plan)
+          end
           print cyan
           print as_pretty_table(rows, columns, options)
           print reset
