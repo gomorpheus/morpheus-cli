@@ -353,10 +353,12 @@ EOT
       params.booleanize!
       # convert type to refType until api accepts type
       if params['type'] && !params['refType']
-        if params['type'].to_s.downcase == 'blueprint'
-          params['refType'] = 'AppTemplate'
-        else
+        if params['type'].to_s.downcase == 'instance'
           params['refType'] = 'InstanceType'
+        elsif params['type'].to_s.downcase == 'blueprint'
+          params['refType'] = 'AppTemplate'
+        elsif params['type'].to_s.downcase == 'workflow'
+          params['refType'] = 'OperationalWorkflow'
         end
       end
       # convert config string to a map
@@ -473,12 +475,11 @@ EOT
     out
   end
 
-  # this is not so simple, need to first choose select instance, host or provider
   def add_catalog_item_type_option_types
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}], 'defaultValue' => 'instance'},
+      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance'},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true},
       {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true},
@@ -543,7 +544,7 @@ EOT
     json_response = @catalog_item_types_interface.list({name: name.to_s})
     catalog_item_types = json_response[catalog_item_type_list_key]
     if catalog_item_types.empty?
-      print_red_alert "catalog_item_type not found by name '#{name}'"
+      print_red_alert "catalog item type not found by name '#{name}'"
       return nil
     elsif catalog_item_types.size > 1
       print_red_alert "#{catalog_item_types.size} catalog item types found by name '#{name}'"
