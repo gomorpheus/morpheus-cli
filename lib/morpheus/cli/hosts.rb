@@ -79,6 +79,17 @@ class Morpheus::Cli::Hosts
         # params[:clusterId] = val
         options[:cluster] = val
       end
+      opts.on( '--plan NAME', String, "Filter by Plan name(s)" ) do |val|
+        # commas used in names a lot so use --plan one --plan two
+        params['plan'] ||= []
+        params['plan'] << val
+      end
+      opts.on( '--plan-id ID', String, "Filter by Plan id(s)" ) do |val|
+        params['planId'] = parse_id_list(val)
+      end
+      opts.on( '--plan-code CODE', String, "Filter by Plan code(s)" ) do |val|
+        params['planCode'] = parse_id_list(val)
+      end
       opts.on( '', '--vm', "Show only virtual machines" ) do |val|
         params[:vm] = true
       end

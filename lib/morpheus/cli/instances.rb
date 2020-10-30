@@ -89,6 +89,17 @@ class Morpheus::Cli::Instances
       opts.on('--pending-removal-only', "Only instances pending removal.") do
         options[:deleted] = true
       end
+      opts.on( '--plan NAME', String, "Filter by Plan name(s)" ) do |val|
+        # commas used in names a lot so use --plan one --plan two
+        params['plan'] ||= []
+        params['plan'] << val
+      end
+      opts.on( '--plan-id ID', String, "Filter by Plan id(s)" ) do |val|
+        params['planId'] = parse_id_list(val)
+      end
+      opts.on( '--plan-code CODE', String, "Filter by Plan code(s)" ) do |val|
+        params['planCode'] = parse_id_list(val)
+      end
       opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
         val.split(",").each do |k|
           options[:labels] ||= []
