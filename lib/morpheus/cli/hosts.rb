@@ -17,7 +17,7 @@ class Morpheus::Cli::Hosts
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
   register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
-                       :run_workflow, :make_managed, :upgrade_agent, :snapshots,
+                       :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
                        :wiki, :update_wiki
@@ -1926,6 +1926,55 @@ class Morpheus::Cli::Hosts
           print cyan
           print as_pretty_table(snapshots, snapshot_column_definitions.upcase_keys!, options)
           print_results_pagination({size: snapshots.size, total: snapshots.size})
+        end
+        print reset, "\n"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def software(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      build_standard_list_options(opts, options)
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    begin
+      server = find_host_by_name_or_id(args[0])
+      return 1 if server.nil?
+      params = {}
+      params.merge!(parse_list_options(options))
+      @servers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.software(server['id'], params)
+        return
+      end
+      json_response = @servers_interface.software(server['id'], params)
+      software = json_response['software']
+      render_response(json_response, options, 'software') do
+        print_h1 "Software: #{server['name']}", [], options
+        if software.empty?
+          print cyan,"No software found",reset,"\n"
+        else
+          software_column_definitions = {
+            # "ID" => lambda {|it| it['id'] },
+            "Name" => lambda {|it| it['name'] },
+            "Version" => lambda {|it| it['packageVersion'] },
+            "Publisher" => lambda {|it| it['packagePublisher'] },
+            # "Release" => lambda {|it| it['packageRelease'] },
+            # "Type" => lambda {|it| it['packageType'] },
+            # "Architecture" => lambda {|it| it['architecture'] },
+            # "Install Date" => lambda {|it| format_local_dt(it['installDate']) },
+          }
+          print cyan
+          print as_pretty_table(software, software_column_definitions.upcase_keys!, options)
+          print_results_pagination({size: software.size, total: software.size})
         end
         print reset, "\n"
       end

@@ -176,4 +176,11 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def software(id, params={})
+    url = "#{@base_url}/api/servers/#{id}/software"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end
