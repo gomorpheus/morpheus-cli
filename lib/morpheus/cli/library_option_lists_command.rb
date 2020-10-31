@@ -270,7 +270,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
       else
         payload = {}
         payload.deep_merge!({'optionTypeList' => parse_passed_options(options)})
-        list_payload = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_option_types(), options[:options], @api_client)
+        list_payload = Morpheus::Cli::OptionTypes.no_prompt(update_option_type_list_option_types(), options[:options], @api_client)
         if list_payload['type'] == 'rest'
           # parse Source Headers
           if !(payload['optionTypeList']['config'] && payload['optionTypeList']['config']['sourceHeaders'])
