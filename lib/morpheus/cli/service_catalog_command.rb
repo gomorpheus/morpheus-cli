@@ -193,9 +193,9 @@ EOT
                 end
                 status_string
               } },
-              {"CONFIG" => lambda {|it| 
-                truncate_string(format_name_values(it['config']), 50)
-              } },
+              # {"CONFIG" => lambda {|it| 
+              #   truncate_string(format_name_values(it['config']), 50)
+              # } },
             ]
             print as_pretty_table(cart_items, cart_item_columns)
           
@@ -420,7 +420,8 @@ EOT
       print_h1 "Catalog Item Details", [], options
       print cyan
       show_columns = catalog_item_column_definitions
-      show_columns.delete("Blueprint") unless catalog_item['blueprint']
+      # show_columns.delete("Status") if catalog_item['status'].to_s.lowercase == 'ORDERED'
+      show_columns.delete("Status") if item_instance || item_app
       print_description_list(show_columns, catalog_item)
 
       if item_config && !item_config.empty?
@@ -644,7 +645,7 @@ EOT
             "Type" => lambda {|it| it['type']['name'] rescue '' },
             #"Qty" => lambda {|it| it['quantity'] },
             "Price" => lambda {|it| format_money(it['price'] , it['currency']) },
-            "Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
+            #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
           }
           print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
           print reset, "\n"
@@ -1251,13 +1252,13 @@ EOT
           ]
           print_h2(index == 0 ? "Item" : "Item #{index+1}", options)
           print as_description_list(cart_item, cart_item_columns, options)
-          print "\n", reset
+          # print "\n", reset
           if item_config && !item_config.keys.empty?
             print_h2("Configuration", options)
             print as_description_list(item_config, item_config.keys, options)
+            print "\n", reset
           end
         end
-        print "\n", reset
       else
         if !cart_show_columns.empty?
           print_description_list(cart_show_columns, cart)
@@ -1277,9 +1278,9 @@ EOT
             end
             status_string
           } },
-          {"CONFIG" => lambda {|it| 
-            truncate_string(format_name_values(it['config']), 50)
-          } },
+          # {"CONFIG" => lambda {|it| 
+          #   truncate_string(format_name_values(it['config']), 50)
+          # } },
         ]
         print as_pretty_table(cart_items, cart_item_columns)
       end
