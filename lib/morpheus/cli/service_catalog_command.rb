@@ -119,7 +119,7 @@ EOT
           "ID" => lambda {|it| it['id'] },
           "NAME" => lambda {|it| it['name'] },
           "TYPE" => lambda {|it| it['type']['name'] rescue '' },
-          "QTY" => lambda {|it| it['quantity'] },
+          #"QTY" => lambda {|it| it['quantity'] },
           "ORDER DATE" => lambda {|it| format_local_dt(it['orderDate']) },
           # "STATUS" => lambda {|it| format_catalog_item_status(it) },
           # "CONFIG" => lambda {|it| format_name_values(it['config']) },
@@ -184,7 +184,7 @@ EOT
               {"ID" => lambda {|it| it['id'] } },
               #{"NAME" => lambda {|it| it['name'] } },
               {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
-              {"QTY" => lambda {|it| it['quantity'] } },
+              #{"QTY" => lambda {|it| it['quantity'] } },
               {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
               {"STATUS" => lambda {|it| 
                 status_string = format_catalog_item_status(it)
@@ -412,7 +412,10 @@ EOT
 
     catalog_item = json_response[catalog_item_object_key]
     item_config = catalog_item['config']
-    item_instances = catalog_item['instances']
+    item_type_code = catalog_item['type']['type'] rescue nil
+    item_instance = catalog_item['instance']
+    item_app = catalog_item['app']
+    item_execution = catalog_item['execution']
     render_response(json_response, options, catalog_item_object_key) do
       print_h1 "Catalog Item Details", [], options
       print cyan
@@ -427,19 +430,40 @@ EOT
         # print "\n", reset
       end
 
-      if item_instances && !item_instances.empty?
-        print_h2 "Instances", options
-        print cyan
-        item_instance_columns = [
-            {"ID" => lambda {|it| it['id'] } },
-            {"NAME" => lambda {|it| it['name'] } },
-            {"STATUS" => lambda {|it| format_instance_status(it) } },
-          ]
-          print as_pretty_table(item_instances, item_instance_columns)
-        # print "\n", reset
-      else
-        print "\n"
-        print yellow, "No instances found", reset, "\n"
+      if item_type_code.to_s.downcase == 'instance'
+        if item_instance
+          print_h2 "Instance", options
+          print cyan
+          item_instance_columns = [
+              {"ID" => lambda {|it| it['id'] } },
+              {"NAME" => lambda {|it| it['name'] } },
+              {"STATUS" => lambda {|it| format_instance_status(it) } },
+            ]
+            #print as_description_list(item_instance, item_instance_columns, options)
+            print as_pretty_table([item_instance], item_instance_columns, options)
+          # print "\n", reset
+        else
+          print "\n"
+          print yellow, "No instance found", reset, "\n"
+        end
+      end
+
+      if item_type_code.to_s.downcase == 'app'
+        if item_instance
+          print_h2 "App", options
+          print cyan
+          item_app_columns = [
+              {"ID" => lambda {|it| it['id'] } },
+              {"NAME" => lambda {|it| it['name'] } },
+              {"STATUS" => lambda {|it| format_app_status(it) } },
+            ]
+            #print as_description_list(item_app, item_app_columns, options)
+            print as_pretty_table([item_app], item_app_columns, options)
+          # print "\n", reset
+        else
+          print "\n"
+          print yellow, "No instance found", reset, "\n"
+        end
       end
 
       print reset,"\n"
@@ -618,7 +642,7 @@ EOT
           print_h2 "Validated Cart Item", [], options
           cart_item_columns = {
             "Type" => lambda {|it| it['type']['name'] rescue '' },
-            "Qty" => lambda {|it| it['quantity'] },
+            #"Qty" => lambda {|it| it['quantity'] },
             "Price" => lambda {|it| format_money(it['price'] , it['currency']) },
             "Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
           }
@@ -684,7 +708,7 @@ EOT
               {"ID" => lambda {|it| it['id'] } },
               #{"NAME" => lambda {|it| it['name'] } },
               {"Type" => lambda {|it| it['type']['name'] rescue '' } },
-              {"Qty" => lambda {|it| it['quantity'] } },
+              #{"Qty" => lambda {|it| it['quantity'] } },
               {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
             ]
           puts_error as_pretty_table(matching_items, cart_item_columns, {color:red})
@@ -1069,7 +1093,7 @@ EOT
       "Name" => 'name',
       #"Description" => 'description',
       "Type" => lambda {|it| it['type']['name'] rescue '' },
-      "Qty" => lambda {|it| it['quantity'] },
+      #"Qty" => lambda {|it| it['quantity'] },
       # "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       
       # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
@@ -1135,8 +1159,17 @@ EOT
     if status_string == 'IN_CART' || status_string == 'IN CART'
       out << "#{cyan}IN CART#{return_color}"
     elsif status_string == 'ORDERED'
-      # out << "#{green}#{status_string.upcase}#{return_color}"
-      out << "#{cyan}#{status_string.upcase}#{return_color}"
+      #out << "#{cyan}#{status_string.upcase}#{return_color}"
+      # show the instance/app/execution status instead of the item status ORDERED
+      if item['instance']
+        out << format_instance_status(item['instance'], return_color)
+      elsif item['app']
+        out << format_app_status(item['app'], return_color)
+      elsif item['execution']
+        out << format_job_execution_status(item['execution'], return_color)
+      else
+        out << "#{cyan}#{status_string.upcase}#{return_color}"
+      end
     elsif status_string == 'FAILED'
       out << "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'DELETED'
@@ -1205,7 +1238,7 @@ EOT
             {"ID" => lambda {|it| it['id'] } },
             #{"NAME" => lambda {|it| it['name'] } },
             {"Type" => lambda {|it| it['type']['name'] rescue '' } },
-            {"Qty" => lambda {|it| it['quantity'] } },
+            #{"Qty" => lambda {|it| it['quantity'] } },
             {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
             {"Status" => lambda {|it| 
               status_string = format_catalog_item_status(it)
@@ -1235,7 +1268,7 @@ EOT
           {"ID" => lambda {|it| it['id'] } },
           #{"NAME" => lambda {|it| it['name'] } },
           {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
-          {"QTY" => lambda {|it| it['quantity'] } },
+          #{"QTY" => lambda {|it| it['quantity'] } },
           {"PRICE" => lambda {|it| format_money(it['price'] , it['currency']) } },
           {"STATUS" => lambda {|it| 
             status_string = format_catalog_item_status(it)
@@ -1259,4 +1292,20 @@ EOT
       print reset,"\n"
     end
   end
+
+  def format_job_execution_status(execution, return_color=cyan)
+    out = ""
+    status_string = execution['status'].to_s.downcase
+    if status_string
+      if ['complete','success', 'successful', 'ok'].include?(status_string)
+        out << "#{green}#{status_string.upcase}"
+      elsif ['error', 'offline', 'failed', 'failure'].include?(status_string)
+        out << "#{red}#{status_string.upcase}"
+      else
+        out << "#{yellow}#{status_string.upcase}"
+      end
+    end
+    out + return_color
+  end
+
 end

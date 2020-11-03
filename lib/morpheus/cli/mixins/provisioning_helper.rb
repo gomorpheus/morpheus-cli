@@ -2201,6 +2201,26 @@ module Morpheus::Cli::ProvisioningHelper
     end
   end
 
+  def format_app_status(app, return_color=cyan)
+    out = ""
+    status_string = app['status'] || app['appStatus'] || ''
+    if status_string == 'running'
+      out = "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'provisioning'
+      out = "#{cyan}#{status_string.upcase}#{cyan}"
+    elsif status_string == 'stopped' or status_string == 'failed'
+      out = "#{red}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'unknown'
+      out = "#{yellow}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'warning' && app['instanceCount'].to_i == 0
+      # show this instead of WARNING
+      out =  "#{cyan}EMPTY#{return_color}"
+    else
+      out =  "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+  
   def format_container_status(container, return_color=cyan)
     out = ""
     status_string = container['status'].to_s
