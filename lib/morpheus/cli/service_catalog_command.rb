@@ -121,7 +121,7 @@ EOT
           "TYPE" => lambda {|it| it['type']['name'] rescue '' },
           #"QTY" => lambda {|it| it['quantity'] },
           "ORDER DATE" => lambda {|it| format_local_dt(it['orderDate']) },
-          # "STATUS" => lambda {|it| format_catalog_item_status(it) },
+          "STATUS" => lambda {|it| format_catalog_item_status(it) },
           # "CONFIG" => lambda {|it| format_name_values(it['config']) },
         }, options)
         print_results_pagination(inventory_meta)
