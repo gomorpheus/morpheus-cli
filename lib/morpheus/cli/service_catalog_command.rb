@@ -454,8 +454,8 @@ EOT
         end
       end
 
-      if item_type_code.to_s.downcase == 'app'
-        if item_instance
+      if item_type_code.to_s.downcase == 'app' || item_type_code.to_s.downcase == 'blueprint'
+        if item_app
           print_h2 "App", options
           print cyan
           item_app_columns = [
