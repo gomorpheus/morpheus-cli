@@ -185,7 +185,7 @@ EOT
               #{"NAME" => lambda {|it| it['name'] } },
               {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
               #{"QTY" => lambda {|it| it['quantity'] } },
-              {"PRICE" => lambda {|it| format_money(it['price'] , it['currency'] || cart_stats['currency']) } },
+              {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
               {"STATUS" => lambda {|it| 
                 status_string = format_catalog_item_status(it)
                 if it['errorMessage'].to_s != ""
@@ -201,7 +201,11 @@ EOT
           
             print reset,"\n"
             print cyan
-            puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+            if cart_stats['price'] && !cart_stats['unit'].to_s.empty?
+              puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+            else
+              puts "Total: " + "No pricing configured"
+            end
             # print reset,"\n"
 
           else
@@ -645,7 +649,7 @@ EOT
           cart_item_columns = {
             "Type" => lambda {|it| it['type']['name'] rescue '' },
             #"Qty" => lambda {|it| it['quantity'] },
-            "Price" => lambda {|it| format_money(it['price'] , it['currency']) },
+            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" },
             #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
           }
           print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
@@ -711,7 +715,7 @@ EOT
               #{"NAME" => lambda {|it| it['name'] } },
               {"Type" => lambda {|it| it['type']['name'] rescue '' } },
               #{"Qty" => lambda {|it| it['quantity'] } },
-              {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
+              {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
             ]
           puts_error as_pretty_table(matching_items, cart_item_columns, {color:red})
           print_red_alert "Try using ID instead"
@@ -1241,7 +1245,7 @@ EOT
             #{"NAME" => lambda {|it| it['name'] } },
             {"Type" => lambda {|it| it['type']['name'] rescue '' } },
             #{"Qty" => lambda {|it| it['quantity'] } },
-            {"Price" => lambda {|it| format_money(it['price'] , it['currency']) } },
+            {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
             {"Status" => lambda {|it| 
               status_string = format_catalog_item_status(it)
               if it['errorMessage'].to_s != ""
@@ -1271,7 +1275,7 @@ EOT
           #{"NAME" => lambda {|it| it['name'] } },
           {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
           #{"QTY" => lambda {|it| it['quantity'] } },
-          {"PRICE" => lambda {|it| format_money(it['price'] , it['currency']) } },
+          {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
           {"STATUS" => lambda {|it| 
             status_string = format_catalog_item_status(it)
             if it['errorMessage'].to_s != ""
@@ -1287,7 +1291,11 @@ EOT
       end
       print reset,"\n"
       print cyan
-      puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+      if cart_stats['price'] && !cart_stats['unit'].to_s.empty?
+        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+      else
+        puts "Total: " + "No pricing configured"
+      end
       print reset,"\n"
     else
       print cyan,"Cart is empty","\n",reset
