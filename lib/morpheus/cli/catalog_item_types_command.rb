@@ -79,9 +79,12 @@ class Morpheus::Cli::CatalogItemTypesCommand
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
-      # opts.on('--no-config', "Do not display config content." ) do
+      # opts.on('--no-config', "Do not display Config YAML." ) do
       #   options[:no_config] = true
       # end
+      opts.on('--no-content', "Do not display Content." ) do
+        options[:no_content] = true
+      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific catalog item type.
@@ -166,6 +169,12 @@ EOT
           config_string = config_string[4..-1]
         end
         print reset,config_string.chomp("\n"),"\n",reset
+      end
+
+      # Content (Wiki Page)
+      if !catalog_item_type["content"].to_s.empty? && options[:no_content] != true
+        print_h2 "Content"
+        print reset,catalog_item_type["content"].chomp("\n"),"\n",reset
       end
 
       print reset,"\n"
@@ -479,13 +488,14 @@ EOT
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance'},
+      {'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance', 'required' => true},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true},
       {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true},
       {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList'},
       #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.'},
-      {'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'required' => true, 'description' => 'JSON or YAML'}
+      {'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'required' => true, 'description' => 'JSON or YAML'},
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'code-editor', 'required' => true, 'description' => 'Wiki Page Content describing the catalog item'}
     ]
   end
 
