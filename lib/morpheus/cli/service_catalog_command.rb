@@ -376,7 +376,7 @@ EOT
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id]")
+      opts.banner = subcommand_usage("[item]")
       opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
         options[:show_config] = true
       end
@@ -386,7 +386,7 @@ EOT
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific catalog inventory item.
-[id] is required. This is the id of a catalog inventory item.
+[item] is required. This is the name or id of a catalog inventory item.
 EOT
     end
     optparse.parse!(args)
@@ -399,17 +399,18 @@ EOT
   end
 
   def _get(id, params, options)
-    catalog_item = nil
+    catalog_item = find_catalog_item_by_name_or_id(id)
+    return 1, "catalog item not found for name or id '#{id}'" if catalog_item.nil?
     @service_catalog_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.get_inventory(id, params)
+      print_dry_run @service_catalog_interface.dry.get_inventory(catalog_item['id'], params)
       return
     end
-    #json_response = @service_catalog_interface.get_inventory(id, params)
-    catalog_item = find_catalog_item_by_id(id)
-    return 1, "catalog item not found for id #{id}" if catalog_item.nil?
+    # skip redundant request
     json_response = {catalog_item_object_key => catalog_item}
-
+    # if id !~ /\A\d{1,}\Z/
+    #   json_response = @service_catalog_interface.get_inventory(catalog_item['id'], params)
+    # end
     catalog_item = json_response[catalog_item_object_key]
     item_config = catalog_item['config']
     item_type_code = catalog_item['type']['type'] rescue nil
@@ -956,7 +957,7 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id] [options]")
+      opts.banner = subcommand_usage("[item] [options]")
       opts.on('--remove-instances [true|false]', String, "Remove instances. Default is true. Applies to apps only.") do |val|
         params[:removeInstances] = ['true','on','1',''].include?(val.to_s.downcase)
       end
@@ -976,14 +977,14 @@ EOT
       opts.footer = <<-EOT
 Delete a catalog inventory item.
 This removes the item from the inventory and deprovisions the associated instance(s).
-[id] is required. This is the id of a catalog inventory item.
+[item] is required. This is the name or id of a catalog inventory item.
 EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
-    catalog_item = find_catalog_item_by_id(args[0])
+    catalog_item = find_catalog_item_by_name_or_id(args[0])
     return 1 if catalog_item.nil?
     
     is_app = (catalog_item['type']['type'] == 'app' || catalog_item['type']['type'] == 'blueprint') rescue false
@@ -1137,22 +1138,22 @@ EOT
   end
 
   # find by name not yet supported, items do not have a name
-  # def find_catalog_item_by_name(name)
-  #   json_response = @service_catalog_interface.list_inventory({name: name.to_s})
-  #   catalog_items = json_response[catalog_item_list_key]
-  #   if catalog_items.empty?
-  #     print_red_alert "Catalog item type not found by name '#{name}'"
-  #     return nil
-  #   elsif catalog_items.size > 1
-  #     print_red_alert "#{catalog_items.size} catalog items found by name '#{name}'"
-  #     puts_error as_pretty_table(catalog_items, [:id, :name], {color:red})
-  #     print_red_alert "Try using ID instead"
-  #     print reset,"\n"
-  #     return nil
-  #   else
-  #     return catalog_items[0]
-  #   end
-  # end
+  def find_catalog_item_by_name(name)
+    json_response = @service_catalog_interface.list_inventory({name: name.to_s})
+    catalog_items = json_response[catalog_item_list_key]
+    if catalog_items.empty?
+      print_red_alert "Catalog item not found by name '#{name}'"
+      return nil
+    elsif catalog_items.size > 1
+      print_red_alert "#{catalog_items.size} catalog items found by name '#{name}'"
+      puts_error as_pretty_table(catalog_items, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return catalog_items[0]
+    end
+  end
 
   def format_catalog_item_status(item, return_color=cyan)
     out = ""
