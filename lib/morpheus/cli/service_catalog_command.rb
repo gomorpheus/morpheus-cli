@@ -418,7 +418,7 @@ EOT
     # end
     catalog_item = json_response[catalog_item_object_key]
     item_config = catalog_item['config']
-    item_type_code = catalog_item['type']['type'] rescue nil
+    item_type_code = catalog_item['type']['type'].to_s.downcase rescue nil
     item_instance = catalog_item['instance']
     item_app = catalog_item['app']
     item_execution = catalog_item['execution']
@@ -437,7 +437,7 @@ EOT
         # print "\n", reset
       end
 
-      if item_type_code.to_s.downcase == 'instance'
+      if item_type_code == 'instance'
         if item_instance
           print_h2 "Instance", options
           print cyan
@@ -455,7 +455,7 @@ EOT
         end
       end
 
-      if item_type_code.to_s.downcase == 'app' || item_type_code.to_s.downcase == 'blueprint'
+      if item_type_code == 'app' || item_type_code == 'blueprint' || item_type_code == 'apptemplate'
         if item_app
           print_h2 "App", options
           print cyan
@@ -466,6 +466,25 @@ EOT
             ]
             #print as_description_list(item_app, item_app_columns, options)
             print as_pretty_table([item_app], item_app_columns, options)
+          # print "\n", reset
+        else
+          print "\n"
+          print yellow, "No instance found", reset, "\n"
+        end
+      end
+
+      if item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
+        if item_app
+          print_h2 "Workflow Results", options
+          print cyan
+          item_workflow_columns = [
+              {"EXECUTION ID" => lambda {|it| item_execution ? item_execution['id'] : '' } },
+              {"CONTEXT TYPE" => lambda {|it| it['name'] } },
+              {"RESOURCE" => lambda {|it| (it['targets'] ? it['targets'].collect { |target| target['name'] } : '') rescue '' } },
+              {"STATUS" => lambda {|it| item_execution ? format_job_execution_status(item_execution) : 'N/A' } },
+            ]
+            #print as_description_list(catalog_item, item_workflow_columns, options)
+            print as_pretty_table([catalog_item], item_workflow_columns, options)
           # print "\n", reset
         else
           print "\n"
@@ -1042,7 +1061,7 @@ EOT
     catalog_item = find_catalog_item_by_name_or_id(args[0])
     return 1 if catalog_item.nil?
     
-    is_app = (catalog_item['type']['type'] == 'app' || catalog_item['type']['type'] == 'blueprint') rescue false
+    is_app = (catalog_item['type']['type'] == 'app' || catalog_item['type']['type'] == 'blueprint' || catalog_item['type']['type'] == 'apptemplate') rescue false
     
     params.merge!(parse_query_options(options))
     # delete dialog
