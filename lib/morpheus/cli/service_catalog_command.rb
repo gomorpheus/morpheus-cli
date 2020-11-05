@@ -911,13 +911,25 @@ EOT
     options = {}
     params = {}
     payload = {}
+    type_id = nil
+    workflow_context = nil
+    workflow_target = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[type] [options]")
+      opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
+        type_id = val.to_s
+      end
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating the order.") do
         options[:validate_only] = true
       end
       opts.on('-a', '--details', "Display all details: item configuration." ) do
         options[:details] = true
+      end
+      opts.on('--context [instance|server]', String, "Context Type for operational workflow types") do |val|
+        workflow_context = val.to_s
+      end
+      opts.on('--target ID', String, "Target Resource (Instance or Server) for operational workflow types") do |val|
+        workflow_target = val.to_s
       end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -945,7 +957,8 @@ EOT
       payload.deep_merge!({order_object_key => passed_options}) unless passed_options.empty?
 
       # Prompt for 1-N Types
-      still_prompting = options[:no_prompt] != true
+      # still_prompting = options[:no_prompt] != true
+      still_prompting = true
       available_catalog_item_types = @service_catalog_interface.list_types({max:10000})['catalogItemTypes'].collect {|it|
         {'name' => it['name'], 'value' => it['id']}
       }
@@ -953,7 +966,6 @@ EOT
       while still_prompting do
         item_payload = {}
         # prompt for Type
-        type_id = nil
         if type_id
           catalog_item_type = type_cache[type_id.to_s] || find_catalog_item_type_by_name_or_id(type_id)
           return [1, "catalog item type not found"] if catalog_item_type.nil?
@@ -984,10 +996,65 @@ EOT
           item_payload.deep_merge!({'config' => config_prompt})
         end
         
+        if workflow_context
+          item_payload['context'] = workflow_context
+        else
+          # the catalog item type determines if context selection is required
+          # only blank string means you can choose? err
+          if catalog_item_type['context'] == ''
+            context_option_type = {'fieldName' => 'context', 'fieldLabel' => 'Context Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+              [{'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
+              }, 'required' => true, 'description' => 'Context for operational workflow, determines target type', 'defaultValue' => 'instance'}
+            workflow_context = Morpheus::Cli::OptionTypes.prompt([context_option_type], options[:options], @api_client, options[:params])['context']
+          elsif !catalog_item_type['context'].nil?
+            workflow_context = catalog_item_type['context']
+          end
+          item_payload['context'] = workflow_context if workflow_context
+        end
+
+        if workflow_target
+          item_payload['targets'] = [{id: workflow_target}]
+        else
+          # prompt for Resource (target)
+          if workflow_context == 'instance' 
+            target_option_type = {'fieldName' => 'target', 'fieldLabel' => 'Resource (Instance)', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+              # todo: @instances_interface should not be required here
+              # @options_interface.options_for_source("instances", {})['data']
+              @instances_interface.list({max:10000})['instances'].collect {|it|
+                {'name' => it['name'], 'value' => it['id']}
+              } }, 'required' => true, 'description' => 'Target Instance'}
+            workflow_target = Morpheus::Cli::OptionTypes.prompt([target_option_type], options[:options], @api_client, options[:params])['target']
+            item_payload['targets'] = [{id: workflow_target}]
+            item_payload.delete('target')
+          elsif workflow_context == 'server'
+            target_option_type = {'fieldName' => 'target', 'fieldLabel' => 'Resource (Server)', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+              # todo: @servers_interface should not be required here
+              # @options_interface.options_for_source("searchServers", {})['data']
+              @servers_interface.list({max:10000})['servers'].collect {|it|
+                {'name' => it['name'], 'value' => it['id']}
+              } }, 'required' => true, 'description' => 'Target Server'}
+            workflow_target = Morpheus::Cli::OptionTypes.prompt([target_option_type], options[:options], @api_client, options[:params])['target']
+            item_payload['targets'] = [{id: workflow_target}]
+            item_payload.delete('target')
+          end
+        end
+
         payload[order_object_key]['items'] ||= []
         payload[order_object_key]['items'] << item_payload
 
-        still_prompting =  Morpheus::Cli::OptionTypes.confirm("Add another item?")
+        if options[:no_prompt]
+          still_prompting = false
+        else
+          if Morpheus::Cli::OptionTypes.confirm("Add another item?")
+            still_prompting = true
+            # clear values for subsequent items, should just use for a different fieldContext instead..
+            type_id = nil
+            options[:options] = {}
+          else
+            still_prompting = false
+          end
+        end
+
       end
       
       
