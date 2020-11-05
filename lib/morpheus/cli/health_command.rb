@@ -30,6 +30,7 @@ class Morpheus::Cli::HealthCommand
       opts.on('-a', '--all', "Display all details: CPU, Memory, Database, etc." ) do
         options[:details] = true
         options[:show_cpu] = true
+        options[:show_threads] = true
         options[:show_memory] = true
         options[:show_database] = true
         options[:show_elastic] = true
@@ -46,6 +47,9 @@ class Morpheus::Cli::HealthCommand
       opts.add_hidden_option('--details') # prefer -a, --all
       opts.on('--cpu', "Display CPU details" ) do
         options[:show_cpu] = true
+      end
+      opts.on('--threads', "Display Thread details" ) do
+        options[:show_threads] = true
       end
       opts.on('--memory', "Display Memory details" ) do
         options[:show_memory] = true
@@ -181,6 +185,58 @@ class Morpheus::Cli::HealthCommand
           }
           #print as_pretty_table(health['cpu'], cpu_columns, options)
           print_description_list(cpu_columns, health['cpu'], options)
+        end
+      end
+
+      # Threads ()
+      if options[:show_threads]
+        print_h2 "Threads", options
+        if health['threads'].nil?
+          print yellow,"No thread information returned.",reset,"\n\n"
+        else
+          print cyan
+
+          thread_summary_columns = {
+            "Thread Count" => lambda {|it| it['totalThreads'].size rescue '' },
+            "Busy Threads" => lambda {|it| it['busyThreads'].size rescue '' },
+            "Running Threads" => lambda {|it| it['runningThreads'].size rescue '' },
+            "Blocked Threads" => lambda {|it| it['blockedThreads'].size rescue '' },
+          }
+          print_description_list(thread_summary_columns, health['threads'], options)
+
+
+          thread_columns = [
+            {"Name".upcase => lambda {|it| it['name']} },
+            {"Status".upcase => lambda {|it| 
+              # hrmm
+              status_string = (it['status'] || it['state']).to_s.downcase
+              status_color = cyan
+              # if status_string.include?('waiting')
+              #   status_color = yellow
+              # end
+              "#{status_color}#{status_string.upcase}#{cyan}"
+            } },
+            {"CPU Time" => lambda {|it| it['cpuTime'].to_s } },
+            {"CPU Percent" => lambda {|it| it['cpuPercent'].to_i.to_s + '%' } }
+          ]
+
+          if health['threads']['busyThreads'] && health['threads']['busyThreads'].size > 0
+            print_h2 "Busy Threads"
+            print cyan
+            print as_pretty_table(health['threads']['busyThreads'], thread_columns, options)
+          end
+
+          if health['threads']['runningThreads'] && health['threads']['runningThreads'].size > 0
+            print_h2 "Running Threads"
+            print cyan
+            print as_pretty_table(health['threads']['runningThreads'], thread_columns, options)
+          end
+
+          if health['threads']['blockedThreads'] && health['threads']['blockedThreads'].size > 0
+            print_h2 "Blocked Threads"
+            print cyan
+            print as_pretty_table(health['threads']['blockedThreads'], thread_columns, options)
+          end
         end
       end
 

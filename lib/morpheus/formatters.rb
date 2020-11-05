@@ -352,7 +352,7 @@ def format_number(n, opts={})
   delim = opts[:delimiter] || ','
   out = ""
   parts = n.to_s.split(".")
-  whole_number = parts[0]
+  whole_number = parts[0].to_s
   decimal = parts[1] ? parts[1..-1].join('.') : nil
   i = 0
   whole_number.reverse.each_char do |c|
