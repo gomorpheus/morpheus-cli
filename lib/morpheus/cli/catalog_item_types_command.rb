@@ -313,6 +313,9 @@ EOT
           params['config'] = config_map
         end
       end
+      # massage association params a bit
+      params['workflow'] = {'id' => params['workflow']}  if params['workflow'] && !params['workflow'].is_a?(Hash)
+      params['blueprint'] = {'id' => params['blueprint']}  if params['blueprint'] && !params['blueprint'].is_a?(Hash)
       prompt_results = prompt_for_option_types(params, options, @api_client)
       if prompt_results[:success]
         params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
@@ -405,16 +408,7 @@ EOT
       params.deep_merge!(advanced_config)
       # convert checkbox "on" and "off" to true and false
       params.booleanize!
-      # convert type to refType until api accepts type
-      if params['type'] && !params['refType']
-        if params['type'].to_s.downcase == 'instance'
-          params['refType'] = 'InstanceType'
-        elsif params['type'].to_s.downcase == 'blueprint'
-          params['refType'] = 'AppTemplate'
-        elsif params['type'].to_s.downcase == 'workflow'
-          params['refType'] = 'OperationalWorkflow'
-        end
-      end
+      
       # convert config string to a map
       config = params['config']
       if config && config.is_a?(String)
@@ -437,6 +431,9 @@ EOT
           return 1, "failed to parse optionTypes"
         end
       end
+      # massage association params a bit
+      params['workflow'] = {'id' => params['workflow']}  if params['workflow'] && !params['workflow'].is_a?(Hash)
+      params['blueprint'] = {'id' => params['blueprint']}  if params['blueprint'] && !params['blueprint'].is_a?(Hash)
       payload.deep_merge!({catalog_item_type_object_key => params})
       if payload[catalog_item_type_object_key].empty? # || options[:no_prompt]
         raise_command_error "Specify at least one option to update.\n#{optparse}"
