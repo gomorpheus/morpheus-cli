@@ -1,7 +1,7 @@
 require 'morpheus/cli/cli_command'
 
 # CLI command self service
-# UI is Tools: Self Service - Catalog Items
+# UI is Tools: Self Service - Catalog
 # API is /catalog-item-types and returns catalogItemTypes
 class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::CliCommand
@@ -37,7 +37,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
         params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
       end
       build_standard_list_options(opts, options)
-      opts.footer = "List catalog items."
+      opts.footer = "List catalog item types."
     end
     optparse.parse!(args)
     connect(options)
@@ -54,9 +54,9 @@ class Morpheus::Cli::CatalogItemTypesCommand
     json_response = @catalog_item_types_interface.list(params)
     catalog_item_types = json_response[catalog_item_type_list_key]
     render_response(json_response, options, catalog_item_type_list_key) do
-      print_h1 "Morpheus Catalog Items", parse_list_subtitles(options), options
+      print_h1 "Morpheus Catalog Item Types", parse_list_subtitles(options), options
       if catalog_item_types.empty?
-        print cyan,"No catalog items found.",reset,"\n"
+        print cyan,"No catalog item types found.",reset,"\n"
       else
         list_columns = catalog_item_type_column_definitions.upcase_keys!
         list_columns.delete("Blueprint")
@@ -69,7 +69,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
       print reset,"\n"
     end
     if catalog_item_types.empty?
-      return 1, "no catalog items found"
+      return 1, "no catalog item types found"
     else
       return 0, nil
     end
@@ -332,7 +332,7 @@ EOT
     json_response = @catalog_item_types_interface.create(payload)
     catalog_item_type = json_response[catalog_item_type_object_key]
     render_response(json_response, options, catalog_item_type_object_key) do
-      print_green_success "Added catalog item #{catalog_item_type['name']}"
+      print_green_success "Added catalog item type #{catalog_item_type['name']}"
       return _get(catalog_item_type["id"], {}, options)
     end
     return 0, nil
@@ -447,7 +447,7 @@ EOT
     json_response = @catalog_item_types_interface.update(catalog_item_type['id'], payload)
     catalog_item_type = json_response[catalog_item_type_object_key]
     render_response(json_response, options, catalog_item_type_object_key) do
-      print_green_success "Updated catalog item #{catalog_item_type['name']}"
+      print_green_success "Updated catalog item type #{catalog_item_type['name']}"
       return _get(catalog_item_type["id"], {}, options)
     end
     return 0, nil
@@ -474,12 +474,12 @@ EOT
       print_dry_run @catalog_item_types_interface.dry.destroy(catalog_item_type['id'], params)
       return
     end
-    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the catalog item #{catalog_item_type['name']}?")
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the catalog item type #{catalog_item_type['name']}?")
       return 9, "aborted command"
     end
     json_response = @catalog_item_types_interface.destroy(catalog_item_type['id'], params)
     render_response(json_response, options) do
-      print_green_success "Removed catalog item #{catalog_item_type['name']}"
+      print_green_success "Removed catalog item type #{catalog_item_type['name']}"
     end
     return 0, nil
   end
