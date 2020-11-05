@@ -427,7 +427,7 @@ EOT
       print cyan
       show_columns = catalog_item_column_definitions
       # show_columns.delete("Status") if catalog_item['status'].to_s.lowercase == 'ORDERED'
-      show_columns.delete("Status") if item_instance || item_app
+      show_columns.delete("Status") if item_instance || item_app || item_execution
       print_description_list(show_columns, catalog_item)
 
       if item_config && !item_config.empty?
