@@ -216,7 +216,8 @@ class Morpheus::Cli::HealthCommand
               # end
               "#{status_color}#{status_string.upcase}#{cyan}"
             } },
-            {"CPU Time" => lambda {|it| it['cpuTime'].to_s } },
+            # {"CPU Time" => lambda {|it| it['cpuTime'].to_s } },
+            # {"CPU Time" => lambda {|it| format_human_duration(it['cpuTime'].to_f / 1000) rescue '' } },
             {"CPU Percent" => lambda {|it| it['cpuPercent'].to_i.to_s + '%' } }
           ]
 
