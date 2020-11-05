@@ -469,18 +469,18 @@ EOT
           # print "\n", reset
         else
           print "\n"
-          print yellow, "No instance found", reset, "\n"
+          print yellow, "No app found", reset, "\n"
         end
       end
 
       if item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
-        if item_app
+        if item_execution
           print_h2 "Workflow Results", options
           print cyan
           item_workflow_columns = [
               {"EXECUTION ID" => lambda {|it| item_execution ? item_execution['id'] : '' } },
               {"CONTEXT TYPE" => lambda {|it| it['name'] } },
-              {"RESOURCE" => lambda {|it| (it['targets'] ? it['targets'].collect { |target| target['name'] } : '') rescue '' } },
+              {"RESOURCE" => lambda {|it| (it['targets'] ? it['targets'].collect { |target| target['name'] }.join(', ') : '') rescue '' } },
               {"STATUS" => lambda {|it| item_execution ? format_job_execution_status(item_execution) : 'N/A' } },
             ]
             #print as_description_list(catalog_item, item_workflow_columns, options)
@@ -488,7 +488,7 @@ EOT
           # print "\n", reset
         else
           print "\n"
-          print yellow, "No instance found", reset, "\n"
+          print yellow, "No execution found", reset, "\n"
         end
       end
 
