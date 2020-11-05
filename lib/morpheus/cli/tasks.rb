@@ -333,10 +333,9 @@ class Morpheus::Cli::Tasks
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count > 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
+    #verify_args!(args:args, count:1, optparse:optparse)
     if args[0]
+      # task_name = args[0]
       task_name = args[0]
     end
     # if task_name.nil? || task_type_name.nil?
@@ -424,6 +423,9 @@ class Morpheus::Cli::Tasks
             has_file_content = true
             it['fieldContext'] = nil
             it['fieldName'] = 'file'
+            # this should be required right!? fix api optionType data plz
+            it['required'] = true
+            it['defaultValue'] = 'local'
           else
             if it['fieldContext'].nil? || it['fieldContext'] == ''
               it['fieldContext'] = 'taskOptions'
@@ -657,9 +659,7 @@ class Morpheus::Cli::Tasks
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
+    verify_args!(args:args, count:1, optparse:optparse)
     task_name = args[0]
     connect(options)
     begin
@@ -733,7 +733,6 @@ class Morpheus::Cli::Tasks
 
   def remove(args)
     params = {}
-    task_name = args[0]
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[task]")
@@ -743,10 +742,8 @@ class Morpheus::Cli::Tasks
       end
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, count:1, optparse:optparse)
+    task_name = args[0]
     connect(options)
     begin
       task = find_task_by_name_or_id(task_name)
@@ -819,6 +816,7 @@ class Morpheus::Cli::Tasks
     if args.count != 1
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
+    verify_args!(args:args, count:1, optparse:optparse)
     task_name = args[0]
     connect(options)
     begin
