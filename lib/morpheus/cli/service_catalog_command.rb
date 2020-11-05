@@ -158,7 +158,7 @@ EOT
         print as_pretty_table(current_invoice, invoice_columns.upcase_keys!, options)
       end
 
-      show_cart = false
+      show_cart = true
       if show_cart
         if cart
           
