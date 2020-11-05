@@ -8,7 +8,8 @@ class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::LibraryHelper
   include Morpheus::Cli::OptionSourceHelper
 
-  set_command_name :'catalog-types'
+  # set_command_name :'catalog-types'
+  set_command_name :'self-service'
   set_command_description "Self Service: View and manage catalog item types"
 
   register_subcommands :list, :get, :add, :update, :remove
@@ -58,6 +59,9 @@ class Morpheus::Cli::CatalogItemTypesCommand
         print cyan,"No catalog items found.",reset,"\n"
       else
         list_columns = catalog_item_type_column_definitions.upcase_keys!
+        list_columns.delete("Blueprint")
+        list_columns.delete("Workflow")
+        list_columns.delete("Context")
         #list_columns["Config"] = lambda {|it| truncate_string(it['config'], 100) }
         print as_pretty_table(catalog_item_types, list_columns.upcase_keys!, options)
         print_results_pagination(json_response)
@@ -132,6 +136,8 @@ EOT
       print cyan
       show_columns = catalog_item_type_column_definitions
       show_columns.delete("Blueprint") unless catalog_item_type['blueprint']
+      show_columns.delete("Workflow") unless catalog_item_type['workflow']
+      show_columns.delete("Context") unless catalog_item_type['context'] # workflow context
       print_description_list(show_columns, catalog_item_type)
 
       if catalog_item_type['optionTypes'] && catalog_item_type['optionTypes'].size > 0
@@ -150,25 +156,56 @@ EOT
         # print cyan,"No option types found for this catalog item.","\n",reset
       end
 
-      if config && options[:no_config] != true
-        print_h2 "Config YAML"
-        #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
-        #print reset,(as_yaml(config, options) rescue config),"\n",reset
-        config_string = as_yaml(config, options) rescue config
-        config_lines = config_string.split("\n")
-        config_line_count = config_lines.size
-        max_lines = 10
-        if config_lines.size > max_lines
-          config_string = config_lines.first(max_lines).join("\n")
-          config_string << "\n\n"
-          config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
-          #config_string << "\n"
+      item_type_code = catalog_item_type['type'].to_s.downcase
+      if options[:no_config] != true
+        if item_type_code == 'instance'
+          print_h2 "Config YAML"
+          if config
+            #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
+            #print reset,(as_yaml(config, options) rescue config),"\n",reset
+            config_string = as_yaml(config, options) rescue config
+            config_lines = config_string.split("\n")
+            config_line_count = config_lines.size
+            max_lines = 10
+            if config_lines.size > max_lines
+              config_string = config_lines.first(max_lines).join("\n")
+              config_string << "\n\n"
+              config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
+              #config_string << "\n"
+            end
+            # strip --- yaml header
+            if config_string[0..3] == "---\n"
+              config_string = config_string[4..-1]
+            end
+            print reset,config_string.chomp("\n"),"\n",reset
+          else
+            print reset,"(blank)","\n",reset
+          end
+        elsif item_type_code == 'blueprint' || item_type_code == 'apptemplate' || item_type_code == 'app'
+          print_h2 "App Spec"
+          if catalog_item_type['appSpec']
+            #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
+            #print reset,(as_yaml(config, options) rescue config),"\n",reset
+            config_string = catalog_item_type['appSpec'] || ""
+            config_lines = config_string.split("\n")
+            config_line_count = config_lines.size
+            max_lines = 10
+            if config_lines.size > max_lines
+              config_string = config_lines.first(max_lines).join("\n")
+              config_string << "\n\n"
+              config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
+              #config_string << "\n"
+            end
+            # strip --- yaml header
+            if config_string[0..3] == "---\n"
+              config_string = config_string[4..-1]
+            end
+            print reset,config_string.chomp("\n"),"\n",reset
+          else
+            print reset,"(blank)","\n",reset
+          end
+        elsif item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
         end
-        # strip --- yaml header
-        if config_string[0..3] == "---\n"
-          config_string = config_string[4..-1]
-        end
-        print reset,config_string.chomp("\n"),"\n",reset
       end
 
       # Content (Wiki Page)
@@ -459,6 +496,9 @@ EOT
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
       "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
+      "Workflow" => lambda {|it| it['workflow'] ? it['workflow']['name'] : nil },
+      "Context" => lambda {|it| it['context'] },
+      # "Content" => lambda {|it| it['content'] },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
       #"Config" => lambda {|it| it['config'] },
