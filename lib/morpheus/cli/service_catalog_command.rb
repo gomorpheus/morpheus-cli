@@ -158,7 +158,7 @@ EOT
         print as_pretty_table(current_invoice, invoice_columns.upcase_keys!, options)
       end
 
-      show_cart = true
+      show_cart = cart && cart['items'] && cart['items'].size() > 0
       if show_cart
         if cart
           
