@@ -2137,7 +2137,7 @@ class Morpheus::Cli::Hosts
    def make_managed_option_types(connected=true)
     [
       #{'fieldName' => 'account', 'fieldLabel' => 'Account', 'type' => 'select', 'optionSource' => 'accounts', 'required' => true},
-      {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'sshUsername', 'fieldLabel' => 'SSH Username', 'type' => 'text'},
       {'fieldName' => 'sshPassword', 'fieldLabel' => 'SSH Password', 'type' => 'password', 'required' => false},
       {'fieldName' => 'serverOs', 'fieldLabel' => 'OS Type', 'type' => 'select', 'optionSource' => 'osTypes', 'required' => false},
     ]
