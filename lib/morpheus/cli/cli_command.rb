@@ -203,7 +203,8 @@ module Morpheus
           #   value_label = 'SELECT'
           # elsif option['type'] == 'select'
           end
-          opts.on("--#{full_field_name} #{value_label}", String, description) do |val|
+          shorthand_option = option_type['shorthand']
+          opts.on(shorthand_option, "--#{full_field_name} #{value_label}", String, description) do |val|
             if option_type['type'] == 'checkbox'
               val = (val.to_s != 'false' && val.to_s != 'off')
             else
