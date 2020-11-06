@@ -291,15 +291,15 @@ EOT
       # convert checkbox "on" and "off" to true and false
       params.booleanize!
       # convert type to refType until api accepts type
-      if params['type'] && !params['refType']
-        if params['type'].to_s.downcase == 'instance'
-          params['refType'] = 'InstanceType'
-        elsif params['type'].to_s.downcase == 'blueprint'
-          params['refType'] = 'AppTemplate'
-        elsif params['type'].to_s.downcase == 'workflow'
-          params['refType'] = 'OperationalWorkflow'
-        end
-      end
+      # if params['type'] && !params['refType']
+      #   if params['type'].to_s.downcase == 'instance'
+      #     params['refType'] = 'InstanceType'
+      #   elsif params['type'].to_s.downcase == 'blueprint'
+      #     params['refType'] = 'AppTemplate'
+      #   elsif params['type'].to_s.downcase == 'workflow'
+      #     params['refType'] = 'OperationalWorkflow'
+      #   end
+      # end
       # convert config string to a map
       config = params['config']
       if config && config.is_a?(String)
@@ -515,6 +515,7 @@ EOT
         out << (catalog_item_type['type']['name'] || catalog_item_type['type']['code']) rescue catalog_item_type['type'].to_s
       end
     else
+      # refType is not returned
       ref_type = catalog_item_type['refType']
       if ref_type == 'InstanceType'
         out << "Instance"
