@@ -1045,7 +1045,7 @@ EOT
         if options[:no_prompt]
           still_prompting = false
         else
-          if Morpheus::Cli::OptionTypes.confirm("Add another item?")
+          if Morpheus::Cli::OptionTypes.confirm("Add another item?", {default: false})
             still_prompting = true
             # clear values for subsequent items, should just use for a different fieldContext instead..
             type_id = nil
