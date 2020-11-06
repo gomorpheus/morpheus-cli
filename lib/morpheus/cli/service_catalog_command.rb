@@ -36,6 +36,10 @@ class Morpheus::Cli::CatalogCommand
   # maybe call this place-order instead?
   register_subcommands :'add-order' => :add_order
 
+  def default_sigdig
+    4
+  end
+
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @service_catalog_interface = @api_client.catalog
@@ -53,7 +57,8 @@ class Morpheus::Cli::CatalogCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_standard_get_options(opts, options)
+      opts.add_hidden_option('--sigdig')
+      build_standard_get_options(opts, options, [:sigdig] || default_sigdig)
       opts.footer = <<-EOT
 View service catalog dashboard.
 Provides an overview of available catalog item types, recent orders and inventory.
@@ -140,13 +145,13 @@ EOT
         print cyan
         invoice_columns = {
           # todo: invoice needs to return a currency!!!
-          "Compute" => lambda {|it| format_money(it['computePrice'], cart_stats['currency']) },
-          "Storage" => lambda {|it| format_money(it['storagePrice'], cart_stats['currency']) },
-          "Memory" => lambda {|it| format_money(it['memoryPrice'], cart_stats['currency']) },
-          "Network" => lambda {|it| format_money(it['networkPrice'], cart_stats['currency']) },
-          "Extra" => lambda {|it| format_money(it['extraPrice'], cart_stats['currency']) },
-          "MTD" => lambda {|it| format_money(it['runningPrice'], cart_stats['currency']) },
-          "Total (Projected)" => lambda {|it| format_money(it['totalPrice'], cart_stats['currency']) },
+          "Compute" => lambda {|it| format_money(it['computePrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "Storage" => lambda {|it| format_money(it['storagePrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "Memory" => lambda {|it| format_money(it['memoryPrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "Network" => lambda {|it| format_money(it['networkPrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "Extra" => lambda {|it| format_money(it['extraPrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "MTD" => lambda {|it| format_money(it['runningPrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
+          "Total (Projected)" => lambda {|it| format_money(it['totalPrice'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) },
           #"Items" => lambda {|it| cart['items'].size },
           # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
@@ -171,7 +176,7 @@ EOT
             #   "Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
             #   "Total" => lambda {|it| 
             #     begin
-            #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit'] || 'month'}")
+            #       format_money(cart_stats['price'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit'] || 'month'}")
             #     rescue => ex
             #       raise ex
             #       # no cart stats eh?
@@ -186,7 +191,7 @@ EOT
               #{"NAME" => lambda {|it| it['name'] } },
               {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
               #{"QTY" => lambda {|it| it['quantity'] } },
-              {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
+              {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" } },
               {"STATUS" => lambda {|it| 
                 status_string = format_catalog_item_status(it)
                 if it['errorMessage'].to_s != ""
@@ -203,7 +208,7 @@ EOT
             print reset,"\n"
             print cyan
             if cart_stats['price']
-              puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
+              puts "Total: " + format_money(cart_stats['price'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
             else
               puts "Total: " + "No pricing configured"
             end
@@ -231,7 +236,7 @@ EOT
       opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
         params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
       end
-      build_standard_list_options(opts, options)
+      build_standard_list_options(opts, options, [:sigdig])
       opts.footer = "List available catalog item types."
     end
     optparse.parse!(args)
@@ -272,7 +277,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_standard_get_options(opts, options)
+      build_standard_get_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Get details about a specific catalog item type.
 [name] is required. This is the name or id of a catalog item type.
@@ -341,7 +346,7 @@ EOT
       opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
         type_id = val.to_s
       end
-      build_standard_list_options(opts, options)
+      build_standard_list_options(opts, options, [:sigdig])
       opts.footer = "List catalog inventory."
     end
     optparse.parse!(args)
@@ -388,7 +393,7 @@ EOT
       # opts.on('--no-config', "Do not display config content." ) do
       #   options[:no_config] = true
       # end
-      build_standard_get_options(opts, options)
+      build_standard_get_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Get details about a specific catalog inventory item.
 [item] is required. This is the name or id of a catalog inventory item.
@@ -505,7 +510,7 @@ EOT
       opts.on('-a', '--details', "Display all details: item configuration." ) do
         options[:details] = true
       end
-      build_standard_get_options(opts, options)
+      build_standard_get_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Get details of current cart and the items in it.
 Exits non-zero if cart is empty.
@@ -545,7 +550,7 @@ EOT
       opts.on('--name [NAME]', String, "Set an optional name for your catalog order") do |val|
         options[:options]['name'] = val.to_s
       end
-      build_standard_update_options(opts, options)
+      build_standard_update_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Update your cart settings, such as name.
 EOT
@@ -603,7 +608,8 @@ EOT
       opts.on('--target ID', String, "Target Resource (Instance or Server) for operational workflow types") do |val|
         workflow_target = val.to_s
       end
-      build_standard_update_options(opts, options)
+      opts.add_hidden_option('--sigdig')
+      build_standard_update_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Add an item to your cart
 [type] is required, this is name or id of a catalog item type.
@@ -719,7 +725,7 @@ EOT
           cart_item_columns = {
             "Type" => lambda {|it| it['type']['name'] rescue '' },
             #"Qty" => lambda {|it| it['quantity'] },
-            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" },
+            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
             #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
           }
           print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
@@ -751,7 +757,7 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      build_standard_remove_options(opts, options)
+      build_standard_remove_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Delete an item from the cart.
 [id] is required. This is the id of a cart item (also matches on type)
@@ -785,7 +791,7 @@ EOT
               #{"NAME" => lambda {|it| it['name'] } },
               {"Type" => lambda {|it| it['type']['name'] rescue '' } },
               #{"Qty" => lambda {|it| it['quantity'] } },
-              {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
+              {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" } },
             ]
           puts_error as_pretty_table(matching_items, cart_item_columns, {color:red})
           print_red_alert "Try using ID instead"
@@ -822,7 +828,7 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("--name [name]")
-      build_standard_remove_options(opts, options)
+      build_standard_remove_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Clear your cart.
 This will empty the cart, deleting all items.
@@ -855,11 +861,8 @@ EOT
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("--name [name]")
-      # opts.on('--name [NAME]', String, "Set an optional name for your catalog order") do |val|
-      #   options[:options]['name'] = val.to_s
-      # end
-      build_standard_add_options(opts, options, [:auto_confirm])
+      opts.banner = subcommand_usage()
+      build_standard_add_options(opts, options, [:auto_confirm, :sigdig])
       opts.footer = <<-EOT
 Checkout to complete your cart and place an order.
 EOT
@@ -931,7 +934,7 @@ EOT
       opts.on('--target ID', String, "Target Resource (Instance or Server) for operational workflow types") do |val|
         workflow_target = val.to_s
       end
-      build_standard_add_options(opts, options)
+      build_standard_add_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Place an order for new inventory.
 This allows creating a new order without using the cart.
@@ -1114,7 +1117,7 @@ EOT
       opts.on( '-f', '--force', "Force Delete" ) do
         params[:force] = true
       end
-      build_standard_remove_options(opts, options)
+      build_standard_remove_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Delete a catalog inventory item.
 This removes the item from the inventory and deprovisions the associated instance(s).
@@ -1353,7 +1356,7 @@ EOT
         "Order Items" => lambda {|it| cart['items'].size },
         "Order Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
         "Order Status" => lambda {|it| format_order_status(it) },
-        #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}" },
+        #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}" },
         #"Items" => lambda {|it| cart['items'].size },
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
@@ -1382,7 +1385,7 @@ EOT
             #{"NAME" => lambda {|it| it['name'] } },
             {"Type" => lambda {|it| it['type']['name'] rescue '' } },
             #{"Qty" => lambda {|it| it['quantity'] } },
-            {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
+            {"Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" } },
             {"Status" => lambda {|it| 
               status_string = format_catalog_item_status(it)
               if it['errorMessage'].to_s != ""
@@ -1412,7 +1415,7 @@ EOT
           #{"NAME" => lambda {|it| it['name'] } },
           {"TYPE" => lambda {|it| it['type']['name'] rescue '' } },
           #{"QTY" => lambda {|it| it['quantity'] } },
-          {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency']) : "No pricing configured" } },
+          {"PRICE" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" } },
           {"STATUS" => lambda {|it| 
             status_string = format_catalog_item_status(it)
             if it['errorMessage'].to_s != ""
@@ -1429,7 +1432,7 @@ EOT
       print reset,"\n"
       print cyan
       if cart_stats['price']
-        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
+        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency'], {sigdig:options[:sigdig] || default_sigdig}) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
       else
         puts "Total: " + "No pricing configured"
       end

@@ -270,6 +270,11 @@ module Morpheus
         build_standard_delete_options(opts, options, includes, excludes)
       end
       
+      # number of decimal places to show with curreny
+      def default_sigdig
+        2
+      end
+
       # appends to the passed OptionParser all the generic options
       # @param opts [OptionParser] the option parser object being constructed
       # @param options [Hash] the output Hash that is to being modified
@@ -318,6 +323,11 @@ module Morpheus
               options[:details] = true
             end
             opts.add_hidden_option('--details')
+
+          when :sigdig
+            opts.on('--sigdig DIGITS', "Significant digits to display for prices (currency). Default is #{default_sigdig}.") do |val|
+              options[:sigdig] = val.to_i
+            end
 
           when :options
             options[:options] ||= {}

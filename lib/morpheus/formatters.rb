@@ -366,10 +366,16 @@ def format_number(n, opts={})
 end
 
 def format_sig_dig(n, sigdig=3, min_sigdig=nil, pad_zeros=false)
-  v = sprintf("%.#{sigdig}f", n)
-  if pad_zeros != true
-    v = v.to_f.to_s
+  v = ""
+  if sigdig && sigdig > 0
+    # v = n.to_i.round(sigdig).to_s
+    v = sprintf("%.#{sigdig}f", n)
+  else
+    v = n.to_i.round().to_s
   end
+  # if pad_zeros != true
+  #   v = v.to_f.to_s
+  # end
   if min_sigdig
     v_parts =  v.split(".")
     decimal_str = v_parts[1]
@@ -403,7 +409,7 @@ def format_currency(amount, currency='USD', opts={})
   #   return currency_sym(currency).to_s + "#{amount}"
   else
     sigdig = opts[:sigdig] ? opts[:sigdig].to_i : 2 # max decimal digits
-    min_sigdig = opts[:min_sigdig] ? opts[:min_sigdig].to_i : 2 # min decimal digits
+    min_sigdig = opts[:min_sigdig] ? opts[:min_sigdig].to_i : (sigdig || 2) # min decimal digits
     display_value = format_sig_dig(amount, sigdig, min_sigdig, opts[:pad_zeros])
     display_value = format_number(display_value) # commas
     rtn = currency_sym(currency).to_s + display_value
