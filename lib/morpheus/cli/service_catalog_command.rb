@@ -171,7 +171,7 @@ EOT
             #   "Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
             #   "Total" => lambda {|it| 
             #     begin
-            #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit']}")
+            #       format_money(cart_stats['price'], cart_stats['currency']) + (cart_stats['unit'].to_s.empty? ? "" : " / #{cart_stats['unit'] || 'month'}")
             #     rescue => ex
             #       raise ex
             #       # no cart stats eh?
@@ -202,8 +202,8 @@ EOT
           
             print reset,"\n"
             print cyan
-            if cart_stats['price'] && !cart_stats['unit'].to_s.empty?
-              puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+            if cart_stats['price']
+              puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
             else
               puts "Total: " + "No pricing configured"
             end
@@ -1353,7 +1353,7 @@ EOT
         "Order Items" => lambda {|it| cart['items'].size },
         "Order Qty" => lambda {|it| cart['items'].sum {|cart_item| cart_item['quantity'] } },
         "Order Status" => lambda {|it| format_order_status(it) },
-        #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}" },
+        #"Order Total" => lambda {|it| format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}" },
         #"Items" => lambda {|it| cart['items'].size },
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
@@ -1428,8 +1428,8 @@ EOT
       end
       print reset,"\n"
       print cyan
-      if cart_stats['price'] && !cart_stats['unit'].to_s.empty?
-        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit']}"
+      if cart_stats['price']
+        puts "Total: " + format_money(cart_stats['price'], cart_stats['currency']) + " / #{cart_stats['unit'].to_s.empty? ? 'month' : cart_stats['unit']}"
       else
         puts "Total: " + "No pricing configured"
       end
