@@ -671,7 +671,7 @@ EOT
         # only blank string means you can choose? err
         if catalog_item_type['context'] == ''
           context_option_type = {'fieldName' => 'context', 'fieldLabel' => 'Context Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
-            [{'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
+            [{'name' => "none", 'value' => "appliance"}, {'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
             }, 'required' => true, 'description' => 'Context for operational workflow, determines target type', 'defaultValue' => 'instance'}
           workflow_context = Morpheus::Cli::OptionTypes.prompt([context_option_type], options[:options], @api_client, options[:params])['context']
         elsif !catalog_item_type['context'].nil?
