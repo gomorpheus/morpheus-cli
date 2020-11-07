@@ -720,15 +720,23 @@ EOT
     render_response(json_response, options) do
       if options[:validate_only]
         if json_response['success']
-          print_green_success(json_response['msg'] || "Item is valid")
           print_h2 "Validated Cart Item", [], options
           cart_item_columns = {
             "Type" => lambda {|it| it['type']['name'] rescue '' },
             #"Qty" => lambda {|it| it['quantity'] },
             "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
+            "Status" => lambda {|it| 
+              status_string = format_catalog_item_status(it)
+              if it['errorMessage'].to_s != ""
+                status_string << " - #{it['errorMessage']}"
+              end
+              status_string
+            },
             #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
           }
           print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
+          print reset, "\n"
+          print_green_success(json_response['msg'] || "Item is valid")
           print reset, "\n"
         else
           # not needed because it will be http 400
@@ -1076,9 +1084,10 @@ EOT
     render_response(json_response, options) do
       if options[:validate_only]
         if json_response['success']
-          print_green_success(json_response['msg'] || "Order is valid")
           print_h2 "Review Order", [], options
           print_order_details(order, options)
+          print_green_success(json_response['msg'] || "Order is valid")
+          print reset, "\n"
         else
           # not needed because it will be http 400
           print_rest_errors(json_response, options)
