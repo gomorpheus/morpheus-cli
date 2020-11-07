@@ -1316,6 +1316,10 @@ EOT
       else
         out << "#{cyan}#{status_string.upcase}#{return_color}"
       end
+    elsif status_string == 'VALID'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'INVALID'
+      out << "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'FAILED'
       out << "#{red}#{status_string.upcase}#{return_color}"
     elsif status_string == 'DELETED'
