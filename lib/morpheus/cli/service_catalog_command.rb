@@ -708,7 +708,7 @@ EOT
       end
     end
     if options[:validate_only]
-      params['validateOnly'] = true
+      params['validate'] = true
     end
     @service_catalog_interface.setopts(options)
     if options[:dry_run]
@@ -1063,8 +1063,8 @@ EOT
       
     end
     if options[:validate_only]
-      params['validateOnly'] = true
-      #payload['validateOnly'] = true
+      params['validate'] = true
+      #payload['validate'] = true
     end
     @service_catalog_interface.setopts(options)
     if options[:dry_run]
