@@ -265,6 +265,9 @@ EOT
       opts.on( '-v', '--value VALUE', "Secret value. This can be used to store a string instead of an object, and can also be passed as the second argument." ) do |val|
         item_value = val
       end
+      # opts.on( '--type VALUE', String, "Type, default is based on key engine, string or object" ) do |val|
+      #   params['type'] = val
+      # end
       opts.on( '-t', '--ttl SECONDS', "Time to live, the lease duration before this key expires." ) do |val|
         ttl = val
         if val.to_s.empty? || val.to_s == '0'
@@ -276,7 +279,7 @@ EOT
       # opts.on( '--no-overwrite', '--no-overwrite', "Do not overwrite existing keys. Existing keys are overwritten by default." ) do
       #   params['overwrite'] = false
       # end
-      build_common_options(opts, options, [:auto_confirm, :options, :payload, :json, :yaml, :csv, :fields, :outfile, :dry_run, :quiet, :remote])
+      build_common_options(opts, options, [:auto_confirm, :options, :payload, :query, :json, :yaml, :csv, :fields, :outfile, :dry_run, :quiet, :remote])
       opts.footer = "Create or update a cypher key." + "\n" +
                     "[key] is required. This is the key of the cypher being created or updated. The key includes the mount prefix eg. secret/hello" + "\n" +
                     "[value] is required for some cypher engines, such as secret. This is the secret value or k=v pairs being stored. Supports 1-N arguments." + "\n" +
@@ -292,7 +295,8 @@ EOT
     #   return 1
     # end
     connect(options)
-    
+    params.merge!(parse_query_options(options))
+
     # parse arguments like [value] or [k=v]
     if args.count == 0
       # prompt for key and value
