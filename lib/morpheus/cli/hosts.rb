@@ -1919,7 +1919,8 @@ class Morpheus::Cli::Hosts
           snapshot_column_definitions = {
             "ID" => lambda {|it| it['id'] },
             "Name" => lambda {|it| it['name'] },
-            "Description" => lambda {|it| it['snapshotType'] ? (it['snapshotType']['name'] || it['snapshotType']['code']) : '' },
+            "Description" => lambda {|it| it['description'] },
+            # "Type" => lambda {|it| it['snapshotType'] },
             "Date Created" => lambda {|it| format_local_dt(it['snapshotCreated']) },
             "Status" => lambda {|it| format_snapshot_status(it) }
           }
