@@ -19,7 +19,7 @@ class Morpheus::Cli::Instances
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
                        :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
-                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshots,
+                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshot, :snapshots,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
@@ -2643,6 +2643,48 @@ class Morpheus::Cli::Instances
     end
   end
 
+  def snapshot(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      opts.on( '--name VALUE', String, "Snapshot Name. Default is server name + timestamp" ) do |val|
+        options[:options]['name'] = val
+      end
+      opts.on( '--description VALUE', String, "Snapshot Description." ) do |val|
+        options[:options]['description'] = val
+      end
+      build_standard_add_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Create a snapshot for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to snapshot the instance '#{instance['name']}'?", options)
+      exit 1
+    end
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'snapshot' => parse_passed_options(options)})
+    else
+      payload.deep_merge!({'snapshot' => parse_passed_options(options)})
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.snapshot(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.snapshot(instance['id'], payload)
+    render_response(json_response, options, 'snapshots') do
+      print_green_success "Snapshot initiated."
+    end
+    return 0, nil
+  end
+
   def remove(args)
     options = {}
     query_params = {}
@@ -2952,6 +2994,10 @@ class Morpheus::Cli::Instances
       # no pagination yet
       # build_standard_list_options(opts, options)
       build_standard_get_options(opts, options)
+            opts.footer = <<-EOT
+List snapshots for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)

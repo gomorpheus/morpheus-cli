@@ -169,10 +169,10 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def backup(id,server=true)
+  def backup(id, payload={})
     url = "#{@base_url}/api/instances/#{id}/backup"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers}
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
@@ -218,6 +218,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
   
+  def snapshot(id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/snapshot"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def snapshots(instance_id, params={})
     url = "#{@base_url}/api/instances/#{instance_id}/snapshots"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
