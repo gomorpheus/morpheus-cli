@@ -1693,6 +1693,15 @@ module Morpheus::Cli::ProvisioningHelper
           row = {}
           row['name'] = metadata_pair[0].to_s.strip
           row['value'] = metadata_pair[1].to_s.strip
+          # hacky way to set masked flag to true of false to (masked) in the value itself
+          if(row['value'].include?("(masked)"))
+            row['value'] = row['value'].gsub("(masked)", "").strip
+            row['masked'] = true
+          end
+          if(row['value'].include?("(unmasked)"))
+            row['value'] = row['value'].gsub("(unmasked)", "").strip
+            row['masked'] = false
+          end
           row
         end
         metadata = metadata_list

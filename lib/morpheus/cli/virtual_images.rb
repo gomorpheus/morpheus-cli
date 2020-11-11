@@ -299,7 +299,7 @@ EOT
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
       end
-      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update project tags.") do |val|
+      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update tags.") do |val|
         options[:add_tags] = val
       end
       opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|

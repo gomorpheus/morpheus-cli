@@ -569,6 +569,12 @@ class Morpheus::Cli::Instances
         options[:metadata] = val
       end
       opts.add_hidden_option('--metadata')
+      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update tags.") do |val|
+        options[:add_tags] = val
+      end
+      opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|
+        options[:remove_tags] = val
+      end
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
         # todo switch this from 'tags' to 'labels'
         params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
@@ -653,6 +659,12 @@ class Morpheus::Cli::Instances
           end
           payload['instance']['metadata'] = metadata_list
         end
+      end
+      if options[:add_tags]
+        payload['instance']['addTags'] = parse_metadata(options[:add_tags])
+      end
+      if options[:remove_tags]
+        payload['instance']['removeTags'] = parse_metadata(options[:remove_tags])
       end
       if payload['instance'].empty? && params.empty? && options[:owner].nil?
         raise_command_error "Specify at least one option to update.\n#{optparse}"
