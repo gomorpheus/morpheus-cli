@@ -272,7 +272,7 @@ class Morpheus::Cli::InvoicesCommand
           {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
           {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
           {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
-          {"TAGS" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' } },
+          {"TAGS" => lambda {|it| (it['metadata'] || it['tags']) ? (it['metadata'] || it['tags']).collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' } },
         ]
         if show_projects
           columns += [
@@ -438,7 +438,7 @@ EOT
         "Ref Start" => lambda {|it| format_dt(it['refStart']) },
         "Ref End" => lambda {|it| format_dt(it['refEnd']) },
         "Items" => lambda {|it| it['lineItems'].size rescue '' },
-        "Tags" => lambda {|it| it['metadata'] ? it['metadata'].collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
+        "Tags" => lambda {|it| (it['metadata'] || it['tags']) ? (it['metadata'] || it['tags']).collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Project ID" => lambda {|it| it['project'] ? it['project']['id'] : '' },
         "Project Name" => lambda {|it| it['project'] ? it['project']['name'] : '' },
         "Project Tags" => lambda {|it| it['project'] ? format_metadata(it['project']['tags']) : '' },
@@ -454,7 +454,8 @@ EOT
         description_cols.delete("Project Name")
         description_cols.delete("Project Tags")
       end
-      if invoice['metadata'].nil? || invoice['metadata'].empty?
+      tags = (invoice['metadata'] || invoice['tags'])
+      if tags.nil? || tags.empty?
         description_cols.delete("Tags")
       end
       if !['ComputeServer','Instance','Container'].include?(invoice['refType'])
