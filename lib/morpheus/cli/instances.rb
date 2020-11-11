@@ -1268,11 +1268,14 @@ class Morpheus::Cli::Instances
       # metadata tags used to be returned as metadata and are now returned as tags
       # the problem is tags is what we used to call Labels (keywords)
       # the api will change to tags and labels, so handle the old format as long as metadata is returned.
-      tags, labels = nil, nil
-      if instance.key?('metadata')
-        tags, labels = instance['metadata'], instance['tags']
+      labels = nil
+      tags = nil
+      if instance.key?('labels')
+        labels = instance['labels']
+        tags = instance['tags']
       else
-        tags, labels = instance['tags'], instance['labels']
+        labels = instance['tags']
+        tags = instance['metadata']
       end
       # containers are fetched via separate api call
       containers = nil
@@ -1314,7 +1317,7 @@ class Morpheus::Cli::Instances
         # "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         # "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
         "Environment" => 'instanceContext',
-        "Labels" => lambda {|it| it['tags'] ? it['tags'].join(',') : '' },
+        "Labels" => lambda {|it| labels ? labels.join(',') : '' },
         "Tags" => lambda {|it| tags ? tags.collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Owner" => lambda {|it| 
           if it['owner']
