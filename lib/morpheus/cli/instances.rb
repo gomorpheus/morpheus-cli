@@ -562,22 +562,18 @@ class Morpheus::Cli::Instances
       opts.on('--group GROUP', String, "Group Name or ID") do |val|
         options[:group] = val
       end
-      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
-        options[:metadata] = val
+      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        # todo switch this from 'tags' to 'labels'
+        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
-      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
-        options[:metadata] = val
+      opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
+        options[:tags] = val
       end
-      opts.add_hidden_option('--metadata')
       opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update tags.") do |val|
         options[:add_tags] = val
       end
       opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|
         options[:remove_tags] = val
-      end
-      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        # todo switch this from 'tags' to 'labels'
-        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
@@ -633,32 +629,11 @@ class Morpheus::Cli::Instances
         payload['instance']['site'] = {'id' => group['id']}
       end
       # metadata tags
-      # if options[:options]['metadata'].is_a?(Array) && !options[:metadata]
-      #   options[:metadata] = options[:options]['metadata']
-      # end
-      if options[:metadata]
-        metadata = []
-        if options[:metadata] == "[]" || options[:metadata] == "null"
-          payload['instance']['metadata'] = []
-        elsif options[:metadata].is_a?(Array)
-          payload['instance']['metadata'] = options[:metadata]
-        else
-          # parse string into format name:value, name:value
-          # merge IDs from current metadata
-          # todo: should allow quoted semicolons..
-          metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
-          metadata_list = metadata_list.collect do |it|
-            metadata_pair = it.split(":")
-            if metadata_pair.size == 1 && it.include?("=")
-              metadata_pair = it.split("=")
-            end
-            row = {}
-            row['name'] = metadata_pair[0].to_s.strip
-            row['value'] = metadata_pair[1].to_s.strip
-            row
-          end
-          payload['instance']['metadata'] = metadata_list
-        end
+      if options[:tags]
+        # api version 4.2.5 and later supports tags, older versions expect metadata
+        # todo: use tags instead like everywhere else
+        # payload['instance']['tags'] = parse_metadata(options[:tags])
+        payload['instance']['metadata'] = parse_metadata(options[:tags])
       end
       if options[:add_tags]
         payload['instance']['addTags'] = parse_metadata(options[:add_tags])

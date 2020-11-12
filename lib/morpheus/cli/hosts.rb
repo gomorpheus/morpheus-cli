@@ -530,9 +530,10 @@ class Morpheus::Cli::Hosts
         puts records_as_csv([json_response['server']], options)
         return 0
       end
-      server = json_response['server']
+      server = json_response['server'] || json_response['host'] || {}
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
+      tags = server['tags'] || server['metadata']
       title = "Host Details"
       print_h1 title, [], options
       print cyan
@@ -541,6 +542,7 @@ class Morpheus::Cli::Hosts
         "Name" => 'name',
         "Hostname" => 'hostname',
         "Description" => 'description',
+        "Tags" => lambda {|it| tags ? format_metadata(tags) : '' },
         "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         #"Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
@@ -564,6 +566,7 @@ class Morpheus::Cli::Hosts
       # server_columns.delete("Tenant") if multi_tenant != true
       server_columns.delete("Cost") if server['hourlyCost'].to_f == 0
       server_columns.delete("Price") if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
+      server_columns.delete("Tags") if tags.nil? || tags.empty?
 
       print_description_list(server_columns, server)
 
@@ -990,6 +993,19 @@ class Morpheus::Cli::Hosts
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
+      opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
+        options[:tags] = val
+      end
+      opts.on('--metadata LIST', String, "Alias for --tags.") do |val|
+        options[:tags] = val
+      end
+      opts.add_hidden_option('--metadata')
+      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update tags.") do |val|
+        options[:add_tags] = val
+      end
+      opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|
+        options[:remove_tags] = val
+      end
       # opts.on('--created-by ID', String, "Created By User ID") do |val|
       #   params['createdById'] = val
       # end
@@ -1008,6 +1024,18 @@ class Morpheus::Cli::Hosts
       new_group = nil
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       params.deep_merge!(passed_options) unless passed_options.empty?
+      # metadata tags
+      if options[:tags]
+        params['tags'] = parse_metadata(options[:tags])
+      else
+        # params['tags'] = prompt_metadata(options)
+      end
+      if options[:add_tags]
+        params['addTags'] = parse_metadata(options[:add_tags])
+      end
+      if options[:remove_tags]
+        params['removeTags'] = parse_metadata(options[:remove_tags])
+      end
       payload = nil
       if options[:payload]
         payload = options[:payload]
