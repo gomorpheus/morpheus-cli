@@ -563,8 +563,7 @@ class Morpheus::Cli::Instances
         options[:group] = val
       end
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        # todo switch this from 'tags' to 'labels'
-        params['tags'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        params['labels'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
