@@ -459,17 +459,58 @@ class Morpheus::Cli::Instances
       options[:instance_name] = args[0]
     end
 
-    # use active group by default
-    options[:group] ||= @active_group_id
-    options[:select_datastore] = true
-    options[:name_required] = true
     begin
       payload = nil
       if options[:payload]
         payload = options[:payload]
         # support -O OPTION switch on top of --payload
         payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+        # obviously should support every option that prompt supports on top of -- payload as well
+        # group, cloud and type for now
+        # todo: also support :layout, service_plan, :resource_pool, etc.
+        group = nil
+        if options[:group]
+          group = find_group_by_name_or_id_for_provisioning(options[:group])
+          if group.nil?
+            return 1, "group not found by #{options[:group]}"
+          end
+          #payload["siteId"] = group["id"]
+          payload.deep_merge!({"instance" => {"site" => {"id" => group["id"]} } })
+        end
+        if options[:cloud]
+          group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
+          cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
+          if cloud.nil?
+            return 1, "cloud not found by #{options[:cloud]}"
+          end
+          payload["zoneId"] = cloud["id"]
+          payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+        end
+        if options[:cloud]
+          group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
+          cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
+          if cloud.nil?
+            return 1, "cloud not found by #{options[:cloud]}"
+          end
+          payload["zoneId"] = cloud["id"]
+          payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+        end
+        if options[:instance_type_code]
+          # should just use find_instance_type_by_name_or_id
+          # note that the api actually will match name name or code
+          instance_type = (options[:instance_type_code].to_s =~ /\A\d{1,}\Z/) ? find_instance_type_by_id(options[:instance_type_code]) : find_instance_type_by_code(options[:instance_type_code])
+          if instance_type.nil?
+            return 1, "instance type not found by #{options[:cloud]}"
+          end
+          payload.deep_merge!({"instance" => {"type" => instance_type["code"] } })
+          payload.deep_merge!({"instance" => {"instanceType" => {"code" => instance_type["code"]} } })
+        end
+
       else
+        # use active group by default
+        options[:group] ||= @active_group_id
+        options[:select_datastore] = true
+        options[:name_required] = true
         # prompt for all the instance configuration options
         # this provisioning helper method handles all (most) of the parsing and prompting
         # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
