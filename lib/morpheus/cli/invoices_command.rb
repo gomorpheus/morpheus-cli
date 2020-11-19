@@ -8,7 +8,7 @@ class Morpheus::Cli::InvoicesCommand
 
   set_command_name :'invoices'
 
-  register_subcommands :list, :get, :refresh,
+  register_subcommands :list, :get, :update, :refresh,
                        :list_line_items, :get_line_item
   
   def connect(opts)
@@ -589,6 +589,68 @@ EOT
       print_rest_exception(e, options)
       return 1
     end
+  end
+
+  def update(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[invoice] [options]")
+      opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
+        options[:tags] = val
+      end
+      opts.on('--add-tags TAGS', String, "Add Tags in the format 'name:value, name:value'. This will only add/update tags.") do |val|
+        options[:add_tags] = val
+      end
+      opts.on('--remove-tags TAGS', String, "Remove Tags in the format 'name, name:value'. This removes tags, the :value component is optional and must match if passed.") do |val|
+        options[:remove_tags] = val
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an invoice.
+[invoice] is required. This is the id of an invoice.
+      EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    json_response = @invoices_interface.get(args[0])
+    invoice = json_response['invoice']
+
+    invoice_payload = parse_passed_options(options)
+    if options[:tags]
+      invoice_payload['tags'] = parse_metadata(options[:tags])
+    end
+    if options[:add_tags]
+      invoice_payload['addTags'] = parse_metadata(options[:add_tags])
+    end
+    if options[:remove_tags]
+      invoice_payload['removeTags'] = parse_metadata(options[:remove_tags])
+    end
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'invoice' => invoice_payload})
+    else
+      payload.deep_merge!({'invoice' => invoice_payload})
+      if invoice_payload.empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
+    end
+    @invoices_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoices_interface.dry.update(invoice['id'], payload)
+      return
+    end
+    json_response = @invoices_interface.update(invoice['id'], payload)
+    invoice = json_response['invoice']
+    render_response(json_response, options, 'invoice') do
+      print_green_success "Updated invoice #{invoice['id']}"
+      return _get(invoice["id"], options)
+    end
+    return 0, nil
   end
 
   def refresh(args)
