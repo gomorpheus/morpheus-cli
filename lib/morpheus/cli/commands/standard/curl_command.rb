@@ -26,8 +26,8 @@ class Morpheus::Cli::CurlCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus curl [path] -- [*args]"
-      opts.on( '-p', '--pretty', "Print result as parsed JSON." ) do
-        options[:pretty] = true
+      opts.on( '-p', '--pretty', "Print result as parsed JSON. Alias for -j" ) do
+        options[:json] = true
       end
       opts.on( '-X', '--request METHOD', "HTTP request method. Default is GET" ) do |val|
         curl_method = val
@@ -134,29 +134,44 @@ EOT
       print reset
       return 0
     end
+    exit_code, err = 0, nil
     # print cyan
     # print "#{cyan}#{curl_cmd_str}#{reset}"
     # print "\n\n"
     print reset
     # print result
     curl_output = `#{curl_cmd}`
-    if options[:pretty] || options[:json]
+
+    if $?.success? != true
+      exit_code = $?.exitstatus
+      err = "curl command exited non-zero"
+    end
+    json_response = {}
+    other_output = nil
+    if options[:json] || options[:yaml] || options[:csv]
       output_lines = curl_output.split("\n")
       last_line = output_lines.pop
       if output_lines.size > 0
-        puts output_lines.join("\n")
+        other_output = output_lines.join("\n")
       end
       begin
-        puts as_json(JSON.parse(last_line), options)
+        json_response = JSON.parse(last_line)
       rescue => ex
-        Morpheus::Logging::DarkPrinter.puts "failed to parse curl result as JSON data Error: #{ex.message}" if Morpheus::Logging.debug?
-        puts last_line
+        puts_error curl_output
+        print_red_alert "failed to parse curl result as JSON data Error: #{ex.message}"
+
+        exit_code = 2
+        err = "failed to parse curl result as JSON data Error: #{ex.message}"
+        return exit_code, err
       end
     else
-      puts curl_output
+      other_output = curl_output
     end
-    return $?.success?
-
+    curl_object_key = nil # json_response.keys.first
+    render_response(json_response, options, curl_object_key) do
+      puts other_output
+    end
+    return exit_code, err
   end
 
   def command_available?(cmd)
