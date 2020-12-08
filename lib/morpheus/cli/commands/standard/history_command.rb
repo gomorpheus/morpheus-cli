@@ -15,7 +15,7 @@ class Morpheus::Cli::HistoryCommand
   def handle(args)
     options = {show_pagination:false}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = "Usage: morpheus #{command_name}"
+      opts.banner = "Usage: morpheus #{command_name} [search]"
       # -n is a hidden alias for -m
       opts.on( '-n', '--max-commands MAX', "Alias for -m, --max option." ) do |val|
         options[:max] = val
@@ -35,6 +35,7 @@ The --flush option can be used to purge the history.
 Examples: 
     history
     history -m 100
+    history "instances list"
     history --flush
 
 The most recently executed commands are seen by default.  Use --reverse to see the oldest commands.
@@ -42,7 +43,10 @@ EOT
     end
     raw_cmd = "#{command_name} #{args.join(' ')}"
     optparse.parse!(args)
-    verify_args!(args:args, count: 0, optparse:optparse)
+    # verify_args!(args:args, count: 0, optparse:optparse)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     if options[:do_flush]
       command_count = Morpheus::Cli::Shell.instance.history_commands_count
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to flush your command history (#{format_number(command_count)} #{command_count == 1 ? 'command' : 'commands'})?")
