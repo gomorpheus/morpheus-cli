@@ -59,7 +59,7 @@ This includes instance and backup counts, favorite instances, monitoring and rec
           it['instanceStats']['running'] rescue nil
         },
         "Used Storage" => lambda {|it|
-          (it['instanceStats']['maxStorage'] ? (it['instanceStats']['usedStorage'].to_f / it['instanceStats']['maxStorage'].to_f) * 100 : 0).round(1).to_s + '%' rescue nil
+          ((it['instanceStats']['maxStorage'].to_i > 0) ? ((it['instanceStats']['usedStorage'].to_f / it['instanceStats']['maxStorage'].to_f) * 100).round(1) : 0).to_s + '%' rescue nil
         },
         "Monitoring" => lambda {|it|
           monitoring_status = nil
