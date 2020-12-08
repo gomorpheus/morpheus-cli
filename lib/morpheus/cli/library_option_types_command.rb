@@ -140,6 +140,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         "Type" => lambda {|it| it['type'].to_s.capitalize },
         "Option List" => lambda {|it| it['optionList'] ? it['optionList']['name'] : nil },
         "Placeholder" => 'placeHolder',
+        "Help Block" => 'helpBlock',
         "Default Value" => 'defaultValue',
         "Required" => lambda {|it| format_boolean(it['required']) },
         "Export As Tag" => lambda {|it| it['exportMeta'].nil? ? '' : format_boolean(it['exportMeta']) },
@@ -297,9 +298,10 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       {'fieldName' => 'optionList', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'optionTypeLists', 'required' => true, 'dependsOnCode' => 'optionType.type:select', 'description' => "The Option List to be the source of options when type is 'select'.", 'displayOrder' => 5},
       {'fieldName' => 'fieldLabel', 'fieldLabel' => 'Field Label', 'type' => 'text', 'required' => true, 'description' => 'This is the input label that shows typically to the left of a custom option.', 'displayOrder' => 6},
       {'fieldName' => 'placeHolder', 'fieldLabel' => 'Placeholder', 'type' => 'text', 'displayOrder' => 7},
-      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 9},
-      {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => false, 'description' => 'Export as Tag.', 'displayOrder' => 10},
+      {'fieldName' => 'helpBlock', 'fieldLabel' => 'Help Block', 'type' => 'text', 'description' => 'This is the explaination of the input that shows typically underneath the option.', 'displayOrder' => 8},
+      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 9},
+      {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 10},
+      {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => false, 'description' => 'Export as Tag.', 'displayOrder' => 11},
     ]
   end
 
