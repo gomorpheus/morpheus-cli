@@ -28,6 +28,7 @@ class Morpheus::Cli::JobsCommand
 
   def list(args)
     options = {}
+    options[:show_stats] = true
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
@@ -37,7 +38,10 @@ class Morpheus::Cli::JobsCommand
       opts.on("--internal [true|false]", String, "Filters job based on internal flag. Internal jobs are excluded by default.") do |val|
         params["internalOnly"] = (val.to_s != "false")
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on("--stats [true|false]", String, "Hide Execution Stats. Job statistics are displayed by default.") do |val|
+        options[:show_stats] = (val.to_s != "false")
+      end
+      build_standard_list_options(opts, options)
       opts.footer = "List jobs."
     end
     optparse.parse!(args)
@@ -47,78 +51,72 @@ class Morpheus::Cli::JobsCommand
       return 1
     end
 
-    begin
-      params.merge!(parse_list_options(options))
 
-      if !options[:source].nil?
-        if !['all', 'user', 'discovered', 'sync'].include?(options[:source])
-          print_red_alert "Invalid source filter #{options[:source]}"
-          exit 1
-        end
-        params['itemSource'] = options[:source] == 'discovered' ? 'sync' : options[:source]
+    params.merge!(parse_list_options(options))
+
+    if !options[:source].nil?
+      if !['all', 'user', 'discovered', 'sync'].include?(options[:source])
+        print_red_alert "Invalid source filter #{options[:source]}"
+        exit 1
       end
+      params['itemSource'] = options[:source] == 'discovered' ? 'sync' : options[:source]
+    end
 
-      @jobs_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @jobs_interface.dry.list(params)
-        return
-      end
-      json_response = @jobs_interface.list(params)
-
-      render_result = render_with_format(json_response, options, 'jobs')
-      return 0 if render_result
-
+    @jobs_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @jobs_interface.dry.list(params)
+      return
+    end
+    json_response = @jobs_interface.list(params)
+    jobs = json_response['jobs']
+    render_response(json_response, options, 'jobs') do
       title = "Morpheus Jobs"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       if params["internalOnly"]
         subtitles << "internalOnly: #{params['internalOnly']}"
       end
-      print_h1 title, subtitles
-
-      jobs = json_response['jobs']
-
+      print_h1 title, subtitles, options
       if jobs.empty?
         print cyan,"No jobs found.",reset,"\n"
       else
-        rows = jobs.collect do |job|
-          {
-              id: job['id'],
-              type: job['type'] ? job['type']['name'] : '',
-              name: job['name'],
-              details: job['jobSummary'],
-              enabled: "#{job['enabled'] ? '' : yellow}#{format_boolean(job['enabled'])}#{cyan}",
-              lastRun: format_local_dt(job['lastRun']),
-              nextRun: job['enabled'] && job['scheduleMode'] && job['scheduleMode'] != 'manual' ? format_local_dt(job['nextFire']) : '',
-              lastResult: format_status(job['lastResult'])
-          }
-        end
-        columns = [
-            :id, :type, :name, :details, :enabled, :lastRun, :nextRun, :lastResult
-        ]
-        print as_pretty_table(rows, columns, options)
+        columns = {
+          "ID" => 'id',
+          "Type" => lambda {|job| job['type'] ? job['type']['name'] : '' },
+          "Name" => 'name',
+          "Details" => lambda {|job| job['jobSummary'] },
+          "Enabled" => lambda {|job| "#{job['enabled'] ? '' : yellow}#{format_boolean(job['enabled'])}#{cyan}" },
+          # "Date Created" => lambda {|job| format_local_dt(job['dateCreated']) },
+          # "Last Updated" => lambda {|job| format_local_dt(job['lastUpdated']) },
+          "Last Run" => lambda {|job| format_local_dt(job['lastRun']) },
+          "Next Run" =>  lambda {|job| job['enabled'] && job['scheduleMode'] && job['scheduleMode'] != 'manual' ? format_local_dt(job['nextFire']) : '' },
+          "Last Result" =>  lambda {|job| format_status(job['lastResult']) },
+        }
+        print as_pretty_table(jobs, columns.upcase_keys!, options)
         print_results_pagination(json_response)
+        if options[:show_stats]
+          if stats = json_response['stats']
+            label_width = 17
 
-        if stats = json_response['stats']
-          label_width = 17
+            print_h2 "Execution Stats - Last 7 Days"
+            print cyan
 
-          print_h2 "Execution Stats - Last 7 Days"
-          print cyan
-
-          print "Jobs".rjust(label_width, ' ') + ": #{stats['jobCount']}\n"
-          print "Executions Today".rjust(label_width, ' ') + ": #{stats['todayCount']}\n"
-          print "Daily Executions".rjust(label_width, ' ') + ": " + stats['executionsPerDay'].join(' | ') + "\n"
-          print "Total Executions".rjust(label_width, ' ') + ": #{stats['execCount']}\n"
-          print "Completed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execSuccessRate'].to_f, 100, {bar_color:green}) + "#{stats['execSuccess']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
-          print "Failed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execFailedRate'].to_f, 100, {bar_color:red}) + "#{stats['execFailed']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
+            print "Jobs".rjust(label_width, ' ') + ": #{stats['jobCount']}\n"
+            print "Executions Today".rjust(label_width, ' ') + ": #{stats['todayCount']}\n"
+            print "Daily Executions".rjust(label_width, ' ') + ": " + stats['executionsPerDay'].join(' | ') + "\n"
+            print "Total Executions".rjust(label_width, ' ') + ": #{stats['execCount']}\n"
+            print "Completed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execSuccessRate'].to_f, 100, {bar_color:green}) + "#{stats['execSuccess']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
+            print "Failed".rjust(label_width, ' ') + ": " + generate_usage_bar(stats['execFailedRate'].to_f, 100, {bar_color:red}) + "#{stats['execFailed']}".rjust(15, ' ') + " of " + "#{stats['execCount']}".ljust(15, ' ') + "\n#{cyan}"
+          end
+          print reset,"\n"
         end
-        print reset,"\n"
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if jobs.empty?
+      return 1, "no jobs found"
+    else
+      return 0, nil
     end
   end
 
@@ -735,53 +733,57 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[job]")
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on('--job JOB', String, "Filter by Job ID or name.") do |val|
+        options[:job] = val
+      end
+      opts.on("--internal [true|false]", String, "Filters executions based on internal flag. Internal executions are excluded by default.") do |val|
+        params["internalOnly"] = (val.to_s != "false")
+      end
+      build_standard_list_options(opts, options)
       opts.footer = "List job executions.\n" +
           "[job] is optional. Job ID or name to filter executions."
 
     end
     optparse.parse!(args)
     connect(options)
-    if args.count > 1
-      raise_command_error "wrong number of arguments, expected 0..1 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
+    # verify_args!(args:args, optparse:optparse, max:1)
+    if args.count > 0
+      options[:job] = args.join(" ")
     end
 
-    begin
-      params.merge!(parse_list_options(options))
+    params.merge!(parse_list_options(options))
 
-      if args.count > 0
-        job = find_by_name_or_id('job', args[0])
-
-        if job.nil?
-          print_red_alert "Job #{args[0]} not found"
-          exit 1
-        end
-        params['jobId'] = job['id']
+    if options[:job]
+      job = find_by_name_or_id('job', options[:job])
+      if job.nil?
+        raise_command_error "Job #{options[:job]} not found"
       end
+      params['jobId'] = job['id']
+    end
 
-      @jobs_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @jobs_interface.dry.list_executions(params)
-        return
-      end
-      json_response = @jobs_interface.list_executions(params)
-
-      render_result = render_with_format(json_response, options, 'jobExecutions')
-      return 0 if render_result
-
+    @jobs_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @jobs_interface.dry.list_executions(params)
+      return
+    end
+    json_response = @jobs_interface.list_executions(params)
+    job_executions = json_response['jobExecutions']
+    render_response(json_response, options, 'jobExecutions') do
       title = "Morpheus Job Executions"
       subtitles = job ? ["Job: #{job['name']}"] : []
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-
-      print_job_executions(json_response['jobExecutions'], options)
+      if params["internalOnly"]
+        subtitles << "internalOnly: #{params['internalOnly']}"
+      end
+      print_h1 title, subtitles, options
+      print_job_executions(job_executions, options)
       print_results_pagination(json_response)
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    if job_executions.empty?
+      return 3, "no executions found"
+    else
+      return 0, nil
     end
   end
 
@@ -812,7 +814,7 @@ class Morpheus::Cli::JobsCommand
       end
       json_response = @jobs_interface.get_execution(args[0], params)
 
-      render_result = render_with_format(json_response, options, 'job')
+      render_result = render_with_format(json_response, options, 'jobExecution')
       return 0 if render_result
 
       title = "Morpheus Job Execution"
@@ -845,7 +847,7 @@ class Morpheus::Cli::JobsCommand
           description_cols = {
               "Process ID" => lambda {|it| it[:id]},
               "Description" => lambda {|it| it[:description]},
-              "Start Data" => lambda {|it| it[:start_date]},
+              "Start Date" => lambda {|it| it[:start_date]},
               "Created By" => lambda {|it| it[:created_by]},
               "Duration" => lambda {|it| it[:duration]},
               "Status" => lambda {|it| it[:status]}
@@ -919,7 +921,7 @@ class Morpheus::Cli::JobsCommand
       description_cols = {
           "ID" => lambda {|it| it[:id]},
           "Description" => lambda {|it| it[:description]},
-          "Start Data" => lambda {|it| it[:start_date]},
+          "Start Date" => lambda {|it| it[:start_date]},
           "Created By" => lambda {|it| it[:created_by]},
           "Duration" => lambda {|it| it[:duration]},
           "Status" => lambda {|it| it[:status]}
@@ -974,7 +976,7 @@ class Morpheus::Cli::JobsCommand
             job: ex['job'] ? ex['job']['name'] : '',
             description: ex['description'] || ex['job'] ? ex['job']['description'] : '',
             type: ex['job'] && ex['job']['type'] ? (ex['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : '',
-            startDate: format_local_dt(ex['startDate']),
+            start: format_local_dt(ex['startDate']),
             duration: ex['duration'] ? format_human_duration(ex['duration'] / 1000.0) : '',
             status: format_status(ex['status']),
             error: truncate_string(ex['process'] && (ex['process']['message'] || ex['process']['error']) ? ex['process']['message'] || ex['process']['error'] : '', 32)
@@ -982,7 +984,7 @@ class Morpheus::Cli::JobsCommand
       end
 
       columns = [
-          :id, :job, :type, :startDate, {'ETA/TIME' => :duration}, :status, :error
+          :id, :job, :type, {'START DATE' => :start}, {'ETA/TIME' => :duration}, :status, :error
       ]
       print as_pretty_table(rows, columns, options)
       print reset,"\n"
