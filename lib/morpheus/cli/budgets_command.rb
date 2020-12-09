@@ -570,7 +570,7 @@ class Morpheus::Cli::BudgetsCommand
       {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("clouds", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
-      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies to. Default is the current year.", 'displayOrder' => 8},
+      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies, YYYY or 'custom' to enter Start Date and End Date manually", 'displayOrder' => 8},
       {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'Start Date for custom period budget eg. 2021-06-01', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 9},
       {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'End Date for custom period budget eg. 2022-06-01 (must be exactly one year from Start Date)', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 10},
       {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'displayOrder' => 11}
