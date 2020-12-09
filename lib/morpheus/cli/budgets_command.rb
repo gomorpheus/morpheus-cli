@@ -158,7 +158,7 @@ class Morpheus::Cli::BudgetsCommand
           "August" => lambda {|it| (it['costs'] && it['costs']['august']) ? format_money(it['costs']['august'], it['currency']) : ''  },
           "September" => lambda {|it| (it['costs'] && it['costs']['september']) ? format_money(it['costs']['september'], it['currency']) : ''  },
           "October" => lambda {|it| (it['costs'] && it['costs']['october']) ? format_money(it['costs']['october'], it['currency']) : ''  },
-          "November" => lambda {|it| (it['costs'] && it['costs']['november']) ? format_money(it['costs']['nov'], it['currency']) : ''  },
+          "November" => lambda {|it| (it['costs'] && it['costs']['november']) ? format_money(it['costs']['november'], it['currency']) : ''  },
           "December" => lambda {|it| (it['costs'] && it['costs']['december']) ? format_money(it['costs']['december'], it['currency']) : ''  }
         })
       else
