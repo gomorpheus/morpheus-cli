@@ -21,76 +21,72 @@ class Morpheus::Cli::BudgetsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List budgets."
     end
     optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
     end
+    params.merge!(parse_list_options(options))
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @budgets_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @budgets_interface.dry.list(params)
-        return 0
-      end
-      json_response = @budgets_interface.list(params)
-      render_result = render_with_format(json_response, options, 'budgets')
-      return 0 if render_result
-      budgets = json_response['budgets']
-      unless options[:quiet]
-        title = "Morpheus Budgets"
-        subtitles = []
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles
-        if budgets.empty?
-          print cyan,"No budgets found.",reset,"\n"
-        else
-          columns = [
-            {"ID" => lambda {|budget| budget['id'] } },
-            {"NAME" => lambda {|budget| budget['name'] } },
-            {"DESCRIPTION" => lambda {|budget| truncate_string(budget['description'], 30) } },
-            # {"ENABLED" => lambda {|budget| format_boolean(budget['enabled']) } },
-            # {"SCOPE" => lambda {|it| format_budget_scope(it) } },
-            {"SCOPE" => lambda {|it| it['refName'] } },
-            {"PERIOD" => lambda {|it| it['year'] } },
-            {"INTERVAL" => lambda {|it| it['interval'].to_s.capitalize } },
-            # the UI doesn't consider timezone, so uhh do it this hacky way for now.
-            {"START DATE" => lambda {|it| 
-              if it['timezone'] == 'UTC'
-                ((parse_time(it['startDate'], "%Y-%m-%d").strftime("%x")) rescue it['startDate']) # + ' UTC'
-              else
-                format_local_date(it['startDate']) 
-              end
-            } },
-            {"END DATE" => lambda {|it| 
-              if it['timezone'] == 'UTC'
-                ((parse_time(it['endDate'], "%Y-%m-%d").strftime("%x")) rescue it['endDate']) # + ' UTC'
-              else
-                format_local_date(it['endDate']) 
-              end
-            } },
-            {"TOTAL" => lambda {|it| format_money(it['totalCost'], it['currency']) } },
-            {"AVERAGE" => lambda {|it| format_money(it['averageCost'], it['currency']) } },
-            # {"CREATED BY" => lambda {|budget| budget['createdByName'] ? budget['createdByName'] : budget['createdById'] } },
-            # {"CREATED" => lambda {|budget| format_local_dt(budget['dateCreated']) } },
-            # {"UPDATED" => lambda {|budget| format_local_dt(budget['lastUpdated']) } },
-          ]
-          if options[:include_fields]
-            columns = options[:include_fields]
-          end
-          print as_pretty_table(budgets, columns, options)
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
-      end
+    
+    params.merge!(parse_list_options(options))
+    @budgets_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @budgets_interface.dry.list(params)
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    json_response = @budgets_interface.list(params)
+    budgets = json_response['budgets']
+    render_response(json_response, options, 'budgets') do
+      title = "Morpheus Budgets"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if budgets.empty?
+        print cyan,"No budgets found.",reset,"\n"
+      else
+        columns = [
+          {"ID" => lambda {|budget| budget['id'] } },
+          {"NAME" => lambda {|budget| budget['name'] } },
+          {"DESCRIPTION" => lambda {|budget| truncate_string(budget['description'], 30) } },
+          # {"ENABLED" => lambda {|budget| format_boolean(budget['enabled']) } },
+          # {"SCOPE" => lambda {|it| format_budget_scope(it) } },
+          {"SCOPE" => lambda {|it| it['refName'] } },
+          {"PERIOD" => lambda {|it| it['year'] } },
+          {"INTERVAL" => lambda {|it| it['interval'].to_s.capitalize } },
+          # the UI doesn't consider timezone, so uhh do it this hacky way for now.
+          {"START DATE" => lambda {|it| 
+            if it['timezone'] == 'UTC'
+              ((parse_time(it['startDate'], "%Y-%m-%d").strftime("%x")) rescue it['startDate']) # + ' UTC'
+            else
+              format_local_date(it['startDate']) 
+            end
+          } },
+          {"END DATE" => lambda {|it| 
+            if it['timezone'] == 'UTC'
+              ((parse_time(it['endDate'], "%Y-%m-%d").strftime("%x")) rescue it['endDate']) # + ' UTC'
+            else
+              format_local_date(it['endDate']) 
+            end
+          } },
+          {"TOTAL" => lambda {|it| format_money(it['totalCost'], it['currency']) } },
+          {"AVERAGE" => lambda {|it| format_money(it['averageCost'], it['currency']) } },
+          # {"CREATED BY" => lambda {|budget| budget['createdByName'] ? budget['createdByName'] : budget['createdById'] } },
+          # {"CREATED" => lambda {|budget| format_local_dt(budget['dateCreated']) } },
+          # {"UPDATED" => lambda {|budget| format_local_dt(budget['lastUpdated']) } },
+        ]
+        if options[:include_fields]
+          columns = options[:include_fields]
+        end
+        print as_pretty_table(budgets, columns, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    return budgets.empty? ? [3, "no budgets found"] : [0, nil]
   end
 
   def get(args)
@@ -102,33 +98,28 @@ class Morpheus::Cli::BudgetsCommand
       opts.footer = "Get details about a budget.\n[budget] is required. Budget ID or name"
     end
     optparse.parse!(args)
-
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
-    end
-
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      @budgets_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @budgets_interface.dry.get(args[0], params)
-        else
-          print_dry_run @budgets_interface.dry.list({name: args[0].to_s})
-        end
-        return 0
+    params.merge!(parse_query_options(options))
+    @budgets_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @budgets_interface.dry.get(args[0], params)
+      else
+        print_dry_run @budgets_interface.dry.list({name: args[0].to_s})
       end
-      budget = find_budget_by_name_or_id(args[0])
-      return 1 if budget.nil?
-      # skip reload if already fetched via get(id)
-      json_response = {'budget' => budget}
-      if args[0].to_s != budget['id'].to_s
-        json_response = @budgets_interface.get(budget['id'], params)
-        budget = json_response['budget']
-      end
-      render_result = render_with_format(json_response, options, 'budget')
-      return 0 if render_result
-
+      return 0
+    end
+    budget = find_budget_by_name_or_id(args[0])
+    return 1 if budget.nil?
+    # skip reload if already fetched via get(id)
+    json_response = {'budget' => budget}
+    if args[0].to_s != budget['id'].to_s
+      json_response = @budgets_interface.get(budget['id'], params)
+      budget = json_response['budget']
+    end
+    
+    render_response(json_response, options, 'budget') do
       
       print_h1 "Budget Details"
       print cyan
@@ -266,11 +257,8 @@ class Morpheus::Cli::BudgetsCommand
       else
         print cyan,"No budget stat data found.",reset,"\n"
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def add(args)
@@ -582,8 +570,10 @@ class Morpheus::Cli::BudgetsCommand
       {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("clouds", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
-      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies to. Default is the current year.", 'displayOrder' => 8},
-      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'displayOrder' => 9}
+      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies to. Default is the current year.", 'displayOrder' => 8},
+      {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'Start Date for custom period budget eg. 2021-06-01', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 9},
+      {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'End Date for custom period budget eg. 2022-06-01 (must be exactly one year from Start Date)', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 10},
+      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'displayOrder' => 11}
     ]
   end
 
