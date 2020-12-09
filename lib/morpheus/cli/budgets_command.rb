@@ -131,52 +131,6 @@ class Morpheus::Cli::BudgetsCommand
         "Scope" => lambda {|it| format_budget_scope(it) },
         "Period" => lambda {|it| it['year'] },
         "Interval" => lambda {|it| it['interval'].to_s.capitalize },
-        # "Costs" => lambda {|it| it['costs'].inspect },
-      }
-      if budget['interval'] == 'year'
-        budget_columns.merge!({
-          "Annual" => lambda {|it| 
-            (it['costs'] && it['costs']['year']) ? format_money(it['costs']['year'], it['currency']) : '' 
-          },
-        })
-      elsif budget['interval'] == 'quarter'
-        budget_columns.merge!({
-          "Q1" => lambda {|it| (it['costs'] && it['costs']['q1']) ? format_money(it['costs']['q1'], it['currency']) : ''   },
-          "Q2" => lambda {|it| (it['costs'] && it['costs']['q2']) ? format_money(it['costs']['q2'], it['currency']) : ''  },
-          "Q3" => lambda {|it| (it['costs'] && it['costs']['q3']) ? format_money(it['costs']['q3'], it['currency']) : ''  },
-          "Q4" => lambda {|it| (it['costs'] && it['costs']['q4']) ? format_money(it['costs']['q4'], it['currency']) : ''  },
-        })
-      elsif budget['interval'] == 'month'
-        budget_columns.merge!({
-          "January" => lambda {|it| (it['costs'] && it['costs']['january']) ? format_money(it['costs']['january'], it['currency']) : ''  },
-          "February" => lambda {|it| (it['costs'] && it['costs']['february']) ? format_money(it['costs']['february'], it['currency']) : ''  },
-          "March" => lambda {|it| (it['costs'] && it['costs']['march']) ? format_money(it['costs']['march'], it['currency']) : ''  },
-          "April" => lambda {|it| (it['costs'] && it['costs']['april']) ? format_money(it['costs']['april'], it['currency']) : ''  },
-          "May" => lambda {|it| (it['costs'] && it['costs']['may']) ? format_money(it['costs']['may'], it['currency']) : ''  },
-          "June" => lambda {|it| (it['costs'] && it['costs']['june']) ? format_money(it['costs']['june'], it['currency']) : ''  },
-          "July" => lambda {|it| (it['costs'] && it['costs']['july']) ? format_money(it['costs']['july'], it['currency']) : ''  },
-          "August" => lambda {|it| (it['costs'] && it['costs']['august']) ? format_money(it['costs']['august'], it['currency']) : ''  },
-          "September" => lambda {|it| (it['costs'] && it['costs']['september']) ? format_money(it['costs']['september'], it['currency']) : ''  },
-          "October" => lambda {|it| (it['costs'] && it['costs']['october']) ? format_money(it['costs']['october'], it['currency']) : ''  },
-          "November" => lambda {|it| (it['costs'] && it['costs']['november']) ? format_money(it['costs']['november'], it['currency']) : ''  },
-          "December" => lambda {|it| (it['costs'] && it['costs']['december']) ? format_money(it['costs']['december'], it['currency']) : ''  }
-        })
-      else
-        budget_columns.merge!({
-          "Costs" => lambda {|it| 
-            if it['costs'].is_a?(Array)
-              it['costs'] ? it['costs'].join(', ') : '' 
-            elsif it['costs'].is_a?(Hash)
-              it['costs'].to_s
-            else
-              it['costs'].to_s
-            end
-          },
-        })
-      end
-      budget_columns.merge!({
-        "Total" => lambda {|it| format_money(it['totalCost'], it['currency']) },
-        "Average" => lambda {|it| format_money(it['averageCost'], it['currency']) },
         # the UI doesn't consider timezone, so uhh do it this hacky way for now.
         "Start Date" => lambda {|it| 
           if it['timezone'] == 'UTC'
@@ -192,13 +146,19 @@ class Morpheus::Cli::BudgetsCommand
             format_local_date(it['endDate']) 
           end
         },
-        "Timezone" => lambda {|it| it['timezone'] },
-      })
-      budget_columns.merge!({
+        # "Costs" => lambda {|it| 
+        #   if it['costs'].is_a?(Array)
+        #     it['costs'] ? it['costs'].join(', ') : '' 
+        #   elsif it['costs'].is_a?(Hash)
+        #     it['costs'].to_s
+        #   else
+        #     it['costs'].to_s
+        #   end
+        # },
         "Created By" => lambda {|it| it['createdByName'] ? it['createdByName'] : it['createdById'] },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
-      })
+      }
       print_description_list(budget_columns, budget, options)
       # print reset,"\n"
 
