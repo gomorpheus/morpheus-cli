@@ -192,9 +192,9 @@ class Morpheus::Cli::BudgetsCommand
           budget['stats']['intervals'].each do |stat_interval|
             currency = budget['currency'] || budget['stats']['currency']
             interval_key = (stat_interval["shortName"] || stat_interval["shortYear"]).to_s.upcase
-            if interval_key == "Y1" && budget['year']
-              interval_key = "Year #{budget['year']}"
-            end
+            # if interval_key == "Y1" && budget['year']
+            #   interval_key = "Year #{budget['year']}"
+            # end
             # add simple column definition, just use the key
             budget_summary_columns[interval_key] = interval_key
             budget_cost = stat_interval["budget"].to_f
