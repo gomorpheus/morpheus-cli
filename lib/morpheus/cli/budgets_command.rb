@@ -581,9 +581,9 @@ EOT
         @options_interface.options_for_source("clouds", {})['data']
       }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
       {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies, YYYY or 'custom' to enter Start Date and End Date manually", 'displayOrder' => 8},
-      {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'Start Date for custom period budget eg. 2021-01-01', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 9},
-      {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'End Date for custom period budget eg. 2023-12-31 (must be 1, 2 or 3 years from Start Date)', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 10},
-      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'displayOrder' => 11}
+      {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'The Start Date for custom period budget eg. 2021-01-01', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 9},
+      {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'The End Date for custom period budget eg. 2023-12-31 (must be 1, 2 or 3 years from Start Date)', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 10},
+      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'description' => 'The budget interval, determines cost amounts: "year", "quarter" or "month"', 'displayOrder' => 11}
     ]
   end
 
