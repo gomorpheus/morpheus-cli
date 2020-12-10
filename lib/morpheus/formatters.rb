@@ -17,13 +17,6 @@ def parse_time(dt, format=nil)
     err = nil
     if !result
       begin
-        result = Time.strptime(dt, DEFAULT_DATE_FORMAT)
-      rescue => e
-        # err = e
-      end
-    end
-    if !result
-      begin
         result = Time.parse(dt)
       rescue => e
         err = e
@@ -42,7 +35,14 @@ def parse_time(dt, format=nil)
         begin
           result = Time.strptime(dt, ALTERNATE_TIME_FORMAT)
         rescue => e
-          err = e
+          # err = e
+        end
+      end
+      if !result
+        begin
+          result = Time.strptime(dt, DEFAULT_DATE_FORMAT)
+        rescue => e
+          # err = e
         end
       end
     end

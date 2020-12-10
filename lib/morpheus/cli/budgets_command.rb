@@ -203,7 +203,7 @@ class Morpheus::Cli::BudgetsCommand
               if budget['interval'] == 'year'
                 if interval_date
                   interval_key = "#{interval_date.strftime('%Y')}"
-                elsif budget['year'] != 'custom'
+                elsif budget['year'] && budget['year'] != 'custom'
                   interval_key = budget['year']
                 end
               elsif budget['interval'] == 'quarter'
@@ -328,6 +328,13 @@ EOT
         # prompt for options
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_budget_option_types, options[:options], @api_client)
         params.deep_merge!(v_prompt)
+        # parse MM/DD/YY but need to convert to to ISO format YYYY-MM-DD for api
+        if params['startDate']
+          params['startDate'] = format_date(parse_time(params['startDate']), {format:"%Y-%m-%d"})
+        end
+        if params['endDate']
+          params['endDate'] = format_date(parse_time(params['endDate']), {format:"%Y-%m-%d"})
+        end
         if !costs.empty?
           params['costs'] = costs
         else
@@ -450,6 +457,13 @@ EOT
       #params = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options], @api_client, options[:params])
       v_prompt = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options].merge(:no_prompt => true), @api_client)
       params.deep_merge!(v_prompt)
+      # parse MM/DD/YY but need to convert to to ISO format YYYY-MM-DD for api
+      if params['startDate']
+        params['startDate'] = format_date(parse_time(params['startDate']), {format:"%Y-%m-%d"})
+      end
+      if params['endDate']
+        params['endDate'] = format_date(parse_time(params['endDate']), {format:"%Y-%m-%d"})
+      end
       if !costs.empty?
         params['costs'] = costs
         # merge original costs in on update unless interval is changing too, should check original_year too probably if going to custom...
@@ -609,8 +623,11 @@ EOT
   def update_budget_option_types
     list = add_budget_option_types()
     # list = list.reject {|it| ["interval"].include? it['fieldName'] }
-    list.each {|it| it.delete('required') }
-    list.each {|it| it.delete('defaultValue') }
+    list.each {|it| 
+      it.delete('required') 
+      it.delete('defaultValue')
+      it.delete('dependsOnCode')
+    }
     list
   end
 
