@@ -190,9 +190,33 @@ class Morpheus::Cli::BudgetsCommand
           #   budget_row[interval_key] = stat_interval["budget"].to_f
           #   actual_row[interval_key] = stat_interval["cost"].to_f
           # end
+          multi_year = false
+          if budget['startDate'] && budget['endDate'] && parse_time(budget['startDate']).year != parse_time(budget['endDate']).year
+            multi_year = true
+          end
           budget['stats']['intervals'].each do |stat_interval|
             currency = budget['currency'] || budget['stats']['currency']
-            interval_key = (stat_interval["shortName"] || stat_interval["shortYear"]).to_s.upcase
+            interval_key = (stat_interval['shortName'] || stat_interval['shortYear']).to_s.upcase
+            interval_date = parse_time(stat_interval["startDate"]) rescue nil
+            
+            begin
+              if budget['interval'] == 'year'
+                if interval_date
+                  interval_key = "#{interval_date.strftime('%Y')}"
+                elsif budget['year'] != 'custom'
+                  interval_key = budget['year']
+                end
+              elsif budget['interval'] == 'quarter'
+                # interval_key = stat_interval["shortName"]
+              elsif budget['interval'] == 'month'
+                if interval_date
+                  interval_key = multi_year ? "#{interval_key} #{interval_date.strftime('%Y')}" : interval_key
+                else
+                  interval_key = interval_key
+                end
+              end
+            rescue
+            end
             # if interval_key == "Y1" && budget['year']
             #   interval_key = "Year #{budget['year']}"
             # end
@@ -214,6 +238,7 @@ class Morpheus::Cli::BudgetsCommand
           print reset,"\n"
         rescue => ex
           print red,"Failed to render budget summary.",reset,"\n"
+          raise ex
         end
       else
         print cyan,"No budget stat data found.",reset,"\n"
