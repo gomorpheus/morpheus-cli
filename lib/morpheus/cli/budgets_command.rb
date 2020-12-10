@@ -258,7 +258,7 @@ Costs can be passed as an array of values, one for each interval. eg. --costs "[
 Examples:
 budgets add example-budget --interval "year" --costs "[2500]"
 budgets add example-qtr-budget --interval "quarter" --costs "[500,500,500,1000]"
-budgets add example-monthly-budget --interval "month" --costs "[400,100,100,100,100,100,100,100,100,100,100,100,100,100,400,800]"
+budgets add example-monthly-budget --interval "month" --costs "[400,100,100,100,100,100,100,100,100,100,400,800]"
 budgets add example-future-budget --period "2022" --interval "year" --costs "[5000]"
 budgets add example-custom-budget --period "custom" --interval "year" --costs "[2500,5000,10000] --start "2021-01-01" --end "2023-12-31"
 EOT
