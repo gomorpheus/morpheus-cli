@@ -667,7 +667,7 @@ EOT
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
         field_name = "cost#{interval_index}"
         field_label = "#{interval_date.strftime('%Y')} Cost"
-        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     elsif interval == 'quarter'
       (1..interval_count).each_with_index do |interval_index, i|
@@ -676,7 +676,7 @@ EOT
         interval_end_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
         field_name = "cost#{interval_index}"
         field_label = "Q#{interval_index} Cost"
-        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     elsif interval == 'month'
       (1..interval_count).each_with_index do |interval_index, i|
@@ -684,7 +684,7 @@ EOT
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
         field_name = "cost#{interval_index}"
         field_label = "#{interval_date.strftime('%B %Y')} Cost"
-        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     end
     # values is a Hash like {"cost1": 99.0, "cost2": 55.0}
