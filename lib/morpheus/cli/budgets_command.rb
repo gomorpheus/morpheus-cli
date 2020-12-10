@@ -1,5 +1,6 @@
 require 'morpheus/cli/cli_command'
 require 'money' # ew, let's write our own
+require 'time'
 
 class Morpheus::Cli::BudgetsCommand
   include Morpheus::Cli::CliCommand
@@ -94,7 +95,7 @@ class Morpheus::Cli::BudgetsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[budget]")
-      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about a budget.\n[budget] is required. Budget ID or name"
     end
     optparse.parse!(args)
@@ -224,30 +225,53 @@ class Morpheus::Cli::BudgetsCommand
   def add(args)
     options = {}
     params = {}
-    costs = {}
+    costs = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_budget_option_types)
-      opts.on('--cost [amount]', String, "Budget cost amount, for use with default year interval.") do |val|
-        costs['year'] = (val.nil? || val.empty?) ? 0 : val.to_f
+      # opts.on('--cost [amount]', String, "Budget cost amount, for use with default year interval.") do |val|
+      #   costs['year'] = (val.nil? || val.empty?) ? 0 : val.to_f
+      # end
+      opts.on('--costs LIST', String, "Budget cost amounts, one for each interval in the budget. eg \"350\" for one year, \"25,25,25,100\" for quarters, and \"10,10,10,10,10,10,10,10,10,10,10,50\" for each month") do |val|
+        val = val.to_s.gsub('[', '').gsub(']', '')
+        costs = val.to_s.split(',').collect {|it| parse_cost_amount(it) }
       end
-      [:q1,:q2,:q3,:q4,
-      ].each do |quarter|
-        opts.on("--#{quarter.to_s} [amount]", String, "#{quarter.to_s.capitalize} cost amount, use with quarter interval.") do |val|
-          costs[quarter.to_s] = parse_cost_amount(val)
+      (1..12).each.with_index do |cost_index, i|
+        opts.on("--cost#{cost_index} VALUE", String, "Cost #{cost_index.to_s.capitalize} amount") do |val|
+          #params["cost#{cost_index.to_s}"] = parse_cost_amount(val)
+          costs[i] = parse_cost_amount(val)
         end
+        opts.add_hidden_option("--cost#{cost_index}")
       end
-      [:january,:february,:march,:april,:may,:june,:july,:august,:september,:october,:november,:december
-      ].each do |month|
-        opts.on("--#{month.to_s} [amount]", String, "#{month.to_s.capitalize} cost amount, use with month interval.") do |val|
-          costs[month.to_s] = parse_cost_amount(val)
+      [:q1,:q2,:q3,:q4,].each.with_index do |quarter, i|
+        opts.on("--#{quarter.to_s} VALUE", String, "#{quarter.to_s.capitalize} cost amount, use with quarter interval.") do |val|
+          costs[i] = parse_cost_amount(val)
         end
+        opts.add_hidden_option("--#{quarter.to_s}")
+      end
+      [:january,:february,:march,:april,:may,:june,:july,:august,:september,:october,:november,:december].each_with_index do |month, i|
+        opts.on("--#{month.to_s} VALUE", String, "#{month.to_s.capitalize} cost amount, use with month interval.") do |val|
+          costs[i] = parse_cost_amount(val)
+        end
+        opts.add_hidden_option("--#{month.to_s}")
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
-      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
-      opts.footer = "Create budget."
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Create a budget.
+The default period is the current year, eg. "#{Time.now.year}"
+and the default interval is "year".
+Costs can be passed as an array of values, one for each interval. eg. --costs "[999]"
+
+Examples:
+budgets add example-budget --interval "year" --costs "[2500]"
+budgets add example-qtr-budget --interval "quarter" --costs "[500,500,500,1000]"
+budgets add example-monthly-budget --interval "month" --costs "[400,100,100,100,100,100,100,100,100,100,100,100,100,100,400,800]"
+budgets add example-future-budget --period "2022" --interval "year" --costs "[5000]"
+budgets add example-custom-budget --period "custom" --interval "year" --costs "[2500,5000,10000] --start "2021-01-01" --end "2023-12-31"
+EOT
     end
     optparse.parse!(args)
     if args.count > 1
@@ -270,21 +294,20 @@ class Morpheus::Cli::BudgetsCommand
           }
         }
         # allow arbitrary -O options
-        passed_options.delete('costs')
+        #passed_options.delete('costs')
         passed_options.delete('tenant')
         passed_options.delete('group')
         passed_options.delete('cloud')
         passed_options.delete('user')
         payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
         # prompt for options
-        if !costs.empty?
-          options[:options]['costs'] ||= {}
-          options[:options]['costs'].deep_merge!(costs)
-        end
-        options[:options]['interval'] = options[:options]['interval'].to_s.downcase if options[:options]['interval']
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_budget_option_types, options[:options], @api_client)
         params.deep_merge!(v_prompt)
-        params['costs'] = prompt_costs(params, options)
+        if !costs.empty?
+          params['costs'] = costs
+        else
+          params['costs'] = prompt_costs(params, options)
+        end
         # budgets api expects scope prefixed parameters like this
         if params['tenant'].is_a?(String) || params['tenant'].is_a?(Numeric)
           params['scopeTenantId'] = params.delete('tenant')
@@ -325,30 +348,45 @@ class Morpheus::Cli::BudgetsCommand
   def update(args)
     options = {}
     params = {}
-    costs = {}
+    costs = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[budget] [options]")
       build_option_type_options(opts, options, update_budget_option_types)
-      opts.on('--cost [amount]', String, "Budget cost amount, for use with default year interval.") do |val|
-        costs['year'] = (val.nil? || val.empty?) ? 0 : val.to_f
+      # opts.on('--cost [amount]', String, "Budget cost amount, for use with default year interval.") do |val|
+      #   costs['year'] = (val.nil? || val.empty?) ? 0 : val.to_f
+      # end
+      opts.on('--costs COSTS', String, "Budget cost amounts, one for each interval in the budget. eg. [999]") do |val|
+        val = val.to_s.gsub('[', '').gsub(']', '')
+        costs = val.to_s.split(',').collect {|it| parse_cost_amount(it) }
       end
-      [:q1,:q2,:q3,:q4,
-      ].each do |quarter|
-        opts.on("--#{quarter.to_s} [amount]", String, "#{quarter.to_s.capitalize} cost amount, use with quarter interval.") do |val|
-          costs[quarter.to_s] = parse_cost_amount(val)
+      (1..12).each.with_index do |cost_index, i|
+        opts.on("--cost#{cost_index} VALUE", String, "Cost #{cost_index.to_s.capitalize} amount") do |val|
+          #params["cost#{cost_index.to_s}"] = parse_cost_amount(val)
+          costs[i] = parse_cost_amount(val)
         end
+        opts.add_hidden_option("--cost#{cost_index}")
       end
-      [:january,:february,:march,:april,:may,:june,:july,:august,:september,:october,:november,:december
-      ].each do |month|
-        opts.on("--#{month.to_s} [amount]", String, "#{month.to_s.capitalize} cost amount, use with month interval.") do |val|
-          costs[month.to_s] = parse_cost_amount(val)
+      [:q1,:q2,:q3,:q4,].each.with_index do |quarter, i|
+        opts.on("--#{quarter.to_s} VALUE", String, "#{quarter.to_s.capitalize} cost amount, use with quarter interval.") do |val|
+          costs[i] = parse_cost_amount(val)
         end
+        opts.add_hidden_option("--#{quarter.to_s}")
+      end
+      [:january,:february,:march,:april,:may,:june,:july,:august,:september,:october,:november,:december].each_with_index do |month, i|
+        opts.on("--#{month.to_s} VALUE", String, "#{month.to_s.capitalize} cost amount, use with month interval.") do |val|
+          costs[i] = parse_cost_amount(val)
+        end
+        opts.add_hidden_option("--#{month.to_s}")
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable a policy") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
-      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
-      opts.footer = "Update budget.\n[budget] is required. Budget ID or name"
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update a budget.
+[budget] is required. Budget ID or name
+EOT
+      opts.footer = "Update a budget.\n[budget] is required. Budget ID or name"
     end
     optparse.parse!(args)
 
@@ -357,78 +395,84 @@ class Morpheus::Cli::BudgetsCommand
     end
 
     connect(options)
-    begin
+    
+    budget = find_budget_by_name_or_id(args[0])
+    return 1 if budget.nil?
 
-      budget = find_budget_by_name_or_id(args[0])
-      return 1 if budget.nil?
+    original_year = budget['year']
+    original_interval = budget['interval']
+    original_costs = budget['costs'].is_a?(Array) ? budget['costs'] : nil
 
-      # construct payload
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
-      else
-        payload = {
-          'budget' => {
-          }
+    # construct payload
+    passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
+    else
+      payload = {
+        'budget' => {
         }
-        # allow arbitrary -O options
-        passed_options.delete('costs')
-        passed_options.delete('tenant')
-        passed_options.delete('group')
-        passed_options.delete('cloud')
-        passed_options.delete('user')
-        payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
-        # prompt for options
-        #params = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options], @api_client, options[:params])
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options].merge(:no_prompt => true), @api_client)
-        params.deep_merge!(v_prompt)
-        # v_costs = prompt_costs({'interval' => budget['interval']}.merge(params), options.merge(:no_prompt => true))
-        # if v_costs && !v_costs.empty?
-        #   params['costs'] = v_costs
-        # end
-        if !costs.empty?
-          params['costs'] = costs
+      }
+      # allow arbitrary -O options
+      #passed_options.delete('costs')
+      passed_options.delete('tenant')
+      passed_options.delete('group')
+      passed_options.delete('cloud')
+      passed_options.delete('user')
+      payload.deep_merge!({'budget' => passed_options}) unless passed_options.empty?
+      # prompt for options
+      #params = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options], @api_client, options[:params])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options].merge(:no_prompt => true), @api_client)
+      params.deep_merge!(v_prompt)
+      if !costs.empty?
+        params['costs'] = costs
+        # merge original costs in on update unless interval is changing too, should check original_year too probably if going to custom...
+        if params['interval'] && params['interval'] != original_interval
+          original_costs = nil
         end
-        # budgets api expects scope prefixed parameters like this
-        if params['tenant'].is_a?(String) || params['tenant'].is_a?(Numeric)
-          params['scopeTenantId'] = params.delete('tenant')
+        if original_costs
+          original_costs.each_with_index do |original_cost, i|
+            if params['costs'][i].nil?
+              params['costs'][i] = original_cost
+            end
+          end
         end
-        if params['group'].is_a?(String) || params['group'].is_a?(Numeric)
-          params['scopeGroupId'] = params.delete('group')
-        end
-        if params['cloud'].is_a?(String) || params['cloud'].is_a?(Numeric)
-          params['scopeCloudId'] = params.delete('cloud')
-        end
-        if params['user'].is_a?(String) || params['user'].is_a?(Numeric)
-          params['scopeUserId'] = params.delete('user')
-        end
-        payload.deep_merge!({'budget' => params}) unless params.empty?
-
-        if payload.empty? || payload['budget'].empty?
-          raise_command_error "Specify at least one option to update.\n#{optparse}"
-        end
-      end
-      @budgets_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @budgets_interface.dry.update(budget['id'], payload)
-        return
-      end
-      json_response = @budgets_interface.update(budget['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
       else
-        display_name = json_response['budget'] ? json_response['budget']['name'] : ''
-        print_green_success "Budget #{display_name} updated"
-        get([json_response['budget']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+        if params['interval'] && params['interval'] != original_interval
+          raise_command_error "Changing interval requires setting the costs as well.\n#{optparse}"
+        end
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+      # budgets api expects scope prefixed parameters like this
+      if params['tenant'].is_a?(String) || params['tenant'].is_a?(Numeric)
+        params['scopeTenantId'] = params.delete('tenant')
+      end
+      if params['group'].is_a?(String) || params['group'].is_a?(Numeric)
+        params['scopeGroupId'] = params.delete('group')
+      end
+      if params['cloud'].is_a?(String) || params['cloud'].is_a?(Numeric)
+        params['scopeCloudId'] = params.delete('cloud')
+      end
+      if params['user'].is_a?(String) || params['user'].is_a?(Numeric)
+        params['scopeUserId'] = params.delete('user')
+      end
+      payload.deep_merge!({'budget' => params}) unless params.empty?
+      if payload.empty? || payload['budget'].empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
     end
+    @budgets_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @budgets_interface.dry.update(budget['id'], payload)
+      return
+    end
+    json_response = @budgets_interface.update(budget['id'], payload)
+    render_response(json_response, options, 'budget') do
+      display_name = json_response['budget'] ? json_response['budget']['name'] : ''
+      print_green_success "Budget #{display_name} updated"
+      get([json_response['budget']['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
   end
 
   def remove(args)
@@ -546,61 +590,94 @@ class Morpheus::Cli::BudgetsCommand
   end
 
   def prompt_costs(params={}, options={})
-    interval = params['interval'] #.to_s.downcase
-    options[:options]||={}
-    costs = {}
-    costs_val = nil
-    #costs_val = params['costs'] ? params['costs'] : options[:options]['costs']
-    if costs_val.is_a?(Array)
-      costs = costs_val
-    elsif costs_val.is_a?(String)
-      costs = costs_val.to_s.split(',').collect {|it| it.to_s.strip.to_f }
-    else
-      if interval == 'year'
-        cost_option_types = [
-          {'fieldContext' => 'costs', 'fieldName' => 'year', 'fieldLabel' => 'Annual Cost', 'type' => 'text', 'defaultValue' => 0}
-        ]
-        values = Morpheus::Cli::OptionTypes.prompt(cost_option_types, options[:options], @api_client)
-        costs = values['costs'] ? values['costs'] : {}
-        # costs = {
-        #   year: values['cost']
-        # }
-      elsif interval == 'quarter'
-        cost_option_types = [
-          {'fieldContext' => 'costs', 'fieldName' => 'q1', 'fieldLabel' => 'Q1', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 1},
-          {'fieldContext' => 'costs', 'fieldName' => 'q2', 'fieldLabel' => 'Q2', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 2},
-          {'fieldContext' => 'costs', 'fieldName' => 'q3', 'fieldLabel' => 'Q3', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 3},
-          {'fieldContext' => 'costs', 'fieldName' => 'q4', 'fieldLabel' => 'Q4', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 4}
-        ]
-        values = Morpheus::Cli::OptionTypes.prompt(cost_option_types, options[:options], @api_client)
-        costs = values['costs'] ? values['costs'] : {}
-        # costs = {
-        #   q1: values['q1'], q2: values['q2'], q3: values['q3'], q4: values['q4']
-        # }
-      elsif interval == 'month'
-        cost_option_types = [
-          {'fieldContext' => 'costs', 'fieldName' => 'january', 'fieldLabel' => 'January', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 1},
-          {'fieldContext' => 'costs', 'fieldName' => 'february', 'fieldLabel' => 'February', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 2},
-          {'fieldContext' => 'costs', 'fieldName' => 'march', 'fieldLabel' => 'March', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 3},
-          {'fieldContext' => 'costs', 'fieldName' => 'april', 'fieldLabel' => 'April', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 4},
-          {'fieldContext' => 'costs', 'fieldName' => 'may', 'fieldLabel' => 'May', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 5},
-          {'fieldContext' => 'costs', 'fieldName' => 'june', 'fieldLabel' => 'June', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 6},
-          {'fieldContext' => 'costs', 'fieldName' => 'july', 'fieldLabel' => 'July', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 7},
-          {'fieldContext' => 'costs', 'fieldName' => 'august', 'fieldLabel' => 'August', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 8},
-          {'fieldContext' => 'costs', 'fieldName' => 'september', 'fieldLabel' => 'September', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 9},
-          {'fieldContext' => 'costs', 'fieldName' => 'october', 'fieldLabel' => 'October', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 10},
-          {'fieldContext' => 'costs', 'fieldName' => 'november', 'fieldLabel' => 'November', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 11},
-          {'fieldContext' => 'costs', 'fieldName' => 'december', 'fieldLabel' => 'December', 'type' => 'text', 'defaultValue' => 0, 'displayOrder' => 12},
-        ]
-        values = Morpheus::Cli::OptionTypes.prompt(cost_option_types, options[:options], @api_client)
-        costs = values['costs'] ? values['costs'] : {}
-        # costs = {
-        #   january: values['january'], february: values['february'], march: values['march'],
-        #   april: values['april'], may: values['may'], june: values['june'],
-        #   july: values['july'], august: values['august'], september: values['september'],
-        #   october: values['october'], november: values['november'], december: values['december']
-        # }
+    # user did -O costs="[3.50,3.50,3.50,5.00]" so just pass through
+    default_costs = []
+    if options[:options]['costs'] && options[:options]['costs'].is_a?(Array)
+      default_costs = options[:options]['costs']
+      default_costs.each_with_index do |default_cost, i|
+        interval_index =  i + 1
+        if !default_cost.nil?
+          options[:options]["cost#{interval_index}"] = default_cost
+        end
       end
+    end
+    # prompt for each Period Cost based on interval [year|quarter|month]
+    budget_period_year = (params['year'] || params['periodValue'])
+    is_custom = budget_period_year == 'custom'
+    interval = params['interval'] #.to_s.downcase
+    total_years = 1
+    total_months = 12
+    costs = []
+    # custom timeframe so prompt from start to end by interval
+    start_date = nil
+    end_date = nil
+
+    if is_custom
+      start_date = parse_time(params['startDate'])
+      if start_date.nil?
+        raise_command_error "startDate is required for custom period budgets"
+      end
+      end_date = parse_time(params['endDate'])
+      if end_date.nil?
+        raise_command_error "endDate is required for custom period budgets"
+      end
+    else
+      budget_year = budget_period_year ? budget_period_year.to_i : Time.now.year.to_i
+      start_date = Time.new(budget_year, 1, 1)
+      end_date = Time.new(budget_year, 12, 31)
+    end
+    epoch_start_month = (start_date.year * 12) + start_date.month
+    epoch_end_month = (end_date.year * 12) + end_date.month
+    # total_months gets + 1 because endDate is same year, on last day of the month, Dec 31 by default
+    total_months = (epoch_end_month - epoch_start_month) + 1
+    total_years = (total_months / 12)
+    if total_months < 0
+      raise_command_error "budget cannot end (#{end_date}) before it starts (#{start_date})"
+    end
+    if (total_months % 12) != 0 || (total_months > 36)
+      raise_command_error "budget custom period must be 12, 24, or 36 months."
+    end
+    cost_option_types = []
+    interval_count = total_months
+    if interval == 'year'
+      interval_count = total_months / 12
+    elsif interval == 'quarter'
+      interval_count = total_months / 3
+    end
+    # puts "EPOCH MONTHS ARE #{epoch_start_month} - #{epoch_end_month}"
+    # puts "BUDGET MONTHS IS #{total_months}"
+    # puts "INTERVAL COUNT IS #{interval_count}"
+    if interval == 'year'
+      (1..interval_count).each_with_index do |interval_index, i|
+        interval_start_month = epoch_start_month + (i * 12)
+        interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        field_name = "cost#{interval_index}"
+        field_label = "#{interval_date.strftime('%Y')} Cost"
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+      end
+    elsif interval == 'quarter'
+      (1..interval_count).each_with_index do |interval_index, i|
+        interval_start_month = epoch_start_month + (i * 3)
+        interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        interval_end_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        field_name = "cost#{interval_index}"
+        field_label = "Q#{interval_index} Cost"
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+      end
+    elsif interval == 'month'
+      (1..interval_count).each_with_index do |interval_index, i|
+        interval_start_month = epoch_start_month + i
+        interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        field_name = "cost#{interval_index}"
+        field_label = "#{interval_date.strftime('%B %Y')} Cost"
+        cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => "$" + (default_costs[i] || 0).to_s}
+      end
+    end
+    # values is a Hash like {"cost1": 99.0, "cost2": 55.0}
+    values = Morpheus::Cli::OptionTypes.prompt(cost_option_types, options[:options], @api_client)
+    values.each do |k,v|
+      interval_index = k[4..-1].to_i
+      costs[interval_index-1] = parse_cost_amount(v).to_f
     end
     return costs
   end
@@ -615,8 +692,9 @@ class Morpheus::Cli::BudgetsCommand
     end
   end
 
+  # convert String like "$5,499.99" to Float 5499.99
   def parse_cost_amount(val)
-    val.to_s.gsub(",","").to_f
+    val.to_s.gsub(",","").gsub('$','').strip.to_f
   end
 
 end
