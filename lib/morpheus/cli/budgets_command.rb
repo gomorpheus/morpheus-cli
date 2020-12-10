@@ -173,50 +173,15 @@ class Morpheus::Cli::BudgetsCommand
           }
           budget_row = {label:"Budget"}
           actual_row = {label:"Actual"}
-          # budget['stats']['intervals'].each do |stat_interval|
-          #   interval_key = (stat_interval["shortName"] || stat_interval["shortYear"]).to_s.upcase
-          #   if interval_key == "Y1" && budget['year']
-          #     interval_key = "Year #{budget['year']}"
-          #   end
-          #   budget_summary_columns[interval_key] = lambda {|it| 
-          #     display_val = format_money(it[interval_key], budget['stats']['currency'])
-          #     over_budget = actual_row[interval_key] && (actual_row[interval_key] > (budget_row[interval_key] || 0))
-          #     if over_budget
-          #       "#{red}#{display_val}#{cyan}"
-          #     else
-          #       "#{cyan}#{display_val}#{cyan}"
-          #     end
-          #   }
-          #   budget_row[interval_key] = stat_interval["budget"].to_f
-          #   actual_row[interval_key] = stat_interval["cost"].to_f
-          # end
           multi_year = false
           if budget['startDate'] && budget['endDate'] && parse_time(budget['startDate']).year != parse_time(budget['endDate']).year
             multi_year = true
           end
           budget['stats']['intervals'].each do |stat_interval|
             currency = budget['currency'] || budget['stats']['currency']
-            interval_key = (stat_interval['shortName'] || stat_interval['shortYear']).to_s.upcase
+            interval_key = (stat_interval['chartName'] || stat_interval['shortName'] || stat_interval['shortYear']).to_s.upcase
             interval_date = parse_time(stat_interval["startDate"]) rescue nil
             
-            begin
-              if budget['interval'] == 'year'
-                if interval_date
-                  interval_key = "#{interval_date.strftime('%Y')}"
-                elsif budget['year'] && budget['year'] != 'custom'
-                  interval_key = budget['year']
-                end
-              elsif budget['interval'] == 'quarter'
-                # interval_key = stat_interval["shortName"]
-              elsif budget['interval'] == 'month'
-                if interval_date
-                  interval_key = multi_year ? "#{interval_key} #{interval_date.strftime('%Y')}" : interval_key
-                else
-                  interval_key = interval_key
-                end
-              end
-            rescue
-            end
             # if interval_key == "Y1" && budget['year']
             #   interval_key = "Year #{budget['year']}"
             # end
