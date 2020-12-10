@@ -329,11 +329,13 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_budget_option_types, options[:options], @api_client)
         params.deep_merge!(v_prompt)
         # parse MM/DD/YY but need to convert to to ISO format YYYY-MM-DD for api
-        if params['startDate']
-          params['startDate'] = format_date(parse_time(params['startDate']), {format:"%Y-%m-%d"})
+        standard_start_date = (params['startDate'] ? Time.strptime(params['startDate'], "%x") : nil) rescue nil
+        if standard_start_date
+          params['startDate'] = format_date(standard_start_date, {format:"%Y-%m-%d"})
         end
-        if params['endDate']
-          params['endDate'] = format_date(parse_time(params['endDate']), {format:"%Y-%m-%d"})
+        standard_end_date = (params['endDate'] ? Time.strptime(params['endDate'], "%x") : nil) rescue nil
+        if standard_end_date
+          params['endDate'] = format_date(standard_end_date, {format:"%Y-%m-%d"})
         end
         if !costs.empty?
           params['costs'] = costs
