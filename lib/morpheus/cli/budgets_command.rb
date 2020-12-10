@@ -631,12 +631,6 @@ EOT
     # total_months gets + 1 because endDate is same year, on last day of the month, Dec 31 by default
     total_months = (epoch_end_month - epoch_start_month) + 1
     total_years = (total_months / 12)
-    if total_months < 0
-      raise_command_error "budget cannot end (#{end_date}) before it starts (#{start_date})"
-    end
-    if (total_months % 12) != 0 || (total_months > 36)
-      raise_command_error "budget custom period must be 12, 24, or 36 months."
-    end
     cost_option_types = []
     interval_count = total_months
     if interval == 'year'
@@ -644,9 +638,20 @@ EOT
     elsif interval == 'quarter'
       interval_count = total_months / 3
     end
-    # puts "EPOCH MONTHS ARE #{epoch_start_month} - #{epoch_end_month}"
-    # puts "BUDGET MONTHS IS #{total_months}"
-    # puts "INTERVAL COUNT IS #{interval_count}"
+
+    # debug budget shenanigans
+    # puts "START: #{start_date}"
+    # puts "END: #{end_date}"
+    # puts "EPOCH MONTHS: #{epoch_start_month} - #{epoch_end_month}"
+    # puts "TOTAL MONTHS: #{total_months}"
+    # puts "INTERVAL COUNT IS: #{interval_count}"
+
+    if total_months < 0
+      raise_command_error "budget cannot end (#{end_date}) before it starts (#{start_date})"
+    end
+    if (total_months % 12) != 0 || (total_months > 36)
+      raise_command_error "budget custom period must be 12, 24, or 36 months."
+    end
     if interval == 'year'
       (1..interval_count).each_with_index do |interval_index, i|
         interval_start_month = epoch_start_month + (i * 12)
