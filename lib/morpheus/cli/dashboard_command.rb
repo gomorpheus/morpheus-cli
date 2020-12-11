@@ -52,51 +52,108 @@ This includes instance and backup counts, favorite instances, monitoring and rec
       ## STATUS
 
       status_column_definitions = {
-        "Total Instances" => lambda {|it|
-          it['instanceStats']['total'] rescue nil
+        "Instances" => lambda {|it|
+          format_number(it['instanceStats']['total']) rescue nil
         },
-        "Running Instances" => lambda {|it|
-          it['instanceStats']['running'] rescue nil
+        "Running" => lambda {|it|
+          format_number(it['instanceStats']['running']) rescue nil
         },
         "Used Storage" => lambda {|it|
           ((it['instanceStats']['maxStorage'].to_i > 0) ? ((it['instanceStats']['usedStorage'].to_f / it['instanceStats']['maxStorage'].to_f) * 100).round(1) : 0).to_s + '%' rescue nil
-        },
-        "Monitoring" => lambda {|it|
-          monitoring_status = nil
-          begin
-            n = it['monitoring']['openIncidents'] rescue nil
-            if n.nil? 
-              n = it['appStatus']['openIncidents'] rescue nil
-            end
-            if n == 1
-              monitoring_status = "1 Open Incident"
-            elsif n
-              monitoring_status = "#{n} Open Incidents"
-            end
-          rescue
-            
-          end
-          monitoring_status
         },
       }
       print as_description_list(json_response, status_column_definitions, options)
       # print reset,"\n"
 
-      print_h2 "Last 7 Days Backups"
+      print_h2 "Monitoring"
+
+      open_incident_count = json_response['monitoring']['openIncidents'] rescue (json_response['appStatus']['openIncidents'] rescue nil)
+      if open_incident_count.nil? 
+        print yellow + "n/a" + cyan + "\n"
+      elsif open_incident_count == 0
+        print cyan + "0 Open Incidents" + cyan + "\n"
+      elsif open_incident_count == 1
+        print red + "1 Open Incident" + cyan + "\n"
+      else
+        print red + "#{open_incident_count} Open Incidents" + cyan + "\n"
+      end
+
+      
+      if json_response['logStats']
+        print_h2 "Logs"
+
+        total_error_count = 0
+        error_log_data = json_response['logStats']['data'].find {|it| it['key'].to_s.upcase == 'ERROR' }
+        if error_log_data && error_log_data['count'] && error_log_data['count'] > 0
+          total_error_count += error_log_data['count']
+          if error_log_data["values"]
+            log_plot = ""
+            plot_index = 0
+            error_log_data["values"].each do |k, v|
+              if v.to_i == 0
+                log_plot << cyan + v.to_s
+              else
+                log_plot << red + v.to_s
+              end
+              if plot_index != error_log_data["values"].size - 1
+                log_plot << cyan + "-"
+              end
+              plot_index +=1
+            end
+            puts log_plot
+          end
+        end
+        fatal_log_data = json_response['logStats']['data'].find {|it| it['key'].to_s.upcase == 'FATAL' }
+        if fatal_log_data && fatal_log_data['count'] && fatal_log_data['count'] > 0
+          total_error_count += fatal_log_data['count']
+          if fatal_log_data["values"]
+            log_plot = ""
+            plot_index = 0
+            fatal_log_data["values"].each do |k, v|
+              if v.to_i == 0
+                log_plot << cyan + v.to_s
+              else
+                log_plot << red + v.to_s
+              end
+              if plot_index != fatal_log_data["values"].size - 1
+                log_plot << cyan + "-"
+              end
+              plot_index +=1
+            end
+            puts log_plot + red + " (FATAL)" + reset
+          end
+        end
+        
+        if total_error_count.nil? 
+          print yellow + "n/a" + cyan + "\n"
+        elsif total_error_count == 0
+          print cyan + "0 Errors" + cyan + "\n"
+        elsif total_error_count == 1
+          print red + "1 Error" + cyan + "\n"
+        else
+          print red + "#{total_error_count} Errors" + cyan + "\n"
+        end
+      end
+
+      print_h2 "Backups (7 Days)"
       backup_status_column_definitions = {
-        "Total" => lambda {|it|
-          it['backups']['accountStats']['lastSevenDays']['completed'] rescue nil
-        },
+        # "Total" => lambda {|it|
+        #   it['backups']['accountStats']['lastSevenDays']['completed'] rescue nil
+        # },
         "Successful" => lambda {|it|
           it['backups']['accountStats']['lastSevenDays']['successful'] rescue nil
         },
         "Failed" => lambda {|it|
-          it['backups']['accountStats']['lastSevenDays']['failed'] rescue nil
-        },
-
+          n = it['backups']['accountStats']['lastSevenDays']['failed'] rescue nil
+          if n == 0
+            cyan + n.to_s + reset
+          else
+            red + n.to_s + reset
+          end
+        }
       }
-      #print as_description_list(json_response, backup_status_column_definitions, options)
-      print as_pretty_table([json_response], backup_status_column_definitions, options)
+      print as_description_list(json_response, backup_status_column_definitions, options)
+      #print as_pretty_table([json_response], backup_status_column_definitions, options)
       # print reset,"\n"
 
       favorite_instances = json_response["provisioning"]["favoriteInstances"] || [] rescue []
