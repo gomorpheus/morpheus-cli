@@ -660,7 +660,6 @@ EOT
     end
     
     is_fiscal = start_date.month != 1 || start_date.day != 1
-    is_next_year = start_date.month > 6 || (start_date.month == 6 && start_date.day != 1)
 
     # debug budget shenanigans
     # puts "START: #{start_date}"
@@ -679,7 +678,7 @@ EOT
       (1..interval_count).each_with_index do |interval_index, i|
         interval_start_month = epoch_start_month + (i * 12)
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
-        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
+        display_year = is_fiscal ? "FY #{interval_date.year + 1}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
         field_label = "#{display_year} Cost"
         cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
@@ -689,7 +688,7 @@ EOT
         interval_start_month = epoch_start_month + (i * 3)
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
         interval_end_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
-        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
+        display_year = is_fiscal ? "FY #{interval_date.year + 1}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
         # field_label = "Q#{interval_index} Cost"
         field_label = "Q#{(i % 4) + 1} #{display_year} Cost"
@@ -699,7 +698,7 @@ EOT
       (1..interval_count).each_with_index do |interval_index, i|
         interval_start_month = epoch_start_month + i
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
-        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
+        display_year = is_fiscal ? "FY #{interval_date.year + 1}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
         # field_label = "#{interval_date.strftime('%B %Y')} Cost"
         field_label = "#{interval_date.strftime('%B')} #{display_year} Cost"
