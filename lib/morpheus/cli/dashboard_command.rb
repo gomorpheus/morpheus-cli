@@ -94,17 +94,6 @@ This includes instance and backup counts, favorite instances, monitoring and rec
       
       print_h2 "Monitoring"
 
-      # if open_incident_count.nil? 
-      #   print yellow + "n/a" + cyan + "\n"
-      # elsif open_incident_count == 0
-      #   print monitoring_status_color + "0 Open Incidents" + cyan + "\n"
-      # elsif open_incident_count == 1
-      #   print monitoring_status_color + "1 Open Incident" + cyan + "\n"
-      # else
-      #   print monitoring_status_color + "#{open_incident_count} Open Incidents" + cyan + "\n"
-      # end
-
-      
       monitoring_column_definitions = {
         "Status" => lambda {|it|
           if fail_apps > 0 || fail_checks > 0
@@ -126,11 +115,11 @@ This includes instance and backup counts, favorite instances, monitoring and rec
         },
         "Open Incidents" => lambda {|it|
           monitoring_status_color = cyan
-          if fail_checks > 0 || fail_apps > 0
-            monitoring_status_color = red
-          elsif warning_checks > 0 || warning_apps > 0
-            monitoring_status_color = yellow
-          end
+          # if fail_checks > 0 || fail_apps > 0
+          #   monitoring_status_color = red
+          # elsif warning_checks > 0 || warning_apps > 0
+          #   monitoring_status_color = yellow
+          # end
           if open_incident_count.nil? 
             yellow + "n/a" + cyan + "\n"
           elsif open_incident_count == 0
