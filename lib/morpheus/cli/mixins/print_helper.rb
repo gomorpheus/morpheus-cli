@@ -504,7 +504,7 @@ module Morpheus::Cli::PrintHelper
       out << cyan + "Max CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
     if opts[:include].include?(:avg_cpu)
-      cpu_usage = stats['cpuUsageAvg']
+      cpu_usage = stats['cpuUsageAvg'] || stats['cpuUsageAverage']
       out << cyan + "Avg. CPU".rjust(label_width, ' ') + ": " + generate_usage_bar(cpu_usage.to_f, 100)  + "\n"
     end
     if opts[:include].include?(:cpu)

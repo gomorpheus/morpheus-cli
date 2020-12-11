@@ -71,7 +71,7 @@ This includes instance and backup counts, favorite instances, monitoring and rec
       stats = json_response['instanceStats']
       if stats
         print_h2 "Instance Usage", options
-        print_stats_usage(stats)
+        print_stats_usage(stats, {include: [:max_cpu, :avg_cpu, :memory, :storage]})
       end
 
       print_h2 "Monitoring"
@@ -183,7 +183,7 @@ This includes instance and backup counts, favorite instances, monitoring and rec
           "IP/PORT" => lambda {|instance|
             format_instance_connection_string(instance)
           },
-
+          "Status" => lambda {|it| format_instance_status(it) }
         }
         #print as_description_list(json_response, status_column_definitions, options)
         print as_pretty_table(favorite_instances, favorite_instances_columns, options)
