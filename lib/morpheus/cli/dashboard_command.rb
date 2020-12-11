@@ -96,12 +96,14 @@ This includes instance and backup counts, favorite instances, monitoring and rec
 
       monitoring_column_definitions = {
         "Status" => lambda {|it|
-          if fail_apps > 0 || fail_checks > 0
-            check_summary = [fail_apps > 0 ? "#{fail_apps} Apps" : nil,fail_checks > 0 ? "#{fail_checks} Checks" : nil].compact.join(", ")
-            red + "ERROR" + " (" + check_summary + ")" + cyan
-          elsif warning_apps > 0 || warning_checks > 0
-            check_summary = [warning_apps > 0 ? "#{warning_apps} Apps" : nil,warning_checks > 0 ? "#{warning_checks} Checks" : nil].compact.join(", ")
-            red + "WARNING" + " (" + check_summary + ")" + cyan
+          if fail_apps > 0 # || fail_checks > 0
+            # check_summary = [fail_apps > 0 ? "#{fail_apps} Apps" : nil,fail_checks > 0 ? "#{fail_checks} Checks" : nil].compact.join(", ")
+            # red + "ERROR" + " (" + check_summary + ")" + cyan
+            red + "ERROR" + cyan
+          elsif warning_apps > 0 #|| warning_checks > 0
+            # check_summary = [warning_apps > 0 ? "#{warning_apps} Apps" : nil,warning_checks > 0 ? "#{warning_checks} Checks" : nil].compact.join(", ")
+            # red + "WARNING" + " (" + check_summary + ")" + cyan
+            yellow + "WARNING" + cyan
           else
             cyan + "HEALTHY" + cyan
           end
