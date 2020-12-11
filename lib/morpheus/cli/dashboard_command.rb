@@ -29,6 +29,9 @@ class Morpheus::Cli::DashboardCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
+      opts.on('-a', '--details', "Display all details: more instance usage stats, etc" ) do
+        options[:details] = true
+      end
       build_standard_list_options(opts, options)
       opts.footer = <<-EOT
 View Morpheus Dashboard.
@@ -58,12 +61,18 @@ This includes instance and backup counts, favorite instances, monitoring and rec
         "Running" => lambda {|it|
           format_number(it['instanceStats']['running']) rescue nil
         },
-        "Used Storage" => lambda {|it|
-          ((it['instanceStats']['maxStorage'].to_i > 0) ? ((it['instanceStats']['usedStorage'].to_f / it['instanceStats']['maxStorage'].to_f) * 100).round(1) : 0).to_s + '%' rescue nil
-        },
+        # "Used Storage" => lambda {|it|
+        #   ((it['instanceStats']['maxStorage'].to_i > 0) ? ((it['instanceStats']['usedStorage'].to_f / it['instanceStats']['maxStorage'].to_f) * 100).round(1) : 0).to_s + '%' rescue nil
+        # },
       }
       print as_description_list(json_response, status_column_definitions, options)
       # print reset,"\n"
+
+      stats = json_response['instanceStats']
+      if stats
+        print_h2 "Instance Usage", options
+        print_stats_usage(stats)
+      end
 
       print_h2 "Monitoring"
 
