@@ -74,18 +74,76 @@ This includes instance and backup counts, favorite instances, monitoring and rec
         print_stats_usage(stats, {include: [:max_cpu, :avg_cpu, :memory, :storage]})
       end
 
-      print_h2 "Monitoring"
+      
 
       open_incident_count = json_response['monitoring']['openIncidents'] rescue (json_response['appStatus']['openIncidents'] rescue nil)
-      if open_incident_count.nil? 
-        print yellow + "n/a" + cyan + "\n"
-      elsif open_incident_count == 0
-        print cyan + "0 Open Incidents" + cyan + "\n"
-      elsif open_incident_count == 1
-        print red + "1 Open Incident" + cyan + "\n"
-      else
-        print red + "#{open_incident_count} Open Incidents" + cyan + "\n"
+      
+      avg_response_time = json_response['monitoring']['avgResponseTime'] rescue nil
+      warning_apps = json_response['monitoring']['warningApps'] rescue 0
+      warning_checks = json_response['monitoring']['warningChecks'] rescue 0
+      fail_checks = json_response['monitoring']['failChecks'] rescue 0
+      fail_apps = json_response['monitoring']['failApps'] rescue 0
+      success_checks = json_response['monitoring']['successChecks'] rescue 0
+      success_apps = json_response['monitoring']['successApps'] rescue 0
+      monitoring_status_color = cyan
+      if fail_checks > 0 || fail_apps > 0
+        monitoring_status_color = red
+      elsif warning_checks > 0 || warning_apps > 0
+        monitoring_status_color = yellow
       end
+      
+      print_h2 "Monitoring"
+
+      # if open_incident_count.nil? 
+      #   print yellow + "n/a" + cyan + "\n"
+      # elsif open_incident_count == 0
+      #   print monitoring_status_color + "0 Open Incidents" + cyan + "\n"
+      # elsif open_incident_count == 1
+      #   print monitoring_status_color + "1 Open Incident" + cyan + "\n"
+      # else
+      #   print monitoring_status_color + "#{open_incident_count} Open Incidents" + cyan + "\n"
+      # end
+
+      
+      monitoring_column_definitions = {
+        "Status" => lambda {|it|
+          if fail_apps > 0 || fail_checks > 0
+            check_summary = [fail_apps > 0 ? "#{fail_apps} Apps" : nil,fail_checks > 0 ? "#{fail_checks} Checks" : nil].compact.join(", ")
+            red + "ERROR" + " (" + check_summary + ")" + cyan
+          elsif warning_apps > 0 || warning_checks > 0
+            check_summary = [warning_apps > 0 ? "#{warning_apps} Apps" : nil,warning_checks > 0 ? "#{warning_checks} Checks" : nil].compact.join(", ")
+            red + "WARNING" + " (" + check_summary + ")" + cyan
+          else
+            cyan + "HEALTHY" + cyan
+          end
+        },
+        # "Availability" => lambda {|it|
+        #   # todo
+        # },
+        "Response Time" => lambda {|it|
+          # format_number(avg_response_time).to_s + "ms"
+          (avg_response_time.round).to_s + "ms"
+        },
+        "Open Incidents" => lambda {|it|
+          monitoring_status_color = cyan
+          if fail_checks > 0 || fail_apps > 0
+            monitoring_status_color = red
+          elsif warning_checks > 0 || warning_apps > 0
+            monitoring_status_color = yellow
+          end
+          if open_incident_count.nil? 
+            yellow + "n/a" + cyan + "\n"
+          elsif open_incident_count == 0
+            monitoring_status_color + "0 Open Incidents" + cyan
+          elsif open_incident_count == 1
+            monitoring_status_color + "1 Open Incident" + cyan
+          else
+            monitoring_status_color + "#{open_incident_count} Open Incidents" + cyan
+          end
+        }
+      }
+      #print as_description_list(json_response, monitoring_column_definitions, options)
+      print as_pretty_table([json_response], monitoring_column_definitions.upcase_keys!, options)
 
       
       if json_response['logStats']
