@@ -136,12 +136,29 @@ This includes instance and backup counts, favorite instances, monitoring and rec
 
       
       if json_response['logStats']
-        print_h2 "Logs"
-
-        total_error_count = 0
+        # todo: should come from monitoring.startMs-endMs
+        log_period_display = "7 Days"
+        print_h2 "Logs (#{log_period_display})", options
         error_log_data = json_response['logStats']['data'].find {|it| it['key'].to_s.upcase == 'ERROR' }
-        if error_log_data && error_log_data['count'] && error_log_data['count'] > 0
-          total_error_count += error_log_data['count']
+        error_count = error_log_data["count"] rescue 0
+        fatal_log_data = json_response['logStats']['data'].find {|it| it['key'].to_s.upcase == 'FATAL' }
+        fatal_count = fatal_log_data["count"] rescue 0
+        # total error is actaully error + fatal
+        total_error_count = error_count + fatal_count
+        # if total_error_count.nil? 
+        #   print yellow + "n/a" + cyan + "\n"
+        # elsif total_error_count == 0
+        #   print cyan + "0 Errors" + cyan + "\n"
+        # elsif total_error_count == 1
+        #   print red + "1 Error" + cyan + "\n"
+        # else
+        #   print red + "#{total_error_count} Errors" + cyan + "\n"
+        # end
+        if total_error_count == 0
+          print cyan + "(0 Errors)" + cyan + "\n"
+          #print cyan + "0-0-0-0-0-0-0-0 (0 Errors)" + cyan + "\n"
+        end
+        if error_count > 0
           if error_log_data["values"]
             log_plot = ""
             plot_index = 0
@@ -156,12 +173,19 @@ This includes instance and backup counts, favorite instances, monitoring and rec
               end
               plot_index +=1
             end
-            puts log_plot
+            print log_plot
+            print " "
+            if error_count == 0
+              print cyan + "(0 Errors)" + cyan
+            elsif error_count == 1
+              print red + "(1 Errors)" + cyan
+            else
+              print red + "(#{error_count} Errors)" + cyan
+            end
+            print reset + "\n"
           end
         end
-        fatal_log_data = json_response['logStats']['data'].find {|it| it['key'].to_s.upcase == 'FATAL' }
-        if fatal_log_data && fatal_log_data['count'] && fatal_log_data['count'] > 0
-          total_error_count += fatal_log_data['count']
+        if fatal_count > 0
           if fatal_log_data["values"]
             log_plot = ""
             plot_index = 0
@@ -176,18 +200,17 @@ This includes instance and backup counts, favorite instances, monitoring and rec
               end
               plot_index +=1
             end
-            puts log_plot + red + " (FATAL)" + reset
+            print log_plot
+            print " "
+            if fatal_count == 0
+              print cyan + "(0 FATAL)" + cyan
+            elsif fatal_count == 1
+              print red + "(1 FATAL)" + cyan
+            else
+              print red + "(#{fatal_count} FATAL)" + cyan
+            end
+            print reset + "\n"
           end
-        end
-        
-        if total_error_count.nil? 
-          print yellow + "n/a" + cyan + "\n"
-        elsif total_error_count == 0
-          print cyan + "0 Errors" + cyan + "\n"
-        elsif total_error_count == 1
-          print red + "1 Error" + cyan + "\n"
-        else
-          print red + "#{total_error_count} Errors" + cyan + "\n"
         end
       end
 
