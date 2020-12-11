@@ -177,18 +177,13 @@ class Morpheus::Cli::BudgetsCommand
           if budget['startDate'] && budget['endDate'] && parse_time(budget['startDate']).year != parse_time(budget['endDate']).year
             multi_year = true
           end
-          budget['stats']['intervals'].each do |stat_interval|
+          budget['stats']['intervals'].each do |it|
             currency = budget['currency'] || budget['stats']['currency']
-            interval_key = (stat_interval['chartName'] || stat_interval['shortName'] || stat_interval['shortYear']).to_s.upcase
-            interval_date = parse_time(stat_interval["startDate"]) rescue nil
-            
-            # if interval_key == "Y1" && budget['year']
-            #   interval_key = "Year #{budget['year']}"
-            # end
-            # add simple column definition, just use the key
+            interval_key = format_budget_interval_label(budget, it).to_s.upcase
+            # interval_date = parse_time(it["startDate"]) rescue nil
             budget_summary_columns[interval_key] = interval_key
-            budget_cost = stat_interval["budget"].to_f
-            actual_cost = stat_interval["cost"].to_f
+            budget_cost = it["budget"].to_f
+            actual_cost = it["cost"].to_f
             over_budget = actual_cost > 0 && actual_cost > budget_cost
             if over_budget
               budget_row[interval_key] = "#{cyan}#{format_money(budget_cost, currency)}#{cyan}"
@@ -259,8 +254,8 @@ Examples:
 budgets add example-budget --interval "year" --costs "[2500]"
 budgets add example-qtr-budget --interval "quarter" --costs "[500,500,500,1000]"
 budgets add example-monthly-budget --interval "month" --costs "[400,100,100,100,100,100,100,100,100,100,400,800]"
-budgets add example-future-budget --period "2022" --interval "year" --costs "[5000]"
-budgets add example-custom-budget --period "custom" --interval "year" --costs "[2500,5000,10000] --start "2021-01-01" --end "2023-12-31"
+budgets add example-future-budget --year "2022" --interval "year" --costs "[5000]"
+budgets add example-custom-budget --year "custom" --interval "year" --costs "[2500,5000,10000] --start "2021-01-01" --end "2023-12-31"
 EOT
     end
     optparse.parse!(args)
@@ -293,6 +288,14 @@ EOT
         # prompt for options
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_budget_option_types, options[:options], @api_client)
         params.deep_merge!(v_prompt)
+        # downcase year 'custom' always
+        if params['year']
+          params['interval'] = params['interval'].to_s.downcase
+        end
+        # downcase interval always
+        if params['interval']
+          params['interval'] = params['interval'].to_s.downcase
+        end
         # parse MM/DD/YY but need to convert to to ISO format YYYY-MM-DD for api
         standard_start_date = (params['startDate'] ? Time.strptime(params['startDate'], "%x") : nil) rescue nil
         if standard_start_date
@@ -424,6 +427,14 @@ EOT
       #params = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options], @api_client, options[:params])
       v_prompt = Morpheus::Cli::OptionTypes.prompt(update_budget_option_types, options[:options].merge(:no_prompt => true), @api_client)
       params.deep_merge!(v_prompt)
+      # downcase year 'custom' always
+      if params['year']
+        params['interval'] = params['interval'].to_s.downcase
+      end
+      # downcase interval always
+      if params['interval']
+        params['interval'] = params['interval'].to_s.downcase
+      end
       # parse MM/DD/YY but need to convert to to ISO format YYYY-MM-DD for api
       if params['startDate']
         params['startDate'] = format_date(parse_time(params['startDate']), {format:"%Y-%m-%d"})
@@ -647,6 +658,9 @@ EOT
     elsif interval == 'quarter'
       interval_count = total_months / 3
     end
+    
+    is_fiscal = start_date.month != 1 || start_date.day != 1
+    is_next_year = start_date.month > 6 || (start_date.month == 6 && start_date.day != 1)
 
     # debug budget shenanigans
     # puts "START: #{start_date}"
@@ -665,8 +679,9 @@ EOT
       (1..interval_count).each_with_index do |interval_index, i|
         interval_start_month = epoch_start_month + (i * 12)
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
-        field_label = "#{interval_date.strftime('%Y')} Cost"
+        field_label = "#{display_year} Cost"
         cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     elsif interval == 'quarter'
@@ -674,16 +689,20 @@ EOT
         interval_start_month = epoch_start_month + (i * 3)
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
         interval_end_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
-        field_label = "Q#{interval_index} Cost"
+        # field_label = "Q#{interval_index} Cost"
+        field_label = "Q#{(i % 4) + 1} #{display_year} Cost"
         cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     elsif interval == 'month'
       (1..interval_count).each_with_index do |interval_index, i|
         interval_start_month = epoch_start_month + i
         interval_date = Time.new((interval_start_month / 12), (interval_start_month % 12) == 0 ? 12 : (interval_start_month % 12), 1)
+        display_year = is_fiscal ? "FY #{interval_date.year + (is_next_year ? 1 : 0)}" : interval_date.year.to_s
         field_name = "cost#{interval_index}"
-        field_label = "#{interval_date.strftime('%B %Y')} Cost"
+        # field_label = "#{interval_date.strftime('%B %Y')} Cost"
+        field_label = "#{interval_date.strftime('%B')} #{display_year} Cost"
         cost_option_types << {'fieldName' => field_name, 'fieldLabel' => field_label, 'type' => 'text', 'required' => true, 'defaultValue' => (default_costs[i] || 0).to_s}
       end
     end
@@ -709,6 +728,16 @@ EOT
   # convert String like "$5,499.99" to Float 5499.99
   def parse_cost_amount(val)
     val.to_s.gsub(",","").gsub('$','').strip.to_f
+  end
+
+  def format_budget_interval_label(budget, budget_interval)
+    label = ""
+    if budget_interval['chartName']
+      label = budget_interval['chartName']
+    else
+      label = (budget_interval['shortName'] || budget_interval['shortYear']).to_s
+    end
+    return label
   end
 
 end
