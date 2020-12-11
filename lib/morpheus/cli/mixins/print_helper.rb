@@ -448,7 +448,8 @@ module Morpheus::Cli::PrintHelper
 
     if opts[:bar_color] == :rainbow
       rainbow_bar = ""
-      cur_rainbow_color = white
+      cur_rainbow_color = reset # default terminal color
+      rainbow_bar << cur_rainbow_color
       bars.each_with_index {|bar, i|
         reached_percent = (i / max_bars.to_f) * 100
         new_bar_color = cur_rainbow_color
@@ -458,6 +459,8 @@ module Morpheus::Cli::PrintHelper
           new_bar_color = yellow
         elsif reached_percent > 10
           new_bar_color = cyan
+        else
+          new_bar_color = reset
         end
         if cur_rainbow_color != new_bar_color
           cur_rainbow_color = new_bar_color
@@ -471,7 +474,7 @@ module Morpheus::Cli::PrintHelper
         #rainbow_bar <<  " " * padding
       end
       rainbow_bar << reset
-      bar_display = white + "[" + rainbow_bar + white + "]" + " #{cur_rainbow_color}#{percent_label}#{reset}"
+      bar_display = cyan + "[" + rainbow_bar + cyan + "]" + " #{cur_rainbow_color}#{percent_label}#{reset}"
       out << bar_display
     elsif opts[:bar_color] == :solid
       bar_color = cyan
@@ -479,12 +482,16 @@ module Morpheus::Cli::PrintHelper
         bar_color = red
       elsif percent > 50
         bar_color = yellow
+      elsif percent > 10
+        bar_color = cyan
+      else
+        bar_color = reset
       end
-      bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
+      bar_display = cyan + "[" + bar_color + bars.join.ljust(max_bars, ' ') + cyan + "]" + " #{percent_label}" + reset
       out << bar_display
     else
-      bar_color = opts[:bar_color] || cyan
-      bar_display = white + "[" + bar_color + bars.join.ljust(max_bars, ' ') + white + "]" + " #{percent_label}" + reset
+      bar_color = opts[:bar_color] || reset
+      bar_display = cyan + "[" + bar_color + bars.join.ljust(max_bars, ' ') + cyan + "]" + " #{percent_label}" + reset
       out << bar_display
     end
     return out
