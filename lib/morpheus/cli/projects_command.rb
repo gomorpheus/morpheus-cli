@@ -42,7 +42,7 @@ class Morpheus::Cli::Projects
       opts.on('--owners [LIST]', Array, "Owner, comma separated list of usernames or IDs.") do |list|
         owner_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      build_standard_get_options(opts, options)
+      build_standard_list_options(opts, options)
       opts.footer = <<-EOT
 List projects.
 EOT
