@@ -19,6 +19,7 @@ class Morpheus::Cli::Instances
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
                        :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
+                       :lock, :unlock, :clone_image,
                        :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshot, :snapshots,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
@@ -1350,6 +1351,7 @@ class Morpheus::Cli::Instances
         "Shutdown Date" => lambda {|it| it['shutdownDate'] ? format_local_dt(it['shutdownDate']) : '' },
         "Nodes" => lambda {|it| it['containers'] ? it['containers'].count : 0 },
         "Connection" => lambda {|it| format_instance_connection_string(it) },
+        "Locked" => lambda {|it| format_boolean(it['locked']) },
         "Status" => lambda {|it| format_instance_status(it) }
       }
       description_cols.delete("Labels") if labels.nil? || labels.empty?
@@ -1359,6 +1361,7 @@ class Morpheus::Cli::Instances
       description_cols.delete("Shutdown Date") if instance['shutdownDate'].nil?
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
       description_cols.delete("Last Deployment") if instance['lastDeploy'].nil?
+      description_cols.delete("Locked") if instance['locked'] != true
       #description_cols.delete("Environment") if instance['instanceContext'].nil?
       print_description_list(description_cols, instance)
 
@@ -3886,6 +3889,117 @@ EOT
       print reset,"\n"
     end
     return 0
+  end
+
+  def clone_image(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      opts.on( '--name VALUE', String, "Image Name (Template Name). Default is server name + timestamp" ) do |val|
+        options[:options]['templateName'] = val
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Clone to image (template) for an instance
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+      if payload['templateName'].nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateName', 'type' => 'text', 'fieldLabel' => 'Image Name', 'description' => 'Choose a name for the new image template. Default is the server name + timestamp'}], options[:options])
+        if v_prompt['templateName'].to_s != ''
+          payload['templateName'] = v_prompt['templateName']
+        end
+      end
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.clone_image(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.clone_image(instance['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Clone Image initiated."
+    end
+    return 0, nil
+  end
+
+  def lock(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Lock an instance
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.lock(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.lock(instance['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Locked instance #{instance['name']}"
+    end
+    return 0, nil
+  end
+
+  def unlock(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Unlock an instance
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.unlock(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.unlock(instance['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Unlocked instance #{instance['name']}"
+    end
+    return 0, nil
   end
 
 private

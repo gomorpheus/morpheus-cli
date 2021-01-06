@@ -190,6 +190,27 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def clone_image(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/clone-image"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def lock(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/lock"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def unlock(id, payload)
+    url = "#{@base_url}/api/instances/#{id}/unlock"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def firewall_disable(id)
     url = "#{@base_url}/api/instances/#{id}/security-groups/disable"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
