@@ -117,6 +117,12 @@ class Morpheus::Cli::Hosts
       opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
+      opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
+        val.split(",").each do |k|
+          options[:labels] ||= []
+          options[:labels] << k.strip
+        end
+      end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
         val.split(",").each do |value_pair|
           k,v = value_pair.strip.split("=")
@@ -186,6 +192,7 @@ class Morpheus::Cli::Hosts
           params['clusterId'] = cluster['id']
         end
       end
+      params['labels'] = options[:labels] if options[:labels]
       if options[:tags] && !options[:tags].empty?
         options[:tags].each do |k,v|
           params['tags.' + k] = v
@@ -542,6 +549,7 @@ class Morpheus::Cli::Hosts
         "Name" => 'name',
         "Hostname" => 'hostname',
         "Description" => 'description',
+        "Labels" => lambda {|it| it['labels'] ? it['labels'].join(',') : '' },
         "Tags" => lambda {|it| tags ? format_metadata(tags) : '' },
         "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
@@ -566,6 +574,7 @@ class Morpheus::Cli::Hosts
       # server_columns.delete("Tenant") if multi_tenant != true
       server_columns.delete("Cost") if server['hourlyCost'].to_f == 0
       server_columns.delete("Price") if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
+      server_columns.delete("Labels") if server['labels'].nil? || server['labels'].empty?
       server_columns.delete("Tags") if tags.nil? || tags.empty?
 
       print_description_list(server_columns, server)
@@ -992,6 +1001,9 @@ class Morpheus::Cli::Hosts
       end
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
+      end
+      opts.on('--labels [LIST]', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        params['labels'] = val.to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val

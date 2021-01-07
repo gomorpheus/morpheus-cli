@@ -604,8 +604,8 @@ class Morpheus::Cli::Instances
       opts.on('--group GROUP', String, "Group Name or ID") do |val|
         options[:group] = val
       end
-      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        params['labels'] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      opts.on('--labels [LIST]', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        params['labels'] = val.to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
