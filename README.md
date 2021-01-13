@@ -2,7 +2,7 @@
 
 - Website: https://www.morpheusdata.com/
 - Guide: [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki)
-- Docs: [Morpheus Documentation](https://clidocs.morpheusdata.com)
+- Docs: [Morpheus CLI Documentation](https://clidocs.morpheusdata.com)
 - Support: [Morpheus Support](https://support.morpheusdata.com)
 
 <img src="https://morpheusdata.com/wp-content/uploads/2020/04/morpheus-logo-v2.svg" width="600px">
