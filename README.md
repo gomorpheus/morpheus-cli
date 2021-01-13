@@ -2,10 +2,10 @@
 
 - Website: https://www.morpheusdata.com/
 - Guide: [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki)
-- Docs: [Morpheus Documentation](https://docs.morpheusdata.com)
+- Docs: [Morpheus Documentation](https://clidocs.morpheusdata.com)
 - Support: [Morpheus Support](https://support.morpheusdata.com)
 
-<img src="https://www.morpheusdata.com/wp-content/uploads/2018/06/cropped-morpheus_highres.png" width="600px">
+<img src="https://morpheusdata.com/wp-content/uploads/2020/04/morpheus-logo-v2.svg" width="600px">
 
 This library is a Ruby gem that provides a command line interface for interacting with the Morpheus Data appliance. The features provided include provisioning clusters, hosts, and containers, deploying and monitoring applications, automating tasks, and much more.
 
