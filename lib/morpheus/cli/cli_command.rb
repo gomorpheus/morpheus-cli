@@ -486,12 +486,17 @@ module Morpheus
             end
 
             opts.on( '-S', '--sort ORDER', "Sort Order. DIRECTION may be included as \"ORDER [asc|desc]\"." ) do |v|
-              v_parts = v.to_s.split(" ")
-              if v_parts.size > 1
-                options[:sort] = v_parts[0]
-                options[:direction] = (v_parts[1].strip == "desc") ? "desc" : "asc"
-              else
+              if v.to_s.include?(",")
+                # sorting on multiple properties, just pass it as is, newer api supports multiple fields
                 options[:sort] = v
+              else
+                v_parts = v.to_s.split(" ")
+                if v_parts.size > 1
+                  options[:sort] = v_parts[0]
+                  options[:direction] = (v_parts[1].strip == "desc") ? "desc" : "asc"
+                else
+                  options[:sort] = v
+                end
               end
             end
 
