@@ -6,6 +6,7 @@ class Morpheus::Cli::UserSourcesCommand
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'user-sources'
+  set_command_description "View and manage user identity sources"
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :activate, :deactivate
@@ -43,49 +44,32 @@ class Morpheus::Cli::UserSourcesCommand
         account_id = val
       end
       opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
-      # opts.on('--technology VALUE', String, "Filter by technology") do |val|
-      #   params['provisionType'] = val
-      # end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List user sources."
+      build_standard_list_options(opts, options)
+      opts.footer = "List identity sources."
     end
     optparse.parse!(args)
     connect(options)
-    # instance is required right now.
-    # account_id = args[0] if !account_id
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
+      options[:phrase] = args.join(" ")
     end
-    begin
-      # construct payload
-      if account_id
-        account = find_account_by_name_or_id(account_id)
-        return 1 if account.nil?
-        account_id = account['id']
+    if account_id
+      account = find_account_by_name_or_id(account_id)
+      if account.nil?
+        return 1, "Tenant not found for '#{account_id}'"
       end
-      
-      params.merge!(parse_list_options(options))
-      @user_sources_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @user_sources_interface.dry.list(account_id, params)
-        return
-      end
-
-      json_response = @user_sources_interface.list(account_id, params)
-      if options[:json]
-        puts as_json(json_response, options, "userSources")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['userSources'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "userSources")
-        return 0
-      end
-      user_sources = json_response['userSources']
-      title = "Morpheus User Sources"
+      account_id = account['id']
+    end
+    params.merge!(parse_list_options(options))
+    @user_sources_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @user_sources_interface.dry.list(account_id, params)
+      return 0, nil
+    end
+    json_response = @user_sources_interface.list(account_id, params)
+    render_response(json_response, options, "userSources") do
+      user_sources = json_response["userSources"]
+      title = "Morpheus Identity Sources"
       subtitles = []
       if account
         subtitles << "Tenant: #{account['name']}".strip
@@ -93,82 +77,77 @@ class Morpheus::Cli::UserSourcesCommand
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if user_sources.empty?
-        if account
-          print cyan,"No user sources found for account #{account['name']}.",reset,"\n"
-        else
-          print cyan,"No user sources found.",reset,"\n"
-        end
+        print cyan,"No identity sources found.",reset,"\n"
       else
         print_user_sources_table(user_sources, options)
-        print_results_pagination(json_response, {:label => "user source", :n_label => "user sources"})
+        print_results_pagination(json_response)
       end
       print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
+    
   end
 
   def get(args)
-    options = {}
     params = {}
+    options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about an user source." + "\n" +
-                    "[name] is required. This is the name or id of an user source."
+      # opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
+      #   options[:show_config] = true
+      # end
+      # opts.on('--no-config', "Do not display Config YAML." ) do
+      #   options[:no_config] = true
+      # end
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about an identity source.
+[name] is required. This is the name or id of an identity source.
+EOT
     end
     optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
+    id_list = parse_id_list(args)
+    return run_command_for_each_arg(id_list) do |arg|
+      _get(arg, params, options)
     end
+  end
+
+  def _get(user_source_id, params, options)
     account_id = nil
     account = nil
-    user_source_id = args[0]
     # account_id = args[0]
     # account = find_account_by_name_or_id(account_id)
     # exit 1 if account.nil?
     # account_id = account['id']
     # user_source_id = args[1]
-    begin
-      @user_sources_interface.setopts(options)
-      if options[:dry_run]
-        if user_source_id.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @user_sources_interface.dry.get(account_id, user_source_id.to_i)
-        else
-          print_dry_run @user_sources_interface.dry.list(account_id, {name:user_source_id})
-        end
-        return
-      end
-      user_source = find_user_source_by_name_or_id(account_id, user_source_id)
-      if user_source.nil?
-        return 1
-      end
-      # fetch by id to get config too
-      json_response = nil
+    
+    @user_sources_interface.setopts(options)
+    if options[:dry_run]
       if user_source_id.to_s =~ /\A\d{1,}\Z/
-        json_response = {'userSource' => user_source}
+        print_dry_run @user_sources_interface.dry.get(account_id, user_source_id.to_i)
       else
-        json_response = @user_sources_interface.get(account_id, user_source['id'])
-        user_source = json_response['userSource']
+        print_dry_run @user_sources_interface.dry.list(account_id, {name:user_source_id})
       end
+      return
+    end
+    user_source = find_user_source_by_name_or_id(account_id, user_source_id)
+    if user_source.nil?
+      return 1
+    end
+    # fetch by id to get config too
+    json_response = nil
+    if user_source_id.to_s =~ /\A\d{1,}\Z/
+      json_response = {'userSource' => user_source}
+    else
+      json_response = @user_sources_interface.get(account_id, user_source['id'])
+      user_source = json_response['userSource']
+    end
       
-      #user_source = json_response['userSource']
-      if options[:json]
-        puts as_json(json_response, options, "userSource")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "userSource")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['userSource']], options)
-        return 0
-      end
-
-      print_h1 "User Source Details"
+    #user_source = json_response['userSource']
+    render_response(json_response, options, "userSource") do
+      print_h1 "Identity Source Details"
       print cyan
       description_cols = {
         "ID" => lambda {|it| it['id'] },
@@ -187,7 +166,7 @@ class Morpheus::Cli::UserSourcesCommand
 
       # show config settings...
       user_source_config = user_source['config']
-      print_h2 "User Source Config (#{user_source['type']})"
+      print_h2 "Configuration"
       if user_source_config
         columns = user_source_config.keys #.sort
         print_description_list(columns, user_source_config)
@@ -208,15 +187,27 @@ class Morpheus::Cli::UserSourcesCommand
           {"SOURCE ROLE FQN" => lambda {|it| it['sourceRoleFqn'] } },
         ]
         print as_pretty_table(role_mappings, role_mapping_columns)
+      else
+        print cyan,"No role mappings found for this identity source.","\n",reset
+      end
+      
+      provider_settings = user_source['providerSettings']
+      if provider_settings && !provider_settings.empty?
+        print_h2 "Provider Settings"
+        print_description_list({
+          "Entity ID" => lambda {|it| it['entityId'] },
+          "ACS URL" => lambda {|it| it['acsUrl'] }
+        }, provider_settings)
+        print_h2 "SP Metadata"
+        print cyan
+        print provider_settings['spMetadata']
         print "\n",reset
       else
-        print cyan,"No role mappings found for this user source.","\n",reset
+        # print cyan,"No provider settings found.","\n",reset
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+      print "\n",reset
     end
+    return 0, nil
   end
 
   def add(args)
@@ -229,17 +220,17 @@ class Morpheus::Cli::UserSourcesCommand
     default_role_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[account] [name]")
-      opts.on( '--tenant TENANT', String, "Tenant Name or ID the user source will belong to, default is your own." ) do |val|
+      opts.on( '--tenant TENANT', String, "Tenant Name or ID the identity source will belong to, default is your own." ) do |val|
         account_id = val
       end
-      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID the user source will belong to, default is your own." ) do |val|
+      opts.on( '-a', '--account ACCOUNT', "Tenant Name or ID the identity source will belong to, default is your own." ) do |val|
         account_id = val
       end
       opts.add_hidden_option('-a, --account') if opts.is_a?(Morpheus::Cli::OptionParser)
-      opts.on('--type CODE', String, "User Source Type") do |val|
+      opts.on('--type CODE', String, "Identity Source Type") do |val|
         type_code = val
       end
-      opts.on('--name VALUE', String, "Name for this user source") do |val|
+      opts.on('--name VALUE', String, "Name for this identity source") do |val|
         params['name'] = val
       end
       opts.on('--description VALUE', String, "Description") do |val|
@@ -276,7 +267,7 @@ class Morpheus::Cli::UserSourcesCommand
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
       build_standard_add_options(opts, options)
-      opts.footer = "Create a new user source." + "\n" +
+      opts.footer = "Create a new identity source." + "\n" +
                     "[account] is required. This is the name or id of an account."
     end
     optparse.parse!(args)
@@ -313,10 +304,10 @@ class Morpheus::Cli::UserSourcesCommand
       else
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
         
-        # User Source Type
+        # Identity Source Type
         user_source_types = @user_sources_interface.list_types({userSelectable: true})['userSourceTypes']
         if user_source_types.empty?
-          print_red_alert "No available User Source Types found"
+          print_red_alert "No available Identity Source Types found"
           return 1
         end
         user_source_type = nil
@@ -328,7 +319,7 @@ class Morpheus::Cli::UserSourcesCommand
         user_source_type = user_source_types.find { |it| it['type'] == type_code }
 
         if user_source_type.nil?
-          print_red_alert "User Source Type not found for '#{type_code}'"
+          print_red_alert "Identity Source Type not found for '#{type_code}'"
           return 1
         end
 
@@ -393,7 +384,7 @@ class Morpheus::Cli::UserSourcesCommand
         return 0
       end
       user_source = json_response['userSource']
-      print_green_success "Added User Source #{user_source['name']}"
+      print_green_success "Added Identity Source #{user_source['name']}"
       get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
       return 0
   end
@@ -406,7 +397,7 @@ class Morpheus::Cli::UserSourcesCommand
     role_mapping_names = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on('--name VALUE', String, "Name for this user source") do |val|
+      opts.on('--name VALUE', String, "Name for this identity source") do |val|
         params['name'] = val
       end
       opts.on('--description VALUE', String, "Description") do |val|
@@ -438,8 +429,8 @@ class Morpheus::Cli::UserSourcesCommand
         end
       end
       build_standard_update_options(opts, options)
-      opts.footer = "Update a user source." + "\n" +
-                    "[name] is required. This is the name or id of a user source."
+      opts.footer = "Update an identity source." + "\n" +
+                    "[name] is required. This is the name or id of an identity source."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -494,7 +485,7 @@ class Morpheus::Cli::UserSourcesCommand
         return
       end
 
-      print_green_success "Updated User Source #{params['name'] || user_source['name']}"
+      print_green_success "Updated Identity Source #{params['name'] || user_source['name']}"
       get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -511,8 +502,8 @@ class Morpheus::Cli::UserSourcesCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Activate a user source." + "\n" +
-                    "[name] is required. This is the name or id of a user source."
+      opts.footer = "Activate an identity source." + "\n" +
+                    "[name] is required. This is the name or id of an identity source."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -544,7 +535,7 @@ class Morpheus::Cli::UserSourcesCommand
         return
       end
 
-      print_green_success "Activated User Source #{user_source['name']}"
+      print_green_success "Activated Identity Source #{user_source['name']}"
       get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -561,8 +552,8 @@ class Morpheus::Cli::UserSourcesCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Deactivate a user source." + "\n" +
-                    "[name] is required. This is the name or id of a user source."
+      opts.footer = "Deactivate an identity source." + "\n" +
+                    "[name] is required. This is the name or id of an identity source."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -594,7 +585,7 @@ class Morpheus::Cli::UserSourcesCommand
         return
       end
 
-      print_green_success "Activated User Source #{user_source['name']}"
+      print_green_success "Activated Identity Source #{user_source['name']}"
       get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -608,12 +599,12 @@ class Morpheus::Cli::UserSourcesCommand
     account_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--subdomain VALUE', String, "New subdomain for this user source") do |val|
+      opts.on('--subdomain VALUE', String, "New subdomain for this identity source") do |val|
         params['subdomain'] = (val == 'null') ? nil : val
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update subdomain for a user source." + "\n" +
-                    "[name] is required. This is the name or id of a user source."
+      opts.footer = "Update subdomain for an identity source." + "\n" +
+                    "[name] is required. This is the name or id of an identity source."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -645,8 +636,8 @@ class Morpheus::Cli::UserSourcesCommand
         puts JSON.pretty_generate(json_response)
         return
       end
-      # JD: uhh this updates the account too, it cannot be set per user source ...yet
-      print_green_success "Updated User Source #{user_source['name']} subdomain to '#{payload['subdomain']}'"
+      # JD: uhh this updates the account too, it cannot be set per identity source ...yet
+      print_green_success "Updated Identity Source #{user_source['name']} subdomain to '#{payload['subdomain']}'"
       get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -672,7 +663,7 @@ class Morpheus::Cli::UserSourcesCommand
       user_source = find_user_source_by_name_or_id(nil, args[0])
       exit 1 if user_source.nil?
 
-      unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user source #{user_source['name']}?", options)
+      unless Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the identity source #{user_source['name']}?", options)
         exit
       end
       @user_sources_interface.setopts(options)
@@ -687,7 +678,7 @@ class Morpheus::Cli::UserSourcesCommand
         return
       end
 
-      print_green_success "Removed User Source #{user_source['name']}"
+      print_green_success "Removed Identity Source #{user_source['name']}"
       #list([])
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -703,7 +694,7 @@ class Morpheus::Cli::UserSourcesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List user source types."
+      opts.footer = "List identity source types."
     end
     optparse.parse!(args)
     connect(options)
@@ -735,7 +726,7 @@ class Morpheus::Cli::UserSourcesCommand
         return 0
       end
       user_source_types = json_response['userSourceTypes']
-      title = "Morpheus User Source Types"
+      title = "Morpheus Identity Source Types"
       subtitles = []
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
@@ -760,7 +751,7 @@ class Morpheus::Cli::UserSourcesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a user source type." + "\n" +
+      opts.footer = "Get details about an identity source type." + "\n" +
                     "[type] is required. This is the type identifier."
     end
     optparse.parse!(args)
@@ -776,13 +767,6 @@ class Morpheus::Cli::UserSourcesCommand
     begin
       user_source_type_id = args[0]
       
-      # all_user_source_types = @user_sources_interface.dry.list_types({})['userSourceTypes']
-      # user_source_type = all_user_source_types.find {|it| it['type'] == user_source_type_id }
-      # if !user_source_type
-      #   print_red_alert "User Source Type not found by id '#{user_source_type_id}'"
-      #   return 1
-      # end
-
       # construct payload
       @user_sources_interface.setopts(options)
       if options[:dry_run]
@@ -801,7 +785,7 @@ class Morpheus::Cli::UserSourcesCommand
         puts records_as_csv([user_source_type], options)
         return 0
       end
-      title = "User Source Type"
+      title = "Identity Source Type"
       subtitles = []
       print_h1 title, subtitles
       print cyan
@@ -860,7 +844,7 @@ class Morpheus::Cli::UserSourcesCommand
       return json_response['userSource']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "User Source not found by id #{id}"
+        print_red_alert "Identity Source not found by id #{id}"
       else
         raise e
       end
@@ -870,10 +854,10 @@ class Morpheus::Cli::UserSourcesCommand
   def find_user_source_by_name(account_id, name)
     user_sources = @user_sources_interface.list(account_id, {name: name.to_s})['userSources']
     if user_sources.empty?
-      print_red_alert "User Source not found by name #{name}"
+      print_red_alert "Identity Source not found by name #{name}"
       return nil
     elsif user_sources.size > 1
-      print_red_alert "#{user_sources.size} user sources found by name #{name}"
+      print_red_alert "#{user_sources.size} identity sources found by name #{name}"
       print_user_sources_table(user_sources, {color: red})
       print_red_alert "Try using ID instead"
       print reset,"\n"
@@ -979,7 +963,7 @@ class Morpheus::Cli::UserSourcesCommand
         {'fieldContext' => 'config', 'fieldName' => 'encryptionKey', 'type' => 'text', 'fieldLabel' => 'Encryption Key', 'required' => true, 'description' => ''},
       ]
     else
-      print "unknown user source type: #{type_code}"
+      print "unknown identity source type: #{type_code}"
       []
     end
   end
