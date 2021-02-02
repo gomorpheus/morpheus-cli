@@ -466,11 +466,16 @@ module Morpheus
 
           when :list
             opts.on( '-m', '--max MAX', "Max Results" ) do |val|
-              max = val.to_i
-              if max <= 0
-                raise ::OptionParser::InvalidArgument.new("must be a positive integer")
+              # api supports max=-1 for all at the moment..
+              if val.to_s == "all" || val.to_s == "-1"
+                options[:max] = "-1"
+              else
+                max = val.to_i
+                if max <= 0
+                  raise ::OptionParser::InvalidArgument.new("must be a positive integer")
+                end
+                options[:max] = max
               end
-              options[:max] = max
             end
 
             opts.on( '-o', '--offset OFFSET', "Offset Results" ) do |val|
