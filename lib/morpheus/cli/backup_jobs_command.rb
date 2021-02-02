@@ -10,7 +10,7 @@ class Morpheus::Cli::BackupJobsCommand
 
   set_command_name :'backup-jobs'
 
-  register_subcommands :list, :get, :add, :update, :remove, :run
+  register_subcommands :list, :get #, :add, :update, :remove, :run
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)

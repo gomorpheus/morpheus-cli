@@ -10,7 +10,7 @@ class Morpheus::Cli::BackupsCommand
   
   set_command_name :'backups'
 
-  register_subcommands :list, :get, :add, :update, :remove, :run, :restore
+  register_subcommands :list, :get #, :add, :update, :remove, :run, :restore
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -82,8 +82,7 @@ EOT
     end
   end
 
-  def _get(id, options)
-    params = {}
+  def _get(id, params, options)
     @backups_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @backups_interface.dry.get(id, params)
