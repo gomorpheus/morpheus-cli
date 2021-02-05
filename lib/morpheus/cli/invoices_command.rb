@@ -266,7 +266,7 @@ class Morpheus::Cli::InvoicesCommand
         columns += [
           {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
           {"ACTIVE" => lambda {|it| format_boolean(it['active']) } },
-          {"ITEMS" => lambda {|it| it['lineItems'].size rescue '' } },
+          {"ITEMS" => lambda {|it| (it['lineItemCount'] ? it['lineItemCount'] : it['lineItems'].size) rescue '' } },
           {"TAGS" => lambda {|it| (it['metadata'] || it['tags']) ? (it['metadata'] || it['tags']).collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' } },
         ]
         if show_projects
@@ -418,7 +418,7 @@ EOT
         "End" => lambda {|it| format_date(it['endDate']) },
         "Ref Start" => lambda {|it| format_dt(it['refStart']) },
         "Ref End" => lambda {|it| format_dt(it['refEnd']) },
-        "Items" => lambda {|it| it['lineItems'].size rescue '' },
+        "Items" => lambda {|it| (it['lineItemCount'] ? it['lineItemCount'] : it['lineItems'].size) rescue '' },
         "Tags" => lambda {|it| (it['metadata'] || it['tags']) ? (it['metadata'] || it['tags']).collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Project ID" => lambda {|it| it['project'] ? it['project']['id'] : '' },
         "Project Name" => lambda {|it| it['project'] ? it['project']['name'] : '' },
