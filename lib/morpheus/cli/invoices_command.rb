@@ -33,7 +33,6 @@ class Morpheus::Cli::InvoicesCommand
         options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
-        # options[:show_raw_data] = true
       end
       opts.on('--dates', "Display Ref Start, Ref End, etc.") do |val|
         options[:show_dates] = true
@@ -117,9 +116,6 @@ class Morpheus::Cli::InvoicesCommand
           options[:tags][k] << (v || '')
         end
       end
-      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
-        options[:show_raw_data] = true
-      end
       opts.on('--totals', "View total costs and prices for all the invoices found.") do |val|
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
@@ -173,7 +169,6 @@ class Morpheus::Cli::InvoicesCommand
       return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
       params['projectId'] = project_ids
     end
-    params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
     if options[:tags] && !options[:tags].empty?
       options[:tags].each do |k,v|
@@ -291,9 +286,6 @@ class Morpheus::Cli::InvoicesCommand
           {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
           {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
         ]
-        if options[:show_raw_data]
-          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
-        end
         unless options[:totals_only]
           print as_pretty_table(invoices, columns, options)
           print_results_pagination(json_response, {:label => "invoice", :n_label => "invoices"})
@@ -361,7 +353,6 @@ class Morpheus::Cli::InvoicesCommand
         options[:show_estimates] = true
         # options[:show_costs] = true
         options[:show_prices] = true
-        # options[:show_raw_data] = true
         options[:max_line_items] = 10000
       end
       opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
@@ -369,13 +360,6 @@ class Morpheus::Cli::InvoicesCommand
       end
       opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
         options[:show_estimates] = true
-      end
-      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
-        options[:show_raw_data] = true
-      end
-      opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
-        options[:show_raw_data] = true
-        options[:pretty_json] = true
       end
       opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
         options[:hide_line_items] = true
@@ -401,9 +385,6 @@ EOT
 
   def _get(id, options)
     params = {}
-    if options[:show_raw_data]
-      params['rawData'] = true
-    end
     begin
       @invoices_interface.setopts(options)
       if options[:dry_run]
@@ -523,9 +504,6 @@ EOT
           {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
           {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } }
         ]
-        if options[:show_raw_data]
-          line_items_columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
-        end
         print_h2 "Line Items"
         #max_line_items = options[:max_line_items] ? options[:max_line_items].to_i : 5
         paged_line_items = line_items #.first(max_line_items)
@@ -578,10 +556,7 @@ EOT
       end
       print as_pretty_table(cost_rows, cost_columns, options)
 
-      if options[:show_raw_data]
-        print_h2 "Raw Data"
-        puts as_json(invoice['rawData'], {pretty_json:false}.merge(options))
-      end
+      
 
       print reset,"\n"
       return 0
@@ -740,7 +715,6 @@ EOT
         options[:show_actual_costs] = true
         options[:show_costs] = true
         options[:show_prices] = true
-        # options[:show_raw_data] = true
       end
       # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Storage, Network, Extra" ) do
       #   options[:show_actual_costs] = true
@@ -829,9 +803,6 @@ EOT
           options[:tags][k] << (v || '')
         end
       end
-      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
-        options[:show_raw_data] = true
-      end
       opts.on('--totals', "View total costs and prices for all the invoices found.") do |val|
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
@@ -886,7 +857,6 @@ EOT
       return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
       params['projectId'] = project_ids
     end
-    params['rawData'] = true if options[:show_raw_data]
     params['refId'] = ref_ids unless ref_ids.empty?
     if options[:tags] && !options[:tags].empty?
       options[:tags].each do |k,v|
@@ -944,9 +914,6 @@ EOT
           "UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) }
         ]
 
-        if options[:show_raw_data]
-          columns += [{"RAW DATA" => lambda {|it| truncate_string(it['rawData'].to_s, 10) } }]
-        end
         # if options[:show_invoice_totals]
         #   line_item_totals = json_response['lineItemTotals']
         #   if line_item_totals
@@ -995,13 +962,6 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on('--raw-data', '--raw-data', "Display Raw Data, the cost data from the cloud provider's API.") do |val|
-        options[:show_raw_data] = true
-      end
-      opts.on('--pretty-raw-data', '--raw-data', "Display Raw Data that is a bit more pretty") do |val|
-        options[:show_raw_data] = true
-        options[:pretty_json] = true
-      end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
@@ -1023,9 +983,6 @@ EOT
 
   def _get_line_item(id, options)
     params = {}
-    if options[:show_raw_data]
-      params['rawData'] = true
-    end
     @invoice_line_items_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @invoice_line_items_interface.dry.get(id, params)
@@ -1063,11 +1020,6 @@ EOT
       }
       print_description_list(description_cols, line_item, options)
       
-      if options[:show_raw_data]
-        print_h2 "Raw Data"
-        puts as_json(line_item['rawData'], {pretty_json:false}.merge(options))
-      end
-
       print reset,"\n"
     end
     return 0, nil
