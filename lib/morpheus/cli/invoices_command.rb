@@ -393,6 +393,9 @@ EOT
       end
       json_response = @invoices_interface.get(id, params)
       invoice = json_response['invoice']
+      if options[:hide_line_items]
+        json_response['invoice'].delete('lineItems') rescue nil
+      end
       render_result = render_with_format(json_response, options, 'invoice')
       return 0 if render_result
 
