@@ -140,32 +140,32 @@ class Morpheus::Cli::InvoicesCommand
     # construct params
     params.merge!(parse_list_options(options))
     if options[:clouds]
-      cloud_ids = parse_cloud_id_list(options[:clouds])
+      cloud_ids = parse_cloud_id_list(options[:clouds], {}, false, true)
       return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
       params['zoneId'] = cloud_ids
     end
     if options[:groups]
-      group_ids = parse_group_id_list(options[:groups])
+      group_ids = parse_group_id_list(options[:groups], {}, false, true)
       return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
       params['siteId'] = group_ids
     end
     if options[:instances]
-      instance_ids = parse_instance_id_list(options[:instances])
+      instance_ids = parse_instance_id_list(options[:instances], {}, false, true)
       return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
       params['instanceId'] = instance_ids
     end
     if options[:servers]
-      server_ids = parse_server_id_list(options[:servers])
+      server_ids = parse_server_id_list(options[:servers], {}, false, true)
       return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
       params['serverId'] = server_ids
     end
     if options[:users]
-      user_ids = parse_user_id_list(options[:users])
+      user_ids = parse_user_id_list(options[:users], {}, false, true)
       return 1, "users not found for #{options[:users]}" if user_ids.nil?
       params['userId'] = user_ids
     end
     if options[:projects]
-      project_ids = parse_project_id_list(options[:projects])
+      project_ids = parse_project_id_list(options[:projects], {}, false, true)
       return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
       params['projectId'] = project_ids
     end
@@ -831,32 +831,32 @@ EOT
     # construct params
     params.merge!(parse_list_options(options))
     if options[:clouds]
-      cloud_ids = parse_cloud_id_list(options[:clouds])
+      cloud_ids = parse_cloud_id_list(options[:clouds], {}, false, true)
       return 1, "clouds not found for #{options[:clouds]}" if cloud_ids.nil?
       params['zoneId'] = cloud_ids
     end
     if options[:groups]
-      group_ids = parse_group_id_list(options[:groups])
+      group_ids = parse_group_id_list(options[:groups], {}, false, true)
       return 1, "groups not found for #{options[:groups]}" if group_ids.nil?
       params['siteId'] = group_ids
     end
     if options[:instances]
-      instance_ids = parse_instance_id_list(options[:instances])
+      instance_ids = parse_instance_id_list(options[:instances], {}, false, true)
       return 1, "instances not found for #{options[:instances]}" if instance_ids.nil?
       params['instanceId'] = instance_ids
     end
     if options[:servers]
-      server_ids = parse_server_id_list(options[:servers])
+      server_ids = parse_server_id_list(options[:servers], {}, false, true)
       return 1, "servers not found for #{options[:servers]}" if server_ids.nil?
       params['serverId'] = server_ids
     end
     if options[:users]
-      user_ids = parse_user_id_list(options[:users])
+      user_ids = parse_user_id_list(options[:users], {}, false, true)
       return 1, "users not found for #{options[:users]}" if user_ids.nil?
       params['userId'] = user_ids
     end
     if options[:projects]
-      project_ids = parse_project_id_list(options[:projects])
+      project_ids = parse_project_id_list(options[:projects], {}, false, true)
       return 1, "projects not found for #{options[:projects]}" if project_ids.nil?
       params['projectId'] = project_ids
     end
