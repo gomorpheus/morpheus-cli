@@ -636,37 +636,20 @@ Update an invoice.
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[--daily] [--costing] [--current] [-c CLOUD]")
-      opts.on( '--daily', "Refresh Daily Invoices" ) do
-        payload[:daily] = true
-      end
-      opts.on( '--costing', "Refresh Costing Data" ) do
-        payload[:costing] = true
-      end
-      opts.on( '--current', "Collect the most up to date costing data." ) do
-        payload[:current] = true
-      end
-      opts.on( '--date DATE', String, "Date to collect costing for. By default the cost data is collected for the end of the previous period." ) do |val|
-        payload[:date] = val.to_s
-      end
-      opts.on( '-c', '--cloud CLOUD', "Specify cloud(s) to refresh costing for." ) do |val|
+      opts.banner = subcommand_usage("[-c CLOUD]")
+      opts.on( '-c', '--clouds CLOUD', "Specify clouds to refresh costing for." ) do |val|
         payload[:clouds] ||= []
         payload[:clouds] << val
       end
-      opts.on( '--all', "Refresh costing for all clouds." ) do
+      opts.on( '--all', "Refresh costing for all clouds. This can be used instead of --clouds" ) do
         payload[:all] = true
       end
-      # opts.on( '-f', '--force', "Force Refresh" ) do
-      #   query_params[:force] = 'true'
-      # end
+      opts.on( '--date DATE', String, "Date to collect costing for. By default the cost data is collected for the end of the previous job interval (hour or day)." ) do |val|
+        payload[:date] = val.to_s
+      end
       build_standard_update_options(opts, options, [:query, :auto_confirm])
       opts.footer = <<-EOT
-Refresh invoices.
-By default, nothing is changed.
-Include --daily to regenerate invoice records.
-Include --costing to refresh actual costing data.
-Include --current to refresh costing data for the actual current time.
-To get the latest invoice costing data, include --daily --costing --current --all 
+Refresh invoice costing data for the specified clouds.
 EOT
     end
     optparse.parse!(args)
@@ -677,17 +660,11 @@ EOT
       payload = options[:payload]
     end
     payload.deep_merge!(parse_passed_options(options))
-    # --clouds
+    # --clouds lookup ID for name
     if payload[:clouds]
-      payload[:clouds] = parse_id_list(payload[:clouds]).collect {|cloud_id|
-        if cloud_id.to_s =~ /\A\d{1,}\Z/
-          cloud_id
-        else
-          cloud = find_cloud_option(cloud_id)
-          return 1 if cloud.nil?
-          cloud['id']
-        end
-      }
+      cloud_ids = parse_cloud_id_list(payload[:clouds], {}, false, true)
+      return 1, "clouds not found for #{payload[:clouds]}" if cloud_ids.nil?
+      payload[:clouds] = cloud_ids
     end
     # are you sure?
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to refresh invoices?")
