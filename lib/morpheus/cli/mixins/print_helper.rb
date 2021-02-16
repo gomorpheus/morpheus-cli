@@ -720,6 +720,7 @@ module Morpheus::Cli::PrintHelper
       columns.each do |column_def|
         # r << column_def.display_method.respond_to?(:call) ? column_def.display_method.call(row_data) : get_object_value(row_data, column_def.display_method)
         value = column_def.display_method.call(row_data)        
+        value = JSON.fast_generate(value) unless value.is_a?(String)
         row << value
       end
       rows << row
@@ -802,6 +803,7 @@ module Morpheus::Cli::PrintHelper
           columns.each do |column_def|
             # r << column_def.display_method.respond_to?(:call) ? column_def.display_method.call(row_data) : get_object_value(row_data, column_def.display_method)
             value = column_def.display_method.call(row_data)        
+            value = JSON.fast_generate(value) unless value.is_a?(String)
             row << value
           end
           rows << row
@@ -879,6 +881,7 @@ module Morpheus::Cli::PrintHelper
       label = label.upcase if ALL_LABELS_UPCASE
       # value = get_object_value(obj, column_def.display_method)
       value = column_def.display_method.call(obj)
+      value = JSON.fast_generate(value) unless value.is_a?(String)
       if label.size > max_label_width
         max_label_width = label.size
       end
