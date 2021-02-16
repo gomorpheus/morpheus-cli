@@ -1276,7 +1276,8 @@ EOT
 
   def format_remote_details(appliance, options={})
     columns = {
-      "Name" => :name,
+      #"Name" => :name,
+      "Name" => lambda {|it| it[:name].to_s },
       #"Name" => lambda {|it| it[:active] ? "#{it[:name]} #{bold}(current)#{reset}#{cyan}" : it[:name] },
       "URL" => lambda {|it| it[:url] || it[:host] },
       #"Status" => lambda {|it| format_appliance_status(it, cyan) },
