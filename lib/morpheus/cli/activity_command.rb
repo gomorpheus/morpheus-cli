@@ -22,6 +22,9 @@ class Morpheus::Cli::ActivityCommand
     params, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-a', '--details', "Display more details object id, full date and time, etc." ) do
+        options[:details] = true
+      end
       opts.on('-t','--type TYPE', "Activity Type eg. Provisioning, Admin") do |val|
         options[:type] ||= []
         options[:type] << val
@@ -115,20 +118,20 @@ EOT
           # {"SEVERITY" => lambda {|record| format_activity_severity(record['severity']) } },
           {"TYPE" => lambda {|record| record['activityType'] } },
           {"NAME" => lambda {|record| record['name'] } },
-          {"RESOURCE" => lambda {|record| "#{record['objectType']} #{record['objectId']}" } },
+          options[:details] ? {"RESOURCE" => lambda {|record| "#{record['objectType']} #{record['objectId']}" } } : nil,
           {"MESSAGE" => lambda {|record| record['message'] || '' } },
           {"USER" => lambda {|record| record['user'] ? record['user']['username'] : record['userName'] } },
           #{"DATE" => lambda {|record| "#{format_duration_ago(record['ts'] || record['timestamp'])}" } },
           {"DATE" => lambda {|record| 
-            # show full time if searching for custom timerange, otherwise the default is to show relative time
-            if params['start'] || params['end'] || params['timeframe']
+            # show full time if searching for custom timerange or --details, otherwise the default is to show relative time
+            if params['start'] || params['end'] || params['timeframe'] || options[:details]
               "#{format_local_dt(record['ts'] || record['timestamp'])}"
             else
               "#{format_duration_ago(record['ts'] || record['timestamp'])}"
             end
 
           } },
-        ]
+        ].compact
         print as_pretty_table(activity, columns, options)
         print_results_pagination(json_response)
       end

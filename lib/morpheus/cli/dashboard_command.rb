@@ -272,20 +272,20 @@ This includes instance and backup counts, favorite instances, monitoring and rec
           # {"SEVERITY" => lambda {|record| format_activity_severity(record['severity']) } },
           {"TYPE" => lambda {|record| record['activityType'] } },
           {"NAME" => lambda {|record| record['name'] } },
-          {"RESOURCE" => lambda {|record| "#{record['objectType']} #{record['objectId']}" } },
+          options[:details] ? {"RESOURCE" => lambda {|record| "#{record['objectType']} #{record['objectId']}" } } : nil,
           {"MESSAGE" => lambda {|record| record['message'] || '' } },
           {"USER" => lambda {|record| record['user'] ? record['user']['username'] : record['userName'] } },
           #{"DATE" => lambda {|record| "#{format_duration_ago(record['ts'] || record['timestamp'])}" } },
           {"DATE" => lambda {|record| 
             # show full time if searching for custom timerange, otherwise the default is to show relative time
-            if params['start'] || params['end'] || params['timeframe']
+            if params['start'] || params['end'] || params['timeframe'] || options[:details]
               "#{format_local_dt(record['ts'] || record['timestamp'])}"
             else
               "#{format_duration_ago(record['ts'] || record['timestamp'])}"
             end
 
           } },
-        ]
+        ].compact
         print as_pretty_table(activity, columns, options)
         # print_results_pagination(json_response)
         # print reset,"\n"
