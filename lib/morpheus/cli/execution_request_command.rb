@@ -31,6 +31,10 @@ class Morpheus::Cli::ExecutionRequestCommand
     handle_subcommand(args)
   end
 
+  def default_refresh_interval
+    5
+  end
+
   def get(args)
     raw_args = args
     options = {}
@@ -134,7 +138,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     options = {}
     params = {}
     script_content = nil
-    do_refresh = true
+    options[:refresh_until_finished] = true
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[options]")
       opts.on('--server ID', String, "Server ID") do |val|
@@ -161,8 +165,14 @@ class Morpheus::Cli::ExecutionRequestCommand
           exit 1
         end
       end
-      opts.on(nil, '--no-refresh', "Do not refresh until finished" ) do
-        do_refresh = false
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_until_finished] = true
+        if !val.to_s.empty?
+          options[:refresh_interval] = val.to_f
+        end
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh. The default behavior is to refresh until finished." ) do
+        options[:refresh_until_finished] = false
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -212,8 +222,8 @@ class Morpheus::Cli::ExecutionRequestCommand
       end
       execution_request = json_response['executionRequest']
       print_green_success "Executing request #{execution_request['uniqueId']}"
-      if do_refresh
-        get([execution_request['uniqueId'], "--refresh"] + (options[:remote] ? ["-r",options[:remote]] : []))
+      if options[:refresh_until_finished]
+        get([execution_request['uniqueId'], "--refresh", options[:refresh_interval] ? options[:refresh_interval].to_s : nil].compact + (options[:remote] ? ["-r",options[:remote]] : []))
       else
         get([execution_request['uniqueId']] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
