@@ -14,14 +14,14 @@ class Morpheus::Cli::HistoryCommand
   # AND start logging every terminal command, not just shell...
   def handle(args)
     options = {show_pagination:false}
-    optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = "Usage: morpheus #{command_name} [search]"
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = "Usage: #{prog_name} #{command_name} [search]"
       # -n is a hidden alias for -m
       opts.on( '-n', '--max-commands MAX', "Alias for -m, --max option." ) do |val|
         options[:max] = val
       end
       opts.add_hidden_option('-n')
-      opts.on( '-p', '--pagination', "Display pagination and count info eg. Viewing 1-M of N" ) do
+      opts.on( '-p', '--pagination', "Display pagination and count info eg. Viewing 1-25 of 42" ) do
         options[:show_pagination] = true
       end
       opts.on( nil, '--flush', "Flush history, purges entire shell history file." ) do
@@ -38,10 +38,9 @@ Examples:
     history "instances list"
     history --flush
 
-The most recently executed commands are seen by default.  Use --reverse to see the oldest commands.
+The most recently executed commands are seen by default.  Use --desc to see the oldest commands.
 EOT
     end
-    raw_cmd = "#{command_name} #{args.join(' ')}"
     optparse.parse!(args)
     # verify_args!(args:args, count: 0, optparse:optparse)
     if args.count > 0
