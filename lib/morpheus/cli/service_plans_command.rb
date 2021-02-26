@@ -427,7 +427,10 @@ class Morpheus::Cli::ServicePlanCommand
         # permissions
         if !options[:no_prompt]
           perms = prompt_permissions(options, ['plans', 'groupDefaults'])
-          params['visibility'] = perms.delete('resourcePool')['visibility']
+          if perms['resourcePool'] && !perms['resourcePool']['visibility'].nil?
+            params['visibility'] = perms['resourcePool']['visibility']
+          end
+          perms.delete('resourcePool')
           params['permissions'] = perms
         end
         payload = {'servicePlan' => params}

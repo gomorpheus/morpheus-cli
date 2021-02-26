@@ -934,6 +934,9 @@ class Morpheus::Cli::Clusters
         end
       else
         payload = {"permissions" => prompt_permissions(options.merge({:available_plans => namespace_service_plans}))}
+        # if payload["permissions"] && payload["permissions"]["resourcePool"]
+        #   payload["permissions"].delete("resourcePool")
+        # end
       end
 
       @clusters_interface.setopts(options)
@@ -3897,8 +3900,8 @@ class Morpheus::Cli::Clusters
     perms = prompt_permissions(options.merge({:available_plans => namespace_service_plans}))
     if perms['resourcePool'] && !perms['resourcePool']['visibility'].nil?
       rtn['visibility'] = perms['resourcePool']['visibility']
-      perms.delete('resourcePool')
     end
+    perms.delete('resourcePool')
     rtn['permissions'] = perms
     rtn
   end
