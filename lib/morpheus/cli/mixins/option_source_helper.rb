@@ -178,7 +178,7 @@ module Morpheus::Cli::OptionSourceHelper
   # todo: some other common ones, accounts (tenants), etc.
   # todo: a generic set of parse and find methods like 
   # like this:
-  def parse_option_source_id_list(option_source, id_list, api_params={}, refresh=false)
+  def parse_option_source_id_list(option_source, id_list, api_params={}, refresh=false, allow_any_id=false)
     option_source_label = option_source.to_s # .capitalize
     option_data = load_option_source_data(option_source, api_params, refresh)
     found_ids = []
@@ -189,9 +189,8 @@ module Morpheus::Cli::OptionSourceHelper
         # never match blank nil or empty strings
         print_red_alert "#{option_source_label} cannot be not found by with a blank id!"
         return nil
-      # elsif record_id.to_s =~ /\A\d{1,}\Z/
-      #   # always allow any ID for now..
-      #   found_ids << record_id
+      elsif allow_any_id && record_id.to_s =~ /\A\d{1,}\Z/
+        found_ids << record_id.to_i
       else
         # search with in a presedence by value, then name, then id (usually same as value)
         # exact match on value first.
@@ -228,28 +227,28 @@ module Morpheus::Cli::OptionSourceHelper
     return found_ids
   end
 
-  def parse_cloud_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('clouds', id_list, api_params, refresh)
+  def parse_cloud_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+    parse_option_source_id_list('clouds', id_list, api_params, refresh, allow_any_id)
   end
 
-  def parse_group_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('groups', id_list, api_params, refresh)
+  def parse_group_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+    parse_option_source_id_list('groups', id_list, api_params, refresh, allow_any_id)
   end
 
-  def parse_user_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('users', id_list, api_params, refresh)
+  def parse_user_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+    parse_option_source_id_list('users', id_list, api_params, refresh, allow_any_id)
   end
 
-  def parse_tenant_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('allTenants', id_list, api_params, refresh)
+  def parse_tenant_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+    parse_option_source_id_list('allTenants', id_list, api_params, refresh, allow_any_id)
   end
 
-  # def parse_blueprints_id_list(id_list)
-  #   parse_option_source_id_list('blueprints', id_list, api_params, refresh)
+  # def parse_blueprints_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+  #   parse_option_source_id_list('blueprints', id_list, api_params, refresh, allow_any_id)
   # end
 
-  def parse_project_id_list(id_list, api_params={}, refresh=false)
-    parse_option_source_id_list('projects', id_list, api_params, refresh)
+  def parse_project_id_list(id_list, api_params={}, refresh=false, allow_any_id=false)
+    parse_option_source_id_list('projects', id_list, api_params, refresh, allow_any_id)
   end
 
 end
