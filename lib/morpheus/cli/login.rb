@@ -36,6 +36,13 @@ class Morpheus::Cli::Login
       opts.on( '-p', '--password PASSWORD', "Password" ) do |val|
         password = val
       end
+      opts.on( '--password-file FILE', String, "Password File, read a file containing the password." ) do |val|
+        password_file = File.expand_path(val)
+        if !File.exists?(password_file) || !File.file?(password_file) # check readable too
+          raise ::OptionParser::InvalidOption.new("File not found: #{password_file}")
+        end
+        password = File.read(password_file) #.to_s.split("\n").first.strip
+      end
       opts.on( '-t', '--test', "Test credentials only, does not update stored credentials for the appliance." ) do
         options[:test_only] = true
       end
