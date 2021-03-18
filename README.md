@@ -23,8 +23,6 @@ And then execute:
 
     $ bundle install
 
-
-
 ## Usage
 
 ### morpheus command
@@ -32,7 +30,7 @@ And then execute:
 This gem installs the [morpheus](https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual) binary for running commands in your terminal shell. 
 
 ```sh
-morpheus remote add demo https://demo.mymorpheus.com
+morpheus remote add
 morpheus instances list
 ```
 

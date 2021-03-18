@@ -341,12 +341,12 @@ You can use this to create isolated environments (sandboxes), within which to ex
 
 ```shell
 export MORPHEUS_CLI_HOME=~/morpheus_test
-morpheus remote add demo https://demo.mymorpheus.com --insecure
+morpheus remote add demo https://demo-morpheus --insecure
 morpheus instances list
 ```
 
 Morpheus saves the remote appliance information, including api access tokens, 
-to the $MORPHEUS_HOME_DIRECTORY. These files are saved with file permissions **6000**.
+to the CLI home directory. These files are saved with file permissions **6000**.
 So, only one system user should be allowed to execute morpheus with that home directory.
 See [Configuration](#Configuration) for more information on the files morpheus reads and writes.
 
@@ -363,10 +363,9 @@ The `appliances` YAML file contains a list of known appliances, keyed by name.
 Example:
 ```yaml
 :qa:
-  :host: https://qa.mymorpheus.com
-  :active: true
+  :host: https://qa-morpheus
 :production:
-  :host: https://mymorpheus.com
+  :host: https://production-morpheus
 ```
 
 ### credentials file
