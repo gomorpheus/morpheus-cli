@@ -19,17 +19,25 @@ module Morpheus
   #
   # ==== Example Usage
   #
-  #    morph = Morpheus::Terminal.new
-  #    exit_code, err = morph.execute("instances list -m 10")
+  #    require 'morpheus/terminal'
+  #
+  #    # Write output to STDOUT is the default behavior
+  #
+  #    terminal = Morpheus::Terminal.new
+  #    exit_code, err = terminal.execute("instances list -m 10")
   #    assert exit_code == 0
   #    assert err == nil
   #
-  #    morph = Morpheus::Terminal.new(STDIN, File.new("/tmp/morph.log", "w+"))
-  #    morph.execute("hosts get 23")
+  #    # Write command output to a file instead
+  #    terminal = Morpheus::Terminal.new(stdout: File.new("morpheus-terminal.log", "w+"))
+  #    terminal.execute("version")
+  #    terminal.execute("instances list")
+  #    terminal.execute("apps list")
   #
-  #    morph = Morpheus::Terminal.new(STDIN, File.new("/tmp/host23.json", "w"))
-  #    morph.execute("hosts get 23 --json")
-  #    puts File.read("/tmp/host23.json")
+  #    # Overwrite file with output of a command
+  #    terminal = Morpheus::Terminal.new(stdout: File.new("instance23.json", "w"))
+  #    terminal.execute("instances get 23 --json")
+  #    puts "Instance 23 Details: ", File.read("instance23.json")
   #
   class Terminal
     include Morpheus::Benchmarking::HasBenchmarking
