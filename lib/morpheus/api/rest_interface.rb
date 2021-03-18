@@ -1,5 +1,7 @@
 require 'morpheus/api/api_client'
 
+# Interface class to be subclassed by interfaces that provide CRUD endpoints
+# Subclasses must override the base_path method
 class Morpheus::RestInterface < Morpheus::APIClient
 
   # subclasses should override in your interface

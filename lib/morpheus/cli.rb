@@ -46,6 +46,7 @@ module Morpheus
       # load interfaces
       require 'morpheus/api/api_client.rb'
       require 'morpheus/api/rest_interface.rb'
+      require 'morpheus/api/read_interface.rb'
       Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
 
       # load mixins

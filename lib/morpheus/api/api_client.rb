@@ -431,7 +431,11 @@ class Morpheus::APIClient
   end
 
   def integrations
-    Morpheus::IntegrationsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::IntegrationsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def integration_types
+    Morpheus::IntegrationTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def jobs
