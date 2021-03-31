@@ -346,7 +346,7 @@ class Morpheus::Cli::ReportsCommand
       report_result = find_report_result_by_id(args[0])
       return 1 if report_result.nil?
 
-      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/operations/reports/#{report_result['type']['code']}/reportResults/#{report_result['id']}"
+      link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=/operations/reports/#{report_result['type']['code']}/results/#{report_result['id']}%3Fcontext=results"
 
       if options[:dry_run]
         puts Morpheus::Util.open_url_command(link)
