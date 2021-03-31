@@ -181,7 +181,7 @@ class Morpheus::Cli::NetworkDomainsCommand
         options['name'] = val
       end
       opts.on('--description VALUE', String, "Description for this network domain") do |val|
-        options['type'] = val
+        options['description'] = val
       end
       opts.on('--public-zone [on|off]', String, "Public Zone") do |val|
         options['publicZone'] = val.to_s == 'on' || val.to_s == 'true'
