@@ -987,8 +987,6 @@ class Morpheus::Cli::Clouds
       end
     end
 
-    tmp_option_types = tmp_option_types.sort_by { |k| k["displayOrder"] }
-
     # TODO:
     # Advanced Options
     ## (a whole bunch needed here)
