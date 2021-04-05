@@ -521,10 +521,10 @@ class Morpheus::Cli::NetworksCommand
         if options['cidr']
           payload['network']['cidr'] = options['cidr']
         else
-          #if network_type['cidrEditable']
+          if network_type['cidrEditable']
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
             payload['network']['cidr'] = v_prompt['cidr']
-          #end
+          end
         end
 
         # Gateway
