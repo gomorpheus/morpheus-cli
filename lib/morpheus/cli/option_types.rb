@@ -78,6 +78,7 @@ module Morpheus
           if !option_type['visibleOnCode'].to_s.empty?
             visible_option_check_value = option_type['visibleOnCode']
           end
+
           if !visible_option_check_value.to_s.empty?
             # support formats code=value or code:value OR code:(value|value2|value3)
             # OR fieldContext.fieldName=value
@@ -103,6 +104,7 @@ module Morpheus
               # dependent option type has a different value
               depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
               found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
+
               if depends_on_values.size > 0
                 # must be in the specified values
                 # todo: uhh this actually needs to change to parse regex

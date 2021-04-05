@@ -313,6 +313,7 @@ class Morpheus::Cli::Clouds
         end
 
         all_option_types = add_cloud_option_types(cloud_type)
+
         params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {zoneTypeId: cloud_type['id']})
         # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
         if params['zone'].is_a?(Hash)
@@ -985,6 +986,8 @@ class Morpheus::Cli::Clouds
         tmp_option_types << opt.merge({'displayOrder' => opt['displayOrder'].to_i + 100})
       end
     end
+
+    tmp_option_types = tmp_option_types.sort_by { |k| k["displayOrder"] }
 
     # TODO:
     # Advanced Options
