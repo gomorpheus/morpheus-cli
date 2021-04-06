@@ -349,7 +349,7 @@ class Morpheus::Cli::SubnetsCommand
         subnet_type_option_types = subnet_type['optionTypes']
         if subnet_type_option_types && subnet_type_option_types.size > 0
           # prompt for option types
-          subnet_type_params = Morpheus::Cli::OptionTypes.prompt(subnet_type_option_types,options[:options],@api_client, {networkId: network['id']})
+          subnet_type_params = Morpheus::Cli::OptionTypes.prompt(subnet_type_option_types,options[:options],@api_client, {networkId: network['id'], zoneId: network['zone']['id']})
           payload['subnet'].deep_merge!(subnet_type_params)
 
         else
@@ -363,6 +363,14 @@ class Morpheus::Cli::SubnetsCommand
           #   payload['subnet']['cidr'] = v_prompt['cidr']
           # end
 
+        end
+
+        # CIDR
+        if options['cidr']
+          payload['subnet']['cidr'] = options['cidr']
+        elsif !subnet_type['code'].include? 'azure'
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => true, 'description' => ''}], options)
+          payload['subnet']['cidr'] = v_prompt['cidr']
         end
 
         # DHCP
@@ -432,6 +440,7 @@ class Morpheus::Cli::SubnetsCommand
         print_dry_run @subnets_interface.dry.create(network['id'], payload)
         return
       end
+
       json_response = @subnets_interface.create(network['id'], payload)
       if options[:json]
         puts as_json(json_response, options)
