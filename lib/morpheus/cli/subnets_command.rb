@@ -350,7 +350,7 @@ class Morpheus::Cli::SubnetsCommand
         if subnet_type_option_types && subnet_type_option_types.size > 0
           # prompt for option types
           subnet_type_params = Morpheus::Cli::OptionTypes.prompt(subnet_type_option_types,options[:options],@api_client, {networkId: network['id'], zoneId: network['zone']['id']})
-          payload['subnet'].deep_merge!(subnet_type_params)
+          payload['subnet'].deep_merge!(subnet_type_params['subnet'])
 
         else
           # DEFAULT INPUTS
