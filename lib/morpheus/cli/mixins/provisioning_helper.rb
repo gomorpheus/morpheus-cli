@@ -696,7 +696,7 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for service plan
     plan_id = nil
     service_plan = nil
-    service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
+    service_plans_json = instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
     service_plans = service_plans_json["plans"]
     if locked_fields.include?('plan.id')
       plan_id = options[:options]['plan']['id'] rescue nil
@@ -764,7 +764,7 @@ module Morpheus::Cli::ProvisioningHelper
         # pluck out the resourcePoolId option type to prompt for
         resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
         option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-        resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})['data']
+        resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})['data']
         resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
 
         if resource_pool

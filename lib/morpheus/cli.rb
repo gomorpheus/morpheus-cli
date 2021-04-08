@@ -176,9 +176,13 @@ module Morpheus
       load 'morpheus/cli/projects_command.rb'
       load 'morpheus/cli/backups_command.rb'
       load 'morpheus/cli/backup_jobs_command.rb'
-      load 'morpheus/cli/catalog_item_types_command.rb' # catalog-types
-      load 'morpheus/cli/service_catalog_command.rb' # catalog
+      load 'morpheus/cli/catalog_item_types_command.rb' # self-service
+      load 'morpheus/cli/service_catalog_command.rb' # catalog (Service Catalog persona)
       load 'morpheus/cli/usage_command.rb'
+      load 'morpheus/cli/vdi_pools_command.rb'
+      load 'morpheus/cli/vdi_apps_command.rb'
+      load 'morpheus/cli/vdi_gateways_command.rb'
+      load 'morpheus/cli/vdi_command.rb' # (VDI persona)
       # add new commands here...
 
     end

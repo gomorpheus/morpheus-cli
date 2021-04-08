@@ -542,10 +542,6 @@ class Morpheus::APIClient
     Morpheus::LicenseInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
-  def custom_instance_types
-    Morpheus::CustomInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
-  end
-
   def option_types
     Morpheus::OptionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
@@ -790,6 +786,22 @@ class Morpheus::APIClient
 
   def billing
     Morpheus::BillingInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def vdi
+    Morpheus::VdiInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def vdi_pools
+    Morpheus::VdiPoolsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def vdi_apps
+    Morpheus::VdiAppsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def vdi_gateways
+    Morpheus::VdiGatewaysInterface.new(common_interface_options).setopts(@options)
   end
   
   # add new interfaces here

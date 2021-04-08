@@ -262,6 +262,12 @@ EOT
       params['type'] = integration_type['code']
       config_option_types = integration_type['optionTypes'] || []
       #config_option_types = config_option_types.sort { |x,y| x["displayOrder"] <=> y["displayOrder"] }
+      # optionTypes do not need fieldContext: 'integration'
+      config_option_types.each do |opt|
+        if opt['fieldContext'] == 'integration' || opt['fieldContext'] == 'domain'
+          opt['fieldContext'] = nil
+        end
+      end
       if config_option_types.size > 0
         config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, options[:params])
         config_prompt.deep_compact!

@@ -6,7 +6,7 @@ class Morpheus::Cli::UserSettingsCommand
 
   set_command_name :'user-settings'
 
-  register_subcommands :get, :update, :'update-avatar', :'view-avatar', :'regenerate-access-token', :'clear-access-token', :'list-clients'
+  register_subcommands :get, :update, :'update-avatar', :'remove-avatar', :'view-avatar', :'update-desktop-background', :'remove-desktop-background', :'view-desktop-background', :'regenerate-access-token', :'clear-access-token', :'list-clients'
   
   set_default_subcommand :get
   
@@ -95,6 +95,7 @@ EOT
         "Windows Username" => lambda {|it| it['windowsUsername'] },
         "Windows Password" => lambda {|it| it['windowsPassword'] },
         "Default Persona" => lambda {|it| it['defaultPersona'] ? it['defaultPersona']['name'] : '' },
+        "Desktop Background" => lambda {|it| it['desktopBackground'] ? it['desktopBackground'].split('/').last : '' },
       }
       print_description_list(description_cols, user_settings)      
 
@@ -363,6 +364,186 @@ EOT
         return 0, nil
       else
         print_error red,"No avatar image found.",reset,"\n"
+        return 1
+      end
+      
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def update_desktop_background(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[file]")
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
+      #opts.add_hidden_option('--user-id')
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = <<-EOT
+Update desktop background image used in the VDI persona.
+[file] is required. This is the local path of a file to upload [png|jpg|svg].
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    filename = File.expand_path(args[0].to_s)
+    image_file = nil
+    if filename && File.file?(filename)
+      # maybe validate it's an image file? [.png|jpg|svg]
+      image_file = File.new(filename, 'rb')
+    else
+      # print_red_alert "File not found: #{filename}"
+      puts_error "#{Morpheus::Terminal.angry_prompt}File not found: #{filename}"
+      return 1
+    end
+    
+    begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
+      @user_settings_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @user_settings_interface.dry.update_desktop_background(image_file, params)
+        return
+      end
+      json_response = @user_settings_interface.update_desktop_background(image_file, params)
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+
+      print_green_success "Updated desktop background"
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def remove_desktop_background(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
+      #opts.add_hidden_option('--user-id')
+      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.footer = <<-EOT
+Remove desktop background image.
+[file] is required. This is the local path of a file to upload [png|jpg|svg].
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
+      @user_settings_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @user_settings_interface.dry.remove_desktop_background(params)
+        return
+      end
+      json_response = @user_settings_interface.remove_desktop_background(params)
+      if options[:quiet]
+        return 0
+      elsif options[:json]
+        puts as_json(json_response, options)
+        return 0
+      end
+
+      print_green_success "Removed desktop background"
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
+      get(get_args)
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def view_desktop_background(args)
+    raw_args = args
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      opts.on("-u", "--user USER", "User username or ID") do |val|
+        options[:user] = val.to_s
+      end
+      opts.on("--user-id ID", String, "User ID") do |val|
+        params['userId'] = val.to_s
+      end
+      #opts.add_hidden_option('--user-id')
+      build_common_options(opts, options, [:remote])
+      opts.footer = <<-EOT
+View desktop background image.
+This opens the desktop background image url with a web browser.
+Done for the current user by default, unless a user is specified with the --user option.
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 0
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    
+    begin
+      if options[:user]
+        user = find_user_by_username_or_id(nil, options[:user], {global:true})
+        return 1 if user.nil?
+        params['userId'] = user['id']
+      end
+      json_response = @user_settings_interface.get(params)
+      user_settings = json_response['user'] || json_response['userSettings']
+      
+      if user_settings['desktopBackground']
+        link = user_settings['desktopBackground']
+        if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+          system "start #{link}"
+        elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+          system "open #{link}"
+        elsif RbConfig::CONFIG['host_os'] =~ /linux|bsd/
+          system "xdg-open #{link}"
+        end
+        return 0, nil
+      else
+        print_error red,"No desktop background image found.",reset,"\n"
         return 1
       end
       

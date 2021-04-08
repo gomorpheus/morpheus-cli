@@ -13,7 +13,7 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
-  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access', :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-persona-access'
+  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access', :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-persona-access', :'update-global-vdi-pool-access', :'update-vdi-pool-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -102,10 +102,13 @@ class Morpheus::Cli::Roles
         options[:include_blueprint_access] = true
       end
       opts.on(nil,'--catalog-item-type-access', "Display Catalog Item Type Access") do
-        options[:include_catalog_item_types_access] = true
+        options[:include_catalog_item_type_access] = true
       end
       opts.on(nil,'--personas', "Display Persona Access") do
         options[:include_personas_access] = true
+      end
+      opts.on(nil,'--vdi-pool-access', "Display VDI Pool Access") do
+        options[:include_vdi_pool_access] = true
       end
       opts.on('-a','--all', "Display All Access Lists") do
         options[:include_feature_access] = true
@@ -113,8 +116,9 @@ class Morpheus::Cli::Roles
         options[:include_cloud_access] = true
         options[:include_instance_type_access] = true
         options[:include_blueprint_access] = true
-        options[:include_catalog_item_types_access] = true
+        options[:include_catalog_item_type_access] = true
         options[:include_personas_access] = true
+        options[:include_vdi_pool_access] = true
       end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
@@ -206,9 +210,9 @@ EOT
           rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
         end
         print as_pretty_table(rows, [:code, :name, :access], options)
-        print reset,"\n"
+        # print reset,"\n"
       else
-        print cyan,"Use --permissions to list permissions","\n"
+        print cyan,"Use --permissions to list feature permissions","\n"
       end
 
       has_group_access = true
@@ -220,6 +224,7 @@ EOT
         "Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) },
         "Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) },
         "Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) },
+        "VDI Pools" => lambda {|it| get_access_string(it['globalVdiPoolAccess']) },
       }
       if role['roleType'].to_s.downcase == 'account'
         global_access_columns.delete("Groups")
@@ -228,7 +233,7 @@ EOT
         global_access_columns.delete("Clouds")
         has_cloud_access = false
       end
-      puts as_pretty_table([json_response], global_access_columns, options)
+      print as_pretty_table([json_response], global_access_columns, options)
 
       if has_group_access
         #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
@@ -246,7 +251,7 @@ EOT
           else
             print cyan,"Use -g, --group-access to list custom access","\n"
           end
-          print reset,"\n"
+          # print reset,"\n"
         else
           # print "\n"
           # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
@@ -270,7 +275,7 @@ EOT
           else
             print cyan,"Use -c, --cloud-access to list custom access","\n"
           end
-          print reset,"\n"
+          # print reset,"\n"
         else
           # print "\n"
           # print cyan,bold,"Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}",reset,"\n"
@@ -293,7 +298,7 @@ EOT
         else
           print cyan,"Use -i, --instance-type-access to list custom access","\n"
         end
-        print reset,"\n"
+        # print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
@@ -317,7 +322,7 @@ EOT
         else
           print cyan,"Use -b, --blueprint-access to list custom access","\n"
         end
-        print reset,"\n"
+        # print reset,"\n"
       else
         # print "\n"
         # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
@@ -331,7 +336,7 @@ EOT
       # print "\n"
       if catalog_item_type_global_access == 'custom'
         print_h2 "Catalog Item Type Access", options
-        if options[:include_catalog_item_types_access]
+        if options[:include_catalog_item_type_access]
           rows = catalog_item_type_permissions.collect do |it|
             {
               name: it['name'],
@@ -350,6 +355,7 @@ EOT
 
       persona_permissions = json_response['personaPermissions'] || json_response['personas'] || []
       # if options[:include_personas_access]
+      print cyan
       if persona_permissions
         print_h2 "Persona Access", options
         rows = persona_permissions.collect do |it|
@@ -358,13 +364,34 @@ EOT
             access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
-        print as_pretty_table(rows, [:name, :access], options)
-        print reset,"\n"        
+        print as_pretty_table(rows, [:name, :access], options)        
       end
 
       # print reset,"\n"
       
+      vdi_pool_global_access = json_response['globalVdiPoolAccess']
+      vdi_pool_permissions = json_response['vdiPoolPermissions'] || []
+      print cyan
+      if vdi_pool_global_access == 'custom'
+        print_h2 "VDI Pool Access", options
+        if options[:include_vdi_pool_access]
+          rows = vdi_pool_permissions.collect do |it|
+            {
+              name: it['name'],
+              access: format_access_string(it['access'], ["none","read","full"]),
+            }
+          end
+          print as_pretty_table(rows, [:name, :access], options)
+        else
+          print cyan,"Use --vdi-pool-access to list custom access","\n"
+        end
+      else
+        # print "\n"
+        # print cyan,bold,"VDI Pool Access: #{get_access_string(json_response['globalVdiPoolAccess'])}",reset,"\n"
+      end
+
     end
+    print reset,"\n"
 
     return 0, nil
   end
@@ -520,7 +547,7 @@ EOT
         end
 
         # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'optionSource' => 'personas', 'description' => 'Default Persona'}], options[:options], @api_client)
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => [{'name'=>'Service Catalog','value'=>'serviceCatalog'},{'name'=>'Standard','value'=>'standard'}], 'description' => 'Default Persona'}], options[:options], @api_client)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => get_persona_select_options(), 'description' => 'Default Persona'}], options[:options], @api_client)
         role_payload['defaultPersona'] = {'code' => v_prompt['defaultPersona']} unless v_prompt['defaultPersona'].to_s.strip.empty?
 
         payload = {"role" => role_payload}
@@ -1534,7 +1561,7 @@ EOT
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for a persona or all personas.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
-                    "--persona or --all is required. This is the code of a persona. Service Catalog or Standard\n" + 
+                    "--persona or --all is required. This is the code of a persona. Service Catalog, Standard, or Virtual Desktop\n" + 
                     "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
     end
     optparse.parse!(args)
@@ -1606,6 +1633,160 @@ EOT
     end
   end
 
+  def update_global_vdi_pool_access(args)
+    usage = "Usage: morpheus roles update-global-vdi-pool-access [role] [full|custom|none]"
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 2)
+    name = args[0]
+    access_value = args[1].to_s.downcase
+    if !['full', 'custom', 'none'].include?(access_value)
+      raise_command_error("invalid access value: #{args[1]}", optparse)
+    end
+
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      exit 1 if role.nil?
+      # note: VdiPools being plural is odd, the others are singular
+      params = {permissionCode: 'VdiPools', access: access_value}
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_permission(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Role #{role['authority']} global vdi pool access updated"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_vdi_pool_access(args)
+    options = {}
+    vdi_pool_id = nil
+    access_value = nil
+    do_all = false
+    allowed_access_values = ['full', 'none']
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role] [vdi-pool] [access]")
+      opts.on( '--vdi-pool ID', String, "VDI Pool ID or Name" ) do |val|
+        vdi_pool_id = val
+      end
+      opts.on( nil, '--all', "Update all VDI pools at once." ) do
+        do_all = true
+      end
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
+        access_value = val
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update role access for a VDI pool or all VDI pools.\n" +
+                    "[role] is required. This is the name or id of a role.\n" + 
+                    "--vdi-pool or --all is required. This is the name or id of a VDI pool.\n" + 
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+    end
+    optparse.parse!(args)
+
+    # usage: update-vdi-pool-access [role] [access] --all
+    #        update-vdi-pool-access [role] [vdi-pool] [access]
+    name = args[0]
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      vdi_pool_id = args[1] if args[1]
+      access_value = args[2] if args[2]
+    end
+    if !vdi_pool_id && !do_all
+      raise_command_error("missing required argument: [vdi-pool] or --all", optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", optparse)
+    end
+    access_value = access_value.to_s.downcase
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", optparse)
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      return 1 if role.nil?
+
+      role_json = @roles_interface.get(account_id, role['id'])
+      vdi_pool_global_access = role_json['globalVdiPoolAccess']
+      vdi_pool_permissions = role_json['vdiPoolPermissions'] || []
+      if vdi_pool_global_access != 'custom'
+        print "\n", red, "Global VDI Pool Access is currently: #{vdi_pool_global_access.to_s.capitalize}"
+        print "\n", "You must first set it to Custom via `morpheus roles update-global-vdi-pool-access \"#{name}\" custom`"
+        print "\n\n", reset
+        return 1
+      end
+
+      # hacky, but support name or code lookup via the list returned in the show payload
+      vdi_pool = nil
+      if !do_all
+        if vdi_pool_id.to_s =~ /\A\d{1,}\Z/
+          vdi_pool = vdi_pool_permissions.find {|b| b['id'] == vdi_pool_id.to_i }
+        else
+          vdi_pool = vdi_pool_permissions.find {|b| b['name'] == vdi_pool_id }
+        end
+        if vdi_pool.nil?
+          print_red_alert "VDI Pool not found: '#{vdi_pool_id}'"
+          return 1
+        end
+      end
+
+      params = {}
+      if do_all
+        params['allVdiPools'] = true
+      else
+        params['vdiPoolId'] = vdi_pool['id']
+      end
+      params['access'] = access_value
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_vdi_pool(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_vdi_pool(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        if do_all
+          print_green_success "Role #{role['authority']} access updated for all VDI pools"
+        else
+          print_green_success "Role #{role['authority']} access updated for VDI pool #{vdi_pool['name']}"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
   
   def add_role_option_types
@@ -1616,7 +1797,7 @@ EOT
       {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text'},
       {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use'},
       {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '},
-      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => [{'name'=>'Service Catalog','value'=>'serviceCatalog'},{'name'=>'Standard','value'=>'standard'}], 'description' => 'Default Persona'}
+      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => get_persona_select_options(), 'description' => 'Default Persona'}
     ]
   end
 
@@ -1638,6 +1819,14 @@ EOT
 
   def role_type_options
     [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}]
+  end
+
+  def get_persona_select_options
+    [
+      {'name'=>'Service Catalog','value'=>'serviceCatalog'},
+      {'name'=>'Standard','value'=>'standard'},
+      {'name'=>'Virtual Desktop','value'=>'vdi'}
+    ]
   end
 
 end

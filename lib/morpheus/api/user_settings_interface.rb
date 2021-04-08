@@ -46,6 +46,28 @@ class Morpheus::UserSettingsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  # NOT json, multipart file upload
+  def update_desktop_background(desktop_background_file, params={})
+    url = "#{@base_url}/api/user-settings/desktop-background"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}"}
+    payload = {}
+    #payload['user'] ||= {}
+    #payload['user']['desktopBackground'] = desktop_background_file
+    payload['user.desktopBackground'] = desktop_background_file
+    payload[:multipart] = true
+    opts = {method: :post, url: url, headers: headers, payload: payload}
+    execute(opts)
+  end
+
+  def remove_desktop_background(params={})
+    url = "#{@base_url}/api/user-settings/desktop-background"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}"}
+    # POST empty payload will do
+    payload = {}
+    opts = {method: :delete, url: url, headers: headers, payload: payload}
+    execute(opts)
+  end
+
   def regenerate_access_token(params, payload={})
     url = "#{@base_url}/api/user-settings/regenerate-access-token"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}

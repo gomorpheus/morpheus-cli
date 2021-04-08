@@ -141,7 +141,9 @@ module Morpheus
             value = cur_namespace[field_name]
             input_value = ['select', 'multiSelect','typeahead', 'multiTypeahead'].include?(option_type['type']) && option_type['fieldInput'] ? cur_namespace[option_type['fieldInput']] : nil
             if option_type['type'] == 'number'
-              value = value.to_s.include?('.') ? value.to_f : value.to_i
+              if !value.to_s.empty?
+                value = value.to_s.include?('.') ? value.to_f : value.to_i
+              end
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
             elsif option_type['type'] == 'select'
               value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
@@ -332,7 +334,9 @@ module Morpheus
           print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
-          value = value.to_s.include?('.') ? value.to_f : value.to_i
+          if !value.to_s.empty?
+            value = value.to_s.include?('.') ? value.to_f : value.to_i
+          end
           if input == '?'
             help_prompt(option_type)
           elsif !value.nil? || option_type['required'] != true
