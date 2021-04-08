@@ -215,11 +215,11 @@ EOT
       payload = options[:payload]
       payload.deep_merge!({vdi_pool_object_key => parse_passed_options(options)})
     else
-      payload.deep_merge!({vdi_pool_object_key => parse_passed_options(options)})
+      params.deep_merge!(parse_passed_options(options))
       # prompt for option types
       # skip config if using interactive prompt
       filtered_option_types = add_vdi_pool_option_types
-      if options[:interactive_config]
+      if options[:interactive_config] || options[:options]['instanceConfig']
         filtered_option_types = filtered_option_types.reject {|it| it['fieldName'] == 'config' }
       end
       v_prompt = Morpheus::Cli::OptionTypes.prompt(filtered_option_types, options[:options], @api_client, options[:params])
@@ -239,6 +239,11 @@ EOT
           params['config'] = config_map
         end
       end
+      # pass instanceConfig: "{...}" instead of config: {} to preserve config order...
+      if params['config']
+        config_map = params.delete('config')
+        params['instanceConfig'] = as_json(config_map, {:pretty_json => true})
+      end
       if options[:interactive_config]
         print_h2 "Instance Config"
         config_map = prompt_vdi_config(options)
@@ -247,7 +252,7 @@ EOT
       # massage association params a bit
       params['gateway'] = {'id' => params['gateway']}  if params['gateway'] && !params['gateway'].is_a?(Hash)
       # params['apps'] = ...
-      payload[vdi_pool_object_key].deep_merge!(params)
+      payload.deep_merge!({vdi_pool_object_key => params})
     end
     @vdi_pools_interface.setopts(options)
     if options[:dry_run]
@@ -307,7 +312,7 @@ EOT
       payload = options[:payload]
       payload.deep_merge!({vdi_pool_object_key => parse_passed_options(options)})
     else
-      payload.deep_merge!({vdi_pool_object_key => parse_passed_options(options)})
+      params.deep_merge!(parse_passed_options(options))
       # do not prompt on update
       v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_vdi_pool_option_types, options[:options], @api_client, options[:params])
       v_prompt.deep_compact!
@@ -327,6 +332,11 @@ EOT
         else
           params['config'] = config_map
         end
+      end
+      # pass instanceConfig: "{...}" instead of config: {} to preserve config order...
+      if params['config']
+        config_map = params.delete('config')
+        params['instanceConfig'] = as_json(config_map, {:pretty_json => true})
       end
       # massage association params a bit
       params['gateway'] = {'id' => params['gateway']}  if params['gateway'] && !params['gateway'].is_a?(Hash)
