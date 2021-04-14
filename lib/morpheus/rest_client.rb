@@ -44,7 +44,21 @@ module Morpheus
         end
         query_string = params
         if query_string.respond_to?(:map)
+          if options[:grails_params] != false
+            query_string = grails_params(query_string)
+          end
           query_string = URI.encode_www_form(query_string)
+        end
+        # grails expects dot notation in body params
+        if opts[:method] == :post || opts[:method] == :put
+          if opts[:headers]['Content-Type'].nil? || opts[:headers]['Content-Type'] == 'application/x-www-form-urlencoded' || opts[:headers]['Content-Type'] == 'multipart/form-data'
+            if opts[:payload].respond_to?(:map)
+              if opts[:grails_params] != false
+                # puts "grailsifying it!"
+                opts[:payload] = grails_params(opts[:payload])
+              end
+            end
+          end
         end
         if query_string && !query_string.empty?
           opts[:url] = "#{opts[:url]}?#{query_string}"
@@ -67,6 +81,22 @@ module Morpheus
 
       def enable_ssl_verification=(verify)
         @@ssl_verification_enabled = verify
+      end
+
+      def grails_params(data, context=nil)
+        params = {}
+        data.each do |k,v|
+          if v.is_a?(Hash)
+            params.merge!(grails_params(v, context ? "#{context}.#{k.to_s}" : k))
+          else
+            if context
+              params["#{context}.#{k.to_s}"] = v
+            else
+              params[k] = v
+            end
+          end
+        end
+        return params
       end
 
     end

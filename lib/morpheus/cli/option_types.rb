@@ -277,22 +277,6 @@ module Morpheus
         results
       end
 
-      def self.grails_params(data, context=nil)
-        params = {}
-        data.each do |k,v|
-          if v.is_a?(Hash)
-            params.merge!(grails_params(v, context ? "#{context}.#{k.to_s}" : k))
-          else
-            if context
-              params["#{context}.#{k.to_s}"] = v
-            else
-              params[k.to_s] = v
-            end
-          end
-        end
-        return params
-      end
-
       def self.radio_prompt(option_type)
         value_found = false
         value = nil
@@ -369,7 +353,7 @@ module Morpheus
         if option_type['selectOptions']
           # calculate from inline lambda
           if option_type['selectOptions'].is_a?(Proc)
-            select_options = option_type['selectOptions'].call(api_client, grails_params(api_params || {}))
+            select_options = option_type['selectOptions'].call(api_client, api_params || {})
           else
             # todo: better type validation
             select_options = option_type['selectOptions']
@@ -377,13 +361,13 @@ module Morpheus
         elsif option_type['optionSource']
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
-            select_options = option_type['optionSource'].call(api_client, grails_params(api_params || {}))
+            select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}).merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
-            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
+            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {})
           end
         else
           raise "option '#{field_key}' is type: 'select' and missing selectOptions or optionSource!"
@@ -894,7 +878,7 @@ module Morpheus
         if option_type['selectOptions']
           # calculate from inline lambda
           if option_type['selectOptions'].is_a?(Proc)
-            select_options = option_type['selectOptions'].call(api_client, grails_params(api_params || {}))
+            select_options = option_type['selectOptions'].call(api_client, api_params || {})
           else
             select_options = option_type['selectOptions']
           end
@@ -909,13 +893,13 @@ module Morpheus
         elsif option_type['optionSource']
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
-            select_options = option_type['optionSource'].call(api_client, grails_params(api_params || {}))
+            select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}).merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
-            select_options = load_source_options(option_type['optionSource'], api_client, grails_params(api_params || {}))
+            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {})
           end
         else
           raise "option '#{field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"

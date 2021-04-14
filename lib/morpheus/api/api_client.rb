@@ -146,6 +146,7 @@ class Morpheus::APIClient
   #   :headers - Extra headers to add. This expects a Hash like {'Content-Type' => 'application/json'}.
   #   :timeout - A custom timeout in seconds for api requests. The default is 30. todo: separate timeout options
   def execute(opts, options={})
+    # Morpheus::Logging::DarkPrinter.puts "Morpheus::RestClient.execute(#{opts})" if Morpheus::Logging.debug?
     # ok, always prepend @base_url, let the caller specify it exactly or leave it off.
     # this allows the Interface definition be lazy and not specify the base_url in every call to execute()
       # it will be used though...
@@ -174,7 +175,7 @@ class Morpheus::APIClient
     # apply default headers
     opts[:headers] ||= {}
 
-    is_multipart = (opts[:payload].is_a?(Hash) && opts[:payload][:multipart])
+    is_multipart = (opts[:payload].is_a?(Hash) && opts[:payload][:multipart] == true)
 
     # Authorization: apply our access token
     if authorization_required?
@@ -187,15 +188,20 @@ class Morpheus::APIClient
       end
     end
 
-    # Content-Type default is application/json
-    if opts[:headers]['Content-Type'].nil? && opts[:payload] && is_multipart == false
-      opts[:headers]['Content-Type'] = (default_content_type || 'application/json')
-    end
+    # POST and PUT requests default Content-Type is application/json
+    # set Content-Type or pass :form_data => true if you want application/x-www-form-urlencoded
+    # or use opts[:payload][:multipart] = true if you need multipart/form-data
+    if opts[:method] == :post || opts[:method] == :put
+      if opts[:headers]['Content-Type'].nil? && opts[:payload] && is_multipart != true && opts[:form_data] != true
+        opts[:headers]['Content-Type'] = (default_content_type || 'application/json')
+      end
 
-    # this could be nice too..
-    # if opts[:headers]['Content-Type'] == 'application/json' && opts[:payload].is_a?(Hash)
-    #   opts[:payload] = opts[:payload].to_json
-    # end
+      # Auto encode payload as JSON, just to be nice
+      if opts[:headers]['Content-Type'] == 'application/json' && !opts[:payload].is_a?(String)
+        opts[:payload] = opts[:payload].to_json
+      end
+
+    end
 
     # always use custom timeout eg. from --timeout option
     # or use default_timeout for GET requests only.

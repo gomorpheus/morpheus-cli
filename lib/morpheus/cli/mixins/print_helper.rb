@@ -228,7 +228,8 @@ module Morpheus::Cli::PrintHelper
     out << cyan
     if payload
       out << "\n"
-      content_type = (headers && headers['Content-Type']) ? headers['Content-Type'] : 'application/x-www-form-urlencoded'
+      is_multipart = (payload.is_a?(Hash) && payload[:multipart] == true)
+      content_type = (headers && headers['Content-Type']) ? headers['Content-Type'] : (is_multipart ? 'multipart/form-data' : 'application/x-www-form-urlencoded')
       if content_type == 'application/json'
         if payload.is_a?(String)
           begin
@@ -257,12 +258,21 @@ module Morpheus::Cli::PrintHelper
             out << payload
           end
         else
-          if content_type == 'application/x-www-form-urlencoded'
+          if content_type == 'application/x-www-form-urlencoded' || content_type.to_s.include?('multipart')
             body_str = payload.to_s
             begin
+              payload.delete(:multipart) if payload.is_a?(Hash)
+              # puts "grailsifying it!"
+              payload = Morpheus::RestClient.grails_params(payload)
+              payload.each do |k,v|
+                if v.is_a?(File)
+                  payload[k] = "@#{v.path}"
+                  payload[k] = v.path
+                end
+              end
               body_str = URI.encode_www_form(payload)
             rescue => ex
-              # raise ex
+              raise ex
             end
             if options[:scrub]
               out << Morpheus::Logging.scrub_message(body_str)
@@ -273,7 +283,7 @@ module Morpheus::Cli::PrintHelper
             if options[:scrub]
               out << Morpheus::Logging.scrub_message(payload)
             else
-              out << payload
+              out << payload.to_s
             end
           end
         end
@@ -327,7 +337,9 @@ module Morpheus::Cli::PrintHelper
         else
           out << "  -d '#{payload}'"
         end
+        out << "\n"
       else
+        is_multipart = (payload.is_a?(Hash) && payload[:multipart] == true)
         content_type = headers['Content-Type'] || 'application/x-www-form-urlencoded'
         
         if payload.is_a?(File)
@@ -337,21 +349,22 @@ module Morpheus::Cli::PrintHelper
           out << "  -d @#{payload.path}"
         elsif payload.is_a?(String)
           out << "  -d '#{payload}'"
-        else
-          if content_type == 'application/x-www-form-urlencoded'
-            body_str = payload.to_s
-            begin
-              body_str = URI.encode_www_form(payload)
-            rescue => ex
-              # raise ex
+        elsif payload.respond_to?(:map)
+          payload.delete(:multipart) if payload.is_a?(Hash)
+          # puts "grailsifying it!"
+          payload = Morpheus::RestClient.grails_params(payload)
+          payload.each do |k,v|
+            if v.is_a?(File)
+              out << "  -F '#{k}=@#{v.path}"
+            else
+              out << "  -d '#{URI.encode_www_form({(k) => v})}'"
             end
-            out << "  -d '#{body_str}'"
-          else
-            out << "  -d '#{payload}'"
+            out << "\n"
           end
+          #body_str = URI.encode_www_form(payload)
+          # out << "  -d '#{body_str}'"
         end
       end
-      out << "\n"
     else
       out << "\n"
     end

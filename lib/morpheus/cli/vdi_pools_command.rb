@@ -209,6 +209,9 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:0, max:1)
     options[:options]['name'] = args[0] if args[0]
+    if options[:options]['logo']
+      options[:options]['iconPath'] = 'custom'
+    end
     connect(options)
     payload = {}
     if options[:payload]
@@ -226,6 +229,11 @@ EOT
       params.deep_merge!(v_prompt)
       # convert checkbox "on" and "off" to true and false
       params.booleanize!
+      # logo upload requires multipart instead of json
+      if params['logo']
+        params['logo'] = File.new(params['logo'], 'rb')
+        payload[:multipart] = true
+      end
       # convert config string to a map
       config = params['config']
       if config && config.is_a?(String)
@@ -304,6 +312,9 @@ EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
+    if options[:options]['logo']
+      options[:options]['iconPath'] = 'custom'
+    end
     connect(options)
     vdi_pool = find_vdi_pool_by_name_or_id(args[0])
     return 1 if vdi_pool.nil?
@@ -319,7 +330,11 @@ EOT
       params.deep_merge!(v_prompt)
       # convert checkbox "on" and "off" to true and false
       params.booleanize!
-      
+      # logo upload requires multipart instead of json
+      if params['logo']
+        params['logo'] = File.new(params['logo'], 'rb')
+        payload[:multipart] = true
+      end
       # convert config string to a map
       config = params['config']
       if config && config.is_a?(String)
@@ -422,7 +437,7 @@ EOT
       "ID" => 'id',
       "Name" => 'name',
       "Description" => 'description',
-      "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] || it['owner']['name'] : nil },
+      "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] || it['owner']['name'] : (it['user'] ? it['user']['username'] || it['user']['name'] : nil) },
       "Min Idle" => lambda {|it| format_number(it['minIdle']) rescue '' },
       "Initial Pool Size" => lambda {|it| format_number(it['initialPoolSize']) rescue '' },
       "Max Idle" => lambda {|it| format_number(it['maxIdle']) rescue '' },
@@ -435,7 +450,7 @@ EOT
       "Allow Hypervisor Console" => lambda {|it| format_boolean(it['allowHypervisorConsole']) },
       "Auto Create User" => lambda {|it| format_boolean(it['autoCreateLocalUserOnReservation']) },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
-      "Logo" => lambda {|it| it['imagePath'] },
+      "Logo" => lambda {|it| it['logo'] || it['imagePath'] },
       #"Config" => lambda {|it| it['config'] },
       "Group" => lambda {|it| it['group'] ? it['group']['name'] : nil },
       "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : nil },
@@ -472,7 +487,17 @@ EOT
       {'fieldName' => 'allowHypervisorConsole', 'fieldLabel' => 'Allow Hypervisor Console', 'type' => 'checkbox', 'defaultValue' => false},
       {'fieldName' => 'autoCreateLocalUserOnReservation', 'fieldLabel' => 'Auto Create User', 'type' => 'checkbox', 'defaultValue' => false},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'description' => 'Enable the VDI Pool to make it available for allocation.'},
-      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'defaultValue' => 'resource'},
+      #{'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'defaultValue' => 'resource'},
+      # iconList does not include custom, so add it ourselves..
+      # only prompt for logo file if custom
+      {'code' => 'vdiPool.iconPath', 'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+        dropdown = api_client.options.options_for_source("iconList")['data']
+        if !dropdown.find {|it| it['value'] == 'custom'}
+          dropdown.push({'name' => 'Custom', 'value' => 'custom'})
+        end
+        dropdown
+      }, 'description' => 'Logo icon path or custom if uploading a custom logo', 'defaultValue' => 'resource'},
+      {'dependsOnCode' => 'vdiPool.iconPath:custom', 'fieldName' => 'logo', 'fieldLabel' => 'Logo File', 'type' => 'file', 'required' => true, 'description' => 'Local filepath of image file to upload as custom icon'},
       # {'fieldName' => 'apps', 'fieldLabel' => 'VDI Apps', 'type' => 'multiSelect', 'description' => 'VDI Apps, comma separated list of names or IDs.'},
       # {'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'select', 'optionSource' => 'vdiGateways'},
       {'fieldName' => 'apps', 'fieldLabel' => 'VDI Apps', 'type' => 'multiSelect', 'optionSource' => lambda { |api_client, api_params| 

@@ -31,9 +31,6 @@ class Morpheus::Cli::VdiAppsCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on( '--enabled [on|off]', String, "Filter by enabled" ) do |val|
-        params['enabled'] = (val.to_s != 'false' && val.to_s != 'off')
-      end
       build_standard_list_options(opts, options)
       opts.footer = "List VDI apps."
     end
@@ -68,15 +65,6 @@ class Morpheus::Cli::VdiAppsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app]")
-      opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
-        options[:show_config] = true
-      end
-      # opts.on('--no-config', "Do not display Config YAML." ) do
-      #   options[:no_config] = true
-      # end
-      opts.on('--no-content', "Do not display Content." ) do
-        options[:no_content] = true
-      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific VDI app.
@@ -148,6 +136,9 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:0, max:1)
     options[:options]['name'] = args[0] if args[0]
+    if options[:options]['logo']
+      options[:options]['iconPath'] = 'custom'
+    end
     connect(options)
     payload = {}
     if options[:payload]
@@ -158,6 +149,11 @@ EOT
       v_prompt = Morpheus::Cli::OptionTypes.prompt(add_vdi_app_option_types, options[:options], @api_client, options[:params])
       params.deep_merge!(v_prompt)
       params.booleanize!
+      # logo upload requires multipart instead of json
+      if params['logo']
+        params['logo'] = File.new(params['logo'], 'rb')
+        payload[:multipart] = true
+      end
       payload[vdi_app_object_key].deep_merge!(params)
     end
     @vdi_apps_interface.setopts(options)
@@ -189,6 +185,9 @@ EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
+    if options[:options]['logo']
+      options[:options]['iconPath'] = 'custom'
+    end
     connect(options)
     vdi_app = find_vdi_app_by_name_or_id(args[0])
     return 1 if vdi_app.nil?
@@ -202,6 +201,11 @@ EOT
       v_prompt.deep_compact!
       params.deep_merge!(v_prompt)
       params.booleanize!
+      # logo upload requires multipart instead of json
+      if params['logo']
+        params['logo'] = File.new(params['logo'], 'rb')
+        payload[:multipart] = true
+      end
       payload.deep_merge!({vdi_app_object_key => params})
       if payload[vdi_app_object_key].empty? # || options[:no_prompt]
         raise_command_error "Specify at least one option to update.\n#{optparse}"
@@ -284,7 +288,17 @@ EOT
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Choose a unique name for the VDI App'},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Description'},
       {'fieldName' => 'launchPrefix', 'fieldLabel' => 'Launch Prefix', 'type' => 'text', 'required' => true, 'description' => 'The RDS App Name Prefix. Note: Must start with || (i.e. ||notepad) to launch notepad'},
-      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'defaultValue' => 'resource'},
+      #{'code' => 'vdiApp.iconPath', 'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'defaultValue' => 'resource'},
+      # iconList does not include custom, so add it ourselves..
+      # only prompt for logo file if custom
+      {'code' => 'vdiApp.iconPath', 'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+        dropdown = api_client.options.options_for_source("iconList")['data']
+        if !dropdown.find {|it| it['value'] == 'custom'}
+          dropdown.push({'name' => 'Custom', 'value' => 'custom'})
+        end
+        dropdown
+      }, 'description' => 'Logo icon path or custom if uploading a custom logo', 'defaultValue' => 'resource'},
+      {'dependsOnCode' => 'vdiApp.iconPath:custom', 'fieldName' => 'logo', 'fieldLabel' => 'Logo File', 'type' => 'file', 'required' => true, 'description' => 'Local filepath of image file to upload as custom icon'},
     ]
   end
 

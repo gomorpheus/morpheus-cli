@@ -26,10 +26,7 @@ class Morpheus::Cli::VdiCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
-        params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
-      end
-      build_standard_list_options(opts, options, [:sigdig])
+      build_standard_list_options(opts, options)
       opts.footer = "List available virtual desktops (VDI pool)."
     end
     optparse.parse!(args)
@@ -71,7 +68,7 @@ class Morpheus::Cli::VdiCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_standard_get_options(opts, options, [:sigdig])
+      build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific virtual desktop.
 [name] is required. This is the name or id of a virtual desktop (VDI pool).
@@ -216,7 +213,7 @@ EOT
         @vdi_interface.list({max:10000})[vdi_desktop_list_key].collect {|it|
           {'name' => it['name'], 'value' => it['id']}
         } }, 'required' => true, 'description' => 'Virtual Desktop (VDI pool) name or id'}
-      pool_id = Morpheus::Cli::OptionTypes.prompt([vdi_pool_option_type], options[:options], @api_client, options[:params])['pool']
+      pool_id = Morpheus::Cli::OptionTypes.prompt([vdi_pool_option_type], options[:options], @api_client, options[:params])['desktop']
       vdi_pool = find_vdi_pool_by_name_or_id(pool_id.to_s)
       return [1, "Virtual Desktop not found"] if vdi_pool.nil?
       pool_id = vdi_pool['id']

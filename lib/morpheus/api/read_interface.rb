@@ -11,13 +11,13 @@ class Morpheus::ReadInterface < Morpheus::APIClient
     raise "#{self.class} has not defined base_path!"
   end
 
-  def list(params={})
-    execute(method: :get, url: "#{base_path}", params: params)
+  def list(params={}, headers={})
+    execute(method: :get, url: "#{base_path}", params: params, headers: headers)
   end
 
-  def get(id, params={})
+  def get(id, params={}, headers={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/#{id}", params: params)
+    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
   end
 
 end

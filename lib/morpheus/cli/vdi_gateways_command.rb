@@ -31,9 +31,6 @@ class Morpheus::Cli::VdiGatewaysCommand
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on( '--enabled [on|off]', String, "Filter by enabled" ) do |val|
-        params['enabled'] = (val.to_s != 'false' && val.to_s != 'off')
-      end
       build_standard_list_options(opts, options)
       opts.footer = "List VDI gateways."
     end
@@ -68,15 +65,6 @@ class Morpheus::Cli::VdiGatewaysCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[gateway]")
-      opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
-        options[:show_config] = true
-      end
-      # opts.on('--no-config', "Do not display Config YAML." ) do
-      #   options[:no_config] = true
-      # end
-      opts.on('--no-content', "Do not display Content." ) do
-        options[:no_content] = true
-      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific VDI gateway.

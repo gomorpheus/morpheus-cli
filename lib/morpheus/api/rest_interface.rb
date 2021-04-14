@@ -10,27 +10,27 @@ class Morpheus::RestInterface < Morpheus::APIClient
     raise "#{self.class} has not defined base_path!"
   end
 
-  def list(params={})
-    execute(method: :get, url: "#{base_path}", params: params)
+  def list(params={}, headers={})
+    execute(method: :get, url: "#{base_path}", params: params, headers: headers)
   end
 
-  def get(id, params={})
+  def get(id, params={}, headers={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/#{id}", params: params)
+    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
   end
 
-  def create(payload, params={})
-    execute(method: :post, url: "#{base_path}", params: params, payload: payload.to_json)
+  def create(payload, params={}, headers={})
+    execute(method: :post, url: "#{base_path}", params: params, payload: payload, headers: headers)
   end
 
-  def update(id, payload, params={})
+  def update(id, payload, params={}, headers={})
     validate_id!(id)
-    execute(method: :put, url: "#{base_path}/#{id}", params: params, payload: payload.to_json)
+    execute(method: :put, url: "#{base_path}/#{id}", params: params, payload: payload, headers: headers)
   end
 
-  def destroy(id, params = {})
+  def destroy(id, params = {}, headers={})
     validate_id!(id)
-    execute(method: :delete, url: "#{base_path}/#{id}", params: params)
+    execute(method: :delete, url: "#{base_path}/#{id}", params: params, headers: headers)
   end
 
 end
