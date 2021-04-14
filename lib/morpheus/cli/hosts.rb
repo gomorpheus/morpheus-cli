@@ -152,215 +152,206 @@ class Morpheus::Cli::Hosts
     if args.count > 0
       options[:phrase] = args.join(" ")
     end
-    begin
-      params.merge!(parse_list_options(options))
-      account = nil
-      if options[:account]
-        account = find_account_by_name_or_id(options[:account])
-        if account.nil?
-          return 1
-        else
-          params['accountId'] = account['id']
-        end
+    
+    params.merge!(parse_list_options(options))
+    account = nil
+    if options[:account]
+      account = find_account_by_name_or_id(options[:account])
+      if account.nil?
+        return 1
+      else
+        params['accountId'] = account['id']
       end
-      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
-      if group
-        params['siteId'] = group['id']
-      end
+    end
+    group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+    if group
+      params['siteId'] = group['id']
+    end
 
-      # argh, this doesn't work because group_id is required for options/clouds
-      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
-      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
-      if cloud
-        params['zoneId'] = cloud['id']
-      end
+    # argh, this doesn't work because group_id is required for options/clouds
+    # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+    cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+    if cloud
+      params['zoneId'] = cloud['id']
+    end
 
-      if options[:created_by]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
-        return if created_by_ids.nil?
-        params['createdBy'] = created_by_ids
-        # params['ownerId'] = created_by_ids # 4.2.1+
+    if options[:created_by]
+      created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:created_by])
+      return if created_by_ids.nil?
+      params['createdBy'] = created_by_ids
+      # params['ownerId'] = created_by_ids # 4.2.1+
+    end
+    
+    cluster = nil
+    if options[:cluster]
+      if options[:cluster].to_s =~ /\A\d{1,}\Z/
+        params['clusterId'] = options[:cluster]
+      else
+        cluster = find_cluster_by_name_or_id(options[:cluster])
+        return 1 if cluster.nil?
+        params['clusterId'] = cluster['id']
       end
-      
-      cluster = nil
-      if options[:cluster]
-        if options[:cluster].to_s =~ /\A\d{1,}\Z/
-          params['clusterId'] = options[:cluster]
-        else
-          cluster = find_cluster_by_name_or_id(options[:cluster])
-          return 1 if cluster.nil?
-          params['clusterId'] = cluster['id']
-        end
+    end
+    params['labels'] = options[:labels] if options[:labels]
+    if options[:tags] && !options[:tags].empty?
+      options[:tags].each do |k,v|
+        params['tags.' + k] = v
       end
-      params['labels'] = options[:labels] if options[:labels]
-      if options[:tags] && !options[:tags].empty?
-        options[:tags].each do |k,v|
-          params['tags.' + k] = v
-        end
-      end
+    end
 
-      @servers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @servers_interface.dry.list(params)
-        return
-      end
-      json_response = @servers_interface.list(params)
+    @servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @servers_interface.dry.list(params)
+      return
+    end
+    json_response = @servers_interface.list(params)
 
-      if options[:json]
-        json_response.delete('stats') if options[:include_fields]
-        puts as_json(json_response, options, "servers")
-        return 0
-      elsif options[:yaml]
-        json_response.delete('stats') if options[:include_fields]
-        puts as_yaml(json_response, options, "servers")
-        return 0
-      elsif options[:csv]
-        # merge stats to be nice here..
-        if json_response['servers']
-          all_stats = json_response['stats'] || {}
+    # merge stats to be nice here..
+    all_stats = json_response['stats']
+    if options[:include_fields] || options[:all_fields]
+      if json_response['servers']
+        if all_stats
           json_response['servers'].each do |it|
             it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
           end
         end
-        puts records_as_csv(json_response['servers'], options)
-        return 0
-      else
-        servers = json_response['servers']
-        multi_tenant = json_response['multiTenant'] == true
-        title = "Morpheus Hosts"
-        subtitles = []
-        if account
-          subtitles << "Tenant: #{account['name']}".strip
-        end
-        if group
-          subtitles << "Group: #{group['name']}".strip
-        end
-        if cloud
-          subtitles << "Cloud: #{cloud['name']}".strip
-        end
-        if cluster
-          subtitles << "Cluster: #{cluster['name']}".strip
-        elsif params['clusterId']
-          subtitles << "Cluster: #{params['clusterId']}".strip
-        end
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles, options
-        if servers.empty?
-          print cyan,"No hosts found.",reset,"\n"
-        else
-          # print_servers_table(servers)
-          # server returns stats in a separate key stats => {"id" => {} }
-          # the id is a string right now..for some reason..
-          all_stats = json_response['stats'] || {} 
-          servers.each do |it|
-            found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-            if found_stats
-              if !it['stats']
-                it['stats'] = found_stats # || {}
-              else
-                it['stats'] = found_stats.merge!(it['stats'])
-              end
-            end
-          end
-
-          rows = servers.collect {|server| 
-            stats = server['stats']
-            
-            if !stats['maxMemory']
-              stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
-            end
-            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
-            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
-            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details] || options[:stats]
-              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
-                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
-              end
-              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
-                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
-              end
-            end
-            row = {
-              id: server['id'],
-              name: server['name'],
-              external_name: server['externalName'],
-              hostname: server['hostname'],
-              platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
-              type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
-              tenant: server['account'] ? server['account']['name'] : server['accountId'],
-              owner: server['owner'] ? server['owner']['username'] : server['owner'],
-              cloud: server['zone'] ? server['zone']['name'] : '',
-              plan: server['plan'] ? server['plan']['name'] : '',
-              ip: server['externalIp'],
-              internal_ip: server['internalIp'],
-              nodes: server['containers'] ? server['containers'].size : '',
-              # status: format_server_status(server, cyan),
-              status: (options[:details]||options[:all_fields]) ? format_server_status(server, cyan) : format_server_status_friendly(server, cyan),
-              power: format_server_power_state(server, cyan),
-              cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan,
-              storage: storage_usage_str + cyan,
-              created: format_local_dt(server['dateCreated']),
-              updated: format_local_dt(server['lastUpdated']),
-            }
-            row
-          }
-          # columns = [:id, :name, :type, :cloud, :ip, :internal_ip, :nodes, :status, :power]
-          columns = {
-            "ID" => :id,
-            "Name" => :name,
-            "External Name" => :external_name,
-            "Hostname" => :hostname,
-            "Type" => :type,
-            "Owner" => :owner,
-            "Tenant" => :tenant,
-            "Cloud" => :cloud,
-            "Plan" => :plan,
-            "IP" => :ip,
-            "Private IP" => :internal_ip,
-            "Nodes" => :nodes,
-            "Status" => :status,
-            "Power" => :power,
-            "CPU" => :cpu,
-            "Memory" => :memory,
-            "Storage" => :storage,
-            "Created" => :created,
-            "Updated" => :updated,
-          }
-          if options[:details] != true
-            columns.delete("External Name")
-            columns.delete("Hostname")
-            columns.delete("Plan")
-            columns.delete("Private IP")
-            columns.delete("Owner")
-            columns.delete("Tenant")
-            columns.delete("Power")
-            columns.delete("Created")
-            columns.delete("Updated")
-          end
-          # hide External Name if there are none
-          if !servers.find {|it| it['externalName'] && it['externalName'] != it['name']}
-            columns.delete("External Name")
-          end
-          if !multi_tenant
-            columns.delete("Tenant")
-          end
-          # columns += [:cpu, :memory, :storage]
-          # # custom pretty table columns ...
-          # if options[:include_fields]
-          #   columns = options[:include_fields]
-          # end
-          print cyan
-          print as_pretty_table(rows, columns.upcase_keys!, options)
-          print reset
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
       end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    render_response(json_response, options, "servers") do
+      
+      servers = json_response['servers']
+      multi_tenant = json_response['multiTenant'] == true
+      title = "Morpheus Hosts"
+      subtitles = []
+      if account
+        subtitles << "Tenant: #{account['name']}".strip
+      end
+      if group
+        subtitles << "Group: #{group['name']}".strip
+      end
+      if cloud
+        subtitles << "Cloud: #{cloud['name']}".strip
+      end
+      if cluster
+        subtitles << "Cluster: #{cluster['name']}".strip
+      elsif params['clusterId']
+        subtitles << "Cluster: #{params['clusterId']}".strip
+      end
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if servers.empty?
+        print cyan,"No hosts found.",reset,"\n"
+      else
+        # print_servers_table(servers)
+        # server returns stats in a separate key stats => {"id" => {} }
+        # the id is a string right now..for some reason..
+        all_stats = json_response['stats'] || {} 
+        servers.each do |it|
+          found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+          if found_stats
+            if !it['stats']
+              it['stats'] = found_stats # || {}
+            else
+              it['stats'] = found_stats.merge!(it['stats'])
+            end
+          end
+        end
+
+        rows = servers.collect {|server| 
+          stats = server['stats']
+          
+          if !stats['maxMemory']
+            stats['maxMemory'] = stats['usedMemory'] + stats['freeMemory']
+          end
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+          storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          if options[:details] || options[:stats]
+            if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+              memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            end
+            if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+              storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+            end
+          end
+          row = {
+            id: server['id'],
+            name: server['name'],
+            external_name: server['externalName'],
+            hostname: server['hostname'],
+            platform: server['serverOs'] ? server['serverOs']['name'].upcase : 'N/A',
+            type: server['computeServerType'] ? server['computeServerType']['name'] : 'unmanaged',
+            tenant: server['account'] ? server['account']['name'] : server['accountId'],
+            owner: server['owner'] ? server['owner']['username'] : server['owner'],
+            cloud: server['zone'] ? server['zone']['name'] : '',
+            plan: server['plan'] ? server['plan']['name'] : '',
+            ip: server['externalIp'],
+            internal_ip: server['internalIp'],
+            nodes: server['containers'] ? server['containers'].size : '',
+            # status: format_server_status(server, cyan),
+            status: (options[:details]||options[:all_fields]) ? format_server_status(server, cyan) : format_server_status_friendly(server, cyan),
+            power: format_server_power_state(server, cyan),
+            cpu: cpu_usage_str + cyan,
+            memory: memory_usage_str + cyan,
+            storage: storage_usage_str + cyan,
+            created: format_local_dt(server['dateCreated']),
+            updated: format_local_dt(server['lastUpdated']),
+          }
+          row
+        }
+        # columns = [:id, :name, :type, :cloud, :ip, :internal_ip, :nodes, :status, :power]
+        columns = {
+          "ID" => :id,
+          "Name" => :name,
+          "External Name" => :external_name,
+          "Hostname" => :hostname,
+          "Type" => :type,
+          "Owner" => :owner,
+          "Tenant" => :tenant,
+          "Cloud" => :cloud,
+          "Plan" => :plan,
+          "IP" => :ip,
+          "Private IP" => :internal_ip,
+          "Nodes" => :nodes,
+          "Status" => :status,
+          "Power" => :power,
+          "CPU" => :cpu,
+          "Memory" => :memory,
+          "Storage" => :storage,
+          "Created" => :created,
+          "Updated" => :updated,
+        }
+        if options[:details] != true
+          columns.delete("External Name")
+          columns.delete("Hostname")
+          columns.delete("Plan")
+          columns.delete("Private IP")
+          columns.delete("Owner")
+          columns.delete("Tenant")
+          columns.delete("Power")
+          columns.delete("Created")
+          columns.delete("Updated")
+        end
+        # hide External Name if there are none
+        if !servers.find {|it| it['externalName'] && it['externalName'] != it['name']}
+          columns.delete("External Name")
+        end
+        if !multi_tenant
+          columns.delete("Tenant")
+        end
+        # columns += [:cpu, :memory, :storage]
+        # # custom pretty table columns ...
+        # if options[:include_fields]
+        #   columns = options[:include_fields]
+        # end
+        print cyan
+        print as_pretty_table(rows, columns.upcase_keys!, options)
+        print reset
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    return 0, nil
   end
 
   def count(args)
@@ -491,7 +482,7 @@ class Morpheus::Cli::Hosts
       opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
         options[:refresh_until_status] = val.to_s.downcase
       end
-      build_common_options(opts, options, [:json, :csv, :yaml, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
     end
     optparse.parse!(args)
     if args.count < 1
@@ -506,37 +497,24 @@ class Morpheus::Cli::Hosts
   end
 
   def _get(arg, options)
-    begin
-      @servers_interface.setopts(options)
-      if options[:dry_run]
-        if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @servers_interface.dry.get(arg.to_i)
-        else
-          print_dry_run @servers_interface.dry.list({name: arg})
-        end
-        return
-      end
-      json_response = nil
+    @servers_interface.setopts(options)
+    if options[:dry_run]
       if arg.to_s =~ /\A\d{1,}\Z/
-        json_response = @servers_interface.get(arg.to_i)
+        print_dry_run @servers_interface.dry.get(arg.to_i)
       else
-        server = find_host_by_name_or_id(arg)
-        json_response = @servers_interface.get(server['id'])
-        # json_response = {"server" => server} need stats
+        print_dry_run @servers_interface.dry.list({name: arg})
       end
-      if options[:json]
-        json_response.delete('stats') if options[:include_fields]
-        puts as_json(json_response, options, "server")
-        return 0
-      elsif options[:yaml]
-        json_response.delete('stats') if options[:include_fields]
-        puts as_yaml(json_response, options, "server")
-        return 0
-      end
-      if options[:csv]
-        puts records_as_csv([json_response['server']], options)
-        return 0
-      end
+      return
+    end
+    json_response = nil
+    if arg.to_s =~ /\A\d{1,}\Z/
+      json_response = @servers_interface.get(arg.to_i)
+    else
+      server = find_host_by_name_or_id(arg)
+      json_response = @servers_interface.get(server['id'])
+      # json_response = {"server" => server} need stats
+    end
+    render_response(json_response, options, "server") do
       server = json_response['server'] || json_response['host'] || {}
       #stats = server['stats'] || json_response['stats'] || {}
       stats = json_response['stats'] || {}
@@ -622,11 +600,8 @@ class Morpheus::Cli::Hosts
           _get(arg, options)
         end
       end
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def stats(args)

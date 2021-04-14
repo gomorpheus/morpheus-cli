@@ -121,7 +121,7 @@ class Morpheus::Cli::Instances
       opts.on('-a', '--details', "Display all details: plan, stats, etc" ) do
         options[:details] = true
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List instances."
     end
     optparse.parse!(args)
@@ -130,159 +130,150 @@ class Morpheus::Cli::Instances
       options[:phrase] = args.join(" ")
     end
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
-      if group
-        params['siteId'] = group['id']
-      end
 
-      # argh, this doesn't work because group_id is required for options/clouds
-      # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
-      cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
-      if cloud
-        params['zoneId'] = cloud['id']
-      end
-
-      host = options[:host] ? find_host_by_name_or_id(options[:host]) : options[:host]
-      if host
-        params['serverId'] = host['id']
-      end
-
-      account = nil
-      #todo: user = find_available_user_option(owner_id)
-
-      if options[:owner]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
-        return if created_by_ids.nil?
-        params['createdBy'] = created_by_ids
-        params['ownerId'] = created_by_ids # 4.2.1+
-      end
-
-      params['showDeleted'] = true if options[:showDeleted]
-      params['deleted'] = true if options[:deleted]
-      params['labels'] = options[:labels] if options[:labels]
-      if options[:tags]
-        options[:tags].each do |k,v|
-          params['tags.' + k] = v
-        end
-      end
-
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.list(params)
-        return 0
-      end
-      json_response = @instances_interface.list(params)
-      if options[:json]
-        puts as_json(json_response, options, "instances")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "instances")
-        return 0
-      elsif options[:csv]
-        # merge stats to be nice here..
-        if json_response['instances']
-          all_stats = json_response['stats'] || {}
-          if all_stats
-            json_response['instances'].each do |it|
-              it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
-            end
-          end
-        end
-        puts records_as_csv(json_response['instances'], options)
-      else
-        instances = json_response['instances']
-
-        title = "Morpheus Instances"
-        subtitles = []
-        if group
-          subtitles << "Group: #{group['name']}".strip
-        end
-        if cloud
-          subtitles << "Cloud: #{cloud['name']}".strip
-        end
-        if host
-          subtitles << "Host: #{host['name']}".strip
-        end
-        if options[:owner]
-          subtitles << "Created By: #{options[:owner]}"
-        end
-        subtitles += parse_list_subtitles(options)
-        print_h1 title, subtitles, options
-        if instances.empty?
-          print cyan,"No instances found.",reset,"\n"
-        else
-          # print_instances_table(instances)
-          # server returns stats in a separate key stats => {"id" => {} }
-          # the id is a string right now..for some reason..
-          all_stats = json_response['stats'] || {} 
-          if all_stats
-            instances.each do |it|
-              if !it['stats']
-                found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
-                it['stats'] = found_stats # || {}
-              end
-            end
-          end
-
-          rows = instances.collect {|instance| 
-            stats = instance['stats']
-            cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
-            memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
-            storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
-            if options[:details] || options[:stats]
-              if stats['maxMemory'] && stats['maxMemory'].to_i != 0
-                memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
-              end
-              if stats['maxStorage'] && stats['maxStorage'].to_i != 0
-                storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
-              end
-            end
-            row = {
-              id: instance['id'],
-              name: instance['name'],
-              connection: format_instance_connection_string(instance),
-              environment: instance['instanceContext'],
-              user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
-              tenant: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
-              nodes: instance['containers'].count,
-              status: format_instance_status(instance, cyan),
-              type: instance['instanceType']['name'],
-              group: instance['group'] ? instance['group']['name'] : nil,
-              cloud: instance['cloud'] ? instance['cloud']['name'] : nil,
-              plan: instance['plan'] ? instance['plan']['name'] : '',
-              version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
-              created: format_local_dt(instance['dateCreated']),
-              cpu: cpu_usage_str + cyan,
-              memory: memory_usage_str + cyan, 
-              storage: storage_usage_str + cyan
-            }
-            row
-          }
-          columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
-              :type, :version, :environment, 
-              {:created => {:display_name => "CREATED"}}, 
-              # {:tenant => {:display_name => "TENANT"}}, 
-              {:user => {:display_name => "OWNER", :max_width => 20}}, 
-              :plan,
-              :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
-          # custom pretty table columns ... this is handled in as_pretty_table now(), 
-          # todo: remove all these.. and try to always pass rows as the json data itself..
-          if options[:details] != true
-            columns.delete(:plan)
-          end
-          print cyan
-          print as_pretty_table(rows, columns, options)
-          print reset
-          print_results_pagination(json_response)
-        end
-        print reset,"\n"
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    params.merge!(parse_list_options(options))
+    group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
+    if group
+      params['siteId'] = group['id']
     end
+
+    # argh, this doesn't work because group_id is required for options/clouds
+    # cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud]) : nil
+    cloud = options[:cloud] ? find_zone_by_name_or_id(nil, options[:cloud]) : nil
+    if cloud
+      params['zoneId'] = cloud['id']
+    end
+
+    host = options[:host] ? find_host_by_name_or_id(options[:host]) : options[:host]
+    if host
+      params['serverId'] = host['id']
+    end
+
+    account = nil
+    #todo: user = find_available_user_option(owner_id)
+
+    if options[:owner]
+      created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
+      return if created_by_ids.nil?
+      params['createdBy'] = created_by_ids
+      params['ownerId'] = created_by_ids # 4.2.1+
+    end
+
+    params['showDeleted'] = true if options[:showDeleted]
+    params['deleted'] = true if options[:deleted]
+    params['labels'] = options[:labels] if options[:labels]
+    if options[:tags]
+      options[:tags].each do |k,v|
+        params['tags.' + k] = v
+      end
+    end
+
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.list(params)
+      return 0
+    end
+    json_response = @instances_interface.list(params)
+    all_stats = json_response['stats'] || {}
+    # merge stats into each record just to be nice...
+    if options[:include_fields] || options[:all_fields]
+      if json_response['instances']
+        if all_stats
+          json_response['instances'].each do |it|
+            it['stats'] ||= all_stats[it['id'].to_s] || all_stats[it['id']]
+          end
+        end
+      end
+    end
+    render_response(json_response, options, "instances") do
+      instances = json_response['instances']
+
+      title = "Morpheus Instances"
+      subtitles = []
+      if group
+        subtitles << "Group: #{group['name']}".strip
+      end
+      if cloud
+        subtitles << "Cloud: #{cloud['name']}".strip
+      end
+      if host
+        subtitles << "Host: #{host['name']}".strip
+      end
+      if options[:owner]
+        subtitles << "Created By: #{options[:owner]}"
+      end
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if instances.empty?
+        print cyan,"No instances found.",reset,"\n"
+      else
+        # print_instances_table(instances)
+        # server returns stats in a separate key stats => {"id" => {} }
+        # the id is a string right now..for some reason..
+        all_stats = json_response['stats'] || {} 
+        if all_stats
+          instances.each do |it|
+            if !it['stats']
+              found_stats = all_stats[it['id'].to_s] || all_stats[it['id']]
+              it['stats'] = found_stats # || {}
+            end
+          end
+        end
+
+        rows = instances.collect {|instance| 
+          stats = instance['stats']
+          cpu_usage_str = !stats ? "" : generate_usage_bar((stats['usedCpu'] || stats['cpuUsage']).to_f, 100, {max_bars: 10})
+          memory_usage_str = !stats ? "" : generate_usage_bar(stats['usedMemory'], stats['maxMemory'], {max_bars: 10})
+          storage_usage_str = !stats ? "" : generate_usage_bar(stats['usedStorage'], stats['maxStorage'], {max_bars: 10})
+          if options[:details] || options[:stats]
+            if stats['maxMemory'] && stats['maxMemory'].to_i != 0
+              memory_usage_str = memory_usage_str + cyan + format_bytes_short(stats['usedMemory']).strip.rjust(8, ' ')  + " / " + format_bytes_short(stats['maxMemory']).strip
+            end
+            if stats['maxStorage'] && stats['maxStorage'].to_i != 0
+              storage_usage_str = storage_usage_str + cyan + format_bytes_short(stats['usedStorage']).strip.rjust(8, ' ') + " / " + format_bytes_short(stats['maxStorage']).strip
+            end
+          end
+          row = {
+            id: instance['id'],
+            name: instance['name'],
+            connection: format_instance_connection_string(instance),
+            environment: instance['instanceContext'],
+            user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
+            tenant: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
+            nodes: instance['containers'].count,
+            status: format_instance_status(instance, cyan),
+            type: instance['instanceType']['name'],
+            group: instance['group'] ? instance['group']['name'] : nil,
+            cloud: instance['cloud'] ? instance['cloud']['name'] : nil,
+            plan: instance['plan'] ? instance['plan']['name'] : '',
+            version: instance['instanceVersion'] ? instance['instanceVersion'] : '',
+            created: format_local_dt(instance['dateCreated']),
+            cpu: cpu_usage_str + cyan,
+            memory: memory_usage_str + cyan, 
+            storage: storage_usage_str + cyan
+          }
+          row
+        }
+        columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
+            :type, :version, :environment, 
+            {:created => {:display_name => "CREATED"}}, 
+            # {:tenant => {:display_name => "TENANT"}}, 
+            {:user => {:display_name => "OWNER", :max_width => 20}}, 
+            :plan,
+            :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
+        # custom pretty table columns ... this is handled in as_pretty_table now(), 
+        # todo: remove all these.. and try to always pass rows as the json data itself..
+        if options[:details] != true
+          columns.delete(:plan)
+        end
+        print cyan
+        print as_pretty_table(rows, columns, options)
+        print reset
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    return 0, nil
   end
 
   def count(args)
@@ -1233,7 +1224,7 @@ class Morpheus::Cli::Instances
       # opts.on( nil, '--lb', "Display Load Balancer Details" ) do
       #   options[:include_lb] = true
       # end
-      build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about an instance.\n" + 
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
     end
@@ -1250,34 +1241,20 @@ class Morpheus::Cli::Instances
   end
 
   def _get(arg, options={})
-    begin
-      if options[:dry_run]
-        @instances_interface.setopts(options)
-        if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @instances_interface.dry.get(arg.to_i)
-        else
-          print_dry_run @instances_interface.dry.get({name:arg})
-        end
-        return
-      end
-      instance = find_instance_by_name_or_id(arg =~ /\A\d{1,}\Z/ ? arg.to_i : arg)
+    
+    if options[:dry_run]
       @instances_interface.setopts(options)
-      json_response = @instances_interface.get(instance['id'])
-      if options[:quiet]
-        return 0
+      if arg.to_s =~ /\A\d{1,}\Z/
+        print_dry_run @instances_interface.dry.get(arg.to_i)
+      else
+        print_dry_run @instances_interface.dry.get({name:arg})
       end
-      if options[:json]
-        puts as_json(json_response, options, "instance")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "instance")
-        return 0
-      end
-
-      if options[:csv]
-        puts records_as_csv([json_response['instance']], options)
-        return 0
-      end
+      return
+    end
+    instance = find_instance_by_name_or_id(arg =~ /\A\d{1,}\Z/ ? arg.to_i : arg)
+    @instances_interface.setopts(options)
+    json_response = @instances_interface.get(instance['id'])
+    render_response(json_response, options, "instance") do
       instance = json_response['instance']
       stats = instance['stats'] || json_response['stats'] || {}
       # load_balancers = json_response['loadBalancers'] || {}
@@ -1494,12 +1471,8 @@ class Morpheus::Cli::Instances
           _get(arg, options)
         end
       end
-
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def list_containers(args)

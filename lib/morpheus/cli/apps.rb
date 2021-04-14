@@ -88,7 +88,7 @@ class Morpheus::Cli::Apps
       opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List apps."
     end
     optparse.parse!(args)
@@ -97,64 +97,53 @@ class Morpheus::Cli::Apps
       options[:phrase] = args.join(" ")
     end
     connect(options)
-    begin
-      if options[:type]
-        params['type'] = [options[:type]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
-      end
-      if options[:blueprint]
-        blueprint_ids = [options[:blueprint]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
-        params['blueprintId'] = blueprint_ids.collect do |blueprint_id|
-          if blueprint_id.to_s =~ /\A\d{1,}\Z/
-            return blueprint_id
-          else
-            blueprint = find_blueprint_by_name_or_id(blueprint_id)
-            return 1 if blueprint.nil?
-            blueprint['id']
-          end
+    
+    if options[:type]
+      params['type'] = [options[:type]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+    end
+    if options[:blueprint]
+      blueprint_ids = [options[:blueprint]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+      params['blueprintId'] = blueprint_ids.collect do |blueprint_id|
+        if blueprint_id.to_s =~ /\A\d{1,}\Z/
+          return blueprint_id
+        else
+          blueprint = find_blueprint_by_name_or_id(blueprint_id)
+          return 1 if blueprint.nil?
+          blueprint['id']
         end
       end
-      if options[:owner]
-        owner_ids = [options[:owner]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
-        params['ownerId'] = owner_ids.collect do |owner_id|
-          if owner_id.to_s =~ /\A\d{1,}\Z/
-            return owner_id
-          else
-            user = find_available_user_option(owner_id)
-            return 1 if user.nil?
-            user['id']
-          end
+    end
+    if options[:owner]
+      owner_ids = [options[:owner]].flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
+      params['ownerId'] = owner_ids.collect do |owner_id|
+        if owner_id.to_s =~ /\A\d{1,}\Z/
+          return owner_id
+        else
+          user = find_available_user_option(owner_id)
+          return 1 if user.nil?
+          user['id']
         end
       end
-      params.merge!(parse_list_options(options))
-      account = nil
-      if options[:owner]
-        created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
-        return if created_by_ids.nil?
-        params['createdBy'] = created_by_ids
-        # params['ownerId'] = created_by_ids # 4.2.1+
-      end
+    end
+    params.merge!(parse_list_options(options))
+    account = nil
+    if options[:owner]
+      created_by_ids = find_all_user_ids(account ? account['id'] : nil, options[:owner])
+      return if created_by_ids.nil?
+      params['createdBy'] = created_by_ids
+      # params['ownerId'] = created_by_ids # 4.2.1+
+    end
 
-      params['showDeleted'] = options[:showDeleted] if options.key?(:showDeleted)
-      params['deleted'] = options[:deleted] if options.key?(:deleted)
+    params['showDeleted'] = options[:showDeleted] if options.key?(:showDeleted)
+    params['deleted'] = options[:deleted] if options.key?(:deleted)
 
-      @apps_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.list(params)
-        return
-      end
-
-      json_response = @apps_interface.list(params)
-      if options[:json]
-        puts as_json(json_response, options, "apps")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "apps")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['apps'], options)
-        return 0
-      end
-      
+    @apps_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @apps_interface.dry.list(params)
+      return
+    end
+    json_response = @apps_interface.list(params)
+    render_response(json_response, options, "apps") do
       apps = json_response['apps']
       title = "Morpheus Apps"
       subtitles = []
@@ -167,10 +156,8 @@ class Morpheus::Cli::Apps
         print_results_pagination(json_response)
       end
      print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def count(args)
@@ -645,7 +632,7 @@ class Morpheus::Cli::Apps
       opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
         options[:refresh_until_status] = val.to_s.downcase
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :outfile, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about an app.\n" +
                     "[app] is required. This is the name or id of an app. Supports 1-N [app] arguments."
     end
@@ -665,19 +652,19 @@ class Morpheus::Cli::Apps
     
   end
 
-  def _get(arg, options={})
-    begin
-      app = find_app_by_name_or_id(arg)
-      @apps_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.get(app['id'])
-        return
-      end
-      json_response = @apps_interface.get(app['id'])
-
-      render_result = render_with_format(json_response, options, 'blueprint')
-      return 0 if render_result
-
+  def _get(id, options={})
+    app = nil
+    if id.to_s !~ /\A\d{1,}\Z/
+      app = find_app_by_name_or_id(id)
+      id = app['id']
+    end
+    @apps_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @apps_interface.dry.get(id)
+      return
+    end
+    json_response = @apps_interface.get(id.to_i)
+    render_response(json_response, options, 'app') do
       app = json_response['app']
       app_tiers = app['appTiers']
       print_h1 "App Details", [], options
@@ -799,14 +786,11 @@ class Morpheus::Cli::Apps
           print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
-          _get(arg, options)
+          _get(app['id'], options)
         end
       end
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def update(args)

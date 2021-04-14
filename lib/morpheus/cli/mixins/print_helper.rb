@@ -1086,6 +1086,7 @@ module Morpheus::Cli::PrintHelper
         column_defs.each do |column_def|
           label = column_def.label
           value = column_def.display_method.call(obj)
+          value = value.is_a?(String) ? value : JSON.fast_generate(value)
           # value = get_object_value(obj, column_def)
           if do_quotes
             cells << quote_csv_value(value)

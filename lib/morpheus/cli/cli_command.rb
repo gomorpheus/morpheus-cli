@@ -243,7 +243,7 @@ module Morpheus
       ## the standard options for a command that makes api requests (most of them)
 
       def build_standard_get_options(opts, options, includes=[], excludes=[])
-        build_common_options(opts, options, includes + [:query, :json, :yaml, :csv, :fields, :quiet, :dry_run, :remote], excludes)
+        build_common_options(opts, options, includes + [:query, :json, :yaml, :csv, :fields, :select, :delim, :quiet, :dry_run, :remote], excludes)
       end
 
       def build_standard_post_options(opts, options, includes=[], excludes=[])
@@ -688,34 +688,48 @@ module Morpheus
               options[:format] = :csv
               #options[:csv_delim] = options[:csv_delim] || ","
             end
-
+            # deprecated --csv-delim, use --delimiter instead
             opts.on('--csv-delim CHAR', String, "Delimiter for CSV Output values. Default: ','") do |val|
               options[:csv] = true
               options[:format] = :csv
               val = val.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
               options[:csv_delim] = val
             end
+            opts.add_hidden_option('--csv-delim') if opts.is_a?(Morpheus::Cli::OptionParser)
 
+            # deprecated --csv-newline, use --newline instead
             opts.on('--csv-newline [CHAR]', String, "Delimiter for CSV Output rows. Default: '\\n'") do |val|
               options[:csv] = true
               options[:format] = :csv
               if val == "no" || val == "none"
                 options[:csv_newline] = ""
               else
-                val = val.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
+                val = val.to_s.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
                 options[:csv_newline] = val
               end
             end
+            opts.add_hidden_option('--csv-newline') if opts.is_a?(Morpheus::Cli::OptionParser)
 
             opts.on(nil, '--csv-quotes', "Wrap CSV values with \". Default: false") do
               options[:csv] = true
               options[:format] = :csv
               options[:csv_quotes] = true
             end
+            opts.add_hidden_option('--csv-quotes') if opts.is_a?(Morpheus::Cli::OptionParser)
 
             opts.on(nil, '--csv-no-header', "Exclude header for CSV Output.") do
               options[:csv] = true
               options[:format] = :csv
+              options[:csv_no_header] = true
+            end
+            opts.add_hidden_option('--csv-no-header') if opts.is_a?(Morpheus::Cli::OptionParser)
+
+            opts.on(nil, '--quotes', "Wrap CSV values with \". Default: false") do
+              options[:csv_quotes] = true
+            end
+            opts.add_hidden_option('--csv-quotes') if opts.is_a?(Morpheus::Cli::OptionParser)
+
+            opts.on(nil, '--no-header', "Exclude header for CSV Output.") do
               options[:csv_no_header] = true
             end
 
@@ -738,9 +752,34 @@ module Morpheus
             opts.on(nil, '--all-fields', "Show all fields present in the data.") do
               options[:all_fields] = true
             end
-            #opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on(nil, '--wrap', "Wrap table columns instead hiding them when terminal is not wide enough.") do
               options[:wrap] = true
+            end
+          when :select
+            #opts.add_hidden_option('--all-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.on('--select x,y,z', String, "Filter Output to just print the value(s) of specific fields.") do |val|
+              options[:select_fields] = val.split(',').collect {|r| r.strip}
+            end
+
+          when :delim
+            opts.on('--delimiter [CHAR]', String, "Delimiter for output values. Default: ',', use with --select and --csv") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              val = val.to_s
+              val = val.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
+              options[:delim] = val
+            end
+
+            opts.on('--newline [CHAR]', String, "Delimiter for output rows. Default: '\\n', use with --select and --csv") do |val|
+              options[:csv] = true
+              options[:format] = :csv
+              val = val.to_s
+              if val == "no" || val == "none"
+                options[:newline] = ""
+              else
+                val = val.to_s.gsub("\\n", "\n").gsub("\\r", "\r").gsub("\\t", "\t") if val.include?("\\")
+                options[:newline] = val
+              end
             end
           when :thin
             opts.on( '--thin', '--thin', "Format headers and columns with thin borders." ) do |val|
@@ -1285,7 +1324,20 @@ module Morpheus
       # returns the string rendered, or nil if nothing was rendered.
       def render_response(json_response, options, object_key=nil, &block)
         output = nil
-        if options[:json]
+        if options[:select_fields]
+          row = object_key ? json_response[object_key] : json_response
+          row = [row].flatten()
+          if row.is_a?(Array)
+            output = [row].flatten.collect { |record| 
+              options[:select_fields].collect { |field| 
+                value = get_object_value(record, field)
+                value.is_a?(String) ? value : JSON.fast_generate(value)
+              }.join(options[:delim] || ",")
+            }.join(options[:newline] || "\n")
+          else
+            output = records_as_csv([row], options)
+          end
+        elsif options[:json]
           output = as_json(json_response, options, object_key)
         elsif options[:yaml]
           output = as_yaml(json_response, options, object_key)
