@@ -722,7 +722,7 @@ class Morpheus::Cli::NetworkDomainsCommand
         payload['networkDomainRecord']['name'] = v_prompt['name'] unless v_prompt['name'].to_s.empty?
 
         # Type
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'content', 'fieldLabel' => 'Type', 'type' => 'select', 'required' => true, 'optionSource' => 'dnsRecordType', 'description' => 'Type for this domain record.', 'defaultValue' => 'A'}], options[:options], @api_client)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'required' => true, 'optionSource' => 'dnsRecordType', 'description' => 'Type for this domain record.', 'defaultValue' => 'A'}], options[:options], @api_client)
         payload['networkDomainRecord']['type'] = v_prompt['type'] unless v_prompt['type'].to_s.empty?
 
         # Content
