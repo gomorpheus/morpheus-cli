@@ -231,7 +231,7 @@ EOT
       params.booleanize!
       # logo upload requires multipart instead of json
       if params['logo']
-        params['logo'] = File.new(params['logo'], 'rb')
+        params['logo'] = File.new(File.expand_path(params['logo']), 'rb')
         payload[:multipart] = true
       end
       # convert config string to a map
@@ -332,7 +332,7 @@ EOT
       params.booleanize!
       # logo upload requires multipart instead of json
       if params['logo']
-        params['logo'] = File.new(params['logo'], 'rb')
+        params['logo'] = File.new(File.expand_path(params['logo']), 'rb')
         payload[:multipart] = true
       end
       # convert config string to a map
