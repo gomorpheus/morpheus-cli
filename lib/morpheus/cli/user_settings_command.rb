@@ -51,29 +51,20 @@ EOT
       return 1
     end
     
-    begin
-      if options[:user]
-        user = find_user_by_username_or_id(nil, options[:user], {global:true})
-        return 1 if user.nil?
-        params['userId'] = user['id']
-      end
-      params.merge!(parse_list_options(options))
-      @user_settings_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @user_settings_interface.dry.get(params)
-        return
-      end
-      json_response = @user_settings_interface.get(params)
-      if options[:json]
-        puts as_json(json_response, options, "user")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "user")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['user']], options)
-        return 0
-      end
+    if options[:user]
+      user = find_user_by_username_or_id(nil, options[:user], {global:true})
+      return 1 if user.nil?
+      params['userId'] = user['id']
+    end
+    params.merge!(parse_list_options(options))
+    @user_settings_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @user_settings_interface.dry.get(params)
+      return
+    end
+    json_response = @user_settings_interface.get(params)
+    
+    render_response(json_response, options) do
 
       user_settings = json_response['user'] || json_response['userSettings']
       access_tokens = user_settings['accessTokens'] || json_response['accessTokens'] || json_response['apiAccessTokens'] || []
@@ -94,8 +85,11 @@ EOT
         "Linux Key Pair" => lambda {|it| it['linuxKeyPairId'] },
         "Windows Username" => lambda {|it| it['windowsUsername'] },
         "Windows Password" => lambda {|it| it['windowsPassword'] },
+        "Default Group" => lambda {|it| it['defaultGroup'] ? it['defaultGroup']['name'] : '' },
+        "Default Cloud" => lambda {|it| it['defaultCloud'] ? it['defaultCloud']['name'] : '' },
         "Default Persona" => lambda {|it| it['defaultPersona'] ? it['defaultPersona']['name'] : '' },
         "Desktop Background" => lambda {|it| it['desktopBackground'] ? it['desktopBackground'].split('/').last : '' },
+        "2FA Enabled" => lambda {|it| it['isUsing2FA'].nil? ? '' : format_boolean(it['isUsing2FA']) },
       }
       print_description_list(description_cols, user_settings)      
 
@@ -118,18 +112,15 @@ EOT
       end
       
       print reset #, "\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
 
 
   def update(args)
-    raw_args = args
     options = {}
     params = {}
+    query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
       opts.on("-u", "--user USER", "User username or ID") do |val|
@@ -139,7 +130,8 @@ EOT
         params['userId'] = val.to_s
       end
       #opts.add_hidden_option('--user-id')
-      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
+      build_option_type_options(opts, options, update_user_settings_option_types)
+      build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update user settings.
 Done for the current user by default, unless a user is specified with the --user option.
@@ -153,44 +145,54 @@ EOT
       return 1
     end
     
-    begin
-      if options[:user]
-        user = find_user_by_username_or_id(nil, options[:user], {global:true})
-        return 1 if user.nil?
-        params['userId'] = user['id']
-      end
-      payload = {}
-      if options[:payload]
-        payload = options[:payload]
-      else
-  
-      end
-
-      if options[:options]
-        payload['user'] ||= {}
-        payload['user'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
-      end
-      @user_settings_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @user_settings_interface.dry.update(params, payload)
-        return
-      end
-      json_response = @user_settings_interface.update(params, payload)
-      if options[:quiet]
-        return 0
-      elsif options[:json]
-        puts as_json(json_response, options)
-        return 0
-      end
-
-      print_green_success "Updated user settings"
-      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (params['userId'] ? ['--user-id', params['userId'].to_s] : [])
-      get(get_args)
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
+    if options[:user]
+      user = find_user_by_username_or_id(nil, options[:user], {global:true})
+      return 1 if user.nil?
+      params['userId'] = user['id']
     end
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'user' => parse_passed_options(options)})
+    else
+      params.deep_merge!(parse_passed_options(options))
+      # do not prompt on update
+      v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_user_settings_option_types, options[:options], @api_client, options[:params])
+      v_prompt.deep_compact!
+      params.deep_merge!(v_prompt)
+      # convert checkbox "on" and "off" to true and false
+      params.booleanize!
+      # upload requires multipart instead of json
+      if params['avatar']
+        params['avatar'] = File.new(File.expand_path(params['avatar']), 'rb')
+        payload[:multipart] = true
+      end
+      if params['desktopBackground']
+        params['desktopBackground'] = File.new(File.expand_path(params['desktopBackground']), 'rb')
+        payload[:multipart] = true
+      end
+      # userId goes in query string, not payload...
+      query_params['userId'] = params.delete('userId') if params.key?('userId')
+      payload.deep_merge!({'user' => params})
+      if payload['user'].empty? # || options[:no_prompt]
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
+    end
+
+    @user_settings_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @user_settings_interface.dry.update(payload, query_params)
+      return
+    end
+    json_response = @user_settings_interface.update(payload, query_params)
+    render_response(json_response, options) do
+      print_green_success "Updated user settings"
+      get_args = [] + (options[:remote] ? ["-r",options[:remote]] : []) + (query_params['userId'] ? ['--user-id', query_params['userId'].to_s] : [])
+      get(get_args)
+    end
+    return 0, nil
+    
   end
 
   def update_avatar(args)
@@ -779,6 +781,34 @@ EOT
       print_rest_exception(e, options)
       return 1
     end
+  end
+
+  protected
+
+  def update_user_settings_option_types
+    [
+      # todo: rest of the available user settings!
+      {'switch' => 'change-username', 'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'description' => 'Change user credentials to use a new username'},
+      {'switch' => 'change-password', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Change user credentials to use a new password'},
+      {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text'},
+      {'fieldName' => 'firstName', 'fieldLabel' => 'First Name', 'type' => 'text'},
+      {'fieldName' => 'lastName', 'fieldLabel' => 'Last Name', 'type' => 'text'},
+      {'fieldName' => 'email', 'fieldLabel' => 'Email', 'type' => 'text'},
+      {'fieldName' => 'receiveNotifications', 'fieldLabel' => 'Receive Notifications', 'type' => 'checkbox'},
+      {'fieldName' => 'linuxUsername', 'fieldLabel' => 'Linux Username', 'type' => 'text'},
+      {'fieldName' => 'linuxPassword', 'fieldLabel' => 'Linux Password', 'type' => 'password'},
+      {'fieldName' => 'linuxKeyPairId', 'fieldLabel' => 'Linux Key Pair ID', 'type' => 'password'},
+      {'fieldName' => 'windowsUsername', 'fieldLabel' => 'Windows Username', 'type' => 'text'},
+      {'fieldName' => 'windowsPassword', 'fieldLabel' => 'Windows Password', 'type' => 'password'},
+      {'fieldName' => 'defaultGroup', 'fieldLabel' => 'Default Group ID', 'type' => 'text'},
+      {'fieldName' => 'defaultCloud', 'fieldLabel' => 'Default Cloud ID', 'type' => 'text'},
+      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona Name or Code or ID', 'type' => 'text'},
+      {'switch' => 'change-password', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Change user credentials to use a new password'},
+      {'fieldName' => 'avatar', 'fieldLabel' => 'Avatar', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user avatar'},
+      {'fieldName' => 'desktopBackground', 'fieldLabel' => 'Desktop Background', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user desktop background'},
+      # api cannot yet modify isUsing2fa
+      # {'switch' => '2fa', 'fieldName' => 'isUsing2fa', 'fieldLabel' => '2FA Enabled', 'type' => 'checkbox', 'description' => 'Enable or Disable 2FA for your user.'}
+    ]
   end
 
 end

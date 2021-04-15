@@ -204,7 +204,10 @@ module Morpheus
           # elsif option['type'] == 'select'
           end
           full_option = "--#{full_field_name} #{value_label}"
-          shorthand_option = option_type['shorthand']
+          # switch is an alias for the full option name, fieldName is the default
+          if option_type['switch']
+            full_option = "--#{option_type['switch']} #{value_label}"
+          end
           arg1, arg2 = full_option, String
           if option_type['shorthand']
             arg1, arg2 = full_option, option_type['shorthand']
