@@ -817,7 +817,7 @@ class Morpheus::Cli::Hosts
         cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
 
         # Server Type
-        cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true }.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
+        cloud_server_types = cloud_type['serverTypes'].select{|b| b['creatable'] == true && b['containerHypervisor'] == false }.sort { |x,y| x['displayOrder'] <=> y['displayOrder'] }
         if options[:server_type_code]
           server_type_code = options[:server_type_code]
         else
