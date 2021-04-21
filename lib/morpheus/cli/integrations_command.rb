@@ -55,7 +55,18 @@ class Morpheus::Cli::IntegrationsCommand
       if integrations.empty?
         print cyan,"No integrations found.",reset,"\n"
       else
-        list_columns = integration_column_definitions.upcase_keys!
+        list_columns = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Type" => lambda {|it| format_integration_type(it) },
+          "URL" => lambda {|it| it['url'] },
+          "Username" => lambda {|it| it['username'] },
+          "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+          "Status Date" => lambda {|it| format_local_dt(it['statusDate']) },
+          "Status" => lambda {|it| format_integration_status(it) },
+          # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+          # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+        }.upcase_keys!
         print as_pretty_table(integrations, list_columns, options)
         print_results_pagination(json_response)
       end
@@ -103,54 +114,44 @@ EOT
       json_response = @integrations_interface.get(id, params)
     end
     integration = json_response[integration_object_key]
-    config = integration['config'] || {}
-    # export just the config as json or yaml (default)
-    if options[:show_config]
-      unless options[:json] || options[:yaml] || options[:csv]
-        options[:yaml] = true
-      end
-      return render_with_format(config, options)
-    end
     render_response(json_response, options, integration_object_key) do
       print_h1 "Integration Details", [], options
       print cyan
-      # show_columns = integration_column_definitions
       show_columns = {
         "ID" => 'id',
         "Name" => 'name',
         "Type" => lambda {|it| format_integration_type(it) },
+        "URL" => lambda {|it| it['url'] },
+        "Host" => lambda {|it| it['host'] },
+        "Port" => lambda {|it| it['port'] },
+        "Username" => lambda {|it| it['username'] },
+        "Password" => lambda {|it| it['password'] },
+        "Token" => lambda {|it| it['token'] },
+        "Service Key" => lambda {|it| it['serviceKey'] ? it['serviceKey']['name'] : nil },
+        "Auth Key" => lambda {|it| it['authKey'] ? it['authKey']['name'] : nil },
         "Enabled" => lambda {|it| format_boolean(it['enabled']) },
         "Status Date" => lambda {|it| format_local_dt(it['statusDate']) },
         "Status" => lambda {|it| format_integration_status(it) },
         # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
       }
+      show_columns.delete("URL") if integration['url'].nil?
+      show_columns.delete("Host") if integration['host'].nil?
+      show_columns.delete("Port") if integration['port'].nil?
+      show_columns.delete("Password") if integration['password'].nil?
+      show_columns.delete("Token") if integration['token'].nil?
+      show_columns.delete("Service Key") if integration['serviceKey'].nil?
+      show_columns.delete("Auth Key") if integration['authKey'].nil?
       print_description_list(show_columns, integration)
 
-      if integration['optionTypes'] && integration['optionTypes'].size > 0
-        print_h2 "Option Types"
-        opt_columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"NAME" => lambda {|it| it['name'] } },
-          {"TYPE" => lambda {|it| it['type'] } },
-          {"FIELD NAME" => lambda {|it| it['fieldName'] } },
-          {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
-          {"DEFAULT" => lambda {|it| it['defaultValue'] } },
-          {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
-        ]
-        print as_pretty_table(integration['optionTypes'], opt_columns)
-      else
-        # print cyan,"No option types found for this integration.","\n",reset
-      end
-
-      integration_config = integration['config'] || {}
-      if integration_config && !integration_config.empty?
-        print_h2 "Configuration", options
-        print cyan
-        print as_description_list(integration_config, integration_config.keys, options)
-      else
-        # print cyan,"No configuration found for this integration.","\n",reset
-      end
+      # integration_config = integration['config'] || {}
+      # if integration_config && !integration_config.empty?
+      #   print_h2 "Configuration", options
+      #   print cyan
+      #   print as_description_list(integration_config, integration_config.keys, options)
+      # else
+      #   # print cyan,"No configuration found for this integration.","\n",reset
+      # end
 
       item_type_code = integration['type'].to_s.downcase
       if options[:no_config] != true
@@ -499,21 +500,6 @@ EOT
   end
 
   private
-
-  def integration_column_definitions()
-    {
-      "ID" => 'id',
-      "Name" => 'name',
-      "Type" => lambda {|it| format_integration_type(it) },
-      "URL" => lambda {|it| it['url'] },
-      "Username" => lambda {|it| it['username'] },
-      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
-      "Status Date" => lambda {|it| format_local_dt(it['statusDate']) },
-      "Status" => lambda {|it| format_integration_status(it) },
-      # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-      # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
-    }
-  end
 
   def format_integration_type(integration)
     (integration['integrationType']['name'] || integration['integrationType']['code']) rescue integration['integrationType'].to_s
