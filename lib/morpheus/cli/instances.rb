@@ -89,12 +89,11 @@ class Morpheus::Cli::Instances
         params['instanceType'] ||= []
         params['instanceType'] << val
       end
-      # coming in 5.2.6
-      # opts.on( '--environment CODE', String, "Filter by Environment code(s)" ) do |val|
-      #   # commas used in names a lot so use --plan one --plan two
-      #   params['environment'] ||= []
-      #   params['environment'] << val
-      # end
+      opts.on( '--environment CODE', String, "Filter by Environment code(s)" ) do |val|
+        # commas used in names a lot so use --plan one --plan two
+        params['environment'] ||= []
+        params['environment'] << val
+      end
       opts.on('--pending-removal', "Include instances pending removal.") do
         options[:showDeleted] = true
       end
