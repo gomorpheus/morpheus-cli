@@ -90,14 +90,6 @@ module Morpheus::Cli::VdiHelper
     'vdiAllocations'
   end
 
-  def find_vdi_allocation_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_vdi_allocation_by_id(val)
-    else
-      return find_vdi_allocation_by_name(val)
-    end
-  end
-
   def find_vdi_allocation_by_id(id)
     begin
       json_response = vdi_allocations_interface.get(id.to_i)
@@ -108,24 +100,6 @@ module Morpheus::Cli::VdiHelper
       else
         raise e
       end
-    end
-  end
-
-  def find_vdi_allocation_by_name(name)
-    json_response = vdi_allocations_interface.list({name: name.to_s})
-    vdi_allocations = json_response[vdi_allocation_list_key]
-    if vdi_allocations.empty?
-      print_red_alert "VDI Allocation not found by name '#{name}'"
-      return nil
-    elsif vdi_allocations.size > 1
-      print_red_alert "#{vdi_allocations.size} VDI Allocations found by name '#{name}'"
-      print_error "\n"
-      puts_error as_pretty_table(vdi_allocations, [:id, :name], {color:red})
-      print_red_alert "Try using ID instead"
-      print_error reset,"\n"
-      return nil
-    else
-      return vdi_allocations[0]
     end
   end
 
