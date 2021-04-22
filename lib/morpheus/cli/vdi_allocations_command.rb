@@ -31,6 +31,12 @@ class Morpheus::Cli::VdiAllocationsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
       build_standard_list_options(opts, options)
+      opts.on('--pool POOL', String, "Filter by VDI Pool Name or ID" ) do |val|
+        options[:pool] = val
+      end
+      opts.on('-u', '--user USER', "Filter by User Username or ID" ) do |val|
+        options[:user] = val
+      end
       opts.footer = "List VDI allocations."
     end
     optparse.parse!(args)
@@ -39,6 +45,21 @@ class Morpheus::Cli::VdiAllocationsCommand
       options[:phrase] = args.join(" ")
     end
     params.merge!(parse_list_options(options))
+    # --pool
+    if options[:pool]
+      pool_ids = parse_id_list(options[:pool]).collect { |it|
+        vdi_pool = find_vdi_pool_by_name_or_id(it)
+        vdi_pool ? vdi_pool['id'] : nil
+      }
+      return 1 if pool_ids.include?(nil)
+      params['poolId'] = pool_ids
+    end
+    # --user
+    if options[:user]
+      user_ids = parse_user_id_list(options[:user])
+      return 1 if user_ids.nil?
+      params['userId'] = user_ids
+    end
     @vdi_allocations_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @vdi_allocations_interface.dry.list(params)
