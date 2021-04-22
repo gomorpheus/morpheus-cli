@@ -145,6 +145,7 @@ EOT
       "User" => lambda {|it| it['user'] ? it['user']['username'] : nil },
       "Status" => lambda {|it| format_vdi_allocation_status(it) },
       "Created" => lambda {|it| format_local_dt it['dateCreated'] },
+      "Last Reserved" => lambda {|it| format_local_dt it['lastReserved'] },
       "Release Date" => lambda {|it| format_local_dt it['releaseDate'] }
     }
   end
