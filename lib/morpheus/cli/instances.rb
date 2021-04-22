@@ -84,6 +84,17 @@ class Morpheus::Cli::Instances
       opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end
+      opts.on( '--type CODE', String, "Filter by Instance Type code" ) do |val|
+        # commas used in names a lot so use --plan one --plan two
+        params['instanceType'] ||= []
+        params['instanceType'] << val
+      end
+      # coming in 5.2.6
+      # opts.on( '--environment CODE', String, "Filter by Environment code(s)" ) do |val|
+      #   # commas used in names a lot so use --plan one --plan two
+      #   params['environment'] ||= []
+      #   params['environment'] << val
+      # end
       opts.on('--pending-removal', "Include instances pending removal.") do
         options[:showDeleted] = true
       end
