@@ -756,7 +756,7 @@ class Morpheus::Cli::Hosts
       opts.on( '-t', '--type TYPE', "Server Type Code" ) do |val|
         options[:server_type_code] = val
       end
-      opts.on("--security-groups LIST", Integer, "Security Groups, comma sepearated list of security group IDs") do |val|
+      opts.on("--security-groups LIST", Integer, "Security Groups, comma separated list of security group IDs") do |val|
         options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
       end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
