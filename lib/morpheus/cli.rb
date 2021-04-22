@@ -180,6 +180,7 @@ module Morpheus
       load 'morpheus/cli/service_catalog_command.rb' # catalog (Service Catalog persona)
       load 'morpheus/cli/usage_command.rb'
       load 'morpheus/cli/vdi_pools_command.rb'
+      load 'morpheus/cli/vdi_allocations_command.rb'
       load 'morpheus/cli/vdi_apps_command.rb'
       load 'morpheus/cli/vdi_gateways_command.rb'
       load 'morpheus/cli/vdi_command.rb' # (VDI persona)

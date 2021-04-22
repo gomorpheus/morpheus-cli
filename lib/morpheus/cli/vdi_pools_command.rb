@@ -17,6 +17,7 @@ class Morpheus::Cli::VdiPoolsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @vdi_pools_interface = @api_client.vdi_pools
+    @vdi_allocations_interface = @api_client.vdi_allocations
     @vdi_apps_interface = @api_client.vdi_apps
     @vdi_gateways_interface = @api_client.vdi_gateways
     @option_types_interface = @api_client.option_types
@@ -126,19 +127,21 @@ EOT
       show_columns.delete("Guest Console Jump Keypair") unless vdi_pool['guestConsoleJumpKeypair']
       print_description_list(show_columns, vdi_pool)
 
-      if vdi_pool['allocations'] && vdi_pool['allocations'].size > 0
-        print_h2 "Allocations"
-        opt_columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"USER" => lambda {|it| it['user'] ? it['user']['username'] : nil } },
-          {"STATUS" => lambda {|it| format_vdi_allocation_status(it) } },
-          {"CREATED" => lambda {|it| format_local_dt it['dateCreated'] } },
-          {"RELEASE DATE" => lambda {|it| format_local_dt it['releaseDate'] } },
-        ]
-        print as_pretty_table(vdi_pool['allocations'], opt_columns)
-      else
-        # print cyan,"No option types found for this VDI pool.","\n",reset
-      end
+      # need to make another query if we want to show these here:
+      # allocations = @allocations.list({poolId:vdi_pool['id']})['vdiAllocations']
+      # if vdi_pool['allocations'] && vdi_pool['allocations'].size > 0
+      #   print_h2 "Allocations"
+      #   opt_columns = [
+      #     {"ID" => lambda {|it| it['id'] } },
+      #     {"USER" => lambda {|it| it['user'] ? it['user']['username'] : nil } },
+      #     {"STATUS" => lambda {|it| format_vdi_allocation_status(it) } },
+      #     {"CREATED" => lambda {|it| format_local_dt it['dateCreated'] } },
+      #     {"RELEASE DATE" => lambda {|it| format_local_dt it['releaseDate'] } },
+      #   ]
+      #   print as_pretty_table(vdi_pool['allocations'], opt_columns)
+      # else
+      #   # print cyan,"No option types found for this VDI pool.","\n",reset
+      # end
 
       if options[:no_config] != true
         print_h2 "Config YAML"

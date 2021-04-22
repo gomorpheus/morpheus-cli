@@ -802,6 +802,10 @@ class Morpheus::APIClient
     Morpheus::VdiPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def vdi_allocations
+    Morpheus::VdiAllocationsInterface.new(common_interface_options).setopts(@options)
+  end
+
   def vdi_apps
     Morpheus::VdiAppsInterface.new(common_interface_options).setopts(@options)
   end

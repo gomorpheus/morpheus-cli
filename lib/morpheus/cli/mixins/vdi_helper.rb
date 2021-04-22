@@ -49,7 +49,7 @@ module Morpheus::Cli::VdiHelper
       print_red_alert "VDI Pool not found by name '#{name}'"
       return nil
     elsif vdi_pools.size > 1
-      print_red_alert "#{vdi_pools.size} vdi_pools found by name '#{name}'"
+      print_red_alert "#{vdi_pools.size} VDI Pools found by name '#{name}'"
       print_error "\n"
       puts_error as_pretty_table(vdi_pools, [:id, :name], {color:red})
       print_red_alert "Try using ID instead"
@@ -73,6 +73,60 @@ module Morpheus::Cli::VdiHelper
       end
     end
     out + return_color
+  end
+
+  ## VDI Allocations
+
+  def vdi_allocations_interface
+    raise "#{self.class} has not defined @vdi_allocations_interface" if @vdi_allocations_interface.nil?
+    @vdi_allocations_interface
+  end
+
+  def vdi_allocation_object_key
+    'vdiAllocation'
+  end
+
+  def vdi_allocation_list_key
+    'vdiAllocations'
+  end
+
+  def find_vdi_allocation_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_vdi_allocation_by_id(val)
+    else
+      return find_vdi_allocation_by_name(val)
+    end
+  end
+
+  def find_vdi_allocation_by_id(id)
+    begin
+      json_response = vdi_allocations_interface.get(id.to_i)
+      return json_response[vdi_allocation_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "VDI Allocation not found by id '#{id}'"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_vdi_allocation_by_name(name)
+    json_response = vdi_allocations_interface.list({name: name.to_s})
+    vdi_allocations = json_response[vdi_allocation_list_key]
+    if vdi_allocations.empty?
+      print_red_alert "VDI Allocation not found by name '#{name}'"
+      return nil
+    elsif vdi_allocations.size > 1
+      print_red_alert "#{vdi_allocations.size} VDI Allocations found by name '#{name}'"
+      print_error "\n"
+      puts_error as_pretty_table(vdi_allocations, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print_error reset,"\n"
+      return nil
+    else
+      return vdi_allocations[0]
+    end
   end
 
   def format_vdi_allocation_status(vdi_allocation, return_color=cyan)
