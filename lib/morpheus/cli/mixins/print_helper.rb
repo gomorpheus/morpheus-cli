@@ -688,7 +688,7 @@ module Morpheus::Cli::PrintHelper
       else
         # so let's use the passed in column definitions instead of the raw data properties
         # columns = options[:include_fields]
-        new_columns = []
+        new_columns = {}
         options[:include_fields].each do |f|
           matching_column = nil
           # column definitions vary right now, array of symbols/strings/hashes or perhaps a single hash
@@ -706,7 +706,7 @@ module Morpheus::Cli::PrintHelper
               matching_column = columns[matching_key]
             end
           end
-          new_columns << (matching_column ? matching_column : f)
+          new_columns[f] = matching_column ? matching_column : f
         end
         columns = new_columns
       end
