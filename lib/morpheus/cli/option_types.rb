@@ -48,12 +48,21 @@ module Morpheus
           end
         end
         # puts "Options Prompt #{options}"
-        # only sort if displayOrder is set
-        sorted_option_types = (option_types[0] && option_types[0]['displayOrder']) ? option_types.sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i } : option_types
-        sorted_option_types.each do |option_type|
+        # Sort options by default, group, advanced
+        cur_field_group = 'default'
+        (
+          option_types.reject {|it| (it['fieldGroup'] || 'default') != 'default'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
+          option_types.reject {|it| ['default', 'advanced'].include?(it['fieldGroup'] || 'default')}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
+          option_types.reject {|it| it['fieldGroup'] != 'advanced'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
+        ).each do |option_type|
           context_map = results
           value = nil
           value_found=false
+
+          if cur_field_group != (option_type['fieldGroup'] || 'default')
+            cur_field_group = option_type['fieldGroup']
+            print "\n#{cur_field_group.upcase} OPTIONS\n#{"=" * ("#{cur_field_group} OPTIONS".length)}\n\n"
+          end
 
           # How about this instead?
           # option_type = option_type.clone
@@ -364,10 +373,10 @@ module Morpheus
             select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
-            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {})
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
           raise "option '#{field_key}' is type: 'select' and missing selectOptions or optionSource!"
@@ -896,10 +905,10 @@ module Morpheus
             select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
-            select_options = load_source_options(option_type['optionSource'], api_client, api_params || {})
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
           raise "option '#{field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
@@ -925,8 +934,8 @@ module Morpheus
       end
 
 
-      def self.load_source_options(source,api_client,params)
-        api_client.options.options_for_source(source,params)['data']
+      def self.load_source_options(source,sourceType,api_client,params)
+        api_client.options.options_for_source("#{sourceType ? "#{sourceType}/" : ''}#{source}",params)['data']
       end
 
       def self.format_select_options_help(opt, select_options = [], paging = nil)
@@ -941,7 +950,7 @@ module Morpheus
         out = ""
         out << "\n"
         out << "#{header}\n"
-        out << "===============\n"
+        out << "#{'=' * header.length}\n"
         select_options.each do |option|
           out << " * #{option['name']} [#{option['value']}]\n"
         end

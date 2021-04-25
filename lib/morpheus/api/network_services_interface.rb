@@ -23,6 +23,20 @@ class Morpheus::NetworkServicesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def get(params={})
+    url = "#{@base_url}/api/networks/services"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+
+    if params.is_a?(Hash)
+      headers[:params].merge!(params)
+    elsif params.is_a?(Numeric)
+      url = "#{url}/#{params}"
+    elsif params.is_a?(String)
+      headers[:params]['name'] = params
+    end
+    execute(method: :get, url: url, headers: headers)
+  end
+
   # def create(payload)
   #   url = "#{@base_url}/api/networks/services"
   #   headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

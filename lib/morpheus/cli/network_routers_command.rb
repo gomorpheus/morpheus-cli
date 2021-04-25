@@ -22,6 +22,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @network_routers_interface = @api_client.network_routers
+    @network_services_interface = @api_client.network_services
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @accounts_interface = @api_client.accounts
@@ -249,6 +250,9 @@ class Morpheus::Cli::NetworkRoutersCommand
       opts.on('--enabled [on|off]', String, "Can be used to enable / disable the network router. Default is on") do |val|
         options[:enabled] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--hostname VALUE', String, "Hostname for this network pool IP") do |val|
+        options[:options]['hostname'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a network router."
     end
@@ -275,7 +279,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         group_options = available_groups
 
         if options[:group]
-          group = avail_groups.find {|it| it['name'] == options[:group] || "#{it['value']}" == "#{options[:group]}".downcase}
+          group = available_groups.find {|it| it['name'] == options[:group] || "#{it['value']}" == "#{options[:group]}".downcase}
 
           if group.nil?
             print_red_alert "Group #{options[:group]} not found"
@@ -292,10 +296,10 @@ class Morpheus::Cli::NetworkRoutersCommand
         params = {'router' => {'site' => router['site']}, 'routerType' => {'id' => router_type['id']}}
 
         if router_type['hasNetworkServer']
-          if options[:server]
-            server = find_network_server(options[:server])
+          if options[:network_server]
+            server = find_network_server(options[:network_server])
             if server.nil?
-              print_red_alert "Network server #{options[:server]} not found"
+              print_red_alert "Network server #{options[:network_server]} not found"
               exit 1
             end
           else
@@ -322,7 +326,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         # prompt for enabled
         router['enabled'] = options[:enabled].nil? ? Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'description' => 'Enable Router.', 'defaultValue' => true, 'required' => false}], options, @api_client, {})['enabled'] == 'on' : options[:enabled]
 
-        option_types = router_type['optionTypes'].reject {|it| ['enabled'].include?(it['fieldName'])}.sort {|it| it['displayOrder']}
+        option_types = router_type['optionTypes'].reject {|it| ['enabled'].include?(it['fieldName']) || it['showOnCreate'] === false}.sort {|it| it['displayOrder']}
 
         # prompt options
         option_opts = options[:options].deep_merge!({'config' => options[:options].clone})
@@ -1277,5 +1281,10 @@ class Morpheus::Cli::NetworkRoutersCommand
 
   def available_groups()
     @network_routers_interface.groups
+  end
+
+  def find_network_server(val)
+    services = @network_services_interface.list()['networkServices']
+    (val.to_s =~ /\A\d{1,}\Z/) ? services.find {|it| it['id'].to_i == val.to_i} : services.find {|it| it['name'] == val}
   end
 end
