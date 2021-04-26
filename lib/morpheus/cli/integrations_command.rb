@@ -588,10 +588,10 @@ EOT
   def format_integration_status(integration, return_color=cyan)
     out = ""
     status_string = integration['status']
-    if integration['enabled'] == false
-      out << "#{red}DISABLED#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
-    elsif status_string.nil? || status_string.empty? || status_string == "unknown"
+    if status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
+    # elsif integration['enabled'] == false
+    #   out << "#{red}DISABLED#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
     elsif status_string == 'error' || status_string == 'offline'
