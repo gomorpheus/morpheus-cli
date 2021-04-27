@@ -796,6 +796,9 @@ class Morpheus::Cli::NetworkRoutersCommand
       opts.on('--mtu VALUE', String, "MTU for this route") do |val|
         params['networkMtu'] = val
       end
+      opts.on('--priority VALUE', Integer, "Priority for this route") do |val|
+        params['priority'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a network router route."
     end
@@ -825,17 +828,18 @@ class Morpheus::Cli::NetworkRoutersCommand
         payload = options[:payload]
       else
         params['name'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true}], options[:options], @api_client, params)['name']
-        params['description'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => true}], options[:options], @api_client, params)['description']
+        params['description'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false}], options[:options], @api_client, params)['description']
 
         # prompt for enabled if not set
         params['enabled'] = options[:enabled].nil? ? Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'description' => 'Enabling Route.', 'defaultValue' => true, 'required' => false}], options, @api_client, {})['enabled'] == 'on' : options[:enabled]
 
-        # default ruote
+        # default route
         params['defaultRoute'] = options[:defaultRoute].nil? ? Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultRoute', 'fieldLabel' => 'Default Route', 'type' => 'checkbox', 'description' => 'Default Route.', 'defaultValue' => false, 'required' => false}], options, @api_client, {})['defaultRoute'] == 'on' : options[:defaultRoute]
 
         params['source'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'type' => 'text', 'fieldLabel' => 'Network', 'required' => true}], options[:options], @api_client, params)['source']
         params['destination'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'destination', 'type' => 'text', 'fieldLabel' => 'Next Hop', 'required' => true}], options[:options], @api_client, params)['destination']
-        params['networkMtu'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkMtu', 'type' => 'text', 'fieldLabel' => 'MTU', 'required' => true}], options[:options], @api_client, params)['networkMtu']
+        params['networkMtu'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkMtu', 'type' => 'text', 'fieldLabel' => 'MTU', 'required' => false}], options[:options], @api_client, params)['networkMtu']
+        params['priority'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priority', 'type' => 'number', 'fieldLabel' => 'Priority', 'required' => false}], options[:options], @api_client, params)['priority']
 
         payload = {'route' => params}
       end
