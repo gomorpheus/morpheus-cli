@@ -89,6 +89,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
       _get(arg, params, options)
@@ -256,7 +257,7 @@ EOT
       if params['type'].to_s.empty?
         raise_command_error "missing required option: --type TYPE", args, optparse
       end
-      integration_type = find_integration_type_by_name_or_code(params['type'])
+      integration_type = find_integration_type_by_name_or_code_id(params['type'])
       if integration_type.nil?
         return 1, "integration type not found for #{params['type']}"
       end
@@ -447,6 +448,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
       _get_type(arg, params, options)
@@ -456,21 +458,18 @@ EOT
   def _get_type(id, params, options)
     integration_type = nil
     if id.to_s !~ /\A\d{1,}\Z/
-      integration_type = find_integration_type_by_name_or_id(id)
-      return 1, "integration type not found for #{id}" if integration_type.nil?
+      integration_type = find_integration_type_by_name_or_code(id)
+      return 1, "integration type not found for name or code '#{id}'" if integration_type.nil?
       id = integration_type['id']
     end
+    # /api/integration-types does not return optionTypes by default, use ?optionTypes=true
+    params['optionTypes'] = true
     @integration_types_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @integration_types_interface.dry.get(id, params)
       return
     end
-    # skip extra query, list has same data as show right now
-    if integration_type
-      json_response = {integration_type_object_key => integration_type}
-    else
-      json_response = @integration_types_interface.get(id, params)
-    end
+    json_response = @integration_types_interface.get(id, params)
     integration_type = json_response[integration_type_object_key]
     render_response(json_response, options, integration_type_object_key) do
       print_h1 "Integration Type Details", [], options
@@ -589,10 +588,10 @@ EOT
   def format_integration_status(integration, return_color=cyan)
     out = ""
     status_string = integration['status']
-    if integration['enabled'] == false
-      out << "#{red}DISABLED#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
-    elsif status_string.nil? || status_string.empty? || status_string == "unknown"
+    if status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
+    # elsif integration['enabled'] == false
+    #   out << "#{red}DISABLED#{integration['statusMessage'] ? "#{return_color} - #{integration['statusMessage']}" : ''}#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
     elsif status_string == 'error' || status_string == 'offline'
@@ -624,7 +623,7 @@ EOT
     'integrationTypes'
   end
 
-  def find_integration_type_by_name_or_id(val)
+  def find_integration_type_by_name_or_code_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_integration_type_by_id(val)
     else
@@ -662,23 +661,6 @@ EOT
     end
   end
 
-  def find_integration_type_by_name_or_code(name)
-    # json_response = @integration_types_interface.list({name: name.to_s})
-    records = get_available_integration_types().select { |it| name && it['code'] == name || it['name'] == name }
-    if records.empty?
-      print_red_alert "integration type not found by code '#{name}'"
-      return nil
-    elsif records.size > 1
-      print_red_alert "#{records.size} integration types found by code '#{name}'"
-      puts_error as_pretty_table(records, [:id, :code, :name], {color:red})
-      print_red_alert "Try using ID instead"
-      print reset,"\n"
-      return nil
-    else
-      return records[0]
-    end
-  end
-
   def get_available_integration_types(refresh=false)
     if !@available_integration_types || refresh
       @available_integration_types = @integration_types_interface.list({max: 10000})[integration_type_list_key]
@@ -686,7 +668,7 @@ EOT
     return @available_integration_types
   end
   
-  def integration_type_for_name_or_code(name)
+  def find_integration_type_by_name_or_code(name)
     return get_available_integration_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
   end
 
