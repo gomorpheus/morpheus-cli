@@ -143,75 +143,7 @@ EOT
       show_columns.delete("Token") if integration['token'].nil?
       show_columns.delete("Service Key") if integration['serviceKey'].nil?
       show_columns.delete("Auth Key") if integration['authKey'].nil?
-      print_description_list(show_columns, integration)
-
-      # integration_config = integration['config'] || {}
-      # if integration_config && !integration_config.empty?
-      #   print_h2 "Configuration", options
-      #   print cyan
-      #   print as_description_list(integration_config, integration_config.keys, options)
-      # else
-      #   # print cyan,"No configuration found for this integration.","\n",reset
-      # end
-
-      item_type_code = integration['type'].to_s.downcase
-      if options[:no_config] != true
-        if item_type_code == 'instance'
-          print_h2 "Config YAML"
-          if config
-            #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
-            #print reset,(as_yaml(config, options) rescue config),"\n",reset
-            config_string = as_yaml(config, options) rescue config
-            config_lines = config_string.split("\n")
-            config_line_count = config_lines.size
-            max_lines = 10
-            if config_lines.size > max_lines
-              config_string = config_lines.first(max_lines).join("\n")
-              config_string << "\n\n"
-              config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
-              #config_string << "\n"
-            end
-            # strip --- yaml header
-            if config_string[0..3] == "---\n"
-              config_string = config_string[4..-1]
-            end
-            print reset,config_string.chomp("\n"),"\n",reset
-          else
-            print reset,"(blank)","\n",reset
-          end
-        elsif item_type_code == 'blueprint' || item_type_code == 'apptemplate' || item_type_code == 'app'
-          print_h2 "App Spec"
-          if integration['appSpec']
-            #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
-            #print reset,(as_yaml(config, options) rescue config),"\n",reset
-            config_string = integration['appSpec'] || ""
-            config_lines = config_string.split("\n")
-            config_line_count = config_lines.size
-            max_lines = 10
-            if config_lines.size > max_lines
-              config_string = config_lines.first(max_lines).join("\n")
-              config_string << "\n\n"
-              config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
-              #config_string << "\n"
-            end
-            # strip --- yaml header
-            if config_string[0..3] == "---\n"
-              config_string = config_string[4..-1]
-            end
-            print reset,config_string.chomp("\n"),"\n",reset
-          else
-            print reset,"(blank)","\n",reset
-          end
-        elsif item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
-        end
-      end
-
-      # Content (Wiki Page)
-      if !integration["content"].to_s.empty? && options[:no_content] != true
-        print_h2 "Content"
-        print reset,integration["content"].chomp("\n"),"\n",reset
-      end
-
+      print_description_list(show_columns, integration, options)
       print reset,"\n"
     end
     return 0, nil
@@ -262,39 +194,26 @@ EOT
         return 1, "integration type not found for #{params['type']}"
       end
       params['type'] = integration_type['code']
-      config_option_types = integration_type['optionTypes'] || []
-      #config_option_types = config_option_types.sort { |x,y| x["displayOrder"] <=> y["displayOrder"] }
-      # optionTypes do not need fieldContext: 'integration'
-      config_option_types.each do |opt|
-        if opt['fieldContext'] == 'integration' || opt['fieldContext'] == 'domain'
-          opt['fieldContext'] = nil
-        end
+      config_option_types = integration_type['optionTypes']
+      if config_option_types.nil?
+        config_option_types = @integration_types_interface.option_types(integration_type['id'])['optionTypes']
       end
-      if config_option_types.size > 0
+      if config_option_types.nil?
+        print yellow,"No option types found for integration type: #{integration_type['name']} (#{integration_type['code']})", reset, "\n"
+      end
+      if config_option_types && config_option_types.size > 0
+        # optionTypes do not need fieldContext: 'integration'
+        config_option_types.each do |opt|
+          if opt['fieldContext'] == 'integration' || opt['fieldContext'] == 'domain'
+            opt['fieldContext'] = nil
+          end
+        end
         config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, options[:params])
         config_prompt.deep_compact!
         params.deep_merge!(config_prompt)
       end
-
       # convert checkbox "on" and "off" to true and false
       params.booleanize!
-      
-      # only need this if we prompt for input  called 'config'
-      # convert config string to a map
-      config = params['config']
-      if config && config.is_a?(String)
-        parse_result = parse_json_or_yaml(config)
-        config_map = parse_result[:data]
-        if config_map.nil?
-          # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
-          #raise_command_error "Failed to parse config as valid YAML or JSON."
-        else
-          params['config'] = config_map
-        end
-      end
-
-
       payload[integration_object_key].deep_merge!(params)
     end
     @integrations_interface.setopts(options)
@@ -480,13 +399,13 @@ EOT
       if integration_type['optionTypes'] && integration_type['optionTypes'].size > 0
         print_h2 "Option Types"
         opt_columns = [
-          {"ID" => lambda {|it| it['id'] } },
-          {"NAME" => lambda {|it| it['name'] } },
-          {"TYPE" => lambda {|it| it['type'] } },
-          {"FIELD NAME" => lambda {|it| it['fieldName'] } },
+          # {"ID" => lambda {|it| it['id'] } },
+          {"FIELD NAME" => lambda {|it| (it['fieldContext'] && it['fieldContext'] != 'integration') ? [it['fieldContext'], it['fieldName']].join('.') : it['fieldName']  } },
           {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+          {"TYPE" => lambda {|it| it['type'] } },
           {"DEFAULT" => lambda {|it| it['defaultValue'] } },
           {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+          # {"DESCRIPTION" => lambda {|it| it['description'] }, # do it!
         ]
         print as_pretty_table(integration_type['optionTypes'], opt_columns)
       else
@@ -623,17 +542,17 @@ EOT
     'integrationTypes'
   end
 
-  def find_integration_type_by_name_or_code_id(val)
+  def find_integration_type_by_name_or_code_id(val, params={})
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_integration_type_by_id(val)
+      return find_integration_type_by_id(val, params)
     else
       return find_integration_type_by_name_or_code(val)
     end
   end
 
-  def find_integration_type_by_id(id)
+  def find_integration_type_by_id(id, params={})
     begin
-      json_response = @integration_types_interface.get(id.to_i)
+      json_response = @integration_types_interface.get(id.to_i, params)
       return json_response[integration_object_key]
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -644,8 +563,8 @@ EOT
     end
   end
 
-  def find_integration_type_by_name(name)
-    json_response = @integration_types_interface.list({name: name.to_s})
+  def find_integration_type_by_name(name, params={})
+    json_response = @integration_types_interface.list(params.merge({name: name.to_s}))
     integration_types = json_response[integration_type_list_key]
     if integration_types.empty?
       print_red_alert "integration type not found by name '#{name}'"
@@ -663,13 +582,16 @@ EOT
 
   def get_available_integration_types(refresh=false)
     if !@available_integration_types || refresh
-      @available_integration_types = @integration_types_interface.list({max: 10000})[integration_type_list_key]
+      @available_integration_types = @integration_types_interface.list(max:10000)[integration_type_list_key]
     end
     return @available_integration_types
   end
   
   def find_integration_type_by_name_or_code(name)
-    return get_available_integration_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+    records = get_available_integration_types()
+    record = records.find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+    record = record ? record : records.find { |z| z['id'].to_s == name.to_s }
+    return record
   end
 
 end
