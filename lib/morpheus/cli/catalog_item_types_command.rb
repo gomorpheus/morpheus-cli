@@ -532,22 +532,22 @@ EOT
 
   def add_catalog_item_type_option_types
     [
-      {'code' => 'catalogItemType.type', 'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance', 'required' => true},
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true},
-      {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false},
-      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true},
-      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList'},
-      #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.'},
-      {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true},
-      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true},
-      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true},
-      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true},
+      {'code' => 'catalogItemType.type', 'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance', 'required' => true, 'displayOrder' => 1},
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 3},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'displayOrder' => 4},
+      {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 5},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true, 'displayOrder' => 6},
+      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 7},
+      #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.', 'displayOrder' => 8},
+      {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 9},
+      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true, 'displayOrder' => 10},
+      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'displayOrder' => 11},
+      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true, 'displayOrder' => 12},
       {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'context', 'fieldLabel' => 'Context Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         [{'name' => "Select", 'value' => ""}, {'name' => "None", 'value' => "appliance"}, {'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
         }, 'description' => 'Context for operational workflow, determines target type', 'defaultValue' => 'Select', 'required' => false},
-      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'code-editor', 'description' => 'Wiki Page Content describing the catalog item'}
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'code-editor', 'description' => 'Wiki Page Content describing the catalog item', 'displayOrder' => 13}
     ]
   end
 
