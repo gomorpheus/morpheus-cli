@@ -591,7 +591,12 @@ EOT
     records = get_available_integration_types()
     record = records.find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
     record = record ? record : records.find { |z| z['id'].to_s == name.to_s }
-    return record
+    if record
+      return record
+    else
+      print_red_alert "integration type not found by '#{name}'"
+      return nil
+    end
   end
 
 end
