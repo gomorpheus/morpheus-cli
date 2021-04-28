@@ -7,7 +7,7 @@ class Morpheus::Cli::IntegrationsCommand
   set_command_name :'integrations'
   set_command_description "Integrations: View and manage integrations"
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove, :refresh
   register_subcommands :list_types, :get_type
   
   set_subcommands_hidden :add, :update, :remove # hide until api is ready
@@ -280,6 +280,48 @@ EOT
     integration = json_response[integration_object_key]
     render_response(json_response, options, integration_object_key) do
       print_green_success "Updated integration #{integration['name']}"
+      return _get(integration["id"], {}, options)
+    end
+    return 0, nil
+  end
+
+  def refresh(args)
+    options = {}
+    query_params = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[integration] [options]")
+      build_option_type_options(opts, options, update_integration_option_types)
+      build_option_type_options(opts, options, update_integration_advanced_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Refresh an integration.
+[integration] is required. This is the name or id of an integration.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    query_params.merge!(parse_query_options(options))
+    integration = find_integration_by_name_or_id(args[0])
+    return 1 if integration.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({integration_object_key => parse_passed_options(options)})
+    else
+      payload.deep_merge!({integration_object_key => parse_passed_options(options)})
+    end
+    @integrations_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @integrations_interface.dry.refresh(integration['id'], query_params, payload)
+      return
+    end
+    json_response = @integrations_interface.refresh(integration['id'], query_params, payload)
+    integration = json_response[integration_object_key]
+    render_response(json_response, options, integration_object_key) do
+      print_green_success "Refreshed integration #{integration['name']}"
       return _get(integration["id"], {}, options)
     end
     return 0, nil
