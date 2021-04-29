@@ -108,12 +108,7 @@ EOT
       print_dry_run @integrations_interface.dry.get(id, params)
       return
     end
-    # skip extra query, list has same data as show right now
-    if integration
-      json_response = {integration_object_key => integration}
-    else
-      json_response = @integrations_interface.get(id, params)
-    end
+    json_response = @integrations_interface.get(id, params)
     integration = json_response[integration_object_key]
     render_response(json_response, options, integration_object_key) do
       print_h1 "Integration Details", [], options
