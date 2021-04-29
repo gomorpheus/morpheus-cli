@@ -9,8 +9,6 @@ class Morpheus::Cli::IntegrationsCommand
 
   register_subcommands :list, :get, :add, :update, :remove, :refresh
   register_subcommands :list_types, :get_type
-  
-  set_subcommands_hidden :add, :update, :remove # hide until api is ready
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -565,8 +563,8 @@ EOT
   def integration_type_column_definitions()
     {
       "ID" => 'id',
-      "Name" => 'name',
       "Code" => 'code',
+      "Name" => 'name',
       # "Description" => 'description',
       "Category" => 'category',
       # "Enabled" => lambda {|it| format_boolean(it['enabled']) },
