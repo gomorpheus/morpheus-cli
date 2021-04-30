@@ -226,13 +226,12 @@ EOT
   def update(args)
     options = {}
     params = {}
-    payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[integration] [options]")
       build_option_type_options(opts, options, update_integration_option_types)
       build_option_type_options(opts, options, update_integration_advanced_option_types)
       opts.on(nil, '--no-refresh', "Skip refresh on update.") do
-        payload['refresh'] = 'false'
+        params['refresh'] = 'false'
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
