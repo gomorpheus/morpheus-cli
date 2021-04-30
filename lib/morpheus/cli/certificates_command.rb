@@ -290,6 +290,9 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
+      opts.on('--optionTypes [true|false]', String, "Include optionTypes in the response. Default is false.") do |val|
+        params['optionTypes'] = (val.to_s == '' || val.to_s == 'on' || val.to_s == 'true')
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List certificate types."
     end
@@ -322,10 +325,13 @@ EOT
   end
 
   def get_type(args)
-    params = {}
+    params = {'optionTypes' => true}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type]")
+      opts.on('--optionTypes [true|false]', String, "Include optionTypes in the response. Default is true.") do |val|
+        params['optionTypes'] = (val.to_s == '' || val.to_s == 'on' || val.to_s == 'true')
+      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific certificate type.
@@ -350,7 +356,6 @@ EOT
       id = certificate_type['id']
     end
     # /api/certificate-types does not return optionTypes by default, use ?optionTypes=true
-    params['optionTypes'] = true
     @certificate_types_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @certificate_types_interface.dry.get(id, params)
