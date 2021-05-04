@@ -1,9 +1,9 @@
-require 'morpheus/api/read_interface'
+require 'morpheus/api/rest_interface'
 
-class Morpheus::IntegrationTypesInterface < Morpheus::ReadInterface
+class Morpheus::CertificateTypesInterface < Morpheus::RestInterface
 
   def base_path
-    "/api/integration-types"
+    "/api/certificate-types"
   end
 
   def option_types(id, params={}, headers={})

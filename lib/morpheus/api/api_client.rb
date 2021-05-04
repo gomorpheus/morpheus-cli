@@ -544,6 +544,14 @@ class Morpheus::APIClient
     Morpheus::KeyPairsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
 
+  def certificates
+    Morpheus::CertificatesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def certificate_types
+    Morpheus::CertificateTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def license
     Morpheus::LicenseInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
   end
