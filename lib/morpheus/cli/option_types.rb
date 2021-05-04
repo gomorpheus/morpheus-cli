@@ -571,6 +571,7 @@ module Morpheus
           # looking for help with this input
           if input == '?'
             help_prompt(option_type)
+            select_options = load_options(option_type, api_client, api_params)
             display_select_options(option_type, select_options) unless select_options.empty?
             next
           end
