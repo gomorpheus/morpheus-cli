@@ -111,7 +111,7 @@ module Morpheus
             end
             if depends_on_option_type
               # dependent option type has a different value
-              depends_on_field_key = depends_on_option_type['fieldContext'] ? "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldName']}"
+              depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
               found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
 
               if depends_on_values.size > 0
