@@ -515,7 +515,7 @@ class Morpheus::Cli::Clusters
         tags = options[:tags]
 
         if !tags && !options[:no_prompt]
-          tags = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'type' => 'text', 'fieldLabel' => 'Resource Tags', 'required' => false, 'description' => 'Resource Tags.'}],options[:options],@api_client,{})['tags']
+          tags = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'type' => 'text', 'fieldLabel' => 'Resource Labels', 'required' => false, 'description' => 'Resource Tags.'}],options[:options],@api_client,{})['tags']
         end
 
         server_payload['tags'] = tags if tags
