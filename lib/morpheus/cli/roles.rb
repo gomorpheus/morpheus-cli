@@ -958,24 +958,20 @@ EOT
 
   def update_cloud_access(args)
     options = {}
-    cloud_name = nil
+    cloud_id = nil
     access_value = nil
     do_all = false
     allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on( '-c', '--cloud CLOUD', "Cloud name or id" ) do |val|
-        puts "val is : #{val}"
-        cloud_name = val
+        cloud_id = val
       end
       opts.on( nil, '--all', "Update all clouds at once." ) do
         do_all = true
       end
       opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
         access_value = val
-      end
-      opts.on( '-g', '--group GROUP', "Group to find cloud in" ) do |val|
-        options[:group] = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = "Update role access for a cloud or all clouds.\n" +
@@ -1024,23 +1020,11 @@ EOT
         exit 1
       end
 
-      # crap, group_id is needed for this api, maybe just use infrastructure or some other optionSource instead.
-      group_id = nil
-      cloud_id = nil
+      cloud = nil
       if !do_all
-        group_id = nil
-        if !options[:group].nil?
-          group = find_group_by_name_or_id_for_provisioning(options[:group])
-          group_id = group['id']
-        else
-          group_id = @active_group_id
-        end
-        if group_id.nil?
-          print_red_alert "Group not found or specified!"
-          return 1
-        end
-        cloud_id = find_cloud_id_by_name(group_id, cloud_name)
-        return 1 if cloud_id.nil?
+        cloud = find_cloud_by_name_or_id_for_provisioning(nil, cloud_id)
+        return 1 if cloud.nil?
+        cloud_id = cloud['id']
       end
       params = {}
       if do_all
@@ -1063,7 +1047,7 @@ EOT
         if do_all
           print_green_success "Role #{role['authority']} access updated for all clouds"
         else
-          print_green_success "Role #{role['authority']} access updated for cloud id #{cloud_id}"
+          print_green_success "Role #{role['authority']} access updated for cloud #{cloud['name']}"
         end
       end
       return 0
@@ -1802,18 +1786,6 @@ EOT
 
   def update_role_option_types
     add_role_option_types.reject {|it| ['roleType', 'baseRole'].include?(it['fieldName']) }
-  end
-
-
-  def find_cloud_id_by_name(group_id, name)
-    option_results = @options_interface.options_for_source('clouds', {groupId: group_id})
-    match = option_results['data'].find { |grp| grp['value'].to_s == name.to_s || grp['name'].downcase == name.downcase}
-    if match.nil?
-      print_red_alert "Cloud not found by name #{name}"
-      return nil
-    else
-      return match['value']
-    end
   end
 
   def role_type_options
