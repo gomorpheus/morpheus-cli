@@ -809,14 +809,14 @@ EOT
   def update_group_access(args)
     options = {}
     name = nil
-    group_name = nil
+    group_id = nil
     access_value = nil
     do_all = false
     allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [group] [access]")
       opts.on( '-g', '--group GROUP', "Group name or id" ) do |val|
-        group_name = val
+        group_id = val
       end
       opts.on( nil, '--all', "Update all groups at once." ) do
         do_all = true
@@ -872,9 +872,8 @@ EOT
       end
 
       group = nil
-      group_id = nil
       if !do_all
-        group = find_group_by_name_or_id_for_provisioning(group_name)
+        group = find_group_by_name_or_id_for_provisioning(group_id)
         return 1 if group.nil?
         group_id = group['id']
       end
