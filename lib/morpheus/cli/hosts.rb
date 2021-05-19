@@ -1957,6 +1957,10 @@ class Morpheus::Cli::Hosts
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[host]")
       build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List installed software for a host.
+[host] is required. This is the name or id of a host.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
@@ -2006,6 +2010,10 @@ class Morpheus::Cli::Hosts
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[host]")
       build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Sync installed software for a host.
+[host] is required. This is the name or id of a host.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
