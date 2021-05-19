@@ -368,7 +368,6 @@ class Morpheus::Cli::ReportsCommand
     do_mkdir = false
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [file]")
-      build_common_options(opts, options, [:dry_run, :remote])
       opts.on( '--format VALUE', String, "Report Format for exported file, json or csv. Default is json." ) do |val|
         report_format = val
       end
@@ -379,6 +378,7 @@ class Morpheus::Cli::ReportsCommand
       opts.on( '-p', '--mkdir', "Create missing directories for [local-file] if they do not exist." ) do
         do_mkdir = true
       end
+      build_common_options(opts, options, [:dry_run, :remote])
       opts.footer = "Export a report result as json or csv." + "\n" +
                     "[id] is required. This is id of the report result." + "\n" +
                     "[file] is required. This is local destination for the downloaded file."
@@ -394,6 +394,9 @@ class Morpheus::Cli::ReportsCommand
 
       outfile = args[1]
       outfile = File.expand_path(outfile)
+      if outfile =~ /\.csv\Z/i
+        report_format = "csv"
+      end
       
       if Dir.exists?(outfile)
         print_red_alert "[file] is invalid. It is the name of an existing directory: #{outfile}"
