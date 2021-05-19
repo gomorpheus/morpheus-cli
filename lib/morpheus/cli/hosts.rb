@@ -17,7 +17,7 @@ class Morpheus::Cli::Hosts
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
   register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
-                       :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software,
+                       :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
                        :wiki, :update_wiki
@@ -1993,6 +1993,44 @@ class Morpheus::Cli::Hosts
           print_results_pagination({size: software.size, total: software.size})
         end
         print reset, "\n"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def software_sync(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      build_standard_update_options(opts, options)
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    begin
+      server = find_host_by_name_or_id(args[0])
+      return 1 if server.nil?
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
+      else
+        payload.deep_merge!(parse_passed_options(options))
+      end
+      params = {}
+      params.merge!(parse_query_options(options))
+      @servers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.software_sync(server['id'], payload, params)
+        return
+      end
+      json_response = @servers_interface.software_sync(server['id'], payload, params)
+      render_response(json_response, options) do
+        print_green_success "Syncing software for host #{server['name']}"
+        #get([server['id']])
       end
       return 0
     rescue RestClient::Exception => e

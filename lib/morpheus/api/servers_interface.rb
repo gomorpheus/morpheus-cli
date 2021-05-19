@@ -183,4 +183,11 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def software_sync(id, payload={}, params={})
+    url = "#{@base_url}/api/servers/#{id}/software/sync"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :put, url: url, headers: headers}
+    execute(opts)
+  end
+
 end
