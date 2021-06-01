@@ -130,6 +130,7 @@ class Morpheus::Cli::Instances
       end
       opts.on('-a', '--details', "Display all details: plan, stats, etc" ) do
         options[:details] = true
+        params['details'] = true # get more data from server this way
       end
       build_standard_list_options(opts, options)
       opts.footer = "List instances."
@@ -1201,7 +1202,15 @@ class Morpheus::Cli::Instances
         options[:details] = true
         options[:include_containers] = true
         options[:include_scaling] = true
+        options[:include_costs]
       end
+      opts.on(nil, '--details', "Alias for --all" ) do
+        options[:details] = true
+        options[:include_containers] = true
+        options[:include_scaling] = true
+        options[:include_costs]
+      end
+      opts.add_hidden_option('--details')
       opts.on( nil, '--containers', "Display Instance Containers" ) do
         options[:include_containers] = true
       end
@@ -1215,9 +1224,6 @@ class Morpheus::Cli::Instances
       # opts.add_hidden_option('--vms')
       opts.on( nil, '--scaling', "Display Instance Scaling Settings" ) do
         options[:include_scaling] = true
-      end
-      opts.on( nil, '--costs', "Display Cost and Price" ) do
-        options[:include_costs] = true
       end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_status] ||= "running,failed"
@@ -1250,22 +1256,29 @@ class Morpheus::Cli::Instances
     end
   end
 
-  def _get(arg, options={})
-    
-    if options[:dry_run]
-      @instances_interface.setopts(options)
-      if arg.to_s =~ /\A\d{1,}\Z/
-        print_dry_run @instances_interface.dry.get(arg.to_i)
-      else
-        print_dry_run @instances_interface.dry.get({name:arg})
-      end
-      return
+  def _get(id, options={})
+    params = {}
+    params.merge!(parse_query_options(options))
+    # Use details=true to get more details from the appliance
+    # if options[:details] || options[:include_containers]  || options[:include_scaling]
+    if options[:details] || options[:include_containers]  || options[:include_scaling]
+      params['details'] = true
     end
-    instance = find_instance_by_name_or_id(arg =~ /\A\d{1,}\Z/ ? arg.to_i : arg)
+    instance = nil
+    if id.to_s !~ /\A\d{1,}\Z/
+      instance = find_instance_by_name_or_id(id)
+      return 1, "Instance not found by name #{id}" if instance.nil?
+      id = instance['id']
+    end
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.get(id, params)
+      return 0, nil
+    end
     @instances_interface.setopts(options)
-    json_response = @instances_interface.get(instance['id'])
+    json_response = @instances_interface.get(id, params)
     render_response(json_response, options, "instance") do
       instance = json_response['instance']
+      pricing = instance['instancePrice']
       stats = instance['stats'] || json_response['stats'] || {}
       # load_balancers = json_response['loadBalancers'] || {}
       # metadata tags used to be returned as metadata and are now returned as tags
@@ -1283,7 +1296,12 @@ class Morpheus::Cli::Instances
       # containers are fetched via separate api call
       containers = nil
       if options[:include_containers]
-        containers = @instances_interface.containers(instance['id'])['containers']
+        # todo: can use instance['containerDetails'] in api 5.2.7/5.3.2
+        if instance['containerDetails']
+          containers = instance['containerDetails']
+        else
+          containers = @instances_interface.containers(instance['id'])['containers']
+        end
       end
 
       # threshold is fetched via separate api call too
@@ -1317,8 +1335,20 @@ class Morpheus::Cli::Instances
         "Layout" => lambda {|it| it['layout'] ? it['layout']['name'] : '' },
         "Version" => lambda {|it| it['instanceVersion'] },
         "Plan" => lambda {|it| it['plan'] ? it['plan']['name'] : '' },
-        # "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
-        # "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
+        "Price" => lambda {|it|
+          if pricing
+            pricing['price'] ? format_money(pricing['price'], (pricing['currency'] || 'USD')).to_s + ' per ' + pricing['unit'].to_s : ''
+          elsif it['hourlyPrice']
+            format_money(it['hourlyPrice'], (it['currency'] || 'USD')).to_s + ' per hour'
+          end
+        },
+        "Cost" => lambda {|it| 
+          if pricing
+            pricing['cost'] ? format_money(pricing['cost'], (pricing['currency'] || 'USD')).to_s + ' per ' + pricing['unit'].to_s : ''
+          elsif it['hourlyCost']
+            format_money(it['hourlyCost'], (it['currency'] || 'USD')).to_s + ' per hour'
+          end
+        },
         "Environment" => 'instanceContext',
         "Labels" => lambda {|it| labels ? labels.join(',') : '' },
         "Tags" => lambda {|it| tags ? tags.collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
@@ -1349,6 +1379,10 @@ class Morpheus::Cli::Instances
       description_cols["Removal Date"] = lambda {|it| format_local_dt(it['removalDate'])} if instance['status'] == 'pendingRemoval'
       description_cols.delete("Last Deployment") if instance['lastDeploy'].nil?
       description_cols.delete("Locked") if instance['locked'] != true
+      price_value = (pricing ? pricing['price'] : instance['hourlyPrice']).to_i
+      cost_value = (pricing ? pricing['cost'] : instance['hourlyCost']).to_i
+      description_cols.delete("Price") if price_value == 0
+      description_cols.delete("Cost") if cost_value == 0 || cost_value == price_value
       #description_cols.delete("Environment") if instance['instanceContext'].nil?
       print_description_list(description_cols, instance)
 
@@ -1378,15 +1412,6 @@ class Morpheus::Cli::Instances
       if stats
         print_h2 "Instance Usage", options
         print_stats_usage(stats)
-      end
-
-      if options[:include_costs]
-        print_h2 "Instance Cost"
-        cost_columns = {
-          "Cost" => lambda {|it| it['hourlyCost'] ? format_money(it['hourlyCost'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
-          "Price" => lambda {|it| it['hourlyPrice'] ? format_money(it['hourlyPrice'], (it['currency'] || 'USD'), {sigdig:15}).to_s + ' per hour' : '' },
-        }
-        print_description_list(cost_columns, instance)
       end
 
       print reset, "\n"
@@ -1478,7 +1503,7 @@ class Morpheus::Cli::Instances
           print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
           sleep_with_dots(options[:refresh_interval])
           print "\n"
-          _get(arg, options)
+          _get(instance['id'], options)
         end
       end
     end

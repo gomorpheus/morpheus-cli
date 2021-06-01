@@ -8,22 +8,17 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     @expires_at = expires_at
   end
 
-  def get(params={})
-    url = "#{@base_url}/api/instances"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    if params.is_a?(Hash)
-      headers[:params].merge!(params)
-    elsif params.is_a?(Numeric)
-      url = "#{@base_url}/api/instances/#{params}"
-    elsif params.is_a?(String)
-      headers[:params]['name'] = params
-    end
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+  def base_path
+    "/api/instances"
   end
 
-  def list(params={})
-    get(params)
+  def list(params={}, headers={})
+    execute(method: :get, url: "#{base_path}", params: params, headers: headers)
+  end
+
+  def get(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
   end
 
   def get_envs(id, params={})

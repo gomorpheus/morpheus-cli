@@ -508,7 +508,7 @@ module Morpheus::Cli::ProvisioningHelper
       if name_prompt['name'].nil? && !options[:name_required]
         break
       else
-        if instances_interface.get({name: name_prompt['name']})['instances'].empty?
+        if instances_interface.list({name: name_prompt['name']})['instances'].empty?
           instance_name = name_prompt['name']
         else
           print_red_alert "Name must be unique"
