@@ -598,7 +598,7 @@ module Morpheus
           # actually that is redundant, it should already be filtered to matches
           # and can just do this:
           # select_option = select_options.size == 1 ? select_options[0] : nil
-          select_option = select_options.find{|b| (b[value_field] && (b[value_field].to_s == input.to_s)) || ((b[value_field].nil? || b[value_field].empty?) && (input == "")) }
+          select_option = select_options.find{|b| (b[value_field] && (b[value_field].to_s == input.to_s)) || ((b[value_field].nil? || b[value_field] == "") && (input == "")) }
           if select_option.nil?
             select_option = select_options.find{|b| b['name'] && b['name'] == input }
           end
