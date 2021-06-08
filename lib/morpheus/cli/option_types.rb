@@ -46,6 +46,10 @@ module Morpheus
           if options[:help_field_prefix]
             option_type[:help_field_prefix] = options[:help_field_prefix]
           end
+          # a lot of optionTypes have fieldGroup:'Options' instead of 'default'
+          if option_type['fieldGroup'].to_s.downcase == 'options'
+            option_type['fieldGroup'] = 'default'
+          end
         end
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
