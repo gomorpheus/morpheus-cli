@@ -222,13 +222,13 @@ class Morpheus::Cli::InvoicesCommand
           # {"LAST COST DATE" => lambda {|it| format_local_dt(it['lastCostDate']) } },
           # {"LAST ACTUAL DATE" => lambda {|it| format_local_dt(it['lastActualDate']) } },
         ] : []) + [
-          {"COMPUTE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MEMORY" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"STORAGE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"NETWORK" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"EXTRA" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MTD" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"TOTAL" => lambda {|it| 
+          {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"EXTRA PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"TOTAL PRICE" => lambda {|it| 
             format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
