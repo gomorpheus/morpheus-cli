@@ -31,20 +31,16 @@ class Morpheus::Cli::InvoicesCommand
         options[:show_all] = true
         options[:show_dates] = true
         options[:show_estimates] = true
-        # options[:show_costs] = true
-        options[:show_prices] = true
+        options[:show_costs] = true
       end
       opts.on('--dates', "Display Ref Start, Ref End, etc.") do |val|
         options[:show_dates] = true
       end
-      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
-        options[:show_estimates] = true
+      opts.on('--costs', '--costs', "Display Costs in addition to prices" ) do
+        options[:show_costs] = true
       end
-      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Extra" ) do
-      #   options[:show_costs] = true
-      # end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
-        options[:show_prices] = true
+      opts.on('--estimates', '--estimates', "Display all estimated prices, from usage metering info: Compute, Memory, Storage, Network, Extra" ) do
+        options[:show_estimates] = true
       end
       opts.on('-t', '--type TYPE', "Filter by Ref Type eg. ComputeSite (Group), ComputeZone (Cloud), ComputeServer (Host), Instance, Container, User") do |val|
         params['refType'] ||= []
@@ -226,42 +222,55 @@ class Morpheus::Cli::InvoicesCommand
           # {"LAST COST DATE" => lambda {|it| format_local_dt(it['lastCostDate']) } },
           # {"LAST ACTUAL DATE" => lambda {|it| format_local_dt(it['lastActualDate']) } },
         ] : []) + [
-          {"COMPUTE" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          # {"MEMORY" => lambda {|it| format_money(it['memoryCost']) } },
-          {"STORAGE" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"NETWORK" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"EXTRA" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MTD" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"COMPUTE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MEMORY" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"STORAGE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"NETWORK" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"EXTRA" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MTD" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TOTAL" => lambda {|it| 
-            format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
+            format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
         
-        if options[:show_prices]
+        if options[:show_costs] # && json_response['masterAccount'] != false
           columns += [
-            {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            # {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"EXTRA PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"TOTAL PRICE" => lambda {|it| 
-              format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
-            } }
-          ]
+          {"COMPUTE COST" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MEMORY COST" => lambda {|it| format_money(it['memoryCost']) } },
+          {"STORAGE COST" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"NETWORK COST" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"EXTRA COST" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"MTD COST" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"TOTAL COST" => lambda {|it| 
+            format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
+          } }
+        ]
         end
         if options[:show_estimates]
           columns += [
-            {"COMPUTE EST." => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            # {"MEMORY  EST." => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"STORAGE EST." => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"NETWORK EST." => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"EXTRA EST." => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"MTD EST." => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"TOTAL EST." => lambda {|it| 
-              format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
+            {"METERED COMPUTE PRICE" => lambda {|it| format_money(it['estimatedComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED MEMORY PRICE" => lambda {|it| format_money(it['estimatedMemoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED STORAGE PRICE" => lambda {|it| format_money(it['estimatedStoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED NETWORK PRICE" => lambda {|it| format_money(it['estimatedNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED EXTRA PRICE" => lambda {|it| format_money(it['estimatedExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED MTD PRICE" => lambda {|it| format_money(it['estimatedRunningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED TOTAL PRICE" => lambda {|it| 
+              format_money(it['estimatedTotalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalPrice'].to_f > 0 && it['estimatedTotalPrice'] != it['estimatedRunningPrice']) ? " (Projected)" : "")
             } },
           ]
+          if options[:show_costs] # && json_response['masterAccount'] != false
+            columns += [
+              {"METERED COMPUTE COST" => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED MEMORY COST" => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED STORAGE COST" => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED NETWORK COST" => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED EXTRA COST" => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED MTD COST" => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED TOTAL COST" => lambda {|it| 
+                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
+              } },
+            ]
+          end
         end
         columns += [
           {"ESTIMATE" => lambda {|it| format_boolean(it['estimate']) } },
@@ -297,18 +306,22 @@ class Morpheus::Cli::InvoicesCommand
 
           if invoice_totals
             cost_rows = [
-              {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost']},
+              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice']},
             ]
-            if options[:show_prices]
+            if options[:show_costs]
               cost_rows += [
-                {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice']},
+                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost']}
               ]
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']},
-                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']},
+                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']}
               ]
+              if options[:show_costs]
+                cost_rows += [
+                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']}
+                ]
+              end
             end
             cost_columns = {
               "" => lambda {|it| it[:label] },
@@ -351,15 +364,14 @@ class Morpheus::Cli::InvoicesCommand
       opts.banner = subcommand_usage("[id]")
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_estimates] = true
-        # options[:show_costs] = true
-        options[:show_prices] = true
+        options[:show_costs] = true
         options[:max_line_items] = 10000
       end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
-        options[:show_prices] = true
-      end
-      opts.on('--estimates', '--estimates', "Display all estimated costs, from usage info: Compute, Storage, Network, Extra" ) do
+      opts.on('--estimates', '--estimates', "Display all estimated prices, from usage metering info: Compute, Memory, Storage, Network, Extra" ) do
         options[:show_estimates] = true
+      end
+      opts.on('--costs', '--costs', "Display Costs in addition to prices" ) do
+        options[:show_costs] = true
       end
       opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
         options[:hide_line_items] = true
@@ -514,25 +526,25 @@ EOT
         print_results_pagination({total: line_items.size, size: paged_line_items.size}, {:label => "line item", :n_label => "line items"})
       end
 
-      # cost_types = ["Costs"]
-      # cost_types << "Prices" if options[:show_prices]
-      # cost_types << "Estimates" if options[:show_estimates]
-      # print_h2 cost_types.size == 1 ? "Totals" : "Total #{anded_list(cost_types)}"
       print_h2 "Invoice Totals"
 
       cost_rows = [
-        {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
       ]
-      if options[:show_prices]
+      if options[:show_costs] # && json_response['masterAccount'] != false
         cost_rows += [
-          {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+          {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
         ]
       end
       if options[:show_estimates]
         cost_rows += [
-          {label: 'Metered Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
-          {label: 'Metered Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice']},
+          {label: 'Metered Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice']}
         ]
+        if options[:show_costs] # && json_response['masterAccount'] != false
+          cost_rows += [
+            {label: 'Metered Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+          ]
+        end
       end
       cost_columns = {
         "" => lambda {|it| it[:label] },
@@ -694,16 +706,12 @@ EOT
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_actual_costs] = true
         options[:show_costs] = true
-        options[:show_prices] = true
       end
-      # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Storage, Network, Extra" ) do
+      # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, Network, Extra" ) do
       #   options[:show_actual_costs] = true
       # end
-      # opts.on('--costs', '--costs', "Display all costs: Compute, Storage, Network, Extra" ) do
-      #   options[:show_costs] = true
-      # end
-      opts.on('--prices', '--prices', "Display prices: Total, Compute, Storage, Network, Extra" ) do
-        options[:show_prices] = true
+      opts.on('--costs', '--costs', "Display costs in addition to prices" ) do
+        options[:show_costs] = true
       end
       opts.on('--invoice-id ID', String, "Filter by Invoice ID") do |val|
         params['invoiceId'] ||= []
@@ -880,9 +888,9 @@ EOT
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
           {"UNIT" => lambda {|it| it['rateUnit'] } },
-          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
-        ] + (options[:show_prices] ? [
           {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+        ] + (options[:show_costs] ? [
+          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
         ] : []) + [
           {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
@@ -915,9 +923,9 @@ EOT
             invoice_totals_columns = [
               {"Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
               #{"Usage" => lambda {|it| it['itemUsage'] } },
-              {"Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
-            ] + (options[:show_prices] ? [
               {"Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            ] + (options[:show_costs] ? [
+              {"Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
               #{"Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
           
             ] : [])
