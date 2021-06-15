@@ -540,7 +540,7 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      opts.on('-t', '--type CODE', "Filter by types") do |val|
+      opts.on('-t', '--type CODE', "Filter by types: cloud, layout, blueprint, catalog") do |val|
         params['type'] = [params['type'], val].compact.flatten.collect {|it| it.to_s.strip.split(",") }.flatten.collect {|it| it.to_s.strip }
       end
       build_standard_list_options(opts, options)
@@ -926,10 +926,10 @@ EOT
       print_dry_run @integrations_interface.dry.destroy_object(integration['id'], integration_object['id'], params)
       return
     end
-    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the integration #{integration['name']}?")
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the integration object #{integration_object['name']}?")
       return 9, "aborted command"
     end
-    json_response = @integrations_interface.destroy(integration['id'], integration_object['id'], params)
+    json_response = @integrations_interface.destroy_object(integration['id'], integration_object['id'], params)
     render_response(json_response, options) do
       print_green_success "Removed integration object #{integration_object['name']}"
     end
@@ -1126,9 +1126,13 @@ EOT
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'description' => 'Display Name of the integration object, default is the name of the referenced object', 'displayOrder' => 2},
       {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'group', 'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => 'groups', 'required' => true, 'description' => 'Group', 'displayOrder' => 3},
       {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'cloud', 'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Cloud', 'displayOrder' => 4},
+      # {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'cloud', 'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
+      #   api_client.options.options_for_source("clouds", {groupId: api_params['group']})['data']
+      # }, 'required' => true, 'description' => 'Cloud', 'displayOrder' => 4},
+      {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'cloud', 'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Cloud', 'displayOrder' => 4},
       {'dependsOnCode' => 'integrationObject.type:layout', 'switch' => 'technology', 'fieldName' => 'provisionType', 'fieldLabel' => 'Provision Type', 'type' => 'select', 'optionSource' => 'provisionTypes', 'required' => true, 'description' => 'Provision Type (Technology)', 'displayOrder' => 5},
       {'dependsOnCode' => 'integrationObject.type:layout', 'switch' => 'layout', 'fieldName' => 'layout', 'fieldLabel' => 'Layout', 'type' => 'typeahead', 'optionSource' => 'layouts', 'required' => true, 'description' => 'Layout', 'displayOrder' => 6},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'required' => true, 'description' => 'Blueprint', 'displayOrder' => 7},
+      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'required' => true, 'description' => 'Blueprint', 'displayOrder' => 7, 'noParams' => true},
       {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'group', 'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => 'groups', 'required' => true, 'description' => 'Group', 'displayOrder' => 8},
       {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'default-cloud', 'fieldName' => 'defaultCloud', 'fieldLabel' => 'Default Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => false, 'description' => 'Default Cloud', 'displayOrder' => 9},
       {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'environment', 'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'optionSource' => 'environments', 'required' => false, 'description' => 'Environment', 'displayOrder' => 10},
