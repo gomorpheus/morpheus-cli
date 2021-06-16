@@ -233,7 +233,7 @@ class Morpheus::Cli::InvoicesCommand
           } }
         ]
         
-        if options[:show_costs] # && json_response['masterAccount'] != false
+        if options[:show_costs] && json_response['masterAccount'] != false
           columns += [
           {"COMPUTE COST" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
           {"MEMORY COST" => lambda {|it| format_money(it['memoryCost']) } },
@@ -258,7 +258,7 @@ class Morpheus::Cli::InvoicesCommand
               format_money(it['estimatedTotalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalPrice'].to_f > 0 && it['estimatedTotalPrice'] != it['estimatedRunningPrice']) ? " (Projected)" : "")
             } },
           ]
-          if options[:show_costs] # && json_response['masterAccount'] != false
+          if options[:show_costs] && json_response['masterAccount'] != false
             columns += [
               {"METERED COMPUTE COST" => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
               {"METERED MEMORY COST" => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
