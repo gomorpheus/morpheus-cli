@@ -328,6 +328,7 @@ class Morpheus::APIClient
       refresh_token: @refresh_token,
       expires_at:    @expires_at,
       client_id:     @client_id,
+      verify_ssl:    @verify_ssl,
     }
   end
 
