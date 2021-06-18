@@ -80,7 +80,7 @@ class Morpheus::APIClient
   end
 
   # set default seconds for interface to timeout after
-  # or let it use system default? none, it should not timeout by default.. 
+  # or let it use system default? none, it should not timeout by default..
   # I think execute() may use 30 seconds for get by default.
   # and it should remove timeout when method is post, put, or delete
   def default_timeout
@@ -104,7 +104,7 @@ class Morpheus::APIClient
   # set common global @options for use with all requests
   # meant for inline use just like dry(), set_options(dry_run:true) can be used in place of dry()
   # @param opts [Hash] globally supported options like :dry_run, :json, :curl, :headers, :timeout, etc
-  # Example: 
+  # Example:
   # Prints curl -XGET .../whoami -H "Bearer" instead of actually request
   # APIClient.new(token).whoami.setopts(curl:true).get({})
   # @return self (APIClient)
@@ -169,7 +169,7 @@ class Morpheus::APIClient
       # convert to lowercase Symbol like :get, :post, :put, or :delete
       opts[:method] = opts[:method].to_s.downcase.to_sym
     end
-    
+
     # could validate method here...
 
     # apply default headers
@@ -260,7 +260,7 @@ class Morpheus::APIClient
     # end
 
     # Morpheus::Logging::DarkPrinter.puts "Morpheus::RestClient.execute(#{opts})" if Morpheus::Logging.debug?
-    # instead, using ::RestClient.log = STDOUT 
+    # instead, using ::RestClient.log = STDOUT
     response = Morpheus::RestClient.execute(opts)
     if opts[:parse_json] != false && options[:parse_json] != false
       return JSON.parse(response.to_s)
@@ -323,11 +323,11 @@ class Morpheus::APIClient
 
   def common_interface_options
     {
-      url: @base_url, 
-      access_token: @access_token, 
-      refresh_token: @refresh_token, 
-      expires_at: @expires_at, 
-      client_id: @client_id
+      url:           @base_url,
+      access_token:  @access_token,
+      refresh_token: @refresh_token,
+      expires_at:    @expires_at,
+      client_id:     @client_id,
     }
   end
 
@@ -342,7 +342,7 @@ class Morpheus::APIClient
   def setup
     Morpheus::SetupInterface.new(common_interface_options).setopts(@options)
   end
-  
+
   def auth
     # Morpheus::AuthInterface.new(common_interface_options).setopts(@options)
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
@@ -821,7 +821,7 @@ class Morpheus::APIClient
   def vdi_gateways
     Morpheus::VdiGatewaysInterface.new(common_interface_options).setopts(@options)
   end
-  
+
   # add new interfaces here
 
   protected
