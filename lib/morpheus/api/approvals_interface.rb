@@ -1,22 +1,19 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::ApprovalsInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil, api='approvals')
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @api_url = "#{base_url}/api/#{api}"
-    @expires_at = expires_at
+  
+  def base_path
+    "/api/approvals"
   end
 
   def list(params={})
-    url = @api_url
+    url = base_path
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get(id, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { params: {}, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end

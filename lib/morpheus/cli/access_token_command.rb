@@ -156,7 +156,7 @@ class Morpheus::Cli::AccessTokenCommand
       end
     end
     if options[:dry_run]
-      print_dry_run Morpheus::AuthInterface.new({url:@appliance_url}).setopts(options).use_refresh_token(refresh_token_value)
+      print_dry_run @api_client.auth.dry.use_refresh_token(refresh_token_value)
       return 0
     end
     unless options[:quiet]

@@ -1,14 +1,9 @@
-require 'morpheus/api/api_client'
+require 'morpheus/api/read_interface'
 
-class Morpheus::InvoiceLineItemsInterface < Morpheus::APIClient
+class Morpheus::InvoiceLineItemsInterface < Morpheus::ReadInterface
 
-  def list(params={})
-    execute(method: :get, url: "/api/invoice-line-items", headers: {params: params})
-  end
-
-  def get(id, params={})
-    raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    execute(method: :get, url: "/api/invoice-line-items/#{id}", headers: {params: params})
+  def base_path
+    "/api/invoice-line-items"
   end
 
 end

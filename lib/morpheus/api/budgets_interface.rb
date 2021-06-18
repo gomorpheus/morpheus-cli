@@ -1,12 +1,6 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::BudgetsInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @expires_at = expires_at
-  end
 
   def get(id, params={})
     raise "#{self.class}.get() passed a blank name!" if id.to_s == ''

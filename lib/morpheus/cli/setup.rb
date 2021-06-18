@@ -61,7 +61,6 @@ EOT
       payload.deep_merge!(parse_passed_options(options))
 
       # JD: This should just do a Remote.check_appliance() first... needs to work with --remote-url though.
-      # @setup_interface = Morpheus::SetupInterface.new({url:@appliance_url,access_token:@access_token})
       appliance_status_json = nil
       begin
         appliance_status_json = @setup_interface.get()

@@ -1,27 +1,24 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::NetworkSecurityServersInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil, api='network-security-servers')
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @api_url = "#{base_url}/api/#{api}"
-    @expires_at = expires_at
+
+  def base_path
+    "/api/network-security-servers"
   end
 
   def list(params={})
-    url = @api_url
+    url = base_path
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get(id, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     if params.is_a?(Hash)
       headers[:params].merge!(params)
     elsif params.is_a?(Numeric)
-      url = "#{@api_url}/#{params}"
+      url = "#{base_path}/#{params}"
     elsif params.is_a?(String)
       headers[:params]['name'] = params
     end

@@ -77,7 +77,9 @@ EOT
     # connect(options)
     @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
     
-    if @remote_appliance[:authenticated]
+    if options[:test_only]
+      puts "Testing credentials, your current session will not be modified."
+    elsif @remote_appliance[:authenticated]
       puts "You will be automatically logged out of your current session as '#{@remote_appliance[:username]}'"
     end
 

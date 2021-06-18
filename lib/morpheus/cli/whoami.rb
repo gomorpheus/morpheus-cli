@@ -319,21 +319,6 @@ EOT
           set_whoami_cache(appliance_name, user_id, result)
         end
       end
-      # if result.nil?
-      #   # appliance needs to be passed in here...heh
-      #   appliance = ::Morpheus::Cli::Remote.load_remote(appliance_name)
-      #   if appliance.nil?
-      #     raise "Remote not found for name '#{appliance_name}'"
-      #   end
-      #   wallet = ::Morpheus::Cli::Credentials.new(appliance[:name], appliance[:url]).load_saved_credentials()
-      #   if wallet.nil? || wallet['access_token'].nil?
-      #     raise "Access token not found for remote '#{appliance_name}'"
-      #   end
-      #   access_token = wallet['access_token']
-      #   whoami_interface = Morpheus::WhoamiInterface.new({url: appliance[:url], access_token: wallet['access_token']})
-      #   whoami_response = whoami_interface.get()
-      #   result = whoami_response
-      # end
       return result
     end
 

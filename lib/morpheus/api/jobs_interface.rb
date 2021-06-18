@@ -1,27 +1,24 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::JobsInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil, api='jobs')
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @api_url = "#{base_url}/api/#{api}"
-    @expires_at = expires_at
+
+  def base_path
+    "/api/jobs"
   end
 
   def list(params={})
-    url = @api_url
+    url = base_path
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get(id, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     if params.is_a?(Hash)
       headers[:params].merge!(params)
     elsif params.is_a?(Numeric)
-      url = "#{@api_url}/#{params}"
+      url = "#{base_path}/#{params}"
     elsif params.is_a?(String)
       headers[:params]['name'] = params
     end
@@ -29,32 +26,32 @@ class Morpheus::JobsInterface < Morpheus::APIClient
   end
 
   def create(payload)
-    url = @api_url
+    url = base_path
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def update(id, payload, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { params: params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
   def destroy(id, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :delete, url: url, headers: headers)
   end
 
   def execute_job(id, params={})
-    url = "#{@api_url}/#{id}/execute"
+    url = "#{base_path}/#{id}/execute"
     headers = { params: params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers)
   end
 
 =begin
   def list_job_executions(id, params={})
-    url = "#{@api_url}/#{id}/executions"
+    url = "#{base_path}/#{id}/executions"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end

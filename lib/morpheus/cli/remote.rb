@@ -1700,7 +1700,7 @@ EOT
         # wtf, no url...
         return appliance, json_response
       else
-        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: (appliance[:insecure] != true), timeout: timeout})
+        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: !appliance[:insecure], timeout: timeout})
         start_time = Time.now
         begin
           json_response = setup_interface.check(params)

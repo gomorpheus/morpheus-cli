@@ -1,58 +1,55 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::ServicePlansInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @api_url = "#{@base_url}/api/service-plans"
-    @expires_at = expires_at
+
+  def base_path
+    "/api/service-plans"
   end
 
   def list(params={})
-    url = @api_url
+    url = base_path
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def get(id, params={})
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def create(payload)
-    url = @api_url
+    url = base_path
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
 
   def update(id, payload)
-    url = "#{@api_url}/#{id}"
+    url = "#{base_path}/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
   def activate(id, params={})
-    url = "#{@api_url}/#{id}/activate"
+    url = "#{base_path}/#{id}/activate"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers)
   end
 
   def deactivate(id, params={})
-    url = "#{@api_url}/#{id}/deactivate"
+    url = "#{base_path}/#{id}/deactivate"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers)
   end
 
   def provision_types(params={})
-    url = "#{@api_url}/provision-types"
+    url = "#{base_path}/provision-types"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
   def price_sets(params={})
-    url = "#{@api_url}/price-sets"
+    url = "#{base_path}/price-sets"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end

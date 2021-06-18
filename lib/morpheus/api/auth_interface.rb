@@ -2,10 +2,10 @@ require 'morpheus/api/api_client'
 
 class Morpheus::AuthInterface < Morpheus::APIClient
 
-  # def initialize(base_url, access_token=nil)
-  #   @base_url = base_url
-  #   @access_token = access_token
-  # end
+  # no Authorization header is required
+  def authorization_required?
+    false
+  end
 
   def login(username, password, use_client_id=nil)
     if use_client_id

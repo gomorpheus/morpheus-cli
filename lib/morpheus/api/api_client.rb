@@ -328,7 +328,7 @@ class Morpheus::APIClient
       refresh_token: @refresh_token,
       expires_at:    @expires_at,
       client_id:     @client_id,
-      verify_ssl:    @verify_ssl,
+      verify_ssl:    @verify_ssl
     }
   end
 
@@ -346,7 +346,7 @@ class Morpheus::APIClient
 
   def auth
     # Morpheus::AuthInterface.new(common_interface_options).setopts(@options)
-    Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id}).setopts(@options)
+    Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id, verify_ssl: @verify_ssl}).setopts(@options)
   end
 
   def forgot
@@ -374,67 +374,67 @@ class Morpheus::APIClient
   end
 
   def options
-    Morpheus::OptionsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::OptionsInterface.new(common_interface_options).setopts(@options)
   end
 
   def groups
-    Morpheus::GroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::GroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def account_groups
-    Morpheus::AccountGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::AccountGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def clouds
-    Morpheus::CloudsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CloudsInterface.new(common_interface_options).setopts(@options)
   end
 
   def cloud_datastores
-    Morpheus::CloudDatastoresInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CloudDatastoresInterface.new(common_interface_options).setopts(@options)
   end
 
   def cloud_resource_pools
-    Morpheus::CloudResourcePoolsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CloudResourcePoolsInterface.new(common_interface_options).setopts(@options)
   end
 
   def cloud_folders
-    Morpheus::CloudFoldersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CloudFoldersInterface.new(common_interface_options).setopts(@options)
   end
 
   def datastores
-    Morpheus::DatastoresInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::DatastoresInterface.new(common_interface_options).setopts(@options)
   end
 
   def servers
-    Morpheus::ServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ServersInterface.new(common_interface_options).setopts(@options)
   end
 
   def instances
-    Morpheus::InstancesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::InstancesInterface.new(common_interface_options).setopts(@options)
   end
 
   def appliance_settings
-    Morpheus::ApplianceSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ApplianceSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def provisioning_settings
-    Morpheus::ProvisioningSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ProvisioningSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def provisioning_licenses
-    Morpheus::ProvisioningLicensesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ProvisioningLicensesInterface.new(common_interface_options).setopts(@options)
   end
 
   def provisioning_license_types
-    Morpheus::ProvisioningLicenseTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ProvisioningLicenseTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def containers
-    Morpheus::ContainersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ContainersInterface.new(common_interface_options).setopts(@options)
   end
 
   def instance_types
-    Morpheus::InstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::InstanceTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def integrations
@@ -446,103 +446,103 @@ class Morpheus::APIClient
   end
 
   def jobs
-    Morpheus::JobsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::JobsInterface.new(common_interface_options).setopts(@options)
   end
 
   def server_types
-    Morpheus::ServerTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ServerTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def provision_types
-    Morpheus::ProvisionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ProvisionTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def service_plans
-    Morpheus::ServicePlansInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ServicePlansInterface.new(common_interface_options).setopts(@options)
   end
 
   def price_sets
-    Morpheus::PriceSetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::PriceSetsInterface.new(common_interface_options).setopts(@options)
   end
 
   def prices
-    Morpheus::PricesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::PricesInterface.new(common_interface_options).setopts(@options)
   end
 
   def load_balancers
-    Morpheus::LoadBalancersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LoadBalancersInterface.new(common_interface_options).setopts(@options)
   end
 
   def tasks
-    Morpheus::TasksInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::TasksInterface.new(common_interface_options).setopts(@options)
   end
 
   def task_sets
-    Morpheus::TaskSetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::TaskSetsInterface.new(common_interface_options).setopts(@options)
   end
 
   def virtual_images
-    Morpheus::VirtualImagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::VirtualImagesInterface.new(common_interface_options).setopts(@options)
   end
 
   def apps
-    Morpheus::AppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::AppsInterface.new(common_interface_options).setopts(@options)
   end
 
   def blueprints
-    Morpheus::BlueprintsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::BlueprintsInterface.new(common_interface_options).setopts(@options)
   end
 
   def deploy
-    Morpheus::DeployInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::DeployInterface.new(common_interface_options).setopts(@options)
   end
 
   def deployments
-    Morpheus::DeploymentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::DeploymentsInterface.new(common_interface_options).setopts(@options)
   end
 
   def security_groups
-    Morpheus::SecurityGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::SecurityGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def security_group_rules
-    Morpheus::SecurityGroupRulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::SecurityGroupRulesInterface.new(common_interface_options).setopts(@options)
   end
 
   def clusters
-    Morpheus::ClustersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ClustersInterface.new(common_interface_options).setopts(@options)
   end
 
   def accounts
-    Morpheus::AccountsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::AccountsInterface.new(common_interface_options).setopts(@options)
   end
 
   def approvals
-    Morpheus::ApprovalsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ApprovalsInterface.new(common_interface_options).setopts(@options)
   end
 
   def users
-    Morpheus::UsersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::UsersInterface.new(common_interface_options).setopts(@options)
   end
 
   def user_groups
-    Morpheus::UserGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::UserGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def user_sources
-    Morpheus::UserSourcesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::UserSourcesInterface.new(common_interface_options).setopts(@options)
   end
 
   def logs
-    Morpheus::LogsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LogsInterface.new(common_interface_options).setopts(@options)
   end
 
   def roles
-    Morpheus::RolesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::RolesInterface.new(common_interface_options).setopts(@options)
   end
 
   def key_pairs
-    Morpheus::KeyPairsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::KeyPairsInterface.new(common_interface_options).setopts(@options)
   end
 
   def certificates
@@ -554,213 +554,213 @@ class Morpheus::APIClient
   end
 
   def license
-    Morpheus::LicenseInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LicenseInterface.new(common_interface_options).setopts(@options)
   end
 
   def option_types
-    Morpheus::OptionTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::OptionTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def option_type_lists
-    Morpheus::OptionTypeListsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::OptionTypeListsInterface.new(common_interface_options).setopts(@options)
   end
 
   def power_schedules
-    Morpheus::PowerSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::PowerSchedulesInterface.new(common_interface_options).setopts(@options)
   end
 
   def execute_schedules
-    Morpheus::ExecuteSchedulesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ExecuteSchedulesInterface.new(common_interface_options).setopts(@options)
   end
 
   def monitoring
-    Morpheus::MonitoringInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::MonitoringInterface.new(common_interface_options).setopts(@options)
   end
 
   # def checks
-  #   # Morpheus::MonitoringChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  #   # Morpheus::MonitoringChecksInterface.new(common_interface_options).setopts(@options)
   #   monitoring.checks
   # end
 
   # def incidents
-  #   # Morpheus::MonitoringIncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+  #   # Morpheus::MonitoringIncidentsInterface.new(common_interface_options).setopts(@options)
   #   monitoring.incidents
   # end
 
   def policies
-    Morpheus::PoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::PoliciesInterface.new(common_interface_options).setopts(@options)
   end
 
   def group_policies
-    Morpheus::GroupPoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::GroupPoliciesInterface.new(common_interface_options).setopts(@options)
   end
 
   def cloud_policies
-    Morpheus::CloudPoliciesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CloudPoliciesInterface.new(common_interface_options).setopts(@options)
   end
 
   def networks
-    Morpheus::NetworksInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworksInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_types
-    Morpheus::NetworkTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def subnets
-    Morpheus::SubnetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::SubnetsInterface.new(common_interface_options).setopts(@options)
   end
 
   def subnet_types
-    Morpheus::SubnetTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::SubnetTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_groups
-    Morpheus::NetworkGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_pools
-    Morpheus::NetworkPoolsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_pool_ips
-    Morpheus::NetworkPoolIpsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkPoolIpsInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_routers
-    Morpheus::NetworkRoutersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkRoutersInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_services
-    Morpheus::NetworkServicesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkServicesInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_security_servers
-    Morpheus::NetworkSecurityServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkSecurityServersInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_pool_servers
-    Morpheus::NetworkPoolServersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkPoolServersInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_domains
-    Morpheus::NetworkDomainsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkDomainsInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_domain_records
-    Morpheus::NetworkDomainRecordsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkDomainRecordsInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_proxies
-    Morpheus::NetworkProxiesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::NetworkProxiesInterface.new(common_interface_options).setopts(@options)
   end
 
   def archive_buckets
-    Morpheus::ArchiveBucketsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ArchiveBucketsInterface.new(common_interface_options).setopts(@options)
   end
 
   def archive_files
-    Morpheus::ArchiveFilesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ArchiveFilesInterface.new(common_interface_options).setopts(@options)
   end
 
   def image_builder
-    Morpheus::ImageBuilderInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ImageBuilderInterface.new(common_interface_options).setopts(@options)
   end
 
   def storage_providers
-    Morpheus::StorageProvidersInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::StorageProvidersInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_instance_types
-    Morpheus::LibraryInstanceTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryInstanceTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_layouts
-    Morpheus::LibraryLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryLayoutsInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_container_upgrades
-    Morpheus::LibraryContainerUpgradesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryContainerUpgradesInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_container_types
-    Morpheus::LibraryContainerTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryContainerTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_container_scripts
-    Morpheus::LibraryContainerScriptsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryContainerScriptsInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_container_templates
-    Morpheus::LibraryContainerTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryContainerTemplatesInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_cluster_layouts
-    Morpheus::LibraryClusterLayoutsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibraryClusterLayoutsInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_spec_templates
-    Morpheus::LibrarySpecTemplatesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibrarySpecTemplatesInterface.new(common_interface_options).setopts(@options)
   end
 
   def library_spec_template_types
-    Morpheus::LibrarySpecTemplateTypesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LibrarySpecTemplateTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def packages
-    Morpheus::PackagesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::PackagesInterface.new(common_interface_options).setopts(@options)
   end
 
   def cypher
-    Morpheus::CypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::CypherInterface.new(common_interface_options).setopts(@options)
   end
 
   def old_cypher
-    Morpheus::OldCypherInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::OldCypherInterface.new(common_interface_options).setopts(@options)
   end
 
   def execution_request
-    Morpheus::ExecutionRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ExecutionRequestInterface.new(common_interface_options).setopts(@options)
   end
 
   def file_copy_request
-    Morpheus::FileCopyRequestInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::FileCopyRequestInterface.new(common_interface_options).setopts(@options)
   end
 
   def processes
-    Morpheus::ProcessesInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ProcessesInterface.new(common_interface_options).setopts(@options)
   end
 
   def reports
-    Morpheus::ReportsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::ReportsInterface.new(common_interface_options).setopts(@options)
   end
 
   def environments
-    Morpheus::EnvironmentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::EnvironmentsInterface.new(common_interface_options).setopts(@options)
   end
 
   def backup_settings
-    Morpheus::BackupSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::BackupSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def log_settings
-    Morpheus::LogSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::LogSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def whitelabel_settings
-    Morpheus::WhitelabelSettingsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::WhitelabelSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def wiki
-    Morpheus::WikiInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::WikiInterface.new(common_interface_options).setopts(@options)
   end
 
   def budgets
-    Morpheus::BudgetsInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::BudgetsInterface.new(common_interface_options).setopts(@options)
   end
 
   def health
-    Morpheus::HealthInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::HealthInterface.new(common_interface_options).setopts(@options)
   end
 
   def invoices
@@ -772,7 +772,7 @@ class Morpheus::APIClient
   end
 
   def guidance
-    Morpheus::GuidanceInterface.new(@access_token, @refresh_token, @expires_at, @base_url).setopts(@options)
+    Morpheus::GuidanceInterface.new(common_interface_options).setopts(@options)
   end
 
   def projects

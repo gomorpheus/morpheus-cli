@@ -7,35 +7,29 @@ require 'morpheus/api/monitoring_contacts_interface'
 require 'morpheus/api/monitoring_alerts_interface'
 
 class Morpheus::MonitoringInterface < Morpheus::APIClient
-  def initialize(access_token, refresh_token,expires_at = nil, base_url=nil) 
-    @access_token = access_token
-    @refresh_token = refresh_token
-    @base_url = base_url
-    @expires_at = expires_at
-  end
 
   def checks
-    Morpheus::MonitoringChecksInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringChecksInterface.new(common_interface_options).setopts(@options)
   end
 
   def groups
-    Morpheus::MonitoringGroupsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
   def apps
-    Morpheus::MonitoringAppsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringAppsInterface.new(common_interface_options).setopts(@options)
   end
 
   def incidents
-    Morpheus::MonitoringIncidentsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringIncidentsInterface.new(common_interface_options).setopts(@options)
   end
 
   def contacts
-    Morpheus::MonitoringContactsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringContactsInterface.new(common_interface_options).setopts(@options)
   end
 
   def alerts
-    Morpheus::MonitoringAlertsInterface.new(@access_token, @refresh_token, @expires_at, @base_url)
+    Morpheus::MonitoringAlertsInterface.new(common_interface_options).setopts(@options)
   end
   
 end

@@ -56,8 +56,7 @@ module Morpheus
           # OR whoami should return other wallet info like access token or maybe just the expiration date
           # for now, it just stores the access token without other wallet info
           begin
-            # @setup_interface = Morpheus::SetupInterface.new({url:@appliance_url,access_token:@access_token})
-            whoami_interface = Morpheus::WhoamiInterface.new({url: @appliance_url, access_token: options[:remote_token]})
+            whoami_interface = Morpheus::WhoamiInterface.new({url: @appliance_url, access_token: options[:remote_token], verify_ssl: !options[:insecure]})
             whoami_interface.setopts(options)
             if options[:dry_run]
               print_dry_run whoami_interface.dry.get()
@@ -104,13 +103,7 @@ module Morpheus
           end
           if wallet.nil?
             unless options[:quiet] || options[:no_prompt]
-              # if username.empty? || password.empty?
-                if options[:test_only]
-                  print "Test Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
-                else
-                  print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
-                end
-              # end
+              print "Enter Morpheus Credentials for #{display_appliance(@appliance_name, @appliance_url)}", "\n", reset
               if options[:client_id].empty?
                 # print "Client ID: #{required_blue_prompt} #{options[:client_id]}", "\n", reset
               else
@@ -138,7 +131,7 @@ module Morpheus
               return nil
             end
             begin
-              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url, client_id: options[:client_id]})
+              auth_interface = Morpheus::AuthInterface.new({url:@appliance_url, client_id: options[:client_id], verify_ssl: !options[:insecure]})
               auth_interface.setopts(options)
               if options[:dry_run]
                 print_dry_run auth_interface.dry.login(username, password)
@@ -276,7 +269,7 @@ module Morpheus
         username = wallet['username']
 
         begin
-          auth_interface = Morpheus::AuthInterface.new({url:@appliance_url})
+          auth_interface = Morpheus::AuthInterface.new({url:@appliance_url, client_id: options[:client_id], verify_ssl: !options[:insecure]})
           auth_interface.setopts(options)
           if options[:dry_run]
             print_dry_run auth_interface.dry.use_refresh_token(refresh_token_value)
