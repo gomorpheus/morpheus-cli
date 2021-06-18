@@ -17,7 +17,7 @@ class Morpheus::Cli::InstanceTypes
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
+    @instance_types_interface = @api_client.instance_types
   end
 
   def handle(args)

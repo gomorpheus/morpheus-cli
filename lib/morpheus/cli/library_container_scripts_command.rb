@@ -9,7 +9,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @container_scripts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_container_scripts
+    @container_scripts_interface = @api_client.library_container_scripts
   end
 
   def handle(args)

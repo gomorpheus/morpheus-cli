@@ -37,15 +37,15 @@ class Morpheus::Cli::Apps
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
     @users_interface = @api_client.users
-    @apps_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).apps
-    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
-    @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-    @library_layouts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_layouts
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
-    @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
+    @apps_interface = @api_client.apps
+    @blueprints_interface = @api_client.blueprints
+    @instance_types_interface = @api_client.instance_types
+    @library_layouts_interface = @api_client.library_layouts
+    @instances_interface = @api_client.instances
+    @options_interface = @api_client.options
+    @groups_interface = @api_client.groups
+    @clouds_interface = @api_client.clouds
+    @logs_interface = @api_client.logs
     @processes_interface = @api_client.processes
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end

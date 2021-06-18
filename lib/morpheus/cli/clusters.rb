@@ -45,8 +45,8 @@ class Morpheus::Cli::Clusters
     @provision_types_interface = @api_client.provision_types
     @service_plans_interface = @api_client.service_plans
     @user_groups_interface = @api_client.user_groups
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
-    @logs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).logs
+    @accounts_interface = @api_client.accounts
+    @logs_interface = @api_client.logs
     #@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
 

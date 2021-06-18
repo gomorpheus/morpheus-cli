@@ -26,7 +26,6 @@ class Morpheus::Cli::PoliciesCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    # @policies_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).policies
     @policies_interface = @api_client.policies
     @group_policies_interface = @api_client.group_policies
     @cloud_policies_interface = @api_client.cloud_policies

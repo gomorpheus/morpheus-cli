@@ -16,7 +16,7 @@ class Morpheus::Cli::EnvironmentsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @environments_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).environments
+    @environments_interface = @api_client.environments
   end
 
   def handle(args)

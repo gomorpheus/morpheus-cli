@@ -16,7 +16,7 @@ class Morpheus::Cli::SecurityGroupRules
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @security_group_rules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).security_group_rules
+    @security_group_rules_interface = @api_client.security_group_rules
     @active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
 

@@ -12,9 +12,9 @@ class Morpheus::Cli::UserGroupsCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @user_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).user_groups
-    @users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
+    @user_groups_interface = @api_client.user_groups
+    @users_interface = @api_client.users
+    @accounts_interface = @api_client.accounts
   end
 
   def handle(args)

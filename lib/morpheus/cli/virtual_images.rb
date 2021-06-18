@@ -20,7 +20,7 @@ class Morpheus::Cli::VirtualImages
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @virtual_images_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).virtual_images
+    @virtual_images_interface = @api_client.virtual_images
   end
 
   def handle(args)

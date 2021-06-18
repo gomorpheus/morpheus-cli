@@ -29,11 +29,11 @@ class Morpheus::Cli::BlueprintsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+    @blueprints_interface = @api_client.blueprints
+    @groups_interface = @api_client.groups
+    @instances_interface = @api_client.instances
+    @instance_types_interface = @api_client.instance_types
+    @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @clouds_interface = @api_client.clouds
     @users_interface = @api_client.users

@@ -20,9 +20,9 @@ class Morpheus::Cli::UserSourcesCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @user_sources_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).user_sources
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
-    @users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
+    @user_sources_interface = @api_client.user_sources
+    @accounts_interface = @api_client.accounts
+    @users_interface = @api_client.users
   end
 
   def handle(args)

@@ -11,7 +11,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @container_templates_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_container_templates
+    @container_templates_interface = @api_client.library_container_templates
   end
 
   def handle(args)

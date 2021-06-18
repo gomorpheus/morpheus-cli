@@ -20,8 +20,8 @@ class Morpheus::Cli::License
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)		
-    @license_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).license
+    @api_client = @api_client		
+    @license_interface = @api_client.license
   end
 
   def handle(args)

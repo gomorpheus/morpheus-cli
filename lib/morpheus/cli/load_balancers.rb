@@ -16,7 +16,7 @@ class Morpheus::Cli::LoadBalancers
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @load_balancers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).load_balancers
+    @load_balancers_interface = @api_client.load_balancers
   end
 
 

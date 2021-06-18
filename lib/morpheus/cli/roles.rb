@@ -19,15 +19,15 @@ class Morpheus::Cli::Roles
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @whoami_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).whoami
-    @users_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).users
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
-    @roles_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).roles
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-    @blueprints_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).blueprints
+    @whoami_interface = @api_client.whoami
+    @users_interface = @api_client.users
+    @accounts_interface = @api_client.accounts
+    @roles_interface = @api_client.roles
+    @groups_interface = @api_client.groups
+    @options_interface = @api_client.options
+    @instances_interface = @api_client.instances
+    @instance_types_interface = @api_client.instance_types
+    @blueprints_interface = @api_client.blueprints
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 

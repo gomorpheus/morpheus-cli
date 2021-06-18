@@ -18,8 +18,8 @@ class Morpheus::Cli::KeyPairs
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
-    @key_pairs_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).key_pairs
+    @accounts_interface = @api_client.accounts
+    @key_pairs_interface = @api_client.key_pairs
   end
 
   def handle(args)

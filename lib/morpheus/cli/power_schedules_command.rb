@@ -13,9 +13,9 @@ class Morpheus::Cli::PowerSchedulesCommand
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @power_schedules_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).power_schedules
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @servers_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).servers
+    @power_schedules_interface = @api_client.power_schedules
+    @instances_interface = @api_client.instances
+    @servers_interface = @api_client.servers
   end
 
   def handle(args)

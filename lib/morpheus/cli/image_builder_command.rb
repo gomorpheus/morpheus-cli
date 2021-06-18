@@ -30,15 +30,15 @@ class Morpheus::Cli::ImageBuilderCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @image_builder_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).image_builder
+    @image_builder_interface = @api_client.image_builder
     @image_builds_interface = @image_builder_interface.image_builds
     @boot_scripts_interface = @image_builder_interface.boot_scripts
     @preseed_scripts_interface = @image_builder_interface.preseed_scripts
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
-    @instances_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instances
-    @instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).instance_types
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+    @groups_interface = @api_client.groups
+    @clouds_interface = @api_client.clouds
+    @instances_interface = @api_client.instances
+    @instance_types_interface = @api_client.instance_types
+    @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 

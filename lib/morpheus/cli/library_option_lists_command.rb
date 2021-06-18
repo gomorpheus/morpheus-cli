@@ -17,10 +17,10 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @library_instance_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).library_instance_types
-    @provision_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).provision_types
-    @option_types_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).option_types
-    @option_type_lists_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).option_type_lists
+    @library_instance_types_interface = @api_client.library_instance_types
+    @provision_types_interface = @api_client.provision_types
+    @option_types_interface = @api_client.option_types
+    @option_type_lists_interface = @api_client.option_type_lists
   end
 
   def handle(args)

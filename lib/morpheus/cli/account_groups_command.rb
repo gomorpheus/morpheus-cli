@@ -28,11 +28,11 @@ class Morpheus::Cli::AccountGroupsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @account_groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).account_groups
-    @accounts_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).accounts
+    @account_groups_interface = @api_client.account_groups
+    @accounts_interface = @api_client.accounts
 
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
-    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
+    @groups_interface = @api_client.groups
+    @clouds_interface = @api_client.clouds
   end
 
   def handle(args)

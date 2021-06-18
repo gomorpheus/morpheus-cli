@@ -48,9 +48,9 @@ class Morpheus::Cli::ArchivesCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @archive_buckets_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).archive_buckets
-    @archive_files_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).archive_files
-    @options_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).options
+    @archive_buckets_interface = @api_client.archive_buckets
+    @archive_files_interface = @api_client.archive_files
+    @options_interface = @api_client.options
     # @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end
 

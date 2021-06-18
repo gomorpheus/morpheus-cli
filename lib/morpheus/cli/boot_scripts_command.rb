@@ -24,7 +24,7 @@ class Morpheus::Cli::BootScriptsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @image_builder_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).image_builder
+    @image_builder_interface = @api_client.image_builder
     @boot_scripts_interface = @image_builder_interface.boot_scripts
   end
 

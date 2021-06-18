@@ -16,7 +16,7 @@ class Morpheus::Cli::WikiCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @wiki_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).wiki
+    @wiki_interface = @api_client.wiki
   end
 
   def handle(args)

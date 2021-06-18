@@ -24,8 +24,8 @@ class Morpheus::Cli::Clouds
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @clouds_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).clouds
-    @groups_interface = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url).groups
+    @clouds_interface = @api_client.clouds
+    @groups_interface = @api_client.groups
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     # preload stuff
     get_available_cloud_types()

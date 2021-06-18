@@ -1124,6 +1124,7 @@ module Morpheus
         if options[:insecure] || appliance[:insecure] || Morpheus::Cli::Shell.insecure
           allow_insecure = true
         end
+        @verify_ssl = !allow_insecure
         # Morpheus::RestClient.enable_ssl_verification = allow_insecure != true
         if allow_insecure && Morpheus::RestClient.ssl_verification_enabled?
           Morpheus::RestClient.enable_ssl_verification = false
@@ -1189,7 +1190,7 @@ module Morpheus
         end
 
         # ok, connect to the appliance.. actually this just instantiates an ApiClient
-        api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url)
+        api_client = Morpheus::APIClient.new(@access_token,nil,nil, @appliance_url, @verify_ssl)
         @api_client = api_client # meh, just return w/o setting instance attrs
         return api_client
       end
