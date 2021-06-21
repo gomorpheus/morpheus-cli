@@ -29,7 +29,7 @@ class Morpheus::FileCopyRequestInterface < Morpheus::APIClient
     if !local_file.kind_of?(File)
       local_file = File.new(local_file, 'rb')
     end
-    url = "#{@base_url}/api/file-copy-request/lease/#{URI.escape(id)}"
+    url = "#{@base_url}/api/file-copy-request/lease/#{URI.encode_www_form(id)}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = File.basename(local_file)
     payload = local_file
@@ -39,7 +39,7 @@ class Morpheus::FileCopyRequestInterface < Morpheus::APIClient
 
   def download_file_chunked(id, outfile, params={})
     raise "#{self.class}.download_file() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/file-copy-request/download/#{URI.escape(id)}"
+    url = "#{@base_url}/api/file-copy-request/download/#{URI.encode_www_form(id)}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     # execute(opts, {parse_json: false})

@@ -5,7 +5,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
   
   def get(id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(id)}"
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(id)}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
@@ -26,14 +26,14 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
   end
 
   def update(id, payload)
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(id.to_s)}"
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(id.to_s)}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
   def destroy(id, params={})
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(id.to_s)}"
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(id.to_s)}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers}
     execute(opts)
@@ -43,7 +43,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
     if file_path.to_s.strip == "/"
       file_path = ""
     end
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(id.to_s)}" + "/files/#{URI.escape(file_path)}".squeeze('/')
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(id.to_s)}" + "/files/#{URI.encode_www_form(file_path)}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
@@ -62,13 +62,13 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
     end
     path_chunks = path.split("/")
     filename = path_chunks.pop
-    safe_dirname = path_chunks.collect {|it| URI.escape(it) }.join("/")
+    safe_dirname = path_chunks.collect {|it| URI.encode_www_form(it) }.join("/")
     # filename = File.basename(destination)
     # dirname = File.dirname(destination)
     # if filename == "" || filename == "/"
     #   filename = File.basename(local_file)
     # end
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(bucket_id.to_s)}" + "/files/#{safe_dirname}".squeeze('/')
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(bucket_id.to_s)}" + "/files/#{safe_dirname}".squeeze('/')
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = filename # File.basename(destination)
     if !local_file.kind_of?(File)
@@ -80,7 +80,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
   end
 
   def download_bucket_zip_chunked(bucket_id, outfile, params={})
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(bucket_id.to_s)}" + ".zip"
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(bucket_id.to_s)}" + ".zip"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers, timeout: 172800}
     # execute(opts, {parse_json:false})
@@ -108,7 +108,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
   end
 
   def recalc(id, params={})
-    url = "#{@base_url}/api/archives/buckets/#{URI.escape(id.to_s)}/recalc"
+    url = "#{@base_url}/api/archives/buckets/#{URI.encode_www_form(id.to_s)}/recalc"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
