@@ -48,7 +48,7 @@ class Morpheus::PoliciesInterface < Morpheus::APIClient
 
   def get_policy_type(id, params={})
     raise "#{self.class}.get_policy_type() passed a blank id!" if id.to_s == ''
-    url = "#{@base_url}/api/policy-types/#{URI.encode_www_form(id.to_s)}"
+    url = "#{@base_url}/api/policy-types/#{URI.escape(id.to_s)}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
