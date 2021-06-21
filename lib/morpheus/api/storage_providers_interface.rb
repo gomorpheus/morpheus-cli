@@ -1,5 +1,4 @@
 require 'morpheus/api/api_client'
-require 'uri'
 
 class Morpheus::StorageProvidersInterface < Morpheus::APIClient
 
@@ -43,7 +42,7 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
     if file_path.to_s.strip == "/"
       file_path = ""
     end
-    url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}" + "/files/#{URI.escape(file_path)}".squeeze('/')
+    url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}" + "/files/#{CGI::escape(file_path)}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
@@ -62,13 +61,13 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
     end
     path_chunks = path.split("/")
     filename = path_chunks.pop
-    safe_dirname = path_chunks.collect {|it| URI.escape(it) }.join("/")
+    safe_dirname = path_chunks.collect {|it| CGI::escape(it) }.join("/")
     # filename = File.basename(destination)
     # dirname = File.dirname(destination)
     # if filename == "" || filename == "/"
     #   filename = File.basename(local_file)
     # end
-    url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}" + "/files/#{safe_dirname}".squeeze('/')
+    url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}" + "/files/#{safe_dirname}".squeeze('/')
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/octet-stream'}
     headers[:params][:filename] = filename # File.basename(destination)
     if !local_file.kind_of?(File)
@@ -82,8 +81,8 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
   def download_file(id, file_path, params={})
     raise "#{self.class}.download_file() passed a blank id!" if id.to_s == ''
     raise "#{self.class}.download_file() passed a blank file path!" if file_path.to_s == ''
-    escaped_file_path = file_path.split("/").collect {|it| URI.escape(it) }.join("/")
-    url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}" + "/download-file/#{escaped_file_path}".squeeze('/')
+    escaped_file_path = file_path.split("/").collect {|it| CGI::escape(it) }.join("/")
+    url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}" + "/download-file/#{escaped_file_path}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts, false)
@@ -92,8 +91,8 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
   def download_file_chunked(id, file_path, outfile, params={})
     raise "#{self.class}.download_file() passed a blank id!" if id.to_s == ''
     raise "#{self.class}.download_file() passed a blank file path!" if file_path.to_s == ''
-    escaped_file_path = file_path.split("/").collect {|it| URI.escape(it) }.join("/")
-    url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}" + "/download-file/#{escaped_file_path}".squeeze('/')
+    escaped_file_path = file_path.split("/").collect {|it| CGI::escape(it) }.join("/")
+    url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}" + "/download-file/#{escaped_file_path}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     # execute(opts, false)
@@ -121,8 +120,8 @@ class Morpheus::StorageProvidersInterface < Morpheus::APIClient
   end
 
   def download_zip_chunked(id, outfile, params={})
-    #url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}" + ".zip"
-    url = "#{@base_url}/api/storage/buckets/#{URI.escape(id.to_s)}/download-zip"
+    #url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}" + ".zip"
+    url = "#{@base_url}/api/storage/buckets/#{CGI::escape(id.to_s)}/download-zip"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     # execute(opts, false)

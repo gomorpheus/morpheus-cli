@@ -979,10 +979,10 @@ class Morpheus::Cli::ArchivesCommand
       
       
       print_h2 "Download URLs"
-      private_download_url = "#{@appliance_url}/api/archives/download/#{URI.escape(bucket_id)}" + "/#{URI.escape(archive_file['filePath'])}".squeeze('/')
+      private_download_url = "#{@appliance_url}/api/archives/download/#{CGI::escape(bucket_id)}" + "/#{CGI::escape(archive_file['filePath'])}".squeeze('/')
       public_download_url = nil
       if archive_file['archiveBucket'] && archive_file['archiveBucket']['isPublic']
-        public_download_url = "#{@appliance_url}/public-archives/download/#{URI.escape(bucket_id)}" + "/#{URI.escape(archive_file['filePath'])}".squeeze('/')
+        public_download_url = "#{@appliance_url}/public-archives/download/#{CGI::escape(bucket_id)}" + "/#{CGI::escape(archive_file['filePath'])}".squeeze('/')
       end
       print cyan
       puts "Private URL: #{private_download_url}"
