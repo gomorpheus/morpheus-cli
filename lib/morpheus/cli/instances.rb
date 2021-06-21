@@ -1360,6 +1360,7 @@ class Morpheus::Cli::Instances
           end
         },
         #"Tenant" => lambda {|it| it['tenant'] ? it['tenant']['name'] : '' },
+        "Apps" => lambda {|it| anded_list(it['apps'] ? it['apps'].collect {|app| app['name'] } : [])},
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         # "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
         "Power Schedule" => lambda {|it| (it['powerSchedule'] && it['powerSchedule']['type']) ? it['powerSchedule']['type']['name'] : '' },
@@ -1373,6 +1374,7 @@ class Morpheus::Cli::Instances
       }
       description_cols.delete("Labels") if labels.nil? || labels.empty?
       description_cols.delete("Tags") if tags.nil? || tags.empty?
+      description_cols.delete("Apps") if instance['apps'].nil? || instance['apps'].empty?
       description_cols.delete("Power Schedule") if instance['powerSchedule'].nil?
       description_cols.delete("Expire Date") if instance['expireDate'].nil?
       description_cols.delete("Shutdown Date") if instance['shutdownDate'].nil?
