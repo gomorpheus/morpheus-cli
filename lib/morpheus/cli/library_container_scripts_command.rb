@@ -25,12 +25,11 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.footer = "List container scripts."
     end
     optparse.parse!(args)
-    connect(options)
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-      return 1
+      options[:phrase] = args.join(" ")
     end
+    connect(options)
     begin
       # construct payload
       params.merge!(parse_list_options(options))

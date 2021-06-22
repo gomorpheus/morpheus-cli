@@ -26,6 +26,10 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     connect(options)
     begin
       [:phrase, :offset, :max, :sort, :direction, :lastUpdated].each do |k|

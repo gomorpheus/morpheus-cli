@@ -41,10 +41,9 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.footer = "List cluster layouts."
     end
     optparse.parse!(args)
+    # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
+      options[:phrase] = args.join(" ")
     end
     connect(options)
     begin
