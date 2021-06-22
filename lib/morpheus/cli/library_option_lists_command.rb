@@ -9,7 +9,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
   include Morpheus::Cli::LibraryHelper
 
   set_command_name :'library-option-lists'
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :list_items, :add, :update, :remove
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -61,16 +61,14 @@ class Morpheus::Cli::LibraryOptionListsCommand
             id: option_type_list['id'],
             name: option_type_list['name'],
             description: option_type_list['description'],
-            type: option_type_list['type'],
-            size: option_type_list['listItems'] ? option_type_list['listItems'].size : ''
+            type: ((option_type_list['type'] == 'api') ? "#{option_type_list['type']} (#{option_type_list['apiType']})" : option_type_list['type'])
           }
         end
           columns = [
           :id,
           :name,
           :description,
-          :type,
-          :size
+          :type
         ]
         print cyan
         print as_pretty_table(rows, columns, options)
@@ -90,8 +88,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_standard_get_options(opts, options)
-      opts.on(nil,'--no-items', "Do not display List Items") do |val|
-        options[:no_list_items] = true
+      opts.on(nil,'--items', "Load and display option list items") do |val|
+        options[:list_items] = true
       end
       opts.footer = "Get details about an option list.\n" + 
                     "[name] is required. This is the name or id of an option list. Supports 1-N [name] arguments."
@@ -108,20 +106,31 @@ class Morpheus::Cli::LibraryOptionListsCommand
   end
   
   def _get(id, options)
-    
+    params = {}
+    params.merge!(parse_query_options(options))
     begin
       @option_type_lists_interface.setopts(options)
       if options[:dry_run]
         if id.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @option_type_lists_interface.dry.get(id.to_i)
+          print_dry_run @option_type_lists_interface.dry.get(id.to_i, params)
         else
-          print_dry_run @option_type_lists_interface.dry.list({name: id})
+          print_dry_run @option_type_lists_interface.dry.list(params.merge({name: id}))
         end
         return
       end
       option_type_list = find_option_type_list_by_name_or_id(id)
       return 1 if option_type_list.nil?
-
+      list_items = nil
+      if options[:list_items]
+        list_items = option_type_list['listItems']
+        if list_items.nil?
+          begin
+            list_items = @option_type_lists_interface.list_items(option_type_list['id'])['listItems']
+          rescue => e
+            puts_error "Failed to load option list items: #{e.message}"
+          end
+        end
+      end
       json_response = {'optionTypeList' => option_type_list}
       render_result = render_with_format(json_response, options, 'optionTypeList')
       return 0 if render_result
@@ -142,12 +151,14 @@ class Morpheus::Cli::LibraryOptionListsCommand
           "ID" => 'id',
           "Name" => 'name',
           "Description" => 'description',
-          "Type" => lambda {|it| it['type'].to_s.capitalize },
+          "Type" => lambda {|it| it['type'] },
+          "API Type" => lambda {|it| it['apiType'] },
           "Source URL" => 'sourceUrl',
           "Real Time" => lambda {|it| format_boolean it['realTime'] },
           "Ignore SSL Errors" => lambda {|it| format_boolean it['ignoreSSLErrors'] },
           "Source Method" => lambda {|it| it['sourceMethod'].to_s.upcase }
         }
+        option_list_columns.delete("API Type") if option_type_list['type'] != 'api'
         source_headers = []
         if option_type_list['config'] && option_type_list['config']['sourceHeaders']
           source_headers = option_type_list['config']['sourceHeaders'].collect do |header|
@@ -174,12 +185,13 @@ class Morpheus::Cli::LibraryOptionListsCommand
           print reset,"#{option_type_list['requestScript']}","\n",reset
         end
       end
-      if options[:no_list_items] != true
-        list_items = option_type_list['listItems']
+      if options[:list_items]
+        print_h2 "List Items"
         if list_items && list_items.size > 0
-          print_h2 "List Items"
           print as_pretty_table(list_items, [:name, :value], options)
           print_results_pagination({size: list_items.size, total: list_items.size})
+        else
+          print cyan,"No list items found.",reset,"\n"
         end
       end
       print reset,"\n"
@@ -187,6 +199,42 @@ class Morpheus::Cli::LibraryOptionListsCommand
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def list_items(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      build_standard_get_options(opts, options)
+      opts.footer = "List items for an option list.\n" + 
+                    "[name] is required. This is the name or id of an option list."
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    option_type_list = find_option_type_list_by_name_or_id(args[0])
+    return 1 if option_type_list.nil?
+
+    params.merge!(parse_list_options(options))
+    @option_type_lists_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @option_type_lists_interface.dry.list_items(option_type_list['id'], params)
+      return
+    end
+    json_response = @option_type_lists_interface.list_items(option_type_list['id'], params)
+    list_items = json_response['listItems']
+    render_response(json_response, options, "listItems") do
+      print_h2 "List Items"
+      if list_items && list_items.size > 0
+        print as_pretty_table(list_items, [:name, :value], options)
+        print_results_pagination({size: list_items.size, total: list_items.size})
+      else
+        print cyan,"No list items found.",reset,"\n"
+      end
+      print reset,"\n"
+    end
+    return 0, nil
   end
 
   def add(args)
@@ -373,7 +421,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'realTime', 'fieldLabel' => 'Real Time', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 7},
         {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'sourceMethod', 'fieldLabel' => 'Source Method', 'type' => 'select', 'selectOptions' => [{'name' => 'GET', 'value' => 'GET'}, {'name' => 'POST', 'value' => 'POST'}], 'defaultValue' => 'GET', 'required' => true, 'displayOrder' => 8},
         # sourceHeaders component (is done afterwards manually)
-        {'dependsOnCode' => 'optionTypeList.type:api', 'fieldName' => 'apiType', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'apiOptionLists', 'required' => true, 'description' => 'The code of the api list to use, eg. clouds, servers, etc.', 'displayOrder' => 9},
+        {'dependsOnCode' => 'optionTypeList.type:api', 'fieldName' => 'apiType', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'apiOptionLists', 'required' => true, 'description' => 'The code of the api option list to use, eg. clouds, environments, groups, instances, instance-wiki, networks, servicePlans, resourcePools, securityGroups, servers, server-wiki', 'displayOrder' => 9},
         {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'sourceUsername', 'fieldLabel' => 'Source Username', 'type' => 'text', 'description' => "An LDAP Username for use when type is 'ldap'.", 'displayOrder' => 10},
         {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'sourcePassword', 'fieldLabel' => 'Source Username', 'type' => 'text', 'description' => "An LDAP Password for use when type is 'ldap'.", 'displayOrder' => 11},
         {'dependsOnCode' => 'optionTypeList.type:ldap', 'fieldName' => 'ldapQuery', 'fieldLabel' => 'LDAP Query', 'type' => 'text', 'description' => "LDAP Queries are standard LDAP formatted queries where different objects can be searched. Dependent parameters can be loaded into the query using the <%=phrase%> syntax.", 'displayOrder' => 12},
