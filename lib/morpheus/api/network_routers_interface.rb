@@ -59,6 +59,20 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def create_firewall_group(router_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-groups"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def destroy_firewall_group(router_id, group_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-groups/#{group_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def create_firewall_rule(router_id, payload={})
     url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rules"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
