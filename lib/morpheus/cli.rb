@@ -93,6 +93,7 @@ module Morpheus
       load 'morpheus/cli/cloud_folders_command.rb'
       load 'morpheus/cli/hosts.rb'
       load 'morpheus/cli/load_balancers.rb'
+      load 'morpheus/cli/load_balancer_types.rb'
       load 'morpheus/cli/shell.rb'
       load 'morpheus/cli/tasks.rb'
       load 'morpheus/cli/workflows.rb'

@@ -2,19 +2,6 @@ require 'morpheus/api/api_client'
 
 class Morpheus::LoadBalancersInterface < Morpheus::APIClient
 
-  def load_balancer_types(options={})
-    url = "#{@base_url}/api/load-balancer-types"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/load-balancer-types/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
-    end
-    execute(method: :get, url: url, headers: headers)
-  end
-
   def list(params={})
     url = "#{@base_url}/api/load-balancers"
     headers = { params: params, authorization: "Bearer #{@access_token}" }

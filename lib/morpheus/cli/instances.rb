@@ -2565,31 +2565,34 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-
-      group_id = instance['group']['id']
-      cloud_id = instance['cloud']['id']
-      layout_id = instance['layout']['id']
-
-      plan_id = instance['plan']['id']
+    instance = find_instance_by_name_or_id(args[0])
+    return 1, "instance not found" if instance.nil?
+    
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
       payload = {
-        :instance => {:id => instance["id"]}
+        "instance" => {:id => instance["id"]}
       }
+      payload.deep_merge!(parse_passed_options(options))
 
       # avoid 500 error
       # payload[:servicePlanOptions] = {}
 
       puts "\nDue to limitations by most Guest Operating Systems, Disk sizes can only be expanded and not reduced.\nIf a smaller plan is selected, memory and CPU (if relevant) will be reduced but storage will not.\n\n"
 
+      group_id = instance['group']['id']
+      cloud_id = instance['cloud']['id']
+      layout_id = instance['layout']['id']
+      plan_id = instance['plan']['id']
+    
       # prompt for service plan
       service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
       service_plans = service_plans_json["plans"]
@@ -2604,7 +2607,7 @@ class Morpheus::Cli::Instances
       new_plan_id = service_plan["id"]
       #payload[:servicePlan] = new_plan_id # ew, this api uses servicePlanId instead
       #payload[:servicePlanId] = new_plan_id
-      payload[:instance][:plan] = {id: service_plan["id"]}
+      payload["instance"]["plan"] = {"id" => service_plan["id"]}
 
       volumes_response = @instances_interface.volumes(instance['id'])
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
@@ -2612,29 +2615,26 @@ class Morpheus::Cli::Instances
       # prompt for volumes
       volumes = prompt_resize_volumes(current_volumes, service_plan, options)
       if !volumes.empty?
-        payload[:volumes] = volumes
+        payload["volumes"] = volumes
       end
 
       # only amazon supports this option
       # for now, always do this
-      payload[:deleteOriginalVolumes] = true
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.resize(instance['id'], payload)
-        return
-      end
-      json_response = @instances_interface.resize(instance['id'], payload)
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
-      else
-        print_green_success "Resizing instance #{instance['name']}"
-        #list([])
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+      payload["deleteOriginalVolumes"] = true
     end
+    
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.resize(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.resize(instance['id'], payload)
+    render_response(json_response, options, 'snapshots') do
+      print_green_success "Resizing instance #{instance['name']}"
+    end
+    return 0, nil
+    
+  
   end
 
   def backup(args)

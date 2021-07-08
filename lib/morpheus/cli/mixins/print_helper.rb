@@ -1335,4 +1335,15 @@ module Morpheus::Cli::PrintHelper
     parse_json_or_yaml(config, parsers)
   end
 
+  def format_option_types_table(option_types, options={}, domain_name=nil)
+    columns = [
+      {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
+      {"FIELD NAME" => lambda {|it| [it['fieldContext'] == domain_name ? nil : it['fieldContext'], it['fieldName']].select {|it| !it.to_s.empty? }.join('.') } },
+      {"TYPE" => lambda {|it| it['type'] } },
+      {"DEFAULT" => lambda {|it| it['defaultValue'] } },
+      {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+    ]
+    as_pretty_table(option_types, columns, options)
+  end
+  
 end
