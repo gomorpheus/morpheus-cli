@@ -15,6 +15,8 @@ class Morpheus::Cli::LoadBalancers
   register_subcommands :types
   set_subcommands_hidden :types
 
+  #register_interfaces :load_balancers, :load_balancer_types
+
   def initialize() 
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
   end

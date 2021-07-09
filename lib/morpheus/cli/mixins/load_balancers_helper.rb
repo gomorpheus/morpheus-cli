@@ -30,12 +30,28 @@ module Morpheus::Cli::LoadBalancersHelper
     'loadBalancers'
   end
 
+  def load_balancer_label
+    'Load Balancer'
+  end
+
+  def load_balancer_plural_label
+    'Load Balancers'
+  end
+
   def load_balancer_type_object_key
     'loadBalancerType'
   end
 
   def load_balancer_type_list_key
     'loadBalancerTypes'
+  end
+
+  def load_balancer_type_label
+    'Load Balancer Type'
+  end
+
+  def load_balancer_type_plural_label
+    'Load Balancer Types'
   end
 
   def find_lb_by_name_or_id(val)
