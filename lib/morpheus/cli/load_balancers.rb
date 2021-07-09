@@ -1,11 +1,9 @@
 # require 'yaml'
-require 'io/console'
-require 'rest_client'
-require 'optparse'
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::LoadBalancers
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::RestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
   set_command_name :'load-balancers'
@@ -15,127 +13,18 @@ class Morpheus::Cli::LoadBalancers
   register_subcommands :types
   set_subcommands_hidden :types
 
-  #register_interfaces :load_balancers, :load_balancer_types
+  register_interfaces :load_balancers, :load_balancer_types
 
-  def initialize() 
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
-
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
-    @load_balancers_interface = @api_client.load_balancers
-    @load_balancer_types_interface = @api_client.load_balancer_types
-  end
-
-  def handle(args)
-    handle_subcommand(args)
-  end
-
-  def list(args)
-    params = {}
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_standard_list_options(opts, options)
-      opts.footer = "List load balancers."
-    end
-    optparse.parse!(args)
-    connect(options)
-    params.merge!(parse_list_options(options))
-    @load_balancers_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @load_balancers_interface.dry.list(params)
-      return
-    end
-    json_response = @load_balancers_interface.list(params)
-    render_response(json_response, options, 'loadBalancers') do
-      lbs = json_response['loadBalancers']
-      print_h1 "Morpheus Load Balancers"
-      if lbs.empty?
-        print cyan,"No load balancers found.",reset,"\n"
-      else
-        columns = [
-          {"ID" => 'id'},
-          {"Name" => 'name'},
-          {"Type" => lambda {|it| it['type'] ? it['type']['name'] : '' } },
-          {"Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' } },
-          {"Host" => lambda {|it| it['host'] } },
-        ]
-        print as_pretty_table(lbs, columns, options)
-        print_results_pagination(json_response) if json_response['meta']
-      end
-      print reset,"\n"
-    end
-    return 0, nil
-  end
-
-  def get(args)
-    params = {}
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[lb]")
-      build_standard_get_options(opts, options)
-      opts.footer = <<-EOT
-Get details about a specific load balancer.
-[lb] is required. This is the name or id of a load balancer.
-EOT
-    end
-    optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, min:1)
-    connect(options)
-    id_list = parse_id_list(args)
-    # lookup IDs if names are given
-    id_list = id_list.collect do |id|
-      if id.to_s =~ /\A\d{1,}\Z/
-        id
-      else
-        load_balancer = find_lb_by_name_or_id(id)
-        if load_balancer
-          load_balancer['id'].to_s
-        else
-          #raise_command_error "load balancer not found for name '#{id}'"
-          exit 1
-        end
-      end
-    end
-    return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
-    end
-  end
-
-  def _get(id, options)
-    params = {}.merge!(parse_query_options(options))
-    @load_balancers_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @load_balancers_interface.dry.get(id.to_i)
-      return
-    end
-    json_response = @load_balancers_interface.get(id.to_i)
-    render_response(json_response, options, load_balancer_object_key) do
-      lb = json_response[load_balancer_object_key]
-      #lb_type = load_balancer_type_for_name_or_id(lb['type']['code'])
-      print_h1 "Load Balancer Details"
-      description_cols = {
-        "ID" => 'id',
-        "Name" => 'name',
-        "Description" => 'description',
-        "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
-        "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
-        "Visibility" => 'visibility',
-        "IP" => 'ip',
-        "Host" => 'host',
-        "Port" => 'port',
-        "Username" => 'username',
-        # "SSL Enabled" => lambda {|it| format_boolean it['sslEnabled'] },
-        # "SSL Cert" => lambda {|it| it['sslCert'] ? it['sslCert']['name'] : '' },
-        # "SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" },
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, lb)
-
-      if lb['ports'] && lb['ports'].size > 0
-        print_h2 "LB Ports"
+  def render_response_for_get(json_response, options)
+    render_response(json_response, options, rest_object_key) do
+      record = json_response[rest_object_key]
+      print_h1 rest_label, [], options
+      print cyan
+      print_description_list(rest_column_definitions, record, options)
+      # show LB Ports
+      ports = record['ports']
+      if ports && ports.size > 0
+        print_h2 "LB Ports", options
         columns = [
           {"ID" => 'id'},
           {"Name" => 'name'},
@@ -144,11 +33,10 @@ EOT
           {"Protocol" => lambda {|it| it['proxyProtocol'] } },
           {"SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" } },
         ]
-        print as_pretty_table(lb['ports'], columns, options)
+        print as_pretty_table(ports, columns, options)
       end
       print reset,"\n"
     end
-    return 0, nil
   end
 
   def add(args)
@@ -306,8 +194,43 @@ EOT
     my_terminal.execute("load-balancer-types list #{args.join(' ')}")
   end
 
-  private
+  protected
 
-  # finders are in the LoadBalancerHelper mixin  
+  def load_balancer_list_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+      "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
+      "Host" => lambda {|it| it['host'] }
+    }
+  end
+
+  def load_balancer_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Description" => 'description',
+      "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+      "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
+      "Visibility" => 'visibility',
+      "IP" => 'ip',
+      "Host" => 'host',
+      "Port" => 'port',
+      "Username" => 'username',
+      # "SSL Enabled" => lambda {|it| format_boolean it['sslEnabled'] },
+      # "SSL Cert" => lambda {|it| it['sslCert'] ? it['sslCert']['name'] : '' },
+      # "SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+  # overridden to work with name or code
+  def find_load_balancer_type_by_name_or_id(name)
+    load_balancer_type_for_name_or_id(name)
+  end
+
+
 
 end

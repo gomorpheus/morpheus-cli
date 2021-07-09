@@ -276,21 +276,23 @@ EOT
       return
     end
     json_response = rest_interface.get(id, params)
-    
+    render_response_for_get(json_response, options)
+    return 0, nil
+  end
+
+  def render_response_for_get(json_response, options)
     render_response(json_response, options, rest_object_key) do
       record = json_response[rest_object_key]
       print_h1 rest_label, [], options
       print cyan
       print_description_list(rest_column_definitions, record, options)
-
       # show config settings...
       if record['optionTypes'] && record['optionTypes'].size > 0
-        print_h2 "Configuration Option Types"
+        print_h2 "Configuration Option Types", options
         print format_option_types_table(record['optionTypes'], options, rest_object_key)
       end
       print reset,"\n"
     end
-    return 0, nil
   end
 
   # todo: finish add, update, remove commands here...
