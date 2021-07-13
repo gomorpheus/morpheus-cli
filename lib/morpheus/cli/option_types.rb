@@ -276,10 +276,9 @@ module Morpheus
 
           if option_type['type'] == 'multiSelect'
             value = [value] if !value.nil? && !value.is_a?(Array)
-            parent_context_map[parent_ns] = value
-          else
-            context_map[field_name] = value
+            # parent_context_map[parent_ns] = value
           end
+          context_map[field_name] = value
         end
         results
       end
