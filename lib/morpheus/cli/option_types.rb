@@ -94,46 +94,39 @@ module Morpheus
           end
 
           if !visible_option_check_value.to_s.empty?
-            # support formats code=value or code:value OR code:(value|value2|value3)
-            # OR fieldContext.fieldName=value
-            parts = visible_option_check_value.include?("=") ? visible_option_check_value.split("=") : visible_option_check_value.split(":")
-            depends_on_code = parts[0]
-            depends_on_value = parts[1].to_s.strip
-            depends_on_values = []
-            if depends_on_value.size > 0
-              # strip parenthesis
-              if depends_on_value[0] && depends_on_value[0].chr == "("
-                depends_on_value = depends_on_value[1..-1]
-              end
-              depends_on_value.chomp(")")
-              depends_on_values = depends_on_value.split("|").collect { |it| it.strip }
-            end
-            depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
-            if !depends_on_option_type
-              depends_on_option_type = option_types.find {|it| 
-                (it['fieldContext'] ? "#{it['fieldContext']}.#{it['fieldName']}" : it['fieldName']) == depends_on_code
-              }
-            end
-            if depends_on_option_type
-              # dependent option type has a different value
-              depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
-              found_dep_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
+            match_type = 'any'
 
-              if depends_on_values.size > 0
-                # must be in the specified values
-                # todo: uhh this actually needs to change to parse regex
-                if !depends_on_values.include?(found_dep_value)
-                  next
+            if visible_option_check_value.include?('::')
+              match_type = 'all' if visible_option_check_value.start_with?('matchAll')
+              visible_option_check_value = visible_option_check_value[visible_option_check_value.index('::') + 2..-1]
+            end
+
+            found_dep_value = match_type == 'all' ? true : false
+            visible_option_check_value.split(',').each do |value|
+              parts = value.split(':')
+              depends_on_code = parts[0]
+              depends_on_value = parts.count > 1 ? parts[1].to_s.strip : '.'
+              depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
+              if !depends_on_option_type
+                depends_on_option_type = option_types.find {|it|
+                  (it['fieldContext'] ? "#{it['fieldContext']}.#{it['fieldName']}" : it['fieldName']) == depends_on_code
+                }
+              end
+
+              if depends_on_option_type
+                depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
+                field_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
+
+                if !field_value.nil? && field_value.match?(depends_on_value)
+                  found_dep_value = true if match_type != 'all'
+                else
+                  found_dep_value = false if match_type == 'all'
                 end
               else
-                # no value found
-                if found_dep_value.to_s.empty?
-                  next
-                end
+                found_dep_value = true if match_type != 'all'
               end
-            else
-              # could not find the dependent option type, proceed and prompt
             end
+            next if !found_dep_value
           end
 
           cur_namespace = options
@@ -283,10 +276,9 @@ module Morpheus
 
           if option_type['type'] == 'multiSelect'
             value = [value] if !value.nil? && !value.is_a?(Array)
-            parent_context_map[parent_ns] = value
-          else
-            context_map[field_name] = value
+            # parent_context_map[parent_ns] = value
           end
+          context_map[field_name] = value
         end
         results
       end
