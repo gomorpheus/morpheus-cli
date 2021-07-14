@@ -860,7 +860,18 @@ class Morpheus::Cli::NetworkRoutersCommand
       router = find_router(args[0])
       return if !router
 
-      rule = router['firewall'] && router['firewall']['rules'] ? router['firewall']['rules'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
+      rule = nil
+      if router['type']['hasFirewallGroups']
+        if router['firewall'] && router['firewall']['groups']
+          router['firewall']['groups'].each do |group|
+            if !rule && group['rules']
+              rule = group['rules'].find { |it| it['name'] == args[1] || it['id'] == args[1].to_i }
+            end
+          end
+        end
+      else
+        rule = router['firewall'] && router['firewall']['rules'] ? router['firewall']['rules'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
+      end
 
       if !rule
         print_red_alert "Firewall rule #{args[1]} not found for router #{router['name']}"
