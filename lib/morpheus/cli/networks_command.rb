@@ -8,6 +8,7 @@ class Morpheus::Cli::NetworksCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::ProvisioningHelper
 
   set_command_name :networks
 
@@ -25,6 +26,7 @@ class Morpheus::Cli::NetworksCommand
     @api_client = establish_remote_appliance_connection(opts)
     @networks_interface = @api_client.networks
     @network_types_interface = @api_client.network_types
+    @network_services_interface = @api_client.network_services
     @subnets_interface = @api_client.subnets
     @subnet_types_interface = @api_client.subnet_types
     @groups_interface = @api_client.groups
@@ -288,8 +290,14 @@ class Morpheus::Cli::NetworksCommand
       opts.on('-t', '--type ID', "Network Type Name or ID") do |val|
         options['type'] = val
       end
+      opts.on('-s', '--server ID', "Network Server Name or ID") do |val|
+        options['server'] = val
+      end
       opts.on('--name VALUE', String, "Name for this network") do |val|
         options['name'] = val
+      end
+      opts.on('--display-name VALUE', String, "Display name for this network") do |val|
+        options['displayName'] = val
       end
       opts.on('--description VALUE', String, "Description of network") do |val|
         options['description'] = val
@@ -394,6 +402,17 @@ class Morpheus::Cli::NetworksCommand
       payload = nil
       if options[:payload]
         payload = options[:payload]
+
+        # backward compat
+        if payload['resourcePermissions']
+          payload['network'] ||= {}
+          payload['network']['resourcePermission'] = payload['resourcePermissions']
+          payload.delete('resourcePermissions')
+        end
+        if payload['network'] && payload['network']['resourcePermissions']
+          payload['network']['resourcePermission'] = payload['network']['resourcePermissions']
+          payload['network'].delete('resourcePermissions')
+        end
       else
         # prompt for network options
         payload = {
@@ -411,6 +430,14 @@ class Morpheus::Cli::NetworksCommand
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network.'}], options)
           payload['network']['name'] = v_prompt['name']
+        end
+
+        # Display Name
+        if options['displayName']
+          payload['network']['displayName'] = options['displayName']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'displayName', 'fieldLabel' => 'Display Name', 'type' => 'text', 'required' => false, 'description' => 'Display name for this network.'}], options)
+          payload['network']['displayName'] = v_prompt['displayName']
         end
 
         # Description
@@ -465,42 +492,9 @@ class Morpheus::Cli::NetworksCommand
           # shared
         end
 
-        # Cloud
-        cloud = nil
-        if group
-          if options[:cloud]
-            cloud_id = options[:cloud]
-            cloud = group["clouds"].find {|it| it["id"].to_s == cloud_id.to_s || it["name"].to_s == cloud_id}
-            if cloud.nil?
-              print_red_alert "Cloud not found by id #{cloud_id}"
-              return 1
-            end
-          else
-            api_params = {groupId:group['id']}
-            cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
-            cloud_id = cloud_prompt['cloud']
-            cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
-            return 1 if cloud.nil?
-          end
-        else
-          if options[:cloud]
-            cloud = find_cloud_by_name_or_id(options[:cloud])
-            # meh, should validate cloud is in the cloudsForNetworks dropdown..
-            return 1 if cloud.nil?
-          else
-            api_params = {}
-            cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
-            cloud_id = cloud_prompt['cloud']
-            cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
-            return 1 if cloud.nil?
-          end
-        end
-        payload['network']['zone'] = {'id' => cloud['id']}
-
         # Network Type
         network_type_id = nil
-        api_params = {"network.zone.id" => cloud['id']} #{network:{zone:{id: cloud['id']}}}
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Network Type', 'type' => 'select', 'optionSource' => 'networkTypesForCloud', 'required' => true, 'description' => 'Choose a network type.'}], options, @api_client, api_params)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Network Type', 'type' => 'select', 'optionSource' => 'creatableNetworkTypes', 'required' => true, 'description' => 'Choose a network type.'}], options, @api_client, {accountId: current_account()['id']})
         network_type_id = v_prompt['type']
         if network_type_id.nil? || network_type_id.to_s.empty?
           print_red_alert "Network Type not found by id '#{options['type']}'"
@@ -517,51 +511,102 @@ class Morpheus::Cli::NetworksCommand
           return 1
         end
 
-        # CIDR
-        if options['cidr']
-          payload['network']['cidr'] = options['cidr']
+        if network_type['hasNetworkServer']
+          api_params = {networkType: {id: network_type['id']}}
+
+          # Network Server
+          if options['server']
+            network_server = @options_interface.options_for_source('networkServer', api_params)['data'].find {|it|
+              it['name'] == options['server'] || it['value'].to_s == options['server']
+            }
+
+            if network_server.nil?
+              print_red_alert "Network Server not found by name or id '#{options['server']}' for network type '#{options['server']}'"
+              return 1
+            end
+            network_server_id = network_server['value']
+            payload['network']['networkServer'] = {'id' => network_server_id}
+          else
+            network_server_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'server', 'type' => 'select', 'fieldLabel' => 'Network Server', 'optionSource' => 'networkServer', 'required' => true, 'description' => 'Select Network Service.'}],options,@api_client,api_params)
+            network_server_id = network_server_prompt['server']
+            payload['network']['networkServer'] = {'id' => network_server_id}
+          end
         else
-          if network_type['cidrEditable']
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
+          # Cloud
+          cloud = nil
+          if group
+            if options[:cloud]
+              cloud_id = options[:cloud]
+              cloud = group["clouds"].find {|it| it["id"].to_s == cloud_id.to_s || it["name"].to_s == cloud_id}
+              if cloud.nil?
+                print_red_alert "Cloud not found by id #{cloud_id}"
+                return 1
+              end
+            else
+              api_params = {groupId:group['id']}
+              cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
+              cloud_id = cloud_prompt['cloud']
+              cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
+              return 1 if cloud.nil?
+            end
+          else
+            if options[:cloud]
+              cloud = find_cloud_by_name_or_id(options[:cloud])
+              # meh, should validate cloud is in the cloudsForNetworks dropdown..
+              return 1 if cloud.nil?
+            else
+              api_params = {}
+              cloud_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cloud', 'type' => 'select', 'fieldLabel' => 'Cloud', 'optionSource' => 'cloudsForNetworks', 'required' => true, 'description' => 'Select Cloud.'}],options,@api_client,api_params)
+              cloud_id = cloud_prompt['cloud']
+              cloud = find_cloud_by_name_or_id(cloud_id) if cloud_id
+              return 1 if cloud.nil?
+            end
+          end
+          payload['network']['zone'] = {'id' => cloud['id']}
+        end
+
+        # CIDR
+        if network_type['hasCidr'] && network_type['cidrEditable']
+          if options['cidr']
+            payload['network']['cidr'] = options['cidr']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => network_type['code'] == 'nsxtLogicalSwitch' ? 'Gateway CIDR' : 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
             payload['network']['cidr'] = v_prompt['cidr']
           end
         end
 
         # Gateway
-        if options['gateway']
-          payload['network']['gateway'] = options['gateway']
-        else
-          if network_type['gatewayEditable']
+        if network_type['gatewayEditable']
+          if options['gateway']
+            payload['network']['gateway'] = options['gateway']
+          else
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
             payload['network']['gateway'] = v_prompt['gateway']
           end
         end
 
-        # DNS Primary
-        if options['dnsPrimary']
-          payload['network']['dnsPrimary'] = options['dnsPrimary']
-        else
-          if network_type['dnsEditable']
+        # DNS
+        if network_type['dnsEditable']
+          if options['dnsPrimary']
+            payload['network']['dnsPrimary'] = options['dnsPrimary']
+          else
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimary', 'fieldLabel' => 'DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
             payload['network']['dnsPrimary'] = v_prompt['dnsPrimary']
           end
-        end
 
-        # DNS Secondary
-        if options['dnsSecondary']
-          payload['network']['dnsSecondary'] = options['dnsSecondary']
-        else
-          if network_type['dnsEditable']
+          if options['dnsSecondary']
+            payload['network']['dnsSecondary'] = options['dnsSecondary']
+          else
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondary', 'fieldLabel' => 'DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
             payload['network']['dnsSecondary'] = v_prompt['dnsSecondary']
           end
         end
 
         # VLAN ID
-        if options['vlanId']
-          payload['network']['vlanId'] = options['vlanId']
-        else
-          if network_type['vlanEditable']
+        if network_type['vlanIdEditable']
+          if options['vlanId']
+            payload['network']['vlanId'] = options['vlanId']
+          else
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'vlanId', 'fieldLabel' => 'VLAN ID', 'type' => 'number', 'required' => false, 'description' => ''}], options)
             payload['network']['vlanId'] = v_prompt['vlanId']
           end
@@ -570,19 +615,30 @@ class Morpheus::Cli::NetworksCommand
         # prompt for option types
         network_type_option_types = network_type['optionTypes']
         if network_type_option_types && network_type_option_types.size > 0
-          network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, {zoneId: cloud['id']})
+          api_params = {}
+          api_params['network.site.id'] = group ? group['id'] : 'shared'
+          api_params['network.type.id'] = network_type['id']
+          api_params['network.networkServer.id'] = network_server_id if !network_server_id.nil?
+          network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, api_params)
           # network context options belong at network level and not network.network
           network_context_params = network_type_params.delete('network')
           payload['network'].deep_merge!(network_context_params) if network_context_params
           payload['network'].deep_merge!(network_type_params)
+        end
 
+        # Active
+        if options['active'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => true}], options)
+          payload['network']['active'] = v_prompt['active']
+        else
+          payload['network']['active'] = options['active']
         end
 
         # DHCP Server
-        if options['dhcpServer'] != nil
-          payload['network']['dhcpServer'] = options['dhcpServer']
-        else
-          if network_type['dhcpServerEditable']
+        if network_type['dhcpServerEditable']
+          if options['dhcpServer'] != nil
+            payload['network']['dhcpServer'] = options['dhcpServer']
+          else
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dhcpServer', 'fieldLabel' => 'DHCP Server', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
             payload['network']['dhcpServer'] = v_prompt['dhcpServer']
           end
@@ -599,10 +655,10 @@ class Morpheus::Cli::NetworksCommand
         ## IPAM Options
 
         # Network Pool
-        if options['pool']
-          payload['network']['pool'] = options['pool'].to_i
-        else
-          if network_type['canAssignPool']
+        if network_type['canAssignPool']
+          if options['pool']
+            payload['network']['pool'] = options['pool'].to_i
+          else
             # todo: select dropdown
             # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
@@ -618,6 +674,14 @@ class Morpheus::Cli::NetworksCommand
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
           payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+        end
+
+        # Search Domains
+        if options['searchDomains'] != nil
+          payload['network']['searchDomains'] = options['searchDomains']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'searchDomains', 'fieldLabel' => 'Search Domains', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+          payload['network']['searchDomains'] = v_prompt['searchDomains']
         end
 
         # Scan Network
@@ -654,42 +718,53 @@ class Morpheus::Cli::NetworksCommand
 
         # Group Access
         # Group Access (default is All)
-        if group_access_all.nil?
-          if payload['resourcePermissions'].nil?
-            payload['resourcePermissions'] ||= {}
-            payload['resourcePermissions']['all'] = true
-          end
+        if !options[:no_prompt] && group_access_all.nil? && group_access_list.nil? && payload['resourcePermission'].nil? && payload['network']['resourcePermission'].nil?
+          perm_excludes = ['plans']
+          perm_excludes << 'tenants' if options['tenants'] || payload['tenantPermissions'] || payload['network']['tenants']
+          perm_excludes << 'visibility' if options['visibility'] || payload['network']['visibility']
+          perms = prompt_permissions(options, perm_excludes)
+
+          payload['network']['resourcePermission'] = perms['resourcePermissions']
+          payload['network']['tenants'] = perms['tenantPermissions']['accounts'].collect {|it| {'id': it}} if perms['tenantPermissions']
+          payload['network']['visibility'] = perms['resourcePool']['visibility'] if perms['resourcePool']
         else
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['all'] = group_access_all
-        end
-        if group_access_list != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
-            site = {"id" => site_id.to_i}
-            if group_defaults_list && group_defaults_list.include?(site_id)
-              site["default"] = true
+          if !group_access_list.nil?
+            payload['network']['resourcePermission'] ||= {}
+            payload['network']['resourcePermission']['sites'] = group_access_list.collect do |site_id|
+              site = {"id" => site_id.to_i}
+              if group_defaults_list && group_defaults_list.include?(site_id)
+                site["default"] = true
+              end
+              site
             end
-            site
+          elsif !group_access_all.nil?
+            payload['network']['resourcePermission'] ||= {}
+            payload['network']['resourcePermission']['all'] = group_access_all
+          else
+            payload['network']['resourcePermission'] ||= {}
+            payload['network']['resourcePermission']['all'] = true
           end
         end
 
         # Tenants
-        if options['tenants']
-          payload['tenantPermissions'] = {}
-          payload['tenantPermissions']['accounts'] = options['tenants']
+        if !options[:no_prompt] && options['tenants'].nil? && payload['tenantPermissions'].nil? && payload['network']['tenants'].nil?
+          perm_excludes = ['plans', 'groups']
+          perm_excludes << 'visibility' if options['visibility'] || payload['network']['visibility']
+          perms = prompt_permissions(options, perm_excludes)
+
+          payload['network']['tenants'] = perms['tenantPermissions']['accounts'].collect {|it| {'id': it}} if perms['tenantPermissions']
+          payload['network']['visibility'] = perms['resourcePool']['visibility'] if perms['resourcePool']
+        elsif options['tenants']
+          payload['network']['tenants'] = options['tenants'].collect {|it| {'id': it}}
         end
 
-        # Active
-        if options['active'] != nil
-          payload['network']['active'] = options['active']
-        end
-        
         # Visibility
-        if options['visibility'] != nil
-          payload['network']['visibility'] = options['visibility']
+        if options['visibility'].nil? && payload['network']['visibility'].nil?
+          perms = prompt_permissions(options, ['plans', 'groups', 'tenants'])
+          payload['network']['visibility'] = perms['resourcePool'].nil? ? 'private' : perms['resourcePool']['visibility']
+        else
+          payload['network']['visibility'] = options['visibility'] || 'private'
         end
-
       end
 
       @networks_interface.setopts(options)
@@ -734,6 +809,9 @@ class Morpheus::Cli::NetworksCommand
       end
       opts.on('--description VALUE', String, "Description of network") do |val|
         options['description'] = val
+      end
+      opts.on('--display-name VALUE', String, "Display name for this network") do |val|
+        options['displayName'] = val
       end
       opts.on('--gateway VALUE', String, "Gateway") do |val|
         options['gateway'] = val
@@ -834,6 +912,17 @@ class Morpheus::Cli::NetworksCommand
       payload = nil
       if options[:payload]
         payload = options[:payload]
+
+        # backward compat
+        if payload['resourcePermissions']
+          payload['network'] ||= {}
+          payload['network']['resourcePermission'] = payload['resourcePermissions']
+          payload.delete('resourcePermissions')
+        end
+        if payload['network'] && payload['network']['resourcePermissions']
+          payload['network']['resourcePermission'] = payload['network']['resourcePermissions']
+          payload['network'].delete('resourcePermissions')
+        end
       else
         # prompt for network options
         payload = {
@@ -877,6 +966,10 @@ class Morpheus::Cli::NetworksCommand
         else
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network.'}], options)
           # payload['network']['name'] = v_prompt['name']
+        end
+
+        if options['displayName']
+          payload['network']['displayName'] = options['displayName']
         end
 
         # Description
@@ -995,12 +1088,12 @@ class Morpheus::Cli::NetworksCommand
 
         # Group Access
         if group_access_all != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['all'] = group_access_all
+          payload['network']['resourcePermission'] ||= {}
+          payload['network']['resourcePermission']['all'] = group_access_all
         end
         if group_access_list != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+          payload['network']['resourcePermission'] ||= {}
+          payload['network']['resourcePermission']['sites'] = group_access_list.collect do |site_id|
             site = {"id" => site_id.to_i}
             if group_defaults_list && group_defaults_list.include?(site_id)
               site["default"] = true
@@ -1011,8 +1104,8 @@ class Morpheus::Cli::NetworksCommand
 
         # Tenants
         if options['tenants']
-          payload['tenantPermissions'] = {}
-          payload['tenantPermissions']['accounts'] = options['tenants']
+          payload['network']['tenants'] = {}
+          payload['network']['tenants'] = options['tenants'].collect {|it| {'id': it}}
         end
 
         # Active
