@@ -367,8 +367,14 @@ class Morpheus::Cli::NetworkRoutersCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[router]")
-      opts.on('-D', '--description VALUE', String, "Description") do |val|
+      opts.on('-n', '--name VALUE', String, "Name for this network") do |val|
+        params['name'] = val
+      end
+      opts.on('-D', '--description VALUE', String, "Description for this network") do |val|
         params['description'] = val
+      end
+      opts.on('--enabled [on|off]', String, "Can be used to enable / disable the network router. Default is on") do |val|
+        options[:enabled] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network router."
@@ -395,7 +401,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         end
 
         if options[:options]
-          params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['name', 'routerType'].include?(k)})
+          params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) || ['name', 'routerType', 'enabled', 'description'].include?(k)})
         end
         payload = {'networkRouter' => params}
       end
