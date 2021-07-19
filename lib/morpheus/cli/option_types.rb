@@ -122,8 +122,6 @@ module Morpheus
                 else
                   found_dep_value = false if match_type == 'all'
                 end
-              else
-                found_dep_value = true if match_type != 'all'
               end
             end
             next if !found_dep_value
