@@ -11,7 +11,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   include Morpheus::Cli::WhoamiHelper
 
   set_command_name :'network-routers'
-  register_subcommands :list, :get, :firewall, :dhcp, :routes, :types, :type, :add, :update, :remove, :nats
+  register_subcommands :list, :get, :firewall, :dhcp, :routes, :types, :type, :add, :update, :remove, :nats, :firewall_rules
   register_subcommands :add_firewall_group, :update_firewall_group, :remove_firewall_group
   register_subcommands :add_firewall_rule, :remove_firewall_rule
   register_subcommands :add_route, :remove_route
@@ -739,6 +739,25 @@ class Morpheus::Cli::NetworkRoutersCommand
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def firewall_rules(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router] [rule]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rules.\n" +
+        "[router] is required. This is the name or id of a network router."
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+    _firewall(args[0], options.merge({:rules_only => true}))
   end
 
   def add_firewall_rule(args)
@@ -1521,12 +1540,14 @@ class Morpheus::Cli::NetworkRoutersCommand
       }
       print_description_list(description_cols, router_type)
 
-      if router_type['optionTypes'].count > 0
-        println cyan
-        print Morpheus::Cli::OptionTypes.display_option_types_help(
-            router_type['optionTypes'].reject {|it| ['enabled'].include?(it['fieldName'])},
-            {:include_context => true, :context_map => {'networkRouter' => ''}, :color => cyan, :title => "Available Router Options"}
-        )
+      {'optionTypes' => 'Router', 'ruleOptionTypes' => 'Firewall Rule', 'firewallGroupOptionTypes' => 'Firewall Group', 'natOptionTypes' => 'NAT'}.each_pair do |field, title|
+        if !router_type[field].nil? && router_type[field].count > 0
+          println cyan
+          print Morpheus::Cli::OptionTypes.display_option_types_help(
+            router_type[field].reject {|it| ['enabled'].include?(it['fieldName'])},
+            {:include_context => true, :context_map => {'networkRouter' => ''}, :color => cyan, :title => "Available #{title} Options"}
+          )
+        end
       end
       print reset
       return 0
