@@ -12,11 +12,11 @@ class Morpheus::Cli::NetworkRoutersCommand
 
   set_command_name :'network-routers'
   register_subcommands :list, :get, :firewall, :dhcp, :types, :type, :add, :update, :remove
-  register_subcommands :add_firewall_rule_group, :update_firewall_rule_group, :remove_firewall_rule_group, :firewall_rule_groups #, :firewall_rule_group
-  register_subcommands :add_firewall_rule, :update_firewall_rule, :remove_firewall_rule, :firewall_rules #, :firewall_rule
+  register_subcommands :add_firewall_rule_group, :update_firewall_rule_group, :remove_firewall_rule_group, :firewall_rule_groups, :firewall_rule_group
+  register_subcommands :add_firewall_rule, :update_firewall_rule, :remove_firewall_rule, :firewall_rules, :firewall_rule
   register_subcommands :add_route, :remove_route, :routes
   register_subcommands :update_permissions
-  register_subcommands :add_nat, :update_nat, :remove_nat, :nats
+  register_subcommands :add_nat, :update_nat, :remove_nat, :nats, :nat
 
   def initialize()
   end
@@ -990,7 +990,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   def firewall_rule(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[router]")
+      opts.banner = subcommand_usage("[router] [rule]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display network router firewall rule details." + "\n" +
         "[router] is required. This is the name or id of a network router.\n" +
@@ -1619,6 +1619,84 @@ class Morpheus::Cli::NetworkRoutersCommand
         print_red_alert "NATs not supported for #{router['type']['name']}"
       end
       print reset
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def nat(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router] [rule]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rule details." + "\n" +
+        "[router] is required. This is the name or id of a network router.\n" +
+        "[rule] is required. This is the name or id of a firewall rule.\n"
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 2
+      puts optparse
+      return 1
+    end
+
+    begin
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_routers_interface.dry.get(args[0].to_i)
+        else
+          print_dry_run @network_routers_interface.dry.list({name:args[0]})
+        end
+        return
+      end
+      router = find_router(args[0])
+      if router.nil?
+        return 1
+      end
+
+      if router['type']['hasNat']
+        nat = (router['nats'] || []).find {|it| it['id'] == args[1].to_i || it['name'] == args[1]}
+
+        if nat
+          json_response = {'networkRouterNAT' => nat}
+
+          if options[:json]
+            puts as_json(json_response, options, "networkRouterNAT")
+            return 0
+          elsif options[:yaml]
+            puts as_yaml(json_response, options, "networkRouterNAT")
+            return 0
+          elsif options[:csv]
+            puts records_as_csv([json_response['networkRouterNAT']], options)
+            return 0
+          end
+
+          print_h1 "Network Router NAT Details"
+          print cyan
+
+          description_cols = {
+            "ID" => lambda {|it| it['id'] },
+            "Name" => lambda {|it| it['name'] },
+            "Description" => lambda {|it| it['description'] },
+            "Enabled" => lambda {|it| format_boolean(it['enabled'])},
+            "Source Network" => lambda {|it| it['sourceNetwork']},
+            "Destination Network" => lambda {|it| it['destinationNetwork']},
+            "Translated Network" => lambda {|it| it['translatedNetwork']},
+            "Translated Port" => lambda {|it| it['translatedPorts']},
+            "Priority" => lambda {|it| it['priority'] }
+          }
+          print_description_list(description_cols, nat)
+        else
+          print_red_alert "NAT #{args[1]} not found for router #{router['name']}"
+        end
+      else
+        print_red_alert "NATs not supported for #{router['type']['name']}"
+      end
+      println reset
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
