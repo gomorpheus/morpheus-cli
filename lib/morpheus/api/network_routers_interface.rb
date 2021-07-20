@@ -59,22 +59,29 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def create_firewall_group(router_id, payload={})
-    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-groups"
+  def list_firewall_rule_groups(router_id, params={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json', params: params }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def create_firewall_rule_group(router_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def update_firewall_group(router_id, group_id, payload={})
-    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-groups/#{group_id}"
+  def update_firewall_rule_group(router_id, group_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups/#{group_id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def destroy_firewall_group(router_id, group_id, payload={})
-    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-groups/#{group_id}"
+  def destroy_firewall_rule_group(router_id, group_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups/#{group_id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
@@ -84,6 +91,13 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rules"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def update_firewall_rule(router_id, rule_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rules/#{rule_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

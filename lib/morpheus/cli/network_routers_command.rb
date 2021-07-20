@@ -11,12 +11,12 @@ class Morpheus::Cli::NetworkRoutersCommand
   include Morpheus::Cli::WhoamiHelper
 
   set_command_name :'network-routers'
-  register_subcommands :list, :get, :firewall, :dhcp, :routes, :types, :type, :add, :update, :remove, :nats, :firewall_rules
-  register_subcommands :add_firewall_group, :update_firewall_group, :remove_firewall_group
-  register_subcommands :add_firewall_rule, :remove_firewall_rule
-  register_subcommands :add_route, :remove_route
+  register_subcommands :list, :get, :firewall, :dhcp, :types, :type, :add, :update, :remove
+  register_subcommands :add_firewall_rule_group, :update_firewall_rule_group, :remove_firewall_rule_group, :firewall_rule_groups #, :firewall_rule_group
+  register_subcommands :add_firewall_rule, :update_firewall_rule, :remove_firewall_rule, :firewall_rules #, :firewall_rule
+  register_subcommands :add_route, :remove_route, :routes
   register_subcommands :update_permissions
-  register_subcommands :add_nat, :update_nat, :remove_nat
+  register_subcommands :add_nat, :update_nat, :remove_nat, :nats
 
   def initialize()
   end
@@ -194,7 +194,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       if router['type']['hasFirewall']
         print_h2 "Firewall"
         print cyan
-        print_firewall(router, options[:details])
+        print_firewall(router, options)
       end
       if router['type']['hasDhcp']
         print_h2 "DHCP"
@@ -481,6 +481,9 @@ class Morpheus::Cli::NetworkRoutersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[router]")
+      opts.on('--details', "Display details." ) do
+        options[:details] = true
+      end
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display network router firewall details." + "\n" +
           "[router] is required. This is the name or id of a network router."
@@ -493,21 +496,18 @@ class Morpheus::Cli::NetworkRoutersCommand
       puts optparse
       return 1
     end
-    _firewall(args[0], options)
-  end
 
-  def _firewall(router_id, options)
     begin
       @network_routers_interface.setopts(options)
       if options[:dry_run]
         if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @network_routers_interface.dry.get(router_id.to_i)
+          print_dry_run @network_routers_interface.dry.get(args[0].to_i)
         else
-          print_dry_run @network_routers_interface.dry.list({name:router_id})
+          print_dry_run @network_routers_interface.dry.list({name:args[0]})
         end
         return
       end
-      router = find_router(router_id)
+      router = find_router(args[0])
       if router.nil?
         return 1
       end
@@ -525,14 +525,11 @@ class Morpheus::Cli::NetworkRoutersCommand
         return 0
       end
 
-      if !options[:rules_only]
-        print_h1 "Network Router Firewall Details for: #{router['name']}"
-      end
-
+      print_h1 "Network Router Firewall Details For: #{router['name']}"
       print cyan
 
       if router['type']['hasFirewall']
-        print_firewall(router, true, options[:rules_only])
+        print_firewall(router, options)
       else
         print_red_alert "Firewall not supported for #{router['type']['name']}"
       end
@@ -543,22 +540,174 @@ class Morpheus::Cli::NetworkRoutersCommand
     end
   end
 
-  def add_firewall_group(args)
+  def firewall_rule_groups(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rule groups.\n" +
+        "[router] is required. This is the name or id of a network router."
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+
+    begin
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        if router_id.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_routers_interface.dry.get(router_id.to_i)
+        else
+          print_dry_run @network_routers_interface.dry.list({name:router_id})
+        end
+        return
+      end
+
+      router = find_router(args[0])
+      if router.nil?
+        return 1
+      end
+      _firewall_rule_groups(router, options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def _firewall_rule_groups(router, options)
+    if router['type']['hasFirewallGroups']
+      json_response = {'ruleGroups' => router['firewall']['ruleGroups'] || []}
+
+      if options[:json]
+        puts as_json(json_response, options, "ruleGroups")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "ruleGroups")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['ruleGroups'], options)
+        return 0
+      end
+
+      if (router['firewall']['ruleGroups'] || []).count > 0
+        print_h1 "Firewall Rule Groups For: #{router['name']}"
+        rows = router['firewall']['ruleGroups'].collect do |rule_group|
+          {
+            id: rule_group['id'],
+            name: rule_group['name'],
+            description: rule_group['description'],
+            priority: rule_group['priority'],
+            category: rule_group['groupLayer']
+          }
+        end
+        rows = rows.reject {|it| it[:id].to_s != options[:rule_group_id].to_s} if options[:rule_group_id]
+        puts as_pretty_table(rows, [:id, :name, :description, :priority, :category])
+      else
+        print_h1 "No Firewall Rule Groups"
+      end
+    else
+      print_red_alert "Firewall rule groups not supported for #{router['type']['name']}"
+    end
+    println reset
+  end
+
+  def firewall_rule_group(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rule group details." + "\n" +
+        "[router] is required. This is the name or id of a network router.\n" +
+        "[group] is required. This is the name or id of a firewall rule group.\n"
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 2
+      puts optparse
+      return 1
+    end
+    _firewall_rule_group(args[0], args[1], options)
+  end
+
+  def _firewall_rule_group(router_id, group_id, options)
+    begin
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_routers_interface.dry.get(router_id.to_i)
+        else
+          print_dry_run @network_routers_interface.dry.list({name:router_id})
+        end
+        return
+      end
+      router = find_router(router_id)
+      if router.nil?
+        return 1
+      end
+
+      if router['type']['hasFirewallGroups']
+        group = (router['firewall']['ruleGroups'] || []).find {|it| it['id'].to_s == group_id.to_s || it['name'] == group_id.to_s}
+
+        if group
+          json_response = {'ruleGroup' => group}
+
+          if options[:json]
+            puts as_json(json_response, options, "ruleGroup")
+            return 0
+          elsif options[:yaml]
+            puts as_yaml(json_response, options, "ruleGroup")
+            return 0
+          elsif options[:csv]
+            puts records_as_csv([json_response['ruleGroup']], options)
+            return 0
+          end
+
+          print_h1 "Firewall Rule Group Details"
+          print cyan
+          description_cols = {
+            "ID" => lambda {|it| it['id'] },
+            "Name" => lambda {|it| it['name'] },
+            "Description" => lambda {|it| it['description']},
+            "Priority" => lambda {|it| it['priority']},
+            "Category" => lambda {|it| it['groupLayer']}
+          }
+          print_description_list(description_cols, group)
+        else
+          print_red_alert "Firewall rule group #{group_id} not found for router #{router['name']}"
+        end
+      else
+        print_h1 "No Firewall Rule Groups"
+      end
+      println reset
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def add_firewall_rule_group(args)
     options = {:options=>{}}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[router] [name]")
-      opts.on('-n', '--name VALUE', String, "Name for this firewall group") do |val|
+      opts.on('-n', '--name VALUE', String, "Name for this firewall rule group") do |val|
         params['name'] = val
       end
-      opts.on('-D', '--description VALUE', String, "Description for this firewall group") do |val|
+      opts.on('-D', '--description VALUE', String, "Description for this firewall rule group") do |val|
         params['description'] = val
       end
-      opts.on('--priority VALUE', Integer, "Priority for this firewall group (not applicable to all firewall types)") do |val|
+      opts.on('--priority VALUE', Integer, "Priority for this firewall rule group (not applicable to all firewall types)") do |val|
         params['priority'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Create a network router firewall group."
+      opts.footer = "Create a network router firewall rule group."
     end
     optparse.parse!(args)
     connect(options)
@@ -578,7 +727,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       end
 
       if !router['type']['hasFirewallGroups']
-        print_red_alert "Firewall groups not supported for #{router['type']['name']}"
+        print_red_alert "Firewall rule groups not supported for #{router['type']['name']}"
         return 1
       end
 
@@ -592,51 +741,51 @@ class Morpheus::Cli::NetworkRoutersCommand
           params['priority'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priority', 'type' => 'number', 'fieldLabel' => 'Priority', 'required' => false}], options[:options], @api_client, params)['priority']
         end
 
-        option_types = router['type']['firewallGroupOptionTypes'].reject {|it| ['name'].include?(it['fieldName'])}.sort {|it| it['displayOrder']}
+        option_types = router['type']['ruleGroupOptionTypes'].reject {|it| ['name'].include?(it['fieldName'])}.sort {|it| it['displayOrder']}
 
         # prompt options
         option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'group' => ''}}), @api_client, {}, nil, true)
-        payload = {'group' => params.deep_merge(option_result)}
+        payload = {'ruleGroup' => params.deep_merge(option_result)}
       end
 
       @network_routers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @network_routers_interface.dry.create_firewall_group(router['id'], payload)
+        print_dry_run @network_routers_interface.dry.create_firewall_rule_group(router['id'], payload)
         return
       end
 
-      json_response = @network_routers_interface.create_firewall_group(router['id'], payload)
+      json_response = @network_routers_interface.create_firewall_rule_group(router['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print_green_success "\nAdded Network Router Firewall Group #{payload['group']['name']}\n"
-      _firewall(router['id'], options.merge({:rules_only => true}))
+      print_green_success "\nAdded Network Router Firewall Rule Group #{payload['ruleGroup']['name']}\n"
+      _firewall_rule_group(router['id'], json_response['id'], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
   end
 
-  def update_firewall_group(args)
+  def update_firewall_rule_group(args)
     options = {:options=>{}}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[router] [name]")
-      opts.on('-n', '--name VALUE', String, "Name for this firewall group") do |val|
+      opts.on('-n', '--name VALUE', String, "Name for this firewall rule group") do |val|
         params['name'] = val
       end
-      opts.on('-D', '--description VALUE', String, "Description for this firewall group") do |val|
+      opts.on('-D', '--description VALUE', String, "Description for this firewall rule group") do |val|
         params['description'] = val
       end
-      opts.on('--priority VALUE', Integer, "Priority for this firewall group (not applicable to all firewall types)") do |val|
+      opts.on('--priority VALUE', Integer, "Priority for this firewall rule group (not applicable to all firewall types)") do |val|
         params['priority'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Update a network router firewall group.\n" +
+      opts.footer = "Update a network router firewall rule group.\n" +
         "[router] is required. This is the name or id of an existing network router.\n" +
-        "[name] is required. This is the name or id of an existing network router firewall group."
+        "[name] is required. This is the name or id of an existing network router firewall rule group."
     end
 
     optparse.parse!(args)
@@ -653,54 +802,54 @@ class Morpheus::Cli::NetworkRoutersCommand
       end
 
       if !router['type']['hasFirewallGroups']
-        print_red_alert "Firewall groups not supported for #{router['type']['name']}"
+        print_red_alert "Firewall rule group not supported for #{router['type']['name']}"
         return 1
       end
 
-      group = router['firewall'] && router['firewall']['groups'] ? router['firewall']['groups'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
+      group = router['firewall'] && router['firewall']['ruleGroups'] ? router['firewall']['ruleGroups'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
 
       if !group
-        print_red_alert "Firewall group #{args[1]} not found for router #{router['name']}"
+        print_red_alert "Firewall rule group #{args[1]} not found for router #{router['name']}"
         exit 1
       end
 
-      payload = parse_payload(options) || {'group' => params}
-      payload['group'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      payload = parse_payload(options) || {'ruleGroup' => params}
+      payload['ruleGroup'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
-      if payload['group'].empty?
+      if payload['ruleGroup'].empty?
         print_green_success "Nothing to update"
         exit 1
       end
 
       @network_routers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @network_routers_interface.dry.update_firewall_group(router['id'], group['id'], payload)
+        print_dry_run @network_routers_interface.dry.update_firewall_rule_group(router['id'], group['id'], payload)
         return
       end
 
-      json_response = @network_routers_interface.update_firewall_group(router['id'], group['id'], payload)
+      json_response = @network_routers_interface.update_firewall_rule_group(router['id'], group['id'], payload)
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print_green_success "\nUpdated Network Router Firewall Group #{payload['group']['name']}\n"
-      _firewall(router['id'], options.merge({:rules_only => true}))
+      print_green_success "\nUpdated Network Router Firewall Rule Group #{payload['ruleGroup']['name']}\n"
+      _firewall_rule_group(router['id'], args[1], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
     end
   end
 
-  def remove_firewall_group(args)
+  def remove_firewall_rule_group(args)
     options = {}
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[router] [group]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Delete a network router firewall group.\n" +
+      opts.footer = "Delete a network router firewall rule group.\n" +
         "[router] is required. This is the name or id of an existing network router."
-        "[group] is required. This is the name or id of an existing network router firewall group."
+        "[group] is required. This is the name or id of an existing network router firewall rule group."
     end
     optparse.parse!(args)
     if args.count != 2
@@ -712,28 +861,28 @@ class Morpheus::Cli::NetworkRoutersCommand
       router = find_router(args[0])
       return if !router
 
-      group = router['firewall'] && router['firewall']['groups'] ? router['firewall']['groups'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
+      group = router['firewall'] && router['firewall']['ruleGroups'] ? router['firewall']['ruleGroups'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
 
       if !group
-        print_red_alert "Firewall group #{args[1]} not found for router #{router['name']}"
+        print_red_alert "Firewall rule group #{args[1]} not found for router #{router['name']}"
         exit 1
       end
 
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the firewall group '#{group['name']}' from router '#{router['name']}'?", options)
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the firewall rule group '#{group['name']}' from router '#{router['name']}'?", options)
         return 9, "aborted command"
       end
       @network_routers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @network_routers_interface.dry.destroy_firewall_group(router['id'], group['id'])
+        print_dry_run @network_routers_interface.dry.destroy_firewall_rule_group(router['id'], group['id'])
         return
       end
-      json_response = @network_routers_interface.destroy_firewall_group(router['id'], group['id'])
+      json_response = @network_routers_interface.destroy_firewall_rule_group(router['id'], group['id'])
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "\nFirewall group #{group['name']} for router #{router['name']} is being removed...\n"
-        _firewall(router['id'], options.merge({:rules_only => true}))
+        print_green_success "\nFirewall rule group #{group['name']} for router #{router['name']} is being removed...\n"
+        _firewall_rule_groups(find_router(router['id']), options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -744,7 +893,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   def firewall_rules(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[router] [rule]")
+      opts.banner = subcommand_usage("[router]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display network router firewall rules.\n" +
         "[router] is required. This is the name or id of a network router."
@@ -757,7 +906,166 @@ class Morpheus::Cli::NetworkRoutersCommand
       puts optparse
       return 1
     end
-    _firewall(args[0], options.merge({:rules_only => true}))
+
+    begin
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_routers_interface.dry.get(args[0].to_i)
+        else
+          print_dry_run @network_routers_interface.dry.list({name:args[0]})
+        end
+        return
+      end
+      router = find_router(args[0])
+      if router.nil?
+        return 1
+      end
+
+      _firewall_rules(router, options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def _firewall_rules(router, options)
+    if router['type']['hasFirewall']
+      rules = router['type']['hasFirewallGroups'] ? (router['firewall']['ruleGroups'] || []).collect {|it| it['rules']}.flatten : router['firewall']['rules']
+
+      json_response = {'rules' => rules}
+
+      if options[:json]
+        puts as_json(json_response, options, "rules")
+        return 0
+      elsif options[:yaml]
+        puts as_yaml(json_response, options, "rules")
+        return 0
+      elsif options[:csv]
+        puts records_as_csv(json_response['rules'], options)
+        return 0
+      end
+
+      if router['type']['hasFirewallGroups']
+        rules = []
+        (router['firewall']['ruleGroups'] || []).each do |rule_group|
+          (rule_group['rules'] || []).each do |rule|
+            rule['groupId'] = rule_group['id']
+            rule['groupName'] ||= rule_group['name']
+            rules << rule
+          end
+        end
+      end
+
+      if rules.count > 0
+        print_h1 "Firewall Rules For: #{router['name']}"
+        rows = rules.collect do |it|
+          {
+            id: it['id'],
+            group_name: it['groupName'],
+            name: it['name'],
+            type: it['ruleType'],
+            policy: it['policy'],
+            direction: it['direction'] || 'any',
+            source: it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']),
+            destination: it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination']),
+            application: it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
+          }
+        end
+
+        if router['type']['hasFirewallGroups']
+          puts as_pretty_table(rows, [:id, :group_name, :name, :type, :policy, :direction, :source, :destination, :application])
+        else
+          puts as_pretty_table(rows, [:id, :name, :type, :policy, :direction, :source, :destination, :application])
+        end
+      else
+        print_h1 "No Firewall Rules"
+      end
+    else
+      print_red_alert "Firewall not supported for #{router['type']['name']}"
+    end
+    println reset
+  end
+
+  def firewall_rule(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rule details." + "\n" +
+        "[router] is required. This is the name or id of a network router.\n" +
+        "[rule] is required. This is the name or id of a firewall rule.\n"
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 2
+      puts optparse
+      return 1
+    end
+    _firewall_rule(args[0], args[1], options)
+  end
+
+  def _firewall_rule(router_id, rule_id, options)
+    begin
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        if args[0].to_s =~ /\A\d{1,}\Z/
+          print_dry_run @network_routers_interface.dry.get(router_id.to_i)
+        else
+          print_dry_run @network_routers_interface.dry.list({name:router_id})
+        end
+        return
+      end
+      router = find_router(router_id)
+      if router.nil?
+        return 1
+      end
+
+      if router['type']['hasFirewall']
+        rule = find_firewall_rule(router, rule_id)
+
+        if rule
+          json_response = {'rule' => rule}
+
+          if options[:json]
+            puts as_json(json_response, options, "rule")
+            return 0
+          elsif options[:yaml]
+            puts as_yaml(json_response, options, "rule")
+            return 0
+          elsif options[:csv]
+            puts records_as_csv([json_response['rule']], options)
+            return 0
+          end
+
+          print_h1 "Firewall Rule Details"
+          print cyan
+          description_cols = {
+            "ID" => lambda {|it| it['id'] },
+            "Enabled" => lambda {|it| format_boolean(it['enabled'])},
+            "Priority" => lambda {|it| it['priority']},
+            "Name" => lambda {|it| it['name'] },
+            "Type" => lambda {|it| it['ruleType'] },
+            "Policy" => lambda {|it| it['policy'] },
+            "Direction" => lambda {|it| it['direction'] || 'any' },
+            "Source" => lambda {|it| it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']) },
+            "Destination" => lambda {|it| it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination'])},
+            "Application" => lambda {|it| it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"}
+          }
+          print_description_list(description_cols, rule)
+        else
+          print_red_alert "Firewall rule #{rule_id} not found for router #{router['name']}"
+        end
+      else
+        print_red_alert "Firewall not supported for #{router['type']['name']}"
+      end
+      println reset
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
   end
 
   def add_firewall_rule(args)
@@ -771,7 +1079,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       opts.on('--enabled [on|off]', String, "Can be used to enable / disable the rule. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on( '-g', '--group GROUP', "Firewall group name or ID (not applicable to all firewall types)" ) do |val|
+      opts.on( '-g', '--group GROUP', "Firewall rule group name or ID (not applicable to all firewall types)" ) do |val|
         options[:group] = val
       end
       opts.on('--priority VALUE', Integer, "Priority for this rule (not applicable to all firewall types)") do |val|
@@ -808,20 +1116,20 @@ class Morpheus::Cli::NetworkRoutersCommand
         params['name'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Rule Name', 'required' => true}], options[:options], @api_client, params)['name']
 
         if router['type']['hasFirewallGroups']
-          if !router['firewall']['groups'].count
-            print_red_alert "No firewall group exists found for #{router['type']['name']}"
+          if !router['firewall']['ruleGroups'].count
+            print_red_alert "No firewall rule group found for #{router['type']['name']}"
             return 1
           end
 
           if options[:group]
-            group = router['firewall']['groups'].find {|it| it['name'] == options[:group] || it['id'] == options[:group].to_i}
+            group = router['firewall']['ruleGroups'].find {|it| it['name'] == options[:group] || it['id'] == options[:group].to_i}
             if !group
-              print_red_alert "Firewall group #{options[:group]} not found for #{router['type']['name']}"
+              print_red_alert "Firewall rule group #{options[:group]} not found for #{router['type']['name']}"
               return 1
             end
             group_id = group['id']
           else
-            group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Rule Group', 'required' => true, 'selectOptions' => router['firewall']['groups'].collect {|it| {'name' => it['name'], 'value' => it['id']}}}])['group']
+            group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Rule Group', 'required' => true, 'selectOptions' => router['firewall']['ruleGroups'].collect {|it| {'name' => it['name'], 'value' => it['id']}}}])['group']
           end
 
           params['config'] = {} if params['config'].nil?
@@ -858,7 +1166,80 @@ class Morpheus::Cli::NetworkRoutersCommand
         return
       end
       print_green_success "\nAdded Network Router Firewall Rule #{payload['rule']['name']}\n"
-      _firewall(router['id'], options.merge({:rules_only => true}))
+      _firewall_rule(router['id'], json_response['id'], options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_firewall_rule(args)
+    options = {:options=>{}}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[router] [name]")
+      opts.on('-n', '--name VALUE', String, "Name for this firewall rule") do |val|
+        params['name'] = val
+      end
+      opts.on('--enabled [on|off]', String, "Can be used to enable / disable the rule. Default is on") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--priority VALUE', Integer, "Priority for this rule (not applicable to all firewall types)") do |val|
+        params['priority'] = val
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a network router firewall rule.\n" +
+        "[router] is required. This is the name or id of an existing network router.\n" +
+        "[name] is required. This is the name or id of an existing network router firewall rule."
+    end
+
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      router = find_router(args[0])
+
+      if router.nil?
+        return 1
+      end
+
+      if !router['type']['hasFirewall']
+        print_red_alert "Firewall not supported for #{router['type']['name']}"
+        return 1
+      end
+
+      rule = find_firewall_rule(router, args[1])
+
+      if !rule
+        print_red_alert "Firewall rule #{args[1]} not found for router #{router['name']}"
+        exit 1
+      end
+
+      payload = parse_payload(options) || {'rule' => params}
+      payload['rule'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+      if payload['rule'].empty?
+        print_green_success "Nothing to update"
+        exit 1
+      end
+
+      @network_routers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_routers_interface.dry.update_firewall_rule(router['id'], rule['id'], payload)
+        return
+      end
+
+      json_response = @network_routers_interface.update_firewall_rule(router['id'], rule['id'], payload)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response), "\n"
+        return
+      end
+      print_green_success "\nUpdated Network Router Firewall Rule #{payload['rule']['name']}\n"
+      _firewall_rule(router['id'], args[1], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -885,18 +1266,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       router = find_router(args[0])
       return if !router
 
-      rule = nil
-      if router['type']['hasFirewallGroups']
-        if router['firewall'] && router['firewall']['groups']
-          router['firewall']['groups'].each do |group|
-            if !rule && group['rules']
-              rule = group['rules'].find { |it| it['name'] == args[1] || it['id'] == args[1].to_i }
-            end
-          end
-        end
-      else
-        rule = router['firewall'] && router['firewall']['rules'] ? router['firewall']['rules'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
-      end
+      rule = find_firewall_rule(router, args[1])
 
       if !rule
         print_red_alert "Firewall rule #{args[1]} not found for router #{router['name']}"
@@ -917,7 +1287,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         print "\n"
       elsif !options[:quiet]
         print_green_success "\nFirewall rule #{rule['name']} for router #{router['name']} is being removed...\n"
-        _firewall(router['id'], options.merge({:rules_only => true}))
+        _firewall_rules(find_router(router['id']), options)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -970,7 +1340,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         return 0
       end
 
-      print_h1 "Network Router DHCP Details for: #{router['name']}"
+      print_h1 "Network Router DHCP Details For: #{router['name']}"
       print cyan
 
       if router['type']['hasDhcp']
@@ -1020,20 +1390,20 @@ class Morpheus::Cli::NetworkRoutersCommand
         return 1
       end
 
-      json_response = {'networkRouter' => router}
+      json_response = {'networkRoutes' => router['routes']}
 
       if options[:json]
-        puts as_json(json_response, options, "networkRouter")
+        puts as_json(json_response, options, "networkRoutes")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "networkRouter")
+        puts as_yaml(json_response, options, "networkRoutes")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['networkRouter']], options)
+        puts records_as_csv(json_response['networkRoutes'], options)
         return 0
       end
 
-      print_h1 "Network Router Routes for: #{router['name']}"
+      print_h1 "Network Router Routes For: #{router['name']}"
       print cyan
 
       if router['type']['hasRouting']
@@ -1104,6 +1474,7 @@ class Morpheus::Cli::NetworkRoutersCommand
 
       if options[:payload]
         payload = options[:payload]
+        payload = {'networkRoute' => payload['route']} if payload['route']
       else
         params['name'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'type' => 'text', 'fieldLabel' => 'Name', 'required' => true}], options[:options], @api_client, params)['name']
         params['description'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false}], options[:options], @api_client, params)['description']
@@ -1119,7 +1490,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         params['networkMtu'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkMtu', 'type' => 'text', 'fieldLabel' => 'MTU', 'required' => false}], options[:options], @api_client, params)['networkMtu']
         params['priority'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'priority', 'type' => 'number', 'fieldLabel' => 'Priority', 'required' => false}], options[:options], @api_client, params)['priority']
 
-        payload = {'route' => params}
+        payload = {'networkRoute' => params}
       end
 
       @network_routers_interface.setopts(options)
@@ -1134,7 +1505,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print_green_success "\nAdded Network Router Route #{payload['route']['name']}"
+      print_green_success "\nAdded Network Router Route #{payload['networkRoute']['name']}"
       _routes(router['id'], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1226,20 +1597,20 @@ class Morpheus::Cli::NetworkRoutersCommand
         return 1
       end
 
-      json_response = {'nats' => router['nats']}
+      json_response = {'networkRouterNATs' => router['nats']}
 
       if options[:json]
-        puts as_json(json_response, options, "nats")
+        puts as_json(json_response, options, "networkRouterNATs")
         return 0
       elsif options[:yaml]
-        puts as_yaml(json_response, options, "nats")
+        puts as_yaml(json_response, options, "networkRouterNATs")
         return 0
       elsif options[:csv]
-        puts records_as_csv([json_response['nats']], options)
+        puts records_as_csv(json_response['networkRouterNATs'], options)
         return 0
       end
 
-      print_h1 "Network Router NATs for: #{router['name']}"
+      print_h1 "Network Router NATs For: #{router['name']}"
       print cyan
 
       if router['type']['hasNat']
@@ -1296,7 +1667,7 @@ class Morpheus::Cli::NetworkRoutersCommand
 
         # prompt options
         option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'nat' => ''}}), @api_client, {'networkServer' => {'id' => router['networkServer']['id']}}, nil, true)
-        payload = {'nat' => params.deep_merge(option_result)}
+        payload = {'networkRouterNAT' => params.deep_merge(option_result)}
       end
 
       @network_routers_interface.setopts(options)
@@ -1311,7 +1682,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         print JSON.pretty_generate(json_response), "\n"
         return
       end
-      print_green_success "\nAdded Network Router NAT #{payload['nat']['name']}\n"
+      print_green_success "\nAdded Network Router NAT #{payload['networkRouterNAT']['name']}\n"
       _nats(router['id'], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1356,10 +1727,10 @@ class Morpheus::Cli::NetworkRoutersCommand
         exit 1
       end
 
-      payload = parse_payload(options) || {'nat' => params}
-      payload['nat'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && !payload['nat'].nil?
+      payload = parse_payload(options) || {'networkRouterNAT' => params}
+      payload['networkRouterNAT'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && !payload['networkRouterNAT'].nil?
 
-      if payload['nat'].empty?
+      if payload['networkRouterNAT'].empty?
         print_green_success "Nothing to update"
         exit 1
       end
@@ -1523,7 +1894,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         return
       end
 
-      print_h1 "Network Router Type Details for: #{router_type['name']}"
+      print_h1 "Network Router Type Details For: #{router_type['name']}"
       print cyan
 
       description_cols = {
@@ -1540,7 +1911,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       }
       print_description_list(description_cols, router_type)
 
-      {'optionTypes' => 'Router', 'ruleOptionTypes' => 'Firewall Rule', 'firewallGroupOptionTypes' => 'Firewall Group', 'natOptionTypes' => 'NAT'}.each_pair do |field, title|
+      {'optionTypes' => 'Router', 'ruleOptionTypes' => 'Firewall Rule', 'ruleGroupOptionTypes' => 'Firewall Rule Group', 'natOptionTypes' => 'NAT'}.each_pair do |field, title|
         if !router_type[field].nil? && router_type[field].count > 0
           println cyan
           print Morpheus::Cli::OptionTypes.display_option_types_help(
@@ -1619,10 +1990,10 @@ class Morpheus::Cli::NetworkRoutersCommand
 
   private
 
-  def print_firewall(router, details=false, rules_only=false)
+  def print_firewall(router, options = {}) #details=false, rules_only=false, rule_groups_only=false)
     if router['type']['hasFirewall']
       if router['firewall']
-        if details
+        if options[:details]
           description_cols = {
               "Network Router" => lambda {|it| it['name'] },
               "Enabled" => lambda {|it| format_boolean(it['firewall']['enabled'])},
@@ -1633,66 +2004,10 @@ class Morpheus::Cli::NetworkRoutersCommand
             description_cols[k.gsub(/[A-Z]/, ' \0').downcase] = lambda {|it| it['firewall']['global'][k]}
           end
 
-          if !rules_only
-            print_description_list(description_cols, router)
-          end
+          print_description_list(description_cols, router)
 
-          if (router['type']['hasFirewallGroups'])
-            if(router['firewall']['groups'] || []).count > 0
-              print_h2 "Firewall Groups"
-              rows = router['firewall']['groups'].collect do |rule_group|
-                {
-                  id: rule_group['id'],
-                  name: rule_group['name'],
-                  description: rule_group['description'],
-                  priority: rule_group['priority'],
-                  category: rule_group['groupLayer']
-                }
-              end
-              puts as_pretty_table(rows, [:id, :name, :description, :priority, :category])
-
-              print_h2 "Firewall Rules"
-              rows = []
-              router['firewall']['groups'].collect do |rule_group|
-                if rule_group['rules']
-                  rows += rule_group['rules'].collect do |it|
-                    {
-                      id: it['id'],
-                      groupId: rule_group['id'],
-                      groupName: rule_group['name'],
-                      name: it['name'],
-                      type: it['ruleType'],
-                      policy: it['policy'],
-                      direction: it['direction'] || 'any',
-                      source: it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']),
-                      destination: it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination']),
-                      application: it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
-                    }
-                  end
-                else
-                  rows += [{groupId: rule_group['id'], groupName: rule_group['name']}]
-                end
-              end
-              puts as_pretty_table(rows, [:id, :groupId, :groupName, :name, :type, :policy, :direction, :source, :destination, :application])
-            end
-          elsif (router['firewall']['rules'] || []).count > 0
-            print_h2 "Firewall Rules"
-            rows = router['firewall']['rules'].collect do |it|
-              {
-                  id: it['id'],
-                  name: it['name'],
-                  type: it['ruleType'],
-                  policy: it['policy'],
-                  direction: it['direction'] || 'any',
-                  source: it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']),
-                  destination: it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination']),
-                  application: it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
-              }
-            end
-            puts as_pretty_table(rows, [:id, :name, :type, :policy, :direction, :source, :destination, :application])
-          else
-            println "No firewall rules"
-          end
+          _firewall_rule_groups(router, options) if router['type']['hasFirewallGroups']
+          _firewall_rules(router, options) if router['type']['hasFirewall']
         else
           print "Enabled: #{format_boolean(router['firewall']['enabled'])}".center(20)
           print "Version: #{router['firewall']['version']}".center(20)
@@ -1789,7 +2104,7 @@ class Morpheus::Cli::NetworkRoutersCommand
         end
         puts as_pretty_table(rows, [:id, :name, :description, :source_network, :destination_network, :translated_network])
       else
-        println "No routes\n"
+        println "No NATs\n"
       end
     end
   end
@@ -1877,5 +2192,23 @@ class Morpheus::Cli::NetworkRoutersCommand
   def find_network_server(val)
     services = @network_services_interface.list()['networkServices']
     (val.to_s =~ /\A\d{1,}\Z/) ? services.find {|it| it['id'].to_i == val.to_i} : services.find {|it| it['name'] == val}
+  end
+
+  def find_firewall_rule(router, rule_id)
+    rule = nil
+    if router['type']['hasFirewallGroups']
+      if router['firewall'] && router['firewall']['ruleGroups']
+        router['firewall']['ruleGroups'].each do |group|
+          if !rule && group['rules']
+            if rule = group['rules'].find { |it| it['name'] == rule_id || it['id'] == rule_id.to_i }
+              rule['groupId'] = group['id']
+            end
+          end
+        end
+      end
+    else
+      rule = router['firewall'] && router['firewall']['rules'] ? router['firewall']['rules'].find {|it| it['name'] == args[1] || it['id'] == args[1].to_i} : nil
+    end
+    rule
   end
 end
