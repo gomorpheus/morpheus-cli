@@ -9,11 +9,14 @@ class Morpheus::Cli::LoadBalancers
   set_command_name :'load-balancers'
   register_subcommands :list, :get, :add, :update, :remove
 
-  # deprecated the types command in 5.3.2, moved to `load-balancer-types list`
+  # deprecated the `load-balancers types` command in 5.3.2, it moved to `load-balancer-types list`
   register_subcommands :types
   set_subcommands_hidden :types
 
+  # RestCommand settings
   register_interfaces :load_balancers, :load_balancer_types
+  set_rest_has_type true
+  # set_rest_type :load_balancer_types
 
   def render_response_for_get(json_response, options)
     render_response(json_response, options, rest_object_key) do
@@ -38,6 +41,10 @@ class Morpheus::Cli::LoadBalancers
       print reset,"\n"
     end
   end
+
+=begin
+
+# now using RestCommand
 
   def add(args)
     lb_type_name = nil
@@ -188,9 +195,11 @@ class Morpheus::Cli::LoadBalancers
       exit 1
     end
   end
+=end
 
+  # deprecated, to be removed in the future.
   def types(args)
-    print_error yellow,"[DEPRECATED] The command `load-balancers types` is deprecated. It has been replaced by `load-balancer-types list`.",reset,"\n"
+    print_error yellow,"[DEPRECATED] The command `load-balancers types` is deprecated and replaced by `load-balancer-types list`.",reset,"\n"
     my_terminal.execute("load-balancer-types list #{args.join(' ')}")
   end
 

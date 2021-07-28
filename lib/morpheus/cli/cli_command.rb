@@ -18,11 +18,11 @@ module Morpheus
     # todo: use delegate
     module CliCommand
 
-      def self.included(klass)
-        klass.send :include, Morpheus::Cli::PrintHelper
-        klass.send :include, Morpheus::Benchmarking::HasBenchmarking
-        klass.extend ClassMethods
-        Morpheus::Cli::CliRegistry.add(klass, klass.command_name)
+      def self.included(base)
+        base.send :include, Morpheus::Cli::PrintHelper
+        base.send :include, Morpheus::Benchmarking::HasBenchmarking
+        base.extend ClassMethods
+        Morpheus::Cli::CliRegistry.add(base, base.command_name)
       end
 
       # the beginning of instance variables from optparse !

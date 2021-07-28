@@ -472,3 +472,7 @@ def format_name_values(obj)
     ""
   end
 end
+
+def a_or_an(v)
+  v.to_s =~ /^[aeiou]/i ? "an" : "a"
+end
