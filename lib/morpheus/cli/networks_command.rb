@@ -99,7 +99,7 @@ class Morpheus::Cli::NetworksCommand
         networks.each do |network|
           row = {
             id: network['id'],
-            name: network['name'],
+            name: network['displayName'] || network['name'],
             type: network['type'] ? network['type']['name'] : '',
             group: network['group'] ? network['group']['name'] : 'Shared',
             cloud: network['zone'] ? network['zone']['name'] : '',
@@ -116,7 +116,7 @@ class Morpheus::Cli::NetworksCommand
             network['subnets'].each do |subnet|
               subnet_row = {
                 id: subnet['id'],
-                name: "  #{subnet['name']}",
+                name: "  #{subnet['displayName'] || subnet['name']}",
                 # type: subnet['type'] ? subnet['type']['name'] : '',
                 type: "Subnet",
                 group: network['group'] ? network['group']['name'] : 'Shared',
