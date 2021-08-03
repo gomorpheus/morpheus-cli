@@ -248,41 +248,39 @@ EOT
 
 
   def remove(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :remote, :dry_run])
+      opts.banner = subcommand_usage("[tenant]")
+      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is off.") do |val|
+        params[:removeResources] = val.nil? ? 'on' : val
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete a tenant.
+[tenant] is required. This is the name or id of a tenant.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
+    optparse.parse!(args)
     connect(options)
     begin
       # allow finding by ID since name is not unique!
       account = find_account_by_name_or_id(args[0])
-      exit 1 if account.nil?
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the account #{account['name']}?")
-        exit
-      end
-      if options[:dry_run] && options[:json]
-        puts as_json(payload, options)
-        return 0
+      return 1, "tenant not found" if account.nil?
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the tenant #{account['name']}?")
+        return 9, "aborted command"
       end
       @accounts_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @accounts_interface.dry.destroy(account['id'])
+        print_dry_run @accounts_interface.dry.destroy(account['id'], params)
         return
       end
-      json_response = @accounts_interface.destroy(account['id'])
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
+      json_response = @accounts_interface.destroy(account['id'], params)
+      render_response(json_response, options) do
         print_green_success "Tenant #{account['name']} removed"
       end
-
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
