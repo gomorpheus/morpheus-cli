@@ -6,11 +6,12 @@ class Morpheus::Cli::LogSettingsCommand
 
   set_command_name :'log-settings'
 
-  register_subcommands :get, :update
-  register_subcommands :enable_integration, :disable_integration, :remove_integration
+  register_subcommands :get, :update  
   register_subcommands :add_syslog_rule, :remove_syslog_rule
   
-  set_default_subcommand :get
+  # these command are deprecated in 5.3.3 and can be removed
+  register_subcommands :enable_integration, :disable_integration, :remove_integration
+  set_subcommands_hidden :enable_integration, :disable_integration, :remove_integration
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -186,6 +187,7 @@ class Morpheus::Cli::LogSettingsCommand
   end
 
   def enable_integration(args)
+    print_error yellow,"[DEPRECATED] The command `#{command_name} enable-integration` is deprecated.",reset,"\n"
     options = {}
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -240,6 +242,7 @@ class Morpheus::Cli::LogSettingsCommand
   end
 
   def disable_integration(args)
+    print_error yellow,"[DEPRECATED] The command `#{command_name} disable-integration` is deprecated.",reset,"\n"
     options = {}
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -285,6 +288,7 @@ class Morpheus::Cli::LogSettingsCommand
   end
 
   def remove_integration(args)
+    print_error yellow,"[DEPRECATED] The command `#{command_name } remove-integration` is deprecated.",reset,"\n"
     options = {}
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
