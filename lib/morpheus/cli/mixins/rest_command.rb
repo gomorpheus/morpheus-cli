@@ -630,6 +630,7 @@ EOT
       opts.banner = subcommand_usage("[#{rest_arg}]")
       build_standard_remove_options(opts, options)
     end
+    optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     params.merge!(parse_query_options(options))
