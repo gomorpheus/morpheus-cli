@@ -54,15 +54,15 @@ module Morpheus::Cli::LoadBalancersHelper
     'Load Balancer Types'
   end
 
-  def find_lb_by_name_or_id(val)
+  def find_load_balancer_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_lb_by_id(val)
+      return find_load_balancer_by_id(val)
     else
-      return find_lb_by_name(val)
+      return find_load_balancer_by_name(val)
     end
   end
 
-  def find_lb_by_id(id)
+  def find_load_balancer_by_id(id)
     begin
       json_response = load_balancers_interface.get(id.to_i)
       return json_response[load_balancer_object_key]
@@ -75,7 +75,7 @@ module Morpheus::Cli::LoadBalancersHelper
     end
   end
 
-  def find_lb_by_name(name)
+  def find_load_balancer_by_name(name)
     lbs = load_balancers_interface.list({name: name.to_s})[load_balancer_list_key]
     if lbs.empty?
       print_red_alert "Load Balancer not found by name #{name}"
