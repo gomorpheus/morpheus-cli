@@ -983,10 +983,11 @@ module Morpheus
         out = ""
         out << usage.to_s.strip if usage
         out << "\n"
-        if !subcommands.empty?
+        my_subcommands = visible_subcommands
+        if !my_subcommands.empty?
           out << "Commands:"
           out << "\n"
-          subcommands.sort.each {|subcmd, method|
+          my_subcommands.sort.each {|subcmd, method|
             desc = get_subcommand_description(subcmd)
             out << "\t#{subcmd.to_s}"
             out << "\t#{desc}" if desc
@@ -1527,8 +1528,7 @@ module Morpheus
           cmds = subcommands.clone
           if @hidden_subcommands && !@hidden_subcommands.empty?
             @hidden_subcommands.each do |hidden_cmd|
-              cmds.delete(hidden_cmd.to_s)
-              cmds.delete(hidden_cmd.to_sym)
+              cmds.delete(hidden_cmd.to_s.gsub('_', '-'))
             end
           end
           cmds
