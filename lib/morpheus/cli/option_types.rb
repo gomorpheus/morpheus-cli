@@ -62,10 +62,10 @@ module Morpheus
           context_map = results
           value = nil
           value_found=false
+          field_group = (option_type['fieldGroup'] || 'default').to_s.sub(/options\Z/i, "").strip # avoid "ADVANCED OPTION OPTIONS"
 
-          if cur_field_group != (option_type['fieldGroup'] || 'default')
-            cur_field_group = option_type['fieldGroup']
-            cur_field_group = cur_field_group.to_s.sub(/options\Z/i, "").strip # avoid "ADVANCED OPTION OPTIONS"
+          if cur_field_group != field_group
+            cur_field_group = field_group
             print "\n#{cur_field_group.upcase} OPTIONS\n#{"=" * ("#{cur_field_group} OPTIONS".length)}\n\n"
           end
 
