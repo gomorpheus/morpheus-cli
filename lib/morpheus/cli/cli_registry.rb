@@ -77,14 +77,26 @@ module Morpheus
 
         def exec_command(command_name, args)
           #puts "exec_command(#{command_name}, #{args})"
-          found_alias_command = instance.get_alias(command_name)
           if has_alias?(command_name)
             exec_alias(command_name, args)
           elsif has_command?(command_name)
             instance.get(command_name).new.handle(args)
           else
             # todo: need to just return error instead of raise
-            raise CommandNotFoundError.new("'#{command_name}' is not a morpheus command.")
+            msg = "'#{command_name}' is not a morpheus command."
+            suggestions = find_command_suggestions(command_name)
+            if suggestions && suggestions.size == 1
+              msg += "\nThe most similar command is:\n"
+              suggestions.first(3).each do |suggestion|
+                msg += "\t" + suggestion + "\n"
+              end
+            elsif suggestions && suggestions.size > 1
+              msg += "\nThe most similar commands are:\n"
+              suggestions.first(3).each do |suggestion|
+                msg += "\t" + suggestion + "\n"
+              end
+            end
+            raise CommandNotFoundError.new(msg)
           end
         end
 
@@ -267,6 +279,39 @@ module Morpheus
             end
           end
           return exit_code, err
+        end
+
+        def cached_command_list
+          @cached_command_list ||= (all.keys + all_aliases.keys).collect { |it| it.to_s }.sort
+        end
+
+        def clear_cached_command_list
+          @cached_command_list = nil
+        end
+
+        # find suggested commands (or aliases) for a name that was not found
+        # First this looks for the plural of the original guess
+        # Then pop characters off the end looking for partial matches
+        # as long as the guess is at least 3 characters
+        def find_command_suggestions(command_name)
+          every_command = cached_command_list
+          guess = command_name
+          plural_guess = guess.pluralize
+          if every_command.include?(plural_guess)
+            return [plural_guess]
+          end
+          while guess.size >= 3
+            if every_command.include?(guess)
+              return [guess]
+            else
+              guess_regexp = /^#{Regexp.escape(guess)}/i
+              matches = every_command.select {|it| it =~ guess_regexp }
+              if matches.size > 0
+                return matches
+              end
+            end
+            guess = guess[0..-2]
+          end
         end
 
       end
