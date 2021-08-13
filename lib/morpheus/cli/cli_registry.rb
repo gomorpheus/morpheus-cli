@@ -87,12 +87,12 @@ module Morpheus
             suggestions = find_command_suggestions(command_name)
             if suggestions && suggestions.size == 1
               msg += "\nThe most similar command is:\n"
-              suggestions.first(3).each do |suggestion|
+              suggestions.first(5).each do |suggestion|
                 msg += "\t" + suggestion + "\n"
               end
             elsif suggestions && suggestions.size > 1
               msg += "\nThe most similar commands are:\n"
-              suggestions.first(3).each do |suggestion|
+              suggestions.first(5).each do |suggestion|
                 msg += "\t" + suggestion + "\n"
               end
             end
@@ -296,22 +296,30 @@ module Morpheus
         def find_command_suggestions(command_name)
           every_command = cached_command_list
           guess = command_name
-          plural_guess = guess.pluralize
-          if every_command.include?(plural_guess)
-            return [plural_guess]
-          end
+          suggestions = []
           while guess.size >= 3
+            plural_guess = guess.pluralize
             if every_command.include?(guess)
-              return [guess]
-            else
-              guess_regexp = /^#{Regexp.escape(guess)}/i
-              matches = every_command.select {|it| it =~ guess_regexp }
-              if matches.size > 0
-                return matches
-              end
+              suggestions << guess
             end
+            if every_command.include?(plural_guess)
+              suggestions << plural_guess
+            end
+            # if every_command.include?(guess)
+            #   suggestions << plural_guess
+            # else
+              guess_regexp = /^#{Regexp.escape(guess)}/i
+              every_command.each do |it|
+                if it =~ guess_regexp
+                  suggestions << it
+                end
+              end
+            # end
             guess = guess[0..-2]
           end
+          suggestions.uniq!
+          suggestions.sort! { |x,y| [x.size, x] <=> [y.size, y] }
+          return suggestions
         end
 
       end
