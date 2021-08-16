@@ -318,7 +318,7 @@ module Morpheus
             guess = guess[0..-2]
           end
           suggestions.uniq!
-          suggestions.sort! { |x,y| [x.size, x] <=> [y.size, y] }
+          suggestions.sort! { |x,y| [x.split('-').size, x] <=> [y.split('-').size, y] }
           return suggestions
         end
 
