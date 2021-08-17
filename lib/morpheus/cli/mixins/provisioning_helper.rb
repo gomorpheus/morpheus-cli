@@ -593,7 +593,7 @@ module Morpheus::Cli::ProvisioningHelper
     elsif options[:options]['instanceContext'] && !options[:options]['environment']
       options[:options]['environment'] = options[:options]['instanceContext']
     end
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments()}], options[:options])
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => true, 'selectOptions' => get_available_environments()}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['environment'] if !v_prompt['environment'].empty?
 
     # Labels (used to be called tags)
@@ -935,10 +935,21 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params)
-    payload.deep_merge!(instance_config_payload)
+    option_type_list += [
+      {'fieldName' => 'userGroup.id', 'fieldLabel' => 'User Group', 'fieldGroup' => 'User Config', 'type' => 'select', 'optionSource' => 'userGroups', 'displayOrder' => 0, 'fieldContext' => 'instance'},
+      {'fieldName' => 'hostName', 'fieldLabel' => 'Hostname', 'fieldGroup' => 'Advanced', 'type' => 'string', 'displayOrder' => 1},
+      {'fieldName' => 'networkDomain.id', 'fieldLabel' => 'Domain', 'fieldGroup' => 'Advanced', 'type' => 'select', 'optionSource' => 'networkDomains', 'displayOrder' => 2, 'fieldContext' => 'instance'},
+      {'fieldName' => 'timezone', 'fieldLabel' => 'Time Zone', 'fieldGroup' => 'Advanced', 'type' => 'select', 'optionSource' => 'timezones', 'displayOrder' => 3, 'fieldContext' => 'config'}
+    ]
 
-    ## Network Options
+    if instance_type['hasAutoScale']
+      option_type_list += [
+        {'fieldName' => 'layoutSize', 'fieldLabel' => 'Scale Factor', 'fieldGroup' => 'Advanced', 'type' => 'number', 'defaultValue' => 1, 'displayOrder' => 0},
+      ]
+    end
+
+    instance_config_payload = Morpheus::Cli::OptionTypes.prompt(option_type_list.reject {|ot| ot['type'] == 'exposedPorts'}, options[:options], @api_client, api_params, no_prompt, true)
+    payload.deep_merge!(instance_config_payload)
 
     # prompt for exposed ports
     if payload['ports'].nil?
@@ -949,10 +960,6 @@ module Morpheus::Cli::ProvisioningHelper
         payload['ports'] = ports
       end
     end
-
-    ## Advanced Options
-
-    # scale factor
 
     # prompt for environment variables
     evars = prompt_evars(options)

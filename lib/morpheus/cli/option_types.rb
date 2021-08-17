@@ -105,7 +105,7 @@ module Morpheus
             visible_option_check_value.split(',').each do |value|
               parts = value.split(':')
               depends_on_code = parts[0]
-              depends_on_value = parts.count > 1 ? parts[1].to_s.strip : '.'
+              depends_on_value = parts.count > 1 ? parts[1].to_s.strip : nil
               depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
               if !depends_on_option_type
                 depends_on_option_type = option_types.find {|it|
@@ -115,13 +115,18 @@ module Morpheus
 
               if depends_on_option_type
                 depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
-                field_value = get_object_value(results, depends_on_field_key) || get_object_value(options, depends_on_field_key)
+              else
+                depends_on_field_key = depends_on_code
+              end
 
-                if !field_value.nil? && field_value.match?(depends_on_value)
-                  found_dep_value = true if match_type != 'all'
-                else
-                  found_dep_value = false if match_type == 'all'
-                end
+              field_value = get_object_value(results, depends_on_field_key) ||
+                            get_object_value(options, depends_on_field_key) ||
+                            get_object_value(api_params, depends_on_field_key)
+
+              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.match?(depends_on_value))
+                found_dep_value = true if match_type != 'all'
+              else
+                found_dep_value = false if match_type == 'all'
               end
             end
             next if !found_dep_value
@@ -237,7 +242,7 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+              value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results)), options[:no_prompt], nil, paging_enabled)
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
@@ -947,8 +952,9 @@ module Morpheus
         out << "\n"
         out << "#{header}\n"
         out << "#{'=' * header.length}\n"
+
         select_options.each do |option|
-          out << " * #{option['name']} [#{option['value']}]\n"
+          out << (option['isGroup'] ? "- #{option['name']}\n" : " * #{option['name']} [#{option['value']}]\n")
         end
         return out
       end

@@ -444,7 +444,7 @@ class Morpheus::Cli::Instances
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      build_standard_add_options(opts, options) #, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new instance." + "\n" +
                     "[name] is required. This is the new instance name." + "\n" +
                     "The available options vary by --type."
@@ -462,24 +462,30 @@ class Morpheus::Cli::Instances
       options[:instance_name] = args[0]
     end
 
-    begin
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # obviously should support every option that prompt supports on top of -- payload as well
-        # group, cloud and type for now
-        # todo: also support :layout, service_plan, :resource_pool, etc.
-        group = nil
-        if options[:group]
-          group = find_group_by_name_or_id_for_provisioning(options[:group])
-          if group.nil?
-            return 1, "group not found by #{options[:group]}"
-          end
-          #payload["siteId"] = group["id"]
-          payload.deep_merge!({"instance" => {"site" => {"id" => group["id"]} } })
+    if options[:payload]
+      payload = options[:payload]
+      # support -O OPTION switch on top of --payload
+      payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      # obviously should support every option that prompt supports on top of -- payload as well
+      # group, cloud and type for now
+      # todo: also support :layout, service_plan, :resource_pool, etc.
+      group = nil
+      if options[:group]
+        group = find_group_by_name_or_id_for_provisioning(options[:group])
+        if group.nil?
+          return 1, "group not found by #{options[:group]}"
         end
+        payload.deep_merge!({"instance" => {"site" => {"id" => group["id"]} } })
+      end
+      if options[:cloud]
+        group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
+        cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
+        if cloud.nil?
+          return 1, "cloud not found by #{options[:cloud]}"
+        end
+        payload["zoneId"] = cloud["id"]
+        payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+      end
         if options[:cloud]
           group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
           cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
@@ -489,105 +495,90 @@ class Morpheus::Cli::Instances
           payload["zoneId"] = cloud["id"]
           payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
         end
-        if options[:cloud]
-          group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
-          cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
-          if cloud.nil?
-            return 1, "cloud not found by #{options[:cloud]}"
-          end
-          payload["zoneId"] = cloud["id"]
-          payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+      if options[:instance_type_code]
+        # should just use find_instance_type_by_name_or_id
+        # note that the api actually will match name name or code
+        instance_type = (options[:instance_type_code].to_s =~ /\A\d{1,}\Z/) ? find_instance_type_by_id(options[:instance_type_code]) : find_instance_type_by_code(options[:instance_type_code])
+        if instance_type.nil?
+          return 1, "instance type not found by #{options[:cloud]}"
         end
-        if options[:instance_type_code]
-          # should just use find_instance_type_by_name_or_id
-          # note that the api actually will match name name or code
-          instance_type = (options[:instance_type_code].to_s =~ /\A\d{1,}\Z/) ? find_instance_type_by_id(options[:instance_type_code]) : find_instance_type_by_code(options[:instance_type_code])
-          if instance_type.nil?
-            return 1, "instance type not found by #{options[:cloud]}"
-          end
-          payload.deep_merge!({"instance" => {"type" => instance_type["code"] } })
-          payload.deep_merge!({"instance" => {"instanceType" => {"code" => instance_type["code"]} } })
-        end
-
-      else
-        # use active group by default
-        options[:group] ||= @active_group_id
-        options[:select_datastore] = true
-        options[:name_required] = true
-        # prompt for all the instance configuration options
-        # this provisioning helper method handles all (most) of the parsing and prompting
-        # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
-        payload = prompt_new_instance(options)
-        # clean payload of empty objects 
-        # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
-        if payload['instance'].is_a?(Hash)
-          payload['instance'].keys.each do |k|
-            v = payload['instance'][k]
-            payload['instance'].delete(k) if v.is_a?(Hash) && v.empty?
-          end
-        end
-        if payload['config'].is_a?(Hash)
-          payload['config'].keys.each do |k|
-            v = payload['config'][k]
-            payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
-          end
+        payload.deep_merge!({"instance" => {"type" => instance_type["code"] } })
+        payload.deep_merge!({"instance" => {"instanceType" => {"code" => instance_type["code"]} } })
+      end
+    else
+      # use active group by default
+      options[:group] ||= @active_group_id
+      options[:select_datastore] = true
+      options[:name_required] = true
+      # prompt for all the instance configuration options
+      # this provisioning helper method handles all (most) of the parsing and prompting
+      # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
+      payload = prompt_new_instance(options)
+      # clean payload of empty objects
+      # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
+      if payload['instance'].is_a?(Hash)
+        payload['instance'].keys.each do |k|
+          v = payload['instance'][k]
+          payload['instance'].delete(k) if v.is_a?(Hash) && v.empty?
         end
       end
-      payload['instance'] ||= {}
-      if options[:instance_name]
-        payload['instance']['name'] = options[:instance_name]
-      end
-      if options[:description] && !payload['instance']['description']
-        payload['instance']['description'] = options[:description]
-      end
-      if options[:environment] && !payload['instance']['instanceContext']
-        payload['instance']['instanceContext'] = options[:environment]
-      end
-      payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
-      payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
-      payload[:createBackup] = options[:create_backup] if !options[:create_backup].nil?
-      payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
-      payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
-      if options.key?(:create_user)
-        payload['config'] ||= {}
-        payload['config']['createUser'] = options[:create_user]
-      end
-      if options[:user_group_id]
-        payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
-      end
-      if options[:workflow_id]
-        if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
-          payload['taskSetId'] = options[:workflow_id].to_i
-        else
-          payload['taskSetName'] = options[:workflow_id]
+      if payload['config'].is_a?(Hash)
+        payload['config'].keys.each do |k|
+          v = payload['config'][k]
+          payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
         end
       end
-      if options[:enable_load_balancer]
-        lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
-        payload.deep_merge!(lb_payload)
-      end
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.create(payload)
-        return 0
-      end
-
-      json_response = @instances_interface.create(payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        instance_id = json_response["instance"]["id"]
-        instance_name = json_response["instance"]["name"]
-        print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
-        # print details
-        get_args = [instance_id] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
-        get(get_args)
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+
+    payload['instance'] ||= {}
+    if options[:instance_name]
+      payload['instance']['name'] = options[:instance_name]
+    end
+    if options[:description] && !payload['instance']['description']
+      payload['instance']['description'] = options[:description]
+    end
+    if options[:environment] && !payload['instance']['instanceContext']
+      payload['instance']['instanceContext'] = options[:environment]
+    end
+    payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+    payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+    payload[:createBackup] = options[:create_backup] if !options[:create_backup].nil?
+    payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
+    payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
+    if options.key?(:create_user)
+      payload['config'] ||= {}
+      payload['config']['createUser'] = options[:create_user]
+    end
+    if options[:user_group_id]
+      payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
+    end
+    if options[:workflow_id]
+      if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
+        payload['taskSetId'] = options[:workflow_id].to_i
+      else
+        payload['taskSetName'] = options[:workflow_id]
+      end
+    end
+    if options[:enable_load_balancer]
+      lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
+      payload.deep_merge!(lb_payload)
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.create(payload)
+      return 0
+    end
+
+    json_response = @instances_interface.create(payload)
+    render_response(json_response, options, "instance") do
+      instance_id = json_response["instance"]["id"]
+      instance_name = json_response["instance"]["name"]
+      print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
+      # print details
+      get_args = [instance_id] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+      get(get_args)
+    end
+    return 0, nil
   end
 
   def update(args)
