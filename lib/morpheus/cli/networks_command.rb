@@ -619,7 +619,7 @@ class Morpheus::Cli::NetworksCommand
           api_params['network.site.id'] = group ? group['id'] : 'shared'
           api_params['network.type.id'] = network_type['id']
           api_params['network.networkServer.id'] = network_server_id if !network_server_id.nil?
-          network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,options[:options],@api_client, api_params)
+          network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,(options[:options] || {}).merge(payload),@api_client, api_params)
           # network context options belong at network level and not network.network
           network_context_params = network_type_params.delete('network')
           payload['network'].deep_merge!(network_context_params) if network_context_params
