@@ -793,7 +793,7 @@ module Morpheus::Cli::ProvisioningHelper
       end
     }
 
-    if cloud_type['zoneType']['code'] == 'openstack'
+    if ['openstack', 'huawei', 'opentelekom'].include?(cloud_type['zoneType']['code'])
       prompt_resource_pool.call
       prompt_service_plan.call
     else
