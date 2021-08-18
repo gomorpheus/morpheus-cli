@@ -484,7 +484,7 @@ module Morpheus::Cli::ProvisioningHelper
     if options[:instance_type_code]
       instance_type_code = options[:instance_type_code]
     else
-      instance_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Select Instance Type.'}],options[:options],api_client,{groupId: group_id})
+      instance_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Select Instance Type.'}],options[:options],api_client,{groupId: group_id}, no_prompt, true)
       instance_type_code = instance_type_prompt['type']
     end
     if instance_type_code.to_s =~ /\A\d{1,}\Z/
@@ -693,50 +693,6 @@ module Morpheus::Cli::ProvisioningHelper
       provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
     end
 
-    # prompt for service plan
-    plan_id = nil
-    service_plan = nil
-    service_plans_json = instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
-    service_plans = service_plans_json["plans"]
-    if locked_fields.include?('plan.id')
-      plan_id = options[:options]['plan']['id'] rescue nil
-      if plan_id.nil?
-        plan_id = options[:options]['instance']['plan']['id'] rescue nil
-      end
-      service_plan = service_plans.find {|sp| sp['id'] == plan_id }
-    else
-      service_plan = service_plans.find {|sp| sp['id'] == options[:service_plan].to_i} if options[:service_plan]
-
-      if !service_plan
-        service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"], 'code' => sp['code']} } # already sorted
-        default_plan = nil
-        if payload['plan']
-          default_plan = payload['plan']
-        elsif payload['instance'] && payload['instance']['plan']
-          default_plan = payload['instance']['plan']
-        end
-
-        if options[:default_plan] && service_plans_dropdown.find {|sp| [sp["name"], sp["value"].to_s, sp["code"]].include?(options[:default_plan].to_s)}
-          default_plan_value = options[:default_plan]
-        else
-          default_plan_value = options[:default_plan] || (default_plan.is_a?(Hash) ? default_plan['id'] : default_plan)
-        end
-        plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
-        plan_id = plan_prompt['servicePlan']
-        service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
-        if !service_plan
-          print_red_alert "Plan not found by id #{plan_id}"
-          exit 1
-        end
-      end
-      #todo: consolidate these, instances api looks for instance.plan.id and apps looks for plan.id
-      if options[:for_app]
-        payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
-      else
-        payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
-      end
-    end
-
     # build config option types
     option_type_list = []
     if !layout['optionTypes'].nil? && !layout['optionTypes'].empty?
@@ -749,47 +705,104 @@ module Morpheus::Cli::ProvisioningHelper
       option_type_list += provision_type['optionTypes']
     end
 
-    # prompt for resource pool
     pool_id = nil
     resource_pool = nil
-    if locked_fields.include?('config.resourcePoolId')
-      pool_id = payload['config']['resourcePoolId'] rescue nil
-    elsif locked_fields.include?('config.resourcePool')
-      pool_id = payload['config']['resourcePool'] rescue nil
-    elsif locked_fields.include?('config.azureResourceGroupId')
-      pool_id = payload['config']['azureResourceGroupId'] rescue nil
-    else
-      has_zone_pools = provision_type && provision_type["id"] && provision_type["hasZonePools"]
-      if has_zone_pools
-        # pluck out the resourcePoolId option type to prompt for
-        resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-        option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-        resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], planId: service_plan["id"], layoutId: layout["id"]})['data']
-        resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
+    plan_id = nil
+    service_plan = nil
 
-        if resource_pool
-          pool_id = resource_pool['id']
+    prompt_service_plan = -> {
+      service_plans_json = instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id}.merge(resource_pool.nil? ? {} : {'resourcePoolId' => resource_pool['id']}))
+      service_plans = service_plans_json["plans"]
+      if locked_fields.include?('plan.id')
+        plan_id = options[:options]['plan']['id'] rescue nil
+        if plan_id.nil?
+          plan_id = options[:options]['instance']['plan']['id'] rescue nil
+        end
+        service_plan = service_plans.find {|sp| sp['id'] == plan_id }
+      else
+        service_plan = service_plans.find {|sp| sp['id'] == options[:service_plan].to_i} if options[:service_plan]
+
+        if !service_plan
+          service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"], 'code' => sp['code']} } # already sorted
+          default_plan = nil
+          if payload['plan']
+            default_plan = payload['plan']
+          elsif payload['instance'] && payload['instance']['plan']
+            default_plan = payload['instance']['plan']
+          end
+
+          if options[:default_plan] && service_plans_dropdown.find {|sp| [sp["name"], sp["value"].to_s, sp["code"]].include?(options[:default_plan].to_s)}
+            default_plan_value = options[:default_plan]
+          else
+            default_plan_value = options[:default_plan] || (default_plan.is_a?(Hash) ? default_plan['id'] : default_plan)
+          end
+          plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance', 'defaultValue' => default_plan_value}],options[:options])
+          plan_id = plan_prompt['servicePlan']
+          service_plan = service_plans.find {|sp| sp["id"] == plan_id.to_i }
+          if !service_plan
+            print_red_alert "Plan not found by id #{plan_id}"
+            exit 1
+          end
+        end
+        #todo: consolidate these, instances api looks for instance.plan.id and apps looks for plan.id
+        if options[:for_app]
+          payload['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
         else
-          if options[:default_resource_pool]
-            default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
-          end
-          resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
-          resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{})
-          resource_pool_prompt.deep_compact!
-          payload.deep_merge!(resource_pool_prompt)
-          resource_pool = Morpheus::Cli::OptionTypes.get_last_select()
-          if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
-            pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
-          elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
-            pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
-          end
-          resource_pool ||= resource_pool_options.find {|it| it['id'] == pool_id}
+          payload['instance']['plan'] = {'id' => service_plan["id"], 'code' => service_plan["code"], 'name' => service_plan["name"]}
         end
       end
+    }
+
+    prompt_resource_pool = -> {
+      # prompt for resource pool
+      if locked_fields.include?('config.resourcePoolId')
+        pool_id = payload['config']['resourcePoolId'] rescue nil
+      elsif locked_fields.include?('config.resourcePool')
+        pool_id = payload['config']['resourcePool'] rescue nil
+      elsif locked_fields.include?('config.azureResourceGroupId')
+        pool_id = payload['config']['azureResourceGroupId'] rescue nil
+      else
+        has_zone_pools = provision_type && provision_type["id"] && provision_type["hasZonePools"]
+        if has_zone_pools
+          # pluck out the resourcePoolId option type to prompt for
+          resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+          option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+
+          resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], layoutId: layout["id"]}.merge(service_plan.nil? ? {} : {planId: service_plan["id"]}))['data']
+          resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
+
+          if resource_pool
+            pool_id = resource_pool['id']
+          else
+            if options[:default_resource_pool]
+              default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
+            end
+            resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
+            resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{})
+            resource_pool_prompt.deep_compact!
+            payload.deep_merge!(resource_pool_prompt)
+            resource_pool = Morpheus::Cli::OptionTypes.get_last_select()
+            if resource_pool_option_type['fieldContext'] && resource_pool_prompt[resource_pool_option_type['fieldContext']]
+              pool_id = resource_pool_prompt[resource_pool_option_type['fieldContext']][resource_pool_option_type['fieldName']]
+            elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
+              pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
+            end
+            resource_pool ||= resource_pool_options.find {|it| it['id'] == pool_id}
+          end
+        end
+      end
+    }
+
+    if cloud_type['zoneType']['code'] == 'openstack'
+      prompt_resource_pool.call
+      prompt_service_plan.call
+    else
+      prompt_service_plan.call
+      prompt_resource_pool.call
     end
 
     # remove host selection for kubernetes
-    if resource_pool
+    if !resource_pool.empty?
       payload['config']['poolProviderType'] = resource_pool['providerType'] if resource_pool['providerType']
       if resource_pool['providerType'] == 'kubernetes'
         option_type_list = option_type_list.reject {|opt| ['provisionServerId'].include?(opt['fieldName'])}
