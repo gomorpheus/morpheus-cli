@@ -7,6 +7,7 @@ require 'morpheus/cli/mixins/infrastructure_helper'
 class Morpheus::Cli::CloudResourcePoolsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::InfrastructureHelper
+  include Morpheus::Cli::OptionSourceHelper
 
   #set_command_name :'cloud-resource-pools'
   set_command_name :'resource-pools'
@@ -191,6 +192,12 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         "Status" => lambda {|it| it['status'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
       }
+
+      if cloud['zoneType']['code'] == 'openstack'
+        role = resource_pool['config']['roleId'] ? load_option_source_data('openstackRoles', {zoneId: cloud['id']}).find {|it| it['value'] == resource_pool['config']['roleId']} : nil
+        description_cols['Role'] = lambda {|it| role ? role['name'] : ''}
+      end
+
       print_description_list(description_cols, resource_pool)
 
       if resource_pool['resourcePermission'].nil?
@@ -329,8 +336,14 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Update a resource pool." + "\n" +
+      opts.on("--description [TEXT]", String, "Description") do |val|
+        options['description'] = val.to_s
+      end
+      opts.on( '--role ROLE', String, "Role Name or ID (applicable to select resource pools)" ) do |val|
+        options[:role] = val
+      end
+      build_standard_add_options(opts, options)
+      opts.footer = "Add a resource pool." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud."
     end
     optparse.parse!(args)
@@ -349,151 +362,156 @@ class Morpheus::Cli::CloudResourcePoolsCommand
 
     connect(options)
 
-    begin
-      # load cloud
-      if cloud_id.nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [cloud]\n#{optparse}"
-        return 1
-      end
-      cloud = find_cloud_by_name_or_id(cloud_id)
-      return 1 if cloud.nil?
-      
-      # merge -O options into normally parsed options
-      options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-
-      # construct payload
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-      else
-        # prompt for resource pool options
-        payload = {
-          'resourcePool' => {
-          }
-        }
-        
-        # allow arbitrary -O options
-        payload['resourcePool'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-
-
-        # Name
-        if options['name']
-          payload['resourcePool']['name'] = options['name']
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name'}], options)
-          payload['resourcePool']['name'] = v_prompt['name']
-        end
-
-        # Group Access
-        if group_access_all != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['all'] = group_access_all
-        else
-          # default to all
-          if payload['resourcePermissions'].nil? || payload['resourcePermissions']['all'].nil?
-            payload['resourcePermissions'] ||= {}
-            payload['resourcePermissions']['all'] = true
-          end
-        end
-        if group_access_list != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
-            site = {"id" => site_id.to_i}
-            if group_defaults_list && group_defaults_list.include?(site_id)
-              site["default"] = true
-            end
-            site
-          end
-        end
-
-        # Service Plan Access
-        if plan_access_all != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['allPlans'] = plan_access_all
-        else
-          # default to all
-          if payload['resourcePermissions'].nil? || payload['resourcePermissions']['allPlans'].nil?
-            payload['resourcePermissions'] ||= {}
-            payload['resourcePermissions']['allPlans'] = true
-          end
-        end
-        if plan_access_list != nil
-          payload['resourcePermissions'] ||= {}
-          payload['resourcePermissions']['plans'] = plan_access_list.collect do |site_id|
-            site = {"id" => site_id.to_i}
-            if plan_defaults_list && plan_defaults_list.include?(site_id)
-              site["default"] = true
-            end
-            site
-          end
-        end
-
-        # Tenants
-        if options['tenants']
-          payload['tenantPermissions'] = {}
-          payload['tenantPermissions']['accounts'] = options['tenants']
-        end
-
-        # Active
-        if options['active'] != nil
-          payload['resourcePool']['active'] = options['active']
-        else
-          payload['resourcePool']['active'] = true
-        end
-
-        # Default
-        if options['defaultPool'] != nil
-          payload['resourcePool']['defaultPool'] = options['defaultPool']
-        end
-        
-        # Visibility
-        if options['visibility'] != nil
-          payload['resourcePool']['visibility'] = options['visibility']
-        else
-          payload['resourcePool']['visibility'] = 'private'
-        end
-
-
-        # Config options depend on type (until api returns these as optionTypes)
-        zone_type = cloud['zoneType'] ? cloud['zoneType']['code'] : ''
-        if zone_type == 'amazon'
-          payload['resourcePool']['config'] ||= {}
-          # CIDR
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'cidrBlock', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => true, 'description' => 'Provide the base CIDR Block to use for this VPC (must be between a /16 and /28 Block)'}], options)
-          payload['resourcePool']['config']['cidrBlock'] = v_prompt['config']['cidrBlock']
-          # Tenancy
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'tenancy', 'fieldLabel' => 'Tenancy', 'type' => 'select', 'selectOptions' => [{'name' => 'Default', 'value' => 'default'}, {'name' => 'Dedicated', 'value' => 'dedicated'}], 'defaultValue' => 'default'}], options)
-          payload['resourcePool']['config']['tenancy'] = v_prompt['config']['tenancy']
-
-        elsif zone_type == 'azure'
-          # no options
-        elsif zone_type == 'cloudFoundry' || zone_type == 'bluemixCloudFoundry'
-          
-        elsif zone_type == 'standard'
-          # no options
-        else
-          #raise_command_error "Cloud type '#{zone_type}' does not allow creating resource pools"
-        end
-
-      end
-      @cloud_resource_pools_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @cloud_resource_pools_interface.dry.create(cloud['id'], payload)
-        return
-      end
-      json_response = @cloud_resource_pools_interface.create(cloud['id'], payload)
-      if options[:json]
-        puts as_json(json_response)
-      else
-        resource_pool = json_response['resourcePool']
-        print_green_success "Created resource pool #{resource_pool['name']}"
-        get([cloud['id'].to_s, resource_pool['id'].to_s])
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
+    # load cloud
+    if cloud_id.nil?
+      puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [cloud]\n#{optparse}"
       return 1
     end
+    cloud = find_cloud_by_name_or_id(cloud_id)
+    return 1 if cloud.nil?
+
+    # merge -O options into normally parsed options
+    options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+    # construct payload
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+    else
+      # prompt for resource pool options
+      payload = {
+        'resourcePool' => {
+        }
+      }
+
+      # allow arbitrary -O options
+      payload['resourcePool'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+      # Name
+      if options['name']
+        payload['resourcePool']['name'] = options['name']
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name'}], options)
+        payload['resourcePool']['name'] = v_prompt['name']
+      end
+
+      # Group Access
+      if group_access_all != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['all'] = group_access_all
+      else
+        # default to all
+        if payload['resourcePermissions'].nil? || payload['resourcePermissions']['all'].nil?
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['all'] = true
+        end
+      end
+      if group_access_list != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['sites'] = group_access_list.collect do |site_id|
+          site = {"id" => site_id.to_i}
+          if group_defaults_list && group_defaults_list.include?(site_id)
+            site["default"] = true
+          end
+          site
+        end
+      end
+
+      # Service Plan Access
+      if plan_access_all != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['allPlans'] = plan_access_all
+      else
+        # default to all
+        if payload['resourcePermissions'].nil? || payload['resourcePermissions']['allPlans'].nil?
+          payload['resourcePermissions'] ||= {}
+          payload['resourcePermissions']['allPlans'] = true
+        end
+      end
+      if plan_access_list != nil
+        payload['resourcePermissions'] ||= {}
+        payload['resourcePermissions']['plans'] = plan_access_list.collect do |site_id|
+          site = {"id" => site_id.to_i}
+          if plan_defaults_list && plan_defaults_list.include?(site_id)
+            site["default"] = true
+          end
+          site
+        end
+      end
+
+      # Tenants
+      if options['tenants']
+        payload['tenantPermissions'] = {}
+        payload['tenantPermissions']['accounts'] = options['tenants']
+      end
+
+      # Active
+      if options['active'] != nil
+        payload['resourcePool']['active'] = options['active']
+      else
+        payload['resourcePool']['active'] = true
+      end
+
+      # Default
+      if options['defaultPool'] != nil
+        payload['resourcePool']['defaultPool'] = options['defaultPool']
+      end
+
+      # Visibility
+      if options['visibility'] != nil
+        payload['resourcePool']['visibility'] = options['visibility']
+      else
+        payload['resourcePool']['visibility'] = 'private'
+      end
+
+
+      # Config options depend on type (until api returns these as optionTypes)
+      zone_type = cloud['zoneType'] ? cloud['zoneType']['code'] : ''
+      if zone_type == 'amazon'
+        payload['resourcePool']['config'] ||= {}
+        # CIDR
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'cidrBlock', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => true, 'description' => 'Provide the base CIDR Block to use for this VPC (must be between a /16 and /28 Block)'}], options)
+        payload['resourcePool']['config']['cidrBlock'] = v_prompt['config']['cidrBlock']
+        # Tenancy
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'tenancy', 'fieldLabel' => 'Tenancy', 'type' => 'select', 'selectOptions' => [{'name' => 'Default', 'value' => 'default'}, {'name' => 'Dedicated', 'value' => 'dedicated'}], 'defaultValue' => 'default'}], options)
+        payload['resourcePool']['config']['tenancy'] = v_prompt['config']['tenancy']
+
+      elsif zone_type == 'azure'
+        # no options
+      elsif zone_type == 'cloudFoundry' || zone_type == 'bluemixCloudFoundry'
+
+      elsif zone_type == 'openstack'
+        payload['resourcePool']['config'] ||= {}
+        # Description
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'}], options)
+        payload['resourcePool']['description'] = v_prompt['description']
+        # Role
+        role_options = load_option_source_data('openstackRoles', {zoneId: cloud['id']})
+        if role = options[:role] ? role_options.find {|it| [it['name'], it['value']].include?(options[:role])} : nil
+          payload['resourcePool']['config']['roleId'] = role['value']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'config', 'fieldName' => 'roleId', 'fieldLabel' => 'Role', 'type' => 'select', 'selectOptions' => role_options, 'required' => true}], options, @api_client,{zoneId: cloud['id']})
+          payload['resourcePool']['config']['roleId'] = v_prompt['config']['roleId']
+        end
+      elsif zone_type == 'standard'
+        # no options
+      else
+        #raise_command_error "Cloud type '#{zone_type}' does not allow creating resource pools"
+      end
+    end
+
+    @cloud_resource_pools_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @cloud_resource_pools_interface.dry.create(cloud['id'], payload)
+      return
+    end
+    json_response = @cloud_resource_pools_interface.create(cloud['id'], payload)
+    render_response(json_response, options, 'resourcePool') do
+      resource_pool = json_response['resourcePool']
+      print_green_success "Created resource pool #{resource_pool['name']}"
+      get([cloud['id'].to_s, resource_pool['id'].to_s])
+    end
+    return 0, nil
   end
 
   def update(args)
@@ -563,6 +581,12 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on("--description [TEXT]", String, "Description") do |val|
+        options['description'] = val.to_s
+      end
+      opts.on( '--role ROLE', String, "Role Name or ID (applicable to select resource pools)" ) do |val|
+        options['role'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a resource pool." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud." + "\n"
@@ -591,7 +615,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
 
       resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
       return 1 if resource_pool.nil?
-      
+
       # merge -O options into normally parsed options
       options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
@@ -605,11 +629,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           'resourcePool' => {
           }
         }
-        
+
         # allow arbitrary -O options
         payload['resourcePool'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
-      
+
         # Group Access
         if group_access_all != nil
           payload['resourcePermissions'] ||= {}
@@ -657,10 +681,24 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         if options['defaultPool'] != nil
           payload['resourcePool']['defaultPool'] = options['defaultPool']
         end
-        
+
         # Visibility
         if options['visibility'] != nil
           payload['resourcePool']['visibility'] = options['visibility']
+        end
+
+        # Description
+        if options['description'] != nil
+          payload['resourcePool']['description'] = options['description']
+        end
+
+        # Role
+        if options['role'] != nil
+          role_options = load_option_source_data('openstackRoles', {zoneId: cloud['id']})
+          if role = role_options.find {|it| [it['name'], it['value']].include?(options['role'])}
+            payload['resourcePool']['config'] ||= {}
+            payload['resourcePool']['config']['roleId'] = role['value']
+          end
         end
 
         if payload['resourcePool'].empty? && payload['resourcePermissions'].nil? && payload['tenantPermissions'].nil?
@@ -674,14 +712,12 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         return
       end
       json_response = @cloud_resource_pools_interface.update(cloud['id'], resource_pool["id"], payload)
-      if options[:json]
-        puts as_json(json_response)
-      else
+      render_response(json_response, options, 'resourcePool') do
         resource_pool = json_response['resourcePool']
         print_green_success "Updated resource pool #{resource_pool['name']}"
         get([cloud['id'].to_s, resource_pool['id'].to_s])
       end
-      return 0
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       return 1
