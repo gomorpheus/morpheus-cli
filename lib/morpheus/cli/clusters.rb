@@ -613,7 +613,7 @@ class Morpheus::Cli::Clusters
 
         # Worker count
         default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-        server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
+        server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])['config']['nodeCount']
 
         # Create User
         if !options[:createUser].nil?
