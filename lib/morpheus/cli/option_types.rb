@@ -102,7 +102,7 @@ module Morpheus
             end
 
             found_dep_value = match_type == 'all' ? true : false
-            visible_option_check_value.split(',').each do |value|
+            visible_option_check_value.sub(',', ' ').split(' ').each do |value|
               parts = value.split(':')
               depends_on_code = parts[0]
               depends_on_value = parts.count > 1 ? parts[1].to_s.strip : nil
