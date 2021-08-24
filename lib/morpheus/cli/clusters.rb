@@ -563,6 +563,7 @@ class Morpheus::Cli::Clusters
         end
 
         cluster_payload['layout'] = {id: layout['id']}
+        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}
 
         # Plan
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
@@ -570,6 +571,7 @@ class Morpheus::Cli::Clusters
 
         if service_plan
           server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+          api_params['planId'] = service_plan['id']
         end
 
         # Controller type
@@ -583,20 +585,34 @@ class Morpheus::Cli::Clusters
 
           if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, service_plan, controller_provision_type, options)
               server_payload['config']['resourcePool'] = resource_pool['externalId']
+              api_params['resourcePoolId'] = resource_pool['externalId']
           end
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, {zoneId: cloud['id'], siteId: group['id']})
+        volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
         end
 
+        # Options / Custom Config
+        option_type_list =
+          ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
+          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
+
+        # KLUDGE: google zone required for network selection
+        if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
+          server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt([option_type], options[:options], @api_client, api_params))
+          api_params.deep_merge!(server_payload)
+          api_params.deep_merge!(server_payload['config'])
+          option_type_list = option_type_list.reject {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
+        end
+
         # Networks
         # NOTE: You must choose subnets in the same availability zone
         if controller_provision_type && controller_provision_type['hasNetworks'] && cloud['zoneType']['code'] != 'esxi'
-          server_payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], provision_type['id'], (resource_pool['id'] rescue nil), options)
+          server_payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], provision_type['id'], (resource_pool['id'] rescue nil), options.merge({:api_params => api_params}))
         end
 
         # Security Groups
@@ -605,15 +621,11 @@ class Morpheus::Cli::Clusters
         # Visibility
         server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
-        # Options / Custom Config
-        option_type_list = ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
-          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
-
-        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params, options[:no_prompt], true))
 
         # Worker count
         default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-        server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])['config']['nodeCount']
+        server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
 
         # Create User
         if !options[:createUser].nil?
@@ -629,7 +641,7 @@ class Morpheus::Cli::Clusters
         if userGroup
           server_payload['userGroup'] = userGroup
         elsif !options[:no_prompt]
-          userGroupId = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'userGroupId', 'fieldLabel' => 'User Group', 'type' => 'select', 'required' => false, 'optionSource' => 'userGroups'}], options[:options], @api_client, {})['userGroupId']
+          userGroupId = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'userGroupId', 'fieldLabel' => 'User Group', 'type' => 'select', 'required' => false, 'optionSource' => 'userGroups'}], options[:options], @api_client, api_params)['userGroupId']
 
           if userGroupId
             server_payload['userGroup'] = {'id' => userGroupId}
@@ -637,11 +649,11 @@ class Morpheus::Cli::Clusters
         end
 
         # Host / Domain
-        server_payload['networkDomain'] = options[:domain] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, {})['networkDomain']
-        server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client)['hostname']
+        server_payload['networkDomain'] = options[:domain] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, api_params)['networkDomain']
+        server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
 
         # Workflow / Automation
-        task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, {'phase' => 'postProvision'})['taskSet']
+        task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
 
         if !task_set_id.nil?
           server_payload['taskSet'] = {'id' => task_set_id}
