@@ -222,52 +222,52 @@ class Morpheus::Cli::InvoicesCommand
           # {"LAST COST DATE" => lambda {|it| format_local_dt(it['lastCostDate']) } },
           # {"LAST ACTUAL DATE" => lambda {|it| format_local_dt(it['lastActualDate']) } },
         ] : []) + [
-          {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"EXTRA PRICE" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"COMPUTE PRICE" => lambda {|it| format_money(it['computePrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"MEMORY PRICE" => lambda {|it| format_money(it['memoryPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"STORAGE PRICE" => lambda {|it| format_money(it['storagePrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"NETWORK PRICE" => lambda {|it| format_money(it['networkPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"EXTRA PRICE" => lambda {|it| format_money(it['extraPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"MTD PRICE" => lambda {|it| format_money(it['runningPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           {"TOTAL PRICE" => lambda {|it| 
-            format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
+            format_money(it['totalPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
         
         if options[:show_costs] && json_response['masterAccount'] != false
           columns += [
-          {"COMPUTE COST" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"COMPUTE COST" => lambda {|it| format_money(it['computeCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           {"MEMORY COST" => lambda {|it| format_money(it['memoryCost']) } },
-          {"STORAGE COST" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"NETWORK COST" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"EXTRA COST" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"MTD COST" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"STORAGE COST" => lambda {|it| format_money(it['storageCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"NETWORK COST" => lambda {|it| format_money(it['networkCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"EXTRA COST" => lambda {|it| format_money(it['extraCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"MTD COST" => lambda {|it| format_money(it['runningCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           {"TOTAL COST" => lambda {|it| 
-            format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
+            format_money(it['totalCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) + ((it['totalCost'].to_f > 0 && it['totalCost'] != it['runningCost']) ? " (Projected)" : "")
           } }
         ]
         end
         if options[:show_estimates]
           columns += [
-            {"METERED COMPUTE PRICE" => lambda {|it| format_money(it['estimatedComputePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"METERED MEMORY PRICE" => lambda {|it| format_money(it['estimatedMemoryPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"METERED STORAGE PRICE" => lambda {|it| format_money(it['estimatedStoragePrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"METERED NETWORK PRICE" => lambda {|it| format_money(it['estimatedNetworkPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"METERED EXTRA PRICE" => lambda {|it| format_money(it['estimatedExtraPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-            {"METERED MTD PRICE" => lambda {|it| format_money(it['estimatedRunningPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+            {"METERED COMPUTE PRICE" => lambda {|it| format_money(it['estimatedComputePrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+            {"METERED MEMORY PRICE" => lambda {|it| format_money(it['estimatedMemoryPrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+            {"METERED STORAGE PRICE" => lambda {|it| format_money(it['estimatedStoragePrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+            {"METERED NETWORK PRICE" => lambda {|it| format_money(it['estimatedNetworkPrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+            {"METERED EXTRA PRICE" => lambda {|it| format_money(it['estimatedExtraPrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+            {"METERED MTD PRICE" => lambda {|it| format_money(it['estimatedRunningPrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
             {"METERED TOTAL PRICE" => lambda {|it| 
-              format_money(it['estimatedTotalPrice'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalPrice'].to_f > 0 && it['estimatedTotalPrice'] != it['estimatedRunningPrice']) ? " (Projected)" : "")
+              format_money(it['estimatedTotalPrice'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) + ((it['estimatedTotalPrice'].to_f > 0 && it['estimatedTotalPrice'] != it['estimatedRunningPrice']) ? " (Projected)" : "")
             } },
           ]
           if options[:show_costs] && json_response['masterAccount'] != false
             columns += [
-              {"METERED COMPUTE COST" => lambda {|it| format_money(it['estimatedComputeCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"METERED MEMORY COST" => lambda {|it| format_money(it['estimatedMemoryCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"METERED STORAGE COST" => lambda {|it| format_money(it['estimatedStorageCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"METERED NETWORK COST" => lambda {|it| format_money(it['estimatedNetworkCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"METERED EXTRA COST" => lambda {|it| format_money(it['estimatedExtraCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              {"METERED MTD COST" => lambda {|it| format_money(it['estimatedRunningCost'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"METERED COMPUTE COST" => lambda {|it| format_money(it['estimatedComputeCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              {"METERED MEMORY COST" => lambda {|it| format_money(it['estimatedMemoryCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              {"METERED STORAGE COST" => lambda {|it| format_money(it['estimatedStorageCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              {"METERED NETWORK COST" => lambda {|it| format_money(it['estimatedNetworkCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              {"METERED EXTRA COST" => lambda {|it| format_money(it['estimatedExtraCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              {"METERED MTD COST" => lambda {|it| format_money(it['estimatedRunningCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) } },
               {"METERED TOTAL COST" => lambda {|it| 
-                format_money(it['estimatedTotalCost'], 'usd', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
+                format_money(it['estimatedTotalCost'], it['estimatedCurrency'] || 'USD', {sigdig:options[:sigdig]}) + ((it['estimatedTotalCost'].to_f > 0 && it['estimatedTotalCost'] != it['estimatedRunningCost']) ? " (Projected)" : "")
               } },
             ]
           end
@@ -306,36 +306,37 @@ class Morpheus::Cli::InvoicesCommand
 
           if invoice_totals
             cost_rows = [
-              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice']},
+              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice'], currency: invoice['currency']},
             ]
             if options[:show_costs]
               cost_rows += [
-                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost']}
+                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost'], currency: invoice['currency']}
               ]
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice']}
+                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice'], currency: invoice['estimatedCurrency']}
               ]
               if options[:show_costs]
                 cost_rows += [
-                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost']}
+                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost'], currency: invoice['estimatedCurrency']}
                 ]
               end
             end
             cost_columns = {
               "" => lambda {|it| it[:label] },
-              "Compute".upcase => lambda {|it| format_money(it[:compute], 'usd', {sigdig:options[:sigdig]}) },
-              "Memory".upcase => lambda {|it| format_money(it[:memory], 'usd', {sigdig:options[:sigdig]}) },
-              "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
-              "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
-              "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
-              "Extra".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
-              "MTD".upcase => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
-              "Total".upcase => lambda {|it| 
-                format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
+              "Compute" => lambda {|it| format_money(it[:compute], it[:currency] || it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "Memory" => lambda {|it| format_money(it[:memory], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "Storage" => lambda {|it| format_money(it[:storage], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "Network" => lambda {|it| format_money(it[:network], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "License" => lambda {|it| format_money(it[:license], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "Extra" => lambda {|it| format_money(it[:extra], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "MTD" => lambda {|it| format_money(it[:running], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+              "Total" => lambda {|it| 
+                format_money(it[:total], it[:currency] || 'USD', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
               },
-            }
+              "Currency" => lambda {|it| it[:currency] },
+            }.upcase_keys!
             # remove columns that rarely have data...
             if cost_rows.sum { |it| it[:memory].to_f } == 0
               cost_columns.delete("Memory".upcase)
@@ -433,6 +434,10 @@ EOT
         "End" => lambda {|it| format_date(it['endDate']) },
         "Ref Start" => lambda {|it| format_dt(it['refStart']) },
         "Ref End" => lambda {|it| format_dt(it['refEnd']) },
+        "Currency" => lambda {|it| (it['estimate'] ? it['estimatedCurrency'] : it['currency']) || 'USD' },
+        "Conversion Rate" => lambda {|it| (it['estimate'] ? it['estimatedConversionRate'] : it['conversionRate']) },
+        # "Estimated Currency" => lambda {|it| it['estimatedCurrency'] },
+        # "Estimated Conversion Rate" => lambda {|it| it['estimatedConversionRate'] },
         "Items" => lambda {|it| (it['lineItemCount'] ? it['lineItemCount'] : it['lineItems'].size) rescue '' },
         "Tags" => lambda {|it| (it['metadata'] || it['tags']) ? (it['metadata'] || it['tags']).collect {|m| "#{m['name']}: #{m['value']}" }.join(', ') : '' },
         "Project ID" => lambda {|it| it['project'] ? it['project']['id'] : '' },
@@ -457,39 +462,13 @@ EOT
       if !['ComputeServer','Instance','Container'].include?(invoice['refType'])
         description_cols.delete("Power State")
       end
+      # if invoice['currency'].nil? || invoice['currency'] == 'USD'
+      #   description_cols.delete("Currency")
+      # end
+      # if invoice['actualConversionRate'].nil? || invoice['actualConversionRate'] == 1
+      #   description_cols.delete("Conversion Rate")
+      # end
       print_description_list(description_cols, invoice)
-=begin
-      print_h2 "Costs"
-      cost_columns = {
-        "Compute" => lambda {|it| format_money(it['computeCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Memory" => lambda {|it| format_money(it['memoryCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Storage" => lambda {|it| format_money(it['storageCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Network" => lambda {|it| format_money(it['networkCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "License" => lambda {|it| format_money(it['licenseCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Extra" => lambda {|it| format_money(it['extraCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Running" => lambda {|it| format_money(it['runningCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Total Cost" => lambda {|it| format_money(it['totalCost'], 'usd', {sigdig:options[:sigdig]}) },
-      }
-      print as_pretty_table([invoice], cost_columns, options)
-
-      print_h2 "Prices"
-      price_columns = {
-        "Compute" => lambda {|it| format_money(it['computePrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Memory" => lambda {|it| format_money(it['memoryPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Storage" => lambda {|it| format_money(it['storagePrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Network" => lambda {|it| format_money(it['networkPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "License" => lambda {|it| format_money(it['licensePrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Extra" => lambda {|it| format_money(it['extraPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Running" => lambda {|it| format_money(it['runningPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        "Total Price" => lambda {|it| format_money(it['totalPrice'], 'usd', {sigdig:options[:sigdig]}) },
-      }
-      print as_pretty_table([invoice], price_columns, options)
-=end
-      
-      # current_date = Time.now
-      # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
-
-      
 
       # Line Items
       line_items = invoice['lineItems']
@@ -507,9 +486,9 @@ EOT
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
           {"UNIT" => lambda {|it| it['rateUnit'] } },
-          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
-          #{"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"COST" => lambda {|it| format_money(it['itemCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          #{"TAX" => lambda {|it| format_money(it['itemTax'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           # {"TERM" => lambda {|it| it['itemTerm'] } },
           {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
           {"ITEM NAME" => lambda {|it| it['itemName'] } },
@@ -529,36 +508,37 @@ EOT
       print_h2 "Invoice Totals"
 
       cost_rows = [
-        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice']},
+        {label: 'Price'.upcase, compute: invoice['computePrice'], memory: invoice['memoryPrice'], storage: invoice['storagePrice'], network: invoice['networkPrice'], license: invoice['licensePrice'], extra: invoice['extraPrice'], running: invoice['runningPrice'], total: invoice['totalPrice'], currency: invoice['currency']},
       ]
       if options[:show_costs] # && json_response['masterAccount'] != false
         cost_rows += [
-          {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost']},
+          {label: 'Cost'.upcase, compute: invoice['computeCost'], memory: invoice['memoryCost'], storage: invoice['storageCost'], network: invoice['networkCost'], license: invoice['licenseCost'], extra: invoice['extraCost'], running: invoice['runningCost'], total: invoice['totalCost'], currency: invoice['currency']},
         ]
       end
       if options[:show_estimates]
         cost_rows += [
-          {label: 'Metered Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice']}
+          {label: 'Metered Price'.upcase, compute: invoice['estimatedComputePrice'], memory: invoice['estimatedMemoryPrice'], storage: invoice['estimatedStoragePrice'], network: invoice['estimatedNetworkPrice'], license: invoice['estimatedLicensePrice'], extra: invoice['estimatedExtraPrice'], running: invoice['estimatedRunningPrice'], total: invoice['estimatedTotalPrice'], currency: invoice['estimatedCurrency']}
         ]
         if options[:show_costs] # && json_response['masterAccount'] != false
           cost_rows += [
-            {label: 'Metered Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost']},
+            {label: 'Metered Cost'.upcase, compute: invoice['estimatedComputeCost'], memory: invoice['estimatedMemoryCost'], storage: invoice['estimatedStorageCost'], network: invoice['estimatedNetworkCost'], license: invoice['estimatedLicenseCost'], extra: invoice['estimatedExtraCost'], running: invoice['estimatedRunningCost'], total: invoice['estimatedTotalCost'], currency: invoice['estimatedCurrency']},
           ]
         end
       end
       cost_columns = {
         "" => lambda {|it| it[:label] },
-        "Compute".upcase => lambda {|it| format_money(it[:compute], 'usd', {sigdig:options[:sigdig]}) },
-        "Memory".upcase => lambda {|it| format_money(it[:memory], 'usd', {sigdig:options[:sigdig]}) },
-        "Storage".upcase => lambda {|it| format_money(it[:storage], 'usd', {sigdig:options[:sigdig]}) },
-        "Network".upcase => lambda {|it| format_money(it[:network], 'usd', {sigdig:options[:sigdig]}) },
-        "License".upcase => lambda {|it| format_money(it[:license], 'usd', {sigdig:options[:sigdig]}) },
-        "Extra".upcase => lambda {|it| format_money(it[:extra], 'usd', {sigdig:options[:sigdig]}) },
-        "MTD" => lambda {|it| format_money(it[:running], 'usd', {sigdig:options[:sigdig]}) },
-        "Total".upcase => lambda {|it| 
-          format_money(it[:total], 'usd', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
+        "Compute" => lambda {|it| format_money(it[:compute], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "Memory" => lambda {|it| format_money(it[:memory], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "Storage" => lambda {|it| format_money(it[:storage], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "Network" => lambda {|it| format_money(it[:network], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "License" => lambda {|it| format_money(it[:license], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "Extra" => lambda {|it| format_money(it[:extra], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "MTD" => lambda {|it| format_money(it[:running], it[:currency] || 'USD', {sigdig:options[:sigdig]}) },
+        "Total" => lambda {|it| 
+          format_money(it[:total], it[:currency] || 'USD', {sigdig:options[:sigdig]}) + ((it[:total].to_f > 0 && it[:total] != it[:running]) ? " (Projected)" : "")
         },
-      }
+        "Currency" => lambda {|it| it[:currency] },
+      }.upcase_keys!
       # remove columns that rarely have data...
       if cost_rows.sum { |it| it[:memory].to_f } == 0
         cost_columns.delete("Memory".upcase)
@@ -888,10 +868,10 @@ EOT
           {"USAGE" => lambda {|it| it['itemUsage'] } },
           {"RATE" => lambda {|it| it['itemRate'] } },
           {"UNIT" => lambda {|it| it['rateUnit'] } },
-          {"PRICE" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"PRICE" => lambda {|it| format_money(it['itemPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
         ] + (options[:show_costs] ? [
-          {"COST" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
-          {"TAX" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
+          {"COST" => lambda {|it| format_money(it['itemCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+          {"TAX" => lambda {|it| format_money(it['itemTax'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
         ] : []) + [
           {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
           {"ITEM NAME" => lambda {|it| it['itemName'] } },
@@ -923,10 +903,10 @@ EOT
             invoice_totals_columns = [
               {"Items" => lambda {|it| format_number(json_response['meta']['total']) rescue '' } },
               #{"Usage" => lambda {|it| it['itemUsage'] } },
-              {"Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Price" => lambda {|it| format_money(it['itemPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
             ] + (options[:show_costs] ? [
-              {"Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) } },
-              #{"Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) } },
+              {"Cost" => lambda {|it| format_money(it['itemCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
+              #{"Tax" => lambda {|it| format_money(it['itemTax'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           
             ] : [])
             print_description_list(invoice_totals_columns, line_item_totals)
@@ -993,9 +973,9 @@ EOT
         "Usage Category" => lambda {|it| it['usageCategory'] },
         "Item Usage" => lambda {|it| it['itemUsage'] },
         "Item Rate" => lambda {|it| it['itemRate'] },
-        "Item Cost" => lambda {|it| format_money(it['itemCost'], 'usd', {sigdig:options[:sigdig]}) },
-        "Item Price" => lambda {|it| format_money(it['itemPrice'], 'usd', {sigdig:options[:sigdig]}) },
-        #"Item Tax" => lambda {|it| format_money(it['itemTax'], 'usd', {sigdig:options[:sigdig]}) },
+        "Item Cost" => lambda {|it| format_money(it['itemCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) },
+        "Item Price" => lambda {|it| format_money(it['itemPrice'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) },
+        #"Item Tax" => lambda {|it| format_money(it['itemTax'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) },
         #"Tax Type" => lambda {|it| it['taxType'] },
         "Item Term" => lambda {|it| it['itemTerm'] },
         "Item ID" => lambda {|it| it['itemId'] },
