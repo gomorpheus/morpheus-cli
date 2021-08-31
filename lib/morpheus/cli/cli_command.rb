@@ -1202,11 +1202,18 @@ module Morpheus
       # this could go be done in optparse.parse instead perhaps
       def verify_args!(opts={})
         args = opts[:args] || []
-        if opts[:count]
-          if args.count < opts[:count]
-            raise_args_error("not enough arguments, expected #{opts[:count]} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
-          elsif args.count > opts[:count]
-            raise_args_error("too many arguments, expected #{opts[:count]} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+        count = opts[:count]
+        # simplify output for verify_args!(min:2, max:2) or verify_args!(max:0)
+        if opts[:min] && opts[:max] && opts[:min] == opts[:max]
+          count = opts[:min]
+        elsif opts[:max] == 0
+          count = 0
+        end
+        if count
+          if args.count < count
+            raise_args_error("not enough arguments, expected #{count} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
+          elsif args.count > count
+            raise_args_error("too many arguments, expected #{count} and got #{args.count == 0 ? '0' : args.count.to_s + ': '}#{args.join(', ')}", args, opts[:optparse])
           end
         else
           if opts[:min]
