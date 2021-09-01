@@ -718,8 +718,8 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image] [location]")
-      opts.on('--remove-from-clouds [true|false]', String, "Remove from all clouds. Default is true.") do |val|
-        options[:options]['removeFromClouds'] = ['','true','on'].include?(val.to_s)
+      opts.on('--remove-from-cloud [true|false]', String, "Remove from all clouds. Default is true.") do |val|
+        options[:options]['removeFromCloud'] = ['','true','on'].include?(val.to_s)
       end
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
@@ -735,9 +735,9 @@ EOT
     params.merge!(parse_query_options(options))
     # Delete prompt
     # [ X ] Remove from all clouds
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'removeFromClouds', 'fieldLabel' => 'Remove from all clouds', 'type' => 'checkbox', 'defaultValue' => true, 'required' => true, 'description' => "Remove from all clouds"}], options[:options], @api_client)
-    remove_from_cloud = v_prompt['removeFromClouds'].to_s == 'true' || v_prompt['removeFromClouds'].to_s == 'on'
-    params['removeFromClouds'] = remove_from_cloud
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'removeFromCloud', 'fieldLabel' => 'Remove from all clouds', 'type' => 'checkbox', 'defaultValue' => true, 'required' => true, 'description' => "Remove from all clouds"}], options[:options], @api_client)
+    remove_from_cloud = v_prompt['removeFromCloud'].to_s == 'true' || v_prompt['removeFromCloud'].to_s == 'on'
+    params['removeFromCloud'] = remove_from_cloud
     
     # Delete confirmation
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
