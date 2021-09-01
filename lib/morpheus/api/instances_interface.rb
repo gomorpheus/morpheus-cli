@@ -57,11 +57,24 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def cancel_removal(id, params = {})
-    url = "#{@base_url}/api/instances/#{id}/cancel-removal"
-    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :put, url: url, headers: headers}
-    execute(opts)
+  def extend_shutdown(id, params={}, payload={}, headers={})
+    execute(method: :put, url: "#{base_path}/#{id}/extend-shutdown", params: params, payload: payload, headers: headers)
+  end
+
+  def extend_expiration(id, params={}, payload={}, headers={})
+    execute(method: :put, url: "#{base_path}/#{id}/extend-expiration", params: params, payload: payload, headers: headers)
+  end
+
+  def cancel_shutdown(id, params={}, payload={}, headers={})
+    execute(method: :put, url: "#{base_path}/#{id}/cancel-shutdown", params: params, payload: payload, headers: headers)
+  end
+
+  def cancel_expiration(id, params={}, payload={}, headers={})
+    execute(method: :put, url: "#{base_path}/#{id}/cancel-expiration", params: params, payload: payload, headers: headers)
+  end
+
+  def cancel_removal(id, params={}, payload={}, headers={})
+    execute(method: :put, url: "#{base_path}/#{id}/cancel-removal", params: params, payload: payload, headers: headers)
   end
 
   def stop(id, params={})

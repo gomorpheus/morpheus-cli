@@ -15,9 +15,10 @@ class Morpheus::Cli::Instances
 
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, 
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, 
+                       :cancel_removal, :cancel_expiration, :cancel_shutdown, :extend_expiration, :extend_shutdown,
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
-                       :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
+                       :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
                        :lock, :unlock, :clone_image,
                        :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshot, :snapshots,
@@ -2776,32 +2777,154 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Cancel removal of an instance.
+This is a way to undo delete of an instance still pending removal.
+[instance] is required. This is the name or id of an instance
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.cancel_removal(instance['id'])
-        return
-      end
-      json_response = @instances_interface.cancel_removal(instance['id'])
-      if options[:json]
-        print as_json(json_response, options), "\n"
-        return
-      elsif !options[:quiet]
-        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_removal(instance['id'], params, payload)
+      return
     end
+    json_response = @instances_interface.cancel_removal(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled removal for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def cancel_expiration(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Cancel expiration of an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_expiration(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.cancel_expiration(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled expiration for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def cancel_shutdown(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Cancel shutdown for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_shutdown(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.cancel_shutdown(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled shutdown for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def extend_expiration(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Extend expiration for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.extend_expiration(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.extend_expiration(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "extended expiration for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def extend_shutdown(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Extend shutdown for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.extend_shutdown(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.extend_shutdown(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Extended shutdown for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
   end
 
   def firewall_disable(args)
