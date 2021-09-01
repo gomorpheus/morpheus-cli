@@ -61,7 +61,7 @@ module Morpheus
         ).each do |option_type|
           context_map = results
           value = nil
-          value_found=false
+          value_found = false
           field_group = (option_type['fieldGroup'] || 'default').to_s.sub(/options\Z/i, "").strip # avoid "ADVANCED OPTION OPTIONS"
 
           if cur_field_group != field_group
@@ -281,7 +281,8 @@ module Morpheus
             value = [value] if !value.nil? && !value.is_a?(Array)
             # parent_context_map[parent_ns] = value
           end
-          context_map[field_name] = value
+          context_map[field_name] = value if !(value.nil? || (value.is_a?(Hash) && value.empty?))
+          parent_context_map.reject! {|k,v| k == parent_ns && (v.nil? || (v.is_a?(Hash) && v.empty?))}
         end
         results
       end
