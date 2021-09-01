@@ -45,10 +45,10 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
-  def destroy(id)
+  def destroy(id, params={})
     url = "#{@base_url}/api/virtual-images/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :delete, url: url, headers: headers)
+    execute(method: :delete, url: url, params: params, headers: headers)
   end
 
   # multipart file upload
@@ -163,6 +163,27 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     headers = { params: {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     headers[:params][:filename] = filename
     execute(method: :delete, url: url, headers: headers)
+  end
+
+  def location_base_path(resource_id)
+    "/api/virtual-images/#{resource_id}/locations"
+  end
+
+  def list_locations(resource_id, params={}, headers={})
+    validate_id!(resource_id)
+    execute(method: :get, url: "#{location_base_path(resource_id)}", params: params, headers: headers)
+  end
+
+  def get_location(resource_id, id, params={}, headers={})
+    validate_id!(resource_id)
+    validate_id!(id)
+    execute(method: :get, url: "#{location_base_path(resource_id)}/#{id}", params: params, headers: headers)
+  end
+
+  def destroy_location(resource_id, id, params = {}, headers={})
+    validate_id!(resource_id)
+    validate_id!(id)
+    execute(method: :delete, url: "#{location_base_path(resource_id)}/#{id}", params: params, headers: headers)
   end
 
 end

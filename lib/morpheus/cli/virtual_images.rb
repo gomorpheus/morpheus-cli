@@ -11,8 +11,7 @@ class Morpheus::Cli::VirtualImages
   include Morpheus::Cli::ProvisioningHelper
 
   register_subcommands :list, :get, :add, :add_file, :remove_file, :update, :remove, :types => :virtual_image_types
-  alias_subcommand :details, :get
-  set_default_subcommand :list
+  register_subcommands :list_locations, :get_location, :remove_location
 
   # def initialize() 
   # 	# @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance	
@@ -188,6 +187,7 @@ EOT
       image = json_response['virtualImage']
       image_config = image['config'] || {}
       image_volumes = image['volumes'] || []
+      image_locations = image['locations'] || []
       image_files = json_response['cloudFiles'] || json_response['files']
       image_type = virtual_image_type_for_name_or_code(image['imageType'])
       image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
@@ -255,7 +255,7 @@ EOT
           # print "\n", reset
         end
 
-        if image_files
+        if image_files && !image_files.empty?
           print_h2 "Files (#{image_files.size})"
           # image_files.each {|image_file|
           #   pretty_filesize = Filesize.from("#{image_file['size']} B").pretty
@@ -269,6 +269,11 @@ EOT
           print cyan
           print as_pretty_table(image_file_rows, [:filename, :size])
           # print reset,"\n"
+        end
+        
+        if image_locations && !image_locations.empty?
+          print_h2 "Locations", options
+          print as_pretty_table(image_locations, virtual_image_location_list_column_definitions.upcase_keys!, options)
         end
 
         if options[:details] && image_config && !image_config.empty?
@@ -689,7 +694,7 @@ EOT
       image = find_virtual_image_by_name_or_id(image_name)
       return 1 if image.nil?
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image filename #{filename}?")
-        exit
+        return 9, "aborted"
       end
       @virtual_images_interface.setopts(options)
       if options[:dry_run]
@@ -709,44 +714,188 @@ EOT
   end
 
   def remove(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[image] [location]")
+      opts.on('--remove-from-cloud [true|false]', String, "Remove from all clouds. Default is true.") do |val|
+        options[:options]['removeFromCloud'] = ['','true','on'].include?(val.to_s)
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete a virtual image.
+[image] is required. This is the name or id of a virtual image.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    image_name = args[0]
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      image = find_virtual_image_by_name_or_id(image_name)
-      return 1 if image.nil?
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
-        exit
-      end
-      @virtual_images_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @virtual_images_interface.dry.destroy(image['id'])
-        return
-      end
-      json_response = @virtual_images_interface.destroy(image['id'])
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-      else
-        print "\n", cyan, "Virtual Image #{image['name']} removed", reset, "\n\n"
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    image = find_virtual_image_by_name_or_id(args[0])
+    return 1, "virtual image not found for '#{args[0]}'" if image.nil?
+    params.merge!(parse_query_options(options))
+    # Delete prompt
+    # [ X ] Remove from all clouds
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'removeFromCloud', 'fieldLabel' => 'Remove from all clouds', 'type' => 'checkbox', 'defaultValue' => true, 'required' => true, 'description' => "Remove from all clouds"}], options[:options], @api_client)
+    remove_from_cloud = v_prompt['removeFromCloud'].to_s == 'true' || v_prompt['removeFromCloud'].to_s == 'on'
+    params['removeFromCloud'] = remove_from_cloud
+    
+    # Delete confirmation
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image #{image['name']}?")
+      return 9, "aborted"
     end
+    
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.destroy(image['id'], params)
+      return
+    end
+    json_response = @virtual_images_interface.destroy(image['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Removed virtual image #{image['name']}"
+    end
+    return 0, nil
   end
 
+  def list_locations(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[image]")
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List virtual image locations for a specific virtual image.
+[image] is required. This is the name or id of a virtual image.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    if args.count > 1
+      options[:phrase] = args[1..-1].join(" ")
+    end
+    connect(options)
+    image = find_virtual_image_by_name_or_id(args[0])
+    return 1, "virtual image not found for '#{args[0]}'" if image.nil?
+    params.merge!(parse_list_options(options))
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.list_locations(image['id'], params)
+      return
+    end
+    json_response = @virtual_images_interface.list_locations(image['id'], params)
+    records = json_response['locations']
+    render_response(json_response, options, 'virtualImages') do
+      title = "Virtual Image Locations"
+      subtitles = parse_list_subtitles(options)
+      print_h1 title, subtitles
+      if records.empty?
+        print cyan,"No virtual image locations found.",reset,"\n"
+      else
+        print as_pretty_table(records, virtual_image_location_list_column_definitions.upcase_keys!, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def get_location(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[image] [location]")
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a virtual image location.
+[image] is required. This is the name or id of a virtual image.
+[location] is required. This is the name or id of a virtual image location.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    image = find_virtual_image_by_name_or_id(args[0])
+    return 1, "virtual image not found for '#{args[0]}'" if image.nil?
+    location = find_virtual_image_location_by_name_or_id(image['id'], args[1])
+    return 1, "location not found for '#{args[1]}'" if location.nil?
+    params.merge!(parse_query_options(options))
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.get_location(image['id'], location['id'])
+      return 0, nil
+    end
+    # json_response = @virtual_images_interface.get(image['id'], location['id'])
+    json_response = {'location' => location} # skip redundant request
+    render_response(json_response, options, 'location') do
+      location = json_response['location']
+      volumes = location['volumes'] || []
+      print_h1 "Virtual Image Location Details", [], options
+      print_description_list(virtual_image_location_column_definitions, location, options)
+      if volumes && !volumes.empty?
+        print_h2 "Volumes", options
+        volume_rows = location_volumes.collect do |volume|
+          {name: volume['name'], size: Filesize.from("#{volume['rawSize']} B").pretty}
+        end
+        print cyan
+        print as_pretty_table(volume_rows, [:name, :size], options)
+        print cyan
+        # print "\n", reset
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def remove_location(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[image] [location]")
+      opts.on('--remove-from-cloud [true|false]', String, "Remove from cloud. Default is true.") do |val|
+        options[:options]['removeFromCloud'] = ['','true','on'].include?(val.to_s)
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete a virtual image location.
+[image] is required. This is the name or id of a virtual image.
+[location] is required. This is the name or id of a virtual image location.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    image = find_virtual_image_by_name_or_id(args[0])
+    return 1, "virtual image not found for '#{args[0]}'" if image.nil?
+    location = find_virtual_image_location_by_name_or_id(image['id'], args[1])
+    return 1, "location not found for '#{args[1]}'" if location.nil?
+
+    params.merge!(parse_query_options(options))
+    
+    # Delete prompt
+    # [ X ] Remove from cloud
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'removeFromCloud', 'fieldLabel' => 'Remove from cloud', 'type' => 'checkbox', 'defaultValue' => true, 'required' => true, 'description' => "Remove from cloud"}], options[:options], @api_client)
+    remove_from_cloud = v_prompt['removeFromCloud'].to_s == 'true' || v_prompt['removeFromCloud'].to_s == 'on'
+    params['removeFromCloud'] = remove_from_cloud
+    
+    # Delete confirmation
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the virtual image location #{location['id']}?")
+      return 9, "aborted"
+    end
+    
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.destroy_location(image['id'], location['id'], params)
+      return
+    end
+    json_response = @virtual_images_interface.destroy_location(image['id'], location['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Removed virtual image location #{location['id']}"
+    end
+    return 0, nil
+  end
 
   private
-    def find_virtual_image_by_name_or_id(val)
+  
+  def find_virtual_image_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_virtual_image_by_id(val)
     else
@@ -910,5 +1059,76 @@ EOT
     end
     out
   end
+
+
+  ## Virtual Image Locations
+
+  def virtual_image_location_object_key
+    "location"
+  end
+
+  def virtual_image_location_list_key
+    "locations"
+  end
+
+  def find_virtual_image_location_by_name_or_id(virtual_image_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_virtual_image_location_by_id(virtual_image_id, val)
+    else
+      return find_virtual_image_location_by_name(virtual_image_id, val)
+    end
+  end
+
+  def virtual_image_location_list_column_definitions
+    virtual_image_location_column_definitions
+  end
+
+  def virtual_image_location_column_definitions
+    {
+      "ID" => 'id',
+      "Name" => 'imageName',
+      "Cloud" => lambda {|it| it['cloud']['name'] rescue '' }, 
+      "Public" => lambda {|it| format_boolean(it['isPublic']) },
+      "Region" => lambda {|it| it['imageRegion'] }, 
+      "External ID" => lambda {|it| it['externalId'] }, 
+      "Price Plan" => lambda {|it| it['pricePlan'] ? it['pricePlan']['name'] : nil }, 
+      # "Virtual Image" => lambda {|it| it['virtualImage']['name'] rescue '' }, 
+      # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+
+  def find_virtual_image_location_by_id(virtual_image_id, id)
+    begin
+      json_response = @virtual_images_interface.get_location(virtual_image_id, id.to_i)
+      return json_response[virtual_image_location_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Virtual Image Location not found by id '#{id}'"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_virtual_image_location_by_name(virtual_image_id, name)
+    json_response = @virtual_images_interface.list_locations(virtual_image_id, {imageName: name.to_s})
+    virtual_image_locations = json_response[virtual_image_location_list_key]
+    if virtual_image_locations.empty?
+      print_red_alert "Virtual Image Location not found by name '#{name}'"
+      return nil
+    elsif virtual_image_locations.size > 1
+      print_red_alert "#{virtual_image_locations.size} Virtual Image Locations found by name '#{name}'"
+      print_error "\n"
+      puts_error as_pretty_table(virtual_image_locations, {"ID" => 'id', "NAME" => 'imageName'}, {color:red})
+      print_red_alert "Try using ID instead"
+      print_error reset,"\n"
+      return nil
+    else
+      return virtual_image_locations[0]
+    end
+  end
+
 
 end
