@@ -2890,7 +2890,7 @@ EOT
     end
     json_response = @instances_interface.extend_expiration(instance['id'], params, payload)
     render_response(json_response, options) do
-      print_green_success "extended expiration for instance #{instance['name']} ..."
+      print_green_success "Extended expiration for instance #{instance['name']} ..."
       get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     end
     return 0, nil
