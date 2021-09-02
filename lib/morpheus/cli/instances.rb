@@ -2584,17 +2584,18 @@ class Morpheus::Cli::Instances
       cloud_id = instance['cloud']['id']
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
-    
+      current_plan_name = instance['plan']['name']
       # prompt for service plan
       service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
-        if plan['value'] && plan['value'].to_i == plan_id.to_i
-          plan['name'] = "#{plan['name']} (current)"
-        end
+        # if plan['value'] && plan['value'].to_i == plan_id.to_i
+        #   plan['name'] = "#{plan['name']} (current)"
+        #   current_plan_name = plan['name']
+        # end
       end
-      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
+      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'servicePlan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'defaultValue' => current_plan_name, 'description' => 'Choose the appropriately sized plan for this instance'}],options[:options])
       service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['servicePlan'].to_i }
       new_plan_id = service_plan["id"]
       #payload[:servicePlan] = new_plan_id # ew, this api uses servicePlanId instead
@@ -2614,7 +2615,8 @@ class Morpheus::Cli::Instances
       # for now, always do this
       payload["deleteOriginalVolumes"] = true
     end
-    
+    payload.delete("rootVolume")
+    (1..20).each {|i| payload.delete("dataVolume#{i}") }
     @instances_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @instances_interface.dry.resize(instance['id'], payload)
