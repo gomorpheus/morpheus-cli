@@ -161,6 +161,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         "Workflow" => lambda {|it| it['taskSets'] && it['taskSets'].count > 0 ? it['taskSets'][0]['name'] : nil},
         "Description" => lambda {|it| it['description']},
         "Horizontal Scaling" => lambda {|it| format_boolean(it['hasAutoScale'])},
+        "Install Docker" => lambda {|it| it['installContainerRuntime'].nil? ? nil : format_boolean(it['installContainerRuntime'])},
       }
 
       print_description_list(description_cols, layout)
