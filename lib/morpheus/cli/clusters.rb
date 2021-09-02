@@ -581,7 +581,7 @@ class Morpheus::Cli::Clusters
           if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, nil, controller_provision_type, options)
             server_payload['config']['resourcePoolId'] = resource_pool['id']
             api_params['config'] ||= {}
-            api_params['config']['resourcePoolId'] = resource_pool['id']
+            api_params['config']['resourcePool'] = resource_pool['id']
             api_params['resourcePoolId'] = resource_pool['id']
             api_params['zonePoolId'] = resource_pool['id']
           end
