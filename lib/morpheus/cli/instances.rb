@@ -2775,6 +2775,7 @@ EOT
 
   def cancel_removal(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
       build_standard_update_options(opts, options)
@@ -2806,6 +2807,7 @@ EOT
 
   def cancel_expiration(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
       build_standard_update_options(opts, options, [:query]) # query params instead of p
