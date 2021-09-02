@@ -563,16 +563,11 @@ class Morpheus::Cli::Clusters
         end
 
         cluster_payload['layout'] = {id: layout['id']}
-        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}
 
-        # Plan
+        # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
-        service_plan = prompt_service_plan(cloud['id'], provision_type, options)
 
-        if service_plan
-          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
-          api_params['planId'] = service_plan['id']
-        end
+        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionTypeId: provision_type['id']}
 
         # Controller type
         server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
@@ -583,11 +578,21 @@ class Morpheus::Cli::Clusters
           controller_type = server_types.first
           controller_provision_type = controller_type['provisionType'] ? (@provision_types_interface.get(controller_type['provisionType']['id'])['provisionType'] rescue nil) : nil
 
-          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, service_plan, controller_provision_type, options)
-              server_payload['config']['resourcePool'] = resource_pool['externalId']
-              api_params['resourcePoolId'] = resource_pool['externalId']
-              api_params['zonePoolId'] = resource_pool['id']
+          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, nil, controller_provision_type, options)
+            server_payload['config']['resourcePoolId'] = resource_pool['id']
+            api_params['config'] ||= {}
+            api_params['config']['resourcePoolId'] = resource_pool['id']
+            api_params['resourcePoolId'] = resource_pool['id']
+            api_params['zonePoolId'] = resource_pool['id']
           end
+        end
+
+        # Service Plan
+        service_plan = prompt_service_plan(api_params, options)
+
+        if service_plan
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+          api_params['planId'] = service_plan['id']
         end
 
         # Multi-disk / prompt for volumes
@@ -1160,20 +1165,20 @@ class Morpheus::Cli::Clusters
           cloud_id = (default_cloud && cloud_id == default_cloud['name']) ? default_cloud['value'] : cloud_id
         end
 
-        server_payload['cloud'] = {'id' => cloud_id}
-        service_plan = prompt_service_plan(cloud_id, server_type['provisionType'], options)
-
-        if service_plan
-          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
-        end
-
         # resources (zone pools)
         cloud = @clouds_interface.get(cloud_id)['zone']
         cloud['zoneType'] = get_cloud_type(cloud['zoneType']['id'])
         group = @groups_interface.get(cluster['site']['id'])['group']
 
+        server_payload['cloud'] = {'id' => cloud_id}
+        service_plan = prompt_service_plan({zoneId: cloud_id, siteId: cluster['site']['id'], provisionTypeId: server_type['provisionType']['id'], groupTypeId: cluster_type['id'], }, options)
+
+        if service_plan
+          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+        end
+
         if resource_pool = prompt_resource_pool(cluster, cloud, service_plan, server_type['provisionType'], options)
-          server_payload['config']['resourcePool'] = resource_pool['externalId']
+          server_payload['config']['resourcePoolId'] = resource_pool['id']
         end
 
         # Multi-disk / prompt for volumes
@@ -1194,7 +1199,7 @@ class Morpheus::Cli::Clusters
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
 
         # Worker count
-        default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
+        default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 1})['nodeCount'] : 1
         server_payload['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "nodeCount", 'type' => 'number', 'fieldLabel' => "#{cluster_type['code'].include?('docker') ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count}], options[:options], @api_client, {}, options[:no_prompt])["nodeCount"]
 
         # Options / Custom Config
@@ -3648,8 +3653,8 @@ class Morpheus::Cli::Clusters
     @server_types_interface.get(val)['serverType']
   end
 
-  def service_plans_for_dropdown(zone_id, provision_type_id)
-    @servers_interface.service_plans({zoneId: zone_id, provisionTypeId: provision_type_id})['plans'] rescue []
+  def service_plans_for_dropdown(api_params)
+    @servers_interface.service_plans(api_params)['plans'] rescue []
   end
 
   def namespace_service_plans
@@ -3692,10 +3697,10 @@ class Morpheus::Cli::Clusters
     @groups_interface.get(group_id)['group']
   end
 
-  def prompt_service_plan(zone_id, provision_type, options)
-    available_service_plans = service_plans_for_dropdown(zone_id, provision_type['id'])
+  def prompt_service_plan(api_params, options)
+    available_service_plans = service_plans_for_dropdown(api_params)
     if available_service_plans.empty?
-      print_red_alert "Cloud #{zone_id} has no available plans"
+      print_red_alert "Cloud #{api_params['zoneId']} has no available plans"
       exit 1
     end
     if options[:servicePlan]
@@ -3866,7 +3871,7 @@ class Morpheus::Cli::Clusters
         resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
 
         if !resource_pool
-          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id'], planId: (service_plan['id'] rescue nil)})['data'].reject { |it| it['id'].nil? && it['name'].nil? }
+          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id']}.merge(service_plan ? {planId: service_plan['id']} : {}))['data'].reject { |it| it['id'].nil? && it['name'].nil? }
 
           if resource_pool_options.empty?
             print_red_alert "Cloud #{cloud['name']} has no available resource pools"
