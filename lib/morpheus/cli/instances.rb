@@ -1923,7 +1923,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Stop an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2051,7 +2051,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Restart an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2119,7 +2119,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring')
+      opts.add_hidden_option('--muteMonitoring')
       opts.on('--server [on|off]', String, "Suspend instance server. Default is off.") do |val|
         params['server'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
@@ -2225,7 +2225,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Stop service on an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2353,7 +2353,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring')
+      opts.add_hidden_option('--muteMonitoring')
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Restart service on an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -3733,7 +3733,7 @@ EOT
       opts.on('--process-id ID', String, "Display details about a specfic event." ) do |val|
         options[:process_id] = val
       end
-      opts.add_hidden_option('process-id')
+      opts.add_hidden_option('--process-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display history details for a specific process.\n" + 
                     "[instance] is required. This is the name or id of an instance.\n" +
@@ -3833,7 +3833,7 @@ EOT
       opts.on('--event-id ID', String, "Display details about a specfic event." ) do |val|
         options[:event_id] = val
       end
-      opts.add_hidden_option('event-id')
+      opts.add_hidden_option('--event-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display history details for a specific process event.\n" + 
                     "[instance] is required. This is the name or id of an instance.\n" +
