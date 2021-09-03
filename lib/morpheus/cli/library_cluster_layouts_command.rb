@@ -249,10 +249,10 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('-s', '--auto-scale [on|off]', String, "Can be used to enable / disable horizontal scaling. Default is on") do |val|
         params['hasAutoScale'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--install-docker [on|off]', String, "Install Docker (container runtime). Default is depends off.") do |val|
+      opts.on('--install-docker [on|off]', String, "Install Docker (container runtime). Default is off.") do |val|
         params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--install-container-runtime [on|off]', String, "Install Docker (container runtime. Default is depends off.") do |val|
+      opts.on('--install-container-runtime [on|off]', String, "Install Docker (container runtime. Default is off.") do |val|
         params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.add_hidden_option('--install-container-runtime')
@@ -519,10 +519,10 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('-s', '--auto-scale [on|off]', String, "Can be used to enable / disable horizontal scaling. Default is on") do |val|
         params['hasAutoScale'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--install-docker [on|off]', String, "Install Docker (container runtime). Default is depends off.") do |val|
+      opts.on('--install-docker [on|off]', String, "Install Docker (container runtime). Default is off.") do |val|
         params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--install-container-runtime [on|off]', String, "Install Docker (container runtime. Default is depends off.") do |val|
+      opts.on('--install-container-runtime [on|off]', String, "Install Docker (container runtime. Default is off.") do |val|
         params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.add_hidden_option('--install-container-runtime')
