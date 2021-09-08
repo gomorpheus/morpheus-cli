@@ -1352,13 +1352,9 @@ module Morpheus::Cli::ProvisioningHelper
 
           field_context = "dataVolume#{volume_index}"
 
-          if no_prompt
-            volume_action = 'keep'
-          else
-            action_options = [{'name' => 'Modify', 'value' => 'modify'}, {'name' => 'Keep', 'value' => 'keep'}, {'name' => 'Delete', 'value' => 'delete'}]
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'action', 'type' => 'select', 'fieldLabel' => "Modify/Keep/Delete volume '#{current_volume['name']}'", 'selectOptions' => action_options, 'required' => true, 'defaultValue' => 'keep', 'description' => 'Modify, Keep or Delete existing data volume?'}], options[:options])
-            volume_action = v_prompt[field_context]['action']
-          end
+          action_options = [{'name' => 'Modify', 'value' => 'modify'}, {'name' => 'Keep', 'value' => 'keep'}, {'name' => 'Delete', 'value' => 'delete'}]
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'action', 'type' => 'select', 'fieldLabel' => "Modify/Keep/Delete volume '#{current_volume['name']}'", 'selectOptions' => action_options, 'required' => true, 'defaultValue' => 'keep', 'description' => 'Modify, Keep or Delete existing data volume?'}], options[:options])
+          volume_action = v_prompt[field_context]['action']
 
           if volume_action == 'delete'
             # deleted volume is just excluded from post params
