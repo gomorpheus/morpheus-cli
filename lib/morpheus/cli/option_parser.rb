@@ -32,27 +32,35 @@ module Morpheus
           #out << "Options:\n"
           # the default way..
           # out << summarize().join("")
-
           # super hacky, should be examining the option, not the fully formatted description
           my_summaries = summarize()
-          summarize().each do |opt_description|
-            is_hidden = (@hidden_options || []).find { |hidden_switch|
-              # opt_description.include?("--#{hidden_switch}")
-              if hidden_switch.start_with?("-")
-                opt_description.to_s.strip.start_with?("#{hidden_switch} ")
+          if opts[:show_hidden_options]
+            my_summaries.each do |full_line|
+              out << full_line
+            end
+          else
+            on_hidden_option = false
+            my_summaries.each do |full_line|
+              opt_description = full_line.to_s.strip
+              if opt_description.start_with?("-")
+                is_hidden = (@hidden_options || []).find { |hidden_switch|
+                  if hidden_switch.start_with?("-")
+                    opt_description.start_with?("#{hidden_switch} ")
+                  else
+                    opt_description.start_with?("--#{hidden_switch} ")
+                  end
+                }
+                if is_hidden
+                  on_hidden_option = true
+                else
+                  on_hidden_option = false
+                  out << full_line
+                end
               else
-                opt_description.to_s.strip.start_with?("--#{hidden_switch} ")
+                if on_hidden_option == false
+                  out << full_line
+                end
               end
-            }
-            if is_hidden
-              if opts[:show_hidden_options]
-                # out << opt_description + " (hidden)"
-                out << opt_description
-              else
-                # hidden
-              end
-            else
-              out << opt_description
             end
           end
         end

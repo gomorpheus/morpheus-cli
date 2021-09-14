@@ -158,11 +158,13 @@ class Morpheus::Cli::MonitoringChecksCommand
           end
         },
         "Type" => lambda {|it| format_monitoring_check_type(it) },
+        "API Key" => lambda {|it| it['apiKey'] },
         "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : "System" },
         "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
         # "Last Error" => lambda {|it| format_local_dt(it['lastErrorDate']) },
       }
+      description_cols.delete("API Key") if !['pushCheck'].include?(check['checkType']['code']) || check['apiKey'].nil?
       print_description_list(description_cols, check)
 
       # Last Error

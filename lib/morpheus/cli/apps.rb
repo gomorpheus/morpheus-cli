@@ -438,7 +438,7 @@ class Morpheus::Cli::Apps
                       instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
                       instance_prompt_options[:environment] = selected_environment ? selected_environment['code'] : nil
                       instance_prompt_options[:default_security_groups] = scoped_instance_config['securityGroups'] ? scoped_instance_config['securityGroups'] : nil
-                      
+
                       instance_prompt_options[:no_prompt] = options[:no_prompt]
                       #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
                       instance_prompt_options[:options] = scoped_instance_config # meh, actually need to make these default values instead..
@@ -460,8 +460,9 @@ class Morpheus::Cli::Apps
                       instance_prompt_options[:locked_fields] = scoped_instance_config['lockedFields']
                       instance_prompt_options[:for_app] = true
                       # this provisioning helper method handles all (most) of the parsing and prompting
+                      scoped_instance_config = Marshal.load( Marshal.dump(scoped_instance_config) )
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
-                      
+
                       # strip all empty string and nil
                       instance_config_payload.deep_compact!
                       # use the blueprint config as the base

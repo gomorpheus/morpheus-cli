@@ -15,9 +15,10 @@ class Morpheus::Cli::Instances
 
   set_command_name :instances
   set_command_description "View and manage instances."
-  register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :logs, 
+  register_subcommands :list, :count, :get, :view, :add, :update, :remove, 
+                       :cancel_removal, :cancel_expiration, :cancel_shutdown, :extend_expiration, :extend_shutdown,
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
-                       :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
+                       :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
                        :lock, :unlock, :clone_image,
                        :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshot, :snapshots,
@@ -444,7 +445,7 @@ class Morpheus::Cli::Instances
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      build_standard_add_options(opts, options) #, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new instance." + "\n" +
                     "[name] is required. This is the new instance name." + "\n" +
                     "The available options vary by --type."
@@ -462,24 +463,30 @@ class Morpheus::Cli::Instances
       options[:instance_name] = args[0]
     end
 
-    begin
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        # support -O OPTION switch on top of --payload
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # obviously should support every option that prompt supports on top of -- payload as well
-        # group, cloud and type for now
-        # todo: also support :layout, service_plan, :resource_pool, etc.
-        group = nil
-        if options[:group]
-          group = find_group_by_name_or_id_for_provisioning(options[:group])
-          if group.nil?
-            return 1, "group not found by #{options[:group]}"
-          end
-          #payload["siteId"] = group["id"]
-          payload.deep_merge!({"instance" => {"site" => {"id" => group["id"]} } })
+    if options[:payload]
+      payload = options[:payload]
+      # support -O OPTION switch on top of --payload
+      payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      # obviously should support every option that prompt supports on top of -- payload as well
+      # group, cloud and type for now
+      # todo: also support :layout, service_plan, :resource_pool, etc.
+      group = nil
+      if options[:group]
+        group = find_group_by_name_or_id_for_provisioning(options[:group])
+        if group.nil?
+          return 1, "group not found by #{options[:group]}"
         end
+        payload.deep_merge!({"instance" => {"site" => {"id" => group["id"]} } })
+      end
+      if options[:cloud]
+        group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
+        cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
+        if cloud.nil?
+          return 1, "cloud not found by #{options[:cloud]}"
+        end
+        payload["zoneId"] = cloud["id"]
+        payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+      end
         if options[:cloud]
           group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
           cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
@@ -489,105 +496,90 @@ class Morpheus::Cli::Instances
           payload["zoneId"] = cloud["id"]
           payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
         end
-        if options[:cloud]
-          group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
-          cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
-          if cloud.nil?
-            return 1, "cloud not found by #{options[:cloud]}"
-          end
-          payload["zoneId"] = cloud["id"]
-          payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+      if options[:instance_type_code]
+        # should just use find_instance_type_by_name_or_id
+        # note that the api actually will match name name or code
+        instance_type = (options[:instance_type_code].to_s =~ /\A\d{1,}\Z/) ? find_instance_type_by_id(options[:instance_type_code]) : find_instance_type_by_code(options[:instance_type_code])
+        if instance_type.nil?
+          return 1, "instance type not found by #{options[:cloud]}"
         end
-        if options[:instance_type_code]
-          # should just use find_instance_type_by_name_or_id
-          # note that the api actually will match name name or code
-          instance_type = (options[:instance_type_code].to_s =~ /\A\d{1,}\Z/) ? find_instance_type_by_id(options[:instance_type_code]) : find_instance_type_by_code(options[:instance_type_code])
-          if instance_type.nil?
-            return 1, "instance type not found by #{options[:cloud]}"
-          end
-          payload.deep_merge!({"instance" => {"type" => instance_type["code"] } })
-          payload.deep_merge!({"instance" => {"instanceType" => {"code" => instance_type["code"]} } })
-        end
-
-      else
-        # use active group by default
-        options[:group] ||= @active_group_id
-        options[:select_datastore] = true
-        options[:name_required] = true
-        # prompt for all the instance configuration options
-        # this provisioning helper method handles all (most) of the parsing and prompting
-        # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
-        payload = prompt_new_instance(options)
-        # clean payload of empty objects 
-        # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
-        if payload['instance'].is_a?(Hash)
-          payload['instance'].keys.each do |k|
-            v = payload['instance'][k]
-            payload['instance'].delete(k) if v.is_a?(Hash) && v.empty?
-          end
-        end
-        if payload['config'].is_a?(Hash)
-          payload['config'].keys.each do |k|
-            v = payload['config'][k]
-            payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
-          end
+        payload.deep_merge!({"instance" => {"type" => instance_type["code"] } })
+        payload.deep_merge!({"instance" => {"instanceType" => {"code" => instance_type["code"]} } })
+      end
+    else
+      # use active group by default
+      options[:group] ||= @active_group_id
+      options[:select_datastore] = true
+      options[:name_required] = true
+      # prompt for all the instance configuration options
+      # this provisioning helper method handles all (most) of the parsing and prompting
+      # and it relies on the method to exit non-zero on error, like a bad CLOUD or TYPE value
+      payload = prompt_new_instance(options)
+      # clean payload of empty objects
+      # note: this is temporary and should be fixed upstream in OptionTypes.prompt()
+      if payload['instance'].is_a?(Hash)
+        payload['instance'].keys.each do |k|
+          v = payload['instance'][k]
+          payload['instance'].delete(k) if v.is_a?(Hash) && v.empty?
         end
       end
-      payload['instance'] ||= {}
-      if options[:instance_name]
-        payload['instance']['name'] = options[:instance_name]
-      end
-      if options[:description] && !payload['instance']['description']
-        payload['instance']['description'] = options[:description]
-      end
-      if options[:environment] && !payload['instance']['instanceContext']
-        payload['instance']['instanceContext'] = options[:environment]
-      end
-      payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
-      payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
-      payload[:createBackup] = options[:create_backup] if !options[:create_backup].nil?
-      payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
-      payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
-      if options.key?(:create_user)
-        payload['config'] ||= {}
-        payload['config']['createUser'] = options[:create_user]
-      end
-      if options[:user_group_id]
-        payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
-      end
-      if options[:workflow_id]
-        if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
-          payload['taskSetId'] = options[:workflow_id].to_i
-        else
-          payload['taskSetName'] = options[:workflow_id]
+      if payload['config'].is_a?(Hash)
+        payload['config'].keys.each do |k|
+          v = payload['config'][k]
+          payload['config'].delete(k) if v.is_a?(Hash) && v.empty?
         end
       end
-      if options[:enable_load_balancer]
-        lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
-        payload.deep_merge!(lb_payload)
-      end
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.create(payload)
-        return 0
-      end
-
-      json_response = @instances_interface.create(payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        instance_id = json_response["instance"]["id"]
-        instance_name = json_response["instance"]["name"]
-        print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
-        # print details
-        get_args = [instance_id] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
-        get(get_args)
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+
+    payload['instance'] ||= {}
+    if options[:instance_name]
+      payload['instance']['name'] = options[:instance_name]
+    end
+    if options[:description] && !payload['instance']['description']
+      payload['instance']['description'] = options[:description]
+    end
+    if options[:environment] && !payload['instance']['instanceContext']
+      payload['instance']['instanceContext'] = options[:environment]
+    end
+    payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+    payload[:layoutSize] = options[:layout_size] if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+    payload[:createBackup] = options[:create_backup] if !options[:create_backup].nil?
+    payload['instance']['expireDays'] = options[:expire_days] if options[:expire_days]
+    payload['instance']['shutdownDays'] = options[:shutdown_days] if options[:shutdown_days]
+    if options.key?(:create_user)
+      payload['config'] ||= {}
+      payload['config']['createUser'] = options[:create_user]
+    end
+    if options[:user_group_id]
+      payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
+    end
+    if options[:workflow_id]
+      if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
+        payload['taskSetId'] = options[:workflow_id].to_i
+      else
+        payload['taskSetName'] = options[:workflow_id]
+      end
+    end
+    if options[:enable_load_balancer]
+      lb_payload = prompt_instance_load_balancer(payload['instance'], nil, options)
+      payload.deep_merge!(lb_payload)
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.create(payload)
+      return 0
+    end
+
+    json_response = @instances_interface.create(payload)
+    render_response(json_response, options, "instance") do
+      instance_id = json_response["instance"]["id"]
+      instance_name = json_response["instance"]["name"]
+      print_green_success "Provisioning instance [#{instance_id}] #{instance_name}"
+      # print details
+      get_args = [instance_id] + (options[:remote] ? ["-r",options[:remote]] : []) + (options[:refresh_interval] ? ['--refresh', options[:refresh_interval].to_s] : [])
+      get(get_args)
+    end
+    return 0, nil
   end
 
   def update(args)
@@ -1931,7 +1923,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Stop an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2059,7 +2051,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Restart an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2127,7 +2119,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring')
+      opts.add_hidden_option('--muteMonitoring')
       opts.on('--server [on|off]', String, "Suspend instance server. Default is off.") do |val|
         params['server'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
@@ -2233,7 +2225,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is off.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
+      opts.add_hidden_option('--muteMonitoring') if opts.is_a?(Morpheus::Cli::OptionParser)
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Stop service on an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2361,7 +2353,7 @@ class Morpheus::Cli::Instances
       opts.on('--muteMonitoring [on|off]', String, "Mute monitoring. Default is on.") do |val|
         params['muteMonitoring'] = val.nil? || val.to_s == 'on' || val.to_s == 'true'
       end
-      opts.add_hidden_option('muteMonitoring')
+      opts.add_hidden_option('--muteMonitoring')
       build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
       opts.footer = "Restart service on an instance.\n" +
                     "[instance] is required. This is the name or id of an instance. Supports 1-N [instance] arguments."
@@ -2785,34 +2777,158 @@ EOT
 
   def cancel_removal(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Cancel removal of an instance.
+This is a way to undo delete of an instance still pending removal.
+[instance] is required. This is the name or id of an instance
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.cancel_removal(instance['id'])
-        return
-      end
-      json_response = @instances_interface.cancel_removal(instance['id'])
-      if options[:json]
-        print as_json(json_response, options), "\n"
-        return
-      elsif !options[:quiet]
-        get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_removal(instance['id'], params, payload)
+      return
     end
+    json_response = @instances_interface.cancel_removal(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled removal for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def cancel_expiration(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Cancel expiration of an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_expiration(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.cancel_expiration(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled expiration for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def cancel_shutdown(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Cancel shutdown for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.cancel_shutdown(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.cancel_shutdown(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Canceled shutdown for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def extend_expiration(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Extend expiration for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.extend_expiration(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.extend_expiration(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Extended expiration for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
+  end
+
+  def extend_shutdown(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_update_options(opts, options, [:query]) # query params instead of p
+      opts.footer = <<-EOT
+Extend shutdown for an instance.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    payload = options[:payload] || {}
+    payload.deep_merge!(parse_passed_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.extend_shutdown(instance['id'], params, payload)
+      return
+    end
+    json_response = @instances_interface.extend_shutdown(instance['id'], params, payload)
+    render_response(json_response, options) do
+      print_green_success "Extended shutdown for instance #{instance['name']} ..."
+      get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
   end
 
   def firewall_disable(args)
@@ -3617,7 +3733,7 @@ EOT
       opts.on('--process-id ID', String, "Display details about a specfic event." ) do |val|
         options[:process_id] = val
       end
-      opts.add_hidden_option('process-id')
+      opts.add_hidden_option('--process-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display history details for a specific process.\n" + 
                     "[instance] is required. This is the name or id of an instance.\n" +
@@ -3717,7 +3833,7 @@ EOT
       opts.on('--event-id ID', String, "Display details about a specfic event." ) do |val|
         options[:event_id] = val
       end
-      opts.add_hidden_option('event-id')
+      opts.add_hidden_option('--event-id')
       build_common_options(opts, options, [:query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display history details for a specific process event.\n" + 
                     "[instance] is required. This is the name or id of an instance.\n" +

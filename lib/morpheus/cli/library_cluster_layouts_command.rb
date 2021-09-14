@@ -161,6 +161,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         "Workflow" => lambda {|it| it['taskSets'] && it['taskSets'].count > 0 ? it['taskSets'][0]['name'] : nil},
         "Description" => lambda {|it| it['description']},
         "Horizontal Scaling" => lambda {|it| format_boolean(it['hasAutoScale'])},
+        "Install Docker" => lambda {|it| it['installContainerRuntime'].nil? ? nil : format_boolean(it['installContainerRuntime'])},
       }
 
       print_description_list(description_cols, layout)
@@ -248,6 +249,13 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('-s', '--auto-scale [on|off]', String, "Can be used to enable / disable horizontal scaling. Default is on") do |val|
         params['hasAutoScale'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--install-docker [on|off]', String, "Install Docker container runtime. Default is off.") do |val|
+        params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--install-container-runtime [on|off]', String, "Install Docker container runtime. Default is off.") do |val|
+        params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--install-container-runtime')
       opts.on('--evars-json JSON', String, 'Environment variables JSON: {"name":"Foo", "value":"Bar", "masked":true, "export":true}' ) do |val|
         begin
           evars = JSON.parse(val.to_s)
@@ -374,6 +382,11 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
           params['hasAutoScale'] = Morpheus::Cli::OptionTypes.confirm("Enable scaling?", {:default => false}) == true
         end
 
+        # install docker
+        if params['installContainerRuntime'].nil?
+          params['installContainerRuntime'] = Morpheus::Cli::OptionTypes.confirm("Install Docker?", {:default => false}) == true
+        end
+        
         # evars?
         if params['environmentVariables'].nil?
           evars = []
@@ -506,6 +519,13 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('-s', '--auto-scale [on|off]', String, "Can be used to enable / disable horizontal scaling. Default is on") do |val|
         params['hasAutoScale'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--install-docker [on|off]', String, "Install Docker container runtime. Default is off.") do |val|
+        params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--install-container-runtime [on|off]', String, "Install Docker container runtime. Default is off.") do |val|
+        params['installContainerRuntime'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--install-container-runtime')
       opts.on('--evars-json JSON', String, 'Environment variables JSON: {"name":"Foo", "value":"Bar", "masked":true, "export":true}' ) do |val|
         begin
           evars = JSON.parse(val.to_s)
