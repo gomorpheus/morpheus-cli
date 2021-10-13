@@ -661,8 +661,7 @@ class Morpheus::Cli::NetworksCommand
             payload['network']['pool'] = options['pool'].to_i
           else
             # todo: select dropdown
-            # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, api_params)
             payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
           end
         end
