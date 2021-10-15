@@ -553,7 +553,6 @@ class Morpheus::Cli::Hosts
       server_columns.delete("Cost") if server['hourlyCost'].to_f == 0
       server_columns.delete("Price") if server['hourlyPrice'].to_f == 0 || server['hourlyPrice'] == server['hourlyCost']
       server_columns.delete("Labels") if server['labels'].nil? || server['labels'].empty?
-      server_columns.delete("Tags") if tags.nil? || tags.empty?
 
       print_description_list(server_columns, server)
 

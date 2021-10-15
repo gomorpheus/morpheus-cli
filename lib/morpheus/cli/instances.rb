@@ -1365,7 +1365,6 @@ class Morpheus::Cli::Instances
         "Status" => lambda {|it| format_instance_status(it) }
       }
       description_cols.delete("Labels") if labels.nil? || labels.empty?
-      description_cols.delete("Tags") if tags.nil? || tags.empty?
       description_cols.delete("Apps") if instance['apps'].nil? || instance['apps'].empty?
       description_cols.delete("Power Schedule") if instance['powerSchedule'].nil?
       description_cols.delete("Expire Date") if instance['expireDate'].nil?
