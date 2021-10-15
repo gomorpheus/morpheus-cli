@@ -313,7 +313,7 @@ class Morpheus::Cli::NetworkRoutersCommand
             server_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'required' => true, 'optionSource' => 'networkServer'}], options[:options], @api_client, params, nil, true)['networkServer']
             server = {'id' => server_id}
           end
-          router['networkServer'] = {'id' => server['id']}
+          params['router']['networkServer'] = router['networkServer'] = {'id' => server['id']}
           params['networkServerId'] = server['id']
         else
           # prompt cloud
