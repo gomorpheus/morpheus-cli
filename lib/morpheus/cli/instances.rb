@@ -1694,19 +1694,77 @@ class Morpheus::Cli::Instances
     options = {:options => {}}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance] -g GROUP")
-      opts.on('--name VALUE', String, "Name") do |val|
-        options[:options]['name'] = val
-      end
       opts.on( '-g', '--group GROUP', "Group Name or ID for the new instance" ) do |val|
         options[:group] = val
       end
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID for the new instance" ) do |val|
         options[:cloud] = val
       end
+      opts.on('--name VALUE', String, "Name") do |val|
+        options[:options]['name'] = val
+      end
+      opts.on("--description [TEXT]", String, "Description") do |val|
+        options[:description] = val.to_s
+      end
+      opts.on("--environment ENV", String, "Environment code") do |val|
+        options[:environment] = val.to_s
+      end
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
+      opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
+        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      end
+      # opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
+      #   options[:copies] = val.to_i
+      # end
+      # opts.on("--layout-size NUMBER", Integer, "Apply a multiply factor of containers/vms within the instance") do |val|
+      #   options[:layout_size] = val.to_i
+      # end
+      # opts.on( '-l', '--layout LAYOUT', "Layout ID" ) do |val|
+      #   options[:layout] = val
+      # end
+      opts.on( '-p', '--plan PLAN', "Service plan ID") do |val|
+        options[:service_plan] = val
+      end
+      opts.on( '--resource-pool ID', String, "Resource pool ID" ) do |val|
+        options[:resource_pool] = val
+      end
+      opts.on("--workflow ID", String, "Automation: Workflow ID") do |val|
+        options[:workflow_id] = val
+      end
+      opts.on("--ports ARRAY", String, "Exposed Ports, JSON formatted list of objects containing name and port") do |val|
+        # expects format like --ports '[{"name":"web","port":8080}]'
+        ports_array = JSON.parse(val)
+        options[:ports] = ports_array
+        options[:options]['ports'] = ports_array
+      end
+      # opts.on('-L', "--lb", "Enable Load Balancer") do
+      #   options[:enable_load_balancer] = true
+      # end
       opts.on("--create-user on|off", String, "User Config: Create Your User. Default is on") do |val|
         options[:create_user] = !['false','off','0'].include?(val.to_s)
       end
-      build_common_options(opts, options, [:options, :payload, :auto_confirm, :json, :dry_run, :remote])
+      opts.on("--user-group USERGROUP", String, "User Config: User Group") do |val|
+        options[:user_group_id] = val
+      end
+      opts.on("--shutdown-days DAYS", Integer, "Automation: Shutdown Days") do |val|
+        options[:shutdown_days] = val.to_i
+      end
+      opts.on("--expire-days DAYS", Integer, "Automation: Expiration Days") do |val|
+        options[:expire_days] = val.to_i
+      end
+      opts.on("--create-backup [on|off]", String, "Automation: Create Backups.") do |val|
+        options[:create_backup] = ['on','true','1',''].include?(val.to_s.downcase) ? 'on' : 'off'
+      end
+      opts.on("--security-groups LIST", String, "Security Groups, comma separated list of security group IDs") do |val|
+        options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      end
+      build_standard_post_options(opts, options, [:auto_confirm])
     end
     optparse.parse!(args)
     if args.count < 1 || args.count > 2
@@ -1724,12 +1782,20 @@ class Morpheus::Cli::Instances
 
       # defaults derived from clone
       options[:default_name] = instance['name'] + '-clone' if instance['name']
+      options[:default_description] = instance['description'] if !instance['description'].to_s.empty?
+      options[:default_environment] = instance['environment'] if instance['environment']
       options[:default_group] = instance['group']['id'] if instance['group']
       options[:default_cloud] = instance['cloud']['name'] if instance['cloud']
       options[:default_plan] = instance['plan']['name'] if instance['plan']
       options[:default_resource_pool] = instance['config']['resourcePoolId'] if instance['config']
       options[:default_config] = instance['config']
       options[:default_security_group] = instance['config']['securityGroups'][0]['id'] if instance['config'] && (instance['config']['securityGroups'] || []).count > 0
+      if instance['labels'] && !instance['labels'].empty?
+        options[:default_labels] = (instance['labels'] || []).join(',')
+      end
+      if instance['tags'] && !instance['tags'].empty?
+        options[:current_tags] = instance['tags']
+      end
 
       # immutable derived from clone
       options[:instance_type_code] = instance['instanceType']['code'] if instance['instanceType']
@@ -1767,13 +1833,52 @@ class Morpheus::Cli::Instances
         payload.deep_merge!(passed_options)
       end
       
+      #payload['instance'] ||= {}
+      # if options[:instance_name]
+      #   payload['instance']['name'] = options[:instance_name]
+      # end
+      # if options[:description] && !payload['instance']['description']
+      #   payload['instance']['description'] = options[:description]
+      # end
+      # if options[:environment] && !payload['instance']['instanceContext']
+      #   payload['instance']['instanceContext'] = options[:environment]
+      # end
+    
+      #payload[:copies] = options[:copies] if options[:copies] && options[:copies] > 0
+      if options[:layout_size] && options[:layout_size] > 0 # aka Scale Factor
+        payload[:layoutSize] = options[:layout_size]
+      end
+      if !options[:create_backup].nil?
+        payload[:createBackup] = options[:create_backup]
+      end
+      if options[:expire_days]
+        payload['instance'] ||= {}
+        payload['instance']['expireDays'] = options[:expire_days]
+      end
+      if options[:shutdown_days]
+        payload['instance'] ||= {}
+        payload['shutdownDays'] = options[:shutdown_days]
+      end
       # JD: this actually fixed a customer problem
       # It appears to be important to pass this... not sure if config.createUser is necessary...
       if options[:create_user].nil?
         options[:create_user] = true
       end
-      if options[:create_user] != nil
-        payload.deep_merge!({'createUser' => options[:create_user], 'config' =>{'createUser' => options[:create_user]}})
+      if options.key?(:create_user)
+        payload['config'] ||= {}
+        payload['config']['createUser'] = options[:create_user]
+        payload['createUser'] = options[:create_user]
+      end
+      if options[:user_group_id]
+        payload['instance'] ||= {}
+        payload['instance']['userGroup'] = {'id' => options[:user_group_id] }
+      end
+      if options[:workflow_id]
+        if options[:workflow_id].to_s =~ /\A\d{1,}\Z/
+          payload['taskSetId'] = options[:workflow_id].to_i
+        else
+          payload['taskSetName'] = options[:workflow_id]
+        end
       end
       unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to clone the instance #{instance['name']} as '#{payload['name']}'?", options)
         return 9, "aborted command"
