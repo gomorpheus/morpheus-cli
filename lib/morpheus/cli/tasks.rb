@@ -198,7 +198,14 @@ class Morpheus::Cli::Tasks
               end
             else
               task_option_types << optionType
-              task_option_columns << {(optionType['fieldLabel']) => lambda {|it| task['taskOptions'][optionType['fieldName']] || optionType['defaultValue'] } }
+              task_option_columns << {(optionType['fieldLabel']) => lambda {|it| 
+                value = task['taskOptions'][optionType['code']] || task['taskOptions'][optionType['fieldName']] || optionType['defaultValue']
+                if optionType['type'] == 'checkbox'
+                  value.to_s.empty? ? 'off' : value.to_s
+                else
+                  value.to_s
+                end
+              } }
             end
           end
         else
@@ -430,6 +437,10 @@ class Morpheus::Cli::Tasks
             if it['fieldContext'].nil? || it['fieldContext'] == ''
               it['fieldContext'] = 'taskOptions'
             end
+            # taskOptions should prompt for code instead of fieldName, oy vey
+            if it['fieldContext'] == 'taskOptions'
+              it['fieldName'] = it['code']
+            end
           end
         end
         # inject file_params into options for file-content prompt
@@ -444,8 +455,20 @@ class Morpheus::Cli::Tasks
           end
         end
         # prompt
+
+        # tasks are different in that they use the optionType code instead of fieldName for the key values
         input_options = Morpheus::Cli::OptionTypes.prompt(task_option_types, options[:options],@api_client, options[:params])
-        payload.deep_merge!({'task' => input_options})  unless input_options.empty?
+        # flatten taskOptions as serverside expects
+        if input_options['taskOptions']
+          input_options['taskOptions'] = Morpheus::RestClient.grails_params(input_options['taskOptions'])
+          # remove "off" checkbox values, like the UI does
+          input_options['taskOptions'].keys.each do |k|
+            if input_options['taskOptions'][k] == "off"
+              input_options['taskOptions'].delete(k)
+            end
+          end
+        end
+        payload.deep_merge!({'task' => input_options}) unless input_options.empty?
         
 
         # Target Options
