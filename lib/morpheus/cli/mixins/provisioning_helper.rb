@@ -1749,7 +1749,7 @@ module Morpheus::Cli::ProvisioningHelper
     # this is used by clone()
     if options[:current_tags] && !options[:current_tags].empty?
       current_tags_string = options[:current_tags].collect { |tag| tag['name'].to_s + '=' + tag['value'].to_s }.join(', ')
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'keepExistingTags', 'type' => 'checkbox', 'fieldLabel' => "Keep existing metadata tags? (#{current_tags_string})", 'required' => true, 'description' => 'Whether or not to keep existing metadata tags', 'defaultValue' => true}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'keepExistingTags', 'type' => 'checkbox', 'fieldLabel' => "Keep existing metadata tags (#{current_tags_string}) ?", 'required' => true, 'description' => 'Whether or not to keep existing metadata tags', 'defaultValue' => true}], options[:options])
       if ['on','true','1',''].include?(v_prompt['keepExistingTags'].to_s.downcase)
         options[:current_tags].each do |tag|
           current_tag = tag.clone
