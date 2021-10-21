@@ -306,20 +306,20 @@ class Morpheus::Cli::InvoicesCommand
 
           if invoice_totals
             cost_rows = [
-              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice'], currency: invoice['currency']},
+              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice'], currency: invoice_totals['actualCurrency']},
             ]
             if options[:show_costs]
               cost_rows += [
-                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost'], currency: invoice['currency']}
+                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost'], currency: invoice_totals['actualCurrency']}
               ]
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice'], currency: invoice['estimatedCurrency']}
+                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice'], currency: invoice_totals['estimatedCurrency']}
               ]
               if options[:show_costs]
                 cost_rows += [
-                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost'], currency: invoice['estimatedCurrency']}
+                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost'], currency: invoice_totals['estimatedCurrency']}
                 ]
               end
             end
