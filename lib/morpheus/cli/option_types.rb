@@ -992,6 +992,26 @@ module Morpheus
           return option_type['required'] ? '' : ' (optional)'
         end
       end
+
+      def self.get_option_value(obj, option_type, format=false)
+        context = option_type['fieldContext'] == 'config' ? obj['config'] : obj
+        name = option_type['fieldName']
+        tokens = name.split('.')
+
+        if tokens.length > 1
+          tokens.slice(0, tokens.length - 1).each do |token|
+            context = context[name = token]
+          end
+        end
+
+        rtn = context[name]
+
+        if format
+          rtn = (rtn ? 'On' : 'Off') if option_type['type'] == 'checkbox'
+          rtn = rtn.join(', ') if rtn.is_a?(Array)
+        end
+        rtn
+      end
     end
   end
 end

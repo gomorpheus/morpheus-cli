@@ -17,6 +17,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   register_subcommands :add_route, :remove_route, :routes
   register_subcommands :update_permissions
   register_subcommands :add_nat, :update_nat, :remove_nat, :nats, :nat
+  register_subcommands :add_bgp_neighbor, :update_bgp_neighbor, :remove_bgp_neighbor, :bgp_neighbors, :bgp_neighbor
 
   def initialize()
   end
@@ -1517,11 +1518,11 @@ class Morpheus::Cli::NetworkRoutersCommand
     options = {}
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[router] [rule]")
+      opts.banner = subcommand_usage("[router] [route]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a network router route.\n" +
-          "[router] is required. This is the name or id of an existing network router."
-      "[route] is required. This is the name or id of an existing network router route."
+        "[router] is required. This is the name or id of an existing network router."
+        "[route] is required. This is the name or id of an existing network router route."
     end
     optparse.parse!(args)
     if args.count != 2
@@ -1628,11 +1629,11 @@ class Morpheus::Cli::NetworkRoutersCommand
   def nat(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[router] [rule]")
+      opts.banner = subcommand_usage("[router] [nat]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display network router firewall rule details." + "\n" +
         "[router] is required. This is the name or id of a network router.\n" +
-        "[rule] is required. This is the name or id of a firewall rule.\n"
+        "[nat] is required. This is the name or id of a NAT.\n"
     end
 
     optparse.parse!(args)
@@ -1887,6 +1888,262 @@ class Morpheus::Cli::NetworkRoutersCommand
     end
   end
 
+  def bgp_neighbors(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List network router BGP neighbors." + "\n" +
+        "[router] is required. This is the name or id of a network router."
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 1
+      puts optparse
+      return 1
+    end
+    _bgp_neighbors(args[0], options)
+  end
+
+  def _bgp_neighbors(router_id, options)
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @network_routers_interface.dry.get(router_id.to_i)
+      else
+        print_dry_run @network_routers_interface.dry.list({name:router_id})
+      end
+      return
+    end
+    router = find_router(router_id)
+    if router.nil?
+      return 1
+    end
+
+    if router['type']['hasBgp']
+      json_response = {'networkRouterBgpNeighbors' => router['bgpNeighbors']}
+      render_response(json_response, options, 'networkRouterBgpNeighbor') do
+        print_h1 "Network Router BGP Neighbors For: #{router['name']}"
+        print cyan
+        print_bgp_neighbors(router)
+      end
+    else
+      print_red_alert "BGP not supported for #{router['type']['name']}"
+    end
+    print reset
+  end
+
+  def bgp_neighbor(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router] [BGP neighbor]")
+      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "Display network router firewall rule details." + "\n" +
+        "[router] is required. This is the name or id of a network router.\n" +
+        "[BGP neighbor] is required. This is the id of a BGP neighbor.\n"
+    end
+
+    optparse.parse!(args)
+    connect(options)
+
+    if args.count < 2
+      puts optparse
+      return 1
+    end
+
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @network_routers_interface.dry.get(args[0].to_i)
+      else
+        print_dry_run @network_routers_interface.dry.list({name:args[0]})
+      end
+      return
+    end
+    router = find_router(args[0])
+    if router.nil?
+      return 1
+    end
+
+    if router['type']['hasBgp']
+      bgp_neighbor = (router['bgpNeighbors'] || []).find {|it| it['id'] == args[1].to_i}
+
+      if bgp_neighbor
+        json_response = {'networkRouterBgpNeighbor' => bgp_neighbor}
+        render_response(json_response, options, 'networkRouterBgpNeighbor') do
+          print_h1 "Network Router BGP Neighbor Details"
+          print cyan
+
+          description_cols = {
+            "ID" => lambda {|it| it['id']}
+          }
+
+          router['type']['bgpNeighborOptionTypes'].sort_by {|it| it['displayOrder']}.each do |option_type|
+            description_cols[option_type['fieldLabel']] = lambda {|it| Morpheus::Cli::OptionTypes.get_option_value(it, option_type, true)}
+          end
+          print_description_list(description_cols, bgp_neighbor)
+        end
+      else
+        print_red_alert "BGP Neighbors #{args[1]} not found for router #{router['name']}"
+      end
+    else
+      print_red_alert "BGP Neighbors not supported for #{router['type']['name']}"
+    end
+    println reset
+  end
+
+  def add_bgp_neighbor(args)
+    options = {:options=>{}}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[router]")
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Create a network router BGP neighbor."
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count < 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      return 1
+    end
+
+    router = find_router(args[0])
+
+    if router.nil?
+      return 1
+    end
+
+    if !router['type']['hasNat']
+      print_red_alert "BGP not supported for #{router['type']['name']}"
+      return 1
+    end
+
+    if options[:payload]
+      payload = options[:payload]
+    else
+      option_types = router['type']['bgpNeighborOptionTypes'].sort_by {|it| it['displayOrder']}
+
+      # prompt options
+      option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'bgpNeighbor' => ''}}), @api_client, {'networkRouterId' => router['id']}, nil, true)
+      payload = {'networkRouterBgpNeighbor' => params.deep_merge(option_result)}
+    end
+
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @network_routers_interface.dry.create_bgp_neighbor(router['id'], payload)
+      return
+    end
+
+    json_response = @network_routers_interface.create_bgp_neighbor(router['id'], payload)
+    render_response(json_response, options, 'networkRouterBgpNeighbor') do
+      print_green_success "\nAdded Network Router BGP neighbor #{json_response['id']}\n"
+      _bgp_neighbors(router['id'], options)
+    end
+  end
+
+  def update_bgp_neighbor(args)
+    options = {:options=>{}}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[router] [BGP neighbor]")
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Update a network router BGP neighbor.\n" +
+        "[router] is required. This is the name or id of an existing network router.\n" +
+        "[BGP neighbor] is required. This is the id of an existing network router BGP neighbor."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    router = find_router(args[0])
+
+    if router.nil?
+      return 1
+    end
+
+    if !router['type']['hasBgp']
+      print_red_alert "BGP not supported for #{router['type']['name']}"
+      return 1
+    end
+
+    bgp_neighbor = router['bgpNeighbors'] ? router['bgpNeighbors'].find {|it| it['id'] == args[1].to_i} : nil
+
+    if !bgp_neighbor
+      print_red_alert "BGP neighbor #{args[1]} not found for router #{router['name']}"
+      exit 1
+    end
+
+    payload = parse_payload(options) || {'networkRouterBgpNeighbor' => params}
+    payload['networkRouterBgpNeighbor'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && !payload['networkRouterBgpNeighbor'].nil?
+
+    if payload['networkRouterBgpNeighbor'].empty?
+      print_green_success "Nothing to update"
+      exit 1
+    end
+
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @network_routers_interface.dry.update_bgp_neighbor(router['id'], bgp_neighbor['id'], payload)
+      return
+    end
+
+    json_response = @network_routers_interface.update_bgp_neighbor(router['id'], bgp_neighbor['id'], payload)
+    render_response(json_response, options, 'networkRouterBgpNeighbor') do
+      print_green_success "\nUpdated Network Router BGP Neighbor #{bgp_neighbor['id']}\n"
+      _bgp_neighbors(router['id'], options)
+    end
+  end
+
+  def remove_bgp_neighbor(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[router] [BGP neighbor]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a network router BGP neighbor.\n" +
+        "[router] is required. This is the name or id of an existing network router."
+        "[BGP neighbor] is required. This is the id of an existing network router BGP neighbor."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    router = find_router(args[0])
+    return if !router
+
+    if !router['type']['hasBgp']
+      print_red_alert "BGP not supported for #{router['type']['name']}"
+      return 1
+    end
+
+    bgp_neighbor = router['bgpNeighbors'] ? router['bgpNeighbors'].find {|it| it['id'] == args[1].to_i} : nil
+
+    if !bgp_neighbor
+      print_red_alert "BGP neighbor #{args[1]} not found for router #{router['name']}"
+      exit 1
+    end
+
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the BGP neighbor '#{bgp_neighbor['id']}' from router '#{router['name']}'?", options)
+      return 9, "aborted command"
+    end
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @network_routers_interface.dry.destroy_bgp_neighbor(router['id'], bgp_neighbor['id'])
+      return
+    end
+    json_response = @network_routers_interface.destroy_bgp_neighbor(router['id'], bgp_neighbor['id'])
+    render_response(json_response, options, 'networkRouterBgpNeighbor') do
+      print_green_success "\nUpdated Network Router BGP Neighbor #{bgp_neighbor['id']}\n"
+      _bgp_neighbors(router['id'], options)
+    end
+  end
+
   def types(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1989,7 +2246,7 @@ class Morpheus::Cli::NetworkRoutersCommand
       }
       print_description_list(description_cols, router_type)
 
-      {'optionTypes' => 'Router', 'ruleOptionTypes' => 'Firewall Rule', 'ruleGroupOptionTypes' => 'Firewall Rule Group', 'natOptionTypes' => 'NAT'}.each_pair do |field, title|
+      {'optionTypes' => 'Router', 'ruleOptionTypes' => 'Firewall Rule', 'ruleGroupOptionTypes' => 'Firewall Rule Group', 'natOptionTypes' => 'NAT', 'bgpNeighborOptionTypes' => 'BGP Neighbor'}.each_pair do |field, title|
         if !router_type[field].nil? && router_type[field].count > 0
           println cyan
           print Morpheus::Cli::OptionTypes.display_option_types_help(
@@ -2183,6 +2440,27 @@ class Morpheus::Cli::NetworkRoutersCommand
         puts as_pretty_table(rows, [:id, :name, :description, :source_network, :destination_network, :translated_network])
       else
         println "No NATs\n"
+      end
+    end
+  end
+
+  def print_bgp_neighbors(router)
+    if router['type']['hasBgp']
+      if router['bgpNeighbors'].count > 0
+        rows = router['bgpNeighbors'].collect do |it|
+          {
+            id: it['id'],
+            ip_address: it['ipAddress'],
+            bfd_enabled: it['bfdEnabled'],
+            remote_as: it['remoteAs'],
+            route_filtering_out: it['routeFilteringOut'],
+            route_filtering_in: it['routeFilteringIn'],
+            allow_as_in: it['allowAsIn']
+          }
+        end
+        puts as_pretty_table(rows, [:id, :ip_address, :bfd_enabled, :remote_as, :route_filtering_out, :route_filtering_in, :allow_as_in])
+      else
+        println "No BGP Neighbors\n"
       end
     end
   end
