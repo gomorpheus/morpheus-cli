@@ -1940,7 +1940,7 @@ class Morpheus::Cli::NetworkRoutersCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[router] [BGP neighbor]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Display network router firewall rule details." + "\n" +
+      opts.footer = "Display details on network router BGP neighbor." + "\n" +
         "[router] is required. This is the name or id of a network router.\n" +
         "[BGP neighbor] is required. This is the id of a BGP neighbor.\n"
     end
@@ -2082,7 +2082,13 @@ class Morpheus::Cli::NetworkRoutersCommand
     payload['networkRouterBgpNeighbor'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && !payload['networkRouterBgpNeighbor'].nil?
 
     if payload['networkRouterBgpNeighbor'].empty?
+      option_types = router['type']['bgpNeighborOptionTypes'].sort_by {|it| it['displayOrder']}
       print_green_success "Nothing to update"
+      println cyan
+      print Morpheus::Cli::OptionTypes.display_option_types_help(
+        option_types,
+        {:include_context => true, :context_map => {'bgpNeighbor' => ''}, :color => cyan, :title => "Available BGP Neighbor Options"}
+      )
       exit 1
     end
 
@@ -2139,7 +2145,7 @@ class Morpheus::Cli::NetworkRoutersCommand
     end
     json_response = @network_routers_interface.destroy_bgp_neighbor(router['id'], bgp_neighbor['id'])
     render_response(json_response, options, 'networkRouterBgpNeighbor') do
-      print_green_success "\nUpdated Network Router BGP Neighbor #{bgp_neighbor['id']}\n"
+      print_green_success "\nDeleted Network Router BGP Neighbor #{bgp_neighbor['id']}\n"
       _bgp_neighbors(router['id'], options)
     end
   end
@@ -2447,7 +2453,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   def print_bgp_neighbors(router)
     if router['type']['hasBgp']
       if router['bgpNeighbors'].count > 0
-        rows = router['bgpNeighbors'].collect do |it|
+        rows = router['bgpNeighbors'].sort_by {|it| it['id']}.collect do |it|
           {
             id: it['id'],
             ip_address: it['ipAddress'],
