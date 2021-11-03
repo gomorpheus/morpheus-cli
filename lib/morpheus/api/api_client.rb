@@ -486,6 +486,10 @@ class Morpheus::APIClient
     Morpheus::LoadBalancerPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def virtual_servers
+    Morpheus::VirtualServersInterface.new(common_interface_options).setopts(@options)
+  end
+
   def tasks
     Morpheus::TasksInterface.new(common_interface_options).setopts(@options)
   end
