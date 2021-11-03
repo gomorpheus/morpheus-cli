@@ -186,6 +186,7 @@ module Morpheus
       load 'morpheus/cli/vdi_gateways_command.rb'
       load 'morpheus/cli/vdi_command.rb' # (VDI persona)
       load 'morpheus/cli/certificates_command.rb' # (VDI persona)
+      load 'morpheus/cli/network_scopes_command.rb'
       # add new commands here...
 
     end

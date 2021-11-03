@@ -7,7 +7,8 @@ class Morpheus::RestInterface < Morpheus::APIClient
   # subclasses should override in your interface
   # Example: "/api/things"
   def base_path
-    raise "#{self.class} has not defined base_path!"
+    raise "#{self.class} has not defined base_path!" if @options[:base_path].nil?
+    @options[:base_path]
   end
 
   def list(params={}, headers={})
