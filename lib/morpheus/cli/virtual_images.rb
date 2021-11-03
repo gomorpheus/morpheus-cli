@@ -83,6 +83,7 @@ class Morpheus::Cli::VirtualImages
     json_response = @virtual_images_interface.list(params)
     images = json_response['virtualImages']
     render_response(json_response, options, 'virtualImages') do
+      get_available_virtual_image_types() # preload
       title = "Morpheus Virtual Images"
       subtitles = parse_list_subtitles(options)
       if options[:imageType]
@@ -192,6 +193,7 @@ EOT
       image_type = virtual_image_type_for_name_or_code(image['imageType'])
       image_type_display = image_type ? "#{image_type['name']}" : image['imageType']
       render_response(json_response, options, 'virtualImage') do
+        get_available_virtual_image_types() # preload
         print_h1 "Virtual Image Details", [], options
         description_cols = {
           "ID" => 'id',
