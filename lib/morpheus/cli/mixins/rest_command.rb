@@ -10,7 +10,8 @@
 #  * load_balancer_column_definitions() - Column definitions for the "get" command display output.
 #  * load_balancer_list_column_definitions() - Column definitions for the "list" command display output.
 #
-# # An example of a RestCommand for `morpheus load-balancers`.
+# Example of a RestCommand for `morpheus load-balancers`.
+#
 # class Morpheus::Cli::LoadBalancers
 #
 #   include Morpheus::Cli::CliCommand
@@ -21,7 +22,7 @@
 #   # and would be the default values if not set.
 #   set_rest_name :load_balancers
 #   set_rest_label "Load Balancer"
-#   set_rest_plural_label "Load Balancers"
+#   set_rest_label_plural "Load Balancers"
 #   set_rest_object_key "load_balancer"
 #   set_rest_has_type true
 #   set_rest_type "load_balancer_types"
@@ -50,7 +51,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_name=(v)
-      @rest_name = v
+      @rest_name = v.to_s
     end
 
     alias :set_rest_name :rest_name=
@@ -61,11 +62,11 @@ module Morpheus::Cli::RestCommand
     end
 
     def default_rest_key
-      rest_name.chomp("s")
+      rest_name.to_s.chomp("s")
     end
 
     def rest_key=(v)
-      @rest_key = v
+      @rest_key = v.to_s
     end
 
     alias :set_rest_key :rest_key=
@@ -80,7 +81,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_arg=(v)
-      @rest_arg = v
+      @rest_arg = v.to_s
     end
 
     alias :set_rest_arg :rest_arg=
@@ -95,26 +96,26 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_label=(v)
-      @rest_label = v
+      @rest_label = v.to_s
     end
 
     alias :set_rest_label :rest_label=
 
     # the plural version of the label eg. "Neat Things"
-    def rest_plural_label
-      @rest_plural_label || default_rest_plural_label
+    def rest_label_plural
+      @rest_label_plural || default_rest_label_plural
     end
     
-    def default_rest_plural_label
+    def default_rest_label_plural
       #rest_name.to_s.split("_").collect {|it| it.to_s.capitalize }.join(" ")
       rest_label.to_s.pluralize
     end
 
-    def rest_plural_label=(v)
-      @rest_plural_label = v
+    def rest_label_plural=(v)
+      @rest_label_plural = v.to_s
     end
     
-    alias :set_rest_plural_label :rest_plural_label=
+    alias :set_rest_label_plural :rest_label_plural=
 
     # rest_interface_name is the interface name for the resource. eg. "neat_things"
     def rest_interface_name
@@ -126,7 +127,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_interface_name=(v)
-      @rest_interface_name = v
+      @rest_interface_name = v.to_s
     end
 
     alias :set_rest_interface_name :rest_interface_name=
@@ -158,7 +159,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_type_name=(v)
-      @rest_type_name = v
+      @rest_type_name = v.to_s
     end
 
     alias :set_rest_type_name :rest_type_name=
@@ -175,7 +176,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_type_key=(v)
-      @rest_type_key = v
+      @rest_type_key = v.to_s
     end
 
     alias :set_rest_type_key :rest_type_key=
@@ -190,7 +191,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_type_arg=(v)
-      @rest_type_arg = v
+      @rest_type_arg = v.to_s
     end
 
     alias :set_rest_type_arg :rest_type_arg=
@@ -205,26 +206,26 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_type_label=(v)
-      @rest_type_label = v
+      @rest_type_label = v.to_s
     end
 
     alias :set_rest_type_label :rest_type_label=
 
     # the plural version of the label eg. "Neat Things"
-    def rest_type_plural_label
-      @rest_type_plural_label || default_rest_type_plural_label
+    def rest_type_label_plural
+      @rest_type_label_plural || default_rest_type_label_plural
     end
     
-    def default_rest_type_plural_label
+    def default_rest_type_label_plural
       #rest_type_name.to_s.split("_").collect {|it| it.to_s.capitalize }.join(" ")
       rest_type_label.to_s.pluralize
     end
 
-    def rest_type_plural_label=(v)
-      @rest_type_plural_label = v
+    def rest_type_label_plural=(v)
+      @rest_type_label_plural = v.to_s
     end
     
-    alias :set_rest_type_plural_label :rest_type_plural_label=
+    alias :set_rest_type_label_plural :rest_type_label_plural=
 
     # the name of the default interface, matches the rest name eg. "neat_things"
     def rest_type_interface_name
@@ -236,7 +237,7 @@ module Morpheus::Cli::RestCommand
     end
 
     def rest_type_interface_name=(v)
-      @rest_type_interface_name = v
+      @rest_type_interface_name = v.to_s
     end
 
     alias :set_rest_type_interface_name :rest_type_interface_name=
@@ -247,7 +248,7 @@ module Morpheus::Cli::RestCommand
     def register_interfaces(*interfaces)
       @registered_interfaces ||= []
       interfaces.flatten.each do |it|
-        @registered_interfaces << it.to_sym
+        @registered_interfaces << it.to_s
       end
       # put the default rest_interface first
       if rest_interface_name && !@registered_interfaces.include?(rest_interface_name)
@@ -300,8 +301,8 @@ module Morpheus::Cli::RestCommand
     self.class.rest_label
   end
 
-  def rest_plural_label
-    self.class.rest_plural_label
+  def rest_label_plural
+    self.class.rest_label_plural
   end
 
   def rest_interface_name
@@ -356,8 +357,8 @@ module Morpheus::Cli::RestCommand
     self.class.rest_type_label
   end
 
-  def rest_type_plural_label
-    self.class.rest_type_plural_label
+  def rest_type_label_plural
+    self.class.rest_type_label_plural
   end
 
   def rest_type_interface_name
@@ -415,9 +416,12 @@ module Morpheus::Cli::RestCommand
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[search]")
       build_standard_list_options(opts, options)
-      opts.footer = "List #{rest_plural_label.downcase}."
+            opts.footer = <<-EOT
+List #{rest_label_plural.downcase}.
+[search] is optional. This is a search phrase to filter the results.
+EOT
     end
     optparse.parse!(args)
     connect(options)
@@ -433,9 +437,9 @@ module Morpheus::Cli::RestCommand
     json_response = rest_interface.list(params)
     render_response(json_response, options, rest_list_key) do
       records = json_response[rest_list_key]
-      print_h1 "Morpheus #{rest_plural_label}"
+      print_h1 "Morpheus #{rest_label_plural}"
       if records.nil? || records.empty?
-        print cyan,"No #{rest_plural_label.downcase} found.",reset,"\n"
+        print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
       else
         print as_pretty_table(records, rest_list_column_definitions.upcase_keys!, options)
         print_results_pagination(json_response) if json_response['meta']
@@ -449,7 +453,7 @@ module Morpheus::Cli::RestCommand
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[type]")
+      opts.banner = subcommand_usage("[#{rest_arg}]")
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about #{a_or_an(rest_label)} #{rest_label.downcase}.
@@ -504,17 +508,21 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       if rest_has_type
-        opts.banner = subcommand_usage("[name] -t TYPE")
+        opts.banner = subcommand_usage("[#{rest_arg}] -t TYPE")
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
         end
       else
-        opts.banner = subcommand_usage("[name]")
+        opts.banner = subcommand_usage("[#{rest_arg}]")
       end
       # if defined?(add_#{rest_key}_option_types)
       #   build_option_type_options(opts, options, add_#{rest_key}_option_types)
       # end
       build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Create a new #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the name of the new #{rest_label.downcase}.
+EOT
     end
     optparse.parse!(args)
     # todo: make supporting args[0] optional and more flexible
@@ -592,6 +600,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}] [options]")
       build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an existing #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the name or id of #{a_or_an(rest_label)} #{rest_label.downcase}.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
@@ -629,6 +641,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}]")
       build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete an existing #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the name or id of #{a_or_an(rest_label)} #{rest_label.downcase}.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
