@@ -617,6 +617,7 @@ class Morpheus::Cli::NetworksCommand
         if network_type_option_types && network_type_option_types.size > 0
           api_params = {}
           api_params['network.site.id'] = group ? group['id'] : 'shared'
+          api_params['network.zone.id'] = cloud['id'] if !cloud.nil?
           api_params['network.type.id'] = network_type['id']
           api_params['network.networkServer.id'] = network_server_id if !network_server_id.nil?
           network_type_params = Morpheus::Cli::OptionTypes.prompt(network_type_option_types,(options[:options] || {}).merge(payload),@api_client, api_params)
@@ -660,8 +661,7 @@ class Morpheus::Cli::NetworksCommand
             payload['network']['pool'] = options['pool'].to_i
           else
             # todo: select dropdown
-            # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, {zoneId: cloud['id']})
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pool', 'fieldLabel' => 'Network Pool', 'type' => 'select', 'optionSource' => 'networkPools', 'required' => false, 'description' => ''}], options, @api_client, api_params)
             payload['network']['pool'] = v_prompt['pool'].to_i if v_prompt['pool']
           end
         end

@@ -486,6 +486,10 @@ class Morpheus::APIClient
     Morpheus::LoadBalancerPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def virtual_servers
+    Morpheus::VirtualServersInterface.new(common_interface_options).setopts(@options)
+  end
+
   def tasks
     Morpheus::TasksInterface.new(common_interface_options).setopts(@options)
   end
@@ -834,6 +838,14 @@ class Morpheus::APIClient
 
   def vdi_gateways
     Morpheus::VdiGatewaysInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_servers
+    Morpheus::NetworkServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def rest(endpoint)
+    Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end
 
   # add new interfaces here

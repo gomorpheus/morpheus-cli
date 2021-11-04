@@ -306,20 +306,20 @@ class Morpheus::Cli::InvoicesCommand
 
           if invoice_totals
             cost_rows = [
-              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice'], currency: invoice['currency']},
+              {label: 'Price'.upcase, compute: invoice_totals['actualComputePrice'], memory: invoice_totals['actualMemoryPrice'], storage: invoice_totals['actualStoragePrice'], network: invoice_totals['actualNetworkPrice'], license: invoice_totals['actualLicensePrice'], extra: invoice_totals['actualExtraPrice'], running: invoice_totals['actualRunningPrice'], total: invoice_totals['actualTotalPrice'], currency: invoice_totals['actualCurrency']},
             ]
             if options[:show_costs]
               cost_rows += [
-                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost'], currency: invoice['currency']}
+                {label: 'Cost'.upcase, compute: invoice_totals['actualComputeCost'], memory: invoice_totals['actualMemoryCost'], storage: invoice_totals['actualStorageCost'], network: invoice_totals['actualNetworkCost'], license: invoice_totals['actualLicenseCost'], extra: invoice_totals['actualExtraCost'], running: invoice_totals['actualRunningCost'], total: invoice_totals['actualTotalCost'], currency: invoice_totals['actualCurrency']}
               ]
             end
             if options[:show_estimates]
               cost_rows += [
-                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice'], currency: invoice['estimatedCurrency']}
+                {label: 'Metered Price'.upcase, compute: invoice_totals['estimatedComputePrice'], memory: invoice_totals['estimatedMemoryPrice'], storage: invoice_totals['estimatedStoragePrice'], network: invoice_totals['estimatedNetworkPrice'], license: invoice_totals['estimatedLicensePrice'], extra: invoice_totals['estimatedExtraPrice'], running: invoice_totals['estimatedRunningPrice'], total: invoice_totals['estimatedTotalPrice'], currency: invoice_totals['estimatedCurrency']}
               ]
               if options[:show_costs]
                 cost_rows += [
-                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost'], currency: invoice['estimatedCurrency']}
+                  {label: 'Metered Cost'.upcase, compute: invoice_totals['estimatedComputeCost'], memory: invoice_totals['estimatedMemoryCost'], storage: invoice_totals['estimatedStorageCost'], network: invoice_totals['estimatedNetworkCost'], license: invoice_totals['estimatedLicenseCost'], extra: invoice_totals['estimatedExtraCost'], running: invoice_totals['estimatedRunningCost'], total: invoice_totals['estimatedTotalCost'], currency: invoice_totals['estimatedCurrency']}
                 ]
               end
             end
@@ -360,7 +360,7 @@ class Morpheus::Cli::InvoicesCommand
   end
   
   def get(args)
-    options = {}
+    options, params = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
@@ -381,7 +381,6 @@ class Morpheus::Cli::InvoicesCommand
         options[:sigdig] = val.to_i
       end
       build_standard_get_options(opts, options)
-      opts.footer = "Get details about a specific invoice."
       opts.footer = <<-EOT
 Get details about a specific invoice.
 [id] is required. This is the id of an invoice.
@@ -390,32 +389,27 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
+      _get(arg, params, options)
     end
   end
 
-  def _get(id, options)
-    params = {}
-    begin
-      @invoices_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @invoices_interface.dry.get(id, params)
-        return
-      end
-      json_response = @invoices_interface.get(id, params)
-      invoice = json_response['invoice']
-      if options[:hide_line_items]
-        json_response['invoice'].delete('lineItems') rescue nil
-      end
-      render_result = render_with_format(json_response, options, 'invoice')
-      return 0 if render_result
-
+  def _get(id, params, options)
+    @invoices_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @invoices_interface.dry.get(id, params)
+      return
+    end
+    json_response = @invoices_interface.get(id, params)
+    if options[:hide_line_items]
+      json_response['invoice'].delete('lineItems') rescue nil
+    end
+    render_response(json_response, options, invoice_object_key) do
+      invoice = json_response[invoice_object_key]
       print_h1 "Invoice Details"
       print cyan
-
-      
       description_cols = {
         "Invoice ID" => lambda {|it| it['id'] },
         "Type" => lambda {|it| format_invoice_ref_type(it) },
@@ -550,15 +544,9 @@ EOT
         cost_columns.delete("Extra".upcase)
       end
       print as_pretty_table(cost_rows, cost_columns, options)
-
-      
-
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
 
   def update(args)
@@ -618,7 +606,7 @@ Update an invoice.
     invoice = json_response['invoice']
     render_response(json_response, options, 'invoice') do
       print_green_success "Updated invoice #{invoice['id']}"
-      return _get(invoice["id"], options)
+      return _get(invoice["id"], {}, options)
     end
     return 0, nil
   end
@@ -927,14 +915,13 @@ EOT
   end
   
   def get_line_item(args)
-    options = {}
+    options, params = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
       build_standard_get_options(opts, options)
-      opts.footer = "Get details about a specific invoice line item."
       opts.footer = <<-EOT
 Get details about a specific invoice line item.
 [id] is required. This is the id of an invoice line item.
@@ -943,14 +930,15 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get_line_item(arg, options)
+      _get_line_item(arg, params, options)
     end
   end
 
-  def _get_line_item(id, options)
-    params = {}
+
+  def _get_line_item(id, params, options)
     @invoice_line_items_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @invoice_line_items_interface.dry.get(id, params)
@@ -994,6 +982,22 @@ EOT
   end
 
   private
+
+  def invoice_object_key
+    'invoice'
+  end
+
+  def invoice_list_key
+    'invoices'
+  end
+
+  def invoice_line_item_object_key
+    'lineItem'
+  end
+
+  def invoice_line_item_list_key
+    'lineItems'
+  end
 
   # def find_invoice_by_name_or_id(val)
   #   if val.to_s =~ /\A\d{1,}\Z/

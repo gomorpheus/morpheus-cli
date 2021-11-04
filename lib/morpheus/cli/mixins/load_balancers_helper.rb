@@ -34,7 +34,7 @@ module Morpheus::Cli::LoadBalancersHelper
     'Load Balancer'
   end
 
-  def load_balancer_plural_label
+  def load_balancer_label_plural
     'Load Balancers'
   end
 
@@ -50,7 +50,7 @@ module Morpheus::Cli::LoadBalancersHelper
     'Load Balancer Type'
   end
 
-  def load_balancer_type_plural_label
+  def load_balancer_type_label_plural
     'Load Balancer Types'
   end
 

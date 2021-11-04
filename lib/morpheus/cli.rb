@@ -50,7 +50,7 @@ module Morpheus
       Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
 
       # load mixins
-      Dir[File.dirname(__FILE__)  + "/cli/mixins/*.rb"].each {|file| load file }
+      Dir[File.dirname(__FILE__)  + "/cli/mixins/**/*.rb"].each {|file| load file }
 
       # load commands
       # Dir[File.dirname(__FILE__)  + "/cli/*.rb"].each {|file| load file }
@@ -93,6 +93,13 @@ module Morpheus
       load 'morpheus/cli/cloud_folders_command.rb'
       load 'morpheus/cli/hosts.rb'
       load 'morpheus/cli/load_balancers.rb'
+      load 'morpheus/cli/load_balancer_virtual_servers.rb'
+      # load 'morpheus/cli/load_balancer_monitors.rb'
+      # load 'morpheus/cli/load_balancer_nodes.rb'
+      # load 'morpheus/cli/load_balancer_policies.rb'
+      load 'morpheus/cli/load_balancer_pools.rb'
+      # load 'morpheus/cli/load_balancer_profiles.rb'
+      # load 'morpheus/cli/load_balancer_scripts.rb'
       load 'morpheus/cli/load_balancer_types.rb'
       load 'morpheus/cli/shell.rb'
       load 'morpheus/cli/tasks.rb'
@@ -186,6 +193,7 @@ module Morpheus
       load 'morpheus/cli/vdi_gateways_command.rb'
       load 'morpheus/cli/vdi_command.rb' # (VDI persona)
       load 'morpheus/cli/certificates_command.rb' # (VDI persona)
+      #load 'morpheus/cli/network_scopes_command.rb'
       # add new commands here...
 
     end

@@ -215,7 +215,8 @@ module Morpheus
           opts.on(arg1, arg2, description) do |val|
             if option_type['type'] == 'checkbox'
               val = (val.to_s != 'false' && val.to_s != 'off')
-            else
+            elsif option_type['dataType'] != 'string'
+              # 'dataType': 'string' added to cli to avoid auto conversion to JSON
               # attempt to parse JSON, this allows blank arrays for multiSelect like --tenants []
               if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
                 begin
