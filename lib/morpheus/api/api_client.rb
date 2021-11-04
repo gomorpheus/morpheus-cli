@@ -844,6 +844,10 @@ class Morpheus::APIClient
     Morpheus::NetworkServersInterface.new(common_interface_options).setopts(@options)
   end
 
+  def network_edge_clusters
+    Morpheus::NetworkEdgeClustersInterface.new(common_interface_options).setopts(@options)
+  end
+
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end
