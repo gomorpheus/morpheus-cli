@@ -1,15 +1,13 @@
-#!/usr/bin/env ruby
-require 'term/ansicolor'
-require 'optparse'
 require 'morpheus/cli'
+require 'morpheus/benchmarking'
+require 'morpheus/logging'
 require 'morpheus/rest_client'
 require 'morpheus/cli/cli_registry'
 require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
-require 'morpheus/logging'
-require 'morpheus/benchmarking'
-require 'morpheus/cli'
+require 'morpheus/cli/option_parser'
+require 'term/ansicolor'
 
 module Morpheus
   
@@ -478,6 +476,7 @@ module Morpheus
 
           # shell is a Singleton command class
           if args[0] == "shell"
+            require 'morpheus/cli/commands/shell'
             result = Morpheus::Cli::Shell.instance.handle(args[1..-1])
           else
             #result = Morpheus::Cli::CliRegistry.exec_expression(formatted_cmd)

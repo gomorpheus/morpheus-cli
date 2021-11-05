@@ -1,7 +1,8 @@
 require 'json'
 require 'uri'
 require 'cgi'
-require 'rest-client'
+require 'morpheus/rest_client'
+# require 'rest-client'
 
 class Morpheus::APIClient
 

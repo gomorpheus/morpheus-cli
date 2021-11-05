@@ -1,15 +1,14 @@
-require 'yaml'
-require 'json'
-require 'fileutils'
 require 'morpheus/logging'
 require 'morpheus/benchmarking'
-require 'morpheus/cli/option_parser'
+require 'morpheus/terminal'
 require 'morpheus/cli/cli_registry'
+require 'morpheus/cli/option_parser'
+require 'morpheus/cli/option_types'
 require 'morpheus/cli/mixins/print_helper'
 require 'morpheus/cli/credentials'
+#require 'morpheus/cli/commands/shell'
+#require 'morpheus/cli/commands/remote'
 require 'morpheus/api/api_client'
-require 'morpheus/cli/remote'
-require 'morpheus/terminal'
 
 module Morpheus
   module Cli

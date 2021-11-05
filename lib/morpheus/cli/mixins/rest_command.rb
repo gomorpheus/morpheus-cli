@@ -39,7 +39,7 @@ module Morpheus::Cli::RestCommand
 
   module ClassMethods
 
-    # rest_name is the plural name of the rest command resource eg. NeatThingsCommand would be "neat_things"
+    # rest_name is the plural name of the resource eg. NeatThings would be "neat_things"
     # It is used to derive all other default rest settings key, label, etc.  
     # The default name the command name with underscores `_` instead of dashes `-`.
     def rest_name

@@ -4,6 +4,7 @@ require 'morpheus/logging'
 require 'morpheus/cli/errors'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
+require 'morpheus/ext/string'
 
 module Morpheus
   module Cli
