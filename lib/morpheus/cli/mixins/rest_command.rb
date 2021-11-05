@@ -515,9 +515,9 @@ EOT
       else
         opts.banner = subcommand_usage("[#{rest_arg}]")
       end
-      # if defined?(add_#{rest_key}_option_types)
-      #   build_option_type_options(opts, options, add_#{rest_key}_option_types)
-      # end
+      if self.class.method_defined?("add_#{rest_key}_option_types")
+        build_option_type_options(opts, options, self.send("add_#{rest_key}_option_types"))
+      end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new #{rest_label.downcase}.
@@ -599,6 +599,9 @@ EOT
     account_name = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}] [options]")
+      if self.class.method_defined?("update_#{rest_key}_option_types")
+        build_option_type_options(opts, options, self.send("update_#{rest_key}_option_types"))
+      end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update an existing #{rest_label.downcase}.
