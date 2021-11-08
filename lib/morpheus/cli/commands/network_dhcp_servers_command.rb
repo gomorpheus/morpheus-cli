@@ -181,7 +181,6 @@ class Morpheus::Cli::NetworkDhcpServersCommand
       return
     end
 
-println "payload #{payload}"
     json_response = @network_dhcp_servers_interface.create_dhcp_server(server['id'], payload)
     render_response(json_response, options, 'networkDhcpServer') do
       print_green_success "\nAdded Network DHCP Server #{json_response['id']}\n"
