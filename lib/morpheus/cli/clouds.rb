@@ -27,8 +27,6 @@ class Morpheus::Cli::Clouds
     @clouds_interface = @api_client.clouds
     @groups_interface = @api_client.groups
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
-    # preload stuff
-    get_available_cloud_types()
   end
 
   def handle(args)
@@ -134,38 +132,36 @@ class Morpheus::Cli::Clouds
 
   def get(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "Get details about a cloud.\n" +
                     "[name] is required. This is the name or id of a cloud."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
+      _get(arg, params, options)
     end
   end
 
-  def _get(arg, options={})
-    begin
-      if options[:dry_run]
-        @clouds_interface.setopts(options)
-        if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @clouds_interface.dry.get(arg.to_i)
-        else
-          print_dry_run @clouds_interface.dry.list({name:arg})
-        end
-        return
-      end
-      cloud = find_cloud_by_name_or_id(arg)
-      @clouds_interface.setopts(options)
-      json_response = @clouds_interface.get(cloud['id'])
+  def _get(id, params, options={})
+    cloud = nil
+    if id.to_s !~ /\A\d{1,}\Z/
+      cloud = find_cloud_by_name_or_id(id)
+      id = cloud['id']
+    end
+    @clouds_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @clouds_interface.dry.get(id.to_i, params)
+      return
+    end
+    json_response = @clouds_interface.get(id, params)
+    render_response(json_response, options, 'zone') do
       cloud = json_response['zone']
       cloud_stats = cloud['stats']
       # serverCounts moved to zone.stats.serverCounts
@@ -174,17 +170,6 @@ class Morpheus::Cli::Clouds
         server_counts = cloud_stats['serverCounts']
       else
         server_counts = json_response['serverCounts'] # legacy
-      end
-      if options[:json]
-        puts as_json(json_response, options, 'zone')
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, 'zone')
-        return 0
-      end
-      if options[:csv]
-        puts records_as_csv([json_response['zone']], options)
-        return 0
       end
       cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       print_h1 "Cloud Details"
@@ -195,6 +180,7 @@ class Morpheus::Cli::Clouds
         "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
         "Code" => 'code',
         "Location" => 'location',
+        "Region Code" => 'regionCode',
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
         #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
@@ -214,14 +200,9 @@ class Morpheus::Cli::Clouds
         print "Unmanaged: #{server_counts['unmanaged']}".center(20)
         print "\n"
       end
-
       print reset,"\n"
-
-      #puts instance
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def add(args)
@@ -954,13 +935,14 @@ class Morpheus::Cli::Clouds
         name: cloud['name'],
         type: cloud_type ? cloud_type['name'] : '',
         location: cloud['location'],
+        "REGION CODE": cloud['regionCode'],
         groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
         servers: cloud['serverCount'],
         status: format_cloud_status(cloud)
       }
     end
     columns = [
-      :id, :name, :type, :location, :groups, :servers, :status
+      :id, :name, :type, :location, "REGION CODE", :groups, :servers, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end

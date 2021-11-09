@@ -143,6 +143,27 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def create_bgp_neighbor(router_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/bgp-neighbors"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def update_bgp_neighbor(router_id, nat_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/bgp-neighbors/#{nat_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def destroy_bgp_neighbor(router_id, nat_id, payload={})
+    url = "#{@base_url}/api/networks/routers/#{router_id}/bgp-neighbors/#{nat_id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def update_permissions(router_id, payload)
     url = "#{@base_url}/api/networks/routers/#{router_id}/permissions"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

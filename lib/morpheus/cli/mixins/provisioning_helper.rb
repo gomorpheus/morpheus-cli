@@ -584,7 +584,7 @@ module Morpheus::Cli::ProvisioningHelper
     if options[:description]
       options[:options]['description'] = options[:description]
     end
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'defaultValue' => options[:default_description]}], options[:options])
     payload['instance']['description'] = v_prompt['description'] if !v_prompt['description'].empty?
 
     # Environment
@@ -593,14 +593,14 @@ module Morpheus::Cli::ProvisioningHelper
     elsif options[:options]['instanceContext'] && !options[:options]['environment']
       options[:options]['environment'] = options[:options]['instanceContext']
     end
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments()}], options[:options])
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'required' => false, 'selectOptions' => get_available_environments(), 'defaultValue' => options[:default_environment]}], options[:options])
     payload['instance']['instanceContext'] = v_prompt['environment'] if !v_prompt['environment'].empty?
 
     # Labels (used to be called tags)
     if options[:labels]
       payload['instance']['labels'] = options[:labels].is_a?(Array) ? options[:labels] : options[:labels].to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq
     else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'defaultValue' => options[:default_labels]}], options[:options])
       payload['instance']['labels'] = v_prompt['labels'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['labels'].empty?
     end
 
@@ -986,20 +986,28 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # metadata tags
-    if options[:options]['metadata'].is_a?(Array) && !options[:metadata]
-      options[:metadata] = options[:options]['metadata']
+    # metadata_tag_key = 'metadata'
+    metadata_tag_key = 'tags'
+    if !options[:metadata]
+      if options[:options]['metadata'].is_a?(Array)
+        options[:metadata] = options[:options]['metadata']
+      end
+      if options[:options]['tags'].is_a?(Array)
+        options[:metadata] = options[:options]['tags']
+      end
     end
     if options[:metadata]
+      metadata = []
       if options[:metadata] == "[]" || options[:metadata] == "null"
-        payload['metadata'] = []
+        metadata = []
       elsif options[:metadata].is_a?(Array)
-        payload['metadata'] = options[:metadata]
+        metadata = options[:metadata]
       else
         # parse string into format name:value, name:value
         # merge IDs from current metadata
         # todo: should allow quoted semicolons..
-        metadata_list = options[:metadata].split(",").select {|it| !it.to_s.empty? }
-        metadata_list = metadata_list.collect do |it|
+        metadata = options[:metadata].split(",").select {|it| !it.to_s.empty? }
+        metadata = metadata.collect do |it|
           metadata_pair = it.split(":")
           if metadata_pair.size < 2 && it.include?("=")
             metadata_pair = it.split("=")
@@ -1009,13 +1017,13 @@ module Morpheus::Cli::ProvisioningHelper
           row['value'] = metadata_pair[1].to_s.strip
           row
         end
-        payload['metadata'] = metadata_list
       end
+      payload[metadata_tag_key] = metadata
     else
       # prompt for metadata tags
       metadata = prompt_metadata(options)
       if !metadata.empty?
-        payload['metadata'] = metadata
+        payload[metadata_tag_key] = metadata
       end
     end
 
@@ -1737,6 +1745,19 @@ module Morpheus::Cli::ProvisioningHelper
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
     metadata_array = []
     metadata_index = 0
+    # Keep Current Tags (foo:bar,hello:world)
+    # this is used by clone()
+    if options[:current_tags] && !options[:current_tags].empty?
+      current_tags_string = options[:current_tags].collect { |tag| tag['name'].to_s + '=' + tag['value'].to_s }.join(', ')
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'keepExistingTags', 'type' => 'checkbox', 'fieldLabel' => "Keep existing metadata tags (#{current_tags_string}) ?", 'required' => true, 'description' => 'Whether or not to keep existing metadata tags', 'defaultValue' => true}], options[:options])
+      if ['on','true','1',''].include?(v_prompt['keepExistingTags'].to_s.downcase)
+        options[:current_tags].each do |tag|
+          current_tag = tag.clone
+          current_tag.delete('id')
+          metadata_array << current_tag
+        end
+      end
+    end
     has_another_metadata = options[:options] && options[:options]["metadata#{metadata_index}"]
     add_another_metadata = has_another_metadata || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add a metadata tag?", {default: false}))
     while add_another_metadata do
