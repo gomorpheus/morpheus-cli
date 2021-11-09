@@ -250,10 +250,14 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       option_types = server['type']['scopeOptionTypes'].sort_by {|it| it['displayOrder']}
       print_green_success "Nothing to update"
       println cyan
-      print Morpheus::Cli::OptionTypes.display_option_types_help(
-        option_types,
-        {:include_context => true, :context_map => {'scope' => ''}, :color => cyan, :title => "Available Transport Zone Options"}
-      )
+      edit_option_types = option_types.reject {|it| !it['editable'] || !it['showOnEdit']}
+
+      if edit_option_types.count > 0
+        print Morpheus::Cli::OptionTypes.display_option_types_help(
+          option_types.reject {|it| !it['editable'] || !it['showOnEdit']},
+          {:include_context => true, :context_map => {'scope' => ''}, :color => cyan, :title => "Available Transport Zone Options"}
+        )
+      end
       exit 1
     end
 
