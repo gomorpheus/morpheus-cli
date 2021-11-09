@@ -24,7 +24,7 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List network DHCP Servers." + "\n" +
         "[server] is required. This is the name or id of a network server."
     end
@@ -32,9 +32,9 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 1
-      puts optparse
-      return 1
+    verify_args!(args:args, optparse:optparse, min:1)
+    if args.count > 1
+      options[:phrase] = args[1..-1].join(" ")
     end
 
     server = find_network_server(args[0])
@@ -46,31 +46,31 @@ class Morpheus::Cli::NetworkDhcpServersCommand
   end
 
   def _list(server, options)
+    params = parse_list_options(options)
     @network_dhcp_servers_interface.setopts(options)
-
     if options[:dry_run]
-      print_dry_run @network_dhcp_servers_interface.dry.list_dhcp_servers(server['id'])
+      print_dry_run @network_dhcp_servers_interface.dry.list_dhcp_servers(server['id'], params)
       return
     end
 
     if server['type']['hasDhcpServers']
-      json_response = @network_dhcp_servers_interface.list_dhcp_servers(server['id'])
+      json_response = @network_dhcp_servers_interface.list_dhcp_servers(server['id'], params)
       render_response(json_response, options, 'networkDhcpServers') do
         print_h1 "Network DHCP Servers For: #{server['name']}"
-        print cyan
-        print_dhcp_servers(server, json_response['networkDhcpServers'])
+        print_dhcp_servers(server, json_response)
       end
+      return 0, nil
     else
       print_red_alert "DHCP Servers not supported for #{server['type']['name']}"
+      return 1, "DHCP Servers not supported for #{server['type']['name']}"
     end
-    print reset
   end
 
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [dhcp_server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Display details on a network DHCP Server." + "\n" +
         "[server] is required. This is the name or id of a network server.\n" +
         "[dhcp_server] is required. This is the id of a network DHCP Server.\n"
@@ -79,10 +79,7 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
 
     server = find_network_server(args[0])
     if server.nil?
@@ -93,6 +90,7 @@ class Morpheus::Cli::NetworkDhcpServersCommand
   end
 
   def _get(server, dhcp_server_id, options)
+    # params = parse_query_options(options) # todo: use this
     @network_dhcp_servers_interface.setopts(options)
 
     if options[:dry_run]
@@ -134,17 +132,13 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Create a network dhcp server." + "\n" +
         "[server] is required. This is the name or id of a network server.\n";
     end
     optparse.parse!(args)
     connect(options)
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
 
     server = find_network_server(args[0])
     if server.nil?
@@ -193,15 +187,13 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server] [dhcp_server]")
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update a network DHCP Server.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
         "[dhcp_server] is required. This is the name or id of an existing network DHCP Server."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
 
     server = find_network_server(args[0])
@@ -257,15 +249,13 @@ class Morpheus::Cli::NetworkDhcpServersCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [dhcp_server]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      build_standard_remove_options(opts, options)
       opts.footer = "Delete a network dhcp server.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
         "[dhcp_server] is required. This is the name or id of an existing network dhcp server."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
 
     server = find_network_server(args[0])
@@ -300,7 +290,9 @@ class Morpheus::Cli::NetworkDhcpServersCommand
 
   private
 
-  def print_dhcp_servers(server, dhcpServers)
+  def print_dhcp_servers(server, json_response)
+    dhcpServers = json_response['networkDhcpServers']
+    print cyan
     if dhcpServers.count > 0
       cols = [:id]
       server['type']['dhcpServerOptionTypes'].sort_by {|it| it['displayOrder']}.each do |option_type|
@@ -318,10 +310,12 @@ class Morpheus::Cli::NetworkDhcpServersCommand
         end
         row
       end
-      puts as_pretty_table(rows, cols)
+      print as_pretty_table(rows, cols)
+      print_results_pagination(json_response)
     else
-      println "No DHCP Servers\n"
+      println "No DHCP Servers"
     end
+    println reset
   end
 
   def find_network_server(val)

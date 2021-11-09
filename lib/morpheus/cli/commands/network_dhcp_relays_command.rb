@@ -23,8 +23,8 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
   def list(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[server] [search]")
+      build_standard_list_options(opts, options)
       opts.footer = "List network DHCP Relays." + "\n" +
         "[server] is required. This is the name or id of a network server."
     end
@@ -32,11 +32,10 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 1
-      puts optparse
-      return 1
+    verify_args!(args:args, optparse:optparse, min:1)
+    if args.count > 1
+      options[:phrase] = args[1..-1].join(" ")
     end
-
     server = find_network_server(args[0])
     if server.nil?
       return 1
@@ -46,31 +45,31 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
   end
 
   def _list(server, options)
+    params = parse_list_options(options)
     @network_dhcp_relays_interface.setopts(options)
-
     if options[:dry_run]
-      print_dry_run @network_dhcp_relays_interface.dry.list_dhcp_relays(server['id'])
+      print_dry_run @network_dhcp_relays_interface.dry.list_dhcp_relays(server['id'], params)
       return
     end
 
     if server['type']['hasDhcpRelays']
-      json_response = @network_dhcp_relays_interface.list_dhcp_relays(server['id'])
+      json_response = @network_dhcp_relays_interface.list_dhcp_relays(server['id'], params)
       render_response(json_response, options, 'networkDhcpRelays') do
         print_h1 "Network DHCP Relays For: #{server['name']}"
-        print cyan
-        print_dhcp_relays(server, json_response['networkDhcpRelays'])
+        print_dhcp_relays(server, json_response)
       end
+      return 0, nil
     else
       print_red_alert "DHCP Relays not supported for #{server['type']['name']}"
+      return 1, "DHCP Relays not supported for #{server['type']['name']}"
     end
-    print reset
   end
 
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [dhcp_relay]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Display details on a network DHCP Relay." + "\n" +
         "[server] is required. This is the name or id of a network server.\n" +
         "[dhcp_relay] is required. This is the id of a network DHCP Relay.\n"
@@ -79,10 +78,7 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
 
     server = find_network_server(args[0])
     if server.nil?
@@ -93,6 +89,7 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
   end
 
   def _get(server, dhcp_relay_id, options)
+    # params = parse_query_options(options) # todo: use this
     @network_dhcp_relays_interface.setopts(options)
 
     if options[:dry_run]
@@ -133,17 +130,13 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Create a network dhcp relay." + "\n" +
         "[server] is required. This is the name or id of a network server.\n";
     end
     optparse.parse!(args)
     connect(options)
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
 
     server = find_network_server(args[0])
     if server.nil?
@@ -199,15 +192,13 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server] [dhcp_relay]")
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update a network DHCP Relay.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
         "[dhcp_relay] is required. This is the name or id of an existing network DHCP Relay."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
 
     server = find_network_server(args[0])
@@ -270,15 +261,13 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [dhcp_relay]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      build_standard_remove_options(opts, options)
       opts.footer = "Delete a network dhcp relay.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
         "[dhcp_relay] is required. This is the name or id of an existing network dhcp relay."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
 
     server = find_network_server(args[0])
@@ -313,7 +302,9 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
 
   private
 
-  def print_dhcp_relays(server, dhcpRelays)
+  def print_dhcp_relays(server, json_response)
+    dhcpRelays = json_response['networkDhcpRelays']
+    print cyan
     if dhcpRelays.count > 0
       cols = [:id]
       server['type']['dhcpRelayOptionTypes'].sort_by {|it| it['displayOrder']}.each do |option_type|
@@ -330,10 +321,12 @@ class Morpheus::Cli::NetworkDhcpRelaysCommand
         end
         row
       end
-      puts as_pretty_table(rows, cols)
+      print as_pretty_table(rows, cols)
+      print_results_pagination(json_response)
     else
-      println "No DHCP Relays\n"
+      println "No DHCP Relays"
     end
+    println reset
   end
 
   def find_network_server(val)
