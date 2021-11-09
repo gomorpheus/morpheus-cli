@@ -1,11 +1,11 @@
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::NetworkScopesCommand
+class Morpheus::Cli::NetworkTransportZonesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
 
-  set_command_name :'network-scopes'
+  set_command_name :'network-transport-zones'
   register_subcommands :list, :get, :add, :update, :remove
 
   def connect(opts)
@@ -24,7 +24,7 @@ class Morpheus::Cli::NetworkScopesCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List network scopes." + "\n" +
+      opts.footer = "List network transport zones." + "\n" +
         "[server] is required. This is the name or id of a network server."
     end
 
@@ -55,12 +55,12 @@ class Morpheus::Cli::NetworkScopesCommand
     if server['type']['hasScopes']
       json_response = @network_servers_interface.list_scopes(server['id'])
       render_response(json_response, options, 'networkScopes') do
-        print_h1 "Network Scopes For: #{server['name']}"
+        print_h1 "Network transport zones For: #{server['name']}"
         print cyan
         print_scopes(server, json_response['networkScopes'])
       end
     else
-      print_red_alert "Scopes not supported for #{server['type']['name']}"
+      print_red_alert "Transport zones not supported for #{server['type']['name']}"
     end
     print reset
   end
@@ -68,11 +68,11 @@ class Morpheus::Cli::NetworkScopesCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[server] [scope]")
+      opts.banner = subcommand_usage("[server] [transport zone]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Display details on a network scope." + "\n" +
+      opts.footer = "Display details on a network transport zone." + "\n" +
         "[server] is required. This is the name or id of a network server.\n" +
-        "[scope] is required. This is the id of a network scope.\n"
+        "[transport zone] is required. This is the id of a network transport zone.\n"
     end
 
     optparse.parse!(args)
@@ -109,7 +109,7 @@ class Morpheus::Cli::NetworkScopesCommand
       return 1 if scope.nil?
 
       render_response({networkScope: scope}, options, 'networkScope') do
-        print_h1 "Network Scope Details"
+        print_h1 "Network Transport Zone Details"
         print cyan
 
         description_cols = {
@@ -130,7 +130,7 @@ class Morpheus::Cli::NetworkScopesCommand
         print_description_list(description_cols, scope)
       end
     else
-      print_red_alert "Scopes not supported for #{server['type']['name']}"
+      print_red_alert "Transport zones not supported for #{server['type']['name']}"
     end
     println reset
   end
@@ -148,7 +148,7 @@ class Morpheus::Cli::NetworkScopesCommand
       end
       add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Create a network scope." + "\n" +
+      opts.footer = "Create a network transport zone." + "\n" +
         "[server] is required. This is the name or id of a network server.\n";
     end
     optparse.parse!(args)
@@ -165,7 +165,7 @@ class Morpheus::Cli::NetworkScopesCommand
     end
 
     if !server['type']['hasScopes']
-      print_red_alert "Scopes not supported for #{server['type']['name']}"
+      print_red_alert "Transport zones not supported for #{server['type']['name']}"
       return 1
     end
 
@@ -195,7 +195,7 @@ class Morpheus::Cli::NetworkScopesCommand
 
     json_response = @network_servers_interface.create_scope(server['id'], payload)
     render_response(json_response, options, 'networkScope') do
-      print_green_success "\nAdded Network Scope #{json_response['id']}\n"
+      print_green_success "\nAdded Network Transport Zone #{json_response['id']}\n"
       _get(server, json_response['id'], options)
     end
   end
@@ -204,7 +204,7 @@ class Morpheus::Cli::NetworkScopesCommand
     options = {:options=>{}}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[server] [scope]")
+      opts.banner = subcommand_usage("[server] [transport zone]")
       opts.on( '--name NAME', "Name" ) do |val|
         params['name'] = val.to_s
       end
@@ -213,9 +213,9 @@ class Morpheus::Cli::NetworkScopesCommand
       end
       add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Update a network scope.\n" +
+      opts.footer = "Update a network transport zone.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
-        "[scope] is required. This is the name or id of an existing network scope."
+        "[transport zone] is required. This is the name or id of an existing network transport zone."
     end
     optparse.parse!(args)
     if args.count != 2
@@ -229,7 +229,7 @@ class Morpheus::Cli::NetworkScopesCommand
     end
 
     if !server['type']['hasScopes']
-      print_red_alert "Scopes not supported for #{server['type']['name']}"
+      print_red_alert "Transport zones not supported for #{server['type']['name']}"
       return 1
     end
 
@@ -252,7 +252,7 @@ class Morpheus::Cli::NetworkScopesCommand
       println cyan
       print Morpheus::Cli::OptionTypes.display_option_types_help(
         option_types,
-        {:include_context => true, :context_map => {'scope' => ''}, :color => cyan, :title => "Available Scope Options"}
+        {:include_context => true, :context_map => {'scope' => ''}, :color => cyan, :title => "Available Transport Zone Options"}
       )
       exit 1
     end
@@ -268,7 +268,7 @@ class Morpheus::Cli::NetworkScopesCommand
 
     json_response = @network_servers_interface.update_scope(server['id'], scope['id'], payload)
     render_response(json_response, options, 'networkScope') do
-      print_green_success "\nUpdated Network Scope #{scope['id']}\n"
+      print_green_success "\nUpdated Network Transport Zone #{scope['id']}\n"
       _get(server, scope['id'], options)
     end
   end
@@ -276,11 +276,11 @@ class Morpheus::Cli::NetworkScopesCommand
   def remove(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[server] [scope]")
+      opts.banner = subcommand_usage("[server] [transport zone]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Delete a network scope.\n" +
+      opts.footer = "Delete a network transport zone.\n" +
         "[server] is required. This is the name or id of an existing network server.\n" +
-        "[scope] is required. This is the name or id of an existing network scope."
+        "[transport zone] is required. This is the name or id of an existing network transport zone."
     end
     optparse.parse!(args)
     if args.count != 2
@@ -294,14 +294,14 @@ class Morpheus::Cli::NetworkScopesCommand
     end
 
     if !server['type']['hasScopes']
-      print_red_alert "Scopes not supported for #{server['type']['name']}"
+      print_red_alert "Transport zones not supported for #{server['type']['name']}"
       return 1
     end
 
     scope = find_scope(server['id'], args[1])
     return 1 if scope.nil?
 
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the network scope '#{scope['name']}' from server '#{server['name']}'?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the network transport zone '#{scope['name']}' from server '#{server['name']}'?", options)
       return 9, "aborted command"
     end
 
@@ -313,7 +313,7 @@ class Morpheus::Cli::NetworkScopesCommand
     end
     json_response = @network_servers_interface.destroy_scope(server['id'], scope['id'])
     render_response(json_response, options, 'networkScope') do
-      print_green_success "\nDeleted Network Scope #{scope['name']}\n"
+      print_green_success "\nDeleted Network Transport Zone #{scope['name']}\n"
       _list(server, options)
     end
   end
@@ -347,7 +347,7 @@ class Morpheus::Cli::NetworkScopesCommand
       end
       puts as_pretty_table(rows, cols)
     else
-      println "No Scopes\n"
+      println "No transport zones\n"
     end
   end
 
@@ -409,7 +409,7 @@ class Morpheus::Cli::NetworkScopesCommand
       return json_response['networkScope']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Network Scope not found by id #{id}"
+        print_red_alert "Network transport zone not found by id #{id}"
         return nil
       else
         raise e
@@ -421,10 +421,10 @@ class Morpheus::Cli::NetworkScopesCommand
     json_response = @network_servers_interface.list_scope(server_id, {phrase: name.to_s})
     scopes = json_response['networkScopes']
     if scopes.empty?
-      print_red_alert "Network Scope not found by name #{name}"
+      print_red_alert "Network transport zone not found by name #{name}"
       return nil
     elsif scopes.size > 1
-      print_red_alert "#{scopes.size} network scopes found by name #{name}"
+      print_red_alert "#{scopes.size} network transport zones found by name #{name}"
       rows = scopes.collect do |it|
         {id: it['id'], name: it['name']}
       end
