@@ -5,7 +5,15 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::AccountsHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
-  register_subcommands :list, :get, :add, :update, :remove, :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-global-instance-type-access', :'update-instance-type-access', :'update-global-blueprint-access', :'update-blueprint-access', :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-persona-access', :'update-global-vdi-pool-access', :'update-vdi-pool-access'
+  register_subcommands :list, :get, :add, :update, :remove, 
+    :'list-permissions', :'update-feature-access', :'update-global-group-access', 
+    :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', 
+    :'update-global-instance-type-access', :'update-instance-type-access', 
+    :'update-global-blueprint-access', :'update-blueprint-access', 
+    :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', 
+    :'update-persona-access', 
+    :'update-global-vdi-pool-access', :'update-vdi-pool-access',
+    :'update-global-report-type-access', :'update-report-type-access'
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -102,6 +110,9 @@ class Morpheus::Cli::Roles
       opts.on(nil,'--vdi-pool-access', "Display VDI Pool Access") do
         options[:include_vdi_pool_access] = true
       end
+      opts.on(nil,'--report-type-access', "Display Report Type Access") do
+        options[:include_report_type_access] = true
+      end
       opts.on('-a','--all', "Display All Access Lists") do
         options[:include_feature_access] = true
         options[:include_group_access] = true
@@ -111,6 +122,7 @@ class Morpheus::Cli::Roles
         options[:include_catalog_item_type_access] = true
         options[:include_personas_access] = true
         options[:include_vdi_pool_access] = true
+        options[:include_report_type_access] = true
       end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
@@ -217,6 +229,7 @@ EOT
         "Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) },
         "Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) },
         "VDI Pools" => lambda {|it| get_access_string(it['globalVdiPoolAccess']) },
+        "Report Types" => lambda {|it| get_access_string(it['globalReportTypeAccess']) },
       }
       if role['roleType'].to_s.downcase == 'account'
         global_access_columns.delete("Groups")
@@ -370,7 +383,7 @@ EOT
           rows = vdi_pool_permissions.collect do |it|
             {
               name: it['name'],
-              access: format_access_string(it['access'], ["none","read","full"]),
+              access: format_access_string(it['access'], ["none","full"]),
             }
           end
           print as_pretty_table(rows, [:name, :access], options)
@@ -380,6 +393,27 @@ EOT
       else
         # print "\n"
         # print cyan,bold,"VDI Pool Access: #{get_access_string(json_response['globalVdiPoolAccess'])}",reset,"\n"
+      end
+
+      report_type_global_access = json_response['globalReportTypeAccess']
+      report_type_permissions = json_response['reportTypePermissions'] || []
+      print cyan
+      if report_type_global_access == 'custom'
+        print_h2 "Report Type Access", options
+        if options[:include_report_type_access]
+          rows = report_type_permissions.collect do |it|
+            {
+              name: it['name'],
+              access: format_access_string(it['access'], ["none","full"]),
+            }
+          end
+          print as_pretty_table(rows, [:name, :access], options)
+        else
+          print cyan,"Use --report-type-access to list custom access","\n"
+        end
+      else
+        # print "\n"
+        # print cyan,bold,"Report Type Access: #{get_access_string(json_response['globalReportTypeAccess'])}",reset,"\n"
       end
 
     end
@@ -836,16 +870,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !group_id && !do_all
-      raise_command_error("missing required argument: [group] or --all", optparse)
+      raise_command_error("missing required argument: [group] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
-      puts optparse
-      return 1
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
     end
 
     connect(options)
@@ -985,16 +1017,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !cloud_id && !do_all
-      raise_command_error("missing required argument: [cloud] or --all", optparse)
+      raise_command_error("missing required argument: [cloud] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
-      puts optparse
-      return 1
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
     end
 
     connect(options)
@@ -1280,16 +1310,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !blueprint_id && !do_all
-      raise_command_error("missing required argument: [blueprint] or --all", optparse)
+      raise_command_error("missing required argument: [blueprint] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
-      puts optparse
-      return 1
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
     end
 
     connect(options)
@@ -1441,16 +1469,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !catalog_item_type_id && !do_all
-      raise_command_error("missing required argument: [catalog-item-type] or --all", optparse)
+      raise_command_error("missing required argument: [catalog-item-type] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
-      puts optparse
-      return 1
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
     end
 
     connect(options)
@@ -1553,16 +1579,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !persona_id && !do_all
-      raise_command_error("missing required argument: [persona] or --all", optparse)
+      raise_command_error("missing required argument: [persona] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
-      puts optparse
-      return 1
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
     end
 
     connect(options)
@@ -1620,7 +1644,7 @@ EOT
     name = args[0]
     access_value = args[1].to_s.downcase
     if !['full', 'custom', 'none'].include?(access_value)
-      raise_command_error("invalid access value: #{args[1]}", optparse)
+      raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 
 
@@ -1688,14 +1712,14 @@ EOT
       access_value = args[2] if args[2]
     end
     if !vdi_pool_id && !do_all
-      raise_command_error("missing required argument: [vdi-pool] or --all", optparse)
+      raise_command_error("missing required argument: [vdi-pool] or --all", args, optparse)
     end
     if !access_value
-      raise_command_error("missing required argument: [access]", optparse)
+      raise_command_error("missing required argument: [access]", args, optparse)
     end
     access_value = access_value.to_s.downcase
     if !allowed_access_values.include?(access_value)
-      raise_command_error("invalid access value: #{access_value}", optparse)
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
       puts optparse
       return 1
     end
@@ -1753,6 +1777,160 @@ EOT
           print_green_success "Role #{role['authority']} access updated for all VDI pools"
         else
           print_green_success "Role #{role['authority']} access updated for VDI pool #{vdi_pool['name']}"
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_global_report_type_access(args)
+    usage = "Usage: morpheus roles update-global-report-type-access [role] [full|custom|none]"
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 2)
+    name = args[0]
+    access_value = args[1].to_s.downcase
+    if !['full', 'custom', 'none'].include?(access_value)
+      raise_command_error("invalid access value: #{args[1]}", args, optparse)
+    end
+
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      exit 1 if role.nil?
+      # note: ReportTypes being plural is odd, the others are singular
+      params = {permissionCode: 'ReportTypes', access: access_value}
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_permission(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Role #{role['authority']} global report type access updated"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_report_type_access(args)
+    options = {}
+    report_type_id = nil
+    access_value = nil
+    do_all = false
+    allowed_access_values = ['full', 'none']
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role] [report-type] [access]")
+      opts.on( '--report-type ID', String, "Report Type ID or Name" ) do |val|
+        report_type_id = val
+      end
+      opts.on( nil, '--all', "Update all report types at once." ) do
+        do_all = true
+      end
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}]" ) do |val|
+        access_value = val
+      end
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update role access for a report type or all report types.\n" +
+                    "[role] is required. This is the name or id of a role.\n" + 
+                    "--report-type or --all is required. This is the name or id of a report type.\n" + 
+                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+    end
+    optparse.parse!(args)
+
+    # usage: update-report-type-access [role] [access] --all
+    #        update-report-type-access [role] [report-type] [access]
+    name = args[0]
+    if do_all
+      verify_args!(args:args, optparse:optparse, min:1, max:2)
+      access_value = args[1] if args[1]
+    else
+      verify_args!(args:args, optparse:optparse, min:1, max:3)
+      report_type_id = args[1] if args[1]
+      access_value = args[2] if args[2]
+    end
+    if !report_type_id && !do_all
+      raise_command_error("missing required argument: [report-type] or --all", args, optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", args, optparse)
+    end
+    access_value = access_value.to_s.downcase
+    if !allowed_access_values.include?(access_value)
+      raise_command_error("invalid access value: #{access_value}", args, optparse)
+      puts optparse
+      return 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      return 1 if role.nil?
+
+      role_json = @roles_interface.get(account_id, role['id'])
+      report_type_global_access = role_json['globalReportTypeAccess']
+      report_type_permissions = role_json['reportTypePermissions'] || []
+      if report_type_global_access != 'custom'
+        print "\n", red, "Global Report Type Access is currently: #{report_type_global_access.to_s.capitalize}"
+        print "\n", "You must first set it to Custom via `morpheus roles update-global-report-type-access \"#{name}\" custom`"
+        print "\n\n", reset
+        return 1
+      end
+
+      # hacky, but support name or code lookup via the list returned in the show payload
+      report_type = nil
+      if !do_all
+        if report_type_id.to_s =~ /\A\d{1,}\Z/
+          report_type = report_type_permissions.find {|b| b['id'] == report_type_id.to_i }
+        else
+          report_type = report_type_permissions.find {|b| b['name'] == report_type_id }
+        end
+        if report_type.nil?
+          print_red_alert "Report Type not found: '#{report_type_id}'"
+          return 1
+        end
+      end
+
+      params = {}
+      if do_all
+        params['allReportTypes'] = true
+      else
+        params['reportTypeId'] = report_type['id']
+      end
+      params['access'] = access_value
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_report_type(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_report_type(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        if do_all
+          print_green_success "Role #{role['authority']} access updated for all report types"
+        else
+          print_green_success "Role #{role['authority']} access updated for report type #{report_type['name']}"
         end
       end
       return 0
