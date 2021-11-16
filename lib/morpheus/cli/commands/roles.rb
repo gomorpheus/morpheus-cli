@@ -791,6 +791,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [full|read|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global group access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, read, custom or none.
+EOT
     end
     optparse.parse!(args)
 
@@ -939,6 +944,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global cloud access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
 
@@ -1085,6 +1095,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global instance type access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
 
@@ -1231,6 +1246,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global blueprint access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
 
@@ -1390,6 +1410,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global catalog item type access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
 
@@ -1638,6 +1663,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+            opts.footer = <<-EOT
+Update global VDI pool access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count: 2)
@@ -1792,6 +1822,11 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update global report type access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full, custom or none.
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count: 2)
