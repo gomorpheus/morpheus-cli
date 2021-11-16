@@ -504,19 +504,21 @@ EOT
   end
 
   def add(args)
+    record_type = nil
     record_type_id = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[#{rest_arg}]")
       if rest_has_type
-        opts.banner = subcommand_usage("[#{rest_arg}] -t TYPE")
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
         end
-      else
-        opts.banner = subcommand_usage("[#{rest_arg}]")
       end
       if self.class.method_defined?("add_#{rest_key}_option_types")
         build_option_type_options(opts, options, self.send("add_#{rest_key}_option_types"))
+      end
+      if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
+        build_option_type_options(opts, options, self.send("add_#{rest_key}_advanced_option_types"))
       end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -532,14 +534,15 @@ EOT
       record_name = args[0]
     end
     verify_args!(args:args, optparse:optparse, min:0, max: 1)
-    # todo: maybe need a flag to make this required, it could be an option type too, so
+    connect(options)
+    # load or prompt for type
     if rest_has_type
       if record_type_id.nil?
-        raise_command_error "#{rest_type_label} is required.\n#{optparse}"
+        #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
+        type_list = rest_type_interface.list({max:10000})[rest_type_list_key]
+        type_dropdown_options = type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+        record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
       end
-    end
-    connect(options)
-    if rest_has_type
       record_type = rest_type_find_by_name_or_id(record_type_id)
       if record_type.nil?
         raise_command_error "#{rest_type_label} not found for '#{record_type_id}'.\n#{optparse}"
@@ -557,11 +560,21 @@ EOT
         options[:options]['name'] = record_name # injected for prompt
       end
       if rest_has_type && record_type
-        # record_payload['type'] = {'code' => record_type['code']}
+        # inject type to options for prompting
         record_payload['type'] = record_type['code']
-        options[:options]['type'] = record_type['code'] # injected for prompt
+        options[:options]['type'] = record_type['code']
+        # initialize params for loading optionSource data
+        options[:params] ||= {}
+        options[:params]['type'] = record_type['code']
       end
       record_payload.deep_merge!(passed_options)
+      if self.class.method_defined?("add_#{rest_key}_option_types")
+        add_option_types = self.send("add_#{rest_key}_option_types")
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(add_option_types, options[:options], @api_client, options[:params])
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        record_payload.deep_merge!(v_prompt)
+      end
       # options by type
       my_option_types = record_type ? record_type['optionTypes'] : nil
       if my_option_types && !my_option_types.empty?
@@ -572,6 +585,14 @@ EOT
           end
         end
         v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, options[:params])
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        record_payload.deep_merge!(v_prompt)
+      end
+      # advanced options (uses no_prompt)
+      if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
+        add_advanced_option_types = self.send("add_#{rest_key}_advanced_option_types")
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(add_advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -594,13 +615,16 @@ EOT
 
   def update(args)
     id = args[0]
+    record_type = nil
+    record_type_id = nil
     options = {}
-    params = {}
-    account_name = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}] [options]")
       if self.class.method_defined?("update_#{rest_key}_option_types")
         build_option_type_options(opts, options, self.send("update_#{rest_key}_option_types"))
+      end
+      if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
+        build_option_type_options(opts, options, self.send("update_#{rest_key}_advanced_option_types"))
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
@@ -612,13 +636,72 @@ EOT
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     record = rest_find_by_name_or_id(id)
+    if record.nil?
+      return 1, "#{rest_name} not found for '#{id}'"
+    end
+    # load type so we can prompt for those option types
+    if rest_has_type
+      record_type_id = record['type']['id']
+      record_type = rest_type_find_by_name_or_id(record_type_id)
+      if record_type.nil?
+        raise_command_error "#{rest_type_label} not found for '#{record_type_id}'.\n#{optparse}"
+      end
+    end
     passed_options = parse_passed_options(options)
-    payload = nil
+    payload = {}
     if options[:payload]
       payload = options[:payload]
       payload.deep_merge!({rest_object_key => passed_options}) unless passed_options.empty?
     else
       record_payload = passed_options
+      if rest_has_type && record_type
+        # inject type to options for prompting
+        # record_payload['type'] = record_type['code']
+        # options[:options]['type'] = record_type['code']
+        # initialize params for loading optionSource data
+        options[:params] ||= {}
+        options[:params]['type'] = record_type['code']
+      end
+      # update options without prompting by default
+      if self.class.method_defined?("update_#{rest_key}_option_types")
+        update_option_types = self.send("update_#{rest_key}_option_types")
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_option_types, options[:options], @api_client, options[:params])
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        record_payload.deep_merge!(v_prompt)
+      end
+      # options by type
+      my_option_types = record_type ? record_type['optionTypes'] : nil
+      if my_option_types && !my_option_types.empty?
+        # remove redundant fieldContext
+        # make them optional for updates
+        # todo: use current value as default instead of just making things optioanl
+        # maybe new prompt() options like {:mode => :edit, :object => storage_server} or something
+        my_option_types.each do |option_type| 
+          if option_type['fieldContext'] == rest_object_key
+            option_type['fieldContext'] = nil
+          end
+          option_type.delete('required')
+          option_type.delete('defaultValue')
+        end
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(my_option_types, options[:options], @api_client, options[:params])
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        record_payload.deep_merge!(v_prompt)
+      end
+      # advanced options
+      if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
+        update_advanced_option_types = self.send("update_#{rest_key}_advanced_option_types")
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_advanced_option_types, options[:options], @api_client, options[:params])
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        record_payload.deep_merge!(v_prompt)
+      end
+      # remove empty config, compact could hanlde this
+      if record_payload['config'] && record_payload['config'].empty?
+        record_payload.delete('config')
+      end
+      # prevent updating with empty payload
       if record_payload.empty?
         raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
