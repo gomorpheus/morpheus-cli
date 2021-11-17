@@ -504,17 +504,16 @@ class Morpheus::Cli::HealthCommand
   def logs(args)
     options = {}
     params = {}
-    start_date, end_date = nil, nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
         params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
-      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
-        start_date = parse_time(val) #.utc.iso8601
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 24 hours ago.") do |val|
+        params['startDate'] = val # parse_time(val).utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        end_date = parse_time(val) #.utc.iso8601
+        params['endDate'] = val # parse_time(val).utc.iso8601
       end
       opts.on('-t', '--table', "Format output as a table.") do
         options[:table] = true
@@ -533,8 +532,8 @@ class Morpheus::Cli::HealthCommand
     begin
       # params['startDate'] = start_date.utc.iso8601 if start_date
       # params['endDate'] = end_date.utc.iso8601 if end_date
-      params['startMs'] = (start_date.to_i * 1000) if start_date
-      params['endMs'] = (end_date.to_i * 1000) if end_date
+      # params['startMs'] = (start_date.to_i * 1000) if start_date
+      # params['endMs'] = (end_date.to_i * 1000) if end_date
       params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
       params.merge!(parse_list_options(options))
       @health_interface.setopts(options)
@@ -551,11 +550,11 @@ class Morpheus::Cli::HealthCommand
       if params['level']
         subtitles << "Level: #{[params['level']].flatten.join(',')}"
       end
-      if start_date
-        subtitles << "Start: #{start_date}"
+      if params['startDate']
+        subtitles << "Start: #{params['startDate']}"
       end
-      if end_date
-        subtitles << "End: #{end_date}"
+      if params['endDate']
+        subtitles << "End: #{params['endDate']}"
       end
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
@@ -576,7 +575,6 @@ class Morpheus::Cli::HealthCommand
 
   def export_logs(args)
     params = {}
-    start_date, end_date = nil, nil
     options = {}
     outfile = nil
     do_overwrite = false
@@ -586,17 +584,17 @@ class Morpheus::Cli::HealthCommand
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
         params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
-      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
-        start_date = parse_time(val) #.utc.iso8601
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 24 hours ago.") do |val|
+        params['startDate'] = val # parse_time(val).utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
-        end_date = parse_time(val) #.utc.iso8601
+        params['endDate'] = val # parse_time(val).utc.iso8601
       end
-      opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
+      opts.on( '-f', '--force', "Overwrite existing [file] if it exists." ) do
         do_overwrite = true
         # do_mkdir = true
       end
-      opts.on( '-p', '--mkdir', "Create missing directories for [local-file] if they do not exist." ) do
+      opts.on( '-p', '--mkdir', "Create missing directories for [file] if they do not exist." ) do
         do_mkdir = true
       end
       build_common_options(opts, options, [:list, :query, :dry_run, :remote])
@@ -606,13 +604,9 @@ class Morpheus::Cli::HealthCommand
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
-    # params['startDate'] = start_date.utc.iso8601 if start_date
-    # params['endDate'] = end_date.utc.iso8601 if end_date
-    params['startMs'] = (start_date.to_i * 1000) if start_date
-    params['endMs'] = (end_date.to_i * 1000) if end_date
     params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
     params.merge!(parse_list_options(options))
-    
+
     outfile = args[0]
     outfile = File.expand_path(outfile)
     
@@ -644,14 +638,14 @@ class Morpheus::Cli::HealthCommand
       return 0
     end
     if !options[:quiet]
-      print cyan + "Downloading morpheus logs to #{outfile} ... "
+      print cyan + "Downloading file #{outfile} ... "
     end
     http_response, bad_body = @health_interface.export_logs(outfile, params)
     # FileUtils.chmod(0600, outfile)
     success = http_response.code.to_i == 200
     if success
       if !options[:quiet]
-        print green + "SUCCESS" + reset + "\n"
+        print green + "SUCCESS" + reset + " (" + format_bytes(http_response["Content-Length"].to_i).to_s + ")" + "\n"
       end
       # todo: parse default outfile from http_response["Content-Type"]
       return 0
@@ -686,7 +680,7 @@ class Morpheus::Cli::HealthCommand
       opts.on('--acknowledged', '--acknowledged', "Filter by acknowledged. By default only open alarms are returned.") do
         params['alarmStatus'] = 'acknowledged'
       end
-      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 24 hours ago.") do |val|
         start_date = parse_time(val) #.utc.iso8601
       end
       opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
