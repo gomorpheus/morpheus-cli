@@ -68,7 +68,7 @@ module Morpheus::Cli::LogsHelper
       else
         log_msg = truncate_string(log_entry['message'].to_s.strip.gsub(/\r?\n/, " "), message_col_width)
       end
-      out << "- #{log_msg}"
+      out << "#{log_msg}"
       out << table_color if table_color
       out << "\n"
     end
