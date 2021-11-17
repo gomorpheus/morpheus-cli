@@ -4,7 +4,7 @@ class Morpheus::Cli::HealthCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LogsHelper
   set_command_name :health
-  register_subcommands :get, :alarms, :'get-alarm', :'acknowledge-alarms', :'unacknowledge-alarms', :logs
+  register_subcommands :get, :alarms, :'get-alarm', :'acknowledge-alarms', :'unacknowledge-alarms', :logs, :'export-logs'
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -571,6 +571,103 @@ class Morpheus::Cli::HealthCommand
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  def export_logs(args)
+    params = {}
+    start_date, end_date = nil, nil
+    options = {}
+    outfile = nil
+    do_overwrite = false
+    do_mkdir = false
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[file]")
+      opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
+        params['level'] = params['level'] ? [params['level'], val].flatten : [val]
+      end
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 30 days ago.") do |val|
+        start_date = parse_time(val) #.utc.iso8601
+      end
+      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
+        end_date = parse_time(val) #.utc.iso8601
+      end
+      opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
+        do_overwrite = true
+        # do_mkdir = true
+      end
+      opts.on( '-p', '--mkdir', "Create missing directories for [local-file] if they do not exist." ) do
+        do_mkdir = true
+      end
+      build_common_options(opts, options, [:list, :query, :dry_run, :remote])
+      opts.footer = "Export morpheus appliance log." + "\n" +
+                    "[file] is required. This is local destination for the downloaded file. Example: morpheus.log"
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 1)
+    connect(options)
+    # params['startDate'] = start_date.utc.iso8601 if start_date
+    # params['endDate'] = end_date.utc.iso8601 if end_date
+    params['startMs'] = (start_date.to_i * 1000) if start_date
+    params['endMs'] = (end_date.to_i * 1000) if end_date
+    params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
+    params.merge!(parse_list_options(options))
+    
+    outfile = args[0]
+    outfile = File.expand_path(outfile)
+    
+    if Dir.exists?(outfile)
+      raise_command_error("[file] is invalid. It is the name of an existing directory: #{outfile}", args, optparse)
+    end
+    destination_dir = File.dirname(outfile)
+    if !Dir.exists?(destination_dir)
+      if do_mkdir
+        print cyan,"Creating local directory #{destination_dir}",reset,"\n"
+        FileUtils.mkdir_p(destination_dir)
+      else
+        raise_command_error("[file] is invalid. Directory not found: #{destination_dir}", args, optparse)
+      end
+    end
+    if File.exists?(outfile)
+      if do_overwrite
+        # uhh need to be careful wih the passed filepath here..
+        # don't delete, just overwrite.
+        # File.delete(outfile)
+      else
+        raise_command_error("[file] is invalid. File already exists: #{outfile}\nUse -f to overwrite the existing file.", args, optparse)
+      end
+    end
+
+    @health_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @health_interface.dry.export_logs(outfile, params)
+      return 0
+    end
+    if !options[:quiet]
+      print cyan + "Downloading morpheus logs to #{outfile} ... "
+    end
+    http_response, bad_body = @health_interface.export_logs(outfile, params)
+    # FileUtils.chmod(0600, outfile)
+    success = http_response.code.to_i == 200
+    if success
+      if !options[:quiet]
+        print green + "SUCCESS" + reset + "\n"
+      end
+      # todo: parse default outfile from http_response["Content-Type"]
+      return 0
+    else
+      if !options[:quiet]
+        print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
+      end
+      # F it, just remove a bad result
+      if File.exists?(outfile) && File.file?(outfile)
+        Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
+        File.delete(outfile)
+      end
+      if options[:debug]
+        puts_error http_response.inspect
+      end
+      return 1, "download failed"
     end
   end
 
