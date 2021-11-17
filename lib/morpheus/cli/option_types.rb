@@ -41,6 +41,7 @@ module Morpheus
         paging_enabled = false if Morpheus::Cli.windows?
         results = {}
         options = options || {}
+
         # inject cli only stuff into option_types (should clone() here)
         option_types.each do |option_type|
           if options[:help_field_prefix]
@@ -510,7 +511,9 @@ module Morpheus
       # this works like select_prompt, but refreshes options with ?query=value between inputs
       # paging_enabled is ignored right now
       def self.typeahead_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
-        select_options = []
+        paging_enabled = false if Morpheus::Cli.windows?
+        paging = nil
+        select_options = nil
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
         input = ""
@@ -544,7 +547,8 @@ module Morpheus
               matches
             }
             # prompt for typeahead input value
-            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for options]: ", false).to_s
+            has_more_pages = paging && ((paging[:cur_page] + 1) * paging[:page_size]) < paging[:total]
+            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages ? ' more ' : ' '}options]: ", false).to_s
             input = input.chomp.strip
           end
 
@@ -571,8 +575,22 @@ module Morpheus
           # looking for help with this input
           if input == '?'
             help_prompt(option_type)
-            select_options = load_options(option_type, api_client, api_params)
-            display_select_options(option_type, select_options) unless select_options.empty?
+            select_options = select_options || load_options(option_type, api_client, api_params)
+
+            if !select_options.empty?
+              if paging_enabled
+                if paging.nil?
+                  option_count = select_options ? select_options.count : 0
+                  page_size = Readline.get_screen_size[0] - 6
+                  if page_size < option_count
+                    paging = {:cur_page => 0, :page_size => page_size, :total => option_count}
+                  end
+                else
+                  paging[:cur_page] = (paging[:cur_page] + 1) * paging[:page_size] < paging[:total] ? paging[:cur_page] + 1 : 0
+                end
+              end
+              display_select_options(option_type, select_options, paging)
+            end
             next
           end
 
@@ -969,12 +987,12 @@ module Morpheus
           "#{opts[:color]}#{opts[:title] || "Available Options:"}\nNone\n\n"
         else
           if opts[:include_context]
-            option_lines = option_types.sort {|it| it['displayOrder']}.collect {|it|
+            option_lines = option_types.reject {|it| it['hidden']}.sort {|it| it['displayOrder']}.collect {|it|
               field_context = (opts[:context_map] || {})[it['fieldContext']] || it['fieldContext']
               "    -O #{field_context && field_context != '' ? "#{field_context}." : ''}#{it['fieldName']}=\"value\""
             }
           else
-            option_lines = option_types.sort {|it| it['displayOrder']}.collect {|it| "    -O #{it['fieldName']}=\"value\"" }
+            option_lines = option_types.reject {|it| it['hidden']}.sort {|it| it['displayOrder']}.collect {|it| "    -O #{it['fieldName']}=\"value\"" }
           end
           "#{opts[:color]}#{opts[:title] || "Available Options:"}\n#{option_lines.join("\n")}\n\n"
         end
@@ -1000,11 +1018,16 @@ module Morpheus
 
         if tokens.length > 1
           tokens.slice(0, tokens.length - 1).each do |token|
-            context = context[name = token]
+            context = context[token]
           end
+          name = tokens.last
         end
 
-        rtn = context[name]
+        if context.kind_of?(Array)
+          rtn = context.collect {|it| it['name'] || it[name]}.join ', '
+        else
+          rtn = context[name]
+        end
 
         if format
           rtn = (rtn ? 'On' : 'Off') if option_type['type'] == 'checkbox'
