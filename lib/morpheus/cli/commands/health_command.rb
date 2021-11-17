@@ -509,10 +509,10 @@ class Morpheus::Cli::HealthCommand
       opts.on('--level VALUE', String, "Log Level. DEBUG,INFO,WARN,ERROR") do |val|
         params['level'] = params['level'] ? [params['level'], val].flatten : [val]
       end
-      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start timestamp. Default is 24 hours ago.") do |val|
+      opts.on('--start TIMESTAMP','--start TIMESTAMP', "Start date timestamp in standard iso8601 format. Default is 24 hours ago.") do |val|
         params['startDate'] = val # parse_time(val).utc.iso8601
       end
-      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End timestamp. Default is now.") do |val|
+      opts.on('--end TIMESTAMP','--end TIMESTAMP', "End date timestamp standard iso8601 format. Default is now.") do |val|
         params['endDate'] = val # parse_time(val).utc.iso8601
       end
       opts.on('-t', '--table', "Format output as a table.") do
