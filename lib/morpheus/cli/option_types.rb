@@ -33,12 +33,18 @@ module Morpheus
         end
       end
 
+      # supresses prompting unless --prompt has been passed
       def self.no_prompt(option_types, options={}, api_client=nil,api_params={})
-        prompt(option_types, options, api_client, api_params, true)
+        if options[:always_prompt]
+          prompt(option_types, options, api_client, api_params)
+        else
+          prompt(option_types, options, api_client, api_params, true)
+        end
       end
 
       def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false)
         paging_enabled = false if Morpheus::Cli.windows?
+        no_prompt = no_prompt || options[:no_prompt]
         results = {}
         options = options || {}
 
@@ -67,7 +73,9 @@ module Morpheus
 
           if cur_field_group != field_group
             cur_field_group = field_group
-            print "\n#{cur_field_group.upcase} OPTIONS\n#{"=" * ("#{cur_field_group} OPTIONS".length)}\n\n"
+            if !no_prompt 
+              print "\n#{cur_field_group.upcase} OPTIONS\n#{"=" * ("#{cur_field_group} OPTIONS".length)}\n\n"
+            end
           end
 
           # How about this instead?
@@ -191,7 +199,6 @@ module Morpheus
           end
           # no_prompt means skip prompting and instead
           # use default value or error if a required option is not present
-          no_prompt = no_prompt || options[:no_prompt]
           if no_prompt
             if !value_found
               if option_type['defaultValue'] != nil && !['select', 'multiSelect','typeahead','multiTypeahead'].include?(option_type['type'])

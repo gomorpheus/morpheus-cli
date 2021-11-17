@@ -92,6 +92,13 @@ class Morpheus::RolesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def update_report_type(account_id, id, options)
+    url = build_url(account_id, id) + "/update-report-type"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
   private
 
   def build_url(account_id=nil, role_id=nil)
