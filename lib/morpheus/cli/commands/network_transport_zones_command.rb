@@ -23,37 +23,38 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List network transport zones." + "\n" +
-        "[server] is required. This is the name or id of a network server."
+        "[server] is optional. This is the name or id of a network server."
     end
 
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 1
-      puts optparse
+    if args.count > 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
 
-    server = find_network_server(args[0])
-    if server.nil?
-      return 1
-    end
+    server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
+    server = find_network_server(server_id)
+    return 1 if server.nil?
 
     _list(server, options)
   end
 
   def _list(server, options)
+    params = parse_list_options(options)
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.list_scopes(server['id'])
+      print_dry_run @network_servers_interface.dry.list_scopes(server['id'], params)
       return
     end
 
     if server['type']['hasScopes']
-      json_response = @network_servers_interface.list_scopes(server['id'])
+      json_response = @network_servers_interface.list_scopes(server['id'], params)
       render_response(json_response, options, 'networkScopes') do
         print_h1 "Network transport zones For: #{server['name']}"
         print cyan
@@ -71,34 +72,37 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       opts.banner = subcommand_usage("[server] [transport zone]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display details on a network transport zone." + "\n" +
-        "[server] is required. This is the name or id of a network server.\n" +
-        "[transport zone] is required. This is the id of a network transport zone.\n"
+        "[server] is optional. This is the name or id of a network server.\n" +
+        "[transport zone] is optional. This is the id of a network transport zone.\n"
     end
 
     optparse.parse!(args)
     connect(options)
 
-    if args.count < 2
-      puts optparse
+    if args.count > 2
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
 
-    server = find_network_server(args[0])
-    if server.nil?
-      return 1
-    end
+    server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
+    server = find_network_server(server_id)
+    return 1 if server.nil?
 
-    _get(server, args[1], options)
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'rule', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule.'}],options[:options],@api_client,{})['rule']
+
+    _get(server, scope_id, options)
   end
 
   def _get(server, scope_id, options)
+    params = parse_list_options(options)
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
       if scope_id.to_s =~ /\A\d{1,}\Z/
-        print_dry_run @network_servers_interface.dry.get_scope(server['id'], scope_id.to_i)
+        print_dry_run @network_servers_interface.dry.get_scope(server['id'], scope_id.to_i, params)
       else
-        print_dry_run @network_servers_interface.dry.list_scopes(server['id'], {name: scope_id})
+        print_dry_run @network_servers_interface.dry.list_scopes(server['id'], {name: scope_id}, params)
       end
       return
     end
@@ -124,7 +128,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
           description_cols["Tenants"] = lambda {|it| it['tenants'].collect {|tenant| tenant['name']}.join(', ')}
         end
 
-        server['type']['scopeOptionTypes'].sort_by {|it| it['displayOrder']}.each do |option_type|
+        server['type']['scopeOptionTypes'].reject {|it| it['type'] == 'hidden'}.sort_by {|it| it['displayOrder']}.each do |option_type|
           description_cols[option_type['fieldLabel']] = lambda {|it| Morpheus::Cli::OptionTypes.get_option_value(it, option_type, true)}
         end
         print_description_list(description_cols, scope)
@@ -140,29 +144,29 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server]")
-      opts.on( '--name NAME', "Name" ) do |val|
-        options[:name] = val.to_s
+      opts.on('-n', '--name VALUE', String, "Name" ) do |val|
+        options[:options]['name'] = val.to_s
       end
-      opts.on("--description [TEXT]", String, "Description") do |val|
-        options[:description] = val.to_s
+      opts.on('-D', '--description VALUE', String, "Description") do |val|
+        options[:options]['description'] = val.to_s
       end
       add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a network transport zone." + "\n" +
-        "[server] is required. This is the name or id of a network server.\n";
+        "[server] is optional. This is the name or id of a network server.\n";
     end
     optparse.parse!(args)
     connect(options)
-    if args.count < 1
+
+    if args.count > 1
       print_error Morpheus::Terminal.angry_prompt
-      puts_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
+      puts_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
 
-    server = find_network_server(args[0])
-    if server.nil?
-      return 1
-    end
+    server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
+    server = find_network_server(server_id)
+    return 1 if server.nil?
 
     if !server['type']['hasScopes']
       print_red_alert "Transport zones not supported for #{server['type']['name']}"
@@ -205,35 +209,35 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[server] [transport zone]")
-      opts.on( '--name NAME', "Name" ) do |val|
-        params['name'] = val.to_s
+      opts.on('-n', '--name VALUE', String, "Name" ) do |val|
+        options[:options]['name'] = val.to_s
       end
-      opts.on("--description [TEXT]", String, "Description") do |val|
-        params['description'] = val.to_s
+      opts.on('-D', '--description VALUE', String, "Description") do |val|
+        options[:options]['description'] = val.to_s
       end
       add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network transport zone.\n" +
-        "[server] is required. This is the name or id of an existing network server.\n" +
-        "[transport zone] is required. This is the name or id of an existing network transport zone."
+        "[server] is optional. This is the name or id of an existing network server.\n" +
+        "[transport zone] is optional. This is the name or id of an existing network transport zone."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count > 2
+      raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
-    server = find_network_server(args[0])
-    if server.nil?
-      return 1
-    end
+    server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
+    server = find_network_server(server_id)
+    return 1 if server.nil?
 
     if !server['type']['hasScopes']
       print_red_alert "Transport zones not supported for #{server['type']['name']}"
       return 1
     end
 
-    scope = find_scope(server['id'], args[1])
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
+    scope = find_scope(server['id'], scope_id)
     return 1 if scope.nil?
 
     payload = parse_payload(options) || {'networkScope' => params}
@@ -254,7 +258,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
 
       if edit_option_types.count > 0
         print Morpheus::Cli::OptionTypes.display_option_types_help(
-          option_types.reject {|it| !it['editable'] || !it['showOnEdit']},
+          option_types,
           {:include_context => true, :context_map => {'scope' => ''}, :color => cyan, :title => "Available Transport Zone Options"}
         )
       end
@@ -283,26 +287,26 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       opts.banner = subcommand_usage("[server] [transport zone]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a network transport zone.\n" +
-        "[server] is required. This is the name or id of an existing network server.\n" +
-        "[transport zone] is required. This is the name or id of an existing network transport zone."
+        "[server] is optional. This is the name or id of an existing network server.\n" +
+        "[transport zone] is optional. This is the name or id of an existing network transport zone."
     end
     optparse.parse!(args)
-    if args.count != 2
-      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    if args.count > 2
+      raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
     end
     connect(options)
 
-    server = find_network_server(args[0])
-    if server.nil?
-      return 1
-    end
+    server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
+    server = find_network_server(server_id)
+    return 1 if server.nil?
 
     if !server['type']['hasScopes']
       print_red_alert "Transport zones not supported for #{server['type']['name']}"
       return 1
     end
 
-    scope = find_scope(server['id'], args[1])
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
+    scope = find_scope(server['id'], scope_id)
     return 1 if scope.nil?
 
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the network transport zone '#{scope['name']}' from server '#{server['name']}'?", options)
@@ -380,8 +384,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
   end
 
   def find_network_server_by_name(name)
-    json_response = @network_servers_interface.list({phrase: name.to_s})
-    servers = json_response['networkServers']
+    servers = search_network_servers
     if servers.empty?
       print_red_alert "Network Server not found by name #{name}"
       return nil
@@ -395,6 +398,10 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     else
       return servers[0]
     end
+  end
+
+  def search_network_servers(phrase = nil)
+    @network_servers_interface.list(phrase ? {phrase: phrase.to_s} : {})['networkServers']
   end
 
   def find_scope(server_id, val)
@@ -413,7 +420,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       return json_response['networkScope']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Network transport zone not found by id #{id}"
+        print_red_alert "Network transport zone not found by id #{scope_id}"
         return nil
       else
         raise e
@@ -422,8 +429,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
   end
 
   def find_scope_by_name(server_id, name)
-    json_response = @network_servers_interface.list_scope(server_id, {phrase: name.to_s})
-    scopes = json_response['networkScopes']
+    scopes = search_scopes(server_id, name)
     if scopes.empty?
       print_red_alert "Network transport zone not found by name #{name}"
       return nil
@@ -437,6 +443,10 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     else
       return scopes[0]
     end
+  end
+
+  def search_scopes(server_id, phrase = nil)
+    @network_servers_interface.list_scopes(server_id, phrase ? {phrase: phrase.to_s} : {})['networkScopes']
   end
 
 end
