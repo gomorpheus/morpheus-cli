@@ -624,7 +624,7 @@ class Morpheus::Cli::NetworksCommand
         end
 
         # Active
-        if options['active'].nil?
+        if options['active'].nil? && payload['network']['active'].nil?
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => true}], options)
           payload['network']['active'] = v_prompt['active']
         else
@@ -632,7 +632,7 @@ class Morpheus::Cli::NetworksCommand
         end
 
         # DHCP Server
-        if network_type['dhcpServerEditable']
+        if network_type['dhcpServerEditable'] && payload['network']['dhcpServer'].nil?
           if options['dhcpServer'] != nil
             payload['network']['dhcpServer'] = options['dhcpServer']
           else
@@ -642,7 +642,7 @@ class Morpheus::Cli::NetworksCommand
         end
 
         # Allow IP Override
-        if options['allowStaticOverride'] != nil
+        if options['allowStaticOverride'] != nil && payload['network']['allowStaticOverride'].nil?
           payload['network']['allowStaticOverride'] = options['allowStaticOverride']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
@@ -652,7 +652,7 @@ class Morpheus::Cli::NetworksCommand
         ## IPAM Options
 
         # Network Pool
-        if network_type['canAssignPool']
+        if network_type['canAssignPool'] && payload['network']['pool'].nil?
           if options['pool']
             payload['network']['pool'] = options['pool'].to_i
           else

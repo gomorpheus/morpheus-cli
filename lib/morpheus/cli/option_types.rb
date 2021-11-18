@@ -274,8 +274,11 @@ module Morpheus
                 end
               end
             elsif option_type['type'] == 'hidden'
-              value = option_type['defaultValue']
-              input = value
+              if option_type['optionSource'].nil?
+                value = value
+              else
+                value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
+              end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
             elsif option_type['type'] == 'file-content'
