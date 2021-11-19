@@ -7,7 +7,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
 
   set_command_name :'network-firewalls'
   register_subcommands :list_rules, :get_rule, :add_rule, :update_rule, :remove_rule
-  register_subcommands :list_groups, :get_group, :add_group, :update_group, :remove_group
+  register_subcommands :list_rule_groups, :get_rule_group, :add_rule_group, :update_rule_group, :remove_rule_group
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -218,13 +218,13 @@ class Morpheus::Cli::NetworkFirewallsCommand
     else
       if server['type']['hasFirewallGroups']
         if !options[:group].nil?
-          group = find_group(server['id'], options[:group])
+          group = find_rule_group(server['id'], options[:group])
           if group.nil?
             return 1
           end
           group_id = group['id']
         else
-          avail_groups = @network_servers_interface.list_firewall_groups(server['id'])['ruleGroups'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
+          avail_groups = @network_servers_interface.list_firewall_rule_groups(server['id'])['ruleGroups'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
           group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Rule Group', 'selectOptions' => avail_groups, 'required' => true, 'description' => 'Select Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
         end
         params['ruleGroup'] = {'id' => group_id}
@@ -377,12 +377,12 @@ class Morpheus::Cli::NetworkFirewallsCommand
     end
   end
 
-  def list_groups(args)
+  def list_rule_groups(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server]")
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List network firewall groups." + "\n" +
+      opts.footer = "List network firewall rule groups." + "\n" +
         "[server] is required. This is the name or id of a network server."
     end
 
@@ -398,41 +398,41 @@ class Morpheus::Cli::NetworkFirewallsCommand
     server_id = args.count > 0 ? args[0] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServer', 'type' => 'select', 'fieldLabel' => 'Network Server', 'selectOptions' => search_network_servers.collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Network Server.'}],options[:options],@api_client,{})['networkServer']
     server = find_network_server(server_id)
     return 1 if server.nil?
-    _list_groups(server, options)
+    _list_rule_groups(server, options)
   end
 
-  def _list_groups(server, options)
+  def _list_rule_groups(server, options)
     params = parse_list_options(options)
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.list_firewall_groups(server['id'], params)
+      print_dry_run @network_servers_interface.dry.list_firewall_rule_groups(server['id'], params)
       return
     end
 
     if server['type']['hasFirewallGroups']
-      json_response = @network_servers_interface.list_firewall_groups(server['id'], params)
+      json_response = @network_servers_interface.list_firewall_rule_groups(server['id'], params)
       render_response(json_response, options, 'ruleGroups') do
-        print_h1 "#{server['type']['titleFirewallGroups'] || 'Network firewall groups'} For: #{server['name']}"
+        print_h1 "#{server['type']['titleFirewallGroups'] || 'Network firewall rule groups'} For: #{server['name']}"
         print cyan
         puts as_pretty_table(json_response['ruleGroups'].collect {|it|
           {id: it['id'], name: it['name'], description: it['description'], priority: it['priority'], category: it['groupLayer']}
         }, [:id, :name, :description, :priority, :category])
       end
     else
-      print_red_alert "#{server['type']['titleFirewallGroups'] || 'Network firewall groups'} not supported for #{server['type']['name']}"
+      print_red_alert "#{server['type']['titleFirewallGroups'] || 'Network firewall rule groups'} not supported for #{server['type']['name']}"
     end
     print reset
   end
 
-  def get_group(args)
+  def get_rule_group(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [group]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Display details on a network firewall group." + "\n" +
+      opts.footer = "Display details on a network firewall rule group." + "\n" +
         "[server] is optional. This is the name or id of a network server.\n" +
-        "[group] is optional. This is the id of a network firewall group.\n"
+        "[group] is optional. This is the id of a network firewall rule group.\n"
     end
 
     optparse.parse!(args)
@@ -448,28 +448,28 @@ class Morpheus::Cli::NetworkFirewallsCommand
     server = find_network_server(server_id)
     return 1 if server.nil?
 
-    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
-    _get_group(server, group_id, options)
+    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_rule_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
+    _get_rule_group(server, group_id, options)
   end
 
-  def _get_group(server, name_or_id, options)
+  def _get_rule_group(server, name_or_id, options)
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
       if name_or_id.to_s =~ /\A\d{1,}\Z/
-        print_dry_run @network_servers_interface.dry.get_firewall_group(server['id'], name_or_id.to_i)
+        print_dry_run @network_servers_interface.dry.get_firewall_rule_group(server['id'], name_or_id.to_i)
       else
-        print_dry_run @network_servers_interface.dry.list_firewall_groups(server['id'], {name: name_or_id})
+        print_dry_run @network_servers_interface.dry.list_firewall_rule_groups(server['id'], {name: name_or_id})
       end
       return
     end
 
     if server['type']['hasFirewallGroups']
-      group = find_group(server['id'], name_or_id)
+      group = find_rule_group(server['id'], name_or_id)
       return 1 if group.nil?
 
       render_response({ruleGroup: group}, options, 'ruleGroup') do
-        print_h1 "Network Firewall Group Details"
+        print_h1 "Network Firewall Rule Group Details"
         print cyan
 
         description_cols = {
@@ -486,12 +486,12 @@ class Morpheus::Cli::NetworkFirewallsCommand
         print_description_list(description_cols, group)
       end
     else
-      print_red_alert "Network firewall groups not supported for #{server['type']['name']}"
+      print_red_alert "Network firewall rule groups not supported for #{server['type']['name']}"
     end
     println reset
   end
 
-  def add_group(args)
+  def add_rule_group(args)
     options = {:options=>{}}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
@@ -506,7 +506,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
         options[:options]['priority'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Create a network firewall group." + "\n" +
+      opts.footer = "Create a network firewall rule group." + "\n" +
         "[server] is optional. This is the name or id of a network server.\n";
     end
     optparse.parse!(args)
@@ -522,7 +522,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
     return 1 if server.nil?
 
     if !server['type']['hasFirewallGroups']
-      print_red_alert "Firewall groups not supported for #{server['type']['name']}"
+      print_red_alert "Firewall rule groups not supported for #{server['type']['name']}"
       return 1
     end
 
@@ -543,18 +543,18 @@ class Morpheus::Cli::NetworkFirewallsCommand
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.create_firewall_group(server['id'], payload)
+      print_dry_run @network_servers_interface.dry.create_firewall_rule_group(server['id'], payload)
       return
     end
 
-    json_response = @network_servers_interface.create_firewall_group(server['id'], payload)
+    json_response = @network_servers_interface.create_firewall_rule_group(server['id'], payload)
     render_response(json_response, options, 'ruleGroup') do
-      print_green_success "\nAdded Network Firewall Group #{json_response['id']}\n"
-      _get_group(server, json_response['id'], options)
+      print_green_success "\nAdded Network Firewall Rule Group #{json_response['id']}\n"
+      _get_rule_group(server, json_response['id'], options)
     end
   end
 
-  def update_group(args)
+  def update_rule_group(args)
     options = {:options=>{}}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
@@ -571,7 +571,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network firewall rule group.\n" +
         "[server] is optional. This is the name or id of an existing network server.\n" +
-        "[group] is optional. This is the name or id of an existing network firewall group."
+        "[group] is optional. This is the name or id of an existing network firewall rule group."
     end
     optparse.parse!(args)
     if args.count > 2
@@ -584,12 +584,12 @@ class Morpheus::Cli::NetworkFirewallsCommand
     return 1 if server.nil?
 
     if !server['type']['hasFirewallGroups']
-      print_red_alert "Firewall groups not supported for #{server['type']['name']}"
+      print_red_alert "Firewall rule groups not supported for #{server['type']['name']}"
       return 1
     end
 
-    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
-    group = find_group(server['id'], group_id)
+    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_rule_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
+    group = find_rule_group(server['id'], group_id)
     return 1 if group.nil?
 
     payload = parse_payload(options) || {'ruleGroup' => params}
@@ -602,7 +602,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       edit_option_types = option_types.reject {|it| !it['editable'] || !it['showOnEdit']}
 
       if edit_option_types.count > 0
-        print Morpheus::Cli::OptionTypes.display_option_types_help(option_types, {:include_context => true, :context_map => {'ruleGroup' => ''}, :color => cyan, :title => "Available Firewall Group Options"})
+        print Morpheus::Cli::OptionTypes.display_option_types_help(option_types, {:include_context => true, :context_map => {'ruleGroup' => ''}, :color => cyan, :title => "Available Firewall Rule Group Options"})
       end
       exit 1
     end
@@ -610,25 +610,25 @@ class Morpheus::Cli::NetworkFirewallsCommand
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.update_firewall_group(server['id'], group['id'], payload)
+      print_dry_run @network_servers_interface.dry.update_firewall_rule_group(server['id'], group['id'], payload)
       return
     end
 
-    json_response = @network_servers_interface.update_firewall_group(server['id'], group['id'], payload)
+    json_response = @network_servers_interface.update_firewall_rule_group(server['id'], group['id'], payload)
     render_response(json_response, options, 'ruleGroup') do
-      print_green_success "\nUpdated Network Firewall Group #{group['id']}\n"
-      _get_group(server, group['id'], options)
+      print_green_success "\nUpdated Network Firewall Rule Group #{group['id']}\n"
+      _get_rule_group(server, group['id'], options)
     end
   end
 
-  def remove_group(args)
+  def remove_rule_group(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [group]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
       opts.footer = "Delete a network firewall group.\n" +
         "[server] is optional. This is the name or id of an existing network server.\n" +
-        "[group] is optional. This is the name or id of an existing network firewall group."
+        "[group] is optional. This is the name or id of an existing network firewall rule group."
     end
     optparse.parse!(args)
     if args.count > 2
@@ -641,28 +641,28 @@ class Morpheus::Cli::NetworkFirewallsCommand
     return 1 if server.nil?
 
     if !server['type']['hasFirewallGroups']
-      print_red_alert "Firewall groups not supported for #{server['type']['name']}"
+      print_red_alert "Firewall rule groups not supported for #{server['type']['name']}"
       return 1
     end
 
-    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
-    group = find_group(server['id'], group_id)
+    group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_rule_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
+    group = find_rule_group(server['id'], group_id)
     return 1 if group.nil?
 
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the network firewall group '#{group['name']}' from server '#{server['name']}'?", options)
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the network firewall rule group '#{group['name']}' from server '#{server['name']}'?", options)
       return 9, "aborted command"
     end
 
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.destroy_firewall_group(server['id'], group['id'])
+      print_dry_run @network_servers_interface.dry.destroy_firewall_rule_group(server['id'], group['id'])
       return
     end
-    json_response = @network_servers_interface.destroy_firewall_group(server['id'], group['id'])
+    json_response = @network_servers_interface.destroy_firewall_rule_group(server['id'], group['id'])
     render_response(json_response, options, 'ruleGroup') do
-      print_green_success "\nDeleted Network Firewall Group #{group['name']}\n"
-      _list_groups(server, options)
+      print_green_success "\nDeleted Network Firewall Rule Group #{group['name']}\n"
+      _list_rule_groups(server, options)
     end
   end
 
@@ -758,23 +758,23 @@ class Morpheus::Cli::NetworkFirewallsCommand
     @network_servers_interface.list_firewall_rules(server_id, phrase ? {phrase: phrase.to_s} : {})['rules']
   end
 
-  def find_group(server_id, val)
+  def find_rule_group(server_id, val)
     if val.to_s =~ /\A\d{1,}\Z/
-      return find_group_by_id(server_id, val)
+      return find_rule_group_by_id(server_id, val)
     else
-      if group = find_group_by_name(server_id, val)
-        return find_group_by_id(server_id, group['id'])
+      if group = find_rule_group_by_name(server_id, val)
+        return find_rule_group_by_id(server_id, group['id'])
       end
     end
   end
 
-  def find_group_by_id(server_id, group_id)
+  def find_rule_group_by_id(server_id, group_id)
     begin
-      json_response = @network_servers_interface.get_firewall_group(server_id, group_id.to_i)
+      json_response = @network_servers_interface.get_firewall_rule_group(server_id, group_id.to_i)
       return json_response['ruleGroup']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Network firewall group not found by id #{group_id}"
+        print_red_alert "Network firewall rule group not found by id #{group_id}"
         return nil
       else
         raise e
@@ -782,13 +782,13 @@ class Morpheus::Cli::NetworkFirewallsCommand
     end
   end
 
-  def find_group_by_name(server_id, name)
-    groups = search_groups(server_id, name)
+  def find_rule_group_by_name(server_id, name)
+    groups = search_rule_groups(server_id, name)
     if groups.empty?
-      print_red_alert "Network firewall group not found by name #{name}"
+      print_red_alert "Network firewall rule group not found by name #{name}"
       return nil
     elsif groups.size > 1
-      print_red_alert "#{groups.size} network firewall groups found by name #{name}"
+      print_red_alert "#{groups.size} network firewall rule groups found by name #{name}"
       rows = groups.collect do |it|
         {id: it['id'], name: it['name']}
       end
@@ -799,8 +799,8 @@ class Morpheus::Cli::NetworkFirewallsCommand
     end
   end
 
-  def search_groups(server_id, phrase = nil)
-    @network_servers_interface.list_firewall_groups(server_id, phrase ? {phrase: phrase.to_s} : {})['ruleGroups']
+  def search_rule_groups(server_id, phrase = nil)
+    @network_servers_interface.list_firewall_rule_groups(server_id, phrase ? {phrase: phrase.to_s} : {})['ruleGroups']
   end
 
 end

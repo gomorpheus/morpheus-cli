@@ -68,31 +68,31 @@ class Morpheus::NetworkServersInterface < Morpheus::RestInterface
     execute(method: :delete, url: "#{base_path}/#{server_id}/firewall-rules/#{id}", params: params, headers: headers)
   end
 
-  def list_firewall_groups(server_id, params={}, headers={})
+  def list_firewall_rule_groups(server_id, params={}, headers={})
     validate_id!(server_id)
-    execute(method: :get, url: "#{base_path}/#{server_id}/firewall-groups", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path}/#{server_id}/firewall-rule-groups", params: params, headers: headers)
   end
 
-  def get_firewall_group(server_id, id, params={}, headers={})
+  def get_firewall_rule_group(server_id, id, params={}, headers={})
     validate_id!(server_id)
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/#{server_id}/firewall-groups/#{id}", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path}/#{server_id}/firewall-rule-groups/#{id}", params: params, headers: headers)
   end
 
-  def create_firewall_group(server_id, payload, params={}, headers={})
+  def create_firewall_rule_group(server_id, payload, params={}, headers={})
     validate_id!(server_id)
-    execute(method: :post, url: "#{base_path}/#{server_id}/firewall-groups", params: params, payload: payload, headers: headers)
+    execute(method: :post, url: "#{base_path}/#{server_id}/firewall-rule-groups", params: params, payload: payload, headers: headers)
   end
 
-  def update_firewall_group(server_id, id, payload, params={}, headers={})
-    validate_id!(server_id)
-    validate_id!(id)
-    execute(method: :put, url: "#{base_path}/#{server_id}/firewall-groups/#{id}", params: params, payload: payload, headers: headers)
-  end
-
-  def destroy_firewall_group(server_id, id, params={}, headers={})
+  def update_firewall_rule_group(server_id, id, payload, params={}, headers={})
     validate_id!(server_id)
     validate_id!(id)
-    execute(method: :delete, url: "#{base_path}/#{server_id}/firewall-groups/#{id}", params: params, headers: headers)
+    execute(method: :put, url: "#{base_path}/#{server_id}/firewall-rule-groups/#{id}", params: params, payload: payload, headers: headers)
+  end
+
+  def destroy_firewall_rule_group(server_id, id, params={}, headers={})
+    validate_id!(server_id)
+    validate_id!(id)
+    execute(method: :delete, url: "#{base_path}/#{server_id}/firewall-rule-groups/#{id}", params: params, headers: headers)
   end
 end
