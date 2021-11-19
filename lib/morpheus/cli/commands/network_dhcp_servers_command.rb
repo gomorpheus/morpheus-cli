@@ -117,7 +117,9 @@ class Morpheus::Cli::NetworkDhcpServersCommand
         }
 
         server['type']['dhcpServerOptionTypes'].sort_by {|it| it['displayOrder']}.each do |option_type|
-          description_cols[option_type['fieldLabel']] = lambda {|it| Morpheus::Cli::OptionTypes.get_option_value(it, option_type, true)}
+          if !option_type['fieldLabel'].nil?
+            description_cols[option_type['fieldLabel']] = lambda {|it| Morpheus::Cli::OptionTypes.get_option_value(it, option_type, true)}
+          end
         end
         print_description_list(description_cols, dhcpServer)
       end
