@@ -723,13 +723,13 @@ class Morpheus::Cli::NetworkFirewallsCommand
     end
   end
 
-  def find_rule_by_id(server_id, group_id)
+  def find_rule_by_id(server_id, rule_id)
     begin
-      json_response = @network_servers_interface.get_firewall_rule(server_id, group_id.to_i)
+      json_response = @network_servers_interface.get_firewall_rule(server_id, rule_id.to_i)
       return json_response['rule']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "Network firewall rule not found by id #{group_id}"
+        print_red_alert "Network firewall rule not found by id #{rule_id}"
         return nil
       else
         raise e
@@ -743,7 +743,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       print_red_alert "Network firewall rule not found by name #{name}"
       return nil
     elsif rules.size > 1
-      print_red_alert "#{groups.size} network firewall rules found by name #{name}"
+      print_red_alert "#{rules.size} network firewall rules found by name #{name}"
       rows = rules.collect do |it|
         {id: it['id'], name: it['name']}
       end
