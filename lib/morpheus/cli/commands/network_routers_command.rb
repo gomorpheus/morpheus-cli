@@ -1145,7 +1145,6 @@ class Morpheus::Cli::NetworkRoutersCommand
         api_params = {}
         api_params['networkServerId'] = router['networkServer']['id'] if router['networkServer']
         api_params['zoneId'] = router['zone']['id'] if router['networkServer'].nil?
-        api_params['groupId'] = options[:group] if !options[:group].nil?
         option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'rule' => ''}}), @api_client, api_params, nil, true)
         payload = {'rule' => params.deep_merge(option_result)}
       end
