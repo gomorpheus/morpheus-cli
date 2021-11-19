@@ -506,7 +506,7 @@ class Morpheus::Cli::NetworksCommand
           print_red_alert "Network Type not found by id '#{network_type_id}'"
           return 1
         end
-
+        
         if network_type['hasNetworkServer']
           api_params = {networkType: {id: network_type['id']}}
 
@@ -642,11 +642,13 @@ class Morpheus::Cli::NetworksCommand
         end
 
         # Allow IP Override
-        if options['allowStaticOverride'] != nil && payload['network']['allowStaticOverride'].nil?
-          payload['network']['allowStaticOverride'] = options['allowStaticOverride']
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
-          payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
+        if network_type['staticOverrideEditable'] && payload['network']['allowStaticOverride'].nil?
+          if options['allowStaticOverride'] != nil
+            payload['network']['allowStaticOverride'] = options['allowStaticOverride']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowStaticOverride', 'fieldLabel' => 'Allow IP Override', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
+            payload['network']['allowStaticOverride'] = v_prompt['allowStaticOverride']
+          end
         end
 
         ## IPAM Options
@@ -665,11 +667,13 @@ class Morpheus::Cli::NetworksCommand
         ## Advanced Options
 
         # Network Domain
-        if options['domain']
-          payload['network']['networkDomain'] = {'id' => options['domain'].to_i}
-        else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
-          payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+        if network_type['networkDomainEditable'] && payload['network']['networkDomain'].nil?
+          if options['domain']
+            payload['network']['networkDomain'] = {'id' => options['domain'].to_i}
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
+            payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+          end
         end
 
         # Search Domains
