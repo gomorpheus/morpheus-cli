@@ -61,11 +61,7 @@ module Morpheus
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
         cur_field_group = 'default'
-        (
-          option_types.reject {|it| (it['fieldGroup'] || 'default') != 'default'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
-          option_types.reject {|it| ['default', 'advanced'].include?(it['fieldGroup'] || 'default')}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
-          option_types.reject {|it| it['fieldGroup'] != 'advanced'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
-        ).each do |option_type|
+        self.sorted_option_types(option_types).each do |option_type|
           context_map = results
           value = nil
           value_found = false
@@ -275,7 +271,7 @@ module Morpheus
               end
             elsif option_type['type'] == 'hidden'
               if option_type['optionSource'].nil?
-                value = value
+                value = option_type['defaultValue']
               else
                 value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
               end
@@ -988,21 +984,29 @@ module Morpheus
         return out
       end
 
+      def self.sorted_option_types(option_types)
+        option_types.reject {|it| (it['fieldGroup'] || 'default') != 'default'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
+        option_types.reject {|it| ['default', 'advanced'].include?(it['fieldGroup'] || 'default')}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
+        option_types.reject {|it| it['fieldGroup'] != 'advanced'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
+      end
+
       def self.display_select_options(opt, select_options = [], paging = nil)
-        puts format_select_options_help(opt, select_options, paging)
+        puts self.format_select_options_help(opt, select_options, paging)
       end
 
       def self.format_option_types_help(option_types, opts={})
+        option_types = self.sorted_option_types(option_types).reject {|it| it['hidden']}
+
         if option_types.empty?
           "#{opts[:color]}#{opts[:title] || "Available Options:"}\nNone\n\n"
         else
           if opts[:include_context]
-            option_lines = option_types.reject {|it| it['hidden']}.sort {|it| it['displayOrder']}.collect {|it|
+            option_lines = option_types.collect {|it|
               field_context = (opts[:context_map] || {})[it['fieldContext']] || it['fieldContext']
               "    -O #{field_context && field_context != '' ? "#{field_context}." : ''}#{it['fieldName']}=\"value\""
             }
           else
-            option_lines = option_types.reject {|it| it['hidden']}.sort {|it| it['displayOrder']}.collect {|it| "    -O #{it['fieldName']}=\"value\"" }
+            option_lines = option_types.collect {|it| "    -O #{it['fieldName']}=\"value\"" }
           end
           "#{opts[:color]}#{opts[:title] || "Available Options:"}\n#{option_lines.join("\n")}\n\n"
         end

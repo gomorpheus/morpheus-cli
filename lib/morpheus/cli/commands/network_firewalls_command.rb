@@ -59,13 +59,32 @@ class Morpheus::Cli::NetworkFirewallsCommand
       print_h1 "Network Firewall Rules For: #{server['name']}"
       print cyan
 
-      rows = json_response['rules'].collect {|it| {
-        id: it['id'], group: it['groupName'], name: it['name'], description: it['description'],
-        priority: it['priority'], enabled: format_boolean(it['enabled']), policy: it['policy'], direction: it['direction'],
-        source: it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']),
-        destination: it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination']),
-        application: it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
-      }}
+      app_title = server['type']['titleFirewallApplications'].tr(' ', '_').downcase
+      rows = json_response['rules'].collect {|it|
+        row = {
+          id: it['id'], group: it['groupName'], name: it['name'], description: it['description'],
+          priority: it['priority'], enabled: format_boolean(it['enabled']), policy: it['policy'], direction: it['direction'],
+          source: it['sources'].kind_of?(Array) && it['sources'].count > 0 ? it['sources'].collect {|it| it['name']}.join(', ') : (it['sources'].nil? || it['sources'].empty? ? 'any' : it['source']),
+          destination: it['destinations'].count > 0 ? it['destinations'].collect {|it| it['name']}.join(', ') : (it['destinations'].nil? || it['destinations'].empty? ? 'any' : it['destination'])
+        }
+
+        if it['applications'].count
+          row[app_title] = it['applications'].slice(0, 2).collect {|it| it['name']}.join(', ') + (it['applications'].count > 2 ? '... ' : ' ')
+        end
+        if it['protocal'] || it['portRange']
+          row[app_title] += "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"
+        end
+        row[app_title] = 'Any' if it['applications'].count == 0 && row['protocol'].nil? && row['portRange'].nil?
+
+        applied_to = []
+        if server['type']['supportsFirewallRuleAppliedTarget']
+          applied_to << 'All Edges' if row['config']['applyToAllEdges']
+          applied_to << 'Distributed Firewall' if row['config']['applyToAllDistributed']
+          applied_to += rule['appliedTargets'].collect {|it| it['name']}
+          row[:applied_to] = applied_to.join(', ')
+        end
+        row
+      }
 
       cols = [:id]
 
@@ -73,13 +92,10 @@ class Morpheus::Cli::NetworkFirewallsCommand
         cols += [:group]
       end
 
-      cols += [:name, :description, :enabled]
-
-      if server['type']['hasSecurityGroupRulePriority']
-        cols += [:priority]
-      end
-
-      cols += [:policy, :direction, :source, :application]
+      cols += [:name, :description]
+      cols += [:priority] if server['type']['hasSecurityGroupRulePriority']
+      cols += [:applied_to] if server['type']['supportsFirewallRuleAppliedTarget']
+      cols += [:enabled, :policy, :direction, :source, :destination, app_title.to_sym]
       puts as_pretty_table(rows, cols)
     end
     print reset
@@ -137,7 +153,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
           "ID" => lambda {|it| it['id']},
           "Name" => lambda {|it| it['name']},
           "Description" => lambda {|it| it['description']},
-          "Enabled" => lambda {|it| format_boolean(it['status'])},
+          "Enabled" => lambda {|it| format_boolean(it['enabled'])},
           "Priority" => lambda {|it| it['priority']}
         }
 
@@ -263,7 +279,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network firewall rule.\n" +
         "[server] is optional. This is the name or id of a network server.\n" +
-        "[rule] is optional. This is the name of id of an existing rule."
+        "[rule] is optional. This is the name or id of an existing rule."
     end
     optparse.parse!(args)
     if args.count > 2
@@ -321,7 +337,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server] [rule]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Update a network firewall rule.\n" +
+      opts.footer = "Delete a network firewall rule.\n" +
         "[server] is optional. This is the name or id of a network server.\n" +
         "[rule] is optional. This is the name of id of an existing rule."
     end
@@ -365,7 +381,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List network firewall groups." + "\n" +
         "[server] is required. This is the name or id of a network server."
     end
@@ -386,15 +402,16 @@ class Morpheus::Cli::NetworkFirewallsCommand
   end
 
   def _list_groups(server, options)
+    params = parse_list_options(options)
     @network_servers_interface.setopts(options)
 
     if options[:dry_run]
-      print_dry_run @network_servers_interface.dry.list_firewall_groups(server['id'])
+      print_dry_run @network_servers_interface.dry.list_firewall_groups(server['id'], params)
       return
     end
 
     if server['type']['hasFirewallGroups']
-      json_response = @network_servers_interface.list_firewall_groups(server['id'])
+      json_response = @network_servers_interface.list_firewall_groups(server['id'], params)
       render_response(json_response, options, 'ruleGroups') do
         print_h1 "#{server['type']['titleFirewallGroups'] || 'Network firewall groups'} For: #{server['name']}"
         print cyan
@@ -552,7 +569,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
         options[:options]['priority'] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-      opts.footer = "Update a network transport zone.\n" +
+      opts.footer = "Update a network firewall rule group.\n" +
         "[server] is optional. This is the name or id of an existing network server.\n" +
         "[group] is optional. This is the name or id of an existing network firewall group."
     end
