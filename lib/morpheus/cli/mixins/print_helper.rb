@@ -6,6 +6,7 @@ require 'ostruct'
 require 'io/console'
 require 'morpheus/logging'
 require 'fileutils'
+require 'filesize'
 
 module Morpheus::Cli::PrintHelper
 

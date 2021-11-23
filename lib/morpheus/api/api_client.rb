@@ -1,7 +1,8 @@
 require 'json'
 require 'uri'
 require 'cgi'
-require 'rest-client'
+require 'morpheus/rest_client'
+# require 'rest-client'
 
 class Morpheus::APIClient
 
@@ -842,6 +843,18 @@ class Morpheus::APIClient
 
   def network_servers
     Morpheus::NetworkServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_edge_clusters
+    Morpheus::NetworkEdgeClustersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_dhcp_servers
+    Morpheus::NetworkDhcpServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_dhcp_relays
+    Morpheus::NetworkDhcpRelaysInterface.new(common_interface_options).setopts(@options)
   end
 
   def rest(endpoint)

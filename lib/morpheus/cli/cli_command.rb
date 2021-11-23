@@ -1,15 +1,14 @@
-require 'yaml'
-require 'json'
-require 'fileutils'
 require 'morpheus/logging'
 require 'morpheus/benchmarking'
-require 'morpheus/cli/option_parser'
+require 'morpheus/terminal'
 require 'morpheus/cli/cli_registry'
+require 'morpheus/cli/option_parser'
+require 'morpheus/cli/option_types'
 require 'morpheus/cli/mixins/print_helper'
 require 'morpheus/cli/credentials'
+#require 'morpheus/cli/commands/shell'
+#require 'morpheus/cli/commands/remote'
 require 'morpheus/api/api_client'
-require 'morpheus/cli/remote'
-require 'morpheus/terminal'
 
 module Morpheus
   module Cli
@@ -1412,14 +1411,14 @@ module Morpheus
         end
 
         def set_command_name(cmd_name)
-          @command_name = cmd_name
+          @command_name = cmd_name.to_sym
           Morpheus::Cli::CliRegistry.add(self, self.command_name)
         end
 
         def default_command_name
           class_name = self.name.split('::')[-1]
           #class_name.sub!(/Command$/, '')
-          Morpheus::Cli::CliRegistry.cli_ize(class_name)
+          Morpheus::Cli::CliRegistry.cli_ize(class_name).to_sym
         end
         
         def command_name
