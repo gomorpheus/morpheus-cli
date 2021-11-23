@@ -4,7 +4,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
-
+  set_command_hidden #hide until api ready
   set_command_name :'network-firewalls'
   register_subcommands :list_rules, :get_rule, :add_rule, :update_rule, :remove_rule
   register_subcommands :list_rule_groups, :get_rule_group, :add_rule_group, :update_rule_group, :remove_rule_group
