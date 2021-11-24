@@ -2600,7 +2600,7 @@ class Morpheus::Cli::NetworkRoutersCommand
   end
 
   def find_firewall_rule_group_by_name(router_id, name)
-    groups = search_firewall_rule_groups(server_id, name)
+    groups = search_firewall_rule_groups(router_id, name)
     if groups.empty?
       print_red_alert "Network firewall rule group not found by name #{name}"
       return nil
