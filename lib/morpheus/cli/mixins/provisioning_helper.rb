@@ -2093,6 +2093,15 @@ module Morpheus::Cli::ProvisioningHelper
     permissions
   end
 
+  def prompt_permissions_v2(options, excludes = [])
+    perms = prompt_permissions(options, excludes)
+    rtn = {}
+
+    rtn['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil?
+    rtn['tenants'] = ((perms['tenantPermissions'] || {})['accounts'] || []).collect {|it| {'id' => it}}
+    rtn
+  end
+
   def print_permissions(permissions, excludes = [])
     if permissions.nil?
       print_h2 "Permissions"

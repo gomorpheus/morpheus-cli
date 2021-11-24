@@ -66,6 +66,15 @@ class Morpheus::NetworkRoutersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def get_firewall_rule_group(router_id, group_id, params={})
+    raise "#{self.class}.get() passed a blank router id!" if router_id.to_s == ''
+    raise "#{self.class}.get() passed a blank group id!" if group_id.to_s == ''
+    url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups/#{group_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def create_firewall_rule_group(router_id, payload={})
     url = "#{@base_url}/api/networks/routers/#{router_id}/firewall-rule-groups"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
