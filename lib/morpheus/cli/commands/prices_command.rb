@@ -211,11 +211,11 @@ class Morpheus::Cli::PricesCommand
           raise_command_error "Invalid price unit '#{val}'. Available price units: #{price_units.join(', ')}"
         end
       end
-      opts.on("--platform [PLATFORM]", String, "Price platform [linux|windows]. Required for platform price type") do |val|
+      opts.on("--platform [PLATFORM]", String, "Price platform [centos|debian|fedora|canonical|opensuse|redhat|suse|xen|linux|windows]. Required for platform price type") do |val|
         if ['linux', 'windows'].include?(val)
           params['platform'] = val
         else
-          raise_command_error "Invalid platform '#{val}'. Available platforms: linux, windows"
+          raise_command_error "Invalid platform '#{val}'. Available platforms/vendors: centos, debian, fedora, canonical, opensuse, redhat, suse, xen, linux, windows"
         end
       end
       opts.on("--software [TEXT]", String, "Price software. Required for software price type") do |val|
@@ -375,11 +375,11 @@ class Morpheus::Cli::PricesCommand
           raise_command_error "Invalid price unit '#{val}'. Available price units: #{price_units.join(', ')}"
         end
       end
-      opts.on("--platform [PLATFORM]", String, "Price platform [linux|windows]. Required for platform price type") do |val|
+      opts.on("--platform [PLATFORM]", String, "Price platform [centos|debian|fedora|canonical|opensuse|redhat|suse|xen|linux|windows]. Required for platform price type") do |val|
         if ['linux', 'windows'].include?(val)
           params['platform'] = val
         else
-          raise_command_error "Invalid platform '#{val}'. Available platforms: linux, windows"
+          raise_command_error "Invalid platform '#{val}'. Available platforms: centos, debian, fedora, canonical, opensuse, redhat, suse, xen, linux, windows"
         end
       end
       opts.on("--software [TEXT]", String, "Price software. Required for software price type") do |val|
