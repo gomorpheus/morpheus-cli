@@ -89,7 +89,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
     server = find_network_server(server_id)
     return 1 if server.nil?
 
-    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'rule', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule.'}],options[:options],@api_client,{})['rule']
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'rule', 'type' => 'select', 'fieldLabel' => 'Transport Zone', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['rule']
 
     _get(server, scope_id, options)
   end
@@ -236,7 +236,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       return 1
     end
 
-    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Transport Zone', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
     scope = find_scope(server['id'], scope_id)
     return 1 if scope.nil?
 
@@ -305,7 +305,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       return 1
     end
 
-    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Firewall Rule', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
+    scope_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scope', 'type' => 'select', 'fieldLabel' => 'Transport Zone', 'selectOptions' => search_scopes(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Transport Zone.'}],options[:options],@api_client,{})['scope']
     scope = find_scope(server['id'], scope_id)
     return 1 if scope.nil?
 
@@ -384,7 +384,7 @@ class Morpheus::Cli::NetworkTransportZonesCommand
   end
 
   def find_network_server_by_name(name)
-    servers = search_network_servers
+    servers = search_network_servers(name)
     if servers.empty?
       print_red_alert "Network Server not found by name #{name}"
       return nil
