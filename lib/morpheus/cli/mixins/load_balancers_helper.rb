@@ -105,12 +105,32 @@ module Morpheus::Cli::LoadBalancersHelper
     end
   end
 
-  def load_balancer_type_for_id(id)
-    return get_available_load_balancer_types().find { |z| z['id'].to_i == id.to_i}
+  def load_balancer_type_for_id(val)
+    record = get_available_load_balancer_types().find { |z| z['id'].to_i == val.to_i}
+    label = "Load Balancer Type"
+    if record.nil?
+      print_red_alert "#{label.downcase} not found by id #{val}"
+      return nil
+    end
+    return record
   end
 
-  def load_balancer_type_for_name(name)
-    return get_available_load_balancer_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+  def load_balancer_type_for_name(val)
+    records = get_available_load_balancer_types().select { |z| z['name'].downcase == val.downcase || z['code'].downcase == val.downcase}
+    label = "Load Balancer Type"
+    if records.empty?
+      print_red_alert "#{label} not found by name '#{val}'"
+      return nil
+    elsif records.size > 1
+      print_red_alert "More than one #{label.downcase} found by name '#{val}'"
+      print_error "\n"
+      puts_error as_pretty_table(records, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print_error reset,"\n"
+      return nil
+    else
+      return records[0]
+    end
   end
 
   def find_load_balancer_type_by_name_or_id(val)

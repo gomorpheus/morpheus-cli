@@ -36,7 +36,7 @@ class Morpheus::Cli::BlueprintsCommand
     @options_interface = @api_client.options
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
     @clouds_interface = @api_client.clouds
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @library_layouts_interface = @api_client.library_layouts
   end
 

@@ -27,7 +27,7 @@ class Morpheus::Cli::Apps
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @apps_interface = @api_client.apps
     @blueprints_interface = @api_client.blueprints
     @instance_types_interface = @api_client.instance_types

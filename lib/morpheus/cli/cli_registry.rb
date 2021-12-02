@@ -298,7 +298,7 @@ module Morpheus
           every_command = cached_command_list
           guess = command_name
           suggestions = []
-          while guess.size >= 3
+          while suggestions.empty? && guess.size >= 3
             plural_guess = guess.pluralize
             if every_command.include?(guess)
               suggestions << guess

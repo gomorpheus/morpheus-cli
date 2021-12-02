@@ -22,7 +22,7 @@ class Morpheus::Cli::Hosts
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @tasks_interface = @api_client.tasks

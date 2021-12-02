@@ -12,7 +12,7 @@ class Morpheus::Cli::LoadBalancerTypes
 
   protected
 
-  def load_balancer_type_column_definitions
+  def load_balancer_type_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
@@ -20,8 +20,8 @@ class Morpheus::Cli::LoadBalancerTypes
     }
   end
 
-  def load_balancer_type_list_column_definitions
-    load_balancer_type_column_definitions
+  def load_balancer_type_list_column_definitions(options)
+    load_balancer_type_column_definitions(options)
   end
 
   # overridden to support name or code

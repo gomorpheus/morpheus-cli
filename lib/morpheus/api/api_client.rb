@@ -242,7 +242,7 @@ class Morpheus::APIClient
     # @verify_ssl is not used atm
     # todo: finish this and use it instead of the global variable RestClient.ssl_verification_enabled?
     # gotta clean up all APIClient subclasses new() methods to support this
-    # the CliCommand subclasses should be changed to @users_interface = @api_client.users
+    # the CliCommand subclasses should be changed to @foos_interface = @api_client.foos
     # also.. Credentials.new()
     if @verify_ssl == false
       opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
@@ -487,8 +487,12 @@ class Morpheus::APIClient
     Morpheus::LoadBalancerPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
-  def virtual_servers
-    Morpheus::VirtualServersInterface.new(common_interface_options).setopts(@options)
+  def load_balancer_profiles
+    Morpheus::LoadBalancerProfilesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def load_balancer_monitors
+    Morpheus::LoadBalancerMonitorsInterface.new(common_interface_options).setopts(@options)
   end
 
   def tasks
@@ -541,6 +545,10 @@ class Morpheus::APIClient
 
   def users
     Morpheus::UsersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def account_users
+    Morpheus::AccountUsersInterface.new(common_interface_options).setopts(@options)
   end
 
   def user_groups
@@ -689,6 +697,22 @@ class Morpheus::APIClient
     Morpheus::StorageProvidersInterface.new(common_interface_options).setopts(@options)
   end
 
+  def storage_servers
+    Morpheus::StorageServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def storage_server_types
+    Morpheus::StorageServerTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def storage_volumes
+    Morpheus::StorageVolumesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def storage_volume_types
+    Morpheus::StorageVolumeTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def library_instance_types
     Morpheus::LibraryInstanceTypesInterface.new(common_interface_options).setopts(@options)
   end
@@ -773,12 +797,16 @@ class Morpheus::APIClient
     Morpheus::WikiInterface.new(common_interface_options).setopts(@options)
   end
 
-  def budgets
-    Morpheus::BudgetsInterface.new(common_interface_options).setopts(@options)
-  end
-
   def health
     Morpheus::HealthInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def audit
+    Morpheus::AuditInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def budgets
+    Morpheus::BudgetsInterface.new(common_interface_options).setopts(@options)
   end
 
   def invoices
@@ -861,12 +889,22 @@ class Morpheus::APIClient
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end
 
+  def interface(type)
+    type = type.to_s.singularize.underscore
+    interface_name = type.pluralize
+    if !respond_to?(interface_name)
+      raise "#{self.class} has not defined an interface method named '#{interface_name}'"
+    end
+    return send(interface_name)
+  end
+  alias :get_interface :interface
+
   # add new interfaces here
 
   protected
 
-  def validate_id!(id)
-    raise "#{self.class} passed a blank id!" if id.to_s.strip.empty?
+  def validate_id!(id, param_name='id')
+    raise "#{self.class} passed a blank #{param_name}!" if id.to_s.strip.empty?
   end
 
 end
