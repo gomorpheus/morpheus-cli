@@ -86,6 +86,22 @@ module Morpheus::Cli::RestCommand
 
     alias :set_rest_arg :rest_arg=
 
+    # rest_has_name indicates a resource has a name and can be retrieved by name or id
+    # true by default, set to false for lookups by only id
+    def rest_has_name
+      @rest_has_name != nil ? @rest_has_name :  default_rest_has_name
+    end
+
+    def default_rest_has_name
+      true
+    end
+
+    def rest_has_name=(v)
+      @rest_has_name = !!v
+    end
+
+    alias :set_rest_has_name :rest_has_name=
+
     # rest_label is the capitalized resource label eg. "Neat Thing"    
     def rest_label
       @rest_label || default_rest_label
@@ -297,6 +313,10 @@ module Morpheus::Cli::RestCommand
     self.class.rest_arg
   end
 
+  def rest_has_name
+    self.class.rest_has_name
+  end
+
   def rest_label
     self.class.rest_label
   end
@@ -316,23 +336,37 @@ module Morpheus::Cli::RestCommand
   end
 
   def rest_object_key
-    self.send("#{rest_key}_object_key")
+    send("#{rest_key}_object_key")
   end
 
   def rest_list_key
-    self.send("#{rest_key}_list_key")
+    send("#{rest_key}_list_key")
   end
 
-  def rest_column_definitions
-    self.send("#{rest_key}_column_definitions")
+  def rest_column_definitions(options)
+    send("#{rest_key}_column_definitions", options)
   end
 
-  def rest_list_column_definitions
-    self.send("#{rest_key}_list_column_definitions")
+  def rest_list_column_definitions(options)
+    send("#{rest_key}_list_column_definitions", options)
   end
 
-  def rest_find_by_name_or_id(name)
-    return self.send("find_#{rest_key}_by_name_or_id", name)
+  def rest_find_by_name_or_id(val)
+    # use explicitly defined finders
+    # else default to new generic CliCommand method to find anything by type (singular underscore)
+    if rest_has_name
+      if respond_to?("find_#{rest_key}_by_name_or_id", true)
+        send("find_#{rest_key}_by_name_or_id", val)
+      else
+        find_by_name_or_id(rest_key, val)
+      end
+    else
+      if respond_to?("find_#{rest_key}_by_id", true)
+        send("find_#{rest_key}_by_id", val)
+      else
+        find_by_id(rest_key, val)
+      end
+    end
   end
 
   def rest_has_type
@@ -353,6 +387,10 @@ module Morpheus::Cli::RestCommand
     self.class.rest_type_arg
   end
 
+  def rest_has_name
+    self.class.rest_type_arg
+  end
+
   def rest_type_label
     self.class.rest_type_label
   end
@@ -370,23 +408,29 @@ module Morpheus::Cli::RestCommand
   end
 
   def rest_type_object_key
-    self.send("#{rest_type_key}_object_key")
+    send("#{rest_type_key}_object_key")
   end
 
   def rest_type_list_key
-    self.send("#{rest_type_key}_list_key")
+    send("#{rest_type_key}_list_key")
   end
 
-  def rest_type_column_definitions
-    self.send("#{rest_type_key}_column_definitions")
+  def rest_type_column_definitions(options)
+    send("#{rest_type_key}_column_definitions", options)
   end
 
-  def rest_type_list_column_definitions
-    self.send("#{rest_type_key}_list_column_definitions")
+  def rest_type_list_column_definitions(options)
+    send("#{rest_type_key}_list_column_definitions", options)
   end
 
-  def rest_type_find_by_name_or_id(name)
-    return self.send("find_#{rest_type_key}_by_name_or_id", name)
+  def rest_type_find_by_name_or_id(val)
+    # use explicately defined finders
+    # else default to new generic CliCommand method to find anything by type (singular underscore)
+    if respond_to?("find_#{rest_type_key}_by_name_or_id", true)
+      send("find_#{rest_type_key}_by_name_or_id", val)
+    else
+      find_by_name_or_id(rest_type_key, val)
+    end
   end
 
   def registered_interfaces
@@ -417,7 +461,11 @@ module Morpheus::Cli::RestCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      build_standard_list_options(opts, options)
+      if respond_to?("build_list_options_for_#{rest_key}", true)
+        send("build_list_options_for_#{rest_key}", opts, options)
+      else
+        build_standard_list_options(opts, options)
+      end
             opts.footer = <<-EOT
 List #{rest_label_plural.downcase}.
 [search] is optional. This is a search phrase to filter the results.
@@ -428,7 +476,15 @@ EOT
     if args.count > 0
       options[:phrase] = args.join(" ")
     end
-    params.merge!(parse_list_options(options))
+    if respond_to?("parse_list_options_for_#{rest_key}", true)
+      # custom method to parse parameters for list request should return 0, nil if successful
+      parse_result, parse_err = send("parse_list_options_for_#{rest_key}", options, params)
+      if parse_result != 0
+        return parse_result, parse_err
+      end
+    else
+      params.merge!(parse_list_options(options))
+    end
     rest_interface.setopts(options)
     if options[:dry_run]
       print_dry_run rest_interface.dry.list(params)
@@ -441,7 +497,7 @@ EOT
       if records.nil? || records.empty?
         print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
       else
-        print as_pretty_table(records, rest_list_column_definitions.upcase_keys!, options)
+        print as_pretty_table(records, rest_list_column_definitions(options).upcase_keys!, options)
         print_results_pagination(json_response) if json_response['meta']
       end
       print reset,"\n"
@@ -457,24 +513,22 @@ EOT
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about #{a_or_an(rest_label)} #{rest_label.downcase}.
-[#{rest_arg}] is required. This is the name or id of #{a_or_an(rest_label)} #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
 EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     params.merge!(parse_query_options(options))
-    id_list = parse_id_list(args)
-    return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, params, options)
-    end
+    id = args.join(" ")
+    _get(id, params, options)
   end
 
   def _get(id, params, options)
-    if id !~ /\A\d{1,}\Z/
+    if id !~ /\A\d{1,}\Z/ && rest_has_name
       record = rest_find_by_name_or_id(id)
       if record.nil?
-        raise_command_error "#{rest_label} not found for name '#{id}'"
+        return 1, "#{rest_label} not found for '#{id}'"
       end
       id = record['id']
     end
@@ -493,8 +547,14 @@ EOT
       record = json_response[rest_object_key]
       print_h1 rest_label, [], options
       print cyan
-      print_description_list(rest_column_definitions, record, options)
-      # show config settings...
+      print_description_list(rest_column_definitions(options), record, options)
+      # # could always show config eh? or maybe only with --config if that is nicer.
+      # # config = record['config'].is_a?(Hash) && !record['config'].empty?
+      # if config && !config.empty?
+      #   print_h2 "Configuration"
+      #   print_description_list(config.keys, config)
+      # end
+      # Option Types
       if record['optionTypes'] && record['optionTypes'].size > 0
         print_h2 "Option Types", options
         print format_option_types_table(record['optionTypes'], options, rest_object_key)
@@ -515,10 +575,10 @@ EOT
         end
       end
       if self.class.method_defined?("add_#{rest_key}_option_types")
-        build_option_type_options(opts, options, self.send("add_#{rest_key}_option_types"))
+        build_option_type_options(opts, options, send("add_#{rest_key}_option_types"))
       end
       if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
-        build_option_type_options(opts, options, self.send("add_#{rest_key}_advanced_option_types"))
+        build_option_type_options(opts, options, send("add_#{rest_key}_advanced_option_types"))
       end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -530,10 +590,14 @@ EOT
     # todo: make supporting args[0] optional and more flexible
     # for now args[0] is assumed to be the 'name'
     record_name = nil
-    if args[0] # && rest_has_name
-      record_name = args[0]
+    if rest_has_name
+      if args.count > 0
+        record_name = args.join(" ")
+      end
+      verify_args!(args:args, optparse:optparse, min:0, max: 1)
+    else
+      verify_args!(args:args, optparse:optparse, count: 0)
     end
-    verify_args!(args:args, optparse:optparse, min:0, max: 1)
     connect(options)
     # load or prompt for type
     if rest_has_type
@@ -545,7 +609,11 @@ EOT
       end
       record_type = rest_type_find_by_name_or_id(record_type_id)
       if record_type.nil?
-        raise_command_error "#{rest_type_label} not found for '#{record_type_id}'.\n#{optparse}"
+        return 1, "#{rest_type_label} not found for '#{record_type_id}"
+      end
+      # reload the type by id to get all the details eg. optionTypes
+      if record_type['optionTypes'].nil?
+        record_type = rest_type_find_by_name_or_id(record_type['id'])
       end
     end
     passed_options = parse_passed_options(options)
@@ -569,14 +637,19 @@ EOT
       end
       record_payload.deep_merge!(passed_options)
       if self.class.method_defined?("add_#{rest_key}_option_types")
-        add_option_types = self.send("add_#{rest_key}_option_types")
+        add_option_types = send("add_#{rest_key}_option_types")
         v_prompt = Morpheus::Cli::OptionTypes.prompt(add_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
       end
       # options by type
-      my_option_types = record_type ? record_type['optionTypes'] : nil
+      my_option_types = nil
+      if respond_to?("load_option_types_for_#{rest_key}", true)
+        my_option_types = send("load_option_types_for_#{rest_key}", record_type, nil)
+      else
+        my_option_types = record_type ? record_type['optionTypes'] : nil
+      end
       if my_option_types && !my_option_types.empty?
         # remove redundant fieldContext
         my_option_types.each do |option_type| 
@@ -591,7 +664,7 @@ EOT
       end
       # advanced options (uses no_prompt)
       if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
-        add_advanced_option_types = self.send("add_#{rest_key}_advanced_option_types")
+        add_advanced_option_types = send("add_#{rest_key}_advanced_option_types")
         v_prompt = Morpheus::Cli::OptionTypes.no_prompt(add_advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
@@ -621,15 +694,15 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}] [options]")
       if self.class.method_defined?("update_#{rest_key}_option_types")
-        build_option_type_options(opts, options, self.send("update_#{rest_key}_option_types"))
+        build_option_type_options(opts, options, send("update_#{rest_key}_option_types"))
       end
       if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
-        build_option_type_options(opts, options, self.send("update_#{rest_key}_advanced_option_types"))
+        build_option_type_options(opts, options, send("update_#{rest_key}_advanced_option_types"))
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update an existing #{rest_label.downcase}.
-[#{rest_arg}] is required. This is the name or id of #{a_or_an(rest_label)} #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
 EOT
     end
     optparse.parse!(args)
@@ -644,7 +717,7 @@ EOT
       record_type_id = record['type']['id']
       record_type = rest_type_find_by_name_or_id(record_type_id)
       if record_type.nil?
-        raise_command_error "#{rest_type_label} not found for '#{record_type_id}'.\n#{optparse}"
+        return 1, "#{rest_type_label} not found for '#{record_type_id}"
       end
     end
     passed_options = parse_passed_options(options)
@@ -664,14 +737,19 @@ EOT
       end
       # update options without prompting by default
       if self.class.method_defined?("update_#{rest_key}_option_types")
-        update_option_types = self.send("update_#{rest_key}_option_types")
+        update_option_types = send("update_#{rest_key}_option_types")
         v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
       end
       # options by type
-      my_option_types = record_type ? record_type['optionTypes'] : nil
+      my_option_types = nil
+      if respond_to?("load_option_types_for_#{rest_key}", true)
+        my_option_types = send("load_option_types_for_#{rest_key}", record_type, nil)
+      else
+        my_option_types = record_type ? record_type['optionTypes'] : nil
+      end
       if my_option_types && !my_option_types.empty?
         # remove redundant fieldContext
         # make them optional for updates
@@ -691,7 +769,7 @@ EOT
       end
       # advanced options
       if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
-        update_advanced_option_types = self.send("update_#{rest_key}_advanced_option_types")
+        update_advanced_option_types = send("update_#{rest_key}_advanced_option_types")
         v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
@@ -729,7 +807,7 @@ EOT
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
 Delete an existing #{rest_label.downcase}.
-[#{rest_arg}] is required. This is the name or id of #{a_or_an(rest_label)} #{rest_label.downcase}.
+[#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
 EOT
     end
     optparse.parse!(args)
@@ -745,7 +823,7 @@ EOT
     end
     rest_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run rest_interface.dry.destroy(record['id'])
+      print_dry_run rest_interface.dry.destroy(record['id'], params)
       return 0, nil
     end
     json_response = rest_interface.destroy(record['id'], params)

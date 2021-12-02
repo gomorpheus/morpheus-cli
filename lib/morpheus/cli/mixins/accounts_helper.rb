@@ -15,10 +15,10 @@ module Morpheus::Cli::AccountsHelper
     @accounts_interface
   end
 
-  def users_interface
+  def account_users_interface
     # @api_client.users
-    raise "#{self.class} has not defined @users_interface" if @users_interface.nil?
-    @users_interface
+    raise "#{self.class} has not defined @account_users_interface" if @account_users_interface.nil?
+    @account_users_interface
   end
 
   def user_groups_interface
@@ -244,7 +244,7 @@ module Morpheus::Cli::AccountsHelper
 
   def find_user_by_id(account_id, id, params={})
     begin
-      json_response = users_interface.get(account_id, id.to_i, params)
+      json_response = account_users_interface.get(account_id, id.to_i, params)
       return json_response['user']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
@@ -256,7 +256,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def find_user_by_username(account_id, username, params={})
-    users = users_interface.list(account_id, params.merge({username: username.to_s}))['users']
+    users = account_users_interface.list(account_id, params.merge({username: username.to_s}))['users']
     if users.empty?
       print_red_alert "User not found by username #{username}"
       return nil

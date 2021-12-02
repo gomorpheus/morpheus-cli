@@ -17,7 +17,8 @@ class Morpheus::Cli::UserSettingsCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @user_settings_interface = @api_client.user_settings
-    @users_interface = @api_client.users
+    @accounts_interface = @api_client.accounts
+    @account_users_interface = @api_client.account_users
   end
 
   def handle(args)

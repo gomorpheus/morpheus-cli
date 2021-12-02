@@ -6,9 +6,10 @@ require 'morpheus/api/api_client'
 class Morpheus::ReadInterface < Morpheus::APIClient
 
   # subclasses should override in your interface
-  # Example: "/api/thing-types"
+  # Example: "/api/things"
   def base_path
-    raise "#{self.class} has not defined base_path!"
+    raise "#{self.class} has not defined base_path!" if @options[:base_path].nil?
+    @options[:base_path]
   end
 
   def list(params={}, headers={})
@@ -17,7 +18,7 @@ class Morpheus::ReadInterface < Morpheus::APIClient
 
   def get(id, params={}, headers={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
 end

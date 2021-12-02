@@ -202,7 +202,7 @@ module Morpheus::Cli::PrintHelper
     if options[:outfile]
       print_result = print_to_file(output, options[:outfile], options[:overwrite])
       # with_stdout_to_file(options[:outfile], options[:overwrite]) { print output }
-      print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes File.size(options[:outfile])})\n" unless options[:quiet]
+      print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes(File.size(options[:outfile]))})\n" unless options[:quiet]
       #return print_result
       return
     end

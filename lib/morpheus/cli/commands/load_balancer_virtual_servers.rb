@@ -3,31 +3,108 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::LoadBalancerVirtualServers
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::RestCommand
-  # include Morpheus::Cli::SecondaryRestCommand
+  include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
-  set_command_hidden # hide until ready
+  set_command_description "View and manage load balancer virtual servers."
   set_command_name :'load-balancer-virtual-servers'
   register_subcommands :list, :get, :add, :update, :remove
 
   register_interfaces :load_balancer_virtual_servers,
                       :load_balancers, :load_balancer_types
 
-  # set_rest_parent_name :load_balancers
-
-  # set_rest_interface_name :load_balancer_virtual_servers
-  # set_parent_rest_interface_name :load_balancers
-  
-  # todo: a configurable way to load the optionTypes
-  # option_types = loadBalancer['vipOptionTypes']
-  # set_rest_has_type true
-  # set_rest_type :load_balancer_virtual_server_types
+  set_rest_parent_name :load_balancers
 
   set_rest_arg 'vipName'
 
+  # overridden to provide global list functionality without requiring parent argument
+  def list(args)
+    parent_id, parent_record = nil, nil
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[#{rest_parent_arg}] [search]")
+      if respond_to?("build_list_options_for_#{rest_key}", true)
+        send("build_list_options_for_#{rest_key}", opts, options)
+      else
+        build_standard_list_options(opts, options)
+      end
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List #{rest_label_plural.downcase}.
+[#{rest_parent_arg}] is optional. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
+[search] is optional. This is a search phrase to filter the results.
+EOT
+    end
+    optparse.parse!(args)
+    parent_id = args[0]
+    verify_args!(args:args, optparse:optparse, min:0)
+    if args.count > 1
+      options[:phrase] = args[1..-1].join(" ")
+    end
+    connect(options)
+    if parent_id
+      parent_record = rest_parent_find_by_name_or_id(parent_id)
+      if parent_record.nil?
+        return 1, "#{rest_parent_label} not found for '#{parent_id}"
+      end
+      parent_id = parent_record['id']
+    end
+    if respond_to?("parse_list_options_for_#{rest_key}", true)
+      # custom method to parse parameters for list request should return 0, nil if successful
+      parse_result, parse_err = send("parse_list_options_for_#{rest_key}", options, params)
+      if parse_result != 0
+        return parse_result, parse_err
+      end
+    else
+      params.merge!(parse_list_options(options))
+    end
+    rest_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_interface.dry.list(parent_id, params)
+      return
+    end
+    json_response = rest_interface.list(parent_id, params)
+    render_response(json_response, options, rest_list_key) do
+      records = json_response[rest_list_key]
+      print_h1 "Morpheus #{rest_label_plural}"
+      if records.nil? || records.empty?
+        print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
+      else
+        print as_pretty_table(records, rest_list_column_definitions(options).upcase_keys!, options)
+        print_results_pagination(json_response) if json_response['meta']
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
   protected
 
-  def load_balancer_virtual_server_list_column_definitions()
+  def build_list_options_for_load_balancer_virtual_server(opts, options)
+    opts.on('--load-balancer LB', String, "Load Balancer Name or ID") do |val|
+      options[:load_balancer] = val
+    end
+    build_standard_list_options(opts, options)
+  end
+
+  def parse_list_options_for_load_balancer_virtual_server(options, params)
+    if options[:load_balancer]
+      if options[:load_balancer].to_s !~ /\A\d{1,}\Z/
+        load_balancer = find_by_name(:load_balancer, options[:load_balancer])
+        if load_balancer.nil?
+          return 1, "Load Balancer not found for '#{options[:load_balancer]}'"
+        end
+        params['loadBalancerId'] = load_balancer['id']
+      else
+        params['loadBalancerId'] = options[:load_balancer]
+      end
+    end
+    params.merge!(parse_list_options(options))
+    return 0, nil
+  end
+
+  def load_balancer_virtual_server_list_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'vipName',
@@ -43,7 +120,7 @@ class Morpheus::Cli::LoadBalancerVirtualServers
     }
   end
 
-  def load_balancer_virtual_server_column_definitions()
+  def load_balancer_virtual_server_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'vipName',
@@ -78,52 +155,12 @@ class Morpheus::Cli::LoadBalancerVirtualServers
     'Virtual Servers'
   end
 
-  def find_load_balancer_virtual_server_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_load_balancer_virtual_server_by_id(val)
-    else
-      return find_load_balancer_virtual_server_by_name(val)
-    end
-  end
-
-  def find_load_balancer_virtual_server_by_id(id)
-    begin
-      json_response = load_balancer_virtual_servers_interface.get(id.to_i)
-      return json_response[load_balancer_virtual_server_object_key]
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "#{load_balancer_virtual_server_label} not found by id #{id}"
-        return nil
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_load_balancer_virtual_server_by_name(name)
-    json_response = load_balancer_virtual_servers_interface.list({name: name.to_s})
-    load_balancer_virtual_servers = json_response[load_balancer_virtual_server_list_key]
-    if load_balancer_virtual_servers.empty?
-      print_red_alert "#{load_balancer_virtual_server_label_plural} not found by name #{name}"
-      return load_balancer_virtual_servers
-    elsif load_balancer_virtual_servers.size > 1
-      print_red_alert "#{load_balancer_virtual_servers.size} #{load_balancer_virtual_server_label_plural.downcase} found by name #{name}"
-      rows = load_balancer_virtual_servers.collect do |it|
-        {id: it['id'], name: it['name']}
-      end
-      puts as_pretty_table(rows, [:id, :name], {color:red})
-      return nil
-    else
-      return load_balancer_virtual_servers[0]
-    end
-  end
-
   def format_virtual_server_status(virtual_server, return_color=cyan)
     out = ""
     status_string = virtual_server['vipStatus'] || virtual_server['status']
     if status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{return_color}"
-    elsif status_string == 'ok'
+    elsif status_string == 'online'
       out << "#{green}#{status_string.upcase}#{return_color}"
     elsif status_string == 'syncing'
       out << "#{yellow}#{status_string.upcase}#{return_color}"
@@ -132,5 +169,14 @@ class Morpheus::Cli::LoadBalancerVirtualServers
     end
     out
   end
+
+  def load_option_types_for_load_balancer_virtual_server(type_record, parent_record)
+    load_balancer = parent_record
+    load_balancer_type_id = load_balancer['type']['id']
+    load_balancer_type = find_by_id(:load_balancer_type, load_balancer_type_id)
+    load_balancer_type['vipOptionTypes']
+  end
+
+  ## using CliCommand's generic find_by methods
 
 end
