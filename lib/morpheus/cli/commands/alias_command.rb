@@ -270,7 +270,7 @@ EOT
       out << "\n"
       out << cyan
       out << as_pretty_table(my_aliases, alias_columns, {:border_style => :thin}.merge(options))
-      out << format_results_pagination({size:my_aliases.size,total:my_aliases.size.to_i})
+      out << format_results_pagination({'size' => my_aliases.size, 'total' => my_aliases.size.to_i})
       out << reset
       out << "\n"
     end
