@@ -77,10 +77,10 @@ class Morpheus::Cli::Instances
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
         options[:owner] = val
       end
-      opts.on( '', '--agent', "Show only Instances with the agent installed" ) do |val|
+      opts.on('--agent', "Show only Instances with the agent installed" ) do
         options[:agentInstalled] = true
       end
-      opts.on( '', '--noagent', "Show only Instances with No agent" ) do |val|
+      opts.on('--noagent', "Show only Instances with No agent" ) do
         options[:agentInstalled] = false
       end
       opts.add_hidden_option('--created-by')
