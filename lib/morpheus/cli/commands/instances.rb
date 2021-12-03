@@ -77,6 +77,12 @@ class Morpheus::Cli::Instances
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
         options[:owner] = val
       end
+      opts.on( '', '--agent', "Show only Instances with the agent installed" ) do |val|
+        options[:agentInstalled] = true
+      end
+      opts.on( '', '--noagent', "Show only Instances with No agent" ) do |val|
+        options[:agentInstalled] = false
+      end
       opts.add_hidden_option('--created-by')
       opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
