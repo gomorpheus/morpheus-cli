@@ -611,7 +611,7 @@ EOT
       if record_type.nil?
         return 1, "#{rest_type_label} not found for '#{record_type_id}"
       end
-      # reload the type by id to get all the details eg. optionTypes
+      # reload the type by id to get all the details ie. optionTypes
       if record_type['optionTypes'].nil?
         record_type = rest_type_find_by_name_or_id(record_type['id'])
       end
@@ -718,6 +718,10 @@ EOT
       record_type = rest_type_find_by_name_or_id(record_type_id)
       if record_type.nil?
         return 1, "#{rest_type_label} not found for '#{record_type_id}"
+      end
+      # reload the type by id to get all the details ie. optionTypes
+      if record_type['optionTypes'].nil?
+        record_type = rest_type_find_by_name_or_id(record_type['id'])
       end
     end
     passed_options = parse_passed_options(options)

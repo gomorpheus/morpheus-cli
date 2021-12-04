@@ -123,9 +123,10 @@ EOT
   end
 
   # overridden to work with name or code
-  def find_load_balancer_type_by_name_or_id(name)
-    load_balancer_type_for_name_or_id(name)
-  end
+  # nope, api works with name=code now too
+  # def find_load_balancer_type_by_name_or_id(name)
+  #   load_balancer_type_for_name_or_id(name)
+  # end
 
 #   def add_load_balancer_option_types()
 #     [
@@ -156,5 +157,20 @@ EOT
   def update_load_balancer_advanced_option_types()
     add_load_balancer_advanced_option_types()
   end
+
+  # def load_option_types_for_load_balancer(type_record, parent_record)
+  #   load_balancer_type = type_record
+  #   load_balancer_type_id = load_balancer_type['id']
+  #   # reload it by id to get optionTypes
+  #   option_types = load_balancer_type['optionTypes']
+  #   if option_types.nil?
+  #     load_balancer_type = find_by_id(:load_balancer_type, load_balancer_type['id'])
+  #     if load_balancer_type.nil?
+  #       raise_command_error("Load balancer type not found for id '#{id}'"
+  #     end
+  #     option_types = load_balancer_type['optionTypes']
+  #   end
+  #   return option_types
+  # end
 
 end

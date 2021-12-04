@@ -46,10 +46,10 @@ class Morpheus::Cli::StorageVolumes
   end
 
   # overridden to work with name or code
-  # todo: get rid of these
-  def find_storage_volume_type_by_name_or_id(name)
-    storage_volume_type_for_name_or_id(name)
-  end
+  # nope, api works with name=code now too
+  # def find_storage_volume_type_by_name_or_id(name)
+  #   storage_volume_type_for_name_or_id(name)
+  # end
 
   def add_storage_volume_option_types()
     [
