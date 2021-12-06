@@ -24,12 +24,7 @@ class Morpheus::Cli::LoadBalancerVirtualServers
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_parent_arg}] [search]")
-      if respond_to?("build_list_options_for_#{rest_key}", true)
-        send("build_list_options_for_#{rest_key}", opts, options)
-      else
-        build_standard_list_options(opts, options)
-      end
-      build_standard_list_options(opts, options)
+      build_list_options(opts, options, params)
       opts.footer = <<-EOT
 List #{rest_label_plural.downcase}.
 [#{rest_parent_arg}] is optional. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
@@ -38,26 +33,14 @@ EOT
     end
     optparse.parse!(args)
     parent_id = args[0]
-    verify_args!(args:args, optparse:optparse, min:0)
-    if args.count > 1
-      options[:phrase] = args[1..-1].join(" ")
-    end
     connect(options)
+    parse_list_options!(args, options, params)
     if parent_id
       parent_record = rest_parent_find_by_name_or_id(parent_id)
       if parent_record.nil?
         return 1, "#{rest_parent_label} not found for '#{parent_id}"
       end
       parent_id = parent_record['id']
-    end
-    if respond_to?("parse_list_options_for_#{rest_key}", true)
-      # custom method to parse parameters for list request should return 0, nil if successful
-      parse_result, parse_err = send("parse_list_options_for_#{rest_key}", options, params)
-      if parse_result != 0
-        return parse_result, parse_err
-      end
-    else
-      params.merge!(parse_list_options(options))
     end
     rest_interface.setopts(options)
     if options[:dry_run]
@@ -81,27 +64,17 @@ EOT
 
   protected
 
-  def build_list_options_for_load_balancer_virtual_server(opts, options)
+  def build_list_options(opts, options, params)
     opts.on('--load-balancer LB', String, "Load Balancer Name or ID") do |val|
       options[:load_balancer] = val
     end
-    build_standard_list_options(opts, options)
+    # build_standard_list_options(opts, options)
+    super
   end
 
-  def parse_list_options_for_load_balancer_virtual_server(options, params)
-    if options[:load_balancer]
-      if options[:load_balancer].to_s !~ /\A\d{1,}\Z/
-        load_balancer = find_by_name(:load_balancer, options[:load_balancer])
-        if load_balancer.nil?
-          return 1, "Load Balancer not found for '#{options[:load_balancer]}'"
-        end
-        params['loadBalancerId'] = load_balancer['id']
-      else
-        params['loadBalancerId'] = options[:load_balancer]
-      end
-    end
-    params.merge!(parse_list_options(options))
-    return 0, nil
+  def parse_list_options!(args, options, params)
+    parse_parameter_as_resource_id!(:load_balancer, options, params)
+    super
   end
 
   def load_balancer_virtual_server_list_column_definitions(options)

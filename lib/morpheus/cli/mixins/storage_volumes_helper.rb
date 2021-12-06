@@ -107,7 +107,7 @@ module Morpheus::Cli::StorageVolumesHelper
     elsif status_string == 'syncing'
       out << "#{yellow}#{status_string.capitalize}#{return_color}"
     else
-      out << "#{red}#{status_string ? status_string.capitalize : 'N/A'}#{storage_volume['statusMessage'] ? "#{return_color} - #{storage_volume['statusMessage']}" : ''}#{return_color}"
+      out << "#{red}#{status_string ? status_string.capitalize : 'N/A'}#{record['statusMessage'] ? "#{return_color} - #{record['statusMessage']}" : ''}#{return_color}"
     end
     out
   end

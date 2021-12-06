@@ -246,12 +246,7 @@ module Morpheus::Cli::SecondaryRestCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_parent_arg}] [search]")
-      if respond_to?("build_list_options_for_#{rest_key}", true)
-        send("build_list_options_for_#{rest_key}", opts, options)
-      else
-        build_standard_list_options(opts, options)
-      end
-      build_standard_list_options(opts, options)
+      parse_list_options!(args, options, params)
       opts.footer = <<-EOT
 List #{rest_label_plural.downcase}.
 [#{rest_parent_arg}] is required. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
@@ -259,26 +254,15 @@ List #{rest_label_plural.downcase}.
 EOT
     end
     optparse.parse!(args)
-    parent_id = args[0]
     verify_args!(args:args, optparse:optparse, min:1)
-    if args.count > 1
-      options[:phrase] = args[1..-1].join(" ")
-    end
     connect(options)
+    parent_id = args[0]
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
     end
     parent_id = parent_record['id']
-    if respond_to?("parse_list_options_for_#{rest_key}", true)
-      # custom method to parse parameters for list request should return 0, nil if successful
-      parse_result, parse_err = send("parse_list_options_for_#{rest_key}", options, params)
-      if parse_result != 0
-        return parse_result, parse_err
-      end
-    else
-      params.merge!(parse_list_options(options))
-    end
+    parse_list_options!(args.count > 1 ? args[1..-1] : [], options, params)
     rest_interface.setopts(options)
     if options[:dry_run]
       print_dry_run rest_interface.dry.list(parent_id, params)
@@ -304,7 +288,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_parent_arg}] [#{rest_arg}]")
-      build_standard_get_options(opts, options)
+      build_get_options(opts, options, params)
       opts.footer = <<-EOT
 Get details about #{a_or_an(rest_label)} #{rest_label.downcase}.
 [#{rest_parent_arg}] is required. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
@@ -314,7 +298,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
-    params.merge!(parse_query_options(options))
+    parse_get_options!(args.count > 1 ? args[1..-1] : [], options, params)
     parent_id = args[0]
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?

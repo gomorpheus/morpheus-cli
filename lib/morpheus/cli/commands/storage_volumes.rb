@@ -7,15 +7,32 @@ class Morpheus::Cli::StorageVolumes
 
   set_command_name :'storage-volumes'
   set_command_description "View and manage storage volumes."
-  register_subcommands :list, :get #, :add, :update, :remove
+  register_subcommands %w{list get add remove}
 
   # RestCommand settings
   register_interfaces :storage_volumes, :storage_volume_types
   set_rest_has_type true
-  # set_rest_type :storage_volume_types
-
 
   protected
+
+  def build_list_options(opts, options, params)
+    opts.on('--storage-server VALUE', String, "Storage Server Name or ID") do |val|
+      options[:storage_server] = val
+    end
+    opts.on('-t', '--type TYPE', "Filter by type") do |val|
+      params['type'] = val
+    end
+    opts.on('--name VALUE', String, "Filter by name") do |val|
+      params['name'] = val
+    end
+    # build_standard_list_options(opts, options)
+    super
+  end
+
+  def parse_list_options!(args, options, params)
+    parse_parameter_as_resource_id!(:storage_server, options, params)
+    super
+  end
 
   def storage_volume_list_column_definitions(options)
     {
@@ -53,7 +70,10 @@ class Morpheus::Cli::StorageVolumes
 
   def add_storage_volume_option_types()
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldContext' => 'storageServer', 'fieldName' => 'id', 'fieldLabel' => 'Storage Server', 'type' => 'select', 'optionSource' => 'storageServers', 'required' => true},
+      {'fieldContext' => 'storageGroup', 'fieldName' => 'id', 'fieldLabel' => 'Storage Group', 'type' => 'select', 'optionSource' => 'storageGroups'},
+      {'fieldName' => 'type', 'fieldLabel' => 'Storage Server Type', 'type' => 'select', 'optionSource' => 'storageVolumeTypes', 'required' => true},
+      #{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
     ]
   end
 
