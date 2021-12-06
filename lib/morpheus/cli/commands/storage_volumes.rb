@@ -16,6 +16,9 @@ class Morpheus::Cli::StorageVolumes
   protected
 
   def build_list_options(opts, options, params)
+    opts.on('--storage-server VALUE', String, "Storage Server Name or ID") do |val|
+      options[:storage_server] = val
+    end
     opts.on('-t', '--type TYPE', "Filter by type") do |val|
       params['type'] = val
     end
@@ -23,6 +26,11 @@ class Morpheus::Cli::StorageVolumes
       params['name'] = val
     end
     # build_standard_list_options(opts, options)
+    super
+  end
+
+  def parse_list_options!(args, options, params)
+    parse_parameter_as_resource_id!(:storage_server, options, params)
     super
   end
 

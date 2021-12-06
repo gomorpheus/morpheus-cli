@@ -73,17 +73,7 @@ EOT
   end
 
   def parse_list_options!(args, options, params)
-    if options[:load_balancer]
-      if options[:load_balancer].to_s !~ /\A\d{1,}\Z/
-        load_balancer = find_by_name(:load_balancer, options[:load_balancer])
-        if load_balancer.nil?
-          return 1, "Load Balancer not found for '#{options[:load_balancer]}'"
-        end
-        params['loadBalancerId'] = load_balancer['id']
-      else
-        params['loadBalancerId'] = options[:load_balancer]
-      end
-    end
+    parse_parameter_as_resource_id!(:load_balancer, options, params)
     super
   end
 

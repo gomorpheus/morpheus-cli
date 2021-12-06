@@ -1266,6 +1266,36 @@ module Morpheus
         params.merge!(parse_query_options(options))
       end
 
+      # The default way to parse options for the get command
+      # @param type [string]
+      # @param options [Hash] The command options
+      # @param params [Hash] The query parameters the output is being appended to
+      # @param param_name [String]
+      # @param lookup_ids [Boolean] Also lookup ids to make sure they exist or else error
+      # @return 
+      def parse_parameter_as_resource_id!(type, options, params, param_name=nil, lookup_ids=false)
+        # type = type.to_s.singularize
+        if options.key?(type)
+          val = options[type].to_s
+          param_name ||= "#{type.to_s.camelcase}Id"
+          if val
+            if val.to_s !~ /\A\d{1,}\Z/ || lookup_ids
+              record = find_by_name(type, val)
+              if record.nil?
+                 # avoid double error render by exiting here, ew
+                exit 1
+                raise_command_error "Storage Server not found for '#{val}'"
+              end
+              params[param_name] = record['id']
+            else
+              params[param_name] = val
+            end
+            return params[param_name]
+          end
+        end
+        return nil
+      end
+
       # parse the parameters provided by the common :list options
       # this includes the :query options too via parse_query_options().
       # returns Hash of params the format {"phrase": => "foobar", "max": 100}
