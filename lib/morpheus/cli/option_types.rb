@@ -151,6 +151,10 @@ module Morpheus
             context_map = context_map[ns.to_s]
           end
 
+          # build parameters for option source api request
+          option_params = (option_type['noParams'] ? {} : (api_params || {}).merge(results))
+          option_params.merge!(option_type['optionParams']) if option_type['optionParams']
+
           # use the value passed in the options map
           if cur_namespace.respond_to?('key?') && cur_namespace.key?(field_name)
             value = cur_namespace[field_name]
@@ -161,25 +165,25 @@ module Morpheus
               end
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
             elsif option_type['type'] == 'select'
-              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
             elsif option_type['type'] == 'multiSelect'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
               end
               value = select_value_list
             elsif option_type['type'] == 'typeahead'
-              value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+              value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
             elsif option_type['type'] == 'multiTypeahead'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
               end
               value = select_value_list
             end
@@ -205,11 +209,11 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if ['select', 'multiSelect'].include?(option_type['type'])
-                  value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                  value = select_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
                 if ['typeahead', 'multiTypeahead'].include?(option_type['type'])
-                  value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                  value = typeahead_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
                 if !value_found
@@ -246,11 +250,11 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results)), options[:no_prompt], nil, paging_enabled)
+              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
-                  if addn_value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
                     value << addn_value
                   else
                     break
@@ -258,11 +262,11 @@ module Morpheus
                 end
               end
             elsif ['typeahead', 'multiTypeahead'].include?(option_type['type'])
-              value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+              value = typeahead_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
               if value && option_type['type'] == 'multiTypeahead'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
-                  if addn_value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+                  if addn_value = typeahead_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
                     value << addn_value
                   else
                     break
@@ -273,7 +277,7 @@ module Morpheus
               if option_type['optionSource'].nil?
                 value = option_type['defaultValue']
               else
-                value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
+                value = load_source_options(option_type['optionSource'], option_params, api_client, api_params || {})
               end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
