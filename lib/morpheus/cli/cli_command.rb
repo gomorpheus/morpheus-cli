@@ -1230,6 +1230,42 @@ module Morpheus
         true
       end
 
+      # The default way to build options for the list command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def build_list_options(opts, options, params)
+        build_standard_list_options(opts, options)
+      end
+
+      # The default way to parse options for the list command
+      # @param [Array] args
+      # @param [Hash] options
+      # @param [Hash] params
+      def parse_list_options!(args, options, params)
+        if args.count > 0
+          options[:phrase] = args.join(" ")
+          # params['phrase'] =  = args.join(" ")
+        end
+        params.merge!(parse_list_options(options))
+      end
+
+      # The default way to build options for the list command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def build_get_options(opts, options, params)
+        build_standard_get_options(opts, options)
+      end
+      
+      # The default way to parse options for the get command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def parse_get_options!(args, options, params)
+        params.merge!(parse_query_options(options))
+      end
+
       # parse the parameters provided by the common :list options
       # this includes the :query options too via parse_query_options().
       # returns Hash of params the format {"phrase": => "foobar", "max": 100}
@@ -1244,7 +1280,11 @@ module Morpheus
         end
         # arbitrary filters
         list_params.merge!(parse_query_options(options))
-        
+        # ok, any string keys in options can become query parameters, eg. options['name'] = 'foobar'
+        # do it!
+        # options.each do |k, v|
+        #   list_params[k] = v
+        # end
         return list_params
       end
 

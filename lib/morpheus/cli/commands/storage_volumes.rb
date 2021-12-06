@@ -7,15 +7,24 @@ class Morpheus::Cli::StorageVolumes
 
   set_command_name :'storage-volumes'
   set_command_description "View and manage storage volumes."
-  register_subcommands :list, :get #, :add, :update, :remove
+  register_subcommands %w{list get add remove}
 
   # RestCommand settings
   register_interfaces :storage_volumes, :storage_volume_types
   set_rest_has_type true
-  # set_rest_type :storage_volume_types
-
 
   protected
+
+  def build_list_options(opts, options, params)
+    opts.on('-t', '--type TYPE', "Filter by type") do |val|
+      params['type'] = val
+    end
+    opts.on('--name VALUE', String, "Filter by name") do |val|
+      params['name'] = val
+    end
+    # build_standard_list_options(opts, options)
+    super
+  end
 
   def storage_volume_list_column_definitions(options)
     {

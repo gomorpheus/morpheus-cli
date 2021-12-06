@@ -461,30 +461,15 @@ module Morpheus::Cli::RestCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[search]")
-      if respond_to?("build_list_options_for_#{rest_key}", true)
-        send("build_list_options_for_#{rest_key}", opts, options)
-      else
-        build_standard_list_options(opts, options)
-      end
-            opts.footer = <<-EOT
+      build_list_options(opts, options, params)
+      opts.footer = <<-EOT
 List #{rest_label_plural.downcase}.
 [search] is optional. This is a search phrase to filter the results.
 EOT
     end
     optparse.parse!(args)
     connect(options)
-    if args.count > 0
-      options[:phrase] = args.join(" ")
-    end
-    if respond_to?("parse_list_options_for_#{rest_key}", true)
-      # custom method to parse parameters for list request should return 0, nil if successful
-      parse_result, parse_err = send("parse_list_options_for_#{rest_key}", options, params)
-      if parse_result != 0
-        return parse_result, parse_err
-      end
-    else
-      params.merge!(parse_list_options(options))
-    end
+    parse_list_options!(args, options, params)
     rest_interface.setopts(options)
     if options[:dry_run]
       print_dry_run rest_interface.dry.list(params)
@@ -510,7 +495,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}]")
-      build_standard_get_options(opts, options)
+      build_get_options(opts, options, params)
       opts.footer = <<-EOT
 Get details about #{a_or_an(rest_label)} #{rest_label.downcase}.
 [#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
@@ -519,7 +504,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
-    params.merge!(parse_query_options(options))
+    parse_get_options!(args, options, params)
     id = args.join(" ")
     _get(id, params, options)
   end
@@ -603,7 +588,7 @@ EOT
     if rest_has_type
       if record_type_id.nil?
         #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
-        type_list = rest_type_interface.list({max:10000})[rest_type_list_key]
+        type_list = rest_type_interface.list({max:10000,creatable:true})[rest_type_list_key]
         type_dropdown_options = type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
         record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
       end

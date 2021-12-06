@@ -93,7 +93,7 @@ EOT
       link = "#{@appliance_url}/login/oauth-redirect?access_token=#{@access_token}\\&redirectUri=#{path}"
     end
     if options[:dry_run]
-      puts Morpheus::Util.open_url_command(link)
+      print_system_command_dry_run(Morpheus::Util.open_url_command(link), options)
       return 0, nil
     end
     return Morpheus::Util.open_url(link)

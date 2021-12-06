@@ -220,6 +220,14 @@ module Morpheus::Cli::PrintHelper
     return
   end
 
+  def print_system_command_dry_run(cmd, options={})
+    print "\n"
+    print "#{cyan}#{bold}#{dark}SYSTEM COMMAND#{reset}\n"
+    print cmd
+    print reset, "\n"
+    return
+  end
+
   def format_api_request(http_method, url, headers, payload=nil, options={})
     out = ""
     # out << "\n"
