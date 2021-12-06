@@ -72,7 +72,7 @@ class Morpheus::Cli::StorageVolumes
     [
       {'fieldContext' => 'storageServer', 'fieldName' => 'id', 'fieldLabel' => 'Storage Server', 'type' => 'select', 'optionSource' => 'storageServers', 'optionParams' => {'createType' => 'block'}, 'required' => true},
       {'fieldContext' => 'storageGroup', 'fieldName' => 'id', 'fieldLabel' => 'Storage Group', 'type' => 'select', 'optionSource' => 'storageGroups', 'required' => true},
-      {'fieldName' => 'type', 'fieldLabel' => 'Storage Server Type', 'type' => 'select', 'optionSource' => 'storageVolumeTypes', 'required' => true},
+      {'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Storage Volume Type', 'type' => 'select', 'optionSource' => 'storageVolumeTypes', 'required' => true},
       #{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
     ]
   end
@@ -81,6 +81,20 @@ class Morpheus::Cli::StorageVolumes
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text'},
     ]
+  end
+
+  def load_option_types_for_storage_volume(type_record, parent_record)
+    storage_volume_type = type_record
+    option_types = storage_volume_type['optionTypes']
+    # ughhh, all this to change a label for API which uses bytes and not MB
+    if option_types
+      size_option_type = option_types.find {|it| it['fieldName'] == 'maxStorage' }
+      if size_option_type
+        #size_option_type['fieldLabel'] = "Volume Size (bytes)"
+        size_option_type['fieldAddOn'] = "bytes"
+      end
+    end
+    return option_types
   end
 
 end

@@ -309,7 +309,7 @@ module Morpheus
         end
         optionString = options.collect{ |b| b[:checked] ? "(#{b[:key]})" : b[:key]}.join(', ')
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
           input = $stdin.gets.chomp!
           if input == '?'
             help_prompt(option_type)
@@ -336,7 +336,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           if !value.to_s.empty?
@@ -493,7 +493,7 @@ module Morpheus
           }
 
           has_more_pages = paging && (paging[:cur_page] * paging[:page_size]) < paging[:total]
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages && paging[:cur_page] > 0 ? ' more ' : ' '}options]: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages && paging[:cur_page] > 0 ? ' more ' : ' '}options]: ", false).to_s
           input = input.chomp.strip
           if input.empty? && default_value
             input = default_value.to_s
@@ -564,7 +564,7 @@ module Morpheus
             }
             # prompt for typeahead input value
             has_more_pages = paging && ((paging[:cur_page] + 1) * paging[:page_size]) < paging[:total]
-            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages ? ' more ' : ' '}options]: ", false).to_s
+            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages ? ' more ' : ' '}options]: ", false).to_s
             input = input.chomp.strip
           end
 
@@ -753,7 +753,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           if input == '?'
@@ -770,7 +770,7 @@ module Morpheus
         value = nil
         while !value_found do
           if value.nil?
-            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)} [Type 'EOF' to stop input]: \n"
+            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)} [Type 'EOF' to stop input]: \n"
           end
           input = $stdin.gets.chomp!
           # value = input.empty? ? option_type['defaultValue'] : input
@@ -794,7 +794,7 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.noecho(&:gets).chomp!
           value = input
           print "\n"
@@ -814,11 +814,11 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
           Readline.completion_proc = proc {|s| Readline::FILENAME_COMPLETION_PROC.call(s) }
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: ", false).to_s
           input = input.chomp.strip
           #input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input.to_s

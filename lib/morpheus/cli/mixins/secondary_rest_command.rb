@@ -398,10 +398,6 @@ EOT
       if record_type.nil?
         return 1, "#{rest_type_label} not found for '#{record_type_id}"
       end
-      # reload the type by id to get all the details ie. optionTypes
-      if record_type['optionTypes'].nil?
-        record_type = rest_type_find_by_name_or_id(record_type['id'])
-      end
     end
     passed_options = parse_passed_options(options)
     payload = {}
@@ -430,6 +426,19 @@ EOT
         record_payload.deep_merge!(v_prompt)
       end
       # options by type
+      if rest_has_type && record_type.nil?
+        type_value = record_payload['type'].is_a?(Hash) ? record_payload['type']['id'] : record_payload['type']
+        if type_value
+          record_type = rest_type_find_by_name_or_id(type_value)
+          if record_type.nil?
+            return 1, "#{rest_type_label} not found for '#{type_value}"
+          end
+        end
+        # reload the type by id to get all the details ie. optionTypes
+        if record_type && record_type['optionTypes'].nil?
+          record_type = rest_type_find_by_name_or_id(record_type['id'])
+        end
+      end
       my_option_types = nil
       if respond_to?("load_option_types_for_#{rest_key}", true)
         my_option_types = send("load_option_types_for_#{rest_key}", record_type, parent_record)
@@ -443,7 +452,8 @@ EOT
             option_type['fieldContext'] = nil
           end
         end
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, options[:params])
+        api_params = (options[:params] || {}).merge(record_payload)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, api_params)
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -530,7 +540,8 @@ EOT
       end
       # update options without prompting by default
       if option_types && !option_types.empty?
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(option_types, options[:options], @api_client, options[:params])
+        api_params = (options[:params] || {}).merge(record_payload) # need to merge in values from record too, ughhh
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(option_types, options[:options], @api_client, api_params)
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
