@@ -526,7 +526,7 @@ class Morpheus::Cli::Clusters
           cloud = @clouds_interface.get(cloud['id'])['zone']
           cloud_id = cloud['id']
         else
-          available_clouds = get_available_clouds(group['id'])
+          available_clouds = get_available_clouds(group['id'], {groupType: cluster_payload['type']})
 
           if available_clouds.empty?
             print_red_alert "Group #{group['name']} has no available clouds"
@@ -556,12 +556,12 @@ class Morpheus::Cli::Clusters
           end
         end
 
-        cluster_payload['layout'] = {id: layout['id']}
+        cluster_payload['layout'] = {'id' => layout['id']}
 
         # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
 
-        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionTypeId: provision_type['id']}
+        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
 
         # Controller type
         server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
@@ -598,6 +598,7 @@ class Morpheus::Cli::Clusters
 
         # Options / Custom Config
         option_type_list =
+          load_layout_options(cluster_payload) +
           ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
           (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
 
@@ -3926,4 +3927,27 @@ class Morpheus::Cli::Clusters
     ]
   end
 
+  def load_layout_options(cluster)
+    (@api_client.options.options_for_source('computeTypeLayoutParameters', {layoutId: cluster['layout']['id']})['data'] || []).collect do |it|
+      it['fieldName'] = it['name']
+      it['fieldLabel'] = it['displayName']
+      it['fieldContext'] = 'config.templateParameter'
+      if it['type'] == 'ServicePlan'
+        it['optionSource'] = 'servicePlans'
+        it['type'] = 'select'
+        it['params'] = {:provisionType => '', :zoneId => '', :siteId => '', :resourcePoolId => ''}
+        it['params'][:provisionType] = 'azure' if it['azureServicePlanType']
+      elsif it['type'] == 'Subnet'
+        it['optionSource'] = 'networks'
+        it['type'] = 'select'
+        it['params'] = {:siteId => '', :instanceId => '', :serverId => '', :zonePoolId => '', :zoneRegionId => '', :zoneId => '', :provisionType => ''}
+        if cluster['type'] == 'aks-cluster'
+          it['params'][:provisionType] = 'azure'
+        end
+      else
+        it['type'] = 'text'
+      end
+      it
+    end
+  end
 end

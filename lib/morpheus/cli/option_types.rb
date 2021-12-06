@@ -365,7 +365,12 @@ module Morpheus
         value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
         default_value = option_type['defaultValue']
         default_value = default_value['id'] if default_value && default_value.is_a?(Hash) && !default_value['id'].nil?
-        api_params ||= {}
+
+        if !option_type['params'].nil?
+          api_params = (api_params || {}).select {|k,v| option_type['params'].key?(k) || option_type['params'].key?(k.to_s)}
+          option_type['params'].select {|k,v| !v.empty?}.each {|k,v| api_params[k] = v}
+        end
+
         # local array of options
         if option_type['selectOptions']
           # calculate from inline lambda
@@ -424,7 +429,8 @@ module Morpheus
               default_value = found_default_option['name'] # name is prettier than value
             end
           else
-            found_default_option  = select_options.find {|opt| opt[value_field].to_s == default_value.to_s}
+            found_default_option = select_options.find {|opt| opt[value_field].to_s == default_value.to_s || opt['name'] == default_value.to_s}
+            found_default_option = select_options.find {|opt| opt[value_field].to_s.start_with?(default_value.to_s) || opt['name'].to_s.start_with?(default_value.to_s)} if !found_default_option
             if found_default_option
               default_value = found_default_option['name'] # name is prettier than value
             end
@@ -926,6 +932,8 @@ module Morpheus
             select_options = filtered_options
           end
         elsif option_type['optionSource']
+          api_params = api_params.select {|k,v| option_type['params'].include(k)} if option_type['params'].nil? && api_params
+
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
             select_options = option_type['optionSource'].call(api_client, api_params || {})
