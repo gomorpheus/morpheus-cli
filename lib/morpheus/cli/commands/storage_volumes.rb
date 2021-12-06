@@ -25,6 +25,9 @@ class Morpheus::Cli::StorageVolumes
     opts.on('--name VALUE', String, "Filter by name") do |val|
       params['name'] = val
     end
+    opts.on('--category VALUE', String, "Filter by category") do |val|
+      params['category'] = val
+    end
     # build_standard_list_options(opts, options)
     super
   end
