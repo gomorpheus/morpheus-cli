@@ -22,7 +22,8 @@ class Morpheus::Cli::Instances
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
                        {:exec => :execution_request},
-                       :deploys
+                       :deploys,
+                       :refresh, :apply
   #register_subcommands :firewall_disable, :firewall_enable
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
@@ -4234,6 +4235,106 @@ EOT
       print_green_success "Unlocked instance #{instance['name']}"
     end
     return 0, nil
+  end
+
+  def refresh(args)
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [options]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Refresh an instance.
+[instance] is required. This is the name or id of an instance.
+This is only supported by certain types of instances such as terraform.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      # construct request
+      params.merge!(parse_query_options(options))
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
+      else
+        payload.deep_merge!(parse_passed_options(options))
+        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      end
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to refresh this instance: #{instance['name']}?")
+        return 9, "aborted command"
+      end
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.refresh(instance["id"], params, payload)
+        return
+      end
+      json_response = @instances_interface.refresh(instance["id"], params, payload)
+      render_response(json_response, options) do
+        print_green_success "Refreshing instance #{instance['name']}"
+        # return _get(instance['id'], options)
+      end
+      return 0, nil
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def apply(args)
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [options]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Apply an instance.
+[instance] is required. This is the name or id of an instance.
+This is only supported by certain types of instances such as terraform.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+      # construct request
+      params.merge!(parse_query_options(options))
+      payload = {}
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
+      else
+        payload.deep_merge!(parse_passed_options(options))
+        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      end
+      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply this instance: #{instance['name']}?")
+        return 9, "aborted command"
+      end
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.apply(instance["id"], params, payload)
+        return
+      end
+      json_response = @instances_interface.apply(instance["id"], params, payload)
+      render_response(json_response, options) do
+        print_green_success "Applying instance #{instance['name']}"
+        # return _get(instance['id'], options)
+      end
+      return 0, nil
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  # todo: print state summary
+  def state_summary(args)
   end
 
 private
