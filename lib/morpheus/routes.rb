@@ -110,6 +110,7 @@ module Morpheus::Routes
         buckets: {},
       },
       :'image-builder' => {},
+      :'self-service' => {},
     },
     admin: {
       accounts: {}, # Tenants
