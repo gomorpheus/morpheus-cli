@@ -587,7 +587,7 @@ EOT
     if rest_has_type && type_option_type.nil?
       if record_type_id.nil?
         #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
-        type_list = rest_type_interface.list({max:10000,creatable:true})[rest_type_list_key]
+        type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
         type_dropdown_options = type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
         record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
       end
@@ -620,9 +620,8 @@ EOT
         options[:params]['type'] = record_type['code']
       end
       record_payload.deep_merge!(passed_options)
-      if self.class.method_defined?("add_#{rest_key}_option_types")
-        add_option_types = send("add_#{rest_key}_option_types")
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(add_option_types, options[:options], @api_client, options[:params])
+      if option_types && !option_types.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -647,9 +646,8 @@ EOT
         record_payload.deep_merge!(v_prompt)
       end
       # advanced options (uses no_prompt)
-      if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
-        add_advanced_option_types = send("add_#{rest_key}_advanced_option_types")
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(add_advanced_option_types, options[:options], @api_client, options[:params])
+      if advanced_option_types && !advanced_option_types.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -675,14 +673,12 @@ EOT
     record_type = nil
     record_type_id = nil
     options = {}
+    option_types = respond_to?("update_#{rest_key}_option_types", true) ? send("update_#{rest_key}_option_types") : []
+    advanced_option_types = respond_to?("update_#{rest_key}_advanced_option_types", true) ? send("update_#{rest_key}_advanced_option_types") : []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}] [options]")
-      if self.class.method_defined?("update_#{rest_key}_option_types")
-        build_option_type_options(opts, options, send("update_#{rest_key}_option_types"))
-      end
-      if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
-        build_option_type_options(opts, options, send("update_#{rest_key}_advanced_option_types"))
-      end
+      build_option_type_options(opts, options, option_types)
+      build_option_type_options(opts, options, advanced_option_types)
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update an existing #{rest_label.downcase}.
@@ -724,9 +720,8 @@ EOT
         options[:params]['type'] = record_type['code']
       end
       # update options without prompting by default
-      if self.class.method_defined?("update_#{rest_key}_option_types")
-        update_option_types = send("update_#{rest_key}_option_types")
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_option_types, options[:options], @api_client, options[:params])
+      if option_types && !option_types.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -756,9 +751,8 @@ EOT
         record_payload.deep_merge!(v_prompt)
       end
       # advanced options
-      if self.class.method_defined?("update_#{rest_key}_advanced_option_types")
-        update_advanced_option_types = send("update_#{rest_key}_advanced_option_types")
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_advanced_option_types, options[:options], @api_client, options[:params])
+      if advanced_option_types && !advanced_option_types.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
