@@ -552,19 +552,18 @@ EOT
     record_type = nil
     record_type_id = nil
     options = {}
+    option_types = respond_to?("add_#{rest_key}_option_types", true) ? send("add_#{rest_key}_option_types") : []
+    advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
+    type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_arg}]")
-      if rest_has_type
+      if rest_has_type && type_option_type.nil?
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
         end
       end
-      if self.class.method_defined?("add_#{rest_key}_option_types")
-        build_option_type_options(opts, options, send("add_#{rest_key}_option_types"))
-      end
-      if self.class.method_defined?("add_#{rest_key}_advanced_option_types")
-        build_option_type_options(opts, options, send("add_#{rest_key}_advanced_option_types"))
-      end
+      build_option_type_options(opts, options, option_types)
+      build_option_type_options(opts, options, advanced_option_types)
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new #{rest_label.downcase}.
@@ -585,7 +584,7 @@ EOT
     end
     connect(options)
     # load or prompt for type
-    if rest_has_type
+    if rest_has_type && type_option_type.nil?
       if record_type_id.nil?
         #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
         type_list = rest_type_interface.list({max:10000,creatable:true})[rest_type_list_key]

@@ -62,7 +62,10 @@ class Morpheus::Cli::StorageVolumes
 
   def add_storage_volume_option_types()
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldContext' => 'storageServer', 'fieldName' => 'id', 'fieldLabel' => 'Storage Server', 'type' => 'select', 'optionSource' => 'storageServers', 'required' => true},
+      {'fieldContext' => 'storageGroup', 'fieldName' => 'id', 'fieldLabel' => 'Storage Group', 'type' => 'select', 'optionSource' => 'storageGroups'},
+      {'fieldName' => 'type', 'fieldLabel' => 'Storage Server Type', 'type' => 'select', 'optionSource' => 'storageVolumeTypes', 'required' => true},
+      #{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
     ]
   end
 
