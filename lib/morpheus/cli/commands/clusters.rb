@@ -458,6 +458,10 @@ class Morpheus::Cli::Clusters
 
         cluster_payload['type'] = cluster_type['code'] # {'id' => cluster_type['id']}
 
+        # Group / Site
+        group = load_group(cluster_type['code'], options)
+        cluster_payload['group'] = {'id' => group['id']}
+
         # Cluster Name
         if args.empty? && options[:no_prompt]
           print_red_alert "No cluster name provided"
@@ -513,10 +517,6 @@ class Morpheus::Cli::Clusters
         end
 
         server_payload['tags'] = tags if tags
-
-        # Group / Site
-        group = load_group(options)
-        cluster_payload['group'] = {'id' => group['id']}
 
         # Cloud / Zone
         cloud_id = nil
@@ -3666,7 +3666,7 @@ class Morpheus::Cli::Clusters
     @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
-  def load_group(options)
+  def load_group(group_type, options)
     # Group / Site
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -3677,15 +3677,13 @@ class Morpheus::Cli::Clusters
       if @active_group_id
         group_id = @active_group_id
       else
-        available_groups = get_available_groups
+        available_groups = get_available_groups({groupType: group_type})
 
         if available_groups.empty?
           print_red_alert "No available groups"
           exit 1
-        elsif available_groups.count > 1 && !options[:no_prompt]
+        else available_groups.count > 1 && !options[:no_prompt]
           group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})['group']
-        else
-          group_id = available_groups.first['id']
         end
       end
     end

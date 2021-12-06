@@ -57,9 +57,9 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client.accounts
   end
 
-  def get_available_groups(refresh=false)
+  def get_available_groups(params = {}, refresh=false)
     if !@available_groups || refresh
-      option_results = options_interface.options_for_source('groups',{})
+      option_results = options_interface.options_for_source('groups', params)
       @available_groups = option_results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }
