@@ -17,7 +17,7 @@ class Morpheus::RestInterface < Morpheus::APIClient
 
   def get(id, params={}, headers={})
     validate_id!(id)
-    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
   def create(payload, params={}, headers={})
@@ -26,12 +26,12 @@ class Morpheus::RestInterface < Morpheus::APIClient
 
   def update(id, payload, params={}, headers={})
     validate_id!(id)
-    execute(method: :put, url: "#{base_path}/#{id}", params: params, payload: payload, headers: headers)
+    execute(method: :put, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, payload: payload, headers: headers)
   end
 
   def destroy(id, params = {}, headers={})
     validate_id!(id)
-    execute(method: :delete, url: "#{base_path}/#{id}", params: params, headers: headers)
+    execute(method: :delete, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
 end

@@ -15,7 +15,7 @@ class Morpheus::Cli::Users
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @accounts_interface = @api_client.accounts
     @roles_interface = @api_client.roles
   end
@@ -55,12 +55,12 @@ class Morpheus::Cli::Users
     account_id = account ? account['id'] : nil
     params['global'] = true if options[:global]
     params.merge!(parse_list_options(options))
-    @users_interface.setopts(options)
+    @account_users_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @users_interface.dry.list(account_id, params)
+      print_dry_run @account_users_interface.dry.list(account_id, params)
       return 0, nil
     end
-    json_response = @users_interface.list(account_id, params)
+    json_response = @account_users_interface.list(account_id, params)
     render_response(json_response, options, "users") do
       users = json_response['users']
       title = "Morpheus Users"
@@ -103,12 +103,12 @@ class Morpheus::Cli::Users
       account_id = account ? account['id'] : nil
       params['global'] = true if options[:global]
       params.merge!(parse_list_options(options))
-      @users_interface.setopts(options)
+      @account_users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.list(account_id, params)
+        print_dry_run @account_users_interface.dry.list(account_id, params)
         return
       end
-      json_response = @users_interface.list(account_id, params)
+      json_response = @account_users_interface.list(account_id, params)
       # print number only
       if json_response['meta'] && json_response['meta']['total']
         print cyan, json_response['meta']['total'], reset, "\n"
@@ -195,12 +195,12 @@ EOT
     account = find_account_from_options(options)
     account_id = account ? account['id'] : nil
     params['global'] = true if options[:global]
-    @users_interface.setopts(options)
+    @account_users_interface.setopts(options)
     if options[:dry_run]
       if args[0].to_s =~ /\A\d{1,}\Z/
-        print_dry_run @users_interface.dry.get(account_id, args[0].to_i, params)
+        print_dry_run @account_users_interface.dry.get(account_id, args[0].to_i, params)
       else
-        print_dry_run @users_interface.dry.list(account_id, params.merge({username: args[0]}))
+        print_dry_run @account_users_interface.dry.list(account_id, params.merge({username: args[0]}))
       end
       return
     end
@@ -213,7 +213,7 @@ EOT
       user_id = user['id']
     end
     # always get by id, index does not return 'access'
-    json_response = @users_interface.get(account_id, user_id, params)
+    json_response = @account_users_interface.get(account_id, user_id, params)
     user = json_response['user']
     render_response(json_response, options, "user") do
       is_tenant_account = current_account['id'] != user['account']['id']
@@ -223,7 +223,7 @@ EOT
 
       # backward compatibility
       if user['access'].nil? && options[:include_features_access]
-        user_feature_permissions_json = @users_interface.feature_permissions(account_id, user['id'])
+        user_feature_permissions_json = @account_users_interface.feature_permissions(account_id, user['id'])
         user_feature_permissions = user_feature_permissions_json['permissions'] || user_feature_permissions_json['featurePermissions']
 
         if user_feature_permissions
@@ -308,15 +308,15 @@ EOT
       params['global'] = true if options[:global]
       user = find_user_by_username_or_id(account_id, args[0], params)
       return 1 if user.nil?
-      @users_interface.setopts(options)
+      @account_users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.permissions(account_id, user['id'])
+        print_dry_run @account_users_interface.dry.permissions(account_id, user['id'])
         return
       end
 
       is_tenant_account = current_account['id'] != user['account']['id']
 
-      json_response = @users_interface.permissions(account_id, user['id'])
+      json_response = @account_users_interface.permissions(account_id, user['id'])
 
       # backward compatibility
       if !json_response['permissions'].nil?
@@ -460,12 +460,12 @@ EOT
         puts as_json(payload, options)
         return 0
       end
-      @users_interface.setopts(options)
+      @account_users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.create(account_id, payload)
+        print_dry_run @account_users_interface.dry.create(account_id, payload)
         return
       end
-      json_response = @users_interface.create(account_id, payload)
+      json_response = @account_users_interface.create(account_id, payload)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
@@ -545,12 +545,12 @@ EOT
         end
       end
 
-      @users_interface.setopts(options)
+      @account_users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
+        print_dry_run @account_users_interface.dry.update(account_id, user['id'], payload)
         return
       end
-      json_response = @users_interface.update(account_id, user['id'], payload)
+      json_response = @account_users_interface.update(account_id, user['id'], payload)
       user = json_response['user']
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -645,12 +645,12 @@ EOT
       }
 
     end
-    @users_interface.setopts(options)
+    @account_users_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
+      print_dry_run @account_users_interface.dry.update(account_id, user['id'], payload)
       return
     end
-    json_response = @users_interface.update(account_id, user['id'], payload)
+    json_response = @account_users_interface.update(account_id, user['id'], payload)
     render_response(json_response, optparse, "user") do
       print_green_success "Updated password for user #{user['username']}"
     end
@@ -684,12 +684,12 @@ EOT
       unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the user #{user['username']}?")
         exit 9, "arborted"
       end
-      @users_interface.setopts(options)
+      @account_users_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @users_interface.dry.destroy(account_id, user['id'])
+        print_dry_run @account_users_interface.dry.destroy(account_id, user['id'])
         return 0
       end
-      json_response = @users_interface.destroy(account_id, user['id'])
+      json_response = @account_users_interface.destroy(account_id, user['id'])
 
       if options[:json]
         print JSON.pretty_generate(json_response)
@@ -759,7 +759,7 @@ EOT
       end
     end
 
-    available_roles = @users_interface.available_roles(account_id, user_id)['roles']
+    available_roles = @account_users_interface.available_roles(account_id, user_id)['roles']
 
     if available_roles.empty?
       print_red_alert "No available roles found."

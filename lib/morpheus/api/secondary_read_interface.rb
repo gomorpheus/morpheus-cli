@@ -19,7 +19,7 @@ class Morpheus::SecondaryReadInterface < Morpheus::APIClient
   def get(resource_id, id, params={}, headers={})
     validate_id!(resource_id)
     validate_id!(id)
-    execute(method: :get, url: "#{base_path(resource_id)}/#{id}", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path(resource_id)}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
 end

@@ -1,7 +1,7 @@
 class String
   
   def pluralize
-    value = self
+    value = self.dup
     if value == ""
       value
     elsif value[-1].chr == "y"
@@ -18,7 +18,7 @@ class String
   end
 
   def singularize
-    value = self
+    value = self.dup
     if value == ""
       value
     elsif value.size > 3 && value[-3..-1] == "ies"
@@ -27,15 +27,38 @@ class String
       value[0..-3]
     elsif value[-1] == "s"
       value[0..-2]
+    else
+      value
     end
   end
 
-  def dasherize
-    self.gsub(" ", "-").gsub("_", "-")
+  def underscore
+    value = self.dup
+    value.gsub!(/::/, '/')
+    value.gsub!(/([A-Z]+)([A-Z][a-z])/,'\1_\2')
+    value.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
+    value.tr!("-", "_")
+    value.tr!(" ", "_")
+    value.downcase!
+    value
   end
 
-  def underscoreize
-    self.gsub(" ", "_").gsub("-", "_")
+  def camelcase
+    value = self.underscore.gsub(/\_([a-z])/) do $1.upcase end
+    value = value[0, 1].downcase + value[1..-1]
+    value
+  end
+
+  def upcamelcase
+    self.camelcase.capitalize
+  end
+
+  def titleize
+    self.underscore.split("_").map(&:capitalize).join(" ")
+  end
+
+  def dasherize
+    self.underscore.gsub("_", "-")
   end
 
 end

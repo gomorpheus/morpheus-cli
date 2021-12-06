@@ -723,10 +723,10 @@ class Morpheus::Cli::Shell
       end
       if options[:show_pagination]
         if options[:phrase] || options[:sort] || options[:direction] || options[:offset]
-          print_results_pagination({:meta => history_result[:meta]})
+          print_results_pagination(history_result[:meta])
         else
           # default order is weird, it's the last page of results, 1-25 is misleading and showing the indexes is stranger
-          print_results_pagination({:meta => history_result[:meta]}, {:message =>"Viewing most recent %{size} of %{total} %{label}"})
+          print_results_pagination(history_result[:meta], {:message =>"Viewing most recent %{size} of %{total} %{label}"})
         end
         print reset, "\n"
       else

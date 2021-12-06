@@ -17,7 +17,8 @@ class Morpheus::Cli::Remote
 
   set_default_subcommand :list
 
-  set_subcommands_hidden :setup # this is going away too
+  set_subcommands_hidden :setup # moved to 'setup'
+  set_subcommands_hidden :view # moved to 'view'
 
   def initialize()
     @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -895,6 +896,7 @@ EOT
   end
 
   def view(args)
+    print_error "#{yellow}DEPRECATION WARNING: `remote view` has been deprecated and replaced with `view`. Please use `view` instead.#{reset}\n"
     options = {}
     path = "/"
     no_auth = false
@@ -903,7 +905,7 @@ EOT
       opts.on('--path PATH', String, "Specify a path to load. eg '/logs'" ) do |val|
         path = val
       end
-      opts.on('--no-auth PATH', String, "Do not attempt to login with access token." ) do |val|
+      opts.on('--no-auth', "Do not attempt to login with access token." ) do |val|
         no_auth = true
       end
       build_common_options(opts, options, [:dry_run])

@@ -20,7 +20,7 @@ class Morpheus::Cli::Roles
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @whoami_interface = @api_client.whoami
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @accounts_interface = @api_client.accounts
     @roles_interface = @api_client.roles
     @groups_interface = @api_client.groups

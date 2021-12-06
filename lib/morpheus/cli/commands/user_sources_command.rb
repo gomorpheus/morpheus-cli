@@ -21,7 +21,7 @@ class Morpheus::Cli::UserSourcesCommand
     @api_client = establish_remote_appliance_connection(opts)
     @user_sources_interface = @api_client.user_sources
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
   end
 
   def handle(args)

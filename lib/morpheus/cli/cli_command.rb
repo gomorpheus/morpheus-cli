@@ -1011,7 +1011,7 @@ module Morpheus
         # meh, could deprecate and make subcommand define handle() itself
         # if args.count == 0 && default_subcommand
         #   # p "using default subcommand #{default_subcommand}"
-        #   return self.send(default_subcommand, args || [])
+        #   return send(default_subcommand, args || [])
         # end
         subcommand_name = args[0]
         if args.empty?
@@ -1032,7 +1032,7 @@ module Morpheus
           error_msg = "'#{command_name} #{subcommand_name}' is not a #{prog_name} command.\n#{full_command_usage}"
           raise CommandNotFoundError.new(error_msg)
         end
-        self.send(cmd_method, args[1..-1])
+        send(cmd_method, args[1..-1])
       end
 
       def handle(args)
@@ -1230,6 +1230,72 @@ module Morpheus
         true
       end
 
+      # The default way to build options for the list command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def build_list_options(opts, options, params)
+        build_standard_list_options(opts, options)
+      end
+
+      # The default way to parse options for the list command
+      # @param [Array] args
+      # @param [Hash] options
+      # @param [Hash] params
+      def parse_list_options!(args, options, params)
+        if args.count > 0
+          options[:phrase] = args.join(" ")
+          # params['phrase'] =  = args.join(" ")
+        end
+        params.merge!(parse_list_options(options))
+      end
+
+      # The default way to build options for the list command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def build_get_options(opts, options, params)
+        build_standard_get_options(opts, options)
+      end
+      
+      # The default way to parse options for the get command
+      # @param [OptionParser] opts
+      # @param [Hash] options
+      # @param [Hash] params
+      def parse_get_options!(args, options, params)
+        params.merge!(parse_query_options(options))
+      end
+
+      # The default way to parse options for the get command
+      # @param type [string]
+      # @param options [Hash] The command options
+      # @param params [Hash] The query parameters the output is being appended to
+      # @param param_name [String]
+      # @param lookup_ids [Boolean] Also lookup ids to make sure they exist or else error
+      # @return 
+      def parse_parameter_as_resource_id!(type, options, params, param_name=nil, lookup_ids=false)
+        # type = type.to_s.singularize
+        if options.key?(type)
+          val = options[type].to_s
+          param_name ||= "#{type.to_s.camelcase}Id"
+          if val
+            if val.to_s !~ /\A\d{1,}\Z/ || lookup_ids
+              record = find_by_name(type, val)
+              if record.nil?
+                 # avoid double error render by exiting here, ew
+                exit 1
+                raise_command_error "Storage Server not found for '#{val}'"
+              end
+              params[param_name] = record['id']
+            else
+              params[param_name] = val
+            end
+            return params[param_name]
+          end
+        end
+        return nil
+      end
+
       # parse the parameters provided by the common :list options
       # this includes the :query options too via parse_query_options().
       # returns Hash of params the format {"phrase": => "foobar", "max": 100}
@@ -1244,7 +1310,11 @@ module Morpheus
         end
         # arbitrary filters
         list_params.merge!(parse_query_options(options))
-        
+        # ok, any string keys in options can become query parameters, eg. options['name'] = 'foobar'
+        # do it!
+        # options.each do |k, v|
+        #   list_params[k] = v
+        # end
         return list_params
       end
 
@@ -1365,7 +1435,7 @@ module Morpheus
           full_outfile = File.expand_path(options[:outfile])
           if output
             print_to_file(output, options[:outfile], options[:overwrite])
-            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(full_outfile)} B)\n" unless options[:quiet]
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes(File.size(full_outfile))})\n" unless options[:quiet]
           else
             # uhhh ok lets try this
             Morpheus::Logging::DarkPrinter.puts "using experimental feature: --out without a common format like json, yml or csv" if Morpheus::Logging.debug?
@@ -1373,7 +1443,7 @@ module Morpheus
             if result && result != 0
               return result
             end
-            print "#{cyan}Wrote output to file #{options[:outfile]} (#{File.size(full_outfile)} B)\n" unless options[:quiet]
+            print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes(File.size(full_outfile))})\n" unless options[:quiet]
             return 0, nil
           end
         else
@@ -1403,6 +1473,184 @@ module Morpheus
       end
 
       alias :render_with_format :render_response
+
+      # Dynamic find methods to load a record of any type
+      # def find_by_name_or_id(type, val)
+      #   interface = instance_variable_get "@#{type}s_interface"
+      #   typeCamelCase = type.gsub(/(?:^|_)([a-z])/) do $1.upcase end
+      #   typeCamelCase = typeCamelCase[0, 1].downcase + typeCamelCase[1..-1]
+      #   (val.to_s =~ /\A\d{1,}\Z/) ? interface.get(val.to_i)[typeCamelCase] : interface.list({'name' => val})["#{typeCamelCase}s"].first
+      # end
+
+      # Find a resource by type and name or id
+      # @param type [String of Symbol] Type of resource formatted as singular, lowerscore with underscores.
+      # @param *id [String or Numeric] ID of resource, multiple arguments may be passed when using a secondary interface where parent_id, id is required.
+      # Example: find_by_name_or_id("instance", "K2")
+      #          find_by_name_or_id("storage_volume", 42)
+      #          find_by_name_or_id("instance", "My Instance")
+      #          find_by_name_or_id("load_balancer_pool", load_balancer_id, id)
+      def find_by_name_or_id(*args)
+        val = args.last
+        if val.to_s =~ /\A\d{1,}\Z/
+          return find_by_id(*args)
+        else
+          return find_by_name(*args)
+        end
+      end
+
+      
+      # Find a resource by type and id
+      # Usage: find_by_name_or_id("app", 3)
+      def find_by_id(*args)
+        #Morpheus::Logging::DarkPrinter.puts "find_by_id(#{args.join(', ')})" if Morpheus::Logging.debug?
+        # type, ids = args.first, args[1..-1]
+        type, *ids = args
+        type = type.to_s.singularize.underscore
+        # still relying on the command or helper to define these _label and _key methods
+        label = send("#{type}_label")
+        object_key = send("#{type}_object_key")
+        interface_name = "@#{type.pluralize}_interface"
+        interface = instance_variable_get(interface_name)
+        if interface.nil?
+          raise "#{self.class} has not defined interface #{interface_name}"
+        end
+        begin
+          json_response = interface.get(*ids)
+          return json_response[object_key]
+        rescue RestClient::Exception => e
+          if e.response && e.response.code == 404
+            print_red_alert "#{label} not found by id #{ids.last}"
+            return nil
+          else
+            raise e
+          end
+        end
+      end
+
+      # Find a record by type and name
+      # Usage: find_by_name_or_id("network", "Skynet")
+      def find_by_name(*args)
+        #Morpheus::Logging::DarkPrinter.puts "find_by_name(#{args.join(', ')})" if Morpheus::Logging.debug?
+        # type, ids = args.first, args[1..-1]
+        type, *ids = args
+        type = type.to_s.singularize.underscore
+        val = ids.pop
+        params = {}
+        name_property = 'name'
+        if type == 'user'
+          name_property = 'username'
+          params['global'] = 'true'
+        end
+        params[name_property] = val.to_s
+        request_args = ids + [params]
+        request_args.unshift(type)
+        records = find_all(*request_args)
+        # still relying on the command or helper to define these _label and _key methods
+        label = respond_to?("#{type}_label", true) ? send("#{type}_label") : type.titleize
+        if records.empty?
+          print_red_alert "#{label} not found by name '#{val}'"
+          return nil
+        elsif records.size > 1
+          print_red_alert "More than one #{label.downcase} found by #{name_property} '#{val}'"
+          print_error "\n"
+          if type == "user"
+            puts_error as_pretty_table(records, [:id, :username, {"FIRST NAME" => "firstName"}, {"LAST NAME" => "lastName"}, {"TENANT" => lambda {|it| it['account']['name'] rescue ''}}], {color:red})
+          else
+            puts_error as_pretty_table(records, [:id, :name], {color:red})
+          end
+          print_red_alert "Try using ID instead"
+          print_error reset,"\n"
+          return nil
+        else
+          return records[0]
+        end
+      end
+
+      # Load a list of records by type
+      # @example Find an app by id
+      # find_record(:app, 1)
+      # report_types = find_all("reportTypes", {phrase:"amazon"})
+      # pools = find_all("loadBalancerPool", load_balancer_id)
+      # @return Array of records
+      def find_all(*args)
+        #Morpheus::Logging::DarkPrinter.puts "find_all(#{args.join(', ')})" if Morpheus::Logging.debug?
+        type, *request_args = args
+        type = type.to_s.singularize.underscore
+        list_key = respond_to?("#{type}_list_key", true) ? send("#{type}_list_key") : type.camelcase.pluralize
+        json_response = find_all_json(*args)
+        if !json_response.key?(list_key)
+          # maybe just use the first key like this:
+          # list_key = json_response.keys.find { |k| json_response[k].is_a?(Array) }
+          # print_error(json_response) if Morpheus::Logging.debug?
+          raise "API response is missing list property '#{list_key}'"
+        end
+        return json_response[list_key]
+      end
+
+      # Load json response for a list of records by type
+      # @return Hash of JSON data
+      def find_all_json(*args)
+        type, *request_args = args
+        get_interface(type).list(*request_args)
+      end
+
+      alias :find_all_records :find_all
+      alias :find_all_records_json :find_all_json
+
+      # Load a single record (Hash) by type and id and optional parameters
+      # Examples:
+      # apps = find_record(:app)
+      # report_types = find_record("reportTypes", {phrase:"amazon"})
+      # pools = find_record("loadBalancerPool", balancer_id)
+      # @return [Hash] of the object that was found or raises an exception if 404 not found encountered.
+      def find_record(*args)
+        #Morpheus::Logging::DarkPrinter.puts "find_record(#{args.join(', ')})" if Morpheus::Logging.debug?
+        type, *request_args = args
+        type = type.to_s.singularize.underscore
+        object_key = respond_to?("#{type}_object_key", true) ? send("#{type}_object_key") : type.camelcase.singularize
+        json_response = find_record_json(*args)
+        if !json_response.key?(object_key)
+          # maybe just use the first key like this:
+          # object_key = json_response.keys.find { |k| json_response[k].is_a?(Hash) }
+          # print_error(json_response) if Morpheus::Logging.debug?
+          raise "API response is missing object property '#{object_key}'"
+        end
+        return json_response[object_key]
+      end
+
+      # Load list of records by type and (optional) parameters
+      # Examples:
+      # apps = find_record(:app, 1)
+      # report_types = find_record("reportType", 1)
+      # pools = find_all("loadBalancerPool", load_balancer_id)
+      def find_record_json(*args)
+        #Morpheus::Logging::DarkPrinter.puts "find_record_json(#{args.join(', ')})" if Morpheus::Logging.debug?
+        type, *request_args = args
+        get_interface(type).get(*request_args)
+      end
+
+       # Load json response for a list of records by type
+      def get_interface(type)
+        #Morpheus::Logging::DarkPrinter.puts "get_interface(#{type})" if Morpheus::Logging.debug?
+        # todo: can probably just do @api_client ? @api_client.interface(interface_name) : nil
+        type = type.to_s.singularize.underscore
+        interface_name = "@#{type.pluralize}_interface"
+        interface = nil
+        if instance_variable_defined?(interface_name)
+          interface = instance_variable_get(interface_name)
+          if interface.nil?
+            # Fix is to update connect() to do @apps_interface = @api_client.apps
+            raise "API Interface #{interface_name} is nil"
+          end
+        else
+          if @api_client.is_a?(Morpheus::APIClient)
+            interface = @api_client.interface(type.pluralize)
+          else
+            raise "#{self.class} has not initalized @api_client"
+          end
+        end
+        return interface
+      end
 
       module ClassMethods
 

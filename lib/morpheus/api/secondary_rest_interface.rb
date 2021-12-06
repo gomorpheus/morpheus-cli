@@ -2,41 +2,41 @@ require 'morpheus/api/api_client'
 
 # Interface class to be subclassed by interfaces that provide CRUD endpoints
 # for objects underneath another resource
-# Subclasses must override the base_path(resource_id) method
+# Subclasses must override the base_path(parent_id) method
 class Morpheus::SecondaryRestInterface < Morpheus::APIClient
 
   # subclasses should override in your interface
-  # Example: "/api/things/#{resource_id}/widgets"
-  def base_path(resource_id)
-    raise "#{self.class} has not defined base_path(resource_id)!"
+  # Example: "/api/things/#{parent_id}/widgets"
+  def base_path(parent_id)
+    raise "#{self.class} has not defined base_path(parent_id)!"
   end
 
-  def list(resource_id, params={}, headers={})
-    validate_id!(resource_id)
-    execute(method: :get, url: "#{base_path(resource_id)}", params: params, headers: headers)
+  def list(parent_id, params={}, headers={})
+    validate_id!(parent_id)
+    execute(method: :get, url: "#{base_path(parent_id)}", params: params, headers: headers)
   end
 
-  def get(resource_id, id, params={}, headers={})
-    validate_id!(resource_id)
+  def get(parent_id, id, params={}, headers={})
+    validate_id!(parent_id)
     validate_id!(id)
-    execute(method: :get, url: "#{base_path(resource_id)}/#{id}", params: params, headers: headers)
+    execute(method: :get, url: "#{base_path(parent_id)}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
-  def create(resource_id, payload, params={}, headers={})
-    validate_id!(resource_id)
-    execute(method: :post, url: "#{base_path(resource_id)}", params: params, payload: payload, headers: headers)
+  def create(parent_id, payload, params={}, headers={})
+    validate_id!(parent_id)
+    execute(method: :post, url: "#{base_path(parent_id)}", params: params, payload: payload, headers: headers)
   end
 
-  def update(resource_id, id, payload, params={}, headers={})
-    validate_id!(resource_id)
+  def update(parent_id, id, payload, params={}, headers={})
+    validate_id!(parent_id)
     validate_id!(id)
-    execute(method: :put, url: "#{base_path(resource_id)}/#{id}", params: params, payload: payload, headers: headers)
+    execute(method: :put, url: "#{base_path(parent_id)}/#{CGI::escape(id.to_s)}", params: params, payload: payload, headers: headers)
   end
 
-  def destroy(resource_id, id, params = {}, headers={})
-    validate_id!(resource_id)
+  def destroy(parent_id, id, params = {}, headers={})
+    validate_id!(parent_id)
     validate_id!(id)
-    execute(method: :delete, url: "#{base_path(resource_id)}/#{id}", params: params, headers: headers)
+    execute(method: :delete, url: "#{base_path(parent_id)}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
 end

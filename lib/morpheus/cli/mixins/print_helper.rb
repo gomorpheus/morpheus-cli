@@ -202,7 +202,7 @@ module Morpheus::Cli::PrintHelper
     if options[:outfile]
       print_result = print_to_file(output, options[:outfile], options[:overwrite])
       # with_stdout_to_file(options[:outfile], options[:overwrite]) { print output }
-      print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes File.size(options[:outfile])})\n" unless options[:quiet]
+      print "#{cyan}Wrote output to file #{options[:outfile]} (#{format_bytes(File.size(options[:outfile]))})\n" unless options[:quiet]
       #return print_result
       return
     end
@@ -217,6 +217,14 @@ module Morpheus::Cli::PrintHelper
     print output
     print reset, "\n"
     print reset
+    return
+  end
+
+  def print_system_command_dry_run(cmd, options={})
+    print "\n"
+    print "#{cyan}#{bold}#{dark}SYSTEM COMMAND#{reset}\n"
+    print cmd
+    print reset, "\n"
     return
   end
 
@@ -385,33 +393,57 @@ module Morpheus::Cli::PrintHelper
     if json_response.nil? || json_response.empty?
       return ""
     end
-    
-    # options = OpenStruct.new(options) # laff, let's do this instead
     color = options.key?(:color) ? options[:color] : cyan
     label = options[:label]
-    n_label = options[:n_label]
-    # label = n_label if !label && n_label
+    n_label = options[:n_label] || (label ? label.to_s.pluralize : nil)
     message = options[:message] || "Viewing %{start_index}-%{end_index} of %{total} %{label}"
     blank_message = options[:blank_message] || nil # "No %{label} found"
 
-    # support lazy passing of common json_response {"meta": {"size": {25}, "total": 56} }
-    # otherwise use the root values given
-    meta = OpenStruct.new(json_response)
-    if meta.meta
-      meta = OpenStruct.new(meta.meta)
+    # support lazy passing of common list json_response {"meta": {"size": 25, "total": 56} }
+    # priority is:
+    # 1. "meta" that api response contains for list endpoints
+    # 2. "total" and "size" values if passed explicitely by the cli (pretty sure symbols are no longer used)
+    # 3. examine the first array found in the response
+    meta = nil
+    records = nil
+    # assume records is the first array in the response
+    records_key = json_response.keys.find { |k| json_response[k].is_a?(Array) }
+    if records_key
+      records = json_response[records_key]
+      meta = {'offset' => 0, 'size' => records.size, 'total' => records.size}
     end
-    offset, size, total = meta.offset.to_i, meta.size.to_i, meta.total.to_i
-    #objects = meta.objects || options[:objects_key] ? json_response[options[:objects_key]] : nil
-    #objects ||= meta.instances || meta.servers || meta.users || meta.roles
-    #size = objects.size if objects && size == 0
-    if total == 0
+    if json_response[:meta] || json_response["meta"]
+      meta = json_response[:meta] || json_response["meta"]
+    elsif json_response.key?('size') || json_response.key?('total')
+      meta = json_response
+    elsif json_response.key?(:size) || json_response.key?(:total)
+      meta = {'size' => json_response[:size], 'total' => json_response[:total], 'offset' => json_response[:offset]}
+    elsif records
+      # just use the first key in the response
+      meta = {'size' => records.size, 'total' => records.size}
+    end
+    # did not find pagination meta info?
+    if meta.nil?
+      return ""
+    end
+    # api should not need to return the size, just use records.size
+    if meta["size"].nil? && records
+      meta["size"] = records.size
+    end
+    offset = meta['offset'].to_i
+    size = meta['size'].to_i
+    total = meta['total'].to_i
+    # perhaps no total count returned, let total be equal to size of list
+    if total == 0 && size > 0
       total = size
     end
+    # plural label?
     if total != 1
-      label = n_label || label
+      label = n_label
     end
     out_str = ""
-    string_key_values = {start_index: format_number(offset + 1), end_index: format_number(offset + size), total: format_number(total), size: format_number(size), offset: format_number(offset), label: label}
+    string_key_values = {start_index: format_number(offset + 1), end_index: format_number(offset + size), 
+      total: format_number(total), size: format_number(size), offset: format_number(offset), label: label}
     if size > 0
       if message
         out_str << message % string_key_values

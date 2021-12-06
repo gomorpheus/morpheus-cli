@@ -35,7 +35,7 @@ class Morpheus::Cli::Instances
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @instances_interface = @api_client.instances
     @task_sets_interface = @api_client.task_sets
     @logs_interface = @api_client.logs
@@ -76,6 +76,12 @@ class Morpheus::Cli::Instances
       end
       opts.on( '--created-by USER', "Alias for --owner" ) do |val|
         options[:owner] = val
+      end
+      opts.on('--agent', "Show only Instances with the agent installed" ) do
+        params[:agentInstalled] = true
+      end
+      opts.on('--noagent', "Show only Instances with No agent" ) do
+        params[:agentInstalled] = false
       end
       opts.add_hidden_option('--created-by')
       opts.on('--status STATUS', "Filter by status i.e. provisioning,running,starting,stopping") do |val|

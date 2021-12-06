@@ -19,6 +19,11 @@ module Morpheus::Util
 
   def self.open_url(url)
     cmd = open_url_command(url)
-    return system(cmd)
+    result = system(cmd)
+    if result
+      return 0, nil
+    else
+      return $?.exitstatus, "system command '#{cmd}' exited non-zero"
+    end
   end
 end
