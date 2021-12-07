@@ -27,7 +27,7 @@ class Morpheus::Cli::View
       opts.footer = <<-EOT
 View the remote appliance in a web browser.
 [path] is optional. This the path or resource type to load. The default is the index page "/".
-[id] is optional. This is the resource name or id to be append to the path to loaad details of a specific object.
+[id] is optional. This is the resource name or id to be append to the path to load details of a specific object.
 The [path] is matched against the #{prog_name} UI site map to find the best matching route.
 Route matching is skipped if the path begins with a "/" or --absolute is used.
 By default no authentication is not done and the existing web browser session used.

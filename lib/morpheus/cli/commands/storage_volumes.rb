@@ -76,7 +76,7 @@ class Morpheus::Cli::StorageVolumes
       {'fieldContext' => 'storageServer', 'fieldName' => 'id', 'fieldLabel' => 'Storage Server', 'type' => 'select', 'optionSource' => 'storageServers', 'optionParams' => {'createType' => 'block'}, 'required' => true},
       {'fieldContext' => 'storageGroup', 'fieldName' => 'id', 'fieldLabel' => 'Storage Group', 'type' => 'select', 'optionSource' => 'storageGroups', 'required' => true},
       {'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Storage Volume Type', 'type' => 'select', 'optionSource' => 'storageVolumeTypes', 'required' => true},
-      #{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
     ]
   end
 
