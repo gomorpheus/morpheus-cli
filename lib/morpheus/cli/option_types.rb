@@ -291,6 +291,11 @@ module Morpheus
           if option_type['type'] == 'multiSelect'
             value = [value] if !value.nil? && !value.is_a?(Array)
             # parent_context_map[parent_ns] = value
+          elsif option_type['type'] == 'multiText'
+            # multiText expects csv value
+            if value && value.is_a?(String)
+              value = value.split(",").collect {|it| it.strip }
+            end
           end
           context_map[field_name] = value if !(value.nil? || (value.is_a?(Hash) && value.empty?))
           parent_context_map.reject! {|k,v| k == parent_ns && (v.nil? || (v.is_a?(Hash) && v.empty?))}
