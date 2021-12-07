@@ -45,6 +45,7 @@ class Morpheus::Cli::StorageServers
           it['owner'] ? it['owner']['name'] : (it['account'] ? it['account']['name'] : nil)
         end
       },
+      "Status" => lambda {|it| format_storage_server_status(it) },
     }
   end
 
