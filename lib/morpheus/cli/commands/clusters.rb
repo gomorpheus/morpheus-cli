@@ -598,7 +598,6 @@ class Morpheus::Cli::Clusters
 
         # Options / Custom Config
         option_type_list =
-          load_layout_options(cluster_payload) +
           ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
           (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
 
@@ -622,6 +621,10 @@ class Morpheus::Cli::Clusters
         # Visibility
         server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
+        # Layout template options
+        cluster_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(load_layout_options(cluster_payload), options[:options], @api_client, api_params, options[:no_prompt], true))
+
+        # Server options
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params, options[:no_prompt], true))
 
         # Worker count
