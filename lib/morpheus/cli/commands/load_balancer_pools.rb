@@ -5,7 +5,8 @@ class Morpheus::Cli::LoadBalancerPools
   include Morpheus::Cli::RestCommand
   include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
-  
+
+  set_command_hidden
   set_command_description "View and manage load balancer pools."
   set_command_name :'load-balancer-pools'
   register_subcommands :list, :get, :add, :update, :remove
