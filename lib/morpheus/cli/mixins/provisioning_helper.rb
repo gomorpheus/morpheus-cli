@@ -942,6 +942,7 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for option types
     api_params['config'] = payload['config'] if payload['config']
     api_params['poolId'] = payload['config']['resourcePoolId'] if payload['config'] && payload['config']['resourcePoolId']
+    api_params['resourcePoolId'] = api_params['poolId']
 
     # set option type defaults from config
     if options[:default_config]
