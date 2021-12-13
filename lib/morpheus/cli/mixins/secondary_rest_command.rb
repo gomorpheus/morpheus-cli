@@ -85,6 +85,21 @@ module Morpheus::Cli::SecondaryRestCommand
 
     alias :set_rest_parent_arg :rest_parent_arg=
 
+    def rest_parent_param
+      @rest_parent_param || default_rest_parent_param
+    end
+
+    def default_rest_parent_param
+      param = rest_parent_key.to_s.split('_').collect(&:capitalize).join
+      "#{param[0].downcase}#{param[1..-1]}Id"
+    end
+
+    def rest_parent_param=(v)
+      @rest_parent_param = v.to_s
+    end
+
+    alias :set_rest_parent_param :rest_parent_param=
+
     # rest_parent_has_name indicates a resource has a name and can be retrieved by name or id
     # true by default, set to false for lookups by only id
     def rest_parent_has_name
@@ -161,6 +176,10 @@ module Morpheus::Cli::SecondaryRestCommand
 
   def rest_parent_arg
     self.class.rest_parent_arg
+  end
+
+  def rest_parent_param
+    self.class.rest_parent_param
   end
 
   def rest_parent_has_name
@@ -350,6 +369,7 @@ EOT
     advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
     type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[#{rest_parent_arg}] [#{rest_arg}]")
       if rest_has_type && type_option_type.nil?
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
@@ -400,6 +420,9 @@ EOT
       end
     end
     passed_options = parse_passed_options(options)
+    options[:params] ||= {}
+    options[:params][rest_parent_param] = parent_id
+    options[:options]['_object_key'] = rest_object_key
     payload = {}
     if options[:payload]
       payload = options[:payload]
@@ -409,13 +432,13 @@ EOT
       if record_name
         record_payload['name'] = record_name
         options[:options]['name'] = record_name # injected for prompt
+        options[:options][rest_arg] = record_name
       end
       if rest_has_type && record_type
         # record_payload['type'] = {'code' => record_type['code']}
         record_payload['type'] = record_type['code']
         options[:options]['type'] = record_type['code'] # injected for prompt
         # initialize params for loading optionSource data
-        options[:params] ||= {}
         options[:params]['type'] = record_type['code']
       end
       record_payload.deep_merge!(passed_options)
@@ -439,7 +462,6 @@ EOT
           record_type = rest_type_find_by_name_or_id(record_type['id'])
         end
       end
-      my_option_types = nil
       if respond_to?("load_option_types_for_#{rest_key}", true)
         my_option_types = send("load_option_types_for_#{rest_key}", record_type, parent_record)
       else
@@ -501,6 +523,7 @@ EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"

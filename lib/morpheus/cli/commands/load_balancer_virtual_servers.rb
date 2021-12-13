@@ -6,7 +6,6 @@ class Morpheus::Cli::LoadBalancerVirtualServers
   include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
-  set_command_hidden
   set_command_description "View and manage load balancer virtual servers."
   set_command_name :'load-balancer-virtual-servers'
   register_subcommands :list, :get, :add, :update, :remove
@@ -15,7 +14,6 @@ class Morpheus::Cli::LoadBalancerVirtualServers
                       :load_balancers, :load_balancer_types
 
   set_rest_parent_name :load_balancers
-
   set_rest_arg 'vipName'
 
   # overridden to provide global list functionality without requiring parent argument
@@ -35,14 +33,15 @@ EOT
     optparse.parse!(args)
     parent_id = args[0]
     connect(options)
-    parse_list_options!(args, options, params)
     if parent_id
+      args = args[1..-1]
       parent_record = rest_parent_find_by_name_or_id(parent_id)
       if parent_record.nil?
         return 1, "#{rest_parent_label} not found for '#{parent_id}"
       end
       parent_id = parent_record['id']
     end
+    parse_list_options!(args, options, params)
     rest_interface.setopts(options)
     if options[:dry_run]
       print_dry_run rest_interface.dry.list(parent_id, params)
@@ -114,11 +113,11 @@ EOT
   end
 
   def load_balancer_virtual_server_object_key
-    'virtualServer'
+    'loadBalancerInstance'
   end
 
   def load_balancer_virtual_server_list_key
-    'virtualServers'
+    'loadBalancerInstances'
   end
 
   def load_balancer_virtual_server_label

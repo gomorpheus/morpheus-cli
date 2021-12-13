@@ -128,7 +128,11 @@ module Morpheus
                             get_object_value(options, depends_on_field_key) ||
                             get_object_value(api_params, depends_on_field_key)
 
-              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.match?(depends_on_value))
+              if field_value.nil? && !options['_object_key'].nil?
+                field_value = get_object_value({options['_object_key'] => results}, depends_on_field_key)
+              end
+
+              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.to_s.match?(depends_on_value))
                 found_dep_value = true if match_type != 'all'
               else
                 found_dep_value = false if match_type == 'all'
@@ -365,7 +369,7 @@ module Morpheus
         Thread.current[:_last_select]
       end
 
-      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
+      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
         paging_enabled = false if Morpheus::Cli.windows?
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
