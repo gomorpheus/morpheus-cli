@@ -5,6 +5,7 @@ class Morpheus::Cli::LoadBalancers
   include Morpheus::Cli::RestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
+  set_command_hidden
   set_command_description "View and manage load balancers."
   set_command_name :'load-balancers'
   register_subcommands :list, :get, :add, :update, :remove, :refresh

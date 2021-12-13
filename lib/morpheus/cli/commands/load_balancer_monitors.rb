@@ -6,6 +6,7 @@ class Morpheus::Cli::LoadBalancerMonitors
   include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
+  set_command_hidden
   set_command_description "View and manage load balancer monitors."
   set_command_name :'load-balancer-monitors'
   register_subcommands :list, :get, :add, :update, :remove
