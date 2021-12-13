@@ -6,7 +6,6 @@ class Morpheus::Cli::LoadBalancerVirtualServers
   include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
-  set_command_hidden
   set_command_description "View and manage load balancer virtual servers."
   set_command_name :'load-balancer-virtual-servers'
   register_subcommands :list, :get, :add, :update, :remove
