@@ -1,78 +1,31 @@
-require 'morpheus/api/api_client'
+require 'morpheus/api/rest_interface'
 
-class Morpheus::UsersInterface < Morpheus::APIClient
+class Morpheus::UsersInterface < Morpheus::RestInterface
 
-  def get(account_id, id, params={})
-    raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = build_url(account_id, id)
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, timeout: 10, headers: headers}
-    execute(opts)
+  def base_path
+    "/api/users"
   end
 
-  def list(account_id, params={})
-    url = build_url(account_id)
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, timeout: 10, headers: headers}
-    execute(opts)
+  def feature_permissions(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}/feature-permissions", params: params, headers: headers)
   end
 
-  def feature_permissions(account_id, id)
-    url = build_url(account_id, id) + "/feature-permissions"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, timeout: 10, headers: headers}
-    execute(opts)
+  def permissions(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}/permissions", params: params, headers: headers)
   end
 
-  def permissions(account_id, id)
-    url = build_url(account_id, id) + "/permissions"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, timeout: 10, headers: headers}
-    execute(opts)
-  end
-
-  def available_roles(account_id, id=nil, options={})
-    url = build_url(account_id, id) + "/available-roles"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    headers[:params].merge!(options)
-    opts = {method: :get, url: url, timeout: 10, headers: headers}
-    execute(opts)
-  end
-
-  def create(account_id, options)
-    url = build_url(account_id)
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    opts = {method: :post, url: url, timeout: 10, headers: headers, payload: payload.to_json}
-    execute(opts)
-  end
-
-  def update(account_id, id, options)
-    url = build_url(account_id, id)
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    payload = options
-    opts = {method: :put, url: url, timeout: 10, headers: headers, payload: payload.to_json}
-    execute(opts)
-  end
-
-  def destroy(account_id, id)
-    url = build_url(account_id, id)
-    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :delete, url: url, timeout: 10, headers: headers}
-    execute(opts)
+  def available_roles(id=nil, params={}, headers={})
+    execute(method: :get, url: "#{build_url(id)}/available-roles", params: params, headers: headers)
   end
 
   private
 
-  def build_url(account_id=nil, user_id=nil)
-    url = "#{@base_url}/api"
-    if account_id
-      url += "/accounts/#{account_id}/users"
-    else
-      url += "/users"
-    end
-    if user_id
-      url += "/#{user_id}"
+  def build_url(id=nil)
+    url = base_path
+    if id
+      url += "/#{id}"
     end
     url
   end

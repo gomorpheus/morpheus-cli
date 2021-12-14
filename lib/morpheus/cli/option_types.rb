@@ -128,7 +128,11 @@ module Morpheus
                             get_object_value(options, depends_on_field_key) ||
                             get_object_value(api_params, depends_on_field_key)
 
-              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.match?(depends_on_value))
+              if field_value.nil? && !options['_object_key'].nil?
+                field_value = get_object_value({options['_object_key'] => results}, depends_on_field_key)
+              end
+
+              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.to_s.match?(depends_on_value))
                 found_dep_value = true if match_type != 'all'
               else
                 found_dep_value = false if match_type == 'all'
@@ -151,6 +155,10 @@ module Morpheus
             context_map = context_map[ns.to_s]
           end
 
+          # build parameters for option source api request
+          option_params = (option_type['noParams'] ? {} : (api_params || {}).merge(results))
+          option_params.merge!(option_type['optionParams']) if option_type['optionParams']
+
           # use the value passed in the options map
           if cur_namespace.respond_to?('key?') && cur_namespace.key?(field_name)
             value = cur_namespace[field_name]
@@ -161,25 +169,25 @@ module Morpheus
               end
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
             elsif option_type['type'] == 'select'
-              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
             elsif option_type['type'] == 'multiSelect'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
               end
               value = select_value_list
             elsif option_type['type'] == 'typeahead'
-              value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+              value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
             elsif option_type['type'] == 'multiTypeahead'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
               end
               value = select_value_list
             end
@@ -205,11 +213,11 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if ['select', 'multiSelect'].include?(option_type['type'])
-                  value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                  value = select_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
                 if ['typeahead', 'multiTypeahead'].include?(option_type['type'])
-                  value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), true)
+                  value = typeahead_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
                 if !value_found
@@ -246,11 +254,11 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results)), options[:no_prompt], nil, paging_enabled)
+              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
-                  if addn_value = select_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
                     value << addn_value
                   else
                     break
@@ -258,11 +266,11 @@ module Morpheus
                 end
               end
             elsif ['typeahead', 'multiTypeahead'].include?(option_type['type'])
-              value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+              value = typeahead_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
               if value && option_type['type'] == 'multiTypeahead'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
-                  if addn_value = typeahead_prompt(option_type, api_client, (option_type['noParams'] ? {} : (api_params || {}).merge(results)), options[:no_prompt], nil, paging_enabled)
+                  if addn_value = typeahead_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
                     value << addn_value
                   else
                     break
@@ -273,7 +281,7 @@ module Morpheus
               if option_type['optionSource'].nil?
                 value = option_type['defaultValue']
               else
-                value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
+                value = load_source_options(option_type['optionSource'], option_params, api_client, api_params || {})
               end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
@@ -287,6 +295,11 @@ module Morpheus
           if option_type['type'] == 'multiSelect'
             value = [value] if !value.nil? && !value.is_a?(Array)
             # parent_context_map[parent_ns] = value
+          elsif option_type['type'] == 'multiText'
+            # multiText expects csv value
+            if value && value.is_a?(String)
+              value = value.split(",").collect {|it| it.strip }
+            end
           end
           context_map[field_name] = value if !(value.nil? || (value.is_a?(Hash) && value.empty?))
           parent_context_map.reject! {|k,v| k == parent_ns && (v.nil? || (v.is_a?(Hash) && v.empty?))}
@@ -305,7 +318,7 @@ module Morpheus
         end
         optionString = options.collect{ |b| b[:checked] ? "(#{b[:key]})" : b[:key]}.join(', ')
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }[#{optionString}]: "
           input = $stdin.gets.chomp!
           if input == '?'
             help_prompt(option_type)
@@ -332,7 +345,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           if !value.to_s.empty?
@@ -356,7 +369,7 @@ module Morpheus
         Thread.current[:_last_select]
       end
 
-      def self.select_prompt(option_type,api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
+      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
         paging_enabled = false if Morpheus::Cli.windows?
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
@@ -365,7 +378,12 @@ module Morpheus
         value_field = (option_type['config'] ? option_type['config']['valueField'] : nil) || 'value'
         default_value = option_type['defaultValue']
         default_value = default_value['id'] if default_value && default_value.is_a?(Hash) && !default_value['id'].nil?
-        api_params ||= {}
+
+        if !option_type['params'].nil?
+          api_params = (api_params || {}).select {|k,v| option_type['params'].key?(k) || option_type['params'].key?(k.to_s)}
+          option_type['params'].select {|k,v| !v.empty?}.each {|k,v| api_params[k] = v}
+        end
+
         # local array of options
         if option_type['selectOptions']
           # calculate from inline lambda
@@ -424,7 +442,8 @@ module Morpheus
               default_value = found_default_option['name'] # name is prettier than value
             end
           else
-            found_default_option  = select_options.find {|opt| opt[value_field].to_s == default_value.to_s}
+            found_default_option = select_options.find {|opt| opt[value_field].to_s == default_value.to_s || opt['name'] == default_value.to_s}
+            found_default_option = select_options.find {|opt| opt[value_field].to_s.start_with?(default_value.to_s) || opt['name'].to_s.start_with?(default_value.to_s)} if !found_default_option
             if found_default_option
               default_value = found_default_option['name'] # name is prettier than value
             end
@@ -483,7 +502,7 @@ module Morpheus
           }
 
           has_more_pages = paging && (paging[:cur_page] * paging[:page_size]) < paging[:total]
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages && paging[:cur_page] > 0 ? ' more ' : ' '}options]: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages && paging[:cur_page] > 0 ? ' more ' : ' '}options]: ", false).to_s
           input = input.chomp.strip
           if input.empty? && default_value
             input = default_value.to_s
@@ -554,7 +573,7 @@ module Morpheus
             }
             # prompt for typeahead input value
             has_more_pages = paging && ((paging[:cur_page] + 1) * paging[:page_size]) < paging[:total]
-            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages ? ' more ' : ' '}options]: ", false).to_s
+            input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!default_value.to_s.empty? ? ' ['+default_value.to_s+']' : ''} ['?' for#{has_more_pages ? ' more ' : ' '}options]: ", false).to_s
             input = input.chomp.strip
           end
 
@@ -743,7 +762,7 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input
           if input == '?'
@@ -760,7 +779,7 @@ module Morpheus
         value = nil
         while !value_found do
           if value.nil?
-            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)} [Type 'EOF' to stop input]: \n"
+            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)} [Type 'EOF' to stop input]: \n"
           end
           input = $stdin.gets.chomp!
           # value = input.empty? ? option_type['defaultValue'] : input
@@ -784,7 +803,7 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           input = $stdin.noecho(&:gets).chomp!
           value = input
           print "\n"
@@ -804,11 +823,11 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
           Readline.completion_proc = proc {|s| Readline::FILENAME_COMPLETION_PROC.call(s) }
-          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: ", false).to_s
+          input = Readline.readline("#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: ", false).to_s
           input = input.chomp.strip
           #input = $stdin.gets.chomp!
           value = input.empty? ? option_type['defaultValue'] : input.to_s
@@ -926,6 +945,8 @@ module Morpheus
             select_options = filtered_options
           end
         elsif option_type['optionSource']
+          api_params = api_params.select {|k,v| option_type['params'].include(k)} if option_type['params'].nil? && api_params
+
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
             select_options = option_type['optionSource'].call(api_client, api_params || {})

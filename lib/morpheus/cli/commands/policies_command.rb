@@ -24,7 +24,7 @@ class Morpheus::Cli::PoliciesCommand
     @cloud_policies_interface = @api_client.cloud_policies
     @clouds_interface = @api_client.clouds
     @groups_interface = @api_client.groups
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @roles_interface = @api_client.roles
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
   end

@@ -9,7 +9,7 @@ class Morpheus::Cli::ChangePasswordCommand
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @whoami_interface = @api_client.whoami
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @accounts_interface = @api_client.accounts
     @roles_interface = @api_client.roles
   end
@@ -105,9 +105,9 @@ class Morpheus::Cli::ChangePasswordCommand
         'password' => new_password
       } 
     }
-    @users_interface.setopts(options)
+    @account_users_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @users_interface.dry.update(account_id, user['id'], payload)
+      print_dry_run @account_users_interface.dry.update(account_id, user['id'], payload)
       return 0
     end
 
@@ -117,7 +117,7 @@ class Morpheus::Cli::ChangePasswordCommand
       end
     end
 
-    json_response = @users_interface.update(account_id, user['id'], payload)
+    json_response = @account_users_interface.update(account_id, user['id'], payload)
     if options[:json]
       puts as_json(json_response)
     elsif !options[:quiet]

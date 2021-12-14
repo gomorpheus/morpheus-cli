@@ -57,9 +57,9 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client.accounts
   end
 
-  def get_available_groups(refresh=false)
+  def get_available_groups(params = {}, refresh=false)
     if !@available_groups || refresh
-      option_results = options_interface.options_for_source('groups',{})
+      option_results = options_interface.options_for_source('groups', params)
       @available_groups = option_results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
       }
@@ -68,9 +68,9 @@ module Morpheus::Cli::ProvisioningHelper
     return @available_groups
   end
 
-  def get_available_clouds(group_id, refresh=false)
+  def get_available_clouds(group_id, params = {}, refresh=false)
     if !group_id
-      option_results = options_interface.options_for_source('clouds', {'default' => 'false'})
+      option_results = options_interface.options_for_source('clouds', params.merge({'default' => 'false'}))
       return option_results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"], "zoneTypeId" => it["zoneTypeId"]}
       }
@@ -80,7 +80,7 @@ module Morpheus::Cli::ProvisioningHelper
       return []
     end
     if !group["clouds"] || refresh
-      option_results = options_interface.options_for_source('clouds', {groupId: group_id})
+      option_results = options_interface.options_for_source('clouds', params.merge({groupId: group_id}))
       group["clouds"] = option_results['data'].collect {|it|
         {"id" => it["value"], "name" => it["name"], "value" => it["value"], "zoneTypeId" => it["zoneTypeId"]}
       }
@@ -942,6 +942,7 @@ module Morpheus::Cli::ProvisioningHelper
     # prompt for option types
     api_params['config'] = payload['config'] if payload['config']
     api_params['poolId'] = payload['config']['resourcePoolId'] if payload['config'] && payload['config']['resourcePoolId']
+    api_params['resourcePoolId'] = api_params['poolId']
 
     # set option type defaults from config
     if options[:default_config]
@@ -2091,6 +2092,15 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
     permissions
+  end
+
+  def prompt_permissions_v2(options, excludes = [])
+    perms = prompt_permissions(options, excludes)
+    rtn = {}
+
+    rtn['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil?
+    rtn['tenants'] = ((perms['tenantPermissions'] || {})['accounts'] || []).collect {|it| {'id' => it}}
+    rtn
   end
 
   def print_permissions(permissions, excludes = [])

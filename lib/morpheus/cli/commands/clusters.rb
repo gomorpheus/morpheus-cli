@@ -458,6 +458,10 @@ class Morpheus::Cli::Clusters
 
         cluster_payload['type'] = cluster_type['code'] # {'id' => cluster_type['id']}
 
+        # Group / Site
+        group = load_group(cluster_type['code'], options)
+        cluster_payload['group'] = {'id' => group['id']}
+
         # Cluster Name
         if args.empty? && options[:no_prompt]
           print_red_alert "No cluster name provided"
@@ -514,10 +518,6 @@ class Morpheus::Cli::Clusters
 
         server_payload['tags'] = tags if tags
 
-        # Group / Site
-        group = load_group(options)
-        cluster_payload['group'] = {'id' => group['id']}
-
         # Cloud / Zone
         cloud_id = nil
         cloud = options[:cloud] ? find_cloud_by_name_or_id_for_provisioning(group['id'], options[:cloud]) : nil
@@ -526,7 +526,7 @@ class Morpheus::Cli::Clusters
           cloud = @clouds_interface.get(cloud['id'])['zone']
           cloud_id = cloud['id']
         else
-          available_clouds = get_available_clouds(group['id'])
+          available_clouds = get_available_clouds(group['id'], {groupType: cluster_payload['type']})
 
           if available_clouds.empty?
             print_red_alert "Group #{group['name']} has no available clouds"
@@ -556,12 +556,12 @@ class Morpheus::Cli::Clusters
           end
         end
 
-        cluster_payload['layout'] = {id: layout['id']}
+        cluster_payload['layout'] = {'id' => layout['id']}
 
         # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
 
-        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionTypeId: provision_type['id']}
+        api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
 
         # Controller type
         server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
@@ -621,6 +621,10 @@ class Morpheus::Cli::Clusters
         # Visibility
         server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
 
+        # Layout template options
+        cluster_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(load_layout_options(cluster_payload), options[:options], @api_client, api_params, options[:no_prompt], true))
+
+        # Server options
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params, options[:no_prompt], true))
 
         # Worker count
@@ -3665,7 +3669,7 @@ class Morpheus::Cli::Clusters
     @clouds_interface.cloud_type(zone_type_id)['zoneType']['provisionTypes'].first rescue nil
   end
 
-  def load_group(options)
+  def load_group(group_type, options)
     # Group / Site
     group_id = nil
     group = options[:group] ? find_group_by_name_or_id_for_provisioning(options[:group]) : nil
@@ -3676,15 +3680,13 @@ class Morpheus::Cli::Clusters
       if @active_group_id
         group_id = @active_group_id
       else
-        available_groups = get_available_groups
+        available_groups = get_available_groups({groupType: group_type})
 
         if available_groups.empty?
           print_red_alert "No available groups"
           exit 1
-        elsif available_groups.count > 1 && !options[:no_prompt]
+        else available_groups.count > 1 && !options[:no_prompt]
           group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => available_groups, 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{})['group']
-        else
-          group_id = available_groups.first['id']
         end
       end
     end
@@ -3926,4 +3928,27 @@ class Morpheus::Cli::Clusters
     ]
   end
 
+  def load_layout_options(cluster)
+    (@api_client.options.options_for_source('computeTypeLayoutParameters', {layoutId: cluster['layout']['id']})['data'] || []).collect do |it|
+      it['fieldName'] = it['name']
+      it['fieldLabel'] = it['displayName']
+      it['fieldContext'] = 'config.templateParameter'
+      if it['type'] == 'ServicePlan'
+        it['optionSource'] = 'servicePlans'
+        it['type'] = 'select'
+        it['params'] = {:provisionType => '', :zoneId => '', :siteId => '', :resourcePoolId => ''}
+        it['params'][:provisionType] = 'azure' if it['azureServicePlanType']
+      elsif it['type'] == 'Subnet'
+        it['optionSource'] = 'networks'
+        it['type'] = 'select'
+        it['params'] = {:siteId => '', :instanceId => '', :serverId => '', :zonePoolId => '', :zoneRegionId => '', :zoneId => '', :provisionType => ''}
+        if cluster['type'] == 'aks-cluster'
+          it['params'][:provisionType] = 'azure'
+        end
+      else
+        it['type'] = 'text'
+      end
+      it
+    end
+  end
 end

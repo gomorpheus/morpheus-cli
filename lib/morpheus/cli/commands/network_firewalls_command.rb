@@ -4,7 +4,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
-  set_command_hidden #hide until api ready
+
   set_command_name :'network-firewalls'
   register_subcommands :list_rules, :get_rule, :add_rule, :update_rule, :remove_rule
   register_subcommands :list_rule_groups, :get_rule_group, :add_rule_group, :update_rule_group, :remove_rule_group
@@ -65,7 +65,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
           id: it['id'], group: it['groupName'], name: it['name'], description: it['description'],
           priority: it['priority'], enabled: format_boolean(it['enabled']), policy: it['policy'], direction: it['direction'],
           source: it['sources'].kind_of?(Array) && it['sources'].count > 0 ? it['sources'].collect {|it| it['name']}.join(', ') : (it['sources'].nil? || it['sources'].empty? ? 'any' : it['source']),
-          destination: it['destinations'].count > 0 ? it['destinations'].collect {|it| it['name']}.join(', ') : (it['destinations'].nil? || it['destinations'].empty? ? 'any' : it['destination'])
+          destination: it['destinations'].kind_of?(Array) && it['destinations'].count > 0 ? it['destinations'].collect {|it| it['name']}.join(', ') : (it['destinations'].nil? || it['destinations'].empty? ? 'any' : it['destination'])
         }
 
         if it['applications'].count
@@ -78,9 +78,9 @@ class Morpheus::Cli::NetworkFirewallsCommand
 
         applied_to = []
         if server['type']['supportsFirewallRuleAppliedTarget']
-          applied_to << 'All Edges' if row['config']['applyToAllEdges']
-          applied_to << 'Distributed Firewall' if row['config']['applyToAllDistributed']
-          applied_to += rule['appliedTargets'].collect {|it| it['name']}
+          applied_to << 'All Edges' if it['config']['applyToAllEdges']
+          applied_to << 'Distributed Firewall' if it['config']['applyToAllDistributed']
+          applied_to += it['appliedTargets'].collect {|target| target['name']}
           row[:applied_to] = applied_to.join(', ')
         end
         row
@@ -483,6 +483,11 @@ class Morpheus::Cli::NetworkFirewallsCommand
         server['type']['firewallGroupOptionTypes'].reject {|it| it['type'] == 'hidden'}.sort_by {|it| it['displayOrder']}.each do |option_type|
           description_cols[option_type['fieldLabel']] = lambda {|it| Morpheus::Cli::OptionTypes.get_option_value(it, option_type, true)}
         end
+
+        if is_master_account
+          description_cols["Visibility"] = lambda {|it| it['visibility']}
+          description_cols["Tenants"] = lambda {|it| it['tenants'].collect {|tenant| tenant['name']}.join(', ')}
+        end
         print_description_list(description_cols, group)
       end
     else
@@ -505,6 +510,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       opts.on('--priority VALUE', Integer, "Priority for this firewall rule group") do |val|
         options[:options]['priority'] = val
       end
+      add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a network firewall rule group." + "\n" +
         "[server] is optional. This is the name or id of a network server.\n";
@@ -537,6 +543,11 @@ class Morpheus::Cli::NetworkFirewallsCommand
 
       # prompt options
       option_result = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options].deep_merge({:context_map => {'ruleGroup' => ''}}), @api_client, {'networkServerId' => server['id']}, nil, true)
+
+      # prompt perms
+      if is_master_account
+        params.merge!(prompt_permissions_v2(options, ['plans', 'groups']))
+      end
       payload = {'ruleGroup' => params.deep_merge(option_result)}
     end
 
@@ -568,6 +579,7 @@ class Morpheus::Cli::NetworkFirewallsCommand
       opts.on('--priority VALUE', Integer, "Priority for this firewall rule group") do |val|
         options[:options]['priority'] = val
       end
+      add_perms_options(opts, options, ['plans', 'groups'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network firewall rule group.\n" +
         "[server] is optional. This is the name or id of an existing network server.\n" +
@@ -591,6 +603,11 @@ class Morpheus::Cli::NetworkFirewallsCommand
     group_id = args.count > 1 ? args[1] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ruleGroup', 'type' => 'select', 'fieldLabel' => 'Firewall Rule Group', 'selectOptions' => search_rule_groups(server['id']).collect {|it| {'name' => it['name'], 'value' => it['id']}}, 'required' => true, 'description' => 'Select Firewall Rule Group.'}],options[:options],@api_client,{})['ruleGroup']
     group = find_rule_group(server['id'], group_id)
     return 1 if group.nil?
+
+    if is_master_account
+      params['visibility'] = options[:visibility] if !options[:visibility].nil?
+      params['tenants'] = options[:tenants].collect {|it| {'id' => it}} if !options[:tenants].nil?
+    end
 
     payload = parse_payload(options) || {'ruleGroup' => params}
     payload['ruleGroup'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options] && !payload['ruleGroup'].nil?

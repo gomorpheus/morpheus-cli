@@ -12,16 +12,21 @@ class Morpheus::Cli::LoadBalancerTypes
 
   protected
 
-  def load_balancer_type_column_definitions
+  def load_balancer_type_list_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
-      "Code" => 'code'
+      "Code" => 'code',
     }
   end
 
-  def load_balancer_type_list_column_definitions
-    load_balancer_type_column_definitions
+  def load_balancer_type_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Code" => 'code',
+      "Creatable" => lambda {|it| format_boolean(it['creatable']) },
+    }
   end
 
   # overridden to support name or code

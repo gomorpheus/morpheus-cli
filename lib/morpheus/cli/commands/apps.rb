@@ -10,9 +10,7 @@ class Morpheus::Cli::Apps
   set_command_name :apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
-  register_subcommands :'prepare-apply' => :prepare_apply
-  register_subcommands :apply
-  register_subcommands :refresh
+  register_subcommands :refresh, :apply
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
@@ -27,7 +25,7 @@ class Morpheus::Cli::Apps
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @apps_interface = @api_client.apps
     @blueprints_interface = @api_client.blueprints
     @instance_types_interface = @api_client.instance_types
@@ -892,9 +890,7 @@ This is only supported by certain types of apps.
 EOT
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
@@ -919,65 +915,11 @@ EOT
         return
       end
       json_response = @apps_interface.refresh(app["id"], params, payload)
-      render_result = render_with_format(json_response, options)
-      return 0 if render_result
-      print_green_success "Refreshed app #{app['name']}"
-      return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def prepare_apply(args)
-    params, payload, options = {}, {}, {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[app] [options]")
-      build_standard_update_options(opts, options, [:auto_confirm])
-      opts.footer = <<-EOT
-Prepare to apply an app.
-[app] is required. This is the name or id of an app.
-Template parameter values can be applied with -O templateParameter.foo=bar
-This only prints the app configuration that would be applied.
-It does not make any updates.
-This is only supported by certain types of apps.
-EOT
-    end
-    optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-    end
-    connect(options)
-
-    begin
-      app = find_app_by_name_or_id(args[0])
-      return 1 if app.nil?
-      # construct request
-      params.merge!(parse_query_options(options))
-      payload = {}
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!(parse_passed_options(options))
-      else
-        payload.deep_merge!(parse_passed_options(options))
-        # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
+      render_response(json_response, options) do
+        print_green_success "Refreshing app #{app['name']}"
+        # return _get(app['id'], options)
       end
-      @apps_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @apps_interface.dry.prepare_apply(app["id"], params, payload)
-        return
-      end
-      json_response = @apps_interface.prepare_apply(app["id"], params, payload)
-      render_result = render_with_format(json_response, options)
-      return 0 if render_result
-      # print_green_success "Prepared to apply app: #{app['name']}"
-      print_h1 "Prepared App: #{app['name']}"
-      app_config = json_response['data'] 
-      # app_config = json_response if app_config.nil?
-      puts as_yaml(app_config, options)
-      #return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      print "\n", reset
-      return 0
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -992,17 +934,11 @@ EOT
       opts.footer = <<-EOT
 Apply an app.
 [app] is required. This is the name or id of an app.
-Template parameter values can be applied with -O templateParameter.foo=bar
-This is a way to apply an app with new configuration parameters to an app. 
-This prints the app configuration that would be applied.
-It does not make any updates.
-This is only supported by certain types of apps.
+This is only supported by certain types of apps such as terraform.
 EOT
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
@@ -1027,11 +963,11 @@ EOT
         return
       end
       json_response = @apps_interface.apply(app["id"], params, payload)
-      render_result = render_with_format(json_response, options)
-      return 0 if render_result
-      print_green_success "Applied app #{app['name']}"
-      #return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      return 0
+      render_response(json_response, options) do
+        print_green_success "Applying app #{app['name']}"
+        # return _get(app['id'], options)
+      end
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1

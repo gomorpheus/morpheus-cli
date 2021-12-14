@@ -1,8 +1,7 @@
 require 'morpheus/cli/mixins/print_helper'
 
 # Mixin for Morpheus::Cli command classes
-# Provides common methods for fetching and printing accounts, roles, and users.
-# The including class must establish @accounts_interface, @roles_interface, @users_interface
+# Provides common methods for viewing process history
 module Morpheus::Cli::ProcessesHelper
 
   def self.included(klass)

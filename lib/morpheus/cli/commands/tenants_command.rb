@@ -18,7 +18,7 @@ class Morpheus::Cli::TenantsCommand
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @accounts_interface = @api_client.accounts
     @roles_interface = @api_client.roles
   end

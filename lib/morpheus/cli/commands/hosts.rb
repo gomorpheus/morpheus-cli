@@ -22,7 +22,7 @@ class Morpheus::Cli::Hosts
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @accounts_interface = @api_client.accounts
-    @users_interface = @api_client.users
+    @account_users_interface = @api_client.account_users
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
     @tasks_interface = @api_client.tasks
@@ -81,25 +81,25 @@ class Morpheus::Cli::Hosts
       opts.on( '--plan-code CODE', String, "Filter by Plan code(s)" ) do |val|
         params['planCode'] = parse_id_list(val)
       end
-      opts.on( '', '--vm', "Show only virtual machines" ) do |val|
+      opts.on('--vm', "Show only virtual machines" ) do
         params[:vm] = true
       end
-      opts.on( '', '--hypervisor', "Show only VM Hypervisors" ) do |val|
+      opts.on('--hypervisor', "Show only VM Hypervisors" ) do
         params[:vmHypervisor] = true
       end
-      opts.on( '', '--container', "Show only Container Hypervisors" ) do |val|
+      opts.on('--container', "Show only Container Hypervisors" ) do
         params[:containerHypervisor] = true
       end
-      opts.on( '', '--baremetal', "Show only Baremetal Servers" ) do |val|
+      opts.on('--baremetal', "Show only Baremetal Servers" ) do
         params[:bareMetalHost] = true
       end
-      opts.on( '', '--status STATUS', "Filter by Status" ) do |val|
+      opts.on('--status STATUS', String, "Filter by Status" ) do |val|
         params[:status] = val
       end
-      opts.on( '', '--agent', "Show only Servers with the agent installed" ) do |val|
+      opts.on('--agent', "Show only Servers with the agent installed" ) do
         params[:agentInstalled] = true
       end
-      opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
+      opts.on('--noagent', "Show only Servers with No agent" ) do
         params[:agentInstalled] = false
       end
       opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|
@@ -374,25 +374,25 @@ class Morpheus::Cli::Hosts
       opts.on( '-i', '--ip IPADDRESS', "Filter by IP Address" ) do |val|
         params[:ip] = val
       end
-      opts.on( '', '--vm', "Show only virtual machines" ) do |val|
+      opts.on('--vm', "Show only virtual machines" ) do
         params[:vm] = true
       end
-      opts.on( '', '--hypervisor', "Show only VM Hypervisors" ) do |val|
+      opts.on('--hypervisor', "Show only VM Hypervisors" ) do
         params[:vmHypervisor] = true
       end
-      opts.on( '', '--container', "Show only Container Hypervisors" ) do |val|
+      opts.on('--container', "Show only Container Hypervisors" ) do
         params[:containerHypervisor] = true
       end
-      opts.on( '', '--baremetal', "Show only Baremetal Servers" ) do |val|
+      opts.on('--baremetal', "Show only Baremetal Servers" ) do
         params[:bareMetalHost] = true
       end
-      opts.on( '', '--status STATUS', "Filter by Status" ) do |val|
+      opts.on('--status STATUS', "Filter by Status" ) do |val|
         params[:status] = val
       end
-      opts.on( '', '--agent', "Show only Servers with the agent installed" ) do |val|
+      opts.on('--agent', "Show only Servers with the agent installed" ) do
         params[:agentInstalled] = true
       end
-      opts.on( '', '--noagent', "Show only Servers with No agent" ) do |val|
+      opts.on('--noagent', "Show only Servers with No agent" ) do
         params[:agentInstalled] = false
       end
       opts.on( '--created-by USER', "Created By User Username or ID" ) do |val|

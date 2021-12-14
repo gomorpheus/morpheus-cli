@@ -344,4 +344,25 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(method: :get, url: "/api/instances/#{id}/deploy", params: params)
   end
 
+  def refresh(id, params, payload)
+    url = "#{@base_url}/api/instances/#{id}/refresh"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def apply(id, params, payload)
+    url = "#{@base_url}/api/instances/#{id}/apply"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def state_summary(id, params={})
+    url = "#{@base_url}/api/instances/#{id}/state-summary"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
 end

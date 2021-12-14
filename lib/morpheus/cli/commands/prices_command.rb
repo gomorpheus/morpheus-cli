@@ -211,11 +211,11 @@ class Morpheus::Cli::PricesCommand
           raise_command_error "Invalid price unit '#{val}'. Available price units: #{price_units.join(', ')}"
         end
       end
-      opts.on("--platform [PLATFORM]", String, "Price platform [linux|windows]. Required for platform price type") do |val|
-        if ['linux', 'windows'].include?(val)
+      opts.on("--platform [PLATFORM]", String, "Price platform [centos|debian|fedora|canonical|opensuse|redhat|suse|xen|linux|windows]. Required for platform price type") do |val|
+        if ['centos','debian','fedora','canonical','opensuse','redhat','suse','xen','linux', 'windows'].include?(val)
           params['platform'] = val
         else
-          raise_command_error "Invalid platform '#{val}'. Available platforms: linux, windows"
+          raise_command_error "Invalid platform '#{val}'. Available platforms/vendors: centos, debian, fedora, canonical, opensuse, redhat, suse, xen, linux, windows"
         end
       end
       opts.on("--software [TEXT]", String, "Price software. Required for software price type") do |val|
@@ -375,11 +375,11 @@ class Morpheus::Cli::PricesCommand
           raise_command_error "Invalid price unit '#{val}'. Available price units: #{price_units.join(', ')}"
         end
       end
-      opts.on("--platform [PLATFORM]", String, "Price platform [linux|windows]. Required for platform price type") do |val|
-        if ['linux', 'windows'].include?(val)
+      opts.on("--platform [PLATFORM]", String, "Price platform [centos|debian|fedora|canonical|opensuse|redhat|suse|xen|linux|windows]. Required for platform price type") do |val|
+        if ['centos','debian','fedora','canonical','opensuse','redhat','suse','xen','linux', 'windows'].include?(val)
           params['platform'] = val
         else
-          raise_command_error "Invalid platform '#{val}'. Available platforms: linux, windows"
+          raise_command_error "Invalid platform '#{val}'. Available platforms: centos, debian, fedora, canonical, opensuse, redhat, suse, xen, linux, windows"
         end
       end
       opts.on("--software [TEXT]", String, "Price software. Required for software price type") do |val|
@@ -614,7 +614,7 @@ class Morpheus::Cli::PricesCommand
   def prompt_for_price_type(params, options, price={})
     case params['priceType']
     when 'platform'
-      params['platform'] ||= price['platform'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'platform', 'type' => 'select', 'fieldLabel' => 'Platform', 'required' => true, 'description' => 'Select platform for platform price type', 'selectOptions' => [{'name' => 'Linux', 'value' => 'linux'}, {'name' => 'Windows', 'value' => 'windows'}]}], options[:options], @api_client, {}, options[:no_prompt])['platform']
+      params['platform'] ||= price['platform'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'platform', 'type' => 'select', 'fieldLabel' => 'Platform', 'required' => true, 'description' => 'Select platform for platform price type', 'selectOptions' => [ {'name' => 'CentOS', 'value' => 'centos'}, {'name' => 'Debian', 'value' => 'debian'}, {'name' => 'Fedora', 'value' => 'fedora'}, {'name' => 'Canonical', 'value' => 'canonical'}, {'name' => 'openSUSE', 'value' => 'opensuse'}, {'name' => 'Red Hat', 'value' => 'redhat'}, {'name' => 'SUSE', 'value' => 'suse'}, {'name' => 'Xen', 'value' => 'xen'}, {'name' => 'Linux', 'value' => 'linux'}, {'name' => 'Windows', 'value' => 'windows'}]}], options[:options], @api_client, {}, options[:no_prompt])['platform']
     when 'software'
       params['software'] ||= price['software'] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'software', 'type' => 'text', 'fieldLabel' => 'Software', 'required' => true, 'description' => 'Set software for software price type'}], options[:options], @api_client,{}, options[:no_prompt])['software']
     when 'datastore'
