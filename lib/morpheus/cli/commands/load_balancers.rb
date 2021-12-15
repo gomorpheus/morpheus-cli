@@ -92,6 +92,14 @@ EOT
 
   protected
 
+  def add_load_balancer_footer_addn
+    "#{bold}Available for NSX-T load balancers only#{reset}"
+  end
+
+  def update_load_balancer_footer_addn
+    "#{bold}Available for NSX-T load balancers only#{reset}"
+  end
+
   def load_balancer_list_column_definitions(options)
     {
       "ID" => 'id',
