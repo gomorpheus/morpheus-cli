@@ -9,7 +9,6 @@ class Morpheus::Cli::LoadBalancerVirtualServers
   set_command_description "View and manage load balancer virtual servers."
   set_command_name :'load-balancer-virtual-servers'
   register_subcommands :list, :get, :add, :update, :remove
-
   register_interfaces :load_balancer_virtual_servers,
                       :load_balancers, :load_balancer_types
 
@@ -17,6 +16,7 @@ class Morpheus::Cli::LoadBalancerVirtualServers
   set_rest_arg 'vipName'
 
   # overridden to provide global list functionality without requiring parent argument
+=begin
   def list(args)
     parent_id, parent_record = nil, nil
     params = {}
@@ -61,7 +61,7 @@ EOT
     end
     return 0, nil
   end
-
+=end
   protected
 
   def build_list_options(opts, options, params)

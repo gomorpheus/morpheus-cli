@@ -1517,7 +1517,7 @@ module Morpheus
         begin
           json_response = interface.get(*ids)
           return json_response[object_key]
-        rescue RestClient::Exception => e
+        rescue Exception => e
           if e.response && e.response.code == 404
             print_red_alert "#{label} not found by id #{ids.last}"
             return nil
