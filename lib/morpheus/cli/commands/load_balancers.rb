@@ -92,6 +92,15 @@ EOT
 
   protected
 
+  # filtering for NSX-T only
+  def rest_list_types()
+    rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key].reject {|it| it['code'] == 'nsx-t'}
+  end
+
+  def load_balancer_type_list_to_options(type_list)
+    type_list.reject {|it| it['code'] != 'nsx-t'}.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+  end
+
   def add_load_balancer_footer_addn
     "#{bold}Available for NSX-T load balancers only#{reset}"
   end

@@ -589,7 +589,7 @@ EOT
       if record_type_id.nil?
         #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
         type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
-        type_dropdown_options = type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+        type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
         record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
       end
       record_type = rest_type_find_by_name_or_id(record_type_id)

@@ -64,14 +64,6 @@ EOT
 =end
   protected
 
-  def build_list_options(opts, options, params)
-    opts.on('--load-balancer LB', String, "Load Balancer Name or ID") do |val|
-      options[:load_balancer] = val
-    end
-    # build_standard_list_options(opts, options)
-    super
-  end
-
   def parse_list_options!(args, options, params)
     parse_parameter_as_resource_id!(:load_balancer, options, params)
     super
