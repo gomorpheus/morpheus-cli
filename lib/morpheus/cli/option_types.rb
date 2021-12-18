@@ -531,6 +531,10 @@ module Morpheus
         if value && !option_type['fieldInput'].nil?
           value = {option_type['fieldName'].split('.').last => value, option_type['fieldInput'] => (no_prompt ? option_type['defaultInputValue'] : field_input_prompt(option_type))}
         end
+
+        if value && !option_type['resultValueField'].nil?
+          value = {option_type['resultValueField'] => value}
+        end
         value
       end
 

@@ -157,7 +157,7 @@ EOT
   def add_load_balancer_advanced_option_types()
     [
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'fieldGroup' => 'Advanced', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'public'},
-      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'optionSource' => lambda { |api_client, api_params|
+      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'resultValueField' => 'id', 'optionSource' => lambda { |api_client, api_params|
         api_client.options.options_for_source("allTenants", {})['data']
       }},
     ]
