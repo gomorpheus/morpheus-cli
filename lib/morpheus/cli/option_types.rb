@@ -974,7 +974,7 @@ module Morpheus
             select_options = filtered_options
           end
         elsif option_type['optionSource']
-          api_params = api_params.select {|k,v| option_type['params'].include(k)} if option_type['params'].nil? && api_params
+          api_params = api_params.select {|k,v| option_type['params'].include(k)} if !option_type['params'].nil? && api_params
 
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
