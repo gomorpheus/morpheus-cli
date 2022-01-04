@@ -947,9 +947,11 @@ module Morpheus
             rtn << value
           end
         else
-          rtn = [generic_prompt(option_type)]
-          while self.confirm("Add more #{option_type['fieldLabel']}?", {:default => false}) do
-            rtn << generic_prompt(option_type)
+          if rtn = generic_prompt(option_type)
+            rtn = [rtn]
+            while self.confirm("Add more #{option_type['fieldLabel']}?", {:default => false}) do
+              rtn << generic_prompt(option_type)
+            end
           end
         end
         rtn
