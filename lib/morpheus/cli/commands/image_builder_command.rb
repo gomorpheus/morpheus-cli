@@ -1065,20 +1065,16 @@ class Morpheus::Cli::ImageBuilderCommand
     preseed_script_id = nil
     if options['preseedScript']
       preseed_script = find_preseed_script(options['preseedScript'])
-      if !preseed_script
-        print_red_alert "Preseed Script not found: #{options['preseedScript']}"
-        return false
+      if preseed_script
+        preseed_script_id = preseed_script['id']
       end
-      preseed_script_id = preseed_script['id']
     else
       preseed_script_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'preseedScript', 'type' => 'select', 'fieldLabel' => 'Preseed Script', 'selectOptions' => get_available_preseed_scripts(), 'required' => false, 'description' => 'Select Preseed Script.', 'defaultValue' => default_values['preseedScript'], :fmt=>:natural}],options,api_client,{})
       # preseed_script_id = preseed_script_prompt['preseedScript']
       preseed_script = find_preseed_script(preseed_script_prompt['preseedScript'])
-      if !preseed_script
-        print_red_alert "Preseed Script not found: '#{preseed_script_prompt['preseedScript']}'"
-        return false
+      if preseed_script
+        preseed_script_id = preseed_script['id']
       end
-      preseed_script_id = preseed_script['id']
     end
     if preseed_script_id
       # payload['preseedScript'] = preseed_script_id
