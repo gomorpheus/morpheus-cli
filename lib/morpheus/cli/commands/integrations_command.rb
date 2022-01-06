@@ -1122,19 +1122,8 @@ EOT
 
   def add_integration_object_option_types
     [
-      {'code' => 'integrationObject.type', 'shorthand' => '-t', 'switch' => 'type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'integrationObjectTypes', 'required' => true, 'description' => "Integration Object Type eg. cloud, layout, blueprint, catalog", 'displayOrder' => 1},
+      {'code' => 'integrationObject.type', 'shorthand' => '-t', 'switch' => 'type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'integrationObjectTypes', 'required' => true, 'description' => "Integration Object Type eg. catalog", 'displayOrder' => 1},
       # {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false, 'description' => 'Display Name of the integration object, default is the name of the referenced object', 'displayOrder' => 2},
-      {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'group', 'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => 'groups', 'required' => true, 'description' => 'Group', 'displayOrder' => 3},
-      {'dependsOnCode' => 'integrationObject.type:cloud', 'switch' => 'cloud', 'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => true, 'description' => 'Cloud', 'displayOrder' => 4},
-      {'dependsOnCode' => 'integrationObject.type:layout', 'switch' => 'instance-type', 'fieldName' => 'instanceType', 'fieldLabel' => 'Instance Type', 'type' => 'select', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Instance Type', 'displayOrder' => 5},
-      {'dependsOnCode' => 'integrationObject.type:layout', 'switch' => 'technology', 'fieldName' => 'zoneType', 'fieldLabel' => 'Cloud Type', 'type' => 'select', 'optionSource' => 'zoneTypes', 'required' => true, 'description' => 'Cloud Type (Technology)', 'displayOrder' => 5},
-      {'dependsOnCode' => 'integrationObject.type:layout', 'switch' => 'layout', 'fieldName' => 'layout', 'fieldLabel' => 'Layout', 'type' => 'select', 'optionSource' => 'layouts', 'required' => true, 'description' => 'Layout', 'displayOrder' => 6},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'fieldName' => 'name', 'fieldLabel' => 'Catalog Item Name', 'type' => 'text', 'required' => true, 'description' => 'Display Name of the integration object', 'displayOrder' => 7},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'required' => true, 'description' => 'Blueprint', 'displayOrder' => 8, 'noParams' => true},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'group', 'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => 'groups', 'required' => true, 'description' => 'Group', 'displayOrder' => 9},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'default-cloud', 'fieldName' => 'defaultCloud', 'fieldLabel' => 'Default Cloud', 'type' => 'select', 'optionSource' => 'clouds', 'required' => false, 'description' => 'Default Cloud', 'displayOrder' => 10},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'environment', 'fieldName' => 'environment', 'fieldLabel' => 'Environment', 'type' => 'select', 'optionSource' => 'environments', 'required' => false, 'description' => 'Environment', 'displayOrder' => 11},
-      {'dependsOnCode' => 'integrationObject.type:blueprint', 'switch' => 'config', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'required' => true, 'description' => 'Config JSON', 'displayOrder' => 12},
       {'dependsOnCode' => 'integrationObject.type:catalog', 'switch' => 'catalog', 'fieldName' => 'catalog', 'fieldLabel' => 'Catalog Item', 'type' => 'select', 'optionSource' => 'catalogItemTypes', 'required' => true, 'description' => 'Catalog Item', 'displayOrder' => 13},
     ]
   end
