@@ -484,7 +484,7 @@ module Morpheus::Cli::ProvisioningHelper
     if options[:instance_type_code]
       instance_type_code = options[:instance_type_code]
     else
-      instance_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Select Instance Type.'}],options[:options],api_client,{groupId: group_id}, no_prompt, true)
+      instance_type_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'optionSource' => 'instanceTypes', 'required' => true, 'description' => 'Select Instance Type.'}],options[:options],api_client,{groupId: group_id, cloudId: cloud_id, restrictProvisionType:true}, no_prompt, true)
       instance_type_code = instance_type_prompt['type']
     end
     if instance_type_code.to_s =~ /\A\d{1,}\Z/
