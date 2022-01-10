@@ -265,7 +265,7 @@ module Morpheus::Cli::SecondaryRestCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_parent_arg}] [search]")
-      parse_list_options!(args, options, params)
+      build_list_options(opts, options, params)
       opts.footer = <<-EOT
 List #{rest_label_plural.downcase}.
 [#{rest_parent_arg}] is required. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
@@ -513,7 +513,6 @@ EOT
     advanced_option_types = respond_to?("update_#{rest_key}_advanced_option_types", true) ? send("update_#{rest_key}_advanced_option_types") : []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[#{rest_parent_arg}] [#{rest_arg}] [options]")
-      
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update an existing #{rest_label.downcase}.
@@ -562,7 +561,7 @@ EOT
         options[:params]['type'] = record_type['code']
       end
       # update options without prompting by default
-      if option_types && !option_types.empty?
+      if false && option_types && !option_types.empty?
         api_params = (options[:params] || {}).merge(record_payload) # need to merge in values from record too, ughhh
         v_prompt = Morpheus::Cli::OptionTypes.no_prompt(option_types, options[:options], @api_client, api_params)
         v_prompt.deep_compact!
@@ -576,7 +575,7 @@ EOT
       else
         my_option_types = record_type ? record_type['optionTypes'] : nil
       end
-      if my_option_types && !my_option_types.empty?
+      if false && my_option_types && !my_option_types.empty?
         # remove redundant fieldContext
         # make them optional for updates
         # todo: use current value as default instead of just making things optioanl
@@ -594,7 +593,7 @@ EOT
         record_payload.deep_merge!(v_prompt)
       end
       # advanced options
-      if advanced_option_types && !advanced_option_types.empty?
+      if false && advanced_option_types && !advanced_option_types.empty?
         v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, options[:params])
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
@@ -644,7 +643,7 @@ EOT
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
     end
-    record = rest_find_by_name_or_id(parent_id, id)
+    record = rest_find_by_name_or_id(parent_record['id'], id)
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"
     end

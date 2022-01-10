@@ -5,7 +5,6 @@ class Morpheus::Cli::LoadBalancers
   include Morpheus::Cli::RestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
-  set_command_hidden
   set_command_description "View and manage load balancers."
   set_command_name :'load-balancers'
   register_subcommands :list, :get, :add, :update, :remove, :refresh
@@ -93,6 +92,23 @@ EOT
 
   protected
 
+  # filtering for NSX-T only
+  def rest_list_types()
+    rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key].reject {|it| it['code'] == 'nsx-t'}
+  end
+
+  def load_balancer_type_list_to_options(type_list)
+    type_list.reject {|it| it['code'] != 'nsx-t'}.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+  end
+
+  def add_load_balancer_footer_addn
+    "#{bold}Available for NSX-T load balancers only#{reset}"
+  end
+
+  def update_load_balancer_footer_addn
+    "#{bold}Available for NSX-T load balancers only#{reset}"
+  end
+
   def load_balancer_list_column_definitions(options)
     {
       "ID" => 'id',
@@ -141,7 +157,7 @@ EOT
   def add_load_balancer_advanced_option_types()
     [
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'fieldGroup' => 'Advanced', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'public'},
-      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'optionSource' => lambda { |api_client, api_params|
+      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'resultValueField' => 'id', 'optionSource' => lambda { |api_client, api_params|
         api_client.options.options_for_source("allTenants", {})['data']
       }},
     ]

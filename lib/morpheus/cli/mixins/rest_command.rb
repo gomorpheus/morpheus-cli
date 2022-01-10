@@ -569,6 +569,7 @@ EOT
 Create a new #{rest_label.downcase}.
 [#{rest_arg}] is required. This is the name of the new #{rest_label.downcase}.
 EOT
+      opts.footer += send "add_#{rest_key}_footer_addn" if respond_to?("add_#{rest_key}_footer_addn", true)
     end
     optparse.parse!(args)
     # todo: make supporting args[0] optional and more flexible
@@ -588,7 +589,7 @@ EOT
       if record_type_id.nil?
         #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
         type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
-        type_dropdown_options = type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+        type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
         record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
       end
       record_type = rest_type_find_by_name_or_id(record_type_id)
@@ -694,6 +695,7 @@ EOT
 Update an existing #{rest_label.downcase}.
 [#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
 EOT
+      opts.footer += send "update_#{rest_key}_footer_addn" if respond_to?("update_#{rest_key}_footer_addn", true)
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)

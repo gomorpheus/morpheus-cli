@@ -6,7 +6,6 @@ class Morpheus::Cli::LoadBalancerProfiles
   include Morpheus::Cli::SecondaryRestCommand
   include Morpheus::Cli::LoadBalancersHelper
 
-  set_command_hidden
   set_command_description "View and manage load balancer profiles."
   set_command_name :'load-balancer-profiles'
   register_subcommands :list, :get, :add, :update, :remove

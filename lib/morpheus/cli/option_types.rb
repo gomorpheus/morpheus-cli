@@ -281,12 +281,14 @@ module Morpheus
               if option_type['optionSource'].nil?
                 value = option_type['defaultValue']
               else
-                value = load_source_options(option_type['optionSource'], option_params, api_client, api_params || {})
+                value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
               end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
             elsif option_type['type'] == 'file-content'
               value = file_content_prompt(option_type, options, api_client, {})
+            elsif option_type['type'] == 'multiText'
+              value = multitext_prompt(option_type)
             else
               value = generic_prompt(option_type)
             end
@@ -294,7 +296,6 @@ module Morpheus
 
           if option_type['type'] == 'multiSelect'
             value = [value] if !value.nil? && !value.is_a?(Array)
-            # parent_context_map[parent_ns] = value
           elsif option_type['type'] == 'multiText'
             # multiText expects csv value
             if value && value.is_a?(String)
@@ -529,6 +530,10 @@ module Morpheus
         # wrap in object when using fieldInput
         if value && !option_type['fieldInput'].nil?
           value = {option_type['fieldName'].split('.').last => value, option_type['fieldInput'] => (no_prompt ? option_type['defaultInputValue'] : field_input_prompt(option_type))}
+        end
+
+        if value && !option_type['resultValueField'].nil?
+          value = {option_type['resultValueField'] => value}
         end
         value
       end
@@ -926,6 +931,32 @@ module Morpheus
         return file_params
       end
 
+      def self.multitext_prompt(option_type)
+        rtn = nil
+
+        # supports multi-part fields via config.fields
+        # {"fields": [{"name":"tag", "required":true, "label": "Tag"}, {"name":"value", "required":false, "label": "Scope"}]}
+        if option_type['config']['fields']
+          while (option_type['required'] && rtn.empty?) || self.confirm("Add#{rtn.empty? ? '': ' more'} #{option_type['fieldLabel']}?", {:default => false})
+            rtn ||= []
+            value = {}
+            option_type['config']['fields'].each do |field|
+              field_label = field['label'] || field['name'].capitalize
+              value[field['name']] = generic_prompt(option_type.merge({'fieldLabel' => field_label, 'required' => field['required'], 'description' => "#{option_type['fieldLabel']} #{field_label}"}))
+            end
+            rtn << value
+          end
+        else
+          if rtn = generic_prompt(option_type)
+            rtn = [rtn]
+            while self.confirm("Add more #{option_type['fieldLabel']}?", {:default => false}) do
+              rtn << generic_prompt(option_type)
+            end
+          end
+        end
+        rtn
+      end
+
       def self.load_options(option_type, api_client, api_params, query_value=nil)
         select_options = []
         # local array of options
@@ -945,7 +976,7 @@ module Morpheus
             select_options = filtered_options
           end
         elsif option_type['optionSource']
-          api_params = api_params.select {|k,v| option_type['params'].include(k)} if option_type['params'].nil? && api_params
+          api_params = api_params.select {|k,v| option_type['params'].include(k)} if !option_type['params'].nil? && api_params
 
           # calculate from inline lambda
           if option_type['optionSource'].is_a?(Proc)
