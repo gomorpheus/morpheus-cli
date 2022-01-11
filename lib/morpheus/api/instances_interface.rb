@@ -262,6 +262,34 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def revert_to_snapshot(id, snapshot_id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/revert-snapshot/#{snapshot_id}"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def create_linked_clone(id, snapshot_id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/linked-clone/#{snapshot_id}"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def remove_snapshot(snapshot_id, payload={})
+    url = "#{@base_url}/api/snapshots/#{snapshot_id}"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def remove_all_snapshots(container_id, payload={})
+    url = "#{@base_url}/api/instances/#{container_id}/deleteall-snapshots"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def service_plans(params={})
     url = "#{@base_url}/api/instances/service-plans"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
