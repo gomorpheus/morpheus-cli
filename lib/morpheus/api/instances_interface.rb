@@ -283,8 +283,15 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def remove_all_snapshots(container_id, payload={})
-    url = "#{@base_url}/api/instances/#{container_id}/deleteall-snapshots"
+  def remove_all_container_snapshots(id, container_id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/delete-container-snapshots/#{container_id}"
+    headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def remove_all_instance_snapshots(id, payload={})
+    url = "#{@base_url}/api/instances/#{id}/delete-all-snapshots"
     headers = {:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)

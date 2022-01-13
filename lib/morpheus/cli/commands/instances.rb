@@ -18,7 +18,7 @@ class Morpheus::Cli::Instances
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
                        :lock, :unlock, :clone_image,
                        :security_groups, :apply_security_groups, :run_workflow,
-                       :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_snapshot, :remove_all_snapshots, :create_linked_clone,
+                       :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_snapshot, :remove_all_snapshots, :remove_all_container_snapshots, :create_linked_clone,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
@@ -3373,6 +3373,9 @@ EOT
         snapshot_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+           build_standard_add_options(opts, options) #, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      opts.footer = "Revert an Instance to saved Snapshot previously made." + "\n" +
+                    "[snapshotId] is required. This is the id of the snapshot to replace the current instance."
     end
     
     optparse.parse!(args)
@@ -3429,6 +3432,8 @@ EOT
         snapshot_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove/Delete a snapshot." + "\n" +
+                    "[snapshotId] is required. This is the id of the snapshot to delete."
     end
     
     optparse.parse!(args)
@@ -3474,7 +3479,7 @@ EOT
     end
   end
 
-  def remove_all_snapshots(args)
+  def remove_all_container_snapshots(args)
     options = {}
     instance = nil
     container_id = nil
@@ -3485,6 +3490,8 @@ EOT
         container_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove all snapshots attached to an instances container." + "\n" +
+                    "[containerId] is required. This is the id of the container which removes all attached snapshots."
     end
     
     optparse.parse!(args)
@@ -3512,15 +3519,60 @@ EOT
  
       payload = {}
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.remove_all_snapshots(container_id, payload)
+        print_dry_run @instances_interface.dry.remove_all_container_snapshots(instance['id'], container_id, payload)
         return
       end
       
-      json_response = @instances_interface.remove_all_snapshots(container_id, payload)
+      json_response = @instances_interface.remove_all_container_snapshots(instance['id'], container_id, payload)
       if options[:json]
         puts as_json(json_response, options)
       else
         print_green_success "Snapshot delete initiated."
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_all_snapshots(args)
+    options = {}
+    instance = nil
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+     opts.banner = subcommand_usage("[instance]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove all snapshots attached to an instance." + "\n" +
+                    "Warning: This will remove all snapshots across all containers of an instance."
+    end
+    
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove all snapshots for this instance?", options)
+        exit 1
+      end
+      options[:options]['instanceId'] = instance['id']
+
+      @instances_interface.setopts(options)
+ 
+      payload = {}
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.remove_all_instance_snapshots(instance['id'], payload)
+        return
+      end
+      
+      json_response = @instances_interface.remove_all_instance_snapshots(instance['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Snapshots attaced to instance #{instance['name']} queued for deletion."
       end
       return 0
 
@@ -3541,6 +3593,8 @@ EOT
         snapshot_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Create a linked clone using the selected snapshot of an Instance." + "\n" +
+                    "[snapshotId] is required. This is the id of the snapshot which the clone will refer to."
     end
     
     optparse.parse!(args)
@@ -3550,7 +3604,6 @@ EOT
     connect(options)
     begin
       instance = find_instance_by_name_or_id(args[0])
-      puts instance
       options[:options]['instanceId'] = instance['id']
       begin
         snapshot_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'snapshotId', 'type' => 'select', 'fieldLabel' => 'Snapshot', 'optionSource' => 'instanceSnapshots', 'required' => true, 'description' => 'Select Snapshot.'}], {}, @api_client, options[:options])
