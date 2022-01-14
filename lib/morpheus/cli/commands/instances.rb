@@ -18,7 +18,7 @@ class Morpheus::Cli::Instances
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
                        :lock, :unlock, :clone_image,
                        :security_groups, :apply_security_groups, :run_workflow,
-                       :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_snapshot, :remove_all_snapshots, :remove_all_container_snapshots, :create_linked_clone,
+                       :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_all_snapshots, :remove_all_container_snapshots, :create_linked_clone,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
@@ -53,6 +53,7 @@ class Morpheus::Cli::Instances
     @execution_request_interface = @api_client.execution_request
     @deploy_interface = @api_client.deploy
     @deployments_interface = @api_client.deployments
+    @snapshots_interface = @api_client.snapshots
   end
   
   def handle(args)
@@ -3412,64 +3413,6 @@ EOT
         puts as_json(json_response, options)
       else
         print_green_success "Snapshot revert initiated."
-      end
-      return 0
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def remove_snapshot(args)
-    options = {}
-    instance = nil
-    snapshot_id = nil
-
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-     opts.banner = subcommand_usage("[instance]")
-      opts.on("--snapshot ID", String, "Optional snapshot") do |val|
-        snapshot_id = val
-      end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
-      opts.footer = "Remove/Delete a snapshot." + "\n" +
-                    "[snapshotId] is required. This is the id of the snapshot to delete."
-    end
-    
-    optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
-    connect(options)
-    begin
-      instance = find_instance_by_name_or_id(args[0])
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove a snapshot?", options)
-        exit 1
-      end
-      options[:options]['instanceId'] = instance['id']
-      begin
-        snapshot_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'snapshotId', 'type' => 'select', 'fieldLabel' => 'Snapshot', 'optionSource' => 'instanceSnapshots', 'required' => true, 'description' => 'Select Snapshot.'}], {}, @api_client, options[:options])
-      
-        if !snapshot_prompt['snapshotId'].to_s.empty?
-          snapshot_id = snapshot_prompt['snapshotId']
-        end
-      rescue RestClient::Exception => e
-        puts "Failed to load instance snapshots"
-      end
-      
-      @instances_interface.setopts(options)
- 
-      payload = {}
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.remove_snapshot(snapshot_id, payload)
-        return
-      end
-      
-      json_response = @instances_interface.remove_snapshot(snapshot_id, payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      else
-        print_green_success "Snapshot delete initiated."
       end
       return 0
 

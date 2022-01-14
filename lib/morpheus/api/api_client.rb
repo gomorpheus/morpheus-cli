@@ -347,7 +347,6 @@ class Morpheus::APIClient
   end
 
   def auth
-    # Morpheus::AuthInterface.new(common_interface_options).setopts(@options)
     Morpheus::AuthInterface.new({url: @base_url, client_id: @client_id, verify_ssl: @verify_ssl}).setopts(@options)
   end
 
@@ -887,6 +886,10 @@ class Morpheus::APIClient
   
   def network_static_routes
     Morpheus::NetworkStaticRoutesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def snapshots
+    Morpheus::SnapshotsInterface.new(common_interface_options).setopts(@options)
   end
 
   def rest(endpoint)
