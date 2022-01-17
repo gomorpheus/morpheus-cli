@@ -4,7 +4,7 @@ class Morpheus::Cli::Snapshots
   include Morpheus::Cli::CliCommand
 
   set_command_name :snapshots
-  set_command_description "View snapshot"
+  set_command_description "View or remove snapshot"
   register_subcommands :get, :remove
 
   alias_subcommand :details, :get

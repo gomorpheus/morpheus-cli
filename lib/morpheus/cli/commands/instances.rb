@@ -3429,7 +3429,7 @@ EOT
 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
      opts.banner = subcommand_usage("[instance]")
-      opts.on("--container ID", String, "Optional container") do |val|
+      opts.on("--container ID", String, "Required container") do |val|
         container_id = val
       end
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
