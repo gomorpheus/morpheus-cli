@@ -179,7 +179,7 @@ class Morpheus::Cli::Tasks
           task_option_config = {}
           task_option_columns = []
           task_type['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.each do |optionType|
-            if optionType['fieldLabel'].to_s.downcase == 'script'
+            if optionType['code'] == 'script'
               script_content = task['taskOptions'][optionType['fieldName']]
             elsif optionType['fieldName'] == 'httpHeaders' || optionType['fieldName'] == 'webHeaders'
               http_headers = task['taskOptions']['httpHeaders'] || task['taskOptions']['webHeaders']
