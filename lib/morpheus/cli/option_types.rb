@@ -672,6 +672,10 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 # print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
+                # print "Please try again.\n"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
@@ -686,6 +690,9 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
