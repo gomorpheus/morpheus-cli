@@ -57,6 +57,10 @@ module Morpheus
           if option_type['fieldGroup'].to_s.downcase == 'options'
             option_type['fieldGroup'] = 'default'
           end
+          # apply custom templates
+          if option_type['fieldName'] == 'sshHosts'
+            option_type['type'] = 'multiText'
+          end
         end
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
@@ -156,7 +160,7 @@ module Morpheus
           end
 
           # build parameters for option source api request
-          option_params = (option_type['noParams'] ? {} : (api_params || {}).merge(results))
+          option_params = (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results))
           option_params.merge!(option_type['optionParams']) if option_type['optionParams']
 
           # use the value passed in the options map
