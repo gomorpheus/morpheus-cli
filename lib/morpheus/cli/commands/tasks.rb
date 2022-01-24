@@ -553,11 +553,11 @@ class Morpheus::Cli::Tasks
             payload['task']['retryCount'] = v_prompt['retryCount'].to_i unless v_prompt['retryCount'].nil?
           end
           # Retry Delay
-          if options[:options]['retryDelay']
-            payload['task']['retryDelay'] = options[:options]['retryDelay'].to_i
+          if options[:options]['retryDelaySeconds']
+            payload['task']['retryDelaySeconds'] = options[:options]['retryDelaySeconds'].to_i
           else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retryDelay', 'fieldLabel' => 'Retry Delay', 'type' => 'number', 'defaultValue' => 10}], options[:options], @api_client)
-            payload['task']['retryDelay'] = v_prompt['retryDelay'].to_i unless v_prompt['retryDelay'].nil?
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retryDelaySeconds', 'fieldLabel' => 'Retry Delay', 'type' => 'number', 'defaultValue' => 10}], options[:options], @api_client)
+            payload['task']['retryDelaySeconds'] = v_prompt['retryDelaySeconds'].to_i unless v_prompt['retryDelaySeconds'].nil?
           end
         end
 
