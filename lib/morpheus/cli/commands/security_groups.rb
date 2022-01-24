@@ -855,7 +855,7 @@ class Morpheus::Cli::SecurityGroups
 
         end
 
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'sourceType', 'fieldLabel' => 'Source Type', 'type' => 'select', 'optionSource' => 'securityGroupSourceType', 'required' => true, 'defaultValue' => 'cidr'}], options[:options], @api_client)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'sourceType', 'fieldLabel' => 'Source Type', 'type' => 'select', 'optionSource' => 'securityGroupSourceType', 'required' => true, 'defaultValue' => 'cidr'}], options[:options], @api_client, {'rule.securityGroupId': security_group['id'], 'securityGroupRule.direction': payload['rule']['direction']})
         payload['rule']['sourceType'] = v_prompt['sourceType'] unless v_prompt['sourceType'].nil?
 
         if payload['rule']['sourceType'] == 'cidr'
@@ -869,7 +869,7 @@ class Morpheus::Cli::SecurityGroups
           payload['rule']['sourceTier'] = {"id" => v_prompt['sourceTier']} unless v_prompt['sourceTier'].nil?
         end
 
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'destinationType', 'fieldLabel' => 'Destination Type', 'type' => 'select', 'optionSource' => 'securityGroupDestinationType', 'required' => true, 'defaultValue' => 'instance'}], options[:options], @api_client)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'destinationType', 'fieldLabel' => 'Destination Type', 'type' => 'select', 'optionSource' => 'securityGroupDestinationType', 'required' => true, 'defaultValue' => 'instance'}], options[:options], @api_client, {'rule.securityGroupId': security_group['id'], 'securityGroupRule.direction': payload['rule']['direction']})
         payload['rule']['destinationType'] = v_prompt['destinationType'] unless v_prompt['destinationType'].nil?
 
         if payload['rule']['destinationType'] == 'cidr'

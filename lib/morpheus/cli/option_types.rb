@@ -410,7 +410,7 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
-          raise "option '#{field_key}' is type: 'select' and missing selectOptions or optionSource!"
+          raise "option '#{help_field_key}' is type: 'select' and missing selectOptions or optionSource!"
         end
 
         # ensure the preselected value (passed as an option) is in the dropdown
@@ -676,6 +676,10 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 # print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
+                # print "Please try again.\n"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
@@ -690,6 +694,9 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
@@ -962,6 +969,8 @@ module Morpheus
       end
 
       def self.load_options(option_type, api_client, api_params, query_value=nil)
+        field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+        help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
         select_options = []
         # local array of options
         if option_type['selectOptions']
@@ -993,7 +1002,7 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
-          raise "option '#{field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
+          raise "option '#{help_field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
         end
 
         return select_options
