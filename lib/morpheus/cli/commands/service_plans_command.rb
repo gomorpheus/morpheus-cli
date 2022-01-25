@@ -575,7 +575,7 @@ class Morpheus::Cli::ServicePlanCommand
         options[:provisionType] = options[:provisionType] || (args.count > 1 ? args[1] : nil)
 
         if !options[:provisionType].nil?
-          provision_types = @service_plans_interface.provision_types()['provisionTypes']
+          provision_types = @service_plans_interface.provision_types({max: 10000})['provisionTypes']
           provision_type = provision_types.find {|it| it['name'] == options[:provisionType] || it['code'] == options[:provisionType] || it['id'] == options[:provisionType].to_i}
 
           if provision_type.nil?

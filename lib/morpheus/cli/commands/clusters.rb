@@ -561,7 +561,7 @@ class Morpheus::Cli::Clusters
         api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
 
         # Controller type
-        server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
+        server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'}
         controller_provision_type = nil
         resource_pool = nil
 
@@ -603,9 +603,9 @@ class Morpheus::Cli::Clusters
 
         # Options / Custom Config
         option_type_list =
-          (controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) +
-          (layout['optionTypes'] +
-          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
+          ((controller_type.nil? ? [] : controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) +
+          layout['optionTypes'] +
+          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue []))
 
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
