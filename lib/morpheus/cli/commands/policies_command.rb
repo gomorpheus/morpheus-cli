@@ -511,7 +511,7 @@ class Morpheus::Cli::PoliciesCommand
           policy_type_option_types = policy_type['optionTypes']
           # puts "POLICY OPTION TYPES:\n #{policy_type_option_types.inspect}"
           if policy_type_option_types
-            config_prompt = Morpheus::Cli::OptionTypes.prompt(policy_type_option_types, options, @api_client)
+            config_prompt = Morpheus::Cli::OptionTypes.prompt(policy_type_option_types, options, @api_client, {}, false, true, true)
             # everything should be under fieldContext:'config'
             # payload['policy'].deep_merge!(config_prompt)
             if config_prompt['config']
