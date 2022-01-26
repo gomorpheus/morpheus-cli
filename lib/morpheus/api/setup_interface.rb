@@ -14,12 +14,16 @@ class Morpheus::SetupInterface < Morpheus::APIClient
 
   def get(params={})
     headers = {params: params}
+    # use access token if authenticated
+    headers[:authorization] = "Bearer #{@access_token}" if @access_token
     execute(method: :get, url: "/api/setup", headers: headers)
   end
 
   #this should go away and just use 
   def check(params={}, timeout=5)
     headers = {params: params}
+    # use access token if authenticated
+    headers[:authorization] = "Bearer #{@access_token}" if @access_token
     execute(method: :get, url: "/api/setup/check", headers: headers, timeout: timeout)
   end
 

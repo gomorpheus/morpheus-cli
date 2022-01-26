@@ -14,6 +14,8 @@ class Morpheus::PingInterface < Morpheus::APIClient
 
   def get(params={})
     headers = {params: params}
+    # use access token if authenticated
+    headers[:authorization] = "Bearer #{@access_token}" if @access_token
     execute(method: :get, url: "/api/ping", headers: headers)
   end
 

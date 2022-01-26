@@ -336,7 +336,7 @@ EOT
       print cyan,"Added remote #{new_appliance_name}, status is #{format_appliance_status(appliance)}",reset,"\n"
     end
 
-    appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
+    #appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     # if !options[:quiet]
     #   print cyan
     #   puts "Status: #{format_appliance_status(appliance)}"
@@ -390,7 +390,8 @@ EOT
         end
 
       end
-
+      # refresh to get buildVersion now that we are logged in
+      appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     else
       #puts "Status is #{format_appliance_status(appliance)}"
     end
@@ -1696,7 +1697,10 @@ EOT
         # wtf, no url...
         return appliance, json_response
       else
-        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: !appliance[:insecure], timeout: timeout})
+        # access token is needed for buildVersion
+        wallet = Morpheus::Cli::Credentials.new(app_name, appliance_url).load_saved_credentials()
+        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: !appliance[:insecure], timeout: timeout, 
+          access_token: (wallet && wallet['access_token']) ? wallet['access_token'] : nil})
         start_time = Time.now
         begin
           json_response = setup_interface.check(params)
@@ -1737,13 +1741,15 @@ EOT
         if json_response.key?('applianceUrl')
           appliance[:appliance_url] = json_response['applianceUrl']
         end
-        if json_response.key?('buildVersion')
-          appliance[:build_version] = json_response['buildVersion']
+        if json_response['success'] == true
           appliance[:status] = 'ready'
           appliance[:last_check][:success] = true
           # consider bumping this after every successful api command
           appliance[:last_success_at] = Time.now.to_i
           appliance.delete(:error)
+        end
+        if !json_response['buildVersion'].to_s.empty?
+          appliance[:build_version] = json_response['buildVersion']
         end
         if json_response.key?('setupNeeded')
           if json_response['setupNeeded'] == true
