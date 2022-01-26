@@ -4352,6 +4352,9 @@ EOT
       opts.on( '--name VALUE', String, "Image Name (Template Name). Default is server name + timestamp" ) do |val|
         options[:options]['templateName'] = val
       end
+      opts.on( '--folder VALUE', String, "Folder" ) do |val|
+        options[:options]['zoneFolder'] = val
+      end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Clone to image (template) for an instance
@@ -4363,6 +4366,18 @@ EOT
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     return 1 if instance.nil?
+    # need to GET provision type for hasFolders
+    provision_type_code = instance['layout']['provisionTypeCode'] rescue nil
+    provision_type = nil
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
+      if provision_type.nil?
+        print_red_alert "Provision Type not found by code #{provision_type_code}"
+        exit 1
+      end
+    else
+      provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    end
     payload = {}
     if options[:payload]
       payload = options[:payload]
@@ -4373,6 +4388,15 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateName', 'type' => 'text', 'fieldLabel' => 'Image Name', 'description' => 'Choose a name for the new image template. Default is the server name + timestamp'}], options[:options])
         if v_prompt['templateName'].to_s != ''
           payload['templateName'] = v_prompt['templateName']
+        end
+      end
+      #if instance['layout']['provisionTypeCode'] == 'vmware'
+      if provision_type && provision_type["hasFolders"]
+        if payload['zoneFolder'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => 'Choose a folder', 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+          if v_prompt['zoneFolder'].to_s != ''
+            payload['zoneFolder'] = v_prompt['zoneFolder']
+          end
         end
       end
     end
