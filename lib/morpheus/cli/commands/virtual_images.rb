@@ -51,7 +51,7 @@ class Morpheus::Cli::VirtualImages
         options[:details] = true
       end
       build_standard_list_options(opts, options)
-      opts.footer = "List virtual images."
+      opts.footer = "List virtual images. Default list applies User filter"
     end
     optparse.parse!(args)
     connect(options)
