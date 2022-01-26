@@ -4352,7 +4352,7 @@ EOT
       opts.on( '--name VALUE', String, "Image Name (Template Name). Default is server name + timestamp" ) do |val|
         options[:options]['templateName'] = val
       end
-      opts.on( '--folder VALUE', String, "Folder" ) do |val|
+      opts.on( '--folder VALUE', String, "Folder externalId or '/' to use the root folder" ) do |val|
         options[:options]['zoneFolder'] = val
       end
       build_standard_update_options(opts, options)
@@ -4393,7 +4393,7 @@ EOT
       #if instance['layout']['provisionTypeCode'] == 'vmware'
       if provision_type && provision_type["hasFolders"]
         if payload['zoneFolder'].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => 'Choose a folder', 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
           if v_prompt['zoneFolder'].to_s != ''
             payload['zoneFolder'] = v_prompt['zoneFolder']
           end
