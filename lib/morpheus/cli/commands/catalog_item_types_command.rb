@@ -509,7 +509,7 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[type] [file]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update the logo for an catalog item type." + "\n" +
+      opts.footer = "Update the logo for a catalog item type." + "\n" +
                     "[type] is required. This is the name or id of a catalog item type." + "\n" +
                     "[file] is required. This is the path of the logo file"
     end
