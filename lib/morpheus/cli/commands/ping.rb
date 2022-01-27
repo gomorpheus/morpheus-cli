@@ -106,14 +106,12 @@ EOT
         if json_response['applianceUrl']
           appliance[:appliance_url] = json_response['applianceUrl']
         end
-        # set status to ready if we have a version but no status yet for some reason
-        if appliance[:build_version] && appliance[:status].nil?
-          appliance[:status] = 'ready'
-        end
-        # update setupNeeded? 
+        # setupNeeded? 
         if json_response['setupNeeded'] == true
           # appliance[:setup_needed] = true
           appliance[:status] = 'fresh'
+        else
+          appliance[:status] = 'ready'
         end
         # if took_sec
         #   appliance[:last_check] ||= {}
