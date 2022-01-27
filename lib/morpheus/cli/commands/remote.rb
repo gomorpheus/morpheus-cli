@@ -102,7 +102,7 @@ EOT
           "URL" => lambda {|it| it[:url] || it[:host] },
           "Status" => lambda {|it| format_appliance_status(it, cyan) },
           "Version" => lambda {|it| it[:build_version] ? "#{it[:build_version]}" : '' },
-          "Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
+          #"Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
           "Secure" => lambda {|it| format_boolean(it[:insecure] != true && (it[:url] || it[:host]).to_s.include?("https")) },
           "Active" => lambda {|it| it[:active] ? "Yes " + format_is_current() : "No" },
           #"Authenticated" => lambda {|it| format_boolean it[:authenticated] },
@@ -1279,7 +1279,7 @@ EOT
       "URL" => lambda {|it| it[:url] || it[:host] },
       #"Status" => lambda {|it| format_appliance_status(it, cyan) },
       "Version" => lambda {|it| it[:build_version] ? "#{it[:build_version]}" : '' },
-      "Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
+      #"Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
       "Secure" => lambda {|it| format_appliance_secure(it) },
       "Active" => lambda {|it| it[:active] ? "Yes " + format_is_current() : "No" },
       # "Active" => lambda {|it| format_boolean(it[:active]) },
@@ -1738,9 +1738,9 @@ EOT
         appliance[:last_check][:took] = (took_sec.to_f*1000).round
       end
       if json_response
-        if json_response.key?('applianceUrl')
-          appliance[:appliance_url] = json_response['applianceUrl']
-        end
+        # if json_response.key?('applianceUrl')
+        #   appliance[:appliance_url] = json_response['applianceUrl']
+        # end
         if json_response['success'] == true
           appliance[:status] = 'ready'
           appliance[:last_check][:success] = true
