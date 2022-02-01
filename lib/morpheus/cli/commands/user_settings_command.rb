@@ -803,7 +803,7 @@ EOT
       {'fieldName' => 'windowsPassword', 'fieldLabel' => 'Windows Password', 'type' => 'password'},
       {'fieldName' => 'defaultGroup', 'fieldLabel' => 'Default Group ID', 'type' => 'text'},
       {'fieldName' => 'defaultCloud', 'fieldLabel' => 'Default Cloud ID', 'type' => 'text'},
-      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona Name or Code or ID', 'type' => 'text'},
+      {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona Name or Code or ID eg. standard, serviceCatalog or vdi', 'type' => 'text'},
       {'switch' => 'change-password', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Change user credentials to use a new password'},
       {'fieldName' => 'avatar', 'fieldLabel' => 'Avatar', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user avatar'},
       {'fieldName' => 'desktopBackground', 'fieldLabel' => 'Desktop Background', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user desktop background'},

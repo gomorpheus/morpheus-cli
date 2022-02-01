@@ -189,7 +189,7 @@ class Morpheus::Cli::NetworksCommand
       print cyan
       description_cols = {
         "ID" => 'id',
-        "Name" => 'name',
+        "Name" => lambda {|it| it['displayName'] ? it['displayName'] : it['name'] },
         "Description" => 'description',
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : 'Shared' },
@@ -242,7 +242,7 @@ class Morpheus::Cli::NetworksCommand
         subnet_rows = subnets.collect { |subnet|
           {
             id: subnet['id'],
-            name: "  #{subnet['name']}",
+            name: "  #{subnet['displayName'] || subnet['name']}",
             # type: subnet['type'] ? subnet['type']['name'] : '',
             type: "Subnet",
             cloud: network['zone'] ? network['zone']['name'] : '',

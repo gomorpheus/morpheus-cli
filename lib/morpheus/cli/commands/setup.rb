@@ -95,7 +95,7 @@ EOT
       # my_terminal.execute("setup needed?")
       # theres a bug here with --remote-url :status == "unknown"
       # but hey, we got json back, so set status to "ready"
-      if appliance_status_json && appliance_status_json['setupNeeded'] == false
+      if appliance_status_json
         @remote_appliance[:status] == 'ready'
       end
       remote_status_string = format_appliance_status(@remote_appliance, cyan)

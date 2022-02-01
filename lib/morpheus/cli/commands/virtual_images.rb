@@ -39,6 +39,9 @@ class Morpheus::Cli::VirtualImages
       opts.on('--system', "System Images" ) do
         options[:filterType] = 'System'
       end
+       opts.on('--synced', "Synced Images" ) do
+        options[:filterType] = 'Synced'
+      end
       opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
           k,v = value_pair.strip.split("=")
@@ -51,7 +54,7 @@ class Morpheus::Cli::VirtualImages
         options[:details] = true
       end
       build_standard_list_options(opts, options)
-      opts.footer = "List virtual images."
+      opts.footer = "List virtual images. Default list applies User filter"
     end
     optparse.parse!(args)
     connect(options)
