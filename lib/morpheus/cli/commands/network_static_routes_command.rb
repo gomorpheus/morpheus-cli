@@ -149,6 +149,11 @@ class Morpheus::Cli::NetworkStaticRoutesCommand
       return 1
     end
 
+    if !network_type['hasStaticRoutes']
+      print_red_alert "Static routes not supported for #{network_type['name']}"
+      return 1
+    end
+
     payload = nil
     if options[:payload]
       payload = options[:payload]
