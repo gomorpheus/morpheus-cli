@@ -878,6 +878,12 @@ class Morpheus::Cli::Hosts
           payload['volumes'] = volumes
         end
 
+        # plan customizations
+        plan_opts = prompt_service_plan_options(service_plan, options, @api_client, {})
+        if plan_opts && !plan_opts.empty?
+          payload['servicePlanOptions'] = plan_opts
+        end
+
         # prompt for network interfaces (if supported)
         if server_type["provisionType"] && server_type["provisionType"]["id"] && server_type["provisionType"]["hasNetworks"]
           begin
@@ -1250,6 +1256,12 @@ class Morpheus::Cli::Hosts
       volumes = prompt_resize_volumes(current_volumes, service_plan, options)
       if !volumes.empty?
         payload[:volumes] = volumes
+      end
+
+      # plan customizations
+      plan_opts = prompt_service_plan_options(service_plan, options, @api_client, {}, server)
+      if plan_opts && !plan_opts.empty?
+        payload['servicePlanOptions'] = plan_opts
       end
 
       # todo: reconfigure networks

@@ -2720,6 +2720,12 @@ class Morpheus::Cli::Instances
         payload["volumes"] = volumes
       end
 
+      # plan customizations
+      plan_opts = prompt_service_plan_options(service_plan, options, @api_client, {}, instance)
+      if plan_opts && !plan_opts.empty?
+        payload['servicePlanOptions'] = plan_opts
+      end
+
       # only amazon supports this option
       # for now, always do this
       payload["deleteOriginalVolumes"] = true
