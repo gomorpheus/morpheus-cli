@@ -69,6 +69,7 @@ class Morpheus::Cli::ProvisioningSettingsCommand
         "Hide Datastore Stats On Selection" => lambda {|it| format_boolean(it['hideDatastoreStats'])},
         "Cross-Tenant Naming Policies" => lambda {|it| format_boolean(it['crossTenantNamingPolicies'])},
         "Reuse Naming Sequence Numbers" => lambda {|it| format_boolean(it['reuseSequence'])},
+        "Show Console Keyboard Layout Settings" => lambda {|it| format_boolean(it['showConsoleKeyboardSettings'])},
         "Deployment Archive Store" => lambda {|it| it['deployStorageProvider'] ? it['deployStorageProvider']['name'] : nil},
         # Cloud-Init Settings
         "Cloud-Init Username" => lambda {|it| it['cloudInitUsername']},
