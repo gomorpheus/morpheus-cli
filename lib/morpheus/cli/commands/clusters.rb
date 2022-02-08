@@ -547,11 +547,7 @@ class Morpheus::Cli::Clusters
           available_layouts = layouts_for_dropdown(cloud['id'], cluster_type['id'])
 
           if !available_layouts.empty?
-            if available_layouts.count > 1 && !options[:no_prompt]
-              layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'selectOptions' => available_layouts, 'required' => true, 'description' => 'Select Layout.'}],options[:options],@api_client,{})['layout']
-            else
-              layout_id = available_layouts.first['id']
-            end
+            layout_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'layout', 'type' => 'select', 'fieldLabel' => 'Layout', 'selectOptions' => available_layouts, 'required' => true, 'description' => 'Select Layout.'}],options[:options],@api_client,{})['layout']
             layout = find_layout_by_name_or_id(layout_id)
           end
         end
@@ -560,17 +556,25 @@ class Morpheus::Cli::Clusters
 
         # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
+        provision_type = @provision_types_interface.get(provision_type['id'])['provisionType'] if !provision_type.nil?
 
         api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
 
         # Controller type
-        server_types = @server_types_interface.list({max:1, computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes']
+        server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'}
         controller_provision_type = nil
         resource_pool = nil
 
         if !server_types.empty?
           controller_type = server_types.first
-          controller_provision_type = controller_type['provisionType'] ? (@provision_types_interface.get(controller_type['provisionType']['id'])['provisionType'] rescue nil) : nil
+
+          if controller_type['provisionType']
+            if provision_type && provision_type['id'] == controller_type['provisionType']['id']
+              controller_provision_type = provision_type
+            else
+              controller_provision_type = @provision_types_interface.get(controller_type['provisionType']['id'])['provisionType'] rescue nil
+            end
+          end
 
           if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, nil, controller_provision_type, options)
             server_payload['config']['resourcePoolId'] = resource_pool['id']
@@ -585,21 +589,23 @@ class Morpheus::Cli::Clusters
         service_plan = prompt_service_plan(api_params, options)
 
         if service_plan
-          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, provision_type, options)}
           api_params['planId'] = service_plan['id']
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
-
-        if !volumes.empty?
-          server_payload['volumes'] = volumes
+        if provision_type['hasVolumes']
+          volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
+          if !volumes.empty?
+            server_payload['volumes'] = volumes
+          end
         end
 
         # Options / Custom Config
         option_type_list =
-          ((controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) + layout['optionTypes'] +
-          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue [])).sort { |type| type['displayOrder'] }
+          ((controller_type.nil? ? [] : controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) +
+          layout['optionTypes'] +
+          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue []))
 
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
@@ -625,11 +631,13 @@ class Morpheus::Cli::Clusters
         cluster_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(load_layout_options(cluster_payload), options[:options], @api_client, api_params, options[:no_prompt], true))
 
         # Server options
-        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, api_params, options[:no_prompt], true))
+        server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, api_params, options[:no_prompt], true))
 
         # Worker count
-        default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-        server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+        if !['manual', 'external'].include?(provision_type['code'])
+          default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
+          server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker-cluster', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+        end
 
         # Create User
         if !options[:createUser].nil?
@@ -657,10 +665,12 @@ class Morpheus::Cli::Clusters
         server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
 
         # Workflow / Automation
-        task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
+        if provision_type['code'] != 'manual' && controller_type && controller_type['hasAutomation']
+          task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
 
-        if !task_set_id.nil?
-          server_payload['taskSet'] = {'id' => task_set_id}
+          if !task_set_id.nil?
+            server_payload['taskSet'] = {'id' => task_set_id}
+          end
         end
 
         cluster_payload['server'] = server_payload
@@ -1172,7 +1182,7 @@ class Morpheus::Cli::Clusters
         service_plan = prompt_service_plan({zoneId: cloud_id, siteId: cluster['site']['id'], provisionTypeId: server_type['provisionType']['id'], groupTypeId: cluster_type['id'], }, options)
 
         if service_plan
-          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, options)}
+          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, nil, options)}
         end
 
         if resource_pool = prompt_resource_pool(cluster, cloud, service_plan, server_type['provisionType'], options)
@@ -3713,34 +3723,37 @@ class Morpheus::Cli::Clusters
     service_plan
   end
 
-  def prompt_service_plan_options(service_plan, options)
+  def prompt_service_plan_options(service_plan, provision_type, options)
     plan_options = {}
+    hide_custom_options = provision_type && provision_type['code'] == 'manual'
 
-    # custom max memory
-    if service_plan['customMaxMemory']
-      if !options[:maxMemory]
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'type' => 'number', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
-        plan_options['maxMemory'] = v_prompt['maxMemory'] * 1024 * 1024 if v_prompt['maxMemory']
-      else
-        plan_options['maxMemory'] = options[:maxMemory]
+    if !hide_custom_options
+      # custom max memory
+      if service_plan['customMaxMemory']
+        if !options[:maxMemory]
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'maxMemory', 'type' => 'number', 'fieldLabel' => 'Max Memory (MB)', 'required' => false, 'description' => 'This will override any memory requirement set on the virtual image', 'defaultValue' => service_plan['maxMemory'] ? service_plan['maxMemory'] / (1024 * 1024) : 10 }], options[:options])
+          plan_options['maxMemory'] = v_prompt['maxMemory'] * 1024 * 1024 if v_prompt['maxMemory']
+        else
+          plan_options['maxMemory'] = options[:maxMemory]
+        end
       end
-    end
 
-    # custom cores: max cpu, max cores, cores per socket
-    if service_plan['customCores']
-      if options[:cpuCount].empty?
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'type' => 'number', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
-        plan_options['cpuCount'] = v_prompt['cpuCount'] if v_prompt['cpuCount']
-      else
-        plan_options['cpuCount']
-      end
-      if options[:coreCount].empty?
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'type' => 'number', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
-        plan_options['coreCount'] = v_prompt['coreCount'] if v_prompt['coreCount']
-      end
-      if options[:coresPerSocket].empty? && service_plan['coresPerSocket']
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
-        plan_options['coresPerSocket'] = v_prompt['coresPerSocket'] if v_prompt['coresPerSocket']
+      # custom cores: max cpu, max cores, cores per socket
+      if service_plan['customCores']
+        if options[:cpuCount].empty?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cpuCount', 'type' => 'number', 'fieldLabel' => 'CPU Count', 'required' => false, 'description' => 'Set CPU Count', 'defaultValue' => service_plan['maxCpu'] ? service_plan['maxCpu'] : 1 }], options[:options])
+          plan_options['cpuCount'] = v_prompt['cpuCount'] if v_prompt['cpuCount']
+        else
+          plan_options['cpuCount']
+        end
+        if options[:coreCount].empty?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coreCount', 'type' => 'number', 'fieldLabel' => 'Core Count', 'required' => false, 'description' => 'Set Core Count', 'defaultValue' => service_plan['maxCores'] ? service_plan['maxCores'] : 1 }], options[:options])
+          plan_options['coreCount'] = v_prompt['coreCount'] if v_prompt['coreCount']
+        end
+        if options[:coresPerSocket].empty? && service_plan['coresPerSocket']
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => 'Cores Per Socket', 'required' => false, 'description' => 'Set Core Per Socket', 'defaultValue' => service_plan['coresPerSocket']}], options[:options])
+          plan_options['coresPerSocket'] = v_prompt['coresPerSocket'] if v_prompt['coresPerSocket']
+        end
       end
     end
     plan_options

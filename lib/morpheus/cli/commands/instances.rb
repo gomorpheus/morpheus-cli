@@ -17,7 +17,8 @@ class Morpheus::Cli::Instances
                        :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
                        :lock, :unlock, :clone_image,
-                       :security_groups, :apply_security_groups, :run_workflow, :import_snapshot, :snapshot, :snapshots,
+                       :security_groups, :apply_security_groups, :run_workflow,
+                       :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_all_snapshots, :remove_all_container_snapshots, :create_linked_clone,
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
@@ -52,6 +53,7 @@ class Morpheus::Cli::Instances
     @execution_request_interface = @api_client.execution_request
     @deploy_interface = @api_client.deploy
     @deployments_interface = @api_client.deployments
+    @snapshots_interface = @api_client.snapshots
   end
   
   def handle(args)
@@ -2718,6 +2720,12 @@ class Morpheus::Cli::Instances
         payload["volumes"] = volumes
       end
 
+      # plan customizations
+      plan_opts = prompt_service_plan_options(service_plan, options, @api_client, {}, instance)
+      if plan_opts && !plan_opts.empty?
+        payload['servicePlanOptions'] = plan_opts
+      end
+
       # only amazon supports this option
       # for now, always do this
       payload["deleteOriginalVolumes"] = true
@@ -3355,6 +3363,223 @@ EOT
         print_green_success "Snapshot import initiated."
       end
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def revert_to_snapshot(args)
+    options = {}
+    instance = nil
+    snapshot_id = nil
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+     opts.banner = subcommand_usage("[instance]")
+      opts.on("--snapshot ID", String, "Optional snapshot") do |val|
+        snapshot_id = val
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+           build_standard_add_options(opts, options) #, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      opts.footer = "Revert an Instance to saved Snapshot previously made." + "\n" +
+                    "[snapshotId] is required. This is the id of the snapshot to replace the current instance."
+    end
+    
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to revert instance '#{instance['name']}'?", options)
+        exit 1
+      end
+      options[:options]['instanceId'] = instance['id']
+      begin
+        snapshot_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'snapshotId', 'type' => 'select', 'fieldLabel' => 'Snapshot', 'optionSource' => 'instanceSnapshots', 'required' => true, 'description' => 'Select Snapshot.'}], {}, @api_client, options[:options])
+      
+        if !snapshot_prompt['snapshotId'].to_s.empty?
+          snapshot_id = snapshot_prompt['snapshotId']
+        end
+      rescue RestClient::Exception => e
+        puts "Failed to load instance snapshots"
+      end
+      
+      @instances_interface.setopts(options)
+ 
+      payload = {}
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.revert_to_snapshot(instance['id'], snapshot_id, payload)
+        return
+      end
+      
+      json_response = @instances_interface.revert_to_snapshot(instance['id'], snapshot_id, payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Snapshot revert initiated."
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_all_container_snapshots(args)
+    options = {}
+    instance = nil
+    container_id = nil
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+     opts.banner = subcommand_usage("[instance]")
+      opts.on("--container ID", String, "Required container") do |val|
+        container_id = val
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove all snapshots attached to an instances container." + "\n" +
+                    "[containerId] is required. This is the id of the container which removes all attached snapshots."
+    end
+    
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove all snapshots for a container?", options)
+        exit 1
+      end
+      options[:options]['instanceId'] = instance['id']
+      begin
+        container_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'containerId', 'type' => 'select', 'fieldLabel' => 'Container', 'optionSource' => 'instanceContainers', 'required' => true, 'description' => 'Select Container.'}], {}, @api_client, options[:options])
+        
+        if !container_prompt['containerId'].to_s.empty?
+          container_id = container_prompt['containerId']
+        end
+      rescue RestClient::Exception => e
+        puts "Failed to load instance containers"
+      end
+      
+      @instances_interface.setopts(options)
+ 
+      payload = {}
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.remove_all_container_snapshots(instance['id'], container_id, payload)
+        return
+      end
+      
+      json_response = @instances_interface.remove_all_container_snapshots(instance['id'], container_id, payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Snapshot delete initiated."
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_all_snapshots(args)
+    options = {}
+    instance = nil
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+     opts.banner = subcommand_usage("[instance]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Remove all snapshots attached to an instance." + "\n" +
+                    "Warning: This will remove all snapshots across all containers of an instance."
+    end
+    
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove all snapshots for this instance?", options)
+        exit 1
+      end
+      options[:options]['instanceId'] = instance['id']
+
+      @instances_interface.setopts(options)
+ 
+      payload = {}
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.remove_all_instance_snapshots(instance['id'], payload)
+        return
+      end
+      
+      json_response = @instances_interface.remove_all_instance_snapshots(instance['id'], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Snapshots attaced to instance #{instance['name']} queued for deletion."
+      end
+      return 0
+
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def create_linked_clone(args)
+    options = {}
+    instance = nil
+    snapshot_id = nil
+
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+     opts.banner = subcommand_usage("[instance]")
+      opts.on("--snapshot ID", String, "Optional snapshot") do |val|
+        snapshot_id = val
+      end
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Create a linked clone using the selected snapshot of an Instance." + "\n" +
+                    "[snapshotId] is required. This is the id of the snapshot which the clone will refer to."
+    end
+    
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      options[:options]['instanceId'] = instance['id']
+      begin
+        snapshot_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'snapshotId', 'type' => 'select', 'fieldLabel' => 'Snapshot', 'optionSource' => 'instanceSnapshots', 'required' => true, 'description' => 'Select Snapshot.'}], {}, @api_client, options[:options])
+      
+        if !snapshot_prompt['snapshotId'].to_s.empty?
+          snapshot_id = snapshot_prompt['snapshotId']
+        end
+      rescue RestClient::Exception => e
+        puts "Failed to load instance snapshots"
+      end
+      
+      @instances_interface.setopts(options)
+ 
+      payload = {}
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.create_linked_clone(instance['id'], snapshot_id, payload)
+        return
+      end
+      
+      json_response = @instances_interface.create_linked_clone(instance['id'], snapshot_id, payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Linked Clone creation initiated."
+      end
+      return 0
+
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -4133,6 +4358,9 @@ EOT
       opts.on( '--name VALUE', String, "Image Name (Template Name). Default is server name + timestamp" ) do |val|
         options[:options]['templateName'] = val
       end
+      opts.on( '--folder VALUE', String, "Folder externalId or '/' to use the root folder" ) do |val|
+        options[:options]['zoneFolder'] = val
+      end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Clone to image (template) for an instance
@@ -4144,6 +4372,18 @@ EOT
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     return 1 if instance.nil?
+    # need to GET provision type for hasFolders
+    provision_type_code = instance['layout']['provisionTypeCode'] rescue nil
+    provision_type = nil
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
+      if provision_type.nil?
+        print_red_alert "Provision Type not found by code #{provision_type_code}"
+        exit 1
+      end
+    else
+      provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
+    end
     payload = {}
     if options[:payload]
       payload = options[:payload]
@@ -4154,6 +4394,15 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateName', 'type' => 'text', 'fieldLabel' => 'Image Name', 'description' => 'Choose a name for the new image template. Default is the server name + timestamp'}], options[:options])
         if v_prompt['templateName'].to_s != ''
           payload['templateName'] = v_prompt['templateName']
+        end
+      end
+      #if instance['layout']['provisionTypeCode'] == 'vmware'
+      if provision_type && provision_type["hasFolders"]
+        if payload['zoneFolder'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+          if v_prompt['zoneFolder'].to_s != ''
+            payload['zoneFolder'] = v_prompt['zoneFolder']
+          end
         end
       end
     end

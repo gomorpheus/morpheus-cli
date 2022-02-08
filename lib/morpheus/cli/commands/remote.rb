@@ -102,7 +102,7 @@ EOT
           "URL" => lambda {|it| it[:url] || it[:host] },
           "Status" => lambda {|it| format_appliance_status(it, cyan) },
           "Version" => lambda {|it| it[:build_version] ? "#{it[:build_version]}" : '' },
-          "Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
+          #"Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
           "Secure" => lambda {|it| format_boolean(it[:insecure] != true && (it[:url] || it[:host]).to_s.include?("https")) },
           "Active" => lambda {|it| it[:active] ? "Yes " + format_is_current() : "No" },
           #"Authenticated" => lambda {|it| format_boolean it[:authenticated] },
@@ -336,7 +336,7 @@ EOT
       print cyan,"Added remote #{new_appliance_name}, status is #{format_appliance_status(appliance)}",reset,"\n"
     end
 
-    appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
+    #appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     # if !options[:quiet]
     #   print cyan
     #   puts "Status: #{format_appliance_status(appliance)}"
@@ -390,7 +390,8 @@ EOT
         end
 
       end
-
+      # refresh to get buildVersion now that we are logged in
+      appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name.to_sym)
     else
       #puts "Status is #{format_appliance_status(appliance)}"
     end
@@ -1278,7 +1279,7 @@ EOT
       "URL" => lambda {|it| it[:url] || it[:host] },
       #"Status" => lambda {|it| format_appliance_status(it, cyan) },
       "Version" => lambda {|it| it[:build_version] ? "#{it[:build_version]}" : '' },
-      "Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
+      #"Appliance URL" => lambda {|it| it[:appliance_url] ? "#{it[:appliance_url]}" : '' },
       "Secure" => lambda {|it| format_appliance_secure(it) },
       "Active" => lambda {|it| it[:active] ? "Yes " + format_is_current() : "No" },
       # "Active" => lambda {|it| format_boolean(it[:active]) },
@@ -1696,7 +1697,10 @@ EOT
         # wtf, no url...
         return appliance, json_response
       else
-        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: !appliance[:insecure], timeout: timeout})
+        # access token is needed for buildVersion
+        wallet = Morpheus::Cli::Credentials.new(app_name, appliance_url).load_saved_credentials()
+        setup_interface = Morpheus::SetupInterface.new({url:appliance_url, verify_ssl: !appliance[:insecure], timeout: timeout, 
+          access_token: (wallet && wallet['access_token']) ? wallet['access_token'] : nil})
         start_time = Time.now
         begin
           json_response = setup_interface.check(params)
@@ -1734,16 +1738,18 @@ EOT
         appliance[:last_check][:took] = (took_sec.to_f*1000).round
       end
       if json_response
-        if json_response.key?('applianceUrl')
-          appliance[:appliance_url] = json_response['applianceUrl']
-        end
-        if json_response.key?('buildVersion')
-          appliance[:build_version] = json_response['buildVersion']
+        # if json_response.key?('applianceUrl')
+        #   appliance[:appliance_url] = json_response['applianceUrl']
+        # end
+        if json_response['success'] == true
           appliance[:status] = 'ready'
           appliance[:last_check][:success] = true
           # consider bumping this after every successful api command
           appliance[:last_success_at] = Time.now.to_i
           appliance.delete(:error)
+        end
+        if !json_response['buildVersion'].to_s.empty?
+          appliance[:build_version] = json_response['buildVersion']
         end
         if json_response.key?('setupNeeded')
           if json_response['setupNeeded'] == true

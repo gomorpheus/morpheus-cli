@@ -870,6 +870,12 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
+    # plan customizations
+    plan_opts = prompt_service_plan_options(service_plan, options, api_client, {zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
+    if plan_opts && !plan_opts.empty?
+      payload['servicePlanOptions'] = plan_opts
+    end
+
     # prompt networks
     if locked_fields.include?('networks')
       # payload['networkInterfaces'] = options[:options]['networkInterfaces'] if options[:options]['networkInterfaces']
@@ -2238,6 +2244,80 @@ module Morpheus::Cli::ProvisioningHelper
 
 
     return ports
+  end
+
+  def prompt_service_plan_options(plan_info, options={}, api_client=nil, api_params={}, instance=nil)
+    plan_opts = {}
+    # provisioning with blueprint can lock fields
+    locked_fields = options[:locked_fields] || []
+    if options[:options]['servicePlanOptions']
+      plan_opts = options[:options]['servicePlanOptions']
+    end
+    default_max_cores = plan_info['maxCores'].to_i != 0 ? plan_info['maxCores'] : 1
+    default_cores_per_socket = plan_info['coresPerSocket'].to_i != 0 ? plan_info['coresPerSocket'] : 1
+    default_max_memory = plan_info['maxMemory'].to_i != 0 ? plan_info['maxMemory'] : nil
+    # use defaults from the instance/server
+    if instance
+      default_max_cores = instance["maxCores"] if instance["maxCores"]
+      default_cores_per_socket = instance["coresPerSocket"] if instance["coresPerSocket"]
+      default_max_memory = instance["maxMemory"] if instance["maxMemory"]
+    end
+    # Core Count
+    if plan_info["customCores"]
+      if locked_fields.include?('servicePlanOptions.maxCores')
+        if options[:options]['servicePlanOptions'] && options[:options]['servicePlanOptions']['maxCores']
+          plan_opts['maxCores'] = options[:options]['servicePlanOptions']['maxCores'].to_i
+        end
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'servicePlanOptions', 'fieldName' => 'maxCores', 'type' => 'number', 'fieldLabel' => "Core Count", 'required' => true, 'defaultValue' => default_max_cores, 'description' => "Customize service plan options Core Count"}], options[:options])
+        if v_prompt['servicePlanOptions'] && v_prompt['servicePlanOptions']['maxCores']
+          plan_opts['maxCores'] = v_prompt['servicePlanOptions']['maxCores'].to_i
+        end
+      end
+    end
+    # Cores Per Socket
+    if plan_info["customCoresPerSocket"]
+      if locked_fields.include?('servicePlanOptions.coresPerSocket')
+        if options[:options]['servicePlanOptions'] && options[:options]['servicePlanOptions']['coresPerSocket']
+          plan_opts['coresPerSocket'] = options[:options]['servicePlanOptions']['coresPerSocket'].to_i
+        end
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'servicePlanOptions', 'fieldName' => 'coresPerSocket', 'type' => 'number', 'fieldLabel' => "Cores Per Socket", 'required' => true, 'defaultValue' => default_cores_per_socket, 'description' => "Customize service plan options Cores Per Socket"}], options[:options])
+        if v_prompt['servicePlanOptions'] && v_prompt['servicePlanOptions']['coresPerSocket']
+          plan_opts['coresPerSocket'] = v_prompt['servicePlanOptions']['coresPerSocket'].to_i
+        end
+      end
+    end
+    # Memory
+    if plan_info["customMaxMemory"]
+      if locked_fields.include?('servicePlanOptions.maxMemory')
+        if options[:options]['servicePlanOptions'] && options[:options]['servicePlanOptions']['maxMemory']
+          plan_opts['maxMemory'] = options[:options]['servicePlanOptions']['maxMemory'].to_i
+        end
+      else
+        if options[:options]['servicePlanOptions'] && options[:options]['servicePlanOptions']['maxMemory']
+          plan_opts['maxMemory'] = options[:options]['servicePlanOptions']['maxMemory'].to_i
+        else
+          # prompt for "memoryMB" field as MB or "memoryGB" in GB
+          # always convert maxMemory to bytes
+          if plan_info["memorySizeType"] == "MB" || options[:options]["memoryMB"]
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryMB', 'type' => 'text', 'fieldLabel' => "Memory (MB)", 'required' => true, 'defaultValue' => default_max_memory / (1024 * 1024), 'description' => "Customize service plan options Memory (MB). Value is in megabytes."}], options[:options])
+            if v_prompt['memoryMB'].to_s != ""
+              plan_opts['maxMemory'] = v_prompt['memoryMB'].to_i * 1024 * 1024
+            end
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryGB', 'type' => 'text', 'fieldLabel' => "Memory (GB)", 'required' => true, 'defaultValue' => default_max_memory / (1024 * 1024 * 1024), 'description' => "Customize service plan options Memory (GB). Value is in gigabytes."}], options[:options])
+            if v_prompt['memoryGB'].to_s != ""
+              plan_opts['maxMemory'] = v_prompt['memoryGB'].to_i * 1024 * 1024 * 1024
+            end
+          end
+          # remove transient memory field just used for prompting for MB or GB
+          plan_opts.delete("memoryMB")
+          plan_opts.delete("memoryGB")
+        end
+      end
+    end
+    return plan_opts
   end
 
   def format_instance_status(instance, return_color=cyan)

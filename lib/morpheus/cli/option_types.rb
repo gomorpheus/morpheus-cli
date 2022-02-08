@@ -42,7 +42,7 @@ module Morpheus
         end
       end
 
-      def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false)
+      def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false, ignore_empty=false)
         paging_enabled = false if Morpheus::Cli.windows?
         no_prompt = no_prompt || options[:no_prompt]
         results = {}
@@ -56,6 +56,10 @@ module Morpheus
           # a lot of optionTypes have fieldGroup:'Options' instead of 'default'
           if option_type['fieldGroup'].to_s.downcase == 'options'
             option_type['fieldGroup'] = 'default'
+          end
+          # apply custom templates
+          if option_type['fieldName'] == 'sshHosts'
+            option_type['type'] = 'multiText'
           end
         end
         # puts "Options Prompt #{options}"
@@ -156,7 +160,7 @@ module Morpheus
           end
 
           # build parameters for option source api request
-          option_params = (option_type['noParams'] ? {} : (api_params || {}).merge(results))
+          option_params = (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results))
           option_params.merge!(option_type['optionParams']) if option_type['optionParams']
 
           # use the value passed in the options map
@@ -169,14 +173,14 @@ module Morpheus
               end
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
             elsif option_type['type'] == 'select'
-              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
+              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true, nil, false, ignore_empty)
             elsif option_type['type'] == 'multiSelect'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
+                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true, nil, false, ignore_empty)
               end
               value = select_value_list
             elsif option_type['type'] == 'typeahead'
@@ -213,14 +217,14 @@ module Morpheus
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
                 if ['select', 'multiSelect'].include?(option_type['type'])
-                  value = select_prompt(option_type, api_client, option_params, true)
+                  value = select_prompt(option_type, api_client, option_params, true, nil, false, ignore_empty)
                   value_found = !!value
                 end
                 if ['typeahead', 'multiTypeahead'].include?(option_type['type'])
                   value = typeahead_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
-                if !value_found
+                if !value_found && !ignore_empty
                   if option_type['required']
                     print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
                     print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{help_field_key}=] - #{option_type['description']}\n", Term::ANSIColor.reset
@@ -254,11 +258,11 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
+              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
-                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled)
+                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
                     value << addn_value
                   else
                     break
@@ -370,7 +374,7 @@ module Morpheus
         Thread.current[:_last_select]
       end
 
-      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false)
+      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false, ignore_empty=false)
         paging_enabled = false if Morpheus::Cli.windows?
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
@@ -406,8 +410,10 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
-          raise "option '#{field_key}' is type: 'select' and missing selectOptions or optionSource!"
+          raise "option '#{help_field_key}' is type: 'select' and missing selectOptions or optionSource!"
         end
+
+        return nil if (select_options.nil? || select_options.count == 0) && ignore_empty
 
         # ensure the preselected value (passed as an option) is in the dropdown
         if !use_value.nil?
@@ -672,6 +678,10 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 # print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
+                # print "Please try again.\n"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
@@ -686,6 +696,9 @@ module Morpheus
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
                 print "Please try again.\n"
+              elsif select_options.size() == 1
+                print "The value '#{input}' matched 1 option.\n"
+                print "Perhaps you meant '#{select_options[0]['name']}' instead?"
               else
                 print "The value '#{input}' matched #{select_options.size()} options.\n"
                 print "Perhaps you meant one of these? #{ored_list(select_options.collect {|i|i['name']}, 3)}\n"
@@ -958,6 +971,8 @@ module Morpheus
       end
 
       def self.load_options(option_type, api_client, api_params, query_value=nil)
+        field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+        help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
         select_options = []
         # local array of options
         if option_type['selectOptions']
@@ -989,7 +1004,7 @@ module Morpheus
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
           end
         else
-          raise "option '#{field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
+          raise "option '#{help_field_key}' is type: 'typeahead' and missing selectOptions or optionSource!"
         end
 
         return select_options
