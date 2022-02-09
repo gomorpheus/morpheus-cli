@@ -133,13 +133,13 @@ class Morpheus::Cli::PowerSchedulesCommand
         "Type" => lambda {|it| format_schedule_type(it['scheduleType']) },
         "Enabled" => lambda {|it| format_boolean it['enabled'] },
         "Time Zone" => lambda {|it| it['scheduleTimezone'] || 'UTC (default)' },
-        "Sunday" => lambda {|it| schedule_hour_to_time(it['sundayOn']) + ' - ' + schedule_hour_to_time(it['sundayOff']) },
-        "Monday" => lambda {|it| schedule_hour_to_time(it['mondayOn']) + ' - ' + schedule_hour_to_time(it['mondayOff']) },
-        "Tuesday" => lambda {|it| schedule_hour_to_time(it['tuesdayOn']) + ' - ' + schedule_hour_to_time(it['tuesdayOff']) },
-        "Wednesday" => lambda {|it| schedule_hour_to_time(it['wednesdayOn']) + ' - ' + schedule_hour_to_time(it['wednesdayOff']) },
-        "Thursday" => lambda {|it| schedule_hour_to_time(it['thursdayOn']) + ' - ' + schedule_hour_to_time(it['thursdayOff']) },
-        "Friday" => lambda {|it| schedule_hour_to_time(it['fridayOn']) + ' - ' + schedule_hour_to_time(it['fridayOff']) },
-        "Saturday" => lambda {|it| schedule_hour_to_time(it['saturdayOn']) + ' - ' + schedule_hour_to_time(it['saturdayOff']) },
+        "Sunday" => lambda {|it| schedule_hour_to_time(it['sundayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['sundayOff'], it['unit']) },
+        "Monday" => lambda {|it| schedule_hour_to_time(it['mondayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['mondayOff'], it['unit']) },
+        "Tuesday" => lambda {|it| schedule_hour_to_time(it['tuesdayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['tuesdayOff'], it['unit']) },
+        "Wednesday" => lambda {|it| schedule_hour_to_time(it['wednesdayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['wednesdayOff'], it['unit']) },
+        "Thursday" => lambda {|it| schedule_hour_to_time(it['thursdayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['thursdayOff'], it['unit']) },
+        "Friday" => lambda {|it| schedule_hour_to_time(it['fridayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['fridayOff'], it['unit']) },
+        "Saturday" => lambda {|it| schedule_hour_to_time(it['saturdayOn'], it['unit']) + ' - ' + schedule_hour_to_time(it['saturdayOff'], it['unit']) },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
         "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
       }
@@ -197,11 +197,11 @@ class Morpheus::Cli::PowerSchedulesCommand
       [
         'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
       ].each do |day|
-        opts.on("--#{day}On [0-24]", String, "#{day.capitalize} start hour. Default is 0.") do |val|
-          params["#{day}On"] = val.to_f
+        opts.on("--#{day}On 0-1440", String, "#{day.capitalize} start minute. Default is 0. Can be passed as HH:MM instead.") do |val|
+          params["#{day}On"] = parse_time_to_minute(val)
         end
-        opts.on("--#{day}Off [0-24]", String, "#{day.capitalize} end hour. Default is 24.") do |val|
-          params["#{day}Off"] = val.to_f
+        opts.on("--#{day}Off 0-1440", String, "#{day.capitalize} end minute. Default is 1440. Can be passed as HH:MM instead.") do |val|
+          params["#{day}Off"] = parse_time_to_minute(val)
         end
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
@@ -277,11 +277,11 @@ class Morpheus::Cli::PowerSchedulesCommand
       [
         'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
       ].each do |day|
-        opts.on("--#{day}On [0-24]", String, "#{day.capitalize} on hour. Default is 0.") do |val|
-          params["#{day}On"] = val.to_f
+        opts.on("--#{day}On 0-1440", String, "#{day.capitalize} start minute. Default is 0. Can be passed as HH:MM instead.") do |val|
+          params["#{day}On"] = parse_time_to_minute(val)
         end
-        opts.on("--#{day}Off [0-24]", String, "#{day.capitalize} off hour. Default is 24.") do |val|
-          params["#{day}Off"] = val.to_f
+        opts.on("--#{day}Off 0-1440", String, "#{day.capitalize} end minute. Default is 1440. Can be passed as HH:MM instead.") do |val|
+          params["#{day}Off"] = parse_time_to_minute(val)
         end
       end
       opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
@@ -678,11 +678,19 @@ class Morpheus::Cli::PowerSchedulesCommand
     end
   end
 
-  # convert the schedule on/off values [0-24] to a time
-  def schedule_hour_to_time(val, format=nil)
-    hour = val.to_f.floor
-    remainder = val.to_f % 1
-    minute = remainder == 0 ? 0 : (60 * remainder).floor
+  # convert the schedule on/off minute values [0-1440] to a time
+  # older versions used hours 0-24 instead of minutes
+  def schedule_hour_to_time(val, unit=nil, format=nil)
+    hour = 0
+    minute = 0
+    if unit == 'minute'
+      hour = (val.to_f / 60).floor
+      minute = val.to_i % 60
+    else
+      hour = val.to_f.floor
+      remainder = val.to_f % 1
+      minute = remainder == 0 ? 0 : (60 * remainder).floor
+    end
     # if hour > 23
     #   "Midnight" # "12:00 AM"
     # elsif hour > 12
@@ -702,26 +710,43 @@ class Morpheus::Cli::PowerSchedulesCommand
   end
 
   def format_schedule_days_short(schedule)
-    # [
-    #   "Sn: #{schedule_hour_to_time(schedule['sundayOn'])}-#{schedule_hour_to_time(schedule['sundayOff'])}",
-    #   "M: #{schedule_hour_to_time(schedule['mondayOn'])}-#{schedule_hour_to_time(schedule['mondayOff'])}",
-    #   "T: #{schedule_hour_to_time(schedule['tuesdayOn'])}-#{schedule_hour_to_time(schedule['tuesdayOff'])}",
-    #   "W: #{schedule_hour_to_time(schedule['wednesdayOn'])}-#{schedule_hour_to_time(schedule['wednesdayOff'])}",
-    #   "Th: #{schedule_hour_to_time(schedule['thursdayOn'])}-#{schedule_hour_to_time(schedule['thursdayOff'])}",
-    #   "F: #{schedule_hour_to_time(schedule['fridayOn'])}-#{schedule_hour_to_time(schedule['fridayOff'])}",
-    #   "S: #{schedule_hour_to_time(schedule['saturdayOn'])}-#{schedule_hour_to_time(schedule['saturdayOff'])}",
-    # ].join(", ")
     [
-      "Sn: #{schedule_hour_to_time(schedule['sundayOn'],:short)}-#{schedule_hour_to_time(schedule['sundayOff'],:short)}",
-      "M: #{schedule_hour_to_time(schedule['mondayOn'],:short)}-#{schedule_hour_to_time(schedule['mondayOff'],:short)}",
-      "T: #{schedule_hour_to_time(schedule['tuesdayOn'],:short)}-#{schedule_hour_to_time(schedule['tuesdayOff'],:short)}",
-      "W: #{schedule_hour_to_time(schedule['wednesdayOn'],:short)}-#{schedule_hour_to_time(schedule['wednesdayOff'],:short)}",
-      "Th: #{schedule_hour_to_time(schedule['thursdayOn'],:short)}-#{schedule_hour_to_time(schedule['thursdayOff'],:short)}",
-      "F: #{schedule_hour_to_time(schedule['fridayOn'],:short)}-#{schedule_hour_to_time(schedule['fridayOff'],:short)}",
-      "S: #{schedule_hour_to_time(schedule['saturdayOn'],:short)}-#{schedule_hour_to_time(schedule['saturdayOff'],:short)}",
+      "Sn: #{schedule_hour_to_time(schedule['sundayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['sundayOff'], schedule['unit'], :short)}",
+      "M: #{schedule_hour_to_time(schedule['mondayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['mondayOff'], schedule['unit'], :short)}",
+      "T: #{schedule_hour_to_time(schedule['tuesdayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['tuesdayOff'], schedule['unit'], :short)}",
+      "W: #{schedule_hour_to_time(schedule['wednesdayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['wednesdayOff'], schedule['unit'], :short)}",
+      "Th: #{schedule_hour_to_time(schedule['thursdayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['thursdayOff'], schedule['unit'], :short)}",
+      "F: #{schedule_hour_to_time(schedule['fridayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['fridayOff'], schedule['unit'], :short)}",
+      "S: #{schedule_hour_to_time(schedule['saturdayOn'], schedule['unit'], :short)}-#{schedule_hour_to_time(schedule['saturdayOff'], schedule['unit'], :short)}",
     ].join(", ")
   end
 
+  # parse a time in the format HH:MM to minutes 0-1440
+  def parse_time_to_minute(val)
+    m = 0
+    # treat as minute 0-1440
+    if val.to_s =~ /\A\d{1,}\Z/
+      if val.to_i < 0 || val.to_i > 1440
+        raise_command_error "Invalid minute value '#{val}', expected a value between 0 and 1440"
+      else
+        m = val.to_i
+      end
+    elsif val.to_s =~ /\A\d{1,2}\:\d{2}\Z/
+      hour, minute = val.split(":")
+      hour = hour.to_i
+      minute = minute.to_i
+      # allow 24:00 because this schedule data model is weird...
+      if hour < 0 || hour > 24
+        raise_command_error "Invalid time value '#{val}', expected format as HH:MM"
+      elsif minute < 0 || minute > 59
+        raise_command_error "Invalid time value '#{val}', expected format as HH:MM"
+      end
+      m = (hour * 60) + minute
+    else
+      raise_command_error "Invalid time value '#{val}', expected format as HH:MM"
+    end
+    return m
+  end
 
   def find_instance_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
