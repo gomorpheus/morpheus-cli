@@ -197,10 +197,10 @@ class Morpheus::Cli::PowerSchedulesCommand
       [
         'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
       ].each do |day|
-        opts.on("--#{day}On 0-1440", String, "#{day.capitalize} start minute. Default is 0. Can be passed as HH:MM instead.") do |val|
+        opts.on("--#{day}On 0-1440", String, "#{day.capitalize} start minute. Default is 0. Can be passed as HH:MM (24 hour) time format instead.") do |val|
           params["#{day}On"] = parse_time_to_minute(val)
         end
-        opts.on("--#{day}Off 0-1440", String, "#{day.capitalize} end minute. Default is 1440. Can be passed as HH:MM instead.") do |val|
+        opts.on("--#{day}Off 0-1440", String, "#{day.capitalize} end minute. Default is 1440. Can be passed as HH:MM (24 hour) time format instead.") do |val|
           params["#{day}Off"] = parse_time_to_minute(val)
         end
       end
