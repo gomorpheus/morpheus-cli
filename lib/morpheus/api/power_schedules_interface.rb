@@ -2,10 +2,10 @@ require 'morpheus/api/api_client'
 
 class Morpheus::PowerSchedulesInterface < Morpheus::APIClient
 
-  def get(id)
+  def get(id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = "#{@base_url}/api/power-schedules/#{id}"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, timeout: 10, headers: headers}
     execute(opts)
   end

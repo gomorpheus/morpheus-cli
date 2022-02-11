@@ -26,124 +26,84 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search]")
+      build_standard_list_options(opts, options)
+      opts.footer = "List power schedules."
     end
     optparse.parse!(args)
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @power_schedules_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @power_schedules_interface.dry.list(params)
-        return
-      end
-      json_response = @power_schedules_interface.list(params)
-      if options[:json]
-        puts as_json(json_response, options, "schedules")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(json_response['schedules'], options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "schedules")
-        return 0
-      end
-      schedules = json_response['schedules']
-      title = "Morpheus Power Schedules"
-      subtitles = []
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-      if schedules.empty?
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @power_schedules_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @power_schedules_interface.dry.list(params)
+      return
+    end
+    json_response = @power_schedules_interface.list(params)
+    render_response(json_response, options, power_schedule_list_key) do
+      power_schedules = json_response[power_schedule_list_key]
+      print_h1 "Morpheus Power Schedules", parse_list_subtitles(options), options
+      if power_schedules.empty?
         print cyan,"No power schedules found.",reset,"\n"
       else
-        print_schedules_table(schedules, options)
-        print_results_pagination(json_response, {:label => "power schedule", :n_label => "power schedules"})
-        # print_results_pagination(json_response)
+        print as_pretty_table(power_schedules, power_schedule_list_column_definitions(options).upcase_keys!, options)
+        print_results_pagination(json_response)
       end
       print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
   
   def get(args)
+    params = {}
     options = {}
     options[:max_instances] = 10
     options[:max_servers] = 10
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      opts.on('--max-instances VALUE', String, "Display a limited number of instances in schedule. Default is 25") do |val|
+      opts.banner = subcommand_usage("[schedule]")
+      opts.on('--max-instances VALUE', String, "Display a limited number of instances in schedule. Default is 10") do |val|
         options[:max_instances] = val.to_i
       end
-      opts.on('--max-hosts VALUE', String, "Display a limited number of hosts in schedule. Default is 25") do |val|
+      opts.on('--max-hosts VALUE', String, "Display a limited number of hosts in schedule. Default is 10") do |val|
         options[:max_servers] = val.to_i
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    params.merge!(parse_query_options(options))
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
-      _get(arg, options)
+      _get(arg, params, options)
     end
   end
 
-  def _get(id, options)
+  def _get(id, params, options)
     options ||= {}
     options[:max_servers] ||= 10
     options[:max_instances] ||= 10
-    begin
-      schedule = find_schedule_by_name_or_id(id)
-      if schedule.nil?
-        return 1
-      end
-      @power_schedules_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @power_schedules_interface.dry.get(schedule['id'])
-        return
-      end
-      json_response = @power_schedules_interface.get(schedule['id'])
-      schedule = json_response['schedule']
+    
+    schedule = find_schedule_by_name_or_id(id)
+    if schedule.nil?
+      return 1
+    end
+    @power_schedules_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @power_schedules_interface.dry.get(schedule['id'], params)
+      return
+    end
+    json_response = @power_schedules_interface.get(schedule['id'], params)
+    render_response(json_response, options, power_schedule_object_key) do
+      schedule = json_response[power_schedule_object_key]
       instances = json_response['instances'] || []
       servers = json_response['servers'] || []
-      if options[:json]
-        puts as_json(json_response, options, "schedule")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "schedule")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([json_response['schedule']], options)
-        return 0
-      end
-
+      
       print_h1 "Power Schedule Details"
       print cyan
-      description_cols = {
-        "ID" => lambda {|it| it['id'] },
-        #"Account" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
-        "Name" => lambda {|it| it['name'] },
-        "Description" => lambda {|it| it['description'] },
-        "Type" => lambda {|it| format_schedule_type(it['scheduleType']) },
-        "Enabled" => lambda {|it| format_boolean it['enabled'] },
-        "Time Zone" => lambda {|it| it['scheduleTimezone'] || 'UTC (default)' },
-        "Sunday" => lambda {|it| format_schedule_day(it, "sunday") },
-        "Monday" => lambda {|it| format_schedule_day(it, "monday")},
-        "Tuesday" => lambda {|it| format_schedule_day(it, "tuesday") },
-        "Wednesday" => lambda {|it| format_schedule_day(it, "wednesday") },
-        "Thursday" => lambda {|it| format_schedule_day(it, "thursday") },
-        "Friday" => lambda {|it| format_schedule_day(it, "friday") },
-        "Saturday" => lambda {|it| format_schedule_day(it, "saturday") },
-        "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-        "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-      }
-      print_description_list(description_cols, schedule)
+      print_description_list(power_schedule_column_definitions(options), schedule, options)
 
       ## Instances
       if instances.size == 0
@@ -167,11 +127,8 @@ class Morpheus::Cli::PowerSchedulesCommand
       end
 
       print reset,"\n"
-
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
 
   def add(args)
@@ -179,67 +136,31 @@ class Morpheus::Cli::PowerSchedulesCommand
     params = {'scheduleType' => 'power'}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--name VALUE', String, "Name") do |val|
-        params['name'] = val
-      end
-      # opts.on('--code VALUE', String, "Code") do |val|
-      #   params['code'] = val
-      # end
-      opts.on('--description VALUE', String, "Description") do |val|
-        params['description'] = val
-      end
-      opts.on('--type [power|power off]', String, "Type of Schedule. Default is 'power'") do |val|
-        params['scheduleType'] = val
-      end
-      opts.on('--timezone CODE', String, "The timezone. Default is UTC.") do |val|
-        params['scheduleTimezone'] = val
-      end
-      [
-        'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
-      ].each do |day|
-        opts.on("--#{day}OnTime HH:MM", String, "#{day.capitalize} start in HH:MM 24-hour format. Default is 00:00.") do |val|
-          if val.include?(":")
-            params["#{day}OnTime"] = val.to_s
-          else
-            params["#{day}On"] = val.to_f
-          end
-        end
-        opts.on("--#{day}OffTime HH:MM", String, "#{day.capitalize} end time in HH:MM 24-hour format. Default is 24:00.") do |val|
-          if val.include?(":")
-            params["#{day}OffTime"] = val.to_s
-          else
-            params["#{day}Off"] = val.to_f
-          end
-        end
-      end
-      opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-        params['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
-      end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      build_option_type_options(opts, options, add_power_schedule_option_types)
+      build_standard_add_options(opts, options)
       opts.footer = "Create a new power schedule." + "\n" +
                     "[name] is required and can be passed as --name instead."
     end
     optparse.parse!(args)
-    if args.count > 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:0, max:1)
     # support [name] as first argument
     if args[0]
-      params['name'] = args[0]
+      options[:options]['name'] = args[0]
     end
     connect(options)
     begin
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'schedule' => parse_passed_options(options)})
       else
         # merge -O options into normally parsed options
-        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # todo: prompt?
-        payload = {'schedule' => params}
+        payload.deep_merge!({'schedule' => parse_passed_options(options)})
+        # prompt
+        schedule_payload = Morpheus::Cli::OptionTypes.prompt(add_power_schedule_option_types, options[:options], @api_client, options[:params])
+        payload.deep_merge!({'schedule' => schedule_payload})
+        payload.booleanize!
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -252,7 +173,7 @@ class Morpheus::Cli::PowerSchedulesCommand
       elsif !options[:quiet]
         schedule = json_response['schedule']
         print_green_success "Added power schedule #{schedule['name']}"
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -266,53 +187,14 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      opts.on('--name VALUE', String, "Name") do |val|
-        params['name'] = val
-      end
-      # opts.on('--code VALUE', String, "Code") do |val|
-      #   params['code'] = val
-      # end
-      opts.on('--description VALUE', String, "Description") do |val|
-        params['description'] = val
-      end
-      opts.on('--type [power|power off]', String, "Type of Schedule. Default is 'power'") do |val|
-        params['scheduleType'] = val
-      end
-      opts.on('--timezone CODE', String, "The timezone. Default is UTC.") do |val|
-        params['scheduleTimezone'] = val
-      end
-      [
-        'sunday','monday','tuesday','wednesday','thursday','friday','saturday'
-      ].each do |day|
-        opts.on("--#{day}OnTime HH:MM", String, "#{day.capitalize} start in HH:MM 24-hour format. Default is 00:00.") do |val|
-          if val.include?(":")
-            params["#{day}OnTime"] = val.to_s
-          else
-            params["#{day}On"] = val.to_f
-          end
-        end
-        opts.on("--#{day}OffTime HH:MM", String, "#{day.capitalize} end time in HH:MM 24-hour format. Default is 24:00.") do |val|
-          if val.include?(":")
-            params["#{day}OffTime"] = val.to_s
-          else
-            params["#{day}Off"] = val.to_f
-          end
-        end
-      end
-      opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-        params['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
-      end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      opts.banner = subcommand_usage("[schedule]")
+      build_option_type_options(opts, options, update_power_schedule_option_types)
+      build_standard_add_options(opts, options)
       opts.footer = "Update a power schedule." + "\n" +
-                    "[name] is required. This is the name or id of a power schedule."
+                    "[schedule] is required. This is the name or id of a power schedule."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     begin
       schedule = find_schedule_by_name_or_id(args[0])
@@ -320,13 +202,17 @@ class Morpheus::Cli::PowerSchedulesCommand
         return 1
       end
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'schedule' => parse_passed_options(options)})
       else
         # merge -O options into normally parsed options
-        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        payload = {'schedule' => params}
+        payload.deep_merge!({'schedule' => parse_passed_options(options)})
+        # prompt
+        schedule_payload = Morpheus::Cli::OptionTypes.no_prompt(update_power_schedule_option_types, options[:options], @api_client, options[:params])
+        payload.deep_merge!({'schedule' => schedule_payload})
+        payload.booleanize!
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -338,7 +224,7 @@ class Morpheus::Cli::PowerSchedulesCommand
         puts as_json(json_response, options)
       elsif !options[:quiet]
         print_green_success "Updated power schedule #{schedule['name']}"
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -351,14 +237,11 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :auto_confirm])
+      opts.banner = subcommand_usage("[schedule]")
+      build_standard_remove_options(opts, options)
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 127
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
@@ -371,11 +254,6 @@ class Morpheus::Cli::PowerSchedulesCommand
         return false
       end
 
-      # payload = {
-      #   'schedule' => {id: schedule["id"]}
-      # }
-      # payload['schedule'].merge!(schedule)
-      payload = params
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @power_schedules_interface.dry.destroy(schedule["id"])
@@ -399,17 +277,14 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [instance]")
-      build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
+      opts.banner = subcommand_usage("[schedule] [instance]")
+      build_standard_update_options(opts, options)
       opts.footer = "Assign instances to a power schedule.\n" +
-                    "[name] is required. This is the name or id of a power schedule.\n" +
+                    "[schedule] is required. This is the name or id of a power schedule.\n" +
                     "[instance] is required. This is the name or id of an instance. More than one can be passed."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     begin
       schedule = find_schedule_by_name_or_id(args[0])
@@ -418,10 +293,12 @@ class Morpheus::Cli::PowerSchedulesCommand
       end
 
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
       else
+        payload.deep_merge!(parse_passed_options(options))
         instance_ids = args[1..-1]
         instances = []
         instance_ids.each do |instance_id|
@@ -429,7 +306,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           return 1 if instance.nil?
           instances << instance
         end
-        payload = {'instances' => instances.collect {|it| it['id'] } }
+        payload.deep_merge!({'instances' => instances.collect {|it| it['id'] } })
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -445,7 +322,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           else
             print_green_success "Added #{instances.size} instances to power schedule #{schedule['name']}"
           end
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -458,17 +335,14 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [instance]")
-      build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
+      opts.banner = subcommand_usage("[schedule] [instance]")
+      build_standard_update_options(opts, options)
       opts.footer = "Remove instances from a power schedule.\n" +
-                    "[name] is required. This is the name or id of a power schedule.\n" +
+                    "[schedule] is required. This is the name or id of a power schedule.\n" +
                     "[instance] is required. This is the name or id of an instance. More than one can be passed."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     begin
       schedule = find_schedule_by_name_or_id(args[0])
@@ -477,10 +351,12 @@ class Morpheus::Cli::PowerSchedulesCommand
       end
 
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
       else
+        payload.deep_merge!(parse_passed_options(options))
         instance_ids = args[1..-1]
         instances = []
         instance_ids.each do |instance_id|
@@ -488,7 +364,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           return 1 if instance.nil?
           instances << instance
         end
-        payload = {'instances' => instances.collect {|it| it['id'] } }
+        payload.deep_merge!({'instances' => instances.collect {|it| it['id'] } })
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -504,7 +380,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           else
             print_green_success "Removed #{instances.size} instances from power schedule #{schedule['name']}"
           end
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -517,17 +393,14 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [host]")
-      build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
+      opts.banner = subcommand_usage("[schedule] [host]")
+      build_standard_update_options(opts, options)
       opts.footer = "Assign hosts to a power schedule.\n" +
-                    "[name] is required. This is the name or id of a power schedule.\n" +
+                    "[schedule] is required. This is the name or id of a power schedule.\n" +
                     "[host] is required. This is the name or id of a host. More than one can be passed."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     begin
       schedule = find_schedule_by_name_or_id(args[0])
@@ -536,10 +409,12 @@ class Morpheus::Cli::PowerSchedulesCommand
       end
 
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
       else
+        payload.deep_merge!(parse_passed_options(options))
         server_ids = args[1..-1]
         servers = []
         server_ids.each do |server_id|
@@ -547,7 +422,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           return 1 if server.nil?
           servers << server
         end
-        payload = {'servers' => servers.collect {|it| it['id'] } }
+        payload.deep_merge!({'servers' => servers.collect {|it| it['id'] } })
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -563,7 +438,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           else
             print_green_success "Added #{servers.size} hosts to power schedule #{schedule['name']}"
           end
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -576,17 +451,14 @@ class Morpheus::Cli::PowerSchedulesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [host]")
-      build_common_options(opts, options, [:payload, :json, :dry_run, :remote, :quiet])
+      opts.banner = subcommand_usage("[schedule] [host]")
+      build_standard_update_options(opts, options)
       opts.footer = "Remove hosts from a power schedule.\n" +
-                    "[name] is required. This is the name or id of a power schedule.\n" +
+                    "[schedule] is required. This is the name or id of a power schedule.\n" +
                     "[host] is required. This is the name or id of a host. More than one can be passed."
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     begin
       schedule = find_schedule_by_name_or_id(args[0])
@@ -595,10 +467,12 @@ class Morpheus::Cli::PowerSchedulesCommand
       end
 
       # construct payload
-      payload = nil
+      payload = {}
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!(parse_passed_options(options))
       else
+        payload.deep_merge!(parse_passed_options(options))
         server_ids = args[1..-1]
         servers = []
         server_ids.each do |server_id|
@@ -606,7 +480,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           return 1 if server.nil?
           servers << server
         end
-        payload = {'servers' => servers.collect {|it| it['id'] } }
+        payload.deep_merge!({'servers' => servers.collect {|it| it['id'] } })
       end
       @power_schedules_interface.setopts(options)
       if options[:dry_run]
@@ -622,7 +496,7 @@ class Morpheus::Cli::PowerSchedulesCommand
           else
             print_green_success "Removed #{servers.size} hosts from power schedule #{schedule['name']}"
           end
-        _get(schedule['id'], {})
+        _get(schedule['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -633,6 +507,71 @@ class Morpheus::Cli::PowerSchedulesCommand
 
 
   private
+
+  def power_schedule_object_key
+    'schedule'
+  end
+
+  def power_schedule_list_key
+    'schedules'
+  end
+
+  def power_schedule_list_column_definitions(options)
+    {
+      "ID" => lambda {|it| it['id'] },
+      "Name" => lambda {|it| it['name'] },
+      "Description" => lambda {|it| it['description'] },
+      "Type" => lambda {|it| format_schedule_type(it['scheduleType']) }
+    }
+  end
+
+  def power_schedule_column_definitions(options)
+    {
+      "ID" => lambda {|it| it['id'] },
+      #"Account" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
+      "Name" => lambda {|it| it['name'] },
+      "Description" => lambda {|it| it['description'] },
+      "Type" => lambda {|it| format_schedule_type(it['scheduleType']) },
+      "Enabled" => lambda {|it| format_boolean it['enabled'] },
+      "Time Zone" => lambda {|it| it['scheduleTimezone'] || 'UTC (default)' },
+      "Monday" => lambda {|it| format_schedule_day(it, "monday")},
+      "Tuesday" => lambda {|it| format_schedule_day(it, "tuesday") },
+      "Wednesday" => lambda {|it| format_schedule_day(it, "wednesday") },
+      "Thursday" => lambda {|it| format_schedule_day(it, "thursday") },
+      "Friday" => lambda {|it| format_schedule_day(it, "friday") },
+      "Saturday" => lambda {|it| format_schedule_day(it, "saturday") },
+      "Sunday" => lambda {|it| format_schedule_day(it, "sunday") },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+    }
+  end
+
+  def add_power_schedule_option_types()
+    option_list = [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Choose a unique name for the power schedule', 'fieldGroup' => 'Options', 'displayOrder' => 1},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Description', 'displayOrder' => 2},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 3},
+      {'fieldName' => 'scheduleTimezone', 'fieldLabel' => 'Time Zone', 'type' => 'select', 'optionSource' => 'timezones', 'description' => "Time Zone", 'displayOrder' => 4}, #, 'defaultValue' => Time.now.zone
+      {'fieldName' => 'scheduleType', 'fieldLabel' => 'Schedule Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Power On', 'value' => 'power'}, {'name' => 'Power Off', 'value' => 'power off'}], 'defaultValue' => 'power', 'description' => "Type of Power Schedule 'power' or 'power off'", 'displayOrder' => 5},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'description' => 'Enable the power schedule to make it available for use.', 'displayOrder' => 6},
+    ]
+    [
+      'monday','tuesday','wednesday','thursday','friday','saturday','sunday'
+    ].each_with_index do |day, i|
+      option_list << {'fieldName' => "#{day}OnTime", 'fieldLabel' => "#{day.capitalize} Start", 'type' => 'text', 'placeHolder' => 'HH:MM', 'description' => "#{day.capitalize} start time in HH:MM 24-hour format", 'defaultValue' => "00:00", 'displayOrder' => 7+((i*2))}
+      option_list << {'fieldName' => "#{day}OffTime", 'fieldLabel' => "#{day.capitalize} End", 'type' => 'text', 'placeHolder' => 'HH:MM', 'description' => "#{day.capitalize} end time in HH:MM 24-hour format", 'defaultValue' => "24:00", 'displayOrder' => 7+((i*2)+1)}
+    end
+    return option_list
+  end
+
+  def update_power_schedule_option_types()
+    option_list = add_power_schedule_option_types
+    option_list.each do |option_type|
+      option_type.delete('required')
+      option_type.delete('defaultValue')
+    end
+    return option_list
+  end
 
   def find_schedule_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
