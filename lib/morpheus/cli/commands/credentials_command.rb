@@ -96,6 +96,7 @@ class Morpheus::Cli::CredentialsCommand
 
   def add_credential_option_types()
     [
+      {'fieldName' => 'integration.id', 'fieldLabel' => 'Credential Store', 'type' => 'select', 'optionSource' => 'credentialIntegrations'},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true},
