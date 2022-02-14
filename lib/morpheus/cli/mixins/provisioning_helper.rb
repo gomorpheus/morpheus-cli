@@ -2301,12 +2301,12 @@ module Morpheus::Cli::ProvisioningHelper
           # prompt for "memoryMB" field as MB or "memoryGB" in GB
           # always convert maxMemory to bytes
           if plan_info["memorySizeType"] == "MB" || options[:options]["memoryMB"]
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryMB', 'type' => 'text', 'fieldLabel' => "Memory (MB)", 'required' => true, 'defaultValue' => default_max_memory / (1024 * 1024), 'description' => "Customize service plan options Memory (MB). Value is in megabytes."}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryMB', 'type' => 'text', 'fieldLabel' => "Memory (MB)", 'required' => true, 'defaultValue' => default_max_memory ? (default_max_memory / (1024 * 1024)) : nil, 'description' => "Customize service plan options Memory (MB). Value is in megabytes."}], options[:options])
             if v_prompt['memoryMB'].to_s != ""
               plan_opts['maxMemory'] = v_prompt['memoryMB'].to_i * 1024 * 1024
             end
           else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryGB', 'type' => 'text', 'fieldLabel' => "Memory (GB)", 'required' => true, 'defaultValue' => default_max_memory / (1024 * 1024 * 1024), 'description' => "Customize service plan options Memory (GB). Value is in gigabytes."}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memoryGB', 'type' => 'text', 'fieldLabel' => "Memory (GB)", 'required' => true, 'defaultValue' => default_max_memory ? (default_max_memory / (1024 * 1024 * 1024)) : nil, 'description' => "Customize service plan options Memory (GB). Value is in gigabytes."}], options[:options])
             if v_prompt['memoryGB'].to_s != ""
               plan_opts['maxMemory'] = v_prompt['memoryGB'].to_i * 1024 * 1024 * 1024
             end
