@@ -1507,8 +1507,11 @@ module Morpheus
         type, *ids = args
         type = type.to_s.singularize.underscore
         # still relying on the command or helper to define these _label and _key methods
-        label = send("#{type}_label")
-        object_key = send("#{type}_object_key")
+        # label = send("#{type}_label")
+        # object_key = send("#{type}_object_key")
+        # ^ nope, not for long!
+        object_key = respond_to?("#{type}_object_key", true) ? send("#{type}_object_key") : type.camelcase.singularize
+        label = respond_to?("#{type}_label", true) ? send("#{type}_label") : type.titleize
         interface_name = "@#{type.pluralize}_interface"
         interface = instance_variable_get(interface_name)
         if interface.nil?

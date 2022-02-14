@@ -892,6 +892,14 @@ class Morpheus::APIClient
     Morpheus::SnapshotsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def credentials
+    Morpheus::CredentialsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def credential_types
+    Morpheus::CredentialTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end

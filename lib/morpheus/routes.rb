@@ -87,9 +87,19 @@ module Morpheus::Routes
         :'data-stores' => {}, # ugh, should be datastores
         servers: {}, # Storage Servers
       },
-      # :'keys-and-certs' => {},
-      :'key-pairs' => {},
-      certificates: {},
+      trust: [
+        "#!credentials",
+        "#!certificates",
+        "#!keypairs",
+        "#!services",
+      ],
+      boot: [
+        "#!mappings",
+        "#!boot-menus",
+        "#!answerfiles",
+        "#!boot-images",
+        "#!macs",
+      ],
     },
     backups: {
 
