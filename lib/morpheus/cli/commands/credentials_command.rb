@@ -59,7 +59,7 @@ class Morpheus::Cli::CredentialsCommand
         {"Email" => lambda {|it| it['email'] } },
         {"Private Key" => lambda {|it| it['authKey'] ? it['authKey']['name'] : '' } },
       ]
-    elsif type_code == "tenant-username-keypair"
+    elsif type_code == "tenant-username-keypair" || type_code == "tenant-username-key"
       columns += [
         {"Tenant" => lambda {|it| it['tenant'] } },
         {"Username" => lambda {|it| it['username'] } },
@@ -70,7 +70,7 @@ class Morpheus::Cli::CredentialsCommand
         {"Username" => lambda {|it| it['username'] } },
         {"API Key" => lambda {|it| it['apiKey'] } },
       ]
-    elsif type_code == "username-key"
+    elsif type_code == "username-keypair" || type_code == "username-key"
       columns += [
         {"Username" => lambda {|it| it['username'] } },
         {"Private Key" => lambda {|it| it['authKey'] ? it['authKey']['name'] : '' } },
@@ -80,7 +80,7 @@ class Morpheus::Cli::CredentialsCommand
         {"Username" => lambda {|it| it['username'] } },
         {"Password" => lambda {|it| it['password'] } },
       ]
-    elsif type_code == "username-password-key"
+    elsif type_code == "username-password-keypair" || type_code == "username-password-key"
       columns += [
         {"Username" => lambda {|it| it['username'] } },
         {"Password" => lambda {|it| it['password'] } },
