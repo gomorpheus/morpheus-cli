@@ -46,8 +46,8 @@ class Morpheus::Cli::CredentialsCommand
     type_code = credential['type']['code']
     if type_code == "access-key-secret"
       columns += [
-        {"Access Key" => lambda {|it| it['clientId'] } },
-        {"Secret Key" => lambda {|it| it['clientSecret'] } },
+        {"Access Key" => lambda {|it| it['accessKey'] } },
+        {"Secret Key" => lambda {|it| it['secretKey'] } },
       ]
     elsif type_code == "client-id-secret"
       columns += [
