@@ -912,7 +912,7 @@ module Morpheus::Cli::ProvisioningHelper
       has_security_groups = !!sg_option_type
       available_security_groups = []
       if sg_option_type && sg_option_type['type'] == 'select' && sg_option_type['optionSource']
-        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params)
+        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params, sg_option_type['optionSourceType'])
         available_security_groups = sg_option_results['data'].collect do |it|
           {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
         end
