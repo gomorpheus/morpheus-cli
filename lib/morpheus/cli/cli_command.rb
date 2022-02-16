@@ -151,23 +151,13 @@ module Morpheus
         
         # add each one to the OptionParser
         option_types.each do |option_type|
-          field_namespace = []
-          field_name = option_type['fieldName'].to_s
-          if field_name.empty?
-            puts "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
+          if option_type['fieldName'].empty?
+            puts_error "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
             next
           end
-          
-          if !option_type['fieldContext'].to_s.empty?
-            option_type['fieldContext'].split(".").each do |ns|
-              field_namespace << ns
-            end
-          end
-          
-          full_field_name = field_name
-          if !field_namespace.empty?
-            full_field_name = "#{field_namespace.join('.')}.#{field_name}"
-          end
+          full_field_name = option_type['fieldContext'].to_s.empty? ? option_type['fieldName'] : "#{option_type['fieldContext']}.#{option_type['fieldName']}"
+          field_namespace = full_field_name.split(".")
+          field_name = field_namespace.pop
 
           description = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}"
           if option_type['description']
