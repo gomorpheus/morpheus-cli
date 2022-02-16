@@ -41,10 +41,5 @@ class Morpheus::Cli::StorageVolumeTypes
     }
   end
 
-  # overridden to support name or code
-  def find_storage_volume_type_by_name_or_id(name)
-    storage_volume_type_for_name_or_id(name)
-  end
-
 end
 

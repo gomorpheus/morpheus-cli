@@ -41,10 +41,5 @@ class Morpheus::Cli::StorageServerTypes
     }
   end
 
-  # overridden to support name or code
-  def find_storage_server_type_by_name_or_id(name)
-    storage_server_type_for_name_or_id(name)
-  end
-
 end
 
