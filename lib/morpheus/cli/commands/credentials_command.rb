@@ -40,35 +40,33 @@ class Morpheus::Cli::CredentialsCommand
       {"Description" => 'description' },
       {"Type" => lambda {|it| it['type'] ? it['type']['name'] : '' } },
       {"Enabled" => lambda {|it| format_boolean(it['enabled']) } },
-      {"Created" => lambda {|it| format_local_dt(it['dateCreated']) } },
-      {"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) } }
     ]
     type_code = credential['type']['code']
     if type_code == "access-key-secret"
       columns += [
-        {"Access Key" => lambda {|it| it['accessKey'] } },
-        {"Secret Key" => lambda {|it| it['secretKey'] } },
+        {"Access Key" => lambda {|it| it['username'] } },
+        {"Secret Key" => lambda {|it| it['password'] } },
       ]
     elsif type_code == "client-id-secret"
       columns += [
-        {"Client ID" => lambda {|it| it['clientId'] } },
-        {"Client Secret" => lambda {|it| it['clientSecret'] } },
+        {"Client ID" => lambda {|it| it['username'] } },
+        {"Client Secret" => lambda {|it| it['password'] } },
       ]
     elsif type_code == "email-private-key"
       columns += [
-        {"Email" => lambda {|it| it['email'] } },
+        {"Email" => lambda {|it| it['username'] } },
         {"Private Key" => lambda {|it| it['authKey'] ? it['authKey']['name'] : '' } },
       ]
     elsif type_code == "tenant-username-keypair" || type_code == "tenant-username-key"
       columns += [
-        {"Tenant" => lambda {|it| it['tenant'] } },
+        {"Tenant" => lambda {|it| it['authPath'] } },
         {"Username" => lambda {|it| it['username'] } },
         {"Private Key" => lambda {|it| it['authKey'] ? it['authKey']['name'] : '' } },
       ]
     elsif type_code == "username-api-key"
       columns += [
         {"Username" => lambda {|it| it['username'] } },
-        {"API Key" => lambda {|it| it['apiKey'] } },
+        {"API Key" => lambda {|it| it['password'] } },
       ]
     elsif type_code == "username-keypair" || type_code == "username-key"
       columns += [
@@ -96,11 +94,13 @@ class Morpheus::Cli::CredentialsCommand
 
   def add_credential_option_types()
     [
+      {'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Credential Type', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
+        api_client.credential_types.list({max:10000})['credentialTypes'].collect { |it| {"name" => it["name"], "value" => it["code"]} }
+      }, 'required' => true},
       {'fieldName' => 'integration.id', 'fieldLabel' => 'Credential Store', 'type' => 'select', 'optionSource' => 'credentialIntegrations'},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true},
-#      {'fieldName' => 'type', 'fieldLabel' => 'Credential Type', 'type' => 'select', 'optionSource' => 'credentialTypes', 'required' => true},
     ]
   end
 
