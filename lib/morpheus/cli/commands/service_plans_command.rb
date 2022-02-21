@@ -119,8 +119,6 @@ class Morpheus::Cli::ServicePlanCommand
   def _get(plan_id, options = {})
     params = {}
     begin
-      @service_plans_interface.setopts(options)
-
       if !(plan_id.to_s =~ /\A\d{1,}\Z/)
         plan = find_service_plan(plan_id)
 
@@ -130,7 +128,7 @@ class Morpheus::Cli::ServicePlanCommand
         end
         plan_id = plan['id']
       end
-
+      @service_plans_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @service_plans_interface.dry.get(plan_id)
         return
