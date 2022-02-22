@@ -8,7 +8,7 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::AccountsHelper
 
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}
-  register_subcommands :list_workers, :add_worker, :remove_worker
+  register_subcommands :list_workers, :add_worker, :remove_worker, :update_worker_count
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
@@ -1293,8 +1293,8 @@ class Morpheus::Cli::Clusters
     begin
       cluster = find_cluster_by_name_or_id(args[0])
       return 1 if cluster.nil?
+
       worker_id = args[1]
-      
       if worker_id.empty?
         raise_command_error "missing required worker parameter"
       end
@@ -1320,6 +1320,51 @@ class Morpheus::Cli::Clusters
       elsif !options[:quiet]
         print_red_alert "Error removing worker #{worker['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
         print_green_success "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def update_worker_count(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [worker_count]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Resizes a cluster to the specified number of worker nodes.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[worker_count] is required. This is the desired number of workers."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+
+      worker_count = args[1]
+      if worker_count.empty?
+        raise_command_error "missing required worker_count parameter"
+      end
+
+      params = {workerCount: worker_count.to_i}
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.update_worker_count(cluster['id'], params)
+        return
+      end
+      json_response = @clusters_interface.update_worker_count(cluster['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error updating number of workers in cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Cluster #{cluster['name']} is being resized rto #{worker_count} worker nodes..." if json_response['success'] == true
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
