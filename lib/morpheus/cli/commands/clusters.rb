@@ -8,7 +8,7 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::AccountsHelper
 
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}
-  register_subcommands :list_workers, :add_worker
+  register_subcommands :list_workers, :add_worker, :remove_worker
   register_subcommands :list_masters
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
@@ -1268,6 +1268,59 @@ class Morpheus::Cli::Clusters
         #get(get_args)
       end
       return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_worker(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [worker]")
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.footer = "Delete a worker from a cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n" +
+                    "[worker] is required. This is the name or (server) id of an existing worker."
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      worker_id = args[1]
+      
+      if worker_id.empty?
+        raise_command_error "missing required worker parameter"
+      end
+
+      worker = find_worker_by_name_or_id(cluster['id'], worker_id)
+      if worker.nil?
+        print_red_alert "Worker not found for '#{worker_id}'"
+        return 1
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster worker '#{worker['name'] || worker['id']}'?", options)
+        return 9, "aborted command"
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.destroy_worker(cluster['id'], worker['id'], params)
+        return
+      end
+      json_response = @clusters_interface.destroy_worker(cluster['id'], worker['id'], params)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_red_alert "Error removing worker #{worker['name']} from cluster #{cluster['name']}: #{json_response['msg']}" if json_response['success'] == false
+        print_green_success "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." if json_response['success'] == true
+      end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -3477,6 +3530,35 @@ class Morpheus::Cli::Clusters
     # todo: colorize, upcase?
     out << status_string.to_s
     out
+  end
+
+  def find_worker_by_name_or_id(cluster_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      find_worker_by_id(cluster_id, val.to_i)
+    else
+      find_worker_by_name(cluster_id, val)
+    end
+   
+  end
+
+  def find_worker_by_id(cluster_id, id)
+    json_results = @clusters_interface.list_workers(cluster_id)
+    filtered_results = json_results['workers'].select {|worker| worker['id'] == id}
+    if filtered_results.empty? || filtered_results.count > 1
+      print_red_alert "Worker not found by id #{id}"
+      exit 1
+    end
+    filtered_results[0]
+  end
+
+  def find_worker_by_name(cluster_id, name)
+    params = {phrase: name}
+    json_results = @clusters_interface.list_workers(cluster_id, params)
+    if json_results['workers'].empty? || json_results['workers'].count > 1
+      print_red_alert "Worker not found by name #{name}"
+      exit 1
+    end
+    json_results['workers'][0]
   end
 
   def find_cluster_by_name_or_id(val)
