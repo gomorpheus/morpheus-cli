@@ -509,10 +509,10 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
       @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_apps_interface.dry.quarantine(monitor_app["id"], payload)
+        print_dry_run @monitoring_apps_interface.dry.mute(monitor_app["id"], payload)
         return 0
       end
-      json_response = @monitoring_apps_interface.quarantine(monitor_app["id"], payload)
+      json_response = @monitoring_apps_interface.mute(monitor_app["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -557,10 +557,10 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
       @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_apps_interface.dry.quarantine(monitor_app["id"], payload)
+        print_dry_run @monitoring_apps_interface.dry.mute(monitor_app["id"], payload)
         return 0
       end
-      json_response = @monitoring_apps_interface.quarantine(monitor_app["id"], payload)
+      json_response = @monitoring_apps_interface.mute(monitor_app["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -602,10 +602,10 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
       @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_apps_interface.dry.quarantine_all(payload)
+        print_dry_run @monitoring_apps_interface.dry.mute_all(payload)
         return 0
       end
-      json_response = @monitoring_apps_interface.quarantine_all(payload)
+      json_response = @monitoring_apps_interface.mute_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -648,10 +648,10 @@ class Morpheus::Cli::MonitoringAppsCommand
       end
       @monitoring_apps_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_apps_interface.dry.quarantine_all(payload)
+        print_dry_run @monitoring_apps_interface.dry.mute_all(payload)
         return 0
       end
-      json_response = @monitoring_apps_interface.quarantine_all(payload)
+      json_response = @monitoring_apps_interface.mute_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]

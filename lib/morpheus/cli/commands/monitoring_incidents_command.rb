@@ -579,10 +579,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       end
       @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_incidents_interface.dry.quarantine(incident["id"], payload)
+        print_dry_run @monitoring_incidents_interface.dry.mute(incident["id"], payload)
         return 0
       end
-      json_response = @monitoring_incidents_interface.quarantine(incident["id"], payload)
+      json_response = @monitoring_incidents_interface.mute(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -627,10 +627,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       end
       @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_incidents_interface.dry.quarantine(incident["id"], payload)
+        print_dry_run @monitoring_incidents_interface.dry.mute(incident["id"], payload)
         return 0
       end
-      json_response = @monitoring_incidents_interface.quarantine(incident["id"], payload)
+      json_response = @monitoring_incidents_interface.mute(incident["id"], payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -672,10 +672,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       end
       @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_incidents_interface.dry.quarantine_all(payload)
+        print_dry_run @monitoring_incidents_interface.dry.mute_all(payload)
         return 0
       end
-      json_response = @monitoring_incidents_interface.quarantine_all(payload)
+      json_response = @monitoring_incidents_interface.mute_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
@@ -718,10 +718,10 @@ class Morpheus::Cli::MonitoringIncidentsCommand
       end
       @monitoring_incidents_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @monitoring_incidents_interface.dry.quarantine_all(payload)
+        print_dry_run @monitoring_incidents_interface.dry.mute_all(payload)
         return 0
       end
-      json_response = @monitoring_incidents_interface.quarantine_all(payload)
+      json_response = @monitoring_incidents_interface.mute_all(payload)
       if options[:json]
         puts as_json(json_response, options)
       elsif !options[:quiet]
