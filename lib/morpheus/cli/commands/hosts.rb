@@ -29,6 +29,7 @@ class Morpheus::Cli::Hosts
     @task_sets_interface = @api_client.task_sets
     @servers_interface = @api_client.servers
     @server_types_interface = @api_client.server_types
+    @provision_types_interface = @api_client.provision_types
     @logs_interface = @api_client.logs
     @accounts_interface = @api_client.accounts
     @active_group_id = Morpheus::Cli::Groups.active_groups[@appliance_name]
@@ -854,6 +855,19 @@ class Morpheus::Cli::Hosts
         # remove cpu and memory option types, which now come from the plan
         option_type_list = reject_service_plan_option_types(option_type_list)
 
+        # need to GET provision type for optionTypes, and other settings...
+        provision_type_code = server_type["provisionType"] ? server_type["provisionType"]["code"] : nil
+        provision_type = nil
+        if provision_type_code
+          provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
+          if provision_type.nil?
+            print_red_alert "Provision Type not found by code #{provision_type_code}"
+            exit 1
+          end
+        else
+          provision_type = get_provision_type_for_zone_type(cloud['zoneType']['id'])
+        end
+
         # prompt for resource pool
         pool_id = nil
         has_zone_pools = server_type["provisionType"] && server_type["provisionType"]["hasZonePools"]
@@ -873,7 +887,7 @@ class Morpheus::Cli::Hosts
         end
 
         # prompt for volumes
-        volumes = prompt_volumes(service_plan, options, @api_client, {zoneId: cloud_id, serverTypeId: server_type['id'], siteId: group_id})
+        volumes = prompt_volumes(service_plan, provision_type, options, @api_client, {zoneId: cloud_id, serverTypeId: server_type['id'], siteId: group_id})
         if !volumes.empty?
           payload['volumes'] = volumes
         end
@@ -1226,6 +1240,10 @@ class Morpheus::Cli::Hosts
         :server => {:id => server["id"]}
       }
 
+      # need to GET provision type for some settings...
+      server_type = @server_types_interface.get(server_type_id)['serverType']
+      provision_type = @provision_types_interface.get(server_type['provisionType']['id'])['provisionType']
+
       # avoid 500 error
       # payload[:servicePlanOptions] = {}
       unless options[:no_prompt]
@@ -1253,7 +1271,7 @@ class Morpheus::Cli::Hosts
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
-      volumes = prompt_resize_volumes(current_volumes, service_plan, options)
+      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, options)
       if !volumes.empty?
         payload[:volumes] = volumes
       end

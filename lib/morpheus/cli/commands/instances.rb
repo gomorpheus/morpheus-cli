@@ -2694,6 +2694,10 @@ class Morpheus::Cli::Instances
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
       current_plan_name = instance['plan']['name']
+
+      # need to GET provision type for some settings...
+      provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])
+
       # prompt for service plan
       service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
       service_plans = service_plans_json["plans"]
@@ -2715,7 +2719,7 @@ class Morpheus::Cli::Instances
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
-      volumes = prompt_resize_volumes(current_volumes, service_plan, options)
+      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, options)
       if !volumes.empty?
         payload["volumes"] = volumes
       end
