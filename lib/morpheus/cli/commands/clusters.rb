@@ -595,7 +595,7 @@ class Morpheus::Cli::Clusters
 
         # Multi-disk / prompt for volumes
         if provision_type['hasVolumes']
-          volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
+          volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
           if !volumes.empty?
             server_payload['volumes'] = volumes
           end
@@ -1177,7 +1177,9 @@ class Morpheus::Cli::Clusters
         cloud = @clouds_interface.get(cloud_id)['zone']
         cloud['zoneType'] = get_cloud_type(cloud['zoneType']['id'])
         group = @groups_interface.get(cluster['site']['id'])['group']
-
+        provision_type = server_type['provisionType'] || {}
+        provision_type = @provision_types_interface.get(provision_type['id'])['provisionType'] if !provision_type.nil?
+        
         server_payload['cloud'] = {'id' => cloud_id}
         service_plan = prompt_service_plan({zoneId: cloud_id, siteId: cluster['site']['id'], provisionTypeId: server_type['provisionType']['id'], groupTypeId: cluster_type['id'], }, options)
 
@@ -1190,7 +1192,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, options.merge({'defaultAddFirstDataVolume': true}), @api_client, {zoneId: cloud['id'], siteId: group['id']})
+        volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, {zoneId: cloud['id'], siteId: group['id']})
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
@@ -1198,7 +1200,6 @@ class Morpheus::Cli::Clusters
 
         # Networks
         # NOTE: You must choose subnets in the same availability zone
-        provision_type = server_type['provisionType'] || {}
         if provision_type && cloud['zoneType']['code'] != 'esxi'
           server_payload['networkInterfaces'] = options[:networkInterfaces] || prompt_network_interfaces(cloud['id'], server_type['provisionType']['id'], (resource_pool['id'] rescue nil), options)
         end

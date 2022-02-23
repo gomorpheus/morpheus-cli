@@ -42,6 +42,12 @@ class Morpheus::ServicePlansInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers)
   end
 
+  def destroy(id, params={})
+    url = "#{base_path}/#{id}"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
   def provision_types(params={})
     url = "#{base_path}/provision-types"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
