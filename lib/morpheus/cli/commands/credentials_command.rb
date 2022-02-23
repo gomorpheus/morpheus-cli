@@ -36,6 +36,7 @@ class Morpheus::Cli::CredentialsCommand
   def credential_column_definitions(options, credential)
     columns = [
       {"ID" => 'id' },
+      {"Credential Store" => lambda {|it| it['integration'] ? it['integration']['name'] : 'Internal'} },
       {"Name" => 'name' },
       {"Description" => 'description' },
       {"Type" => lambda {|it| it['type'] ? it['type']['name'] : '' } },
