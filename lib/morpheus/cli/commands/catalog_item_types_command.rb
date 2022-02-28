@@ -13,7 +13,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
   set_command_description "Self Service: View and manage catalog item types"
 
   register_subcommands :list, :get, :add, :update, :remove
-  register_subcommands({:'update-logo' => :update_logo})
+  register_subcommands({:'update-logo' => :update_logo, :'update-dark-logo' => :update_dark_logo})
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -224,6 +224,7 @@ EOT
     options = {}
     params = {}
     logo_file = nil
+    dark_logo_file = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       # opts.on('-t', '--type [instance|blueprint|workflow]', "Item Type, default is instance.") do |val|
@@ -235,13 +236,26 @@ EOT
         filename = val
         logo_file = nil
         if filename == 'null'
-          filename = 'null' # clear it
+          logo_file = 'null' # clear it
         else
           filename = File.expand_path(filename)
           if !File.exists?(filename)
             raise_command_error "File not found: #{filename}"
           end
           logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exists?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
         end
       end
       opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
@@ -346,9 +360,9 @@ EOT
     end
     json_response = @catalog_item_types_interface.create(payload)
     if json_response['success']
-      if logo_file
+      if logo_file || dark_logo_file
         begin
-          @catalog_item_types_interface.update_logo(json_response['catalogItemType']['id'], logo_file)
+          @catalog_item_types_interface.update_logo(json_response['catalogItemType']['id'], logo_file, dark_logo_file)
         rescue RestClient::Exception => e
           print_red_alert "Failed to save logo!"
           print_rest_exception(e, options)
@@ -368,6 +382,7 @@ EOT
     params = {}
     payload = {}
     logo_file = nil
+    dark_logo_file = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type] [options]")
       build_option_type_options(opts, options, update_catalog_item_type_option_types)
@@ -375,13 +390,26 @@ EOT
         filename = val
         logo_file = nil
         if filename == 'null'
-          filename = 'null' # clear it
+          logo_file = 'null' # clear it
         else
           filename = File.expand_path(filename)
           if !File.exists?(filename)
             raise_command_error "File not found: #{filename}"
           end
           logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exists?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
         end
       end
       opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
@@ -474,7 +502,7 @@ EOT
       params['workflow'] = {'id' => params['workflow']}  if params['workflow'] && !params['workflow'].is_a?(Hash)
       params['blueprint'] = {'id' => params['blueprint']}  if params['blueprint'] && !params['blueprint'].is_a?(Hash)
       payload.deep_merge!({catalog_item_type_object_key => params})
-      if payload[catalog_item_type_object_key].empty? # || options[:no_prompt]
+      if payload[catalog_item_type_object_key].empty? && (!logo_file && !dark_logo_file)# || options[:no_prompt]
         raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
     end
@@ -485,9 +513,9 @@ EOT
     end
     json_response = @catalog_item_types_interface.update(catalog_item_type['id'], payload)
     if json_response['success']
-      if logo_file
+      if logo_file || dark_logo_file
         begin
-          @catalog_item_types_interface.update_logo(json_response['catalogItemType']['id'], logo_file)
+          @catalog_item_types_interface.update_logo(json_response['catalogItemType']['id'], logo_file, dark_logo_file)
         rescue RestClient::Exception => e
           print_red_alert "Failed to save logo!"
           print_rest_exception(e, options)
@@ -535,6 +563,45 @@ EOT
       return
     end
     json_response = @catalog_item_types_interface.update_logo(catalog_item_type['id'], logo_file)
+    render_response(json_response, options, catalog_item_type_object_key) do
+      print_green_success "Updated catalog item type #{catalog_item_type['name']} logo"
+      return _get(catalog_item_type["id"], {}, options)
+    end
+  end
+
+  def update_dark_logo(args)
+    options = {}
+    params = {}
+    filename = nil
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[type] [file]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update the dark logo for a catalog item type." + "\n" +
+                    "[type] is required. This is the name or id of a catalog item type." + "\n" +
+                    "[file] is required. This is the path of the dark logo file"
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    catalog_item_type = find_catalog_item_type_by_name_or_id(args[0])
+    return 1 if catalog_item_type.nil?
+    filename = args[1]
+    dark_logo_file = nil
+    if filename == 'null'
+      dark_logo_file = 'null' # clear it
+    else
+      filename = File.expand_path(filename)
+      if !File.exists?(filename)
+        raise_command_error "File not found: #{filename}"
+      end
+      dark_logo_file = File.new(filename, 'rb')
+    end
+    @catalog_item_types_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @catalog_item_types_interface.dry.update_logo(catalog_item_type['id'], nil, dark_logo_file)
+      return
+    end
+    json_response = @catalog_item_types_interface.update_logo(catalog_item_type['id'], nil, dark_logo_file)
     render_response(json_response, options, catalog_item_type_object_key) do
       print_green_success "Updated catalog item type #{catalog_item_type['name']} logo"
       return _get(catalog_item_type["id"], {}, options)
