@@ -2696,7 +2696,7 @@ class Morpheus::Cli::Instances
       current_plan_name = instance['plan']['name']
 
       # need to GET provision type for some settings...
-      provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])
+      provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
 
       # prompt for service plan
       service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
