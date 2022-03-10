@@ -91,6 +91,18 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def destroy_worker(id, worker_id, params={})
+    url = "#{base_path}/#{id}/servers/#{worker_id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :delete, url: url, headers: headers)
+  end
+
+  def update_worker_count(id, params={})
+    url = "#{base_path}/#{id}/worker-count"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :put, url: url, headers: headers)
+  end
+
   def list_services(id, params={})
     url = "#{base_path}/#{id}/services"
     headers = { params: params, authorization: "Bearer #{@access_token}" }

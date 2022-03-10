@@ -66,12 +66,6 @@ class Morpheus::Cli::StorageServers
     }
   end
 
-  # overridden to work with name or code
-  # nope, api works with name=code now too
-  # def find_storage_server_type_by_name_or_id(name)
-  #   storage_server_type_for_name_or_id(name)
-  # end
-
   def add_storage_server_option_types()
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},

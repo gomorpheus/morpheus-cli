@@ -151,23 +151,13 @@ module Morpheus
         
         # add each one to the OptionParser
         option_types.each do |option_type|
-          field_namespace = []
-          field_name = option_type['fieldName'].to_s
-          if field_name.empty?
-            puts "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
+          if option_type['fieldName'].empty?
+            puts_error "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
             next
           end
-          
-          if !option_type['fieldContext'].to_s.empty?
-            option_type['fieldContext'].split(".").each do |ns|
-              field_namespace << ns
-            end
-          end
-          
-          full_field_name = field_name
-          if !field_namespace.empty?
-            full_field_name = "#{field_namespace.join('.')}.#{field_name}"
-          end
+          full_field_name = option_type['fieldContext'].to_s.empty? ? option_type['fieldName'] : "#{option_type['fieldContext']}.#{option_type['fieldName']}"
+          field_namespace = full_field_name.split(".")
+          field_name = field_namespace.pop
 
           description = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? ('(' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}"
           if option_type['description']
@@ -1507,8 +1497,11 @@ module Morpheus
         type, *ids = args
         type = type.to_s.singularize.underscore
         # still relying on the command or helper to define these _label and _key methods
-        label = send("#{type}_label")
-        object_key = send("#{type}_object_key")
+        # label = send("#{type}_label")
+        # object_key = send("#{type}_object_key")
+        # ^ nope, not for long!
+        object_key = respond_to?("#{type}_object_key", true) ? send("#{type}_object_key") : type.camelcase.singularize
+        label = respond_to?("#{type}_label", true) ? send("#{type}_label") : type.titleize
         interface_name = "@#{type.pluralize}_interface"
         interface = instance_variable_get(interface_name)
         if interface.nil?

@@ -864,7 +864,7 @@ module Morpheus::Cli::ProvisioningHelper
     if locked_fields.include?('volumes')
       payload['volumes'] = options[:options]['volumes'] if options[:options]['volumes']
     else
-      volumes = prompt_volumes(service_plan, options, api_client, {zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
+      volumes = prompt_volumes(service_plan, provision_type, options, api_client, {zoneId: cloud_id, layoutId: layout['id'], siteId: group_id})
       if !volumes.empty?
         payload['volumes'] = volumes
       end
@@ -912,7 +912,7 @@ module Morpheus::Cli::ProvisioningHelper
       has_security_groups = !!sg_option_type
       available_security_groups = []
       if sg_option_type && sg_option_type['type'] == 'select' && sg_option_type['optionSource']
-        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params)
+        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params, sg_option_type['optionSourceType'])
         available_security_groups = sg_option_results['data'].collect do |it|
           {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
         end
@@ -1039,7 +1039,7 @@ module Morpheus::Cli::ProvisioningHelper
 
   # This recreates the behavior of multi_disk.js
   # returns array of volumes based on service plan options (plan_info)
-  def prompt_volumes(plan_info, options={}, api_client=nil, api_params={})
+  def prompt_volumes(plan_info, provision_type, options={}, api_client=nil, api_params={})
     #puts "Configure Volumes:"
     # return [] if plan_info['noDisks']
 
@@ -1141,14 +1141,19 @@ module Morpheus::Cli::ProvisioningHelper
       volume['name'] = v_prompt[field_context]['name']
     end
     if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customSize']
-      if root_custom_size_options.empty?
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
-        volume['size'] = v_prompt[field_context]['size']
-        volume['sizeId'] = nil #volume.delete('sizeId')
+      # provision_type['rootDiskSizeKnown'] == false means size cannot be changed
+      if provision_type['rootDiskSizeKnown'] == false
+        # volume['size'] = plan_size if plan_size.to_i != 0
       else
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.', 'defaultValue' => volume['sizeId']}], options[:options])
-        volume['sizeId'] = v_prompt[field_context]['sizeId']
-        volume['size'] = nil #volume.delete('size')
+        if root_custom_size_options.empty?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
+          volume['size'] = v_prompt[field_context]['size']
+          volume['sizeId'] = nil #volume.delete('sizeId')
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.', 'defaultValue' => volume['sizeId']}], options[:options])
+          volume['sizeId'] = v_prompt[field_context]['sizeId']
+          volume['size'] = nil #volume.delete('size')
+        end
       end
     else
       # might need different logic here ? =o
@@ -1248,7 +1253,7 @@ module Morpheus::Cli::ProvisioningHelper
 
     # This recreates the behavior of multi_disk.js
     # returns array of volumes based on service plan options (plan_info)
-    def prompt_resize_volumes(current_volumes, plan_info, options={})
+    def prompt_resize_volumes(current_volumes, plan_info, provision_type, options={})
       #puts "Configure Volumes:"
       no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
 
@@ -1328,7 +1333,7 @@ module Morpheus::Cli::ProvisioningHelper
         'id' => current_root_volume['id'],
         'rootVolume' => true,
         'name' => current_root_volume['name'],
-        'size' => current_root_volume['size'] > plan_size ? current_root_volume['size'] : plan_size,
+        'size' => current_root_volume['size'] > (plan_size || 0) ? current_root_volume['size'] : plan_size,
         'sizeId' => nil,
         'storageType' => storage_type_id,
         'datastoreId' => current_root_volume['datastoreId']
@@ -1339,19 +1344,24 @@ module Morpheus::Cli::ProvisioningHelper
         volume['name'] = v_prompt[field_context]['name']
       end
       if plan_info['rootDiskCustomizable'] && storage_type && storage_type['customSize']
-        if root_custom_size_options.empty?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
-          volume['size'] = v_prompt[field_context]['size']
-          volume['sizeId'] = nil #volume.delete('sizeId')
+        # provision_type['rootDiskSizeKnown'] == false means size cannot be changed
+        if provision_type['rootDiskSizeKnown'] == false
+          # volume['size'] = plan_size if plan_size.to_i != 0
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.'}], options[:options])
-          volume['sizeId'] = v_prompt[field_context]['sizeId']
-          volume['size'] = nil #volume.delete('size')
+          if root_custom_size_options.empty?
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'size', 'type' => 'number', 'fieldLabel' => 'Root Volume Size (GB)', 'required' => true, 'description' => 'Enter a volume size (GB).', 'defaultValue' => volume['size']}], options[:options])
+            volume['size'] = v_prompt[field_context]['size']
+            volume['sizeId'] = nil #volume.delete('sizeId')
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'sizeId', 'type' => 'select', 'fieldLabel' => 'Root Volume Size', 'selectOptions' => root_custom_size_options, 'required' => true, 'description' => 'Choose a volume size.'}], options[:options])
+            volume['sizeId'] = v_prompt[field_context]['sizeId']
+            volume['size'] = nil #volume.delete('size')
+          end
         end
       else
         # might need different logic here ? =o
-        volume['size'] = plan_size
-        volume['sizeId'] = nil #volume.delete('sizeId')
+        # volume['size'] = plan_size
+        # volume['sizeId'] = nil #volume.delete('sizeId')
       end
       # if !datastore_options.empty?
       #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
@@ -1379,7 +1389,7 @@ module Morpheus::Cli::ProvisioningHelper
               'id' => current_volume['id'].to_i,
               'rootVolume' => false,
               'name' => current_volume['name'],
-              'size' => current_volume['size'] > plan_size ? current_volume['size'] : plan_size,
+              'size' => current_volume['size'] > (plan_size || 0) ? current_volume['size'] : plan_size,
               'sizeId' => nil,
               'storageType' => (current_volume['type'] || current_volume['storageType']),
               'datastoreId' => current_volume['datastoreId']
@@ -1404,7 +1414,7 @@ module Morpheus::Cli::ProvisioningHelper
               'id' => current_volume['id'].to_i,
               'rootVolume' => false,
               'name' => current_volume['name'],
-              'size' => current_volume['size'] > plan_size ? current_volume['size'] : plan_size,
+              'size' => current_volume['size'] > (plan_size || 0) ? current_volume['size'] : plan_size,
               'sizeId' => nil,
               'storageType' => (current_volume['type'] || current_volume['storageType']),
               'datastoreId' => current_volume['datastoreId']
@@ -1426,8 +1436,8 @@ module Morpheus::Cli::ProvisioningHelper
               end
             else
               # might need different logic here ? =o
-              volume['size'] = plan_size
-              volume['sizeId'] = nil #volume.delete('sizeId')
+              # volume['size'] = plan_size
+              # volume['sizeId'] = nil #volume.delete('sizeId')
             end
             # if !datastore_options.empty?
             #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
@@ -1492,8 +1502,8 @@ module Morpheus::Cli::ProvisioningHelper
               end
             else
               # might need different logic here ? =o
-              volume['size'] = plan_size
-              volume['sizeId'] = nil #volume.delete('sizeId')
+              # volume['size'] = plan_size
+              # volume['sizeId'] = nil #volume.delete('sizeId')
             end
             if !datastore_options.empty?
               v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])

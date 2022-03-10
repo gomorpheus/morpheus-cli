@@ -231,6 +231,7 @@ module Morpheus
                     print "\n"
                     exit 1
                   else
+                    parent_context_map.reject! {|k,v| k == parent_ns && (v.nil? || (v.is_a?(Hash) && v.empty?))}
                     next
                   end
                 end

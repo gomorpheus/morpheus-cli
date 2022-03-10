@@ -336,11 +336,19 @@ module Morpheus::Cli::RestCommand
   end
 
   def rest_object_key
-    send("#{rest_key}_object_key")
+    if respond_to?("#{rest_key}_object_key", true)
+      send("#{rest_key}_object_key")
+    else
+      rest_name.camelcase.singularize
+    end
   end
 
   def rest_list_key
-    send("#{rest_key}_list_key")
+    if respond_to?("#{rest_key}_list_key", true)
+      send("#{rest_key}_list_key")
+    else
+      rest_name.camelcase
+    end
   end
 
   def rest_column_definitions(options)
@@ -408,11 +416,19 @@ module Morpheus::Cli::RestCommand
   end
 
   def rest_type_object_key
-    send("#{rest_type_key}_object_key")
+    if respond_to?("#{rest_type_key}_object_key", true)
+      send("#{rest_type_key}_object_key")
+    else
+      rest_type_name.camelcase.singularize
+    end
   end
 
   def rest_type_list_key
-    send("#{rest_type_key}_list_key")
+    if respond_to?("#{rest_type_key}_list_key", true)
+      send("#{rest_type_key}_list_key")
+    else
+      rest_type_name.camelcase
+    end
   end
 
   def rest_type_column_definitions(options)

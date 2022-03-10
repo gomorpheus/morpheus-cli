@@ -7,7 +7,7 @@ class Morpheus::Cli::ServicePlanCommand
 
   set_command_name :'service-plans'
 
-  register_subcommands :list, :get, :add, :update, :activate, :deactivate
+  register_subcommands :list, :get, :add, :update, :activate, :deactivate, :remove
   set_default_subcommand :list
 
   def connect(opts)
@@ -119,8 +119,6 @@ class Morpheus::Cli::ServicePlanCommand
   def _get(plan_id, options = {})
     params = {}
     begin
-      @service_plans_interface.setopts(options)
-
       if !(plan_id.to_s =~ /\A\d{1,}\Z/)
         plan = find_service_plan(plan_id)
 
@@ -130,7 +128,7 @@ class Morpheus::Cli::ServicePlanCommand
         end
         plan_id = plan['id']
       end
-
+      @service_plans_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @service_plans_interface.dry.get(plan_id)
         return
@@ -732,6 +730,55 @@ class Morpheus::Cli::ServicePlanCommand
         print "\n"
       elsif !options[:quiet]
         print_green_success "Service plan #{plan['name']} deactivated"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[plan]")
+      build_common_options(opts, options, [:json, :dry_run, :remote, :auto_confirm])
+      opts.footer = "Delete a service plan.\n" +
+        "[plan] is required. Service plan ID, name or code"
+    end
+    optparse.parse!(args)
+    connect(options)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+      return 1
+    end
+
+    begin
+      plan = find_service_plan(args[0])
+
+      if !plan
+        print_red_alert "Service plan #{args[0]} not found"
+        return 1
+      end
+
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to delete the service plan '#{plan['name']}'?", options)
+        return 9, "aborted command"
+      end
+
+      @service_plans_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_plans_interface.dry.destroy(plan['id'], params)
+        return
+      end
+
+      json_response = @service_plans_interface.destroy(plan['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Service plan #{plan['name']} deleted"
       end
       return 0
     rescue RestClient::Exception => e
