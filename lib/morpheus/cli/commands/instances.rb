@@ -4403,9 +4403,20 @@ EOT
       #if instance['layout']['provisionTypeCode'] == 'vmware'
       if provision_type && provision_type["hasFolders"]
         if payload['zoneFolder'].nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
-          if v_prompt['zoneFolder'].to_s != ''
-            payload['zoneFolder'] = v_prompt['zoneFolder']
+          # vmwareFolders moved from /api/options/vmwareFolders to /api/options/vmware/vmwareFolders
+          folder_prompt = nil
+          begin
+            folder_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'optionSourceType' => 'vmware', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+          rescue RestClient::Exception => e
+            Morpheus::Logging::DarkPrinter.puts "Failed to load folder options" if Morpheus::Logging.debug?
+            begin
+              folder_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+            rescue RestClient::Exception => e2
+              Morpheus::Logging::DarkPrinter.puts "Failed to load folder options from alternative endpoint too" if Morpheus::Logging.debug?
+            end
+          end
+          if folder_prompt && folder_prompt['zoneFolder'].to_s != ''
+            payload['zoneFolder'] = folder_prompt['zoneFolder']
           end
         end
       end
