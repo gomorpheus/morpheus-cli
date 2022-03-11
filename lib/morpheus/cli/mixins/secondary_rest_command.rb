@@ -503,7 +503,7 @@ EOT
       end
     else
       print red
-      print json_response['errors']['error']
+      print json_response['msg']
       print "\n"
     end
     return 0, nil
