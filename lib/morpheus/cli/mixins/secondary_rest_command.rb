@@ -495,10 +495,16 @@ EOT
       return
     end
     json_response = rest_interface.create(parent_id, payload)
-    render_response(json_response, options, rest_object_key) do
-      record = json_response[rest_object_key]
-      print_green_success "Added #{rest_label.downcase} #{record['name'] || record['id']}"
-      return _get(parent_id, record["id"], {}, options)
+    if json_response['success']
+      render_response(json_response, options, rest_object_key) do
+        record = json_response[rest_object_key]
+        print_green_success "Added #{rest_label.downcase} #{record['name'] || record['id']}"
+        return _get(parent_id, record["id"], {}, options)
+      end
+    else
+      print red
+      print json_response['msg']
+      print "\n"
     end
     return 0, nil
   end
