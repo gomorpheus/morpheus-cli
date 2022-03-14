@@ -405,7 +405,7 @@ module Morpheus
             select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, (api_params || {}).merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
@@ -999,7 +999,7 @@ module Morpheus
             select_options = option_type['optionSource'].call(api_client, api_params || {})
           elsif option_type['optionSource'] == 'list'
             # /api/options/list is a special action for custom OptionTypeLists, just need to pass the optionTypeId parameter
-            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {}.merge({'optionTypeId' => option_type['id']}))
+            select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, (api_params || {}).merge({'optionTypeId' => option_type['id']}))
           else
             # remote optionSource aka /api/options/$optionSource?
             select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
@@ -1029,7 +1029,7 @@ module Morpheus
 
 
       def self.load_source_options(source,sourceType,api_client,params)
-        api_client.options.options_for_source("#{sourceType ? "#{sourceType}/" : ''}#{source}",params)['data']
+        api_client.options.options_for_source("#{sourceType ? "#{sourceType}/" : ''}#{source}", params)['data']
       end
 
       def self.format_select_options_help(opt, select_options = [], paging = nil)
