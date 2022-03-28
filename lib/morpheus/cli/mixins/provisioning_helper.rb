@@ -1120,7 +1120,7 @@ module Morpheus::Cli::ProvisioningHelper
       storage_type = nil
     else
       default_storage_type = root_storage_types.find {|t| t['value'].to_s == volume['storageType'].to_s}
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => default_storage_type ? default_storage_type['name'] : volume['storageType']}], options[:options])
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => default_storage_type ? default_storage_type['name'] : volume['storageType']}], options[:options])
       storage_type_id = v_prompt[field_context]['storageType']
       storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
       volume['storageType'] = storage_type_id
@@ -1191,7 +1191,7 @@ module Morpheus::Cli::ProvisioningHelper
             volume = options[:options]['volumes'][volume_index]
           end
 
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => volume['storageType']}], options[:options])
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.', 'defaultValue' => volume['storageType']}], options[:options])
           storage_type_id = v_prompt[field_context]['storageType']
           volume['storageType'] = storage_type_id
           storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
@@ -1313,7 +1313,7 @@ module Morpheus::Cli::ProvisioningHelper
         storage_type_id = nil
         storage_type = nil
       else
-        #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+        #v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => 'Root Storage Type', 'selectOptions' => root_storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
         #storage_type_id = v_prompt[field_context]['storageType']
         storage_type_id = current_root_volume['type'] || current_root_volume['storageType']
         storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
@@ -1461,7 +1461,7 @@ module Morpheus::Cli::ProvisioningHelper
 
             field_context = "dataVolume#{volume_index}"
 
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
             storage_type_id = v_prompt[field_context]['storageType']
             storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
 

@@ -457,6 +457,12 @@ module Morpheus
             end
           end
         end
+        # default to the first option
+        if !value_found && default_value.nil? && option_type['defaultFirstOption'] && select_options && select_options[0]
+          # default_value = select_options[0][value_field]
+          # nicer to display name instead, it will match and replace with value
+          default_value = select_options[0]['name'] ? select_options[0]['name'] : select_options[0][value_field]
+        end
 
         if no_prompt
           if !value_found
