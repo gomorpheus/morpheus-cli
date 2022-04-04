@@ -114,9 +114,13 @@ class Morpheus::Cli::ExecutionRequestCommand
         #"Created By" => lambda {|it| it['createdById'] },
         #"Subdomain" => lambda {|it| it['subdomain'] },
       }
+      description_cols.delete("Server ID") if execution_request['serverId'].nil?
+      description_cols.delete("Instance ID") if execution_request['instanceId'].nil?
+      description_cols.delete("Container ID") if execution_request['containerId'].nil?
+      description_cols.delete("Exit Code") if execution_request['exitCode'].nil?
       print_description_list(description_cols, execution_request)      
 
-      if execution_request['stdErr'] && execution_request['stdErr'] != "stdin: is not a tty\n"
+      if execution_request['stdErr'].to_s.strip != '' && execution_request['stdErr'] != "stdin: is not a tty\n"
         print_h2 "Error"
         puts execution_request['stdErr'].to_s.strip
       end

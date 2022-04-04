@@ -699,8 +699,8 @@ class Morpheus::Cli::Apps
         "Containers" => lambda {|it| 
           #it['containerCount'] 
           containers = []
-          app_tiers.each do |app_tier|
-            containers += (app_tier['appInstances'] || []).collect {|it| it['instance']['containers']}.flatten().compact
+          instances.each do |instance|
+            containers += (instance['containers'] || [])
           end
           #"(#{containers.count})"
           "(#{containers.count}) #{containers.collect {|it| it }.join(',')}"
@@ -725,36 +725,40 @@ class Morpheus::Cli::Apps
       end
 
       if app_tiers.empty?
-        #puts yellow, "This app is empty", reset
         print reset,"\n"
+        if instances.empty?
+          print cyan, "This app is empty", reset, "\n\n"
+        else
+          print_h2 "Instances", options
+          instances_rows = instances.collect do |instance|
+            connection_string = ''
+            if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+              connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+            end
+            {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
+          end
+          instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
+          print cyan
+          print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status], {border_style: options[:border_style]})
+          print reset
+          print "\n"
+        end
       else
         app_tiers.each do |app_tier|
           # print_h2 "Tier: #{app_tier['tier']['name']}", options
           print_h2 "#{app_tier['tier']['name']}", options
           print cyan
-          instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
+          tier_instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
+          instances = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
           if instances.empty?
             puts yellow, "This tier is empty", reset
           else
             instances_rows = instances.collect do |instance|
-              # JD: fix bug here, status is not returned because withStats: false !?
-              status_string = instance['status'].to_s
-              if status_string == 'running'
-                status_string = "#{green}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'provisioning'
-                status_string = "#{cyan}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'stopped' or status_string == 'failed'
-                status_string = "#{red}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'unknown'
-                status_string = "#{white}#{status_string.upcase}#{cyan}"
-              else
-                status_string = "#{yellow}#{status_string.upcase}#{cyan}"
-              end
               connection_string = ''
               if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
                 connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
               end
-              {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
+              {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
             end
             instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
             print cyan
