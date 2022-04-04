@@ -135,7 +135,7 @@ This includes instance and backup counts, favorite instances, monitoring and rec
       print as_pretty_table([json_response], monitoring_column_definitions.upcase_keys!, options)
 
       
-      if json_response['logStats']
+      if json_response['logStats'] && json_response['logStats']['data']
         # todo: should come from monitoring.startMs-endMs
         log_period_display = "7 Days"
         print_h2 "Logs (#{log_period_display})", options

@@ -476,3 +476,15 @@ end
 def a_or_an(v)
   v.to_s =~ /^[aeiou]/i ? "an" : "a"
 end
+
+def format_ok_status(status)
+  color = cyan
+  if ['ok'].include? status
+    color = green
+  elsif ['error'].include? status
+    color = red
+  elsif ['warning'].include? status
+    color = yellow
+  end
+  "#{color}#{status.to_s.upcase}#{cyan}"
+end
