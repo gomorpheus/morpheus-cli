@@ -636,7 +636,9 @@ class Morpheus::Cli::Clusters
         # Worker count
         if !['manual', 'external'].include?(provision_type['code'])
           default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-          server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker-cluster', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+          nodeCount = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker-cluster', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+          server_payload['config']['nodeCount'] = nodeCount
+          server_payload['nodeCount'] = nodeCount
         end
 
         # Create User
