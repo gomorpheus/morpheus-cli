@@ -4653,7 +4653,7 @@ EOT
               i+=1
             end
             blueprint_type_display = format_blueprint_type(config['type'])
-            if blueprint_type_display == "terraform"
+            if instance['type'] == 'terraform' || instance['layout']['provisionTypeCode'] == 'terraform'
               blueprint_type_display = "Terraform"
             end
             print_h2 "#{blueprint_type_display} Variables"
