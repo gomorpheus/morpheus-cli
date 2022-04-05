@@ -1114,8 +1114,8 @@ EOT
     json_response = @apps_interface.state(app["id"], params)
     render_result = render_with_format(json_response, options)
     return 0 if render_result
-    print_h1 "App State: #{app['name']}"
-    # print_h2 "Workloads"
+    print_h1 "App State: #{app['name']}", options
+    # print_h2 "Workloads", options
     if json_response['workloads'] && !json_response['workloads'].empty?
       workload_columns = {
         "Name" => lambda {|it| it['subRefName'].to_s.empty? ? "#{it['refName']}" : "#{it['refName']} - #{it['subRefName']}" },
@@ -1128,11 +1128,11 @@ EOT
       print cyan,"No workloads found.",reset,"\n"
     end
     if options[:include_state_data]
-      print_h2 "State Data"
+      print_h2 "State Data", options
       puts json_response['stateData']
     end
     if options[:include_spec_templates]
-      print_h2 "Spec Templates"
+      print_h2 "Spec Templates", options
       spec_templates_columns = {
         "Resource Spec" => lambda {|it| it['name'] || (it['template'] ? it['template']['name'] : nil) },
         "Attached to Source Template" => lambda {|it| format_boolean(!it['isolated']) },
@@ -1142,19 +1142,19 @@ EOT
       # print "\n", reset
     end
     if options[:include_plan_data]
-      # print_h2 "Plan Data"
+      # print_h2 "Plan Data", options
       if app['type'] == 'terraform'
-        print_h2 "Terraform Plan"
+        print_h2 "Terraform Plan", options
       else
-        print_h2 "Plan Data"
+        print_h2 "Plan Data", options
       end
       puts json_response['planData']
       # print "\n", reset
     end
     if options[:include_input]
-      # print_h2 "Input"
+      # print_h2 "Input", options
       if json_response['input'] && json_response['input']['variables']
-        print_h2 "VARIABLES"
+        print_h2 "VARIABLES", options
         input_variable_columns = {
           "Name" => lambda {|it| it['name'] },
           "Value" => lambda {|it| it['value'] }
@@ -1162,14 +1162,14 @@ EOT
         print as_pretty_table(json_response['input']['variables'], input_variable_columns.upcase_keys!, options)
       end
       if json_response['input'] && json_response['input']['providers']
-        print_h2 "PROVIDERS"
+        print_h2 "PROVIDERS", options
         input_provider_columns = {
           "Name" => lambda {|it| it['name'] }
         }
         print as_pretty_table(json_response['input']['providers'], input_provider_columns.upcase_keys!, options)
       end
       if json_response['input'] && json_response['input']['data']
-        print_h2 "DATA"
+        print_h2 "DATA", options
         input_data_columns = {
           "Type" => lambda {|it| it['type'] },
           "Key" => lambda {|it| it['key'] },
@@ -1180,9 +1180,9 @@ EOT
       # print "\n", reset
     end
     if options[:include_output]
-      # print_h2 "Output"
+      # print_h2 "Output", options
       if json_response['output'] && json_response['output']['outputs']
-        print_h2 "OUTPUTS"
+        print_h2 "OUTPUTS", options
         input_variable_columns = {
           "Name" => lambda {|it| it['name'] },
           "Value" => lambda {|it| it['value'] }
