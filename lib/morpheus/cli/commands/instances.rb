@@ -4612,6 +4612,12 @@ EOT
         options[:options]['templateParameter'] ||= {}
         options[:options]['templateParameter'][k] = v
       end
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Apply an instance.
@@ -4674,7 +4680,11 @@ EOT
       json_response = @instances_interface.apply(instance["id"], params, payload)
       render_response(json_response, options) do
         print_green_success "Applying instance #{instance['name']}"
-        # return _get(instance['id'], options)
+        execution_id = json_response['executionId']        
+        if !options[:no_refresh]
+          options[:refresh_interval] ||= default_refresh_interval
+          Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+        end
       end
       return 0, nil
     rescue RestClient::Exception => e

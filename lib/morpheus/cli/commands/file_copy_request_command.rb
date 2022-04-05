@@ -80,7 +80,8 @@ class Morpheus::Cli::FileCopyRequestCommand
           # it is finished
         else
           print cyan
-          print "File copy request has not yet finished. Refreshing every #{options[:refresh_interval]} seconds"
+          refresh_display_seconds = options[:refresh_interval] % 1.0 == 0 ? options[:refresh_interval].to_i : options[:refresh_interval]
+          print "File copy request has not yet finished. Refreshing every #{refresh_display_seconds} seconds"
           while !['complete','failed','expired'].include?(file_copy_request['status']) do
             sleep(options[:refresh_interval])
             print cyan,".",reset
