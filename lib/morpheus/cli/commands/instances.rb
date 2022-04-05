@@ -4652,7 +4652,6 @@ EOT
               blueprint_type_display = "Terraform"
             end
             print_h2 "#{blueprint_type_display} Variables"
-            print_h2 "#{blueprint_type} Variables"
             v_prompt = Morpheus::Cli::OptionTypes.prompt(variable_option_types, options[:options], @api_client)
             v_prompt.deep_compact!
             payload.deep_merge!(v_prompt)
