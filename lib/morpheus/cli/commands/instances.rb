@@ -4557,8 +4557,7 @@ EOT
       opts.footer = <<-EOT
 Prepare to apply an instance.
 [instance] is required. This is the name or id of an instance.
-This only prints the instance configuration that would be applied.
-It does not make any updates.
+Displays the current configuration data used by the apply command.
 This is only supported by certain types of instances such as terraform.
 EOT
     end
@@ -4583,10 +4582,10 @@ EOT
       end
       @instances_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @instances_interface.dry.prepare_apply(instance["id"], params, payload)
+        print_dry_run @instances_interface.dry.prepare_apply(instance["id"], params)
         return
       end
-      json_response = @instances_interface.prepare_apply(instance["id"], params, payload)
+      json_response = @instances_interface.prepare_apply(instance["id"], params)
       render_result = render_with_format(json_response, options)
       return 0 if render_result
       # print_green_success "Prepared to apply instance: #{instance['name']}"

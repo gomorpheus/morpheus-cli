@@ -57,10 +57,10 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def prepare_apply(app_id, params={}, payload={})
+  def prepare_apply(app_id, params={})
     url = "#{@base_url}/api/apps/#{app_id}/prepare-apply"
     headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
