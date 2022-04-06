@@ -7,16 +7,21 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::LogsHelper
+  include Morpheus::Cli::ExecutionRequestHelper
+
   set_command_name :apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
-  register_subcommands :refresh, :prepare_apply, :apply, :state
+  register_subcommands :refresh, :prepare_apply, :plan, :apply, :state
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
   set_default_subcommand :list
+
+  # hide these for now
+  set_subcommands_hidden :prepare_apply
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -985,6 +990,7 @@ EOT
   end
 
   def apply(args)
+    default_refresh_interval = 15
     params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app] [options]")
@@ -999,61 +1005,82 @@ EOT
       opts.on(nil, '--no-refresh', "Do not refresh" ) do
         options[:no_refresh] = true
       end
+      opts.on(nil, '--no-validate', "Do not validate planned changes before apply" ) do
+        options[:no_validate] = true
+      end
+      opts.on(nil, '--validate-only', "Only validate planned changes, do not execute the apply command." ) do
+        options[:validate_only] = true
+      end
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Apply an app.
 [app] is required. This is the name or id of an app.
 This is only supported by certain types of apps such as terraform.
+By default this executes two requests to validate and then apply the changes.
+The first request corresponds to the terraform plan command only.
+Use --no-validate to skip this step apply changes in one step.
 EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
-    begin
-      app = find_app_by_name_or_id(args[0])
-      return 1 if app.nil?
-      # construct request
-      params.merge!(parse_query_options(options))
-      payload = {}
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!(parse_passed_options(options))
-      else
-        payload.deep_merge!(parse_passed_options(options))
-        # attempt to load prepare-apply to get templateParameter and prompt for them
-        begin
-          json_response = @apps_interface.prepare_apply(app["id"])
-          config = json_response['data']
-          variable_map = config['templateParameter']
-          if variable_map.is_a?(Hash) && !variable_map.empty?
-            variable_option_types = []
-            i = 0
-            variable_map.each do |var_name, var_value|
-              option_type = {'fieldContext' => 'templateParameter', 'fieldName' => var_name, 'fieldLabel' => var_name, 'type' => 'text', 'required' => true, 'defaultValue' => (var_value.to_s.empty? ? nil : var_value.to_s), 'displayOrder' => (i+1) }
-              variable_option_types << option_type
-              i+=1
-            end
-            blueprint_type_display = format_blueprint_type(config['type'])
-            if blueprint_type_display == "terraform"
-              blueprint_type_display = "Terraform"
-            end
-            print_h2 "#{blueprint_type_display} Variables"
-            v_prompt = Morpheus::Cli::OptionTypes.prompt(variable_option_types, options[:options], @api_client)
-            v_prompt.deep_compact!
-            payload.deep_merge!(v_prompt)
+    app = find_app_by_name_or_id(args[0])
+    return 1 if app.nil?
+    # construct request
+    params.merge!(parse_query_options(options))
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+      # attempt to load prepare-apply to get templateParameter and prompt for them
+      begin
+        json_response = @apps_interface.prepare_apply(app["id"])
+        config = json_response['data']
+        variable_map = config['templateParameter']
+        if variable_map.is_a?(Hash) && !variable_map.empty?
+          variable_option_types = []
+          i = 0
+          variable_map.each do |var_name, var_value|
+            option_type = {'fieldContext' => 'templateParameter', 'fieldName' => var_name, 'fieldLabel' => var_name, 'type' => 'text', 'required' => true, 'defaultValue' => (var_value.to_s.empty? ? nil : var_value.to_s), 'displayOrder' => (i+1) }
+            variable_option_types << option_type
+            i+=1
           end
-        rescue RestClient::Exception => ex
-          # if e.response && e.response.code == 404
-          Morpheus::Logging::DarkPrinter.puts "Unable to load config for app apply, skipping parameter prompting" if Morpheus::Logging.debug?
-          # print_rest_exception(ex, options)
-          # end
+          blueprint_type_display = format_blueprint_type(config['type'])
+          if blueprint_type_display == "terraform"
+            blueprint_type_display = "Terraform"
+          end
+          print_h2 "#{blueprint_type_display} Variables"
+          v_prompt = Morpheus::Cli::OptionTypes.prompt(variable_option_types, options[:options], @api_client)
+          v_prompt.deep_compact!
+          payload.deep_merge!(v_prompt)
         end
+      rescue RestClient::Exception => ex
+        # if e.response && e.response.code == 404
+        Morpheus::Logging::DarkPrinter.puts "Unable to load config for app apply, skipping parameter prompting" if Morpheus::Logging.debug?
+        # print_rest_exception(ex, options)
+        # end
       end
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply this app: #{app['name']}?")
-        return 9, "aborted command"
+    end
+
+    @apps_interface.setopts(options)
+    if options[:validate_only]
+      # validate only
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.validate_apply(app["id"], params, payload)
+        return
       end
-      @apps_interface.setopts(options)
+      json_response = @apps_interface.validate_apply(app["id"], params, payload)
+      print_green_success "Validating app #{app['name']}"
+      execution_id = json_response['executionId']
+      if !options[:no_refresh]
+        #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+        validate_execution_request = wait_for_execution_request(execution_id, options)
+      end
+    elsif options[:no_validate]
+      # skip validate, apply only
       if options[:dry_run]
         print_dry_run @apps_interface.dry.apply(app["id"], params, payload)
         return
@@ -1063,15 +1090,40 @@ EOT
         print_green_success "Applying app #{app['name']}"
         execution_id = json_response['executionId']        
         if !options[:no_refresh]
-          options[:refresh_interval] ||= default_refresh_interval
-          Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+          #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+          apply_execution_request = wait_for_execution_request(execution_id, options)
         end
       end
-      return 0, nil
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    else
+      # validate and then apply
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.validate_apply(app["id"], params, payload)
+        print_dry_run @apps_interface.dry.apply(app["id"], params, payload)
+        return
+      end
+      json_response = @apps_interface.validate_apply(app["id"], params, payload)
+      print_green_success "Validating app #{app['name']}"
+      execution_id = json_response['executionId']
+      validate_execution_request = wait_for_execution_request(execution_id, options)
+      if validate_execution_request['status'] != 'complete'
+        print_red_alert "Validation failed. Changes will not be applied."
+        return 1, "Validation failed. Changes will not be applied."
+      else
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply these changes?")
+          return 9, "aborted command"
+        end
+        json_response = @apps_interface.apply(app["id"], params, payload)
+        render_response(json_response, options) do
+          print_green_success "Applying app #{app['name']}"
+          execution_id = json_response['executionId']        
+          if !options[:no_refresh]
+            #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+            apply_execution_request = wait_for_execution_request(execution_id, options)
+          end
+        end
+      end
     end
+    return 0, nil
   end
 
   def state(args)

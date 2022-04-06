@@ -382,7 +382,14 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
   def prepare_apply(id, params={})
     url = "#{@base_url}/api/instances/#{id}/prepare-apply"
     headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :get, url: url, headers: headers, payload: payload.to_json}
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def validate_apply(id, params, payload)
+    url = "#{@base_url}/api/instances/#{id}/validate-apply"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 

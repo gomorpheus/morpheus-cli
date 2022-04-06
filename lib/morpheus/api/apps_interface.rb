@@ -64,6 +64,13 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def validate_apply(app_id, params, payload)
+    url = "#{@base_url}/api/apps/#{app_id}/validate-apply"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def apply(app_id, params, payload)
     url = "#{@base_url}/api/apps/#{app_id}/apply"
     headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
