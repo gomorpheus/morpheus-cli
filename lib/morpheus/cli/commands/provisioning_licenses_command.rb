@@ -489,7 +489,7 @@ class Morpheus::Cli::ProvisioningLicensesCommand
       {'fieldName' => 'licenseVersion', 'fieldLabel' => 'Version', 'type' => 'text', 'displayOrder' => 6},
       {'fieldName' => 'copies', 'fieldLabel' => 'Copies', 'type' => 'number', 'required' => true, 'defaultValue' => 1, 'displayOrder' => 7},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 8},
-      {'fieldName' => 'virtualImages', 'fieldLabel' => 'Virtual Images', 'type' => 'multiSelect', 'optionSource' => lambda { 
+      {'fieldName' => 'virtualImages', 'fieldLabel' => 'Virtual Images', 'type' => 'multiSelect', 'optionSource' => lambda { |api_client, api_params| 
         # @options_interface.options_for_source("virtualImages", {})['data']
         get_virtual_images_dropdown()
       }, 'displayOrder' => 9},
