@@ -661,15 +661,21 @@ class Morpheus::Cli::Apps
     json_response = @apps_interface.get(id.to_i)
     render_response(json_response, options, 'app') do
       app = json_response['app']
-      # API used to only return apps.appTiers
-      # now returns detailed instance list as "instances"
-      app_tiers = app['appTiers'] || []
-      instances = app['instances']
-      if instances.nil?
-        instances = []
+      # API used to only return apps.appTiers including instances with lots of detail
+      # now returns simplified instance list as "instances" for terraform, etc with only id,name
+      # so load the instance details if needed
+      app_tiers = []
+      instances = []
+      if app['appTiers'] && !app['appTiers'].empty?
+        # appTiers contains instances with lots of detail
+        app_tiers = app['appTiers']
         app_tiers.each do |app_tier|
           instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
         end
+      elsif app['instances'] && !app['instances'].empty?
+        # need to load instance details which are not returned in this simple list
+        instance_ids = app['instances'].collect {|it| it['id'] }
+        instances = @instances_interface.list({id: instance_ids})['instances']
       end
       print_h1 "App Details", [], options
       print cyan
@@ -1525,7 +1531,7 @@ EOT
       app = find_app_by_name_or_id(args[0])
       container_ids = []
       # API used to only return apps.appTiers
-      # now returns detailed instance list as "instances"
+      # now returns detailed instance list as 'instances'
       app_tiers = app['appTiers'] || []
       instances = app['instances']
       if instances.nil?
