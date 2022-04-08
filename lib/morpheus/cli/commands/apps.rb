@@ -1041,16 +1041,27 @@ EOT
       payload.deep_merge!(parse_passed_options(options))
     else
       payload.deep_merge!(parse_passed_options(options))
-      # attempt to load prepare-apply to get templateParameter and prompt for them
+      # attempt to load prepare-apply to get templateParameter values and prompt for them
+      # ok, actually use options/layoutParameters to get the list of parameters
       begin
-        json_response = @apps_interface.prepare_apply(app["id"])
-        config = json_response['data']
+        prepare_apply_json_response = @apps_interface.prepare_apply(app["id"])
+        config = prepare_apply_json_response['data']
         variable_map = config['templateParameter']
-        if variable_map.is_a?(Hash) && !variable_map.empty?
+
+        layout_parameters = @options_interface.options_for_source('templateParameters',{templateId: app['blueprint']['id'], appId: app['id']})['data']
+
+        if layout_parameters && !variable_map.empty?
           variable_option_types = []
           i = 0
-          variable_map.each do |var_name, var_value|
-            option_type = {'fieldContext' => 'templateParameter', 'fieldName' => var_name, 'fieldLabel' => var_name, 'type' => 'text', 'required' => true, 'defaultValue' => (var_value.to_s.empty? ? nil : var_value.to_s), 'displayOrder' => (i+1) }
+          layout_parameters.each do |layout_parameter|
+            var_label = layout_parameter['displayName'] || layout_parameter['name']
+            var_name = layout_parameter['name']
+            var_value = variable_map ? variable_map[var_name] : layout_parameter['defaultValue']
+            if var_value.nil? && layout_parameter['defaultValue']
+              var_value = layout_parameter['defaultValue']
+            end
+            var_type = (layout_parameter['passwordType'] || layout_parameter['sensitive']) ? 'password' : 'text'
+            option_type = {'fieldContext' => 'templateParameter', 'fieldName' => var_name, 'fieldLabel' => var_label, 'type' => var_type, 'required' => true, 'defaultValue' => (var_value.to_s.empty? ? nil : var_value.to_s), 'displayOrder' => (i+1) }
             variable_option_types << option_type
             i+=1
           end
