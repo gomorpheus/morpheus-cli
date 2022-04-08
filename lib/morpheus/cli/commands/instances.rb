@@ -4661,7 +4661,7 @@ EOT
 
         layout_parameters = @options_interface.options_for_source('layoutParameters',{layoutId: instance['layout']['id'], instanceId: instance['id']})['data']
 
-        if layout_parameters && !variable_map.empty?
+        if layout_parameters && !layout_parameters.empty?
           variable_option_types = []
           i = 0
           layout_parameters.each do |layout_parameter|
