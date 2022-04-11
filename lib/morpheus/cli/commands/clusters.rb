@@ -602,7 +602,7 @@ class Morpheus::Cli::Clusters
 
         # Multi-disk / prompt for volumes
         if provision_type['hasVolumes']
-          volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
+          volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options, @api_client, api_params)
           if !volumes.empty?
             server_payload['volumes'] = volumes
           end
@@ -1232,7 +1232,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, {zoneId: cloud['id'], siteId: group['id']})
+        volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options, @api_client, {zoneId: cloud['id'], siteId: group['id']})
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
