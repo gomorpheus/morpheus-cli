@@ -1047,8 +1047,12 @@ EOT
         prepare_apply_json_response = @apps_interface.prepare_apply(app["id"])
         config = prepare_apply_json_response['data']
         variable_map = config['templateParameter']
-
-        layout_parameters = @options_interface.options_for_source('templateParameters',{templateId: app['blueprint']['id'], appId: app['id']})['data']
+        # need to load the instance details to get the app cloud...ugh
+        first_instance = app['instances'][0]
+        instance = first_instance ? find_instance_by_name_or_id(first_instance['id']) : nil
+        zone_id = instance ? instance['cloud']['id'] : nil
+        api_params = {templateId: app['blueprint']['id'], appId: app['id'], zoneId: zone_id, siteId: app['group']['id']}
+        layout_parameters = @options_interface.options_for_source('templateParameters',api_params)['data']
 
         if layout_parameters && !layout_parameters.empty?
           variable_option_types = []

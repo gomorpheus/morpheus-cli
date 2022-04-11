@@ -4658,8 +4658,8 @@ EOT
         prepare_apply_json_response = @instances_interface.prepare_apply(instance["id"])
         config = prepare_apply_json_response['data']
         variable_map = config['templateParameter']
-
-        layout_parameters = @options_interface.options_for_source('layoutParameters',{layoutId: instance['layout']['id'], instanceId: instance['id']})['data']
+        api_params = {layoutId: instance['layout']['id'], instanceId: instance['id'], zoneId: instance['cloud']['id'], siteId: instance['group']['id']}
+        layout_parameters = @options_interface.options_for_source('layoutParameters',api_params)['data']
 
         if layout_parameters && !layout_parameters.empty?
           variable_option_types = []
