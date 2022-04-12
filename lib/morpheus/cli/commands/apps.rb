@@ -7,16 +7,21 @@ class Morpheus::Cli::Apps
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::LogsHelper
+  include Morpheus::Cli::ExecutionRequestHelper
+
   set_command_name :apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
-  register_subcommands :refresh, :apply
+  register_subcommands :refresh, :prepare_apply, :plan, :apply, :state
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
   #register_subcommands :validate # add --validate instead
   alias_subcommand :details, :get
   set_default_subcommand :list
+
+  # hide these for now
+  set_subcommands_hidden :prepare_apply
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -656,7 +661,22 @@ class Morpheus::Cli::Apps
     json_response = @apps_interface.get(id.to_i)
     render_response(json_response, options, 'app') do
       app = json_response['app']
-      app_tiers = app['appTiers']
+      # API used to only return apps.appTiers including instances with lots of detail
+      # now returns simplified instance list as "instances" for terraform, etc with only id,name
+      # so load the instance details if needed
+      app_tiers = []
+      instances = []
+      if app['appTiers'] && !app['appTiers'].empty?
+        # appTiers contains instances with lots of detail
+        app_tiers = app['appTiers']
+        app_tiers.each do |app_tier|
+          instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
+        end
+      elsif app['instances'] && !app['instances'].empty?
+        # need to load instance details which are not returned in this simple list
+        instance_ids = app['instances'].collect {|it| it['id'] }
+        instances = @instances_interface.list({id: instance_ids})['instances']
+      end
       print_h1 "App Details", [], options
       print cyan
       description_cols = {
@@ -678,7 +698,6 @@ class Morpheus::Cli::Apps
         "Tiers" => lambda {|it| 
           # it['instanceCount']
           tiers = []
-          app_tiers = it['appTiers'] || []
           app_tiers.each do |app_tier|
             tiers << app_tier['tier']
           end
@@ -686,20 +705,13 @@ class Morpheus::Cli::Apps
         },
         "Instances" => lambda {|it| 
           # it['instanceCount']
-          instances = []
-          app_tiers = it['appTiers'] || []
-          app_tiers.each do |app_tier|
-            instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
-          end
-          #"(#{instances.count})"
           "(#{instances.count}) #{instances.collect {|it| it['name'] }.join(',')}"
         },
         "Containers" => lambda {|it| 
           #it['containerCount'] 
           containers = []
-          app_tiers = it['appTiers'] || []
-          app_tiers.each do |app_tier|
-            containers += (app_tier['appInstances'] || []).collect {|it| it['instance']['containers']}.flatten().compact
+          instances.each do |instance|
+            containers += (instance['containers'] || [])
           end
           #"(#{containers.count})"
           "(#{containers.count}) #{containers.collect {|it| it }.join(',')}"
@@ -724,36 +736,40 @@ class Morpheus::Cli::Apps
       end
 
       if app_tiers.empty?
-        #puts yellow, "This app is empty", reset
         print reset,"\n"
+        if instances.empty?
+          print cyan, "This app is empty", reset, "\n\n"
+        else
+          print_h2 "Instances", options
+          instances_rows = instances.collect do |instance|
+            connection_string = ''
+            if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
+              connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
+            end
+            {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
+          end
+          instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
+          print cyan
+          print as_pretty_table(instances_rows, [:id, :name, :cloud, :type, :environment, :nodes, :connection, :status], {border_style: options[:border_style]})
+          print reset
+          print "\n"
+        end
       else
         app_tiers.each do |app_tier|
           # print_h2 "Tier: #{app_tier['tier']['name']}", options
           print_h2 "#{app_tier['tier']['name']}", options
           print cyan
-          instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
+          tier_instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
+          instances = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
           if instances.empty?
             puts yellow, "This tier is empty", reset
           else
             instances_rows = instances.collect do |instance|
-              # JD: fix bug here, status is not returned because withStats: false !?
-              status_string = instance['status'].to_s
-              if status_string == 'running'
-                status_string = "#{green}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'provisioning'
-                status_string = "#{cyan}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'stopped' or status_string == 'failed'
-                status_string = "#{red}#{status_string.upcase}#{cyan}"
-              elsif status_string == 'unknown'
-                status_string = "#{white}#{status_string.upcase}#{cyan}"
-              else
-                status_string = "#{yellow}#{status_string.upcase}#{cyan}"
-              end
               connection_string = ''
               if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
                 connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
               end
-              {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: instance['containers'].count, status: status_string, type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
+              {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
             end
             instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
             print cyan
@@ -926,19 +942,22 @@ EOT
     end
   end
 
-  def apply(args)
+  def prepare_apply(args)
     params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[app] [options]")
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
-Apply an app.
+Prepare to apply an app.
 [app] is required. This is the name or id of an app.
+Displays the current configuration data used by the apply command.
 This is only supported by certain types of apps such as terraform.
 EOT
     end
     optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, count:1)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(', ')}\n#{optparse}"
+    end
     connect(options)
 
     begin
@@ -954,10 +973,135 @@ EOT
         payload.deep_merge!(parse_passed_options(options))
         # raise_command_error "Specify at least one option to update.\n#{optparse}" if payload.empty?
       end
-      unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply this app: #{app['name']}?")
-        return 9, "aborted command"
-      end
       @apps_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.prepare_apply(app["id"], params)
+        return
+      end
+      json_response = @apps_interface.prepare_apply(app["id"], params)
+      render_result = render_with_format(json_response, options)
+      return 0 if render_result
+      # print_green_success "Prepared to apply app: #{app['name']}"
+      print_h1 "Prepared App: #{app['name']}"
+      app_config = json_response['data'] 
+      # app_config = json_response if app_config.nil?
+      puts as_yaml(app_config, options)
+      #return get([app['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      print "\n", reset
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def apply(args)
+    default_refresh_interval = 15
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
+      opts.on( '-p', '--parameter NAME=VALUE', "Template parameter name and value" ) do |val|
+        k, v = val.split("=")
+        options[:options]['templateParameter'] ||= {}
+        options[:options]['templateParameter'][k] = v
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
+      opts.on(nil, '--no-validate', "Do not validate planned changes before apply" ) do
+        options[:no_validate] = true
+      end
+      opts.on(nil, '--validate-only', "Only validate planned changes, do not execute the apply command." ) do
+        options[:validate_only] = true
+      end
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Apply an app.
+[app] is required. This is the name or id of an app.
+This is only supported by certain types of apps such as terraform.
+By default this executes two requests to validate and then apply the changes.
+The first request corresponds to the terraform plan command only.
+Use --no-validate to skip this step apply changes in one step.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+
+    app = find_app_by_name_or_id(args[0])
+    return 1 if app.nil?
+    # construct request
+    params.merge!(parse_query_options(options))
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+      # attempt to load prepare-apply to get templateParameter values and prompt for them
+      # ok, actually use options/layoutParameters to get the list of parameters
+      begin
+        prepare_apply_json_response = @apps_interface.prepare_apply(app["id"])
+        config = prepare_apply_json_response['data']
+        variable_map = config['templateParameter']
+        # need to load the instance details to get the app cloud...ugh
+        first_instance = app['instances'][0]
+        instance = first_instance ? find_instance_by_name_or_id(first_instance['id']) : nil
+        zone_id = instance ? instance['cloud']['id'] : nil
+        api_params = {templateId: app['blueprint']['id'], appId: app['id'], zoneId: zone_id, siteId: app['group']['id']}
+        layout_parameters = @options_interface.options_for_source('templateParameters',api_params)['data']
+
+        if layout_parameters && !layout_parameters.empty?
+          variable_option_types = []
+          i = 0
+          layout_parameters.each do |layout_parameter|
+            var_label = layout_parameter['displayName'] || layout_parameter['name']
+            var_name = layout_parameter['name']
+            var_value = variable_map ? variable_map[var_name] : layout_parameter['defaultValue']
+            if var_value.nil? && layout_parameter['defaultValue']
+              var_value = layout_parameter['defaultValue']
+            end
+            var_type = (layout_parameter['passwordType'] || layout_parameter['sensitive']) ? 'password' : 'text'
+            option_type = {'fieldContext' => 'templateParameter', 'fieldName' => var_name, 'fieldLabel' => var_label, 'type' => var_type, 'required' => true, 'defaultValue' => (var_value.to_s.empty? ? nil : var_value.to_s), 'displayOrder' => (i+1) }
+            variable_option_types << option_type
+            i+=1
+          end
+          blueprint_type_display = format_blueprint_type(config['type'])
+          if blueprint_type_display == "terraform"
+            blueprint_type_display = "Terraform"
+          end
+          print_h2 "#{blueprint_type_display} Variables"
+          v_prompt = Morpheus::Cli::OptionTypes.prompt(variable_option_types, options[:options], @api_client)
+          v_prompt.deep_compact!
+          payload.deep_merge!(v_prompt)
+        end
+      rescue RestClient::Exception => ex
+        # if e.response && e.response.code == 404
+        Morpheus::Logging::DarkPrinter.puts "Unable to load config for app apply, skipping parameter prompting" if Morpheus::Logging.debug?
+        # print_rest_exception(ex, options)
+        # end
+      end
+    end
+
+    @apps_interface.setopts(options)
+    if options[:validate_only]
+      # validate only
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.validate_apply(app["id"], params, payload)
+        return
+      end
+      json_response = @apps_interface.validate_apply(app["id"], params, payload)
+      print_green_success "Validating app #{app['name']}"
+      execution_id = json_response['executionId']
+      if !options[:no_refresh]
+        #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+        validate_execution_request = wait_for_execution_request(execution_id, options)
+      end
+    elsif options[:no_validate]
+      # skip validate, apply only
       if options[:dry_run]
         print_dry_run @apps_interface.dry.apply(app["id"], params, payload)
         return
@@ -965,13 +1109,172 @@ EOT
       json_response = @apps_interface.apply(app["id"], params, payload)
       render_response(json_response, options) do
         print_green_success "Applying app #{app['name']}"
-        # return _get(app['id'], options)
+        execution_id = json_response['executionId']        
+        if !options[:no_refresh]
+          #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+          apply_execution_request = wait_for_execution_request(execution_id, options)
+        end
       end
-      return 0, nil
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    else
+      # validate and then apply
+      if options[:dry_run]
+        print_dry_run @apps_interface.dry.validate_apply(app["id"], params, payload)
+        print_dry_run @apps_interface.dry.apply(app["id"], params, payload)
+        return
+      end
+      json_response = @apps_interface.validate_apply(app["id"], params, payload)
+      print_green_success "Validating app #{app['name']}"
+      execution_id = json_response['executionId']
+      validate_execution_request = wait_for_execution_request(execution_id, options)
+      if validate_execution_request['status'] != 'complete'
+        print_red_alert "Validation failed. Changes will not be applied."
+        return 1, "Validation failed. Changes will not be applied."
+      else
+        unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to apply these changes?")
+          return 9, "aborted command"
+        end
+        json_response = @apps_interface.apply(app["id"], params, payload)
+        render_response(json_response, options) do
+          print_green_success "Applying app #{app['name']}"
+          execution_id = json_response['executionId']        
+          if !options[:no_refresh]
+            #Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+            apply_execution_request = wait_for_execution_request(execution_id, options)
+          end
+        end
+      end
     end
+    return 0, nil
+  end
+
+  def state(args)
+    params, payload, options = {}, {}, {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[app] [options]")
+      opts.on('--data', "Display State Data") do
+        options[:include_state_data] = true
+      end
+      opts.on('--specs', "Display Spec Templates") do
+        options[:include_spec_templates] = true
+      end
+      opts.on('--plan', "Display Plan Data") do
+        options[:include_plan_data] = true
+      end
+      opts.on('--input', "Display Input") do
+        options[:include_input] = true
+      end
+      opts.on('--output', "Display Output") do
+        options[:include_output] = true
+      end
+      opts.on('-a','--all', "Display All Details") do
+        options[:include_state_data] = true
+        options[:include_spec_templates] = true
+        options[:include_plan_data] = true
+        options[:include_input] = true
+        options[:include_output] = true
+        options[:details] = true
+      end
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+View state of an app.
+[app] is required. This is the name or id of an app.
+This is only supported by certain types of apps such as terraform.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    app = find_app_by_name_or_id(args[0])
+    return 1 if app.nil?
+    # construct request
+    params.merge!(parse_query_options(options))
+    @apps_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @apps_interface.dry.state(app["id"], params)
+      return
+    end
+    json_response = @apps_interface.state(app["id"], params)
+    render_result = render_with_format(json_response, options)
+    return 0 if render_result
+    print_h1 "App State: #{app['name']}", options
+    # print_h2 "Workloads", options
+    if json_response['workloads'] && !json_response['workloads'].empty?
+      workload_columns = {
+        "Name" => lambda {|it| it['subRefName'].to_s.empty? ? "#{it['refName']}" : "#{it['refName']} - #{it['subRefName']}" },
+        "Last Check" => lambda {|it| format_local_dt(it['stateDate']) },
+        "Status" => lambda {|it| format_ok_status(it['status'] || 'ok') },
+        "Drift Status" => lambda {|it| it['iacDrift'] ? "Drift" : "No Drift" }
+      }
+      print as_pretty_table(json_response['workloads'], workload_columns.upcase_keys!, options)
+    else
+      print cyan,"No workloads found.",reset,"\n"
+    end
+    if options[:include_state_data]
+      print_h2 "State Data", options
+      puts json_response['stateData']
+    end
+    if options[:include_spec_templates]
+      print_h2 "Spec Templates", options
+      spec_templates_columns = {
+        "Resource Spec" => lambda {|it| it['name'] || (it['template'] ? it['template']['name'] : nil) },
+        "Attached to Source Template" => lambda {|it| format_boolean(!it['isolated']) },
+        "Source Spec Template" => lambda {|it| (it['template'] ? it['template']['name'] : nil) || it['name'] }
+      }
+      print as_pretty_table(json_response['specs'], spec_templates_columns.upcase_keys!, options)
+      # print "\n", reset
+    end
+    if options[:include_plan_data]
+      # print_h2 "Plan Data", options
+      if app['type'] == 'terraform'
+        print_h2 "Terraform Plan", options
+      else
+        print_h2 "Plan Data", options
+      end
+      puts json_response['planData']
+      # print "\n", reset
+    end
+    if options[:include_input]
+      # print_h2 "Input", options
+      if json_response['input'] && json_response['input']['variables']
+        print_h2 "VARIABLES", options
+        input_variable_columns = {
+          "Name" => lambda {|it| it['name'] },
+          "Value" => lambda {|it| it['value'] }
+        }
+        print as_pretty_table(json_response['input']['variables'], input_variable_columns.upcase_keys!, options)
+      end
+      if json_response['input'] && json_response['input']['providers']
+        print_h2 "PROVIDERS", options
+        input_provider_columns = {
+          "Name" => lambda {|it| it['name'] }
+        }
+        print as_pretty_table(json_response['input']['providers'], input_provider_columns.upcase_keys!, options)
+      end
+      if json_response['input'] && json_response['input']['data']
+        print_h2 "DATA", options
+        input_data_columns = {
+          "Type" => lambda {|it| it['type'] },
+          "Key" => lambda {|it| it['key'] },
+          "Name" => lambda {|it| it['name'] }
+        }
+        print as_pretty_table(json_response['input']['data'], input_data_columns.upcase_keys!, options)
+      end
+      # print "\n", reset
+    end
+    if options[:include_output]
+      # print_h2 "Output", options
+      if json_response['output'] && json_response['output']['outputs']
+        print_h2 "OUTPUTS", options
+        input_variable_columns = {
+          "Name" => lambda {|it| it['name'] },
+          "Value" => lambda {|it| it['value'] }
+        }
+        print as_pretty_table(json_response['output']['outputs'], input_variable_columns.upcase_keys!, options)
+      end
+      # print "\n", reset
+    end
+    print "\n", reset
+    return 0
   end
 
   def add_instance(args)
@@ -1242,11 +1545,19 @@ EOT
     begin
       app = find_app_by_name_or_id(args[0])
       container_ids = []
-      app['appTiers'].each do |app_tier|
-        app_tier['appInstances'].each do |app_instance|
-          container_ids += app_instance['instance']['containers']
-        end if app_tier['appInstances']
-      end if app['appTiers']
+      # API used to only return apps.appTiers
+      # now returns detailed instance list as 'instances'
+      app_tiers = app['appTiers'] || []
+      instances = app['instances']
+      if instances.nil?
+        instances = []
+        app_tiers.each do |app_tier|
+          instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
+        end
+      end
+      instances.each do |instance|
+        container_ids += instance['containers']
+      end
       if container_ids.empty?
         print cyan,"app is empty",reset,"\n"
         return 0
@@ -1636,10 +1947,18 @@ EOT
       app = find_app_by_name_or_id(args[0])
 
       instance_ids = []
-      app['appTiers'].each do |app_tier|
-        app_tier['appInstances'].each do |app_instance|
-          instance_ids << app_instance['instance']['id']
+      # API used to only return apps.appTiers
+      # now returns detailed instance list as "instances"
+      app_tiers = app['appTiers'] || []
+      instances = app['instances']
+      if instances.nil?
+        instances = []
+        app_tiers.each do |app_tier|
+          instances += (app_tier['appInstances'] || []).collect {|it| it['instance']}.flatten().compact
         end
+      end
+      instances.each do |instance|
+        instance_ids << instance['id']
       end
       
       # container_ids = instance['containers']

@@ -83,12 +83,13 @@ class Morpheus::Cli::ExecutionRequestCommand
         if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
           options[:refresh_interval] = default_refresh_interval
         end
-        if execution_request['exitCode'] || ['complete','failed','expired'].include?(execution_request['status'])
+        if !(execution_request['status'] == 'pending' || execution_request['status'] == 'new')
           # it is finished
         else
           print cyan
-          print "Execution request has not yet finished. Refreshing every #{options[:refresh_interval]} seconds"
-          while execution_request['exitCode'].nil? do
+          refresh_display_seconds = options[:refresh_interval] % 1.0 == 0 ? options[:refresh_interval].to_i : options[:refresh_interval]
+          print "Execution request has not yet finished. Refreshing every #{refresh_display_seconds} seconds"
+          while execution_request['status'] == 'pending' || execution_request['status'] == 'new' do
             sleep(options[:refresh_interval])
             print cyan,".",reset
             json_response = @execution_request_interface.get(execution_request_id, params)
@@ -114,9 +115,13 @@ class Morpheus::Cli::ExecutionRequestCommand
         #"Created By" => lambda {|it| it['createdById'] },
         #"Subdomain" => lambda {|it| it['subdomain'] },
       }
+      description_cols.delete("Server ID") if execution_request['serverId'].nil?
+      description_cols.delete("Instance ID") if execution_request['instanceId'].nil?
+      description_cols.delete("Container ID") if execution_request['containerId'].nil?
+      description_cols.delete("Exit Code") if execution_request['exitCode'].nil?
       print_description_list(description_cols, execution_request)      
 
-      if execution_request['stdErr'] && execution_request['stdErr'] != "stdin: is not a tty\n"
+      if execution_request['stdErr'].to_s.strip != '' && execution_request['stdErr'] != "stdin: is not a tty\n"
         print_h2 "Error"
         puts execution_request['stdErr'].to_s.strip
       end

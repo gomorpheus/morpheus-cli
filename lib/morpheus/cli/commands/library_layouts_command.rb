@@ -187,6 +187,7 @@ EOT
           ""
         end
       },
+      "Tfvar Secret" => lambda {|it| it['tfvarSecret'] },
       # "Category" => lambda {|it| it['category'].to_s.capitalize },
       # # "Logo" => lambda {|it| it['logo'].to_s },
       # "Visiblity" => lambda {|it| it['visibility'].to_s.capitalize },
@@ -200,6 +201,7 @@ EOT
       # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
     }
+    description_cols.delete("Tfvar Secret") if !(layout['provisionType'] && layout['provisionType']['code'] == 'terraform')
     print_description_list(description_cols, layout)
 
     
@@ -338,6 +340,9 @@ EOT
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('--tfvar-secret VALUE', String, "Tfvar Secret name, eg. 'tfvars/dev-key'") do |val|
+        params['tfvarSecret'] = val == 'null' ? nil : val
+      end
       add_perms_options(opts, options, layout_permission_excludes)
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -453,6 +458,13 @@ EOT
           return 1
         end
         
+        # TFVAR SECRET
+        if !params['tfvarSecret']
+          if provision_type && provision_type['code'] == 'terraform'
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tfvarSecret', 'type' => 'select', 'optionSource' => 'tfvarSecrets', 'fieldLabel' => 'Tfvar Secret', 'required' => false}], options[:options], @api_client)
+            params['tfvarSecret'] = v_prompt['tfvarSecret'] if v_prompt['tfvarSecret']
+          end
+        end
 
         payload = {'instanceTypeLayout' => params}
         
@@ -543,6 +555,9 @@ EOT
         else
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('--tfvar-secret VALUE', String, "Tfvar Secret name, eg. 'tfvars/dev-key'") do |val|
+        params['tfvarSecret'] = val == 'null' ? nil : val
       end
       add_perms_options(opts, options, layout_permission_excludes)
       build_standard_update_options(opts, options)

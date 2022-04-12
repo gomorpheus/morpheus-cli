@@ -57,6 +57,20 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def prepare_apply(app_id, params={})
+    url = "#{@base_url}/api/apps/#{app_id}/prepare-apply"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def validate_apply(app_id, params, payload)
+    url = "#{@base_url}/api/apps/#{app_id}/validate-apply"
+    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def apply(app_id, params, payload)
     url = "#{@base_url}/api/apps/#{app_id}/apply"
     headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -64,10 +78,10 @@ class Morpheus::AppsInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  def prepare_apply(app_id, params, payload)
-    url = "#{@base_url}/api/apps/#{app_id}/prepare-apply"
-    headers = {:params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+  def state(id, params={})
+    url = "#{@base_url}/api/apps/#{id}/state"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 

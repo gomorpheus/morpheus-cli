@@ -373,8 +373,15 @@ class Morpheus::Cli::Clusters
       opts.on( '--resource-name NAME', "Resource Name" ) do |val|
         options[:resourceName] = val.to_s
       end
-      opts.on('--tags LIST', String, "Tags") do |val|
-        options[:tags] = val
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
+      opts.on('--labels LIST', String, "Tags") do |val|
+        options[:labels] = val
       end
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -510,13 +517,13 @@ class Morpheus::Cli::Clusters
         description = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
         cluster_payload['description'] = description if description
 
-        tags = options[:tags]
+        labels = options[:labels]
 
-        if !tags && !options[:no_prompt]
-          tags = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tags', 'type' => 'text', 'fieldLabel' => 'Resource Labels', 'required' => false, 'description' => 'Resource Tags.'}],options[:options],@api_client,{})['tags']
+        if !labels && !options[:no_prompt]
+          labels = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'type' => 'text', 'fieldLabel' => 'Resource Labels', 'required' => false, 'description' => 'Resource Labels.'}],options[:options],@api_client,{})['labels']
         end
 
-        server_payload['tags'] = tags if tags
+        server_payload['labels'] = labels if labels
 
         # Cloud / Zone
         cloud_id = nil
@@ -595,7 +602,7 @@ class Morpheus::Cli::Clusters
 
         # Multi-disk / prompt for volumes
         if provision_type['hasVolumes']
-          volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, api_params)
+          volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options, @api_client, api_params)
           if !volumes.empty?
             server_payload['volumes'] = volumes
           end
@@ -605,7 +612,9 @@ class Morpheus::Cli::Clusters
         option_type_list =
           ((controller_type.nil? ? [] : controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) +
           layout['optionTypes'] +
-          (cluster_type['optionTypes'].reject { |type| !type['enabled'] || !type['creatable'] || type['fieldComponent'] } rescue []))
+          (cluster_type['optionTypes'].reject { |type| 
+            !type['enabled'] || !type['creatable'] || type['fieldComponent'] || (type['fieldName'] == 'metadata')
+          } rescue []))
 
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
@@ -615,6 +624,8 @@ class Morpheus::Cli::Clusters
           option_type_list = option_type_list.reject {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
         end
 
+        # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
+        option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
         # Networks
         # NOTE: You must choose subnets in the same availability zone
         if controller_provision_type && controller_provision_type['hasNetworks'] && cloud['zoneType']['code'] != 'esxi'
@@ -633,10 +644,21 @@ class Morpheus::Cli::Clusters
         # Server options
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, api_params, options[:no_prompt], true))
 
+        # Metadata Tags
+        if options[:metadata]
+          metadata = parse_metadata(options[:metadata])
+          server_payload['tags'] = metadata if !metadata.empty?
+        else
+          metadata = prompt_metadata(options)
+          server_payload['tags'] = metadata if !metadata.empty?
+        end
+
         # Worker count
         if !['manual', 'external'].include?(provision_type['code'])
           default_node_count = layout['computeServers'] ? (layout['computeServers'].find {|it| it['nodeType'] == 'worker'} || {'nodeCount' => 3})['nodeCount'] : 3
-          server_payload['config']['nodeCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker-cluster', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+          nodeCount = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => "config.nodeCount", 'type' => 'number', 'fieldLabel' => "#{['docker-cluster', 'kvm-cluster'].include?(cluster_type['code']) ? 'Host' : 'Worker'} Count", 'required' => true, 'defaultValue' => default_node_count > 0 ? default_node_count : 3}], options[:options], @api_client, api_params, options[:no_prompt])['config']['nodeCount']
+          server_payload['config']['nodeCount'] = nodeCount
+          server_payload['nodeCount'] = nodeCount
         end
 
         # Create User
@@ -1092,6 +1114,16 @@ class Morpheus::Cli::Clusters
       opts.on("--description [TEXT]", String, "Description") do |val|
         options[:description] = val.to_s
       end
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
+      opts.on('--labels LIST', String, "Tags") do |val|
+        options[:labels] = val
+      end
       add_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Add worker to a cluster.\n" +
@@ -1153,6 +1185,14 @@ class Morpheus::Cli::Clusters
         # Description
         server_payload['description'] = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'description' => 'Worker Description'}], options[:options], @api_client)['description']
 
+        # Labels
+        labels = options[:labels]
+        if !labels && !options[:no_prompt]
+          labels = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'type' => 'text', 'fieldLabel' => 'Resource Labels', 'required' => false, 'description' => 'Resource Labels.'}],options[:options],@api_client,{})['labels']
+        end
+
+        server_payload['labels'] = labels if labels
+
         # Cloud
         available_clouds = options_interface.options_for_source('clouds', {groupId: cluster['site']['id'], clusterId: cluster['id'], ownerOnly: true})['data']
         cloud_id = nil
@@ -1192,7 +1232,7 @@ class Morpheus::Cli::Clusters
         end
 
         # Multi-disk / prompt for volumes
-        volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options.merge({'defaultAddFirstDataVolume': true}), @api_client, {zoneId: cloud['id'], siteId: group['id']})
+        volumes = options[:volumes] || prompt_volumes(service_plan, provision_type, options, @api_client, {zoneId: cloud['id'], siteId: group['id']})
 
         if !volumes.empty?
           server_payload['volumes'] = volumes
@@ -1215,10 +1255,20 @@ class Morpheus::Cli::Clusters
         option_type_list = (server_type['optionTypes'].reject { |type|
           !type['enabled'] || type['fieldComponent'] ||
           (['provisionType.vmware.host', 'provisionType.scvmm.host'].include?(type['code']) && cloud['config']['hideHostSelection'] == 'on') || # should this be truthy?
-          (type['fieldContext'] == 'instance.networkDomain' && type['fieldName'] == 'id')
+          (type['fieldContext'] == 'instance.networkDomain' && type['fieldName'] == 'id') ||
+          (type['fieldName'] == 'metadata')
         } rescue [])
 
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
+
+        # Metadata Tags
+        if options[:metadata]
+          metadata = parse_metadata(options[:metadata])
+          server_payload['tags'] = metadata if !metadata.empty?
+        else
+          metadata = prompt_metadata(options)
+          server_payload['tags'] = metadata if !metadata.empty?
+        end
 
         # Create User
         if !options[:createUser].nil?

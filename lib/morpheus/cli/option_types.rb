@@ -828,7 +828,7 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
           input = $stdin.noecho(&:gets).chomp!
           value = input
           print "\n"
