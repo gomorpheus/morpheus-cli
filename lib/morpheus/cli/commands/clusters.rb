@@ -613,8 +613,12 @@ class Morpheus::Cli::Clusters
           ((controller_type.nil? ? [] : controller_type['optionTypes'].reject { |type| !type['enabled'] || type['fieldComponent'] } rescue []) +
           layout['optionTypes'] +
           (cluster_type['optionTypes'].reject { |type| 
-            !type['enabled'] || !type['creatable'] || type['fieldComponent'] || (type['fieldName'] == 'metadata')
+            !type['enabled'] || !type['creatable'] || type['fieldComponent']
           } rescue []))
+
+        # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
+        metadata_option_type = option_type_list.find {|type| type['fieldName'] == 'metadata' }
+        option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
 
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
@@ -624,8 +628,6 @@ class Morpheus::Cli::Clusters
           option_type_list = option_type_list.reject {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
         end
 
-        # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
-        option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
         # Networks
         # NOTE: You must choose subnets in the same availability zone
         if controller_provision_type && controller_provision_type['hasNetworks'] && cloud['zoneType']['code'] != 'esxi'
@@ -645,12 +647,14 @@ class Morpheus::Cli::Clusters
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, api_params, options[:no_prompt], true))
 
         # Metadata Tags
-        if options[:metadata]
-          metadata = parse_metadata(options[:metadata])
-          server_payload['tags'] = metadata if !metadata.empty?
-        else
-          metadata = prompt_metadata(options)
-          server_payload['tags'] = metadata if !metadata.empty?
+        if metadata_option_type
+          if options[:metadata]
+            metadata = parse_metadata(options[:metadata])
+            server_payload['tags'] = metadata if !metadata.empty?
+          else
+            metadata = prompt_metadata(options)
+            server_payload['tags'] = metadata if !metadata.empty?
+          end
         end
 
         # Worker count
@@ -1255,19 +1259,25 @@ class Morpheus::Cli::Clusters
         option_type_list = (server_type['optionTypes'].reject { |type|
           !type['enabled'] || type['fieldComponent'] ||
           (['provisionType.vmware.host', 'provisionType.scvmm.host'].include?(type['code']) && cloud['config']['hideHostSelection'] == 'on') || # should this be truthy?
-          (type['fieldContext'] == 'instance.networkDomain' && type['fieldName'] == 'id') ||
-          (type['fieldName'] == 'metadata')
+          (type['fieldContext'] == 'instance.networkDomain' && type['fieldName'] == 'id')
         } rescue [])
+
+        # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
+        #metadata_option_type = option_type_list.find {|type| type['fieldName'] == 'metadata' }
+        metadata_option_type = cluster_type['optionTypes'].find {|type| type['fieldName'] == 'metadata' }
+        option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
 
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options], @api_client, {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id']}))
 
         # Metadata Tags
-        if options[:metadata]
-          metadata = parse_metadata(options[:metadata])
-          server_payload['tags'] = metadata if !metadata.empty?
-        else
-          metadata = prompt_metadata(options)
-          server_payload['tags'] = metadata if !metadata.empty?
+        if metadata_option_type
+          if options[:metadata]
+            metadata = parse_metadata(options[:metadata])
+            server_payload['tags'] = metadata if !metadata.empty?
+          else
+            metadata = prompt_metadata(options)
+            server_payload['tags'] = metadata if !metadata.empty?
+          end
         end
 
         # Create User
