@@ -12,7 +12,7 @@ class Morpheus::Cli::Apps
   set_command_name :apps
   set_command_description "View and manage apps."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :cancel_removal, :add_instance, :remove_instance, :logs, :security_groups, :apply_security_groups, :history
-  register_subcommands :refresh, :prepare_apply, :plan, :apply, :state
+  register_subcommands :refresh, :prepare_apply, :apply, :state #:plan << this command isn't created yet
   register_subcommands :stop, :start, :restart
   register_subcommands :wiki, :update_wiki
   #register_subcommands :firewall_disable, :firewall_enable
