@@ -25,7 +25,7 @@ class Morpheus::Cli::Instances
                        :wiki, :update_wiki,
                        {:exec => :execution_request},
                        :deploys,
-                       :refresh, :prepare_apply, :plan, :apply, :state
+                       :refresh, :prepare_apply, :apply, :state
   #register_subcommands :firewall_disable, :firewall_enable
   # register_subcommands {:'lb-update' => :load_balancer_update}
   alias_subcommand :details, :get
