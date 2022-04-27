@@ -16,6 +16,7 @@ class Morpheus::Cli::PricesCommand
     @api_client = establish_remote_appliance_connection(opts)
     @prices_interface = @api_client.prices
     @accounts_interface = @api_client.accounts
+    @options_interface = @api_client.options
   end
 
   def handle(args)
@@ -238,11 +239,7 @@ class Morpheus::Cli::PricesCommand
         end
       end
       opts.on("--currency [CURRENCY]", String, "Price currency") do |val|
-        if avail_currencies.include?(val.upcase)
-          params['currency'] = val.upcase
-        else
-          raise_command_error "Unsupported currency '#{val}'. Available currencies: #{avail_currencies.join(', ')}"
-        end
+        options[:currency] = val
       end
       opts.on("--cost [AMOUNT]", Float, "Price cost") do |val|
         params['cost'] = val
@@ -267,6 +264,15 @@ class Morpheus::Cli::PricesCommand
     if args.count > 2
       raise_command_error "wrong number of arguments, expected 0-2 and got (#{args.count}) #{args}\n#{optparse}"
       return 1
+    end
+
+    if options[:currency]
+      if avail_currencies.include?(options[:currency].upcase)
+        params['currency'] = options[:currency].upcase
+      else
+        raise_command_error "Unsupported currency '#{options[:currency]}'. Available currencies: #{avail_currencies.join(', ')}"
+        return 1
+      end
     end
 
     begin
@@ -402,11 +408,7 @@ class Morpheus::Cli::PricesCommand
         end
       end
       opts.on("--currency [CURRENCY]", String, "Price currency") do |val|
-        if avail_currencies.include?(val.upcase)
-          params['currency'] = val.upcase
-        else
-          raise_command_error "Unsupported currency '#{val}'. Available currencies: #{avail_currencies.join(', ')}"
-        end
+        options[:currency] = val
       end
       opts.on("--cost [AMOUNT]", Float, "Price cost") do |val|
         params['cost'] = val
@@ -431,9 +433,19 @@ class Morpheus::Cli::PricesCommand
     end
     optparse.parse!(args)
     connect(options)
+
     if args.count != 1
       raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
       return 1
+    end
+
+    if options[:currency]
+      if avail_currencies.include?(options[:currency].upcase)
+        params['currency'] = options[:currency].upcase
+      else
+        raise_command_error "Unsupported currency '#{options[:currency]}'. Available currencies: #{avail_currencies.join(', ')}"
+        return 1
+      end
     end
 
     begin
@@ -608,7 +620,10 @@ class Morpheus::Cli::PricesCommand
   end
 
   def avail_currencies
-    ['CAD','EUR', 'IDR', 'XCD', 'USD', 'XOF', 'NOK', 'AUD', 'XAF', 'NZD', 'MAD', 'DKK', 'GBP', 'CHF', 'XPF', 'ILS', 'ROL', 'TRL','SEK', 'ZAR']
+    if @avail_currencies.nil?
+      @avail_currencies = @options_interface.options_for_source('currency')['data'].collect {|it| it['value']}
+    end
+    @avail_currencies
   end
 
   def prompt_for_price_type(params, options, price={})
