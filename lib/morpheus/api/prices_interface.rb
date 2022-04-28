@@ -62,4 +62,10 @@ class Morpheus::PricesInterface < Morpheus::APIClient
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
+
+  def list_currencies(params={})
+    url = "#{base_path}/currencies"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
 end
