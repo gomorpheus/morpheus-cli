@@ -16,7 +16,6 @@ class Morpheus::Cli::PricesCommand
     @api_client = establish_remote_appliance_connection(opts)
     @prices_interface = @api_client.prices
     @accounts_interface = @api_client.accounts
-    @options_interface = @api_client.options
   end
 
   def handle(args)
@@ -621,7 +620,7 @@ class Morpheus::Cli::PricesCommand
 
   def avail_currencies
     if @avail_currencies.nil?
-      @avail_currencies = @options_interface.options_for_source('currency')['data'].collect {|it| it['value']}
+      @avail_currencies = @prices_interface.list_currencies()['currencies'].collect {|it| it['value']}
     end
     @avail_currencies
   end
