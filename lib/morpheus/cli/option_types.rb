@@ -158,7 +158,7 @@ module Morpheus
                 if credential_value == "local"
                   context_map[credential_code] = {"type" => credential_value}
                 elsif credential_value.to_s =~ /\A\d{1,}\Z/
-                  context_map[credential_code] = {"type" => "existing", "id" => credential_value.to_i}
+                  context_map[credential_code] = {"id" => credential_value.to_i}
                 end
               end
             end
