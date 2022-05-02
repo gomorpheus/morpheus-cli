@@ -62,6 +62,7 @@ module Morpheus
             option_type['type'] = 'multiText'
           end
         end
+        credential_option_types = {}
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
         cur_field_group = 'default'
@@ -143,6 +144,28 @@ module Morpheus
               end
             end
             next if !found_dep_value
+          end
+
+          # inject a Credentials prompt for optionTypes that have been replaced by credentials
+          credential_code = option_type['credentialFieldContext']
+          if !credential_code.to_s.empty?
+            if !credential_option_types[credential_code]
+              credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Chooes a credential to use', 'defaultValue' => "local", 'required' => true}
+              credential_option_types[credential_code] = credential_option_type
+              credential_params = {"new" => false, "credentialTypes" => (option_type['credentialType'] || option_type['credentialTypes']).to_s}
+              credential_value = select_prompt(credential_option_type, api_client, credential_params, no_prompt)
+              if !credential_value.to_s.empty?
+                if credential_value == "local"
+                  context_map[credential_code] = {"type" => credential_value}
+                elsif credential_value.to_s =~ /\A\d{1,}\Z/
+                  context_map[credential_code] = {"type" => "existing", "id" => credential_value.to_i}
+                end
+              end
+            end
+            # skip this option unless using local credentials
+            if context_map[credential_code].is_a?(Hash) && context_map[credential_code]["type"] != "local"
+              next
+            end
           end
 
           cur_namespace = options
