@@ -496,15 +496,15 @@ class Morpheus::Cli::Instances
         payload["zoneId"] = cloud["id"]
         payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
       end
-        if options[:cloud]
-          group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
-          cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
-          if cloud.nil?
-            return 1, "cloud not found by #{options[:cloud]}"
-          end
-          payload["zoneId"] = cloud["id"]
-          payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
-        end
+        # if options[:cloud]
+        #   group_id = group ? group["id"] : ((payload["instance"] && payload["instance"]["site"].is_a?(Hash)) ? payload["instance"]["site"]["id"] : nil)
+        #   cloud = find_cloud_by_name_or_id_for_provisioning(group_id, options[:cloud])
+        #   if cloud.nil?
+        #     return 1, "cloud not found by #{options[:cloud]}"
+        #   end
+        #   payload["zoneId"] = cloud["id"]
+        #   payload.deep_merge!({"instance" => {"cloud" => cloud["name"] } })
+        # end
       if options[:instance_type_code]
         # should just use find_instance_type_by_name_or_id
         # note that the api actually will match name name or code
@@ -539,7 +539,7 @@ class Morpheus::Cli::Instances
         end
       end
     end
-
+    
     payload['instance'] ||= {}
     if options[:instance_name]
       payload['instance']['name'] = options[:instance_name]
