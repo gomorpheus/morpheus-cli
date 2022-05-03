@@ -942,6 +942,8 @@ class Morpheus::Cli::Clouds
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 4},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 5},
+      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6},
     ]
 
     # TODO: Account
