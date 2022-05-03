@@ -297,6 +297,9 @@ class Morpheus::Cli::Tasks
       opts.on('--execute-target VALUE', String, "Execute Target" ) do |val|
         options[:options]['executeTarget'] = val
       end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
       opts.on('--target-host VALUE', String, "Target Host" ) do |val|
         options[:options]['taskOptions'] ||= {}
         options[:options]['taskOptions']['host'] = val
@@ -312,6 +315,10 @@ class Morpheus::Cli::Tasks
       opts.on('--target-password VALUE', String, "Target Password" ) do |val|
         options[:options]['taskOptions'] ||= {}
         options[:options]['taskOptions']['password'] = val
+      end
+      opts.on('--target-ssh-key VALUE', String, "Target SSH Key" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['sshKey'] = val
       end
       opts.on('--git-repo VALUE', String, "Git Repo ID" ) do |val|
         options[:options]['taskOptions'] ||= {}
@@ -521,17 +528,38 @@ class Morpheus::Cli::Tasks
             payload['task']['taskOptions'] ||= {}
             payload['task']['taskOptions']['port'] = v_prompt['taskOptions']['port']
           end
-          # Host
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'description' => 'Username for remote execution'}], options[:options], @api_client)
-          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['username'].to_s.empty?
-            payload['task']['taskOptions'] ||= {}
-            payload['task']['taskOptions']['username'] = v_prompt['taskOptions']['username']
+          # Credentials
+          credential_code = "credential"
+          credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Chooes a credential to use', 'defaultValue' => "local", 'required' => true}
+          supported_credential_types = ['username-keypair', 'username-password', 'username-password-keypair'].compact.flatten.join(",").split(",").collect {|it| it.strip }
+          credential_params = {"new" => false, "credentialTypes" => supported_credential_types}
+          credential_value = Morpheus::Cli::OptionTypes.select_prompt(credential_option_type, @api_client, credential_params, options[:no_prompt], options[:options][credential_code])
+          if !credential_value.to_s.empty?
+            if credential_value == "local"
+              payload['task'][credential_code] = {"type" => credential_value}
+            elsif credential_value.to_s =~ /\A\d{1,}\Z/
+              payload['task'][credential_code] = {"id" => credential_value.to_i}
+            end
           end
-          # Host
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Password for remote execution'}], options[:options], @api_client)
-          if v_prompt['taskOptions'] && !v_prompt['taskOptions']['password'].to_s.empty?
-            payload['task']['taskOptions'] ||= {}
-            payload['task']['taskOptions']['password'] = v_prompt['taskOptions']['password']
+          if credential_value == "local"
+            # Username
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'username', 'fieldLabel' => 'Username', 'type' => 'text', 'description' => 'Username for remote execution'}], options[:options], @api_client)
+            if v_prompt['taskOptions'] && !v_prompt['taskOptions']['username'].to_s.empty?
+              payload['task']['taskOptions'] ||= {}
+              payload['task']['taskOptions']['username'] = v_prompt['taskOptions']['username']
+            end
+            # Password
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Password for remote execution'}], options[:options], @api_client)
+            if v_prompt['taskOptions'] && !v_prompt['taskOptions']['password'].to_s.empty?
+              payload['task']['taskOptions'] ||= {}
+              payload['task']['taskOptions']['password'] = v_prompt['taskOptions']['password']
+            end
+            # SSH Key
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'taskOptions', 'fieldName' => 'sshKey', 'fieldLabel' => 'Key', 'type' => 'select', 'optionSource' => 'keyPairs', 'description' => 'SSH Key for remote execution'}], options[:options], @api_client)
+            if v_prompt['taskOptions'] && !v_prompt['taskOptions']['sshKey'].to_s.empty?
+              payload['task']['taskOptions'] ||= {}
+              payload['task']['taskOptions']['sshKey'] = v_prompt['taskOptions']['sshKey']
+            end
           end
         end
 
@@ -639,6 +667,9 @@ class Morpheus::Cli::Tasks
       opts.on('--execute-target VALUE', String, "Execute Target" ) do |val|
         options[:options]['executeTarget'] = val
       end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
       opts.on('--target-host VALUE', String, "Target Host" ) do |val|
         options[:options]['taskOptions'] ||= {}
         options[:options]['taskOptions']['host'] = val
@@ -654,6 +685,10 @@ class Morpheus::Cli::Tasks
       opts.on('--target-password VALUE', String, "Target Password" ) do |val|
         options[:options]['taskOptions'] ||= {}
         options[:options]['taskOptions']['password'] = val
+      end
+      opts.on('--target-ssh-key VALUE', String, "Target SSH Key" ) do |val|
+        options[:options]['taskOptions'] ||= {}
+        options[:options]['taskOptions']['sshKey'] = val
       end
       opts.on('--git-repo VALUE', String, "Git Repo ID" ) do |val|
         options[:options]['taskOptions'] ||= {}
