@@ -80,8 +80,9 @@ class Morpheus::Cli::Clouds
         print_h1 title, subtitles
         if clouds.empty?
           print cyan,"No clouds found.",reset,"\n"
-        else
-          print_clouds_table(clouds, options)
+        else          
+          columns = cloud_list_column_definitions(options).upcase_keys!
+          print as_pretty_table(clouds, columns, options)
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -164,13 +165,14 @@ class Morpheus::Cli::Clouds
       else
         server_counts = json_response['serverCounts'] # legacy
       end
-      cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
+      #cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       print_h1 "Cloud Details"
       print cyan
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
-        "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
+        # "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
+        "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
         "Code" => 'code',
         "Location" => 'location',
         "Region Code" => 'regionCode',
@@ -919,25 +921,17 @@ class Morpheus::Cli::Clouds
 
   private
 
-  def print_clouds_table(clouds, opts={})
-    table_color = opts[:color] || cyan
-    rows = clouds.collect do |cloud|
-      cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
-      {
-        id: cloud['id'],
-        name: cloud['name'],
-        type: cloud_type ? cloud_type['name'] : '',
-        location: cloud['location'],
-        "REGION CODE": cloud['regionCode'],
-        groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
-        servers: cloud['serverCount'],
-        status: format_cloud_status(cloud)
-      }
-    end
-    columns = [
-      :id, :name, :type, :location, "REGION CODE", :groups, :servers, :status
-    ]
-    print as_pretty_table(rows, columns, opts)
+  def cloud_list_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
+      "Location" => 'location',
+      "Region Code" => lambda {|it| it['regionCode'] },
+      "Groups" => lambda {|it| (it['groups'] || []).collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
+      "Servers" => lambda {|it| it['serverCount'] },
+      "Status" => lambda {|it| format_cloud_status(it) },
+    }
   end
 
   def add_cloud_option_types(cloud_type)
