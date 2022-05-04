@@ -67,6 +67,7 @@ module Morpheus
         # Sort options by default, group, advanced
         cur_field_group = 'default'
         self.sorted_option_types(option_types).each do |option_type|
+          next if option_type[:for_help_only] == true # hacky
           context_map = results
           value = nil
           value_found = false
@@ -150,7 +151,7 @@ module Morpheus
           credential_code = option_type['credentialFieldContext']
           if !credential_code.to_s.empty?
             if !credential_option_types[credential_code]
-              credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Chooes a credential to use', 'defaultValue' => "local", 'required' => true}
+              credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Credential ID or use "local" to specify username and password', 'defaultValue' => "local", 'required' => true}
               credential_option_types[credential_code] = credential_option_type
               supported_credential_types = [option_type['credentialType'], option_type['credentialTypes']].compact.flatten.join(",").split(",").collect {|it| it.strip }
               credential_params = {"new" => false, "credentialTypes" => supported_credential_types}

@@ -530,7 +530,7 @@ class Morpheus::Cli::Tasks
           end
           # Credentials
           credential_code = "credential"
-          credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Chooes a credential to use', 'defaultValue' => "local", 'required' => true}
+          credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Enter an existing credential ID or choose "local"', 'defaultValue' => "local", 'required' => true}
           supported_credential_types = ['username-keypair', 'username-password', 'username-password-keypair'].compact.flatten.join(",").split(",").collect {|it| it.strip }
           credential_params = {"new" => false, "credentialTypes" => supported_credential_types}
           credential_value = Morpheus::Cli::OptionTypes.select_prompt(credential_option_type, @api_client, credential_params, options[:no_prompt], options[:options][credential_code])
