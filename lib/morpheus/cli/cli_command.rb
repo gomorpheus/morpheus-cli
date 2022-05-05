@@ -253,7 +253,7 @@ module Morpheus
 
       # list is GET that supports phrase,max,offset,sort,direction
       def build_standard_list_options(opts, options, includes=[], excludes=[])
-        build_standard_get_options(opts, options, [:list] + includes, excludes=[])
+        build_standard_get_options(opts, options, [:list] + includes, excludes)
       end
 
       def build_standard_add_options(opts, options, includes=[], excludes=[])
