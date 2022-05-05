@@ -217,6 +217,13 @@ class Morpheus::Cli::Clouds
       opts.on( '--certificate-provider CODE', String, "Certificate Provider. Default is 'internal'" ) do |val|
         params[:certificate_provider] = val
       end
+      opts.on('--costing-mode VALUE', String, "Costing Mode can be off,costing,full, Default is off." ) do |val|
+        options[:options]['costingMode'] = val
+      end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
+
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -331,6 +338,12 @@ class Morpheus::Cli::Clouds
       # opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
       #   params[:description] = desc
       # end
+      opts.on('--costing-mode VALUE', String, "Costing Mode can be off, costing, or full. Default is off." ) do |val|
+        options[:options]['costingMode'] = val
+      end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -354,12 +367,26 @@ class Morpheus::Cli::Clouds
         cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
         cloud_payload = {}
         all_option_types = update_cloud_option_types(cloud_type)
-        #params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {zoneTypeId: cloud_type['id']})
+        #params = Morpheus::Cli::OptionTypes.no_prompt(all_option_types, options[:options], @api_client, {zoneId: cloud['id'], zoneTypeId: cloud_type['id']})
         params = options[:options] || {}
+
+        # Credentials (ideally only if value passed in and name can be parsed)
+        if options[:options]['credential']
+          credential_code = "credential"
+          credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Enter an existing credential ID or choose "local"', 'defaultValue' => "local", 'required' => true}
+          # supported_credential_types = ['username-keypair', 'username-password', 'username-password-keypair'].compact.flatten.join(",").split(",").collect {|it| it.strip }
+          credential_params = {"new" => false, "zoneId" => cloud['id']}
+          credential_value = Morpheus::Cli::OptionTypes.select_prompt(credential_option_type, @api_client, credential_params, true, options[:options][credential_code])
+          if !credential_value.to_s.empty?
+            if credential_value == "local"
+              params[credential_code] = {"type" => credential_value}
+            elsif credential_value.to_s =~ /\A\d{1,}\Z/
+              params[credential_code] = {"id" => credential_value.to_i}
+            end
+          end
+        end
         if params.empty?
-          puts_error optparse.banner
-          puts_error format_available_options(all_option_types)
-          exit 1
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
         # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
         if params['zone'].is_a?(Hash)
@@ -944,6 +971,7 @@ class Morpheus::Cli::Clouds
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 4},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 5},
       {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6},
+      {'fieldName' => 'credential', 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Credential ID or use "local" to specify username and password', 'displayOrder' => 9, 'defaultValue' => "local", 'required' => true, :for_help_only => true}, # hacky way to render this but not prompt for it
     ]
 
     # TODO: Account
