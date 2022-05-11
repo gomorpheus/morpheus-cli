@@ -185,30 +185,29 @@ class Morpheus::Cli::CypherCommand
       # This response does contain cypher too though.
       
       if cypher_item.empty?
-        puts_error "Cypher data not found in response"
-        return 1
+        puts "Cypher item not found in response"
+      else
+        description_cols = {
+          #"ID" => 'id',
+          "Key" => lambda {|it| it["itemKey"] },
+          "TTL" => lambda {|it| 
+            format_expiration_ttl(it["expireDate"])
+          },
+          # "Type" => lambda {|it| 
+          #   data_type
+          # },
+          "Expiration" => lambda {|it| 
+            format_expiration_date(it["expireDate"])
+          },
+          # "Date Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
+          "Last Updated" => lambda {|it| format_local_dt(it["lastUpdated"]) },
+          "Last Accessed" => lambda {|it| format_local_dt(it["lastAccessed"]) }
+        }
+        if cypher_item["expireDate"].nil?
+          description_cols.delete("Expires")
+        end
+        print_description_list(description_cols, cypher_item)
       end
-      description_cols = {
-        #"ID" => 'id',
-        "Key" => lambda {|it| it["itemKey"] },
-        "TTL" => lambda {|it| 
-          format_expiration_ttl(it["expireDate"])
-        },
-        # "Type" => lambda {|it| 
-        #   data_type
-        # },
-        "Expiration" => lambda {|it| 
-          format_expiration_date(it["expireDate"])
-        },
-        # "Date Created" => lambda {|it| format_local_dt(it["dateCreated"]) },
-        "Last Updated" => lambda {|it| format_local_dt(it["lastUpdated"]) },
-        "Last Accessed" => lambda {|it| format_local_dt(it["lastAccessed"]) }
-      }
-      if cypher_item["expireDate"].nil?
-        description_cols.delete("Expires")
-      end
-      print_description_list(description_cols, cypher_item)
-
       # print_h2 "Value", options
       # print_h2 "Data", options
       print_h2 "Data (#{data_type})", options
