@@ -1160,6 +1160,7 @@ module Morpheus::Cli::ProvisioningHelper
       #volume['size'] = plan_size
       #volume['sizeId'] = nil #volume.delete('sizeId')
     end
+    
     if !datastore_options.empty?
       default_datastore = datastore_options.find {|ds| ds['value'].to_s == volume['datastoreId'].to_s}
       v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => 'Root Datastore', 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.', 'defaultValue' => default_datastore ? default_datastore['name'] : volume['datastoreId']}], options[:options])

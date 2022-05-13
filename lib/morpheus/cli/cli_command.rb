@@ -253,7 +253,7 @@ module Morpheus
 
       # list is GET that supports phrase,max,offset,sort,direction
       def build_standard_list_options(opts, options, includes=[], excludes=[])
-        build_standard_get_options(opts, options, [:list] + includes, excludes=[])
+        build_standard_get_options(opts, options, [:list] + includes, excludes)
       end
 
       def build_standard_add_options(opts, options, includes=[], excludes=[])
@@ -1569,7 +1569,7 @@ module Morpheus
         #Morpheus::Logging::DarkPrinter.puts "find_all(#{args.join(', ')})" if Morpheus::Logging.debug?
         type, *request_args = args
         type = type.to_s.singularize.underscore
-        list_key = respond_to?("#{type}_list_key", true) ? send("#{type}_list_key") : type.camelcase.pluralize
+        list_key = respond_to?("#{type}_list_key", true) ? send("#{type}_list_key") : get_list_key(type)
         json_response = find_all_json(*args)
         if !json_response.key?(list_key)
           # maybe just use the first key like this:
@@ -1600,7 +1600,7 @@ module Morpheus
         #Morpheus::Logging::DarkPrinter.puts "find_record(#{args.join(', ')})" if Morpheus::Logging.debug?
         type, *request_args = args
         type = type.to_s.singularize.underscore
-        object_key = respond_to?("#{type}_object_key", true) ? send("#{type}_object_key") : type.camelcase.singularize
+        object_key = respond_to?("#{type}_object_key", true) ? send("#{type}_object_key") : get_object_key(type)
         json_response = find_record_json(*args)
         if !json_response.key?(object_key)
           # maybe just use the first key like this:
@@ -1643,6 +1643,19 @@ module Morpheus
           end
         end
         return interface
+      end
+
+      def get_list_key(type)
+        return get_object_key(type).pluralize
+      end
+
+      def get_object_key(type)
+        key = type.camelcase.singularize
+        # add aliases here as needed
+        if key == "cloud"
+          key = "zone"
+        end
+        return key
       end
 
       module ClassMethods

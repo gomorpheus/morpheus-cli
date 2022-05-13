@@ -80,8 +80,9 @@ class Morpheus::Cli::Clouds
         print_h1 title, subtitles
         if clouds.empty?
           print cyan,"No clouds found.",reset,"\n"
-        else
-          print_clouds_table(clouds, options)
+        else          
+          columns = cloud_list_column_definitions(options).upcase_keys!
+          print as_pretty_table(clouds, columns, options)
           print_results_pagination(json_response)
         end
         print reset,"\n"
@@ -164,13 +165,14 @@ class Morpheus::Cli::Clouds
       else
         server_counts = json_response['serverCounts'] # legacy
       end
-      cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
+      #cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
       print_h1 "Cloud Details"
       print cyan
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
-        "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
+        # "Type" => lambda {|it| cloud_type ? cloud_type['name'] : '' },
+        "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
         "Code" => 'code',
         "Location" => 'location',
         "Region Code" => 'regionCode',
@@ -215,6 +217,13 @@ class Morpheus::Cli::Clouds
       opts.on( '--certificate-provider CODE', String, "Certificate Provider. Default is 'internal'" ) do |val|
         params[:certificate_provider] = val
       end
+      opts.on('--costing-mode VALUE', String, "Costing Mode can be off,costing,full, Default is off." ) do |val|
+        options[:options]['costingMode'] = val
+      end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
+
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -329,6 +338,12 @@ class Morpheus::Cli::Clouds
       # opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
       #   params[:description] = desc
       # end
+      opts.on('--costing-mode VALUE', String, "Costing Mode can be off, costing, or full. Default is off." ) do |val|
+        options[:options]['costingMode'] = val
+      end
+      opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
+        options[:options]['credential'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -352,12 +367,26 @@ class Morpheus::Cli::Clouds
         cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
         cloud_payload = {}
         all_option_types = update_cloud_option_types(cloud_type)
-        #params = Morpheus::Cli::OptionTypes.prompt(all_option_types, options[:options], @api_client, {zoneTypeId: cloud_type['id']})
+        #params = Morpheus::Cli::OptionTypes.no_prompt(all_option_types, options[:options], @api_client, {zoneId: cloud['id'], zoneTypeId: cloud_type['id']})
         params = options[:options] || {}
+
+        # Credentials (ideally only if value passed in and name can be parsed)
+        if options[:options]['credential']
+          credential_code = "credential"
+          credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Enter an existing credential ID or choose "local"', 'defaultValue' => "local", 'required' => true}
+          # supported_credential_types = ['username-keypair', 'username-password', 'username-password-keypair'].compact.flatten.join(",").split(",").collect {|it| it.strip }
+          credential_params = {"new" => false, "zoneId" => cloud['id']}
+          credential_value = Morpheus::Cli::OptionTypes.select_prompt(credential_option_type, @api_client, credential_params, true, options[:options][credential_code])
+          if !credential_value.to_s.empty?
+            if credential_value == "local"
+              params[credential_code] = {"type" => credential_value}
+            elsif credential_value.to_s =~ /\A\d{1,}\Z/
+              params[credential_code] = {"id" => credential_value.to_i}
+            end
+          end
+        end
         if params.empty?
-          puts_error optparse.banner
-          puts_error format_available_options(all_option_types)
-          exit 1
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
         # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
         if params['zone'].is_a?(Hash)
@@ -919,25 +948,17 @@ class Morpheus::Cli::Clouds
 
   private
 
-  def print_clouds_table(clouds, opts={})
-    table_color = opts[:color] || cyan
-    rows = clouds.collect do |cloud|
-      cloud_type = cloud_type_for_id(cloud['zoneTypeId'])
-      {
-        id: cloud['id'],
-        name: cloud['name'],
-        type: cloud_type ? cloud_type['name'] : '',
-        location: cloud['location'],
-        "REGION CODE": cloud['regionCode'],
-        groups: (cloud['groups'] || []).collect {|it| it.instance_of?(Hash) ? it['name'] : it.to_s }.join(', '),
-        servers: cloud['serverCount'],
-        status: format_cloud_status(cloud)
-      }
-    end
-    columns = [
-      :id, :name, :type, :location, "REGION CODE", :groups, :servers, :status
-    ]
-    print as_pretty_table(rows, columns, opts)
+  def cloud_list_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
+      "Location" => 'location',
+      "Region Code" => lambda {|it| it['regionCode'] },
+      "Groups" => lambda {|it| (it['groups'] || []).collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
+      "Servers" => lambda {|it| it['serverCount'] },
+      "Status" => lambda {|it| format_cloud_status(it) },
+    }
   end
 
   def add_cloud_option_types(cloud_type)
@@ -948,6 +969,9 @@ class Morpheus::Cli::Clouds
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 4},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 5},
+      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6},
+      {'fieldName' => 'credential', 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Credential ID or use "local" to specify username and password', 'displayOrder' => 9, 'defaultValue' => "local", 'required' => true, :for_help_only => true}, # hacky way to render this but not prompt for it
     ]
 
     # TODO: Account
