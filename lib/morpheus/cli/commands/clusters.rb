@@ -69,7 +69,6 @@ class Morpheus::Cli::Clusters
         return
       end
       json_response = @clusters_interface.list(params)
-      
       render_result = render_with_format(json_response, options, 'clusters')
       return 0 if render_result
 
@@ -367,6 +366,9 @@ class Morpheus::Cli::Clusters
       opts.on( '--name NAME', "Cluster Name" ) do |val|
         options[:name] = val.to_s
       end
+       opts.on("--display-name NAME", String, "Dispaly Name") do |val|
+        options[:displayName] = val.to_s
+      end
       opts.on("--description [TEXT]", String, "Description") do |val|
         options[:description] = val.to_s
       end
@@ -426,6 +428,9 @@ class Morpheus::Cli::Clusters
           payload['cluster']['name'] = args[0]
         elsif options[:name]
           payload['cluster']['name'] = options[:name]
+        end
+        if options[:displayName]
+          payload['cluster']['displayName'] = options[:displayName]
         end
         # if args[1]
         #   payload['cluster']['description'] = args[1]
@@ -489,6 +494,10 @@ class Morpheus::Cli::Clusters
             end
           end
         end
+
+        # Display Name
+        displayName = options[:displayName] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'displayName', 'type' => 'text', 'fieldLabel' => 'Cluster Display Name', 'required' => false, 'description' => 'Display Name.'}],options[:options],@api_client,{})['displayName']
+        cluster_payload['displayName'] = displayName if displayName
 
         # Cluster Description
         # if !args.empty? && args.count > 1
@@ -3573,6 +3582,7 @@ class Morpheus::Cli::Clusters
     rows = clusters.collect do |cluster|
       {
           id: cluster['id'],
+          display_name: cluster['displayName'],
           name: cluster['name'],
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
@@ -3582,7 +3592,7 @@ class Morpheus::Cli::Clusters
       }
     end
     columns = [
-        :id, :name, :type, :layout, :workers, :cloud, :status
+        :id, :name, :display_name, :type, :layout, :workers, :cloud, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end
