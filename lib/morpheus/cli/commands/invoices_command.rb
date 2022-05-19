@@ -627,6 +627,12 @@ Update an invoice.
       opts.on( '--date DATE', String, "Date to collect costing for. By default the cost data is collected for the end of the previous job interval (hour or day)." ) do |val|
         payload[:date] = val.to_s
       end
+      opts.on( '--period PERIOD', "Period in the format YYYYMM to process invoices for. Default is the current period. This is an alias for the --date option." ) do |val|
+        payload[:date] = val.to_s
+      end
+      opts.on( '--rebuild', "Rebuild invoices for period. Only applies to mode=costing." ) do |val|
+        query_params[:rebuild] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       build_standard_update_options(opts, options, [:query, :auto_confirm])
       opts.footer = <<-EOT
 Refresh invoice costing data for the specified clouds.
