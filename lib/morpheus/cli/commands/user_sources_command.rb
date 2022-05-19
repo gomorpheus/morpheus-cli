@@ -303,6 +303,9 @@ EOT
       else
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
         
+        # support old -O options
+        payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
         # Identity Source Type
         user_source_types = @user_sources_interface.list_types({userSelectable: true})['userSourceTypes']
         if user_source_types.empty?
@@ -345,9 +348,16 @@ EOT
             default_role_id = v_prompt['defaultAccountRole']['id']
           end
         end
+        
+        # always prompt for role to lookup id from name
         if default_role_id
-          payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
+          options[:options]['defaultAccountRole'] = {'id' => default_role_id }
         end
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(account_id), 'fieldLabel' => 'Default Account Role ID', 'required' => true }], options[:options])
+        if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
+          default_role_id = v_prompt['defaultAccountRole']['id']
+        end
+        payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
 
         # Allow Custom Mappings
         if !params['allowCustomMappings'].nil?
@@ -364,9 +374,6 @@ EOT
         if role_mapping_names
           payload['roleMappingNames'] = role_mapping_names
         end
-
-        # support old -O options
-        payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         
 
       end
@@ -394,6 +401,7 @@ EOT
     account_id = nil
     role_mappings = nil
     role_mapping_names = nil
+    default_role_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('--name VALUE', String, "Name for this identity source") do |val|
@@ -426,6 +434,9 @@ EOT
             role_mapping_names[k.to_s] = v
           end
         end
+      end
+      opts.on('--default-role ID', String, "Default Role ID") do |val|
+        default_role_id = val
       end
       build_standard_update_options(opts, options)
       opts.footer = "Update an identity source." + "\n" +
@@ -470,6 +481,20 @@ EOT
           payload['roleMappingNames'] = role_mapping_names
         end
 
+        # Default Account Role
+        if default_role_id
+          if default_role_id == 'null'
+            payload['userSource']['defaultAccountRole'] = {'id' => nil }
+          else
+            # use no_prompt to convert name to id
+            options[:options]['defaultAccountRole'] = {'id' => default_role_id }
+            v_prompt = Morpheus::Cli::OptionTypes.no_prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(user_source['account']['id']), 'fieldLabel' => 'Default Account Role ID', 'required' => true }], options[:options])
+            if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
+              default_role_id = v_prompt['defaultAccountRole']['id']
+            end
+            payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
+          end
+        end
       end
       @user_sources_interface.setopts(options)
       if options[:dry_run]
@@ -965,5 +990,16 @@ EOT
       print "unknown identity source type: #{type_code}"
       []
     end
+  end
+
+  def get_available_role_options(account_id)
+    available_roles = @account_users_interface.available_roles(account_id)['roles']
+    # if available_roles.empty?
+    #   print_red_alert "No available roles found."
+    #   exit 1
+    # end
+    role_options = available_roles.collect {|role|
+      {'name' => role['authority'], 'value' => role['id']}
+    }
   end
 end
