@@ -459,8 +459,8 @@ class Morpheus::Cli::Clouds
     query_params = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
-      opts.on( '-m', '--mode [daily|costing]', "Refresh Mode. Use this to run the daily or costing jobs instead of the default refresh." ) do |val|
+      opts.banner = subcommand_usage("[cloud] [options]")
+      opts.on( '-m', '--mode [daily|costing]', "Refresh Mode. Use this to run the daily or costing jobs instead of the default hourly refresh." ) do |val|
         query_params[:mode] = val
       end
       opts.on( '--rebuild [on|off]', "Rebuild invoices for period. Only applies to mode=costing." ) do
