@@ -295,7 +295,7 @@ EOT
       # tenant is optional, it is expected in the url right now instead of in the payload...this sets both
       account = nil
       if account_id
-        option[:options]['tenant'] = account_id
+        options[:options]['tenant'] = account_id
       end
       account_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => 'tenants', 'required' => false, 'description' => 'Tenant'}], options[:options], @api_client)
       account_id = account_prompt['tenant']
