@@ -285,26 +285,58 @@ EOT
     
 
 
-      # find the account first, or just prompt for that too please.
-      if !account_id
-        print_error Morpheus::Terminal.angry_prompt
-        puts_error  "missing required argument [account]\n#{optparse}"
-        return 1
+      # # find the account first, or just prompt for that too please.
+      # if !account_id
+      #   print_error Morpheus::Terminal.angry_prompt
+      #   puts_error  "missing required argument [account]\n#{optparse}"
+      #   return 1
+      # end
+
+      # tenant is optional, it is expected in the url right now instead of in the payload...this sets both
+      account = nil
+      if account_id
+        option[:options]['tenant'] = account_id
       end
-      account = find_account_by_name_or_id(account_id)
-      return 1 if account.nil?
-      account_id = account['id']
+      account_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => 'tenants', 'required' => false, 'description' => 'Tenant'}], options[:options], @api_client)
+      account_id = account_prompt['tenant']
+      if !account_id.to_s.empty?
+        # reload tenant by id, sure why not..
+        account = find_account_by_name_or_id(account_id)
+        return 1 if account.nil?
+        account_id = account['id']
+      else
+        account_id = nil
+      end
+      
 
       # construct payload
       payload = {}
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
+
+        # JD: should apply options on top of payload, but just do these two for now
+
+        # Tenant
+        if account
+          payload['userSource']['account'] = {'id' => account['id'] }
+        end
+
+        # Name
+        if params['name']
+          payload['userSource']['name'] = params['name']
+        end
+
       else
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
         
         # support old -O options
         payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        # Tenant
+        if account
+          payload['userSource']['account'] = {'id' => account['id'] }
+        end
 
         # Identity Source Type
         user_source_types = @user_sources_interface.list_types({userSelectable: true})['userSourceTypes']
@@ -385,14 +417,12 @@ EOT
       # do it
       json_response = @user_sources_interface.create(account_id, payload)
       # print and return result
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
+      render_response(json_response, options, 'userSource') do
+        user_source = json_response['userSource']
+        print_green_success "Added Identity Source #{user_source['name']}"
+        _get(user_source['id'], {}, options)
       end
-      user_source = json_response['userSource']
-      print_green_success "Added Identity Source #{user_source['name']}"
-      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      return 0
+      return 0, nil
   end
 
   def update(args)
@@ -501,16 +531,13 @@ EOT
         print_dry_run @user_sources_interface.dry.update(nil, user_source['id'], payload)
         return
       end
-      
       json_response = @user_sources_interface.update(nil, user_source['id'], payload)
-      
-      if options[:json]
-        puts JSON.pretty_generate(json_response)
-        return
+      render_response(json_response, options, 'userSource') do
+        user_source = json_response['userSource'] || user_source
+        print_green_success "Updated Identity Source #{user_source['name']}"
+        _get(user_source['id'], {}, options)
       end
-
-      print_green_success "Updated Identity Source #{params['name'] || user_source['name']}"
-      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
