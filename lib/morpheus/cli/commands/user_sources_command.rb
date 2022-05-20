@@ -261,7 +261,7 @@ EOT
         end
       end
       
-      opts.on('--default-role ID', String, "Default Role ID") do |val|
+      opts.on('--default-role ID', String, "Default Role ID or Authority") do |val|
         default_role_id = val
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
@@ -373,19 +373,11 @@ EOT
         payload['userSource'].deep_merge!(v_prompt)
 
         # Default Account Role
-        # todo: a proper select
-        if !default_role_id
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'text', 'fieldLabel' => 'Default Account Role ID', 'required' => true}], options[:options])
-          if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
-            default_role_id = v_prompt['defaultAccountRole']['id']
-          end
-        end
-        
         # always prompt for role to lookup id from name
         if default_role_id
           options[:options]['defaultAccountRole'] = {'id' => default_role_id }
         end
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(account_id), 'fieldLabel' => 'Default Account Role ID', 'required' => true }], options[:options])
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(account_id), 'fieldLabel' => 'Default Role', 'required' => false }], options[:options])
         if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
           default_role_id = v_prompt['defaultAccountRole']['id']
         end
@@ -465,7 +457,7 @@ EOT
           end
         end
       end
-      opts.on('--default-role ID', String, "Default Role ID") do |val|
+      opts.on('--default-role ROLE', String, "Default Role ID or Authority") do |val|
         default_role_id = val
       end
       build_standard_update_options(opts, options)
@@ -518,7 +510,7 @@ EOT
           else
             # use no_prompt to convert name to id
             options[:options]['defaultAccountRole'] = {'id' => default_role_id }
-            v_prompt = Morpheus::Cli::OptionTypes.no_prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(user_source['account']['id']), 'fieldLabel' => 'Default Account Role ID', 'required' => true }], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.no_prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(user_source['account']['id']), 'fieldLabel' => 'Default Role', 'required' => false }], options[:options])
             if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
               default_role_id = v_prompt['defaultAccountRole']['id']
             end
