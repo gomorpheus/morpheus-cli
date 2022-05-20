@@ -463,7 +463,7 @@ class Morpheus::Cli::Clouds
       opts.on( '-m', '--mode [daily|costing]', "Refresh Mode. Use this to run the daily or costing jobs instead of the default hourly refresh." ) do |val|
         query_params[:mode] = val
       end
-      opts.on( '--rebuild [on|off]', "Rebuild invoices for period. Only applies to mode=costing." ) do
+      opts.on( '--rebuild [on|off]', "Rebuild invoices for period. Only applies to mode=costing." ) do |val|
         query_params[:rebuild] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on( '--period PERIOD', "Period in the format YYYYMM to process invoices for. Default is the current period. Only applies to mode=costing." ) do |val|
