@@ -988,10 +988,20 @@ EOT
       ]
     elsif type_code == 'saml'
       [
-        {'fieldContext' => 'config', 'fieldName' => 'url', 'type' => 'text', 'fieldLabel' => 'Login Redirect URL', 'required' => true, 'description' => ''},
-        {'fieldContext' => 'config', 'fieldName' => 'doNotIncludeSAMLRequest', 'type' => 'checkbox', 'fieldLabel' => 'Exclude SAMLRequest Parameter', 'required' => true, 'description' => 'Do not include SAMLRequest parameter', 'defaultValue' => false},
-        {'fieldContext' => 'config', 'fieldName' => 'logoutUrl', 'type' => 'text', 'fieldLabel' => 'Logout Post URL', 'required' => true, 'description' => ''},
-        {'fieldContext' => 'config', 'fieldName' => 'publicKey', 'type' => 'textarea', 'fieldLabel' => 'Signing Public Key', 'required' => true, 'description' => ''},
+        {'fieldContext' => 'config', 'fieldName' => 'url', 'type' => 'text', 'fieldLabel' => 'Login Redirect URL', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 1},
+        {'fieldContext' => 'config', 'fieldName' => 'doNotIncludeSAMLRequest', 'type' => 'checkbox', 'fieldLabel' => 'Exclude SAMLRequest Parameter', 'required' => true, 'description' => 'Do not include SAMLRequest parameter', 'defaultValue' => false, 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 2},
+        {'fieldContext' => 'config', 'fieldName' => 'logoutUrl', 'type' => 'text', 'fieldLabel' => 'Logout Post URL', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 3},
+        {'code' => 'saml.SAMLSignatureMode', 'fieldContext' => 'config', 'fieldName' => 'SAMLSignatureMode', 'type' => 'select', 'selectOptions' => [{'name' => 'No Signature', 'value' => 'NoSignature'},{'name' => 'Self Signed', 'value' => 'SelfSigned'},{'name' => 'Custom RSA Signature', 'value' => 'CustomSignature'}], 'fieldLabel' => 'SAML Request', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'defaultValue' => 'NoSignature', 'displayOrder' => 4},
+        {'dependsOnCode' => 'saml.SAMLSignatureMode:CustomSignature', 'fieldContext' => 'config', 'fieldName' => 'request509Certificate', 'type' => 'textarea', 'fieldLabel' => 'X.509 Certificate', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 5},
+        {'dependsOnCode' => 'saml.SAMLSignatureMode:CustomSignature', 'fieldContext' => 'config', 'fieldName' => 'requestPrivateKey', 'type' => 'textarea', 'fieldLabel' => 'RSA Private Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 6},
+        {'code' => 'saml.doNotValidateSignature', 'fieldContext' => 'config', 'fieldName' => 'doNotValidateSignature', 'type' => 'select', 'selectOptions' => [{'name' => 'Do Not Validate Assertion Signature', 'value' => 'true'},{'name' => 'Validate Assertion Signature', 'value' => 'false'}], 'fieldLabel' => 'SAML Response', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'defaultValue' => 'Do Not Validate Assertion Signature', 'displayOrder' => 7},
+        {'dependsOnCode' => 'saml.doNotValidateSignature:false', 'fieldContext' => 'config', 'fieldName' => 'publicKey', 'type' => 'textarea', 'fieldLabel' => 'Signing Public Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 8},
+        {'fieldContext' => 'config', 'fieldName' => 'privateKey', 'type' => 'textarea', 'fieldLabel' => 'Encryption RSA Private Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 9},
+        {'fieldContext' => 'config', 'fieldName' => 'givenNameAttribute', 'type' => 'text', 'fieldLabel' => 'Given Name Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Assertion Attribute Mappings', 'displayOrder' => 10},
+        {'fieldContext' => 'config', 'fieldName' => 'surnameAttribute', 'type' => 'text', 'fieldLabel' => 'Surname Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Assertion Attribute Mappings', 'displayOrder' => 11},
+        {'fieldContext' => 'config', 'fieldName' => 'roleAttributeName', 'type' => 'text', 'fieldLabel' => 'Role Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Role Mappings', 'displayOrder' => 12},
+        {'fieldContext' => 'config', 'fieldName' => 'requiredAttributeValue', 'type' => 'text', 'fieldLabel' => 'Required Role Attribute Value', 'required' => false, 'description' => '', 'fieldGroup' => 'Role Mappings', 'displayOrder' => 13},
+        
       ]
     elsif type_code == 'customExternal'
       [
