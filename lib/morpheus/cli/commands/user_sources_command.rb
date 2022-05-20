@@ -298,6 +298,9 @@ EOT
         options[:options]['tenant'] = account_id
       end
       account_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => 'tenants', 'required' => false, 'description' => 'Tenant'}], options[:options], @api_client)
+      if account_id
+        options[:options].delete('tenant')
+      end
       account_id = account_prompt['tenant']
       if !account_id.to_s.empty?
         # reload tenant by id, sure why not..
