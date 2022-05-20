@@ -179,6 +179,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
+        "Display Name" => 'displayName',
         "Description" => 'description',
         #"Type" => lambda {|it| it['type'].to_s.capitalize },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
@@ -580,6 +581,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on("--description [TEXT]", String, "Description") do |val|
         options['description'] = val.to_s
       end
+      opts.on("--display-name [TEXT]", String, "Display Name") do |val|
+        options['displayName'] = val.to_s
+      end
       opts.on( '--role ROLE', String, "Role Name or ID (applicable to select resource pools)" ) do |val|
         options['role'] = val
       end
@@ -599,6 +603,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     end
 
     connect(options)
+    puts "options #{options}"
 
     begin
       # load cloud
@@ -686,6 +691,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         # Description
         if options['description'] != nil
           payload['resourcePool']['description'] = options['description']
+        end
+
+        # Display Name
+        if options['displayName'] != nil
+          payload['resourcePool']['displayName'] = options['displayName']
         end
 
         # Role
