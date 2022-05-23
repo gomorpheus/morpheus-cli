@@ -479,8 +479,10 @@ module Morpheus
               options[:offset] = offset
             end
 
-            opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
-              options[:phrase] = phrase
+            if excludes.include?("search") == false
+              opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+                options[:phrase] = phrase
+              end
             end
 
             opts.on( '-S', '--sort ORDER', "Sort Order. DIRECTION may be included as \"ORDER [asc|desc]\"." ) do |v|

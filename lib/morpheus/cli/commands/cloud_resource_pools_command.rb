@@ -35,7 +35,10 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         cloud_id = val
       end
       opts.add_hidden_option('-c') # prefer args[0] for [cloud]
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on( '-s', '--search PHRASE', "Search by Name and/or Display Name" ) do |phrase|
+        options[:phrase] = phrase
+      end
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote], ['search'])
       opts.footer = "List resource pools for a cloud." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud."
     end
