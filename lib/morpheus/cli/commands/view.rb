@@ -74,6 +74,7 @@ EOT
           if id.to_s !~ /\A\d{1,}\Z/
             # assume the last part of path is the type
             record_type = path.split("/").last
+            record_type.sub!('#!', '')
             record = find_by_name(record_type, id)
             if record.nil?
               raise_command_error("[id] is invalid. No #{record_type} found for '#{id}'", args, optparse)
