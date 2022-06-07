@@ -209,10 +209,13 @@ class Morpheus::Cli::NetworkPoolServersCommand
           print_red_alert "Pool Server Type not found by id '#{options['type']}'"
           return 1
         end
+
         payload['networkPoolServer']['type'] = {'id' => network_type_id.to_i }
 
-        # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
-
+        # prompt options
+        network_pool_server_type = @network_pool_servers_interface.get_type(network_type_id.to_i)['networkPoolServerType']
+        option_result = Morpheus::Cli::OptionTypes.prompt(network_pool_server_type['optionTypes'], options[:options].deep_merge({:context_map => {'networkPoolServer' => ''}}), @api_client, {}, options[:no_prompt], true)
+        payload['networkPoolServer'].deep_merge!(option_result)
       end
 
       @network_pool_servers_interface.setopts(options)

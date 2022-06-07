@@ -62,12 +62,13 @@ module Morpheus
             option_type['type'] = 'multiText'
           end
         end
-        credential_option_types = {}
+
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
         cur_field_group = 'default'
-        self.sorted_option_types(option_types).each do |option_type|
-          next if option_type[:for_help_only] == true # hacky
+        prompt_local_credentials = true
+        self.sort_option_types(option_types.reject {|it| it[:for_help_only]}).each do |option_type|
+          next if option_type['localCredential'] && !prompt_local_credentials
           context_map = results
           value = nil
           value_found = false
@@ -147,28 +148,9 @@ module Morpheus
             next if !found_dep_value
           end
 
-          # inject a Credentials prompt for optionTypes that have been replaced by credentials
-          credential_code = option_type['credentialFieldContext']
-          if !credential_code.to_s.empty?
-            if !credential_option_types[credential_code]
-              credential_option_type = {'code' => credential_code, 'fieldName' => credential_code, 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Credential ID or use "local" to specify username and password', 'defaultValue' => "local", 'required' => true}
-              credential_option_types[credential_code] = credential_option_type
-              supported_credential_types = [option_type['credentialType'], option_type['credentialTypes']].compact.flatten.join(",").split(",").collect {|it| it.strip }
-              credential_params = {"new" => false, "credentialTypes" => supported_credential_types}
-              credential_value = select_prompt(credential_option_type, api_client, credential_params, no_prompt, options[credential_code])
-              if !credential_value.to_s.empty?
-                if credential_value == "local"
-                  context_map[credential_code] = {"type" => credential_value}
-                elsif credential_value.to_s =~ /\A\d{1,}\Z/
-                  context_map[credential_code] = {"id" => credential_value.to_i}
-                end
-              end
-            end
-            # skip this option unless using local credentials
-            if context_map[credential_code].is_a?(Hash) && context_map[credential_code]["type"] != "local"
-              next
-            end
-          end
+          # build parameters for option source api request
+          option_params = (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results))
+          option_params.merge!(option_type['optionParams']) if option_type['optionParams']
 
           cur_namespace = options
           parent_context_map = context_map
@@ -184,9 +166,26 @@ module Morpheus
             context_map = context_map[ns.to_s]
           end
 
-          # build parameters for option source api request
-          option_params = (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results))
-          option_params.merge!(option_type['optionParams']) if option_type['optionParams']
+          # credential type
+          handle_credential_type = -> {
+            credential_type = select_prompt(option_type.merge({'defaultValue' => value}), api_client, option_params.merge({'credentialTypes' => option_type['config']['credentialTypes']}), !value.nil?, nil, paging_enabled, ignore_empty)
+            # continue prompting for local creds
+            if credential_type == 'local'
+              parent_context_map.reject! {|k,v| k == 'credential'}
+              next
+            end
+            # hide local cred options
+            prompt_local_credentials = false
+            if credential_type.is_a?(Numeric)
+              # set as credential.id
+              credential = {'id' => credential_type}
+            else
+              # prompt credential type options
+              credential = prompt(api_client.credential_types.list({name:credential_type})['credentialTypes'][0]['optionTypes'], options, api_client, option_params, options[:no_prompt], paging_enabled, ignore_empty)['credential']
+              credential['type'] = credential_type
+            end
+            parent_context_map['credential'] = credential
+          }
 
           # use the value passed in the options map
           if cur_namespace.respond_to?('key?') && cur_namespace.key?(field_name)
@@ -219,6 +218,8 @@ module Morpheus
                 select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
               end
               value = select_value_list
+            elsif option_type['type'] == 'credential'
+              handle_credential_type.call
             end
             if options[:always_prompt] != true
               value_found = true
@@ -277,6 +278,9 @@ module Morpheus
               value = multiline_prompt(option_type)
             elsif option_type['type'] == 'code-editor'
               value = multiline_prompt(option_type)
+            elsif option_type['type'] == 'credential'
+              print "\nCREDENTIALS\n#{"=" * ("CREDENTIALS".length)}\n\n"
+              handle_credential_type.call
             elsif ['select', 'multiSelect'].include?(option_type['type'])
               # so, the /api/options/source is may need ALL the previously
               # selected values that are being accumulated in options
@@ -390,7 +394,6 @@ module Morpheus
         end
         return value
       end
-
 
       def self.set_last_select(obj)
         Thread.current[:_last_select] = obj
@@ -1077,7 +1080,7 @@ module Morpheus
         return out
       end
 
-      def self.sorted_option_types(option_types)
+      def self.sort_option_types(option_types)
         option_types.reject {|it| (it['fieldGroup'] || 'default') != 'default'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
         option_types.reject {|it| ['default', 'advanced'].include?(it['fieldGroup'] || 'default')}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
         option_types.reject {|it| it['fieldGroup'] != 'advanced'}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
@@ -1088,7 +1091,7 @@ module Morpheus
       end
 
       def self.format_option_types_help(option_types, opts={})
-        option_types = self.sorted_option_types(option_types).reject {|it| it['hidden']}
+        option_types = self.sort_option_types(option_types).reject {|it| it['hidden']}
 
         if option_types.empty?
           "#{opts[:color]}#{opts[:title] || "Available Options:"}\nNone\n\n"

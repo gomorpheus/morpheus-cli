@@ -38,4 +38,11 @@ class Morpheus::NetworkPoolServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def get_type(id, params={})
+    raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
+    url = "#{@base_url}/api/networks/pool-server-types/#{id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
 end

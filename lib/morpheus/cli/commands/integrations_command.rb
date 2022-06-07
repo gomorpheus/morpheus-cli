@@ -275,7 +275,7 @@ EOT
             opt['fieldContext'] = nil
           end
         end
-        config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, options[:params])
+        config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, options[:params], false, true)
         config_prompt.deep_compact!
         params.deep_merge!(config_prompt)
       end

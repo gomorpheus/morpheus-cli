@@ -111,9 +111,9 @@ module Morpheus::Cli::InfrastructureHelper
     return cloud
   end
 
-  def get_available_cloud_types(refresh=false)
+  def get_available_cloud_types(refresh=false, params = {})
     if !@available_cloud_types || refresh
-      @available_cloud_types = clouds_interface.cloud_types({max:1000})['zoneTypes']
+      @available_cloud_types = clouds_interface.cloud_types({max:1000}.deep_merge(params))['zoneTypes']
     end
     return @available_cloud_types
   end
@@ -130,7 +130,7 @@ module Morpheus::Cli::InfrastructureHelper
   end
 
   def cloud_type_for_name(name)
-    return get_available_cloud_types().find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+    return get_available_cloud_types(true, {'name' => name}).find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
   end
 
 
