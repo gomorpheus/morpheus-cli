@@ -9,10 +9,11 @@ class Morpheus::Cli::Thresholds
   register_subcommands :list, :get, :add, :update, :remove
 
   # RestCommand settings
-  register_interfaces :thresholds
+  #set_rest_interface_name :thresholds
+  # register_interfaces :thresholds
   set_rest_interface_name :thresholds
+  
   set_rest_name :threshold
-
   set_rest_label "Scale Threshold"
   set_rest_label_plural "Scale Thresholds"
 
