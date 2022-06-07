@@ -4,12 +4,17 @@ class Morpheus::Cli::Thresholds
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::RestCommand
 
-  set_command_name :'thresholds'
+  set_command_name :'scale-thresholds'
   set_command_description "View and manage scale thresholds."
   register_subcommands :list, :get, :add, :update, :remove
 
   # RestCommand settings
   register_interfaces :thresholds
+  set_rest_interface_name :thresholds
+  set_rest_name :threshold
+
+  set_rest_label "Scale Threshold"
+  set_rest_label_plural "Scale Thresholds"
 
   # def render_response_for_get(json_response, options)
   #   render_response(json_response, options, rest_object_key) do
