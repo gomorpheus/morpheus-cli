@@ -1,6 +1,6 @@
 require 'morpheus/cli/cli_command'
 
-class Morpheus::Cli::Thresholds
+class Morpheus::Cli::ScaleThresholds
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::RestCommand
 
@@ -8,50 +8,36 @@ class Morpheus::Cli::Thresholds
   set_command_description "View and manage scale thresholds."
   register_subcommands :list, :get, :add, :update, :remove
 
+  # using convention matching /scale-thresholds now
+
   # RestCommand settings
   #set_rest_interface_name :thresholds
   # register_interfaces :thresholds
-  set_rest_interface_name :thresholds
+  # set_rest_interface_name :thresholds
   
-  set_rest_name :threshold
-  set_rest_label "Scale Threshold"
-  set_rest_label_plural "Scale Thresholds"
-
-  # def render_response_for_get(json_response, options)
-  #   render_response(json_response, options, rest_object_key) do
-  #     record = json_response[rest_object_key]
-  #     print_h1 rest_label, [], options
-  #     print cyan
-  #     print_description_list(rest_column_definitions(options), record, options)
-  #     # show Threshold Configuration
-  #     config = record['config']
-  #     if config && !config.empty?
-  #       print_h2 "Configuration"
-  #       print_description_list(config.keys, config)
-  #     end
-  #     print reset,"\n"
-  #   end
-  # end
+  # set_rest_name :threshold
+  # set_rest_label "Scale Threshold"
+  # set_rest_label_plural "Scale Thresholds"
 
   protected
 
-  def threshold_object_key
-    'threshold'
-  end
+  # def threshold_object_key
+  #   'scaleThreshold'
+  # end
 
-  def threshold_list_key
-    'thresholds'
-  end
+  # def threshold_list_key
+  #   'scaleThresholds'
+  # end
 
-  def threshold_label
-    'Threshold'
-  end
+  # def threshold_label
+  #   'Scale Threshold'
+  # end
 
-  def threshold_label_plural
-    'Threshold'
-  end
+  # def threshold_label_plural
+  #   'Scale Thresholds'
+  # end
 
-  def threshold_list_column_definitions(options)
+  def scale_threshold_list_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
@@ -61,7 +47,7 @@ class Morpheus::Cli::Thresholds
     }
   end
 
-  def threshold_column_definitions(options)
+  def scale_threshold_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
@@ -83,7 +69,7 @@ class Morpheus::Cli::Thresholds
     }
   end
 
-  def add_threshold_option_types()
+  def add_scale_threshold_option_types()
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 10},
       {'fieldName' => 'autoUp', 'fieldLabel' => 'Auto Upscale', 'type' => 'checkbox', 'required' => true, 'defaultValue' => false, 'displayOrder' => 30},
@@ -102,16 +88,16 @@ class Morpheus::Cli::Thresholds
     ]
   end
 
-  def add_threshold_advanced_option_types()
+  def add_scale_threshold_advanced_option_types()
     []
   end
 
-  def update_threshold_option_types()
-    add_threshold_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
+  def update_scale_threshold_option_types()
+    add_scale_threshold_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
   end
 
-  def update_threshold_advanced_option_types()
-    add_threshold_advanced_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
+  def update_scale_threshold_advanced_option_types()
+    add_scale_threshold_advanced_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
   end
 
 end
