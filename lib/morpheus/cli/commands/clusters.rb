@@ -366,9 +366,6 @@ class Morpheus::Cli::Clusters
       opts.on( '--name NAME', "Cluster Name" ) do |val|
         options[:name] = val.to_s
       end
-       opts.on("--display-name NAME", String, "Dispaly Name") do |val|
-        options[:displayName] = val.to_s
-      end
       opts.on("--description [TEXT]", String, "Description") do |val|
         options[:description] = val.to_s
       end
@@ -428,9 +425,6 @@ class Morpheus::Cli::Clusters
           payload['cluster']['name'] = args[0]
         elsif options[:name]
           payload['cluster']['name'] = options[:name]
-        end
-        if options[:displayName]
-          payload['cluster']['displayName'] = options[:displayName]
         end
         # if args[1]
         #   payload['cluster']['description'] = args[1]
@@ -494,10 +488,6 @@ class Morpheus::Cli::Clusters
             end
           end
         end
-
-        # Display Name
-        displayName = options[:displayName] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'displayName', 'type' => 'text', 'fieldLabel' => 'Cluster Display Name', 'required' => false, 'description' => 'Display Name.'}],options[:options],@api_client,{})['displayName']
-        cluster_payload['displayName'] = displayName if displayName
 
         # Cluster Description
         # if !args.empty? && args.count > 1
