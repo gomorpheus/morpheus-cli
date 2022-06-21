@@ -2082,7 +2082,6 @@ module Morpheus::Cli::ProvisioningHelper
         if !visibility && !options[:no_prompt]
           visibility = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
         end
-
         permissions['resourcePool'] = {'visibility' => visibility} if visibility
       end
 
@@ -2114,8 +2113,7 @@ module Morpheus::Cli::ProvisioningHelper
   def prompt_permissions_v2(options, excludes = [])
     perms = prompt_permissions(options, excludes)
     rtn = {}
-
-    rtn['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil?
+    rtn['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil? && !excludes.include?('visibility')
     rtn['tenants'] = ((perms['tenantPermissions'] || {})['accounts'] || []).collect {|it| {'id' => it}}
     rtn
   end
