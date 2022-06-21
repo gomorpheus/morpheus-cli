@@ -118,10 +118,10 @@ class Morpheus::Cli::LibraryContainerTypesCommand
     begin
       @library_container_types_interface.setopts(options)
       if options[:dry_run]
-        if arg.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @library_container_types_interface.dry.get(layout_id, arg.to_i)
+        if id.to_s =~ /\A\d{1,}\Z/
+          print_dry_run @library_container_types_interface.dry.get(layout_id, id.to_i)
         else
-          print_dry_run @library_container_types_interface.dry.list(layout_id, {name:arg})
+          print_dry_run @library_container_types_interface.dry.list(layout_id, {name:id})
         end
         return
       end
