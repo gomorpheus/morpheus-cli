@@ -103,6 +103,18 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers)
   end
 
+  def get_upgrade_versions(id, params={})
+    url = "#{base_path}/#{id}/upgrade-cluster"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
+  def do_cluster_upgrade(id, params={})
+    url = "#{base_path}/#{id}/upgrade-cluster"
+    headers = { params: params, authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json'  }
+    execute(method: :post, url: url, headers: headers)
+    end
+
   def list_services(id, params={})
     url = "#{base_path}/#{id}/services"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
