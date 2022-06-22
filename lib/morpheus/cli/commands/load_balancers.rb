@@ -23,6 +23,7 @@ class Morpheus::Cli::LoadBalancers
   def render_response_for_get(json_response, options)
     render_response(json_response, options, rest_object_key) do
       record = json_response[rest_object_key]
+      options[:exclude_username] = record['username'].nil?
       print_h1 rest_label, [], options
       print cyan
       print_description_list(rest_column_definitions(options), record, options)
@@ -110,7 +111,7 @@ EOT
   end
 
   def load_balancer_column_definitions(options)
-    {
+    columns = {
       "ID" => 'id',
       "Name" => 'name',
       "Description" => 'description',
@@ -120,13 +121,14 @@ EOT
       "IP" => 'ip',
       "Host" => 'host',
       "Port" => 'port',
-      "Username" => 'username',
-      # "SSL Enabled" => lambda {|it| format_boolean it['sslEnabled'] },
-      # "SSL Cert" => lambda {|it| it['sslCert'] ? it['sslCert']['name'] : '' },
-      # "SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" },
+      "Price" => lambda {|it| it['price'].nil? ? 'No pricing configured' : "#{format_money(it['price']['price'], it['price']['currency'])} / #{it['price']['unit'].capitalize}"},
+      "Provider ID" => 'externalId'
+    }
+    columns.merge!({"Username" => 'username'}) if !options[:exclude_username]
+    columns.merge({
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-    }
+    })
   end
 
   # overridden to work with name or code

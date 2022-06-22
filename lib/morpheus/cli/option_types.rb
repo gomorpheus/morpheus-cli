@@ -291,7 +291,8 @@ module Morpheus
               value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
-                while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => false}) do
+                recommended_count = (option_type['config'] || {})['recommendedCount'] || 0
+                while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => recommended_count > value.count}) do
                   if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
                     value << addn_value
                   else
