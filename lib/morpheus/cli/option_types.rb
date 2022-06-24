@@ -61,6 +61,16 @@ module Morpheus
           if option_type['fieldName'] == 'sshHosts'
             option_type['type'] = 'multiText'
           end
+          # swap types to multiSelect when flag is set..
+          if option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
+            if option_type["type"] == "typeahead"
+              option_type["type"] = "multiTypeahead"
+            elsif option_type["type"] == "select"
+              option_type["type"] = "multiSelect"
+            elsif option_type["type"] == "textarea"
+              option_type["type"] = "multiText"
+            end
+          end
         end
 
         # puts "Options Prompt #{options}"
