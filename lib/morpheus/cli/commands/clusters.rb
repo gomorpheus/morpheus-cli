@@ -1385,7 +1385,11 @@ class Morpheus::Cli::Clusters
     end
     json_response = @clusters_interface.destroy_worker(cluster['id'], worker['id'], params)
     render_response(json_response, options) do
-      print_green_success "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      msg = "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      if json_response['msg']
+        msg = json_response['msg']
+      end
+      print_green_success msg
     end
     return 0, nil
   end
