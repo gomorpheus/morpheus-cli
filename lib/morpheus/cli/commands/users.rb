@@ -245,7 +245,7 @@ EOT
         end
       else
         available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
-         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Types', 'personas' => 'Personas'}
+         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'personas' => 'Persona', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
             access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
@@ -366,7 +366,7 @@ EOT
 
         print_h1 "User Permissions: #{user['username']}", options
 
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type','personas' => 'Persona'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account)
             access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
@@ -381,7 +381,7 @@ EOT
             if access.count > 0
               access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
 
-              if ['features', 'instance_types'].include?(field)
+              if ['features', 'instance_types', 'report_types'].include?(field)
                 print as_pretty_table(access, [:name, :code, :access], options)
               else
                 print as_pretty_table(access, [:name, :access], options)
