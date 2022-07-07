@@ -255,6 +255,24 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       opts.on('--technology CODE', String, "Technology. This is the provision type code.") do |val|
         params['provisionTypeCode'] = val
       end
+      opts.on('--ports NAME=PORT,NAME=PORT', String, "List of exposed port definitions in the format NAME=PORT|PROTOCOL, Example: \"WEB=80|HTTP,SECURE=443|HTTPS\"") do |val|
+        params['containerPorts'] ||= []
+        parsed_ports = val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          value_array = v.split("|")
+          port_name = k.to_s.strip
+          port_number = value_array[0].to_s.strip.to_i
+          exposed_port = {'name' => port_name,'port' => port_number }
+          if value_array[1]
+            exposed_port['loadBalanceProtocol'] = value_array[1].strip
+          end
+          if exposed_port['name'].to_s.empty? || !exposed_port['port'] || exposed_port['port'].to_i <= 0
+            raise_command_error "Invalid exposed port definition: '#{value_pair}'. Expected format is 'NAME=PORT'", args, optparse
+          end
+          params['containerPorts'] << exposed_port
+        end
+        # options[:options]['containerPorts'] = params['containerPorts']
+      end
       opts.on('--scripts x,y,z', Array, "List of Script IDs") do |val|
         script_ids = val #.collect {|it| it.to_i }
       end
@@ -345,6 +363,12 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         
         # payload.deep_merge!(provision_type_v_prompt)
         
+        # PORTS 
+        # if !params['containerPorts']
+        #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'containerPorts', 'type' => 'exposedPorts', 'fieldLabel' => 'Exposed Ports', 'description' => 'The exposed ports in the format NAME=PORT,NAME=PORT for example HTTP=80,HTTPS=443'}], prompt_params)
+        #   params['containerPorts'] = v_prompt['containerPorts']
+        # end
+
         # ENVIRONMENT VARIABLES
         if evars
           params['environmentVariables'] = evars
@@ -366,6 +390,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         else
           # prompt
         end
+
 
         # payload = {'containerType' => params}
         payload['containerType'] ||= {}
@@ -422,6 +447,24 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       # opts.on('--technology CODE', String, "Technology") do |val|
       #   params['provisionTypeCode'] = val
       # end
+      opts.on('--ports NAME=PORT,NAME=PORT', String, "List of exposed port definitions in the format NAME=PORT|PROTOCOL, Example: \"WEB=80|HTTP,SECURE=443|HTTPS\"") do |val|
+        params['containerPorts'] ||= []
+        parsed_ports = val.split(",").each do |value_pair|
+          k,v = value_pair.strip.split("=")
+          value_array = v.split("|")
+          port_name = k.to_s.strip
+          port_number = value_array[0].to_s.strip.to_i
+          exposed_port = {'name' => port_name,'port' => port_number }
+          if value_array[1]
+            exposed_port['loadBalanceProtocol'] = value_array[1].strip
+          end
+          if exposed_port['name'].to_s.empty? || !exposed_port['port'] || exposed_port['port'].to_i <= 0
+            raise_command_error "Invalid exposed port definition: '#{value_pair}'. Expected format is 'NAME=PORT'", args, optparse
+          end
+          params['containerPorts'] << exposed_port
+        end
+        # options[:options]['containerPorts'] = params['containerPorts']
+      end
       opts.on('--scripts x,y,z', Array, "List of Script IDs") do |val|
         script_ids = val #.collect {|it| it.to_i }
       end
@@ -455,6 +498,12 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         # params = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client, options[:params])
         payload.deep_merge!({'containerType' => passed_options}) unless passed_options.empty?
         
+        # PORTS 
+        # if !params['containerPorts']
+        #   v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'containerPorts', 'type' => 'exposedPorts', 'fieldLabel' => 'Exposed Ports', 'description' => 'The exposed ports in the format NAME=PORT,NAME=PORT for example HTTP=80,HTTPS=443'}], prompt_params)
+        #   params['containerPorts'] = v_prompt['containerPorts']
+        # end
+
         # ENVIRONMENT VARIABLES
         if evars
 
