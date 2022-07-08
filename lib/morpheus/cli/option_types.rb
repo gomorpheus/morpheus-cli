@@ -774,15 +774,18 @@ module Morpheus
             help_prompt(option_type)
             next
           end
-          if input.downcase == 'yes'
+          if input.downcase == 'yes' || input.downcase == 'y' || input.downcase == 'on'
             value_found = true
             value = 'on'
-          elsif input.downcase == 'no'
+          elsif input.downcase == 'no' || input.downcase == 'n' || input.downcase == 'off'
             value_found = true
             value = 'off'
           elsif input == '' && has_default
             value_found = true
             value = default_yes ? 'on' : 'off'
+          elsif input != ""
+            puts "Invalid Option... Please try again."
+            next
           end
           if value.nil? && option_type['required']
             puts "Invalid Option... Please try again."
@@ -827,6 +830,19 @@ module Morpheus
             help_prompt(option_type)
           elsif !value.nil? || option_type['required'] != true
             value_found = true
+          end
+          # attempt to parse Java regex and validate it
+          if option_type["verifyPattern"].to_s != "" && !(value.to_s == "" && option_type['required'])
+            begin
+              verify_pattern = Regexp.compile(option_type["verifyPattern"])
+              if !verify_pattern.match(value)
+                value_found = false
+                puts "Invalid Option. Value must match the pattern '#{option_type['verifyPattern']}'. Please try again."
+                next
+              end
+            rescue => regex_ex
+              puts "Failed to parse verifyPattern '#{option_type['verifyPattern']}' as a regular expression"
+            end
           end
         end
         return value

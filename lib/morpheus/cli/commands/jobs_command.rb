@@ -2,6 +2,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::JobsCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::JobsHelper
   include Morpheus::Cli::AccountsHelper
 
   set_command_name :'jobs'
@@ -124,7 +125,7 @@ class Morpheus::Cli::JobsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[job] [max-exec-count]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about a job.\n" +
           "[job] is required. Job ID or name.\n" +
           "[max-exec-count] is optional. Specified max # of most recent executions. Defaults is 3"
@@ -274,17 +275,13 @@ class Morpheus::Cli::JobsCommand
         options[:schedule] = 'dateTime'
         params['dateTime'] = val.to_s
       end
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
+      build_standard_add_options(opts, options)
       opts.footer = "Create job."
     end
     optparse.parse!(args)
     connect(options)
-    if args.count > 1
-      raise_command_error "wrong number of arguments, expected 0 or 1 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, max:1)
 
-    begin
       if options[:payload]
         payload = parse_payload(options, 'job')
       else
@@ -425,22 +422,10 @@ class Morpheus::Cli::JobsCommand
         return
       end
       json_response = @jobs_interface.create(payload)
-
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        if json_response['success']
-          print_green_success  "Job created"
-          _get(json_response['id'], 0, options)
-        else
-          print_red_alert "Error creating job: #{json_response['msg'] || json_response['errors']}"
-        end
+      render_response(json_response, options, 'job') do
+        print_green_success  "Job created"
+        _get(json_response['id'], 0, options)
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
   end
 
   def update(args)
@@ -492,18 +477,14 @@ class Morpheus::Cli::JobsCommand
         options[:schedule] = 'dateTime'
         params['dateTime'] = val.to_s
       end
-      build_common_options(opts, options, [:options, :payload, :list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update job.\n" +
           "[job] is required. Job ID or name"
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
 
-    begin
       job = find_by_name_or_id('job', args[0])
 
       if job.nil?
@@ -609,22 +590,10 @@ class Morpheus::Cli::JobsCommand
         return
       end
       json_response = @jobs_interface.update(job['id'], payload)
-
-      if options[:json]
-        puts as_json(json_response, options)
-      elsif !options[:quiet]
-        if json_response['success']
-          print_green_success  "Job updated"
-          _get(job['id'], nil, options)
-        else
-          print_red_alert "Error updating job: #{json_response['msg'] || json_response['errors']}"
-        end
+      render_response(json_response, options, 'job') do
+        print_green_success  "Job updated"
+        _get(job['id'], nil, options)
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
   end
 
   def execute(args)
@@ -684,48 +653,31 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[job]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_standard_remove_options(opts, options)
       opts.footer = "Remove job.\n" +
           "[job] is required. Job ID or name"
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
-      return 1
-    end
-
-    begin
-      job = find_by_name_or_id('job', args[0])
-
-      if job.nil?
-        print_red_alert "Job #{args[0]} not found"
-        exit 1
-      end
-
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the job '#{job['name']}'?", options)
-        return 9, "aborted command"
-      end
-
-      @jobs_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @jobs_interface.dry.destroy(job['id'], params)
-        return
-      end
-
-      json_response = @jobs_interface.destroy(job['id'], params)
-
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        print_green_success "Job #{job['name']} removed"
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
+    verify_args!(args:args, optparse:optparse, count:1)
+    job = find_by_name_or_id('job', args[0])
+    if job.nil?
+      print_red_alert "Job #{args[0]} not found"
       exit 1
     end
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the job '#{job['name']}'?", options)
+      return 9, "aborted command"
+    end
+    @jobs_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @jobs_interface.dry.destroy(job['id'], params)
+      return
+    end
+    json_response = @jobs_interface.destroy(job['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Job #{job['name']} removed"
+    end
+    return 0, nil
   end
 
   def list_executions(args)
@@ -739,7 +691,7 @@ class Morpheus::Cli::JobsCommand
       opts.on("--internal [true|false]", String, "Filters executions based on internal flag. Internal executions are excluded by default.") do |val|
         params["internalOnly"] = (val.to_s != "false")
       end
-      build_standard_list_options(opts, options)
+      build_standard_list_options(opts, options, [:details])
       opts.footer = "List job executions.\n" +
           "[job] is optional. Job ID or name to filter executions."
 
@@ -792,10 +744,7 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
-      opts.on('-D', '--details [on|off]', String, "Can be used to enable / disable execution details. Default is on") do |val|
-        options[:details] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      end
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_standard_get_options(opts, options, [:details])
       opts.footer = "Get details about a job.\n" +
           "[id] is required. Job execution ID."
     end
@@ -805,82 +754,17 @@ class Morpheus::Cli::JobsCommand
     end
     connect(options)
 
-    begin
-      @jobs_interface.setopts(options)
-
-      if options[:dry_run]
-        print_dry_run @jobs_interface.dry.get_execution(args[0], params)
-        return
-      end
-      json_response = @jobs_interface.get_execution(args[0], params)
-
-      render_result = render_with_format(json_response, options, 'jobExecution')
-      return 0 if render_result
-
-      title = "Morpheus Job Execution"
-      subtitles = []
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-
-      exec = json_response['jobExecution']
-      process = exec['process']
-      print cyan
-      description_cols = {
-          "ID" => lambda {|it| it['id'] },
-          "Job" => lambda {|it| it['job'] ? it['job']['name'] : ''},
-          "Job Type" => lambda {|it| it['job'] && it['job']['type'] ? (it['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : ''},
-          # "Description" => lambda {|it| it['description'] || (it['job'] ? it['job']['description'] : '') },
-          "Start Date" => lambda {|it| format_local_dt(it['startDate'])},
-          "ETA/Time" => lambda {|it| it['duration'] ? format_human_duration(it['duration'] / 1000.0) : ''},
-          "Status" => lambda {|it| format_status(it['status'])},
-          "Error" => lambda {|it| it['process'] && (it['process']['message'] || it['process']['error']) ? red + (it['process']['message'] || it['process']['error']) + cyan : ''},
-          "Created By" => lambda {|it| it['createdBy'].nil? ? '' : it['createdBy']['displayName'] || it['createdBy']['username']}
-      }
-      description_cols["Process ID"] = lambda {|it| process['id']} if !process.nil?
-
-      print_description_list(description_cols, exec)
-
-      if !process.nil?
-        if options[:details]
-        process_data = get_process_event_data(process)
-          print_h2 "Execution Details"
-          description_cols = {
-              "Process ID" => lambda {|it| it[:id]},
-              "Description" => lambda {|it| it[:description]},
-              "Start Date" => lambda {|it| it[:start_date]},
-              "Created By" => lambda {|it| it[:created_by]},
-              "Duration" => lambda {|it| it[:duration]},
-              "Status" => lambda {|it| it[:status]}
-          }
-          if !options[:details]
-            description_cols["Output"] = lambda {|it| it[:output]} if process_data[:output] && process_data[:output].strip.length > 0
-            description_cols["Error"] = lambda {|it| it[:error]} if process_data[:error] && process_data[:error].strip.length > 0
-          end
-
-          print_description_list(description_cols, process_data)
-
-          if process_data[:output] && process_data[:output].strip.length > 0
-            print_h2 "Output"
-            print process['output']
-          end
-          if process_data[:error] && process_data[:error].strip.length > 0
-            print_h2 "Error"
-            print process['message'] || process['error']
-            print reset,"\n"
-          end
-        end
-
-        if process['events'] && !process['events'].empty?
-          print_h2 "Execution Events"
-          print_process_events(process['events'])
-        end
-      end
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    @jobs_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @jobs_interface.dry.get_execution(args[0], params)
+      return
     end
+    json_response = @jobs_interface.get_execution(args[0], params)
+    render_response(json_response, options, 'jobExecution') do
+      print_h1 "Morpheus Job Execution", [], options
+      print_job_execution(json_response['jobExecution'], options)
+    end
+    return 0, nil
   end
 
   def get_execution_event(args)
@@ -888,7 +772,7 @@ class Morpheus::Cli::JobsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id] [event]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      build_standard_get_options(opts, options)
       opts.footer = "Get details about a job.\n" +
           "[id] is required. Job execution ID.\n" +
           "[event] is required. Process event ID."
@@ -947,72 +831,8 @@ class Morpheus::Cli::JobsCommand
 
   private
 
-  def get_process_event_data(process_or_event)
-    {
-        id: process_or_event['id'],
-        description: process_or_event['description'] || (process_or_event['refType'] == 'instance' ? process_or_event['displayName'] : (process_or_event['processTypeName'] || '').capitalize),
-        start_date: format_local_dt(process_or_event['startDate']),
-        created_by: process_or_event['createdBy'] ? process_or_event['createdBy']['displayName'] : '',
-        duration: format_human_duration((process_or_event['duration'] || process_or_event['statusEta'] || 0) / 1000.0),
-        status: format_status(process_or_event['status']),
-        error: truncate_string(process_or_event['message'] || process_or_event['error'], 32),
-        output: truncate_string(process_or_event['output'], 32)
-    }
-  end
-
-  # both process and process events
-  def print_process_events(events, options={})
-    print as_pretty_table(events.collect {|it| get_process_event_data(it)}, [:id, :description, :start_date, :created_by, :duration, :status, :error], options)
-    print reset,"\n"
-  end
-
-  def print_job_executions(execs, options={})
-    if execs.empty?
-      print cyan,"No job executions found.",reset,"\n"
-    else
-      rows = execs.collect do |ex|
-        {
-            id: ex['id'],
-            job: ex['job'] ? ex['job']['name'] : '',
-            description: ex['description'] || ex['job'] ? ex['job']['description'] : '',
-            type: ex['job'] && ex['job']['type'] ? (ex['job']['type']['code'] == 'morpheus.workflow' ? 'Workflow' : 'Task') : '',
-            start: format_local_dt(ex['startDate']),
-            duration: ex['duration'] ? format_human_duration(ex['duration'] / 1000.0) : '',
-            status: format_status(ex['status']),
-            error: truncate_string(ex['process'] && (ex['process']['message'] || ex['process']['error']) ? ex['process']['message'] || ex['process']['error'] : '', 32)
-        }
-      end
-
-      columns = [
-          :id, :job, :type, {'START DATE' => :start}, {'ETA/TIME' => :duration}, :status, :error
-      ]
-      print as_pretty_table(rows, columns, options)
-      print reset,"\n"
-    end
-  end
-
-  def format_status(status_string, return_color=cyan)
-    out = ""
-    if status_string
-      if ['complete','success', 'successful', 'ok'].include?(status_string)
-        out << "#{green}#{status_string.upcase}"
-      elsif ['error', 'offline', 'failed', 'failure'].include?(status_string)
-        out << "#{red}#{status_string.upcase}"
-      else
-        out << "#{yellow}#{status_string.upcase}"
-      end
-    end
-    out + return_color
-  end
-
-  def find_by_name_or_id(type, val)
-    interface = instance_variable_get "@#{type}s_interface"
-    typeCamelCase = type.gsub(/(?:^|_)([a-z])/) do $1.upcase end
-    typeCamelCase = typeCamelCase[0, 1].downcase + typeCamelCase[1..-1]
-    (val.to_s =~ /\A\d{1,}\Z/) ? interface.get(val.to_i)[typeCamelCase] : interface.list({'name' => val})["#{typeCamelCase}s"].first
-  end
-
   def load_job_type_id_by_code(code)
     @options_interface.options_for_source('jobTypes', {})['data'].find {|it| it['code'] == code}['value'] rescue nil
   end
+
 end

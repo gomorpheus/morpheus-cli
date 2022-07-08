@@ -36,20 +36,18 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       options[:phrase] = args.join(" ")
     end
     connect(options)
-    begin
-      params = {}
-      params.merge!(parse_list_options(options))
-      @option_types_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @option_types_interface.dry.list(params)
-        return
-      end
+    
+    params = {}
+    params.merge!(parse_list_options(options))
+    @option_types_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @option_types_interface.dry.list(params)
+      return
+    end
 
-      json_response = @option_types_interface.list(params)
+    json_response = @option_types_interface.list(params)
 
-      render_result = render_with_format(json_response, options, 'optionTypes')
-      return 0 if render_result
-
+    render_response(json_response, options, "optionTypes") do
       option_types = json_response['optionTypes']
       subtitles = []
       subtitles += parse_list_subtitles(options)
@@ -84,10 +82,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         print_results_pagination(json_response)
       end
       print reset,"\n"
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
    def get(args)
@@ -110,23 +106,21 @@ class Morpheus::Cli::LibraryOptionTypesCommand
   end
 
   def _get(id, options)
-    begin
-      @option_types_interface.setopts(options)
-      if options[:dry_run]
-        if id.to_s =~ /\A\d{1,}\Z/
-          print_dry_run @option_types_interface.dry.get(id.to_i)
-        else
-          print_dry_run @option_types_interface.dry.list({name: id})
-        end
-        return
+    
+    @option_types_interface.setopts(options)
+    if options[:dry_run]
+      if id.to_s =~ /\A\d{1,}\Z/
+        print_dry_run @option_types_interface.dry.get(id.to_i)
+      else
+        print_dry_run @option_types_interface.dry.list({name: id})
       end
-      option_type = find_option_type_by_name_or_id(id)
-      return 1 if option_type.nil?
-      json_response = {'optionType' => option_type}
+      return
+    end
+    option_type = find_option_type_by_name_or_id(id)
+    return 1 if option_type.nil?
+    json_response = {'optionType' => option_type}
 
-      render_result = render_with_format(json_response, options, 'optionType')
-      return 0 if render_result
-
+    render_response(json_response, options, "optionType") do
       print_h1 "Option Type Details"
       print cyan
       columns = {
@@ -144,15 +138,13 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         "Default Value" => 'defaultValue',
         "Required" => lambda {|it| format_boolean(it['required']) },
         "Export As Tag" => lambda {|it| it['exportMeta'].nil? ? '' : format_boolean(it['exportMeta']) },
+        "Verify Pattern" => 'verifyPattern',
       }
       columns.delete("Option List") if option_type['optionList'].nil?
       print as_description_list(option_type, columns, options)
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    return 0, nil
   end
 
   def add(args)
@@ -165,37 +157,38 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     end
     optparse.parse!(args)
     connect(options)
-    begin
-      payload = nil
-      if options[:payload]
-        payload = options[:payload]
-        payload.deep_merge!({'optionType' => parse_passed_options(options)})
-      else
-        payload = {}
-        payload.deep_merge!({'optionType' => parse_passed_options(options)})
-        option_type_payload = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client)
-        # tweak payload for API
-        option_type_payload['optionList'] = {'id' => option_type_payload['optionList'].to_i} if option_type_payload['optionList'].is_a?(String) || option_type_payload['optionList'].is_a?(Numeric)
-        option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
-        option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
-        payload.deep_merge!({'optionType' => option_type_payload})
-      end
-      @option_types_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @option_types_interface.dry.create(payload)
-        return
-      end
-      json_response = @option_types_interface.create(payload)
-      render_result = render_with_format(json_response, options)
-      return 0 if render_result
+    verify_args!(args:args, optparse:optparse, max:1)
+    if args[0]
+      options[:options]['name'] = args[0]
+    end
+    
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'optionType' => parse_passed_options(options)})
+    else
+      payload = {}
+      payload.deep_merge!({'optionType' => parse_passed_options(options)})
+      option_type_payload = Morpheus::Cli::OptionTypes.prompt(new_option_type_option_types, options[:options], @api_client)
+      # tweak payload for API
+      option_type_payload['optionList'] = {'id' => option_type_payload['optionList'].to_i} if option_type_payload['optionList'].is_a?(String) || option_type_payload['optionList'].is_a?(Numeric)
+      option_type_payload['required'] = ['on','true'].include?(option_type_payload['required'].to_s) if option_type_payload.key?('required')
+      option_type_payload['exportMeta'] = ['on','true'].include?(option_type_payload['exportMeta'].to_s) if option_type_payload.key?('exportMeta')
+      payload.deep_merge!({'optionType' => option_type_payload})
+    end
+    @option_types_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @option_types_interface.dry.create(payload)
+      return
+    end
+    json_response = @option_types_interface.create(payload)
+      
+    render_response(json_response, options, "optionType") do
       option_type = json_response['optionType']
       print_green_success "Added Option Type #{option_type['name']}"
-      #list([])
-      get([option_type['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+      _get(option_type['id'], options)
     end
+    return 0, nil
   end
 
   def update(args)
@@ -302,6 +295,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', 'displayOrder' => 9},
       {'fieldName' => 'required', 'fieldLabel' => 'Required', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 10},
       {'fieldName' => 'exportMeta', 'fieldLabel' => 'Export As Tag', 'type' => 'checkbox', 'defaultValue' => false, 'description' => 'Export as Tag.', 'displayOrder' => 11},
+      {'fieldName' => 'verifyPattern', 'fieldLabel' => 'Verify Pattern', 'type' => 'text', 'dependsOnCode' => 'optionType.type:text', 'description' => 'A regexp string that validates the input, use (?i) to make the matcher case insensitive', 'displayOrder' => 12},
     ]
   end
 

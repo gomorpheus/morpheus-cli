@@ -608,6 +608,9 @@ module Morpheus::Cli::PrintHelper
   # @param suffix [String] the character to pad right side with. Default is '...'
   def truncate_string(value, width, suffix="...")
     value = value.to_s
+    if !width
+      return value
+    end
     # JD: hack alerty.. this sux, but it's a best effort to preserve values containing ascii coloring codes
     #     it stops working when there are words separated by ascii codes, eg. two diff colors
     #     plus this is probably pretty slow...

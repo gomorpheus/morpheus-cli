@@ -4607,7 +4607,7 @@ EOT
   end
 
   def apply(args)
-    default_refresh_interval = 15
+    default_refresh_interval = 10
     params, payload, options = {}, {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance] [options]")
