@@ -834,7 +834,8 @@ module Morpheus
           # attempt to parse Java regex and validate it
           if option_type["verifyPattern"].to_s != "" && !(value.to_s == "" && option_type['required'])
             begin
-              verify_pattern = Regexp.compile(option_type["verifyPattern"])
+              # pattern is matched on the entire string
+              verify_pattern = Regexp.compile("^" + option_type["verifyPattern"] + "$")
               if !verify_pattern.match(value)
                 value_found = false
                 puts "Invalid Option. Value must match the pattern '#{option_type['verifyPattern']}'. Please try again."
