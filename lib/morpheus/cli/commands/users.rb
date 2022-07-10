@@ -172,8 +172,8 @@ class Morpheus::Cli::Users
         options[:include_personas_access] = true
         params['includeAccess'] = true
       end
-      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
-        options[:display_none_access] = true
+      opts.on(nil, '--hide-none-access', "Hide records with 'none' access") do
+        options[:hide_none_access] = true
       end
       build_standard_get_options(opts, options, [:account])
       opts.footer = <<-EOT
@@ -249,7 +249,7 @@ EOT
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
             access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+            access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             if field == "features"
               # print_h2 "Permissions", options
@@ -291,10 +291,10 @@ EOT
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
         options[:global] = true
       end
-      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
-        options[:display_none_access] = true
+      opts.on('--hide-none-access', "Hide records with 'none' access") do
+        options[:hide_none_access] = true
       end
+      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display Access for a user." + "\n" +
                     "[user] is required. This is the username or id of a user."
     end
@@ -370,7 +370,7 @@ EOT
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account)
             access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+            access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             print_h2 "#{label} Access", options
             print cyan

@@ -521,14 +521,14 @@ EOT
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
-      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full" ) do |val|
+      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
       opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
-      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full" ) do |val|
+      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
         options[:cloud_permissions] ||= {}
         parse_access_csv(options[:cloud_permissions], val, args, optparse)
       end
@@ -1094,22 +1094,43 @@ EOT
   end
 
   def update_feature_access(args)
-    usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|user|yes|no|none]"
     options = {}
+    allowed_access_values = ['full', 'user', 'read', 'none'] # just for display , veries per permission
+    permission_code = nil
+    access_value = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [code] [full|read|user|yes|no|none]")
+      opts.banner = subcommand_usage("[role] [permission] [access]")
+      opts.on( '-p', '--permission CODE', "Permission code or name" ) do |val|
+        permission_code = val
+      end
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}] (varies per permission)" ) do |val|
+        access_value = val
+      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update role access for a group or all groups.
+[role] is required. This is the name (authority) or id of a role.
+[permission] is required. This is the code or name of a permission.
+[access] is required. This is the new access value: #{ored_list(allowed_access_values)}
+EOT
     end
     optparse.parse!(args)
-
-    if args.count < 3
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1, max:3)
     name = args[0]
-    permission_code = args[1]
-    access_value = args[2].to_s.downcase
+    permission_code = args[1] if args[1]
+    access_value = args[2].to_s.downcase if args[2]
 
+    if !permission_code
+      raise_command_error("missing required argument: [permission]", args, optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", args, optparse)
+    end
+    # access_value = access_value.to_s.downcase
+    # if !allowed_access_values.include?(access_value)
+    #   raise_command_error("invalid access value: #{access_value}", args, optparse)
+    # end
+    # need to load the permission and then split accessTypes, so just allows all for now, server validates...
     # if !['full_decrypted','full', 'read', 'custom', 'none'].include?(access_value)
     #   puts optparse
     #   exit 1
@@ -1143,15 +1164,16 @@ EOT
   end
 
   def update_global_group_access(args)
-    usage = "Usage: morpheus roles update-global-group-access [name] [full|read|custom|none]"
+    usage = "Usage: morpheus roles update-global-group-access [role] [full|read|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|read|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|read|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-            opts.footer = <<-EOT
+      opts.footer = <<-EOT
 Update global group access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, read, custom or none.
+Only applicable to User roles.
 EOT
     end
     optparse.parse!(args)
@@ -1213,10 +1235,14 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for a group or all groups.\n" +
-                    "[role] is required. This is the name or id of a role.\n" + 
-                    "--group or --all is required. This is the name or id of a group.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+      opts.footer = <<-EOT
+Update role access for a group or all groups.
+[role] is required. This is the name or id of a role.
+--group or --all is required. This is the name or id of a group.
+--access is required. This is the new access value: #{ored_list(allowed_access_values)}
+Only applicable to User roles and when global group access is set to "custom".
+EOT
+      
     end
     optparse.parse!(args)
 
@@ -1296,15 +1322,16 @@ EOT
   end
 
   def update_global_cloud_access(args)
-    usage = "Usage: morpheus roles update-global-cloud-access [name] [full|custom|none]"
+    usage = "Usage: morpheus roles update-global-cloud-access [role] [full|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update global cloud access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, custom or none.
+Only applicable to Tenant roles.
 EOT
     end
     optparse.parse!(args)
@@ -1354,7 +1381,7 @@ EOT
     do_all = false
     allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role]")
       opts.on( '-c', '--cloud CLOUD', "Cloud name or id" ) do |val|
         cloud_id = val
       end
@@ -1365,10 +1392,13 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for a cloud or all clouds.\n" +
-                    "[role] is required. This is the name or id of a role.\n" + 
-                    "--cloud or --all is required. This is the name or id of a cloud.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+      opts.footer = <<-EOT
+Update role access for a cloud or all clouds.
+[role] is required. This is the name or id of a role.
+--cloud or --all is required. This is the name or id of a cloud.
+--access is required. This is the new access value: #{ored_list(allowed_access_values)}
+Only applicable to Tenant roles and when global cloud access is set to "custom".
+EOT
     end
     optparse.parse!(args)
 
@@ -1520,7 +1550,7 @@ EOT
       opts.footer = "Update role access for an instance type or all instance types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--instance-type or --all is required. This is the name of an instance type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1668,10 +1698,10 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for an blueprint or all blueprints.\n" +
+      opts.footer = "Update role access for a blueprint or all blueprints.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--blueprint or --all is required. This is the name or id of a blueprint.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1706,7 +1736,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       blueprint_global_access = role_json['globalAppTemplateAccess'] || role_json['globalBlueprintAccess']
-      blueprint_permissions = role_json['appTemplates'] || role_json['blueprintPermissions'] || []
+      blueprint_permissions = role_json['appTemplatePermissions'] || role_json['blueprintPermissions'] || []
       if blueprint_global_access != 'custom'
         print "\n", red, "Global Blueprint Access is currently: #{blueprint_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-blueprint-access \"#{name}\" custom`"
@@ -1835,7 +1865,7 @@ EOT
       opts.footer = "Update role access for an catalog item type or all types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--catalog-item-type or --all is required. This is the name or id of a catalog item type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1870,7 +1900,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       catalog_item_type_global_access = role_json['globalCatalogItemTypeAccess']
-      catalog_item_type_permissions = role_json['catalogItemTypes'] || []
+      catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || role_json['catalogItemTypes'] []
       if catalog_item_type_global_access != 'custom'
         print "\n", red, "Global Catalog Item Type Access is currently: #{catalog_item_type_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-catalog-item-type-access \"#{name}\" custom`"
@@ -1945,7 +1975,7 @@ EOT
       opts.footer = "Update role access for a persona or all personas.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--persona or --all is required. This is the code of a persona. Service Catalog, Standard, or Virtual Desktop\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -2083,7 +2113,7 @@ EOT
       opts.footer = "Update role access for a VDI pool or all VDI pools.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--vdi-pool or --all is required. This is the name or id of a VDI pool.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -2120,7 +2150,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       vdi_pool_global_access = role_json['globalVdiPoolAccess']
-      vdi_pool_permissions = role_json['vdiPools'] || []
+      vdi_pool_permissions = role_json['vdiPoolPermissions'] || role_json['vdiPools'] || []
       if vdi_pool_global_access != 'custom'
         print "\n", red, "Global VDI Pool Access is currently: #{vdi_pool_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-vdi-pool-access \"#{name}\" custom`"
@@ -2242,7 +2272,7 @@ EOT
       opts.footer = "Update role access for a report type or all report types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--report-type or --all is required. This is the name or id of a report type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -2279,7 +2309,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       report_type_global_access = role_json['globalReportTypeAccess']
-      report_type_permissions = role_json['reportTypes'] || []
+      report_type_permissions = role_json['reportTypePermissions'] || role_json['reportTypes'] || []
       if report_type_global_access != 'custom'
         print "\n", red, "Global Report Type Access is currently: #{report_type_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-report-type-access \"#{name}\" custom`"
