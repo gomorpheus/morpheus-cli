@@ -811,14 +811,14 @@ EOT
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
-      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full" ) do |val|
+      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
       opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
-      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full" ) do |val|
+      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
         options[:cloud_permissions] ||= {}
         parse_access_csv(options[:cloud_permissions], val, args, optparse)
       end
@@ -1057,6 +1057,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Delete a role.
+[role] is required. This is the name (authority) or id of a role.
+EOT
     end
     optparse.parse!(args)
     if args.count < 1
@@ -1108,7 +1112,7 @@ EOT
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
-Update role access for a group or all groups.
+Update role access for a permission.
 [role] is required. This is the name (authority) or id of a role.
 [permission] is required. This is the code or name of a permission.
 [access] is required. This is the new access value: #{ored_list(allowed_access_values)}
@@ -1862,7 +1866,7 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for an catalog item type or all types.\n" +
+      opts.footer = "Update role access for a catalog item type or all types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--catalog-item-type or --all is required. This is the name or id of a catalog item type.\n" + 
                     "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
