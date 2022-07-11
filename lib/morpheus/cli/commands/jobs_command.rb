@@ -91,7 +91,7 @@ class Morpheus::Cli::JobsCommand
           # "Last Updated" => lambda {|job| format_local_dt(job['lastUpdated']) },
           "Last Run" => lambda {|job| format_local_dt(job['lastRun']) },
           "Next Run" =>  lambda {|job| job['enabled'] && job['scheduleMode'] && job['scheduleMode'] != 'manual' ? format_local_dt(job['nextFire']) : '' },
-          "Last Result" =>  lambda {|job| format_status(job['lastResult']) },
+          "Last Result" =>  lambda {|job| format_job_status(job['lastResult']) },
         }
         print as_pretty_table(jobs, columns.upcase_keys!, options)
         print_results_pagination(json_response)
