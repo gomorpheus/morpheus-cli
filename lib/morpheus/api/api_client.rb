@@ -836,6 +836,14 @@ class Morpheus::APIClient
     Morpheus::BackupJobsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def backup_services
+    Morpheus::BackupServicesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def backup_service_types
+    Morpheus::BackupServiceTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def catalog_item_types
     Morpheus::CatalogItemTypesInterface.new(common_interface_options).setopts(@options)
   end
