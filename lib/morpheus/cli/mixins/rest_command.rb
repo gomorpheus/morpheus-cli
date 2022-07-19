@@ -159,6 +159,17 @@ module Morpheus::Cli::RestCommand
 
     alias :set_rest_perms_config :rest_perms_config=
 
+    # rest_option_context_map specifies context mapping during option prompt. default is domain => ''
+    def rest_option_context_map
+      @option_context_map || {'domain' => ''}
+    end
+
+    def rest_option_context_map=(v)
+      @option_context_map = v
+    end
+
+    alias :set_rest_option_context_map :rest_option_context_map=
+
     # rest_has_type indicates a resource has a type. default is false
     def rest_has_type
       @rest_has_type == true
@@ -342,6 +353,10 @@ module Morpheus::Cli::RestCommand
 
   def rest_perms_config
     self.class.rest_perms_config
+  end
+
+  def rest_option_context_map
+    self.class.rest_option_context_map
   end
 
   # returns the default rest interface, allows using rest_interface_name = "your"
@@ -582,7 +597,8 @@ EOT
   def add(args)
     record_type = nil
     record_type_id = nil
-    options = {}
+    options = {:options => {:context_map => rest_option_context_map}}
+    #respond_to?("#{rest_key}_option_context_map", true) ? send("#{rest_key}_option_context_map") : {'domain' => ''}}}
     option_types = respond_to?("add_#{rest_key}_option_types", true) ? send("add_#{rest_key}_option_types") : []
     advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
     type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 

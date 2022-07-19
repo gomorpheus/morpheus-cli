@@ -985,9 +985,15 @@ class Morpheus::Cli::Clouds
     # Details (zoneType.optionTypes)
 
     if cloud_type && cloud_type['optionTypes']
+      if !cloud_type['optionTypes'].find {|opt| opt['type'] == 'credential'}
+        tmp_option_types << {'fieldName' => 'type', 'fieldLabel' => 'Credentials', 'type' => 'credential', 'optionSource' => 'credentials', 'required' => true, 'defaultValue' => 'local', 'config' => {'credentialTypes' => ['username-password']}, 'displayOrder' => 7}
+        cloud_type['optionTypes'].select {|opt| ['username', 'password'].include?(opt['fieldName'])}.each {|opt| opt['localCredential'] = true}
+      end
       # adjust displayOrder to put these at the end
       #tmp_option_types = tmp_option_types + cloud_type['optionTypes']
       cloud_type['optionTypes'].each do |opt|
+        # temp fix for typo
+        opt['optionSource'] = 'credentials' if opt['optionSource'] == 'credentials,'
         tmp_option_types << opt.merge({'displayOrder' => opt['displayOrder'].to_i + 100})
       end
     end
