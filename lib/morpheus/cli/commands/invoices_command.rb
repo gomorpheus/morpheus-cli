@@ -680,6 +680,7 @@ EOT
       opts.on('-a', '--all', "Display all details, costs and prices." ) do
         options[:show_actual_costs] = true
         options[:show_costs] = true
+        options[:details] = true
       end
       # opts.on('--actuals', '--actuals', "Display all actual costs: Compute, Memory, Storage, Network, Extra" ) do
       #   options[:show_actual_costs] = true
@@ -867,7 +868,7 @@ EOT
           {"COST" => lambda {|it| format_money(it['itemCost'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
           {"TAX" => lambda {|it| format_money(it['itemTax'], it['currency'] || 'USD', {sigdig:options[:sigdig]}) } },
         ] : []) + [
-          {"ITEM ID" => lambda {|it| truncate_string_right(it['itemId'], 65) } },
+          {"ITEM ID" => lambda {|it| options[:details] ? it['itemId'] : truncate_string_right(it['itemId'], 65) } },
           {"ITEM NAME" => lambda {|it| it['itemName'] } },
           {"ITEM TYPE" => lambda {|it| it['itemType'] } },
           {"ITEM DESCRIPTION" => lambda {|it| it['itemDescription'] } },
