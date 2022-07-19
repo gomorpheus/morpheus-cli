@@ -993,6 +993,8 @@ class Morpheus::Cli::Clouds
       #tmp_option_types = tmp_option_types + cloud_type['optionTypes']
       cloud_type['optionTypes'].each do |opt|
         tmp_option_types << opt.merge({'displayOrder' => opt['displayOrder'].to_i + 100})
+        # temp fix for typo
+        opt['optionSource'] = 'credentials' if opt['optionSource'] == 'credentials,'
       end
     end
 
