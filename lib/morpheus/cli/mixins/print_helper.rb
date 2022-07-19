@@ -608,6 +608,9 @@ module Morpheus::Cli::PrintHelper
   # @param suffix [String] the character to pad right side with. Default is '...'
   def truncate_string(value, width, suffix="...")
     value = value.to_s
+    if !width
+      return value
+    end
     # JD: hack alerty.. this sux, but it's a best effort to preserve values containing ascii coloring codes
     #     it stops working when there are words separated by ascii codes, eg. two diff colors
     #     plus this is probably pretty slow...
@@ -714,7 +717,11 @@ module Morpheus::Cli::PrintHelper
     
     # support --fields x,y,z and --all-fields or --fields all
     all_fields = data.first ? data.first.keys : []
-    
+    #todo: support --raw-fields   meh, not really needed..
+    # if options[:include_fields] && options[:raw_fields]
+    #   data = transform_data_for_field_options(data, options)
+    #   data = data[options[:include_fields_context]] if options[:include_fields_context]
+    # elsif options[:include_fields]
     if options[:include_fields]
       if (options[:include_fields].is_a?(Array) && options[:include_fields].size == 1 && options[:include_fields][0] == 'all') || options[:include_fields] == 'all'
         columns = all_fields
@@ -1093,16 +1100,78 @@ module Morpheus::Cli::PrintHelper
     '"' + v.to_s.gsub('"', '""') + '"'
   end
 
-  def as_csv(data, columns, options={})
+  def as_csv(data, default_columns=nil, options={}, object_key=nil)
     out = ""
     delim = options[:csv_delim] || options[:delim] || ","
     newline = options[:csv_newline] || options[:newline] || "\n"
     include_header = options[:csv_no_header] ? false : true
     do_quotes = options[:csv_quotes] || options[:quotes]
 
+    if options[:include_fields]
+      data = transform_data_for_field_options(data, options, object_key)
+      if data.is_a?(Hash)
+        if options[:raw_fields]
+          if options[:include_fields_context]
+            data = data[options[:include_fields_context]]
+          else
+            # todo: could use a dynamic object_key, first Array or Hash in the data, can probably always do this...
+            # if object_key.nil?
+            #   object_key = data.keys.find {|k| data[k].is_a?(Array) || data[k].is_a?(Hash) }
+            # end
+            # if object_key && data[object_key]
+            #   data = data[object_key]
+            # end
+          end
+        else
+          if object_key
+            data = data[object_key]
+          end
+        end
+      end
+    else
+      # need array of records, so always select the object/array here
+      if object_key
+        if data.is_a?(Hash)
+          data = data[object_key]
+        else
+          Morpheus::Logging::DarkPrinter.puts "as_csv() expects data as an to fetch object key '#{object_key}' from, #{records.class}." if Morpheus::Logging.debug?
+        end
+      end
+    end
+    
+    
+    records = data
+
+    # allow records as Array and Hash only..
+    if records.is_a?(Array)
+      # records = records
+    elsif records.is_a?(Hash)
+      records = [records]
+    else
+      #raise "records_as_csv expects records as an Array of objects to render"
+      Morpheus::Logging::DarkPrinter.puts "as_csv() expects data as an Array of objects to render, got a #{records.class} instead" if Morpheus::Logging.debug?
+      # return ""
+      return out
+    end
+
+    # build column definitions, by default use all properties for the first record (Hash) in the array
+    columns = []
+    all_fields = records.first.is_a?(Hash) ? records.first.keys : []
+    if options[:include_fields]
+      if (options[:include_fields].is_a?(Array) && options[:include_fields].size == 1 && options[:include_fields][0] == 'all') || options[:include_fields] == 'all'
+        columns = all_fields
+      else
+        columns = options[:include_fields]
+      end
+    elsif options[:all_fields]
+      columns = all_fields
+    elsif default_columns
+      columns = default_columns
+    else
+      columns = all_fields
+    end
+
     column_defs = build_column_definitions(columns)
-    #columns = columns.flatten.compact
-    data_array = [data].flatten.compact
 
     if include_header
       headers = column_defs.collect {|column_def| column_def.label }
@@ -1113,7 +1182,7 @@ module Morpheus::Cli::PrintHelper
       out << newline
     end
     lines = []
-    data_array.each do |obj|
+    records.each do |obj|
       if obj
         cells = []
         column_defs.each do |column_def|
@@ -1137,29 +1206,9 @@ module Morpheus::Cli::PrintHelper
 
   end
 
+  # deprecated, replaced by as_csv(records, columns, options, object_key)
   def records_as_csv(records, options={}, default_columns=nil)
-    out = ""
-    if !records
-      #raise "records_as_csv expects records as an Array of objects to render"
-      return out
-    end
-    cols = []
-    all_fields = records.first ? records.first.keys : []
-    if options[:include_fields]
-      if (options[:include_fields].is_a?(Array) && options[:include_fields].size == 1 && options[:include_fields][0] == 'all') || options[:include_fields] == 'all'
-        cols = all_fields
-      else
-        cols = options[:include_fields]
-      end
-    elsif options[:all_fields]
-      cols = all_fields
-    elsif default_columns
-      cols = default_columns
-    else
-      cols = all_fields
-    end
-    out << as_csv(records, cols, options)
-    out
+    as_csv(records, default_columns, options)
   end
 
   def as_json(data, options={}, object_key=nil)
@@ -1169,12 +1218,7 @@ module Morpheus::Cli::PrintHelper
     end
 
     if options[:include_fields]
-      if object_key
-        # data[object_key] = filter_data(data[object_key], options[:include_fields])
-        data = {(object_key) => filter_data(data[object_key], options[:include_fields]) }
-      else
-        data = filter_data(data, options[:include_fields])
-      end
+      data = transform_data_for_field_options(data, options, object_key)
     end
 
     do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : true
@@ -1193,11 +1237,7 @@ module Morpheus::Cli::PrintHelper
       return "null" # "No data"
     end
     if options[:include_fields]
-      if object_key
-        data[object_key] = filter_data(data[object_key], options[:include_fields])
-      else
-        data = filter_data(data, options[:include_fields])
-      end
+      data = transform_data_for_field_options(data, options, object_key)
     end
     begin
       out << data.to_yaml
@@ -1207,6 +1247,48 @@ module Morpheus::Cli::PrintHelper
     end
     #out << "\n"
     out
+  end
+
+
+  # transform data for options --fields id,authority and --select id,authority
+  # support traversing records with --raw-fields and the list command. Example: roles list --raw-fields roles.id,roles.authority
+  def transform_data_for_field_options(data, options, object_key=nil)
+    if options[:include_fields] && data.is_a?(Hash)
+      if options[:raw_fields]
+        row = (object_key && !options[:raw_fields]) ? data[object_key] : data
+        records = [row].flatten()
+        # look for an array in the first field only now...
+        field_parts = options[:include_fields][0].to_s.split(".")
+        field_context = field_parts[0]
+        context_data = data[field_context]
+        if field_parts.size > 1 && context_data.is_a?(Array)
+          # inject all the root level properties to be selectable too..
+          context_data = data.delete(field_context)
+          # records = context_data
+          records = context_data.collect {|it| it.is_a?(Hash) ? data.merge(it) : data }
+          # hacky modifying options in place
+          options[:include_fields_context] = field_context
+          options[:include_fields] = options[:include_fields].collect {|it| it.sub(field_context+'.', '')}
+          # data = filter_data(records, options[:include_fields])
+          # data[field_context] = filter_data(records, options[:include_fields])
+          data = {(field_context) => filter_data(records, options[:include_fields])}
+        else
+          data = filter_data(data, options[:include_fields])
+        end
+      else
+        # By default, fields are relative to the object_key, so you can use -F id instead of requiring -F instance.id
+        # So ironically it is the 'raw' options (:raw_fields == true) that has to do all this funny stuff to filter intuitively.
+        if object_key
+          # this removes everything but the object, makes sense when using --fields
+          data = {(object_key) => filter_data(data[object_key], options[:include_fields])}
+          # this preserves other fields eg. meta...
+          # data[object_key] = filter_data(data[object_key], options[:include_fields])
+        else
+          data = filter_data(data, options[:include_fields])
+        end
+      end
+    end
+    return data
   end
 
   def sleep_with_dots(sleep_seconds, dots=3, dot_chr=".")

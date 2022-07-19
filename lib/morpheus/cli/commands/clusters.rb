@@ -10,6 +10,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}
   register_subcommands :list_workers, :add_worker, :remove_worker, :update_worker_count
   register_subcommands :list_masters
+  register_subcommands :upgrade_cluster
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
   register_subcommands :list_containers, :remove_container, :restart_container
@@ -69,7 +70,6 @@ class Morpheus::Cli::Clusters
         return
       end
       json_response = @clusters_interface.list(params)
-      
       render_result = render_with_format(json_response, options, 'clusters')
       return 0 if render_result
 
@@ -859,7 +859,11 @@ class Morpheus::Cli::Clusters
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Cluster #{cluster['name']} is being removed..."
+        msg = "Cluster #{cluster['name']} is being removed..."
+        if json_response['msg'] != nil && json_response['msg'] != ''
+          msg = json_response['msg']
+        end
+        print_green_success msg
         #list([])
       end
     rescue RestClient::Exception => e
@@ -1324,7 +1328,11 @@ class Morpheus::Cli::Clusters
       if options[:json]
         puts as_json(json_response)
       elsif json_response['success']
-        print_green_success "Added worker to cluster #{cluster['name']}"
+        if json_response['msg'] == nil
+          print_green_success "Added worker to cluster #{cluster['name']}"
+        else
+          print_green_success json_response['msg']
+        end
         #get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
         #get(get_args)
       end
@@ -1377,7 +1385,11 @@ class Morpheus::Cli::Clusters
     end
     json_response = @clusters_interface.destroy_worker(cluster['id'], worker['id'], params)
     render_response(json_response, options) do
-      print_green_success "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      msg = "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      if json_response['msg']
+        msg = json_response['msg']
+      end
+      print_green_success msg
     end
     return 0, nil
   end
@@ -1516,6 +1528,45 @@ class Morpheus::Cli::Clusters
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def upgrade_cluster(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      build_standard_update_options(opts, options)
+      opts.footer = "Updates kubernetes version (kubectl and kubeadm) of the specified cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster.\n"
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+
+    cluster = find_cluster_by_name_or_id(args[0])
+    return 1 if cluster.nil?
+
+    version_options = get_valid_upgrade_versions(cluster['id'])
+    version_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'targetVersion', 'type' => 'select', 'fieldLabel' => 'To Version', 'selectOptions' => version_options, 'required' => true, 'description' => 'Select target version.' }],options[:options],api_client,{})
+    target_version = version_options.detect{ |element| element['value']  == version_prompt['targetVersion'] }['name']
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'targetVersion' => target_version})
+    else
+      payload.deep_merge!({'targetVersion' => target_version})
+    end
+    @clusters_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @clusters_interface.dry.do_cluster_upgrade(cluster['id'], payload)
+      return
+    end
+    json_response = @clusters_interface.do_cluster_upgrade(cluster['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Cluster #{cluster['name']} is being upgraded to #{target_version}..."
+    end
+    return 0, nil
   end
 
   def list_volumes(args)
@@ -3573,6 +3624,7 @@ class Morpheus::Cli::Clusters
     rows = clusters.collect do |cluster|
       {
           id: cluster['id'],
+          display_name: cluster['displayName'],
           name: cluster['name'],
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
@@ -3582,7 +3634,7 @@ class Morpheus::Cli::Clusters
       }
     end
     columns = [
-        :id, :name, :type, :layout, :workers, :cloud, :status
+        :id, :name, :display_name, :type, :layout, :workers, :cloud, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end
@@ -4104,6 +4156,15 @@ class Morpheus::Cli::Clusters
     end
     perms.delete('resourcePool')
     rtn['permissions'] = perms
+    rtn
+  end
+
+  def get_valid_upgrade_versions(cluster_id)
+    result = @clusters_interface.get_upgrade_versions(cluster_id, {})
+    rtn = []
+    if result['versions']
+      rtn = result['versions'].map.with_index {|value, idx| {'name' => value,'value' => idx}}
+    end
     rtn
   end
 

@@ -590,6 +590,10 @@ class Morpheus::APIClient
     Morpheus::OptionTypeListsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def scale_thresholds
+    Morpheus::ScaleThresholdsInterface.new(common_interface_options).setopts(@options)
+  end
+
   def power_schedules
     Morpheus::PowerSchedulesInterface.new(common_interface_options).setopts(@options)
   end

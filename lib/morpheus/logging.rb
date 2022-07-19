@@ -155,10 +155,9 @@ module Morpheus::Logging
 
     def print(*messages)
       if @io
-        messages = messages.flatten.collect {|it| scrub_message(it) }
-        print_with_color do 
-          messages.each do |msg|
-            @io.print msg
+        print_with_color do
+          messages.flatten.each do |msg|
+            @io.print scrub_message(msg)
           end
         end
       end
@@ -166,10 +165,9 @@ module Morpheus::Logging
 
     def puts(*messages)
       if @io
-        messages = messages.flatten.collect {|it| scrub_message(it) }
-        print_with_color do 
-          messages.each do |msg|
-            @io.puts msg
+        print_with_color do
+          messages.flatten.each do |msg|
+            @io.puts scrub_message(msg)
           end
         end
       end

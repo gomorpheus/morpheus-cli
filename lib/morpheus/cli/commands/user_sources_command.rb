@@ -261,7 +261,7 @@ EOT
         end
       end
       
-      opts.on('--default-role ID', String, "Default Role ID") do |val|
+      opts.on('--default-role ID', String, "Default Role ID or Authority") do |val|
         default_role_id = val
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
@@ -285,24 +285,62 @@ EOT
     
 
 
-      # find the account first, or just prompt for that too please.
-      if !account_id
-        print_error Morpheus::Terminal.angry_prompt
-        puts_error  "missing required argument [account]\n#{optparse}"
-        return 1
+      # # find the account first, or just prompt for that too please.
+      # if !account_id
+      #   print_error Morpheus::Terminal.angry_prompt
+      #   puts_error  "missing required argument [account]\n#{optparse}"
+      #   return 1
+      # end
+
+      # tenant is optional, it is expected in the url right now instead of in the payload...this sets both
+      account = nil
+      if account_id
+        options[:options]['tenant'] = account_id
       end
-      account = find_account_by_name_or_id(account_id)
-      return 1 if account.nil?
-      account_id = account['id']
+      account_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => 'tenants', 'required' => false, 'description' => 'Tenant'}], options[:options], @api_client)
+      if account_id
+        options[:options].delete('tenant')
+      end
+      account_id = account_prompt['tenant']
+      if !account_id.to_s.empty?
+        # reload tenant by id, sure why not..
+        account = find_account_by_name_or_id(account_id)
+        return 1 if account.nil?
+        account_id = account['id']
+      else
+        account_id = nil
+      end
+      
 
       # construct payload
       payload = {}
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
+
+        # JD: should apply options on top of payload, but just do these two for now
+
+        # Tenant
+        if account
+          payload['userSource']['account'] = {'id' => account['id'] }
+        end
+
+        # Name
+        if params['name']
+          payload['userSource']['name'] = params['name']
+        end
+
       else
         payload.deep_merge!({'userSource' => parse_passed_options(options)})
         
+        # support old -O options
+        payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+        # Tenant
+        if account
+          payload['userSource']['account'] = {'id' => account['id'] }
+        end
+
         # Identity Source Type
         user_source_types = @user_sources_interface.list_types({userSelectable: true})['userSourceTypes']
         if user_source_types.empty?
@@ -338,16 +376,15 @@ EOT
         payload['userSource'].deep_merge!(v_prompt)
 
         # Default Account Role
-        # todo: a proper select
-        if !default_role_id
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'text', 'fieldLabel' => 'Default Account Role ID', 'required' => true}], options[:options])
-          if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
-            default_role_id = v_prompt['defaultAccountRole']['id']
-          end
-        end
+        # always prompt for role to lookup id from name
         if default_role_id
-          payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
+          options[:options]['defaultAccountRole'] = {'id' => default_role_id }
         end
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(account_id), 'fieldLabel' => 'Default Role', 'required' => false }], options[:options])
+        if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
+          default_role_id = v_prompt['defaultAccountRole']['id']
+        end
+        payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
 
         # Allow Custom Mappings
         if !params['allowCustomMappings'].nil?
@@ -364,9 +401,6 @@ EOT
         if role_mapping_names
           payload['roleMappingNames'] = role_mapping_names
         end
-
-        # support old -O options
-        payload['userSource'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
         
 
       end
@@ -378,14 +412,12 @@ EOT
       # do it
       json_response = @user_sources_interface.create(account_id, payload)
       # print and return result
-      if options[:json]
-        puts as_json(json_response, options)
-        return 0
+      render_response(json_response, options, 'userSource') do
+        user_source = json_response['userSource']
+        print_green_success "Added Identity Source #{user_source['name']}"
+        _get(user_source['id'], {}, options)
       end
-      user_source = json_response['userSource']
-      print_green_success "Added Identity Source #{user_source['name']}"
-      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
-      return 0
+      return 0, nil
   end
 
   def update(args)
@@ -394,6 +426,7 @@ EOT
     account_id = nil
     role_mappings = nil
     role_mapping_names = nil
+    default_role_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('--name VALUE', String, "Name for this identity source") do |val|
@@ -426,6 +459,9 @@ EOT
             role_mapping_names[k.to_s] = v
           end
         end
+      end
+      opts.on('--default-role ROLE', String, "Default Role ID or Authority") do |val|
+        default_role_id = val
       end
       build_standard_update_options(opts, options)
       opts.footer = "Update an identity source." + "\n" +
@@ -470,22 +506,33 @@ EOT
           payload['roleMappingNames'] = role_mapping_names
         end
 
+        # Default Account Role
+        if default_role_id
+          if default_role_id == 'null'
+            payload['userSource']['defaultAccountRole'] = {'id' => nil }
+          else
+            # use no_prompt to convert name to id
+            options[:options]['defaultAccountRole'] = {'id' => default_role_id }
+            v_prompt = Morpheus::Cli::OptionTypes.no_prompt([{'fieldContext' => 'defaultAccountRole', 'fieldName' => 'id', 'type' => 'select', 'selectOptions' => get_available_role_options(user_source['account']['id']), 'fieldLabel' => 'Default Role', 'required' => false }], options[:options])
+            if v_prompt['defaultAccountRole'] && v_prompt['defaultAccountRole']['id']
+              default_role_id = v_prompt['defaultAccountRole']['id']
+            end
+            payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
+          end
+        end
       end
       @user_sources_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @user_sources_interface.dry.update(nil, user_source['id'], payload)
         return
       end
-      
       json_response = @user_sources_interface.update(nil, user_source['id'], payload)
-      
-      if options[:json]
-        puts JSON.pretty_generate(json_response)
-        return
+      render_response(json_response, options, 'userSource') do
+        user_source = json_response['userSource'] || user_source
+        print_green_success "Updated Identity Source #{user_source['name']}"
+        _get(user_source['id'], {}, options)
       end
-
-      print_green_success "Updated Identity Source #{params['name'] || user_source['name']}"
-      get([user_source['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
+      return 0, nil
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
@@ -941,10 +988,20 @@ EOT
       ]
     elsif type_code == 'saml'
       [
-        {'fieldContext' => 'config', 'fieldName' => 'url', 'type' => 'text', 'fieldLabel' => 'Login Redirect URL', 'required' => true, 'description' => ''},
-        {'fieldContext' => 'config', 'fieldName' => 'doNotIncludeSAMLRequest', 'type' => 'checkbox', 'fieldLabel' => 'Exclude SAMLRequest Parameter', 'required' => true, 'description' => 'Do not include SAMLRequest parameter', 'defaultValue' => false},
-        {'fieldContext' => 'config', 'fieldName' => 'logoutUrl', 'type' => 'text', 'fieldLabel' => 'Logout Post URL', 'required' => true, 'description' => ''},
-        {'fieldContext' => 'config', 'fieldName' => 'publicKey', 'type' => 'textarea', 'fieldLabel' => 'Signing Public Key', 'required' => true, 'description' => ''},
+        {'fieldContext' => 'config', 'fieldName' => 'url', 'type' => 'text', 'fieldLabel' => 'Login Redirect URL', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 1},
+        {'fieldContext' => 'config', 'fieldName' => 'doNotIncludeSAMLRequest', 'type' => 'checkbox', 'fieldLabel' => 'Exclude SAMLRequest Parameter', 'required' => true, 'description' => 'Do not include SAMLRequest parameter', 'defaultValue' => false, 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 2},
+        {'fieldContext' => 'config', 'fieldName' => 'logoutUrl', 'type' => 'text', 'fieldLabel' => 'Logout Post URL', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 3},
+        {'code' => 'saml.SAMLSignatureMode', 'fieldContext' => 'config', 'fieldName' => 'SAMLSignatureMode', 'type' => 'select', 'selectOptions' => [{'name' => 'No Signature', 'value' => 'NoSignature'},{'name' => 'Self Signed', 'value' => 'SelfSigned'},{'name' => 'Custom RSA Signature', 'value' => 'CustomSignature'}], 'fieldLabel' => 'SAML Request', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'defaultValue' => 'NoSignature', 'displayOrder' => 4},
+        {'dependsOnCode' => 'saml.SAMLSignatureMode:CustomSignature', 'fieldContext' => 'config', 'fieldName' => 'request509Certificate', 'type' => 'textarea', 'fieldLabel' => 'X.509 Certificate', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 5},
+        {'dependsOnCode' => 'saml.SAMLSignatureMode:CustomSignature', 'fieldContext' => 'config', 'fieldName' => 'requestPrivateKey', 'type' => 'textarea', 'fieldLabel' => 'RSA Private Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 6},
+        {'code' => 'saml.doNotValidateSignature', 'fieldContext' => 'config', 'fieldName' => 'doNotValidateSignature', 'type' => 'select', 'selectOptions' => [{'name' => 'Do Not Validate Assertion Signature', 'value' => 'true'},{'name' => 'Validate Assertion Signature', 'value' => 'false'}], 'fieldLabel' => 'SAML Response', 'required' => true, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'defaultValue' => 'Do Not Validate Assertion Signature', 'displayOrder' => 7},
+        {'dependsOnCode' => 'saml.doNotValidateSignature:false', 'fieldContext' => 'config', 'fieldName' => 'publicKey', 'type' => 'textarea', 'fieldLabel' => 'Signing Public Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 8},
+        {'fieldContext' => 'config', 'fieldName' => 'privateKey', 'type' => 'textarea', 'fieldLabel' => 'Encryption RSA Private Key', 'required' => false, 'description' => '', 'fieldGroup' => 'SAML SSO Configuration', 'displayOrder' => 9},
+        {'fieldContext' => 'config', 'fieldName' => 'givenNameAttribute', 'type' => 'text', 'fieldLabel' => 'Given Name Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Assertion Attribute Mappings', 'displayOrder' => 10},
+        {'fieldContext' => 'config', 'fieldName' => 'surnameAttribute', 'type' => 'text', 'fieldLabel' => 'Surname Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Assertion Attribute Mappings', 'displayOrder' => 11},
+        {'fieldContext' => 'config', 'fieldName' => 'roleAttributeName', 'type' => 'text', 'fieldLabel' => 'Role Attribute Name', 'required' => false, 'description' => '', 'fieldGroup' => 'Role Mappings', 'displayOrder' => 12},
+        {'fieldContext' => 'config', 'fieldName' => 'requiredAttributeValue', 'type' => 'text', 'fieldLabel' => 'Required Role Attribute Value', 'required' => false, 'description' => '', 'fieldGroup' => 'Role Mappings', 'displayOrder' => 13},
+        
       ]
     elsif type_code == 'customExternal'
       [
@@ -965,5 +1022,16 @@ EOT
       print "unknown identity source type: #{type_code}"
       []
     end
+  end
+
+  def get_available_role_options(account_id)
+    available_roles = @account_users_interface.available_roles(account_id)['roles']
+    # if available_roles.empty?
+    #   print_red_alert "No available roles found."
+    #   exit 1
+    # end
+    role_options = available_roles.collect {|role|
+      {'name' => role['authority'], 'value' => role['id']}
+    }
   end
 end

@@ -148,6 +148,17 @@ module Morpheus::Cli::RestCommand
 
     alias :set_rest_interface_name :rest_interface_name=
 
+    # rest_perms_config enables and configures permissions prompt
+    def rest_perms_config
+      @rest_perms_config || {}
+    end
+
+    def rest_perms_config=(v)
+      @rest_perms_config = v
+    end
+
+    alias :set_rest_perms_config :rest_perms_config=
+
     # rest_has_type indicates a resource has a type. default is false
     def rest_has_type
       @rest_has_type == true
@@ -327,6 +338,10 @@ module Morpheus::Cli::RestCommand
 
   def rest_interface_name
     self.class.rest_interface_name
+  end
+
+  def rest_perms_config
+    self.class.rest_perms_config
   end
 
   # returns the default rest interface, allows using rest_interface_name = "your"
@@ -600,25 +615,25 @@ EOT
       verify_args!(args:args, optparse:optparse, count: 0)
     end
     connect(options)
-    # load or prompt for type
-    if rest_has_type && type_option_type.nil?
-      if record_type_id.nil?
-        #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
-        type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
-        type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
-        record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
-      end
-      record_type = rest_type_find_by_name_or_id(record_type_id)
-      if record_type.nil?
-        return 1, "#{rest_type_label} not found for '#{record_type_id}"
-      end
-    end
     passed_options = parse_passed_options(options)
     payload = {}
     if options[:payload]
       payload = options[:payload]
       payload.deep_merge!({rest_object_key => passed_options})
     else
+      # load or prompt for type
+      if rest_has_type && type_option_type.nil?
+        if record_type_id.nil?
+          #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
+          type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
+          type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+          record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
+        end
+        record_type = rest_type_find_by_name_or_id(record_type_id)
+        if record_type.nil?
+          return 1, "#{rest_type_label} not found for '#{record_type_id}"
+        end
+      end
       record_payload = {}
       if record_name
         record_payload['name'] = record_name
@@ -667,7 +682,7 @@ EOT
           end
         end
         api_params = (options[:params] || {}).merge(record_payload)
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, api_params)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, api_params, false, true)
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -678,6 +693,18 @@ EOT
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
+      end
+      # permissions
+      if rest_perms_config[:enabled]
+        if rest_perms_config[:version] == 2
+          perms = prompt_permissions_v2(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        else
+          perms = prompt_permissions(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        end
+        if !rest_perms_config[:name].nil?
+          perms.transform_keys! {|k| k == 'resourcePermissions' ? rest_perms_config[:name] : k}
+        end
+        record_payload.merge!(perms)
       end
       payload[rest_object_key] = record_payload
     end

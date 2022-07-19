@@ -172,8 +172,8 @@ class Morpheus::Cli::Users
         options[:include_personas_access] = true
         params['includeAccess'] = true
       end
-      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
-        options[:display_none_access] = true
+      opts.on(nil, '--hide-none-access', "Hide records with 'none' access") do
+        options[:hide_none_access] = true
       end
       build_standard_get_options(opts, options, [:account])
       opts.footer = <<-EOT
@@ -245,11 +245,11 @@ EOT
         end
       else
         available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
-         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Types', 'personas' => 'Personas'}
+         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'personas' => 'Persona', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
             access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+            access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             if field == "features"
               # print_h2 "Permissions", options
@@ -291,10 +291,10 @@ EOT
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
         options[:global] = true
       end
-      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.on('-i', '--include-none-access', "Include Items with 'None' Access in Access List") do
-        options[:display_none_access] = true
+      opts.on('--hide-none-access', "Hide records with 'none' access") do
+        options[:hide_none_access] = true
       end
+      build_common_options(opts, options, [:account, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display Access for a user." + "\n" +
                     "[user] is required. This is the username or id of a user."
     end
@@ -366,11 +366,11 @@ EOT
 
         print_h1 "User Permissions: #{user['username']}", options
 
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint'}
+        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type','personas' => 'Persona'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account)
             access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
-            access = access.reject {|it| it['access'] == 'none'} if !options[:display_none_access]
+            access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             print_h2 "#{label} Access", options
             print cyan
@@ -381,7 +381,7 @@ EOT
             if access.count > 0
               access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
 
-              if ['features', 'instance_types'].include?(field)
+              if ['features', 'instance_types', 'report_types'].include?(field)
                 print as_pretty_table(access, [:name, :code, :access], options)
               else
                 print as_pretty_table(access, [:name, :access], options)

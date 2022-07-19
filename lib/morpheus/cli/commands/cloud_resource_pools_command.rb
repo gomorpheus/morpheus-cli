@@ -35,7 +35,10 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         cloud_id = val
       end
       opts.add_hidden_option('-c') # prefer args[0] for [cloud]
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on( '-s', '--search PHRASE', "Search by Name and/or Display Name" ) do |phrase|
+        options[:phrase] = phrase
+      end
+      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote], ['search'])
       opts.footer = "List resource pools for a cloud." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud."
     end
@@ -91,6 +94,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
             type: resource_pool['type'].to_s.capitalize,
             description: resource_pool['description'],
             active: format_boolean(resource_pool['active']),
+            inventory: format_boolean(resource_pool['inventory']),
             status: resource_pool['status'].to_s.upcase,
             visibility: resource_pool['visibility'].to_s.capitalize,
             default: format_boolean(resource_pool['defaultPool']),
@@ -99,7 +103,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           }
           row
         }
-        columns = [:id, :name, :description, :active, :default, :visibility, :tenants]
+        columns = [:id, :name, :description, :active,:inventory, :default, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -179,10 +183,12 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
+        "Display Name" => 'displayName',
         "Description" => 'description',
         #"Type" => lambda {|it| it['type'].to_s.capitalize },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
+        "Inventory" => lambda {|it| format_boolean(it['inventory']) },
         "Default" => lambda {|it| format_boolean(it['defaultPool']) },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Status" => lambda {|it| it['status'].to_s.capitalize },
@@ -329,6 +335,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--inventory [on|off]', String, "Enable or disable inventory sync for resource pool during cloud refresh") do |val|
+        options['inventory'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
@@ -446,6 +455,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         payload['resourcePool']['active'] = options['active']
       else
         payload['resourcePool']['active'] = true
+      end
+      
+      #inventory
+      if options['inventory'] != nil
+        payload['resourcePool']['inventory'] = options['inventory']
       end
 
       # Default
@@ -574,11 +588,17 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--inventory [on|off]', String, "Enable or disable inventory sync for resource pool during cloud refresh") do |val|
+        options['inventory'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on("--description [TEXT]", String, "Description") do |val|
         options['description'] = val.to_s
+      end
+      opts.on("--display-name [TEXT]", String, "Display Name") do |val|
+        options['displayName'] = val.to_s
       end
       opts.on( '--role ROLE', String, "Role Name or ID (applicable to select resource pools)" ) do |val|
         options['role'] = val
@@ -599,6 +619,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
     end
 
     connect(options)
+    puts "options #{options}"
 
     begin
       # load cloud
@@ -672,6 +693,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         if options['active'] != nil
           payload['resourcePool']['active'] = options['active']
         end
+        
+        #inventory
+        if options['inventory'] != nil
+          payload['resourcePool']['inventory'] = options['inventory']
+        end
 
         # Default
         if options['defaultPool'] != nil
@@ -686,6 +712,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         # Description
         if options['description'] != nil
           payload['resourcePool']['description'] = options['description']
+        end
+
+        # Display Name
+        if options['displayName'] != nil
+          payload['resourcePool']['displayName'] = options['displayName']
         end
 
         # Role

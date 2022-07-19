@@ -4,6 +4,7 @@ class Morpheus::Cli::LoadBalancers
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::RestCommand
   include Morpheus::Cli::LoadBalancersHelper
+  include Morpheus::Cli::ProvisioningHelper
 
   set_command_description "View and manage load balancers."
   set_command_name :'load-balancers'
@@ -17,10 +18,12 @@ class Morpheus::Cli::LoadBalancers
   register_interfaces :load_balancers, :load_balancer_types
   set_rest_has_type true
   # set_rest_type :load_balancer_types
+  set_rest_perms_config({enabled:true, excludes:['plans', 'visibility']})
 
   def render_response_for_get(json_response, options)
     render_response(json_response, options, rest_object_key) do
       record = json_response[rest_object_key]
+      options[:exclude_username] = record['username'].nil?
       print_h1 rest_label, [], options
       print cyan
       print_description_list(rest_column_definitions(options), record, options)
@@ -94,19 +97,7 @@ EOT
 
   # filtering for NSX-T only
   def rest_list_types()
-    rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key].reject {|it| it['code'] == 'nsx-t'}
-  end
-
-  def load_balancer_type_list_to_options(type_list)
-    type_list.reject {|it| it['code'] != 'nsx-t'}.collect {|it| {'name' => it['name'], 'value' => it['code']} }
-  end
-
-  def add_load_balancer_footer_addn
-    "#{bold}Available for NSX-T load balancers only#{reset}"
-  end
-
-  def update_load_balancer_footer_addn
-    "#{bold}Available for NSX-T load balancers only#{reset}"
+    rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key] # .reject {|it| it['code'] == 'nsx-t'}
   end
 
   def load_balancer_list_column_definitions(options)
@@ -120,7 +111,7 @@ EOT
   end
 
   def load_balancer_column_definitions(options)
-    {
+    columns = {
       "ID" => 'id',
       "Name" => 'name',
       "Description" => 'description',
@@ -130,13 +121,14 @@ EOT
       "IP" => 'ip',
       "Host" => 'host',
       "Port" => 'port',
-      "Username" => 'username',
-      # "SSL Enabled" => lambda {|it| format_boolean it['sslEnabled'] },
-      # "SSL Cert" => lambda {|it| it['sslCert'] ? it['sslCert']['name'] : '' },
-      # "SSL" => lambda {|it| it['sslEnabled'] ? "Yes (#{it['sslCert'] ? it['sslCert']['name'] : 'none'})" : "No" },
+      "Price" => lambda {|it| it['price'].nil? ? 'No pricing configured' : "#{format_money(it['price']['price'], it['price']['currency'])} / #{it['price']['unit'].capitalize}"},
+      "Provider ID" => 'externalId'
+    }
+    columns.merge!({"Username" => 'username'}) if !options[:exclude_username]
+    columns.merge({
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-    }
+    })
   end
 
   # overridden to work with name or code

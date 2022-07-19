@@ -1,6 +1,6 @@
 require 'morpheus/cli/mixins/print_helper'
 # Mixin for Morpheus::Cli command classes
-# Provides common methods for provisioning instances
+# Provides refreshing execution-request records by unique id (uuid)
 module Morpheus::Cli::ExecutionRequestHelper
 
   def self.included(klass)

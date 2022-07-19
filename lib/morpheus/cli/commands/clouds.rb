@@ -260,7 +260,6 @@ class Morpheus::Cli::Clouds
         # todo: pass groups as an array instead
 
         # Cloud Name
-
         if args[0]
           cloud_payload[:name] = args[0]
           options[:options]['name'] = args[0] # to skip prompt
@@ -270,7 +269,6 @@ class Morpheus::Cli::Clouds
         end
 
         # Cloud Type
-
         cloud_type = nil
         if params[:zone_type]
           cloud_type = cloud_type_for_name(params[:zone_type])
@@ -459,7 +457,16 @@ class Morpheus::Cli::Clouds
     query_params = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[cloud] [options]")
+      opts.on( '-m', '--mode [daily|costing]', "Refresh Mode. Use this to run the daily or costing jobs instead of the default hourly refresh." ) do |val|
+        query_params[:mode] = val
+      end
+      opts.on( '--rebuild [on|off]', "Rebuild invoices for period. Only applies to mode=costing." ) do |val|
+        query_params[:rebuild] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on( '--period PERIOD', "Period in the format YYYYMM to process invoices for. Default is the current period. Only applies to mode=costing." ) do |val|
+        query_params[:period] = val.to_s
+      end
       opts.on( '-f', '--force', "Force refresh. Useful if the cloud is disabled." ) do
         query_params[:force] = 'true'
       end
@@ -970,8 +977,7 @@ class Morpheus::Cli::Clouds
       {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
       {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 4},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 5},
-      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6},
-      {'fieldName' => 'credential', 'fieldLabel' => 'Credentials', 'type' => 'select', 'optionSource' => 'credentials', 'description' => 'Credential ID or use "local" to specify username and password', 'displayOrder' => 9, 'defaultValue' => "local", 'required' => true, :for_help_only => true}, # hacky way to render this but not prompt for it
+      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6}
     ]
 
     # TODO: Account
@@ -1004,7 +1010,7 @@ class Morpheus::Cli::Clouds
   end
 
   def cloud_types_for_dropdown
-    get_available_cloud_types().select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+    @clouds_interface.cloud_types({max:1000, shallow:true})['zoneTypes'].select {|it| it['enabled'] }.collect {|it| {'name' => it['name'], 'value' => it['code']} }
   end
 
   def format_cloud_status(cloud, return_color=cyan)

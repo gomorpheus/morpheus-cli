@@ -479,8 +479,10 @@ module Morpheus
               options[:offset] = offset
             end
 
-            opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
-              options[:phrase] = phrase
+            if excludes.include?("search") == false
+              opts.on( '-s', '--search PHRASE', "Search Phrase" ) do |phrase|
+                options[:phrase] = phrase
+              end
             end
 
             opts.on( '-S', '--sort ORDER', "Sort Order. DIRECTION may be included as \"ORDER [asc|desc]\"." ) do |v|
@@ -741,7 +743,15 @@ module Morpheus
                 options[:include_fields] = val
               end
             end
-            opts.add_hidden_option('-F,') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.on('--raw-fields [x,y,z]', String, "Raw fields filters output like --fields except the properties [x,y,z] must be specified from the root of the response instead of relative to the the list or object context for this particular resource.") do |val|
+              if val.size == 1 && val[0].downcase == 'all'
+                options[:all_fields] = true
+              else
+                options[:include_fields] = val.split(',').collect {|r| r.strip}.compact
+              end
+              options[:raw_fields] = true
+            end
+            opts.add_hidden_option('--raw-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on(nil, '--all-fields', "Show all fields present in the data.") do
               options[:all_fields] = true
             end
@@ -753,6 +763,11 @@ module Morpheus
             opts.on('--select x,y,z', String, "Filter Output to just print the value(s) of specific fields.") do |val|
               options[:select_fields] = val.split(',').collect {|r| r.strip}
             end
+            opts.on('--raw-select x,y,z', String, "Raw select works like --select except the properties [x,y,z] must be specified from the root of the response instead of relative to the the list or object context for this particular resource.") do |val|
+              options[:select_fields] = val.split(',').collect {|r| r.strip}
+              options[:raw_fields] = true
+            end
+            opts.add_hidden_option('--raw-select') if opts.is_a?(Morpheus::Cli::OptionParser)
 
           when :delim
             opts.on('--delimiter [CHAR]', String, "Delimiter for output values. Default: ',', use with --select and --csv") do |val|
@@ -1397,29 +1412,33 @@ module Morpheus
       def render_response(json_response, options, object_key=nil, &block)
         output = nil
         if options[:select_fields]
-          row = object_key ? json_response[object_key] : json_response
-          row = [row].flatten()
-          if row.is_a?(Array)
-            output = [row].flatten.collect { |record| 
-              options[:select_fields].collect { |field| 
-                value = get_object_value(record, field)
-                value.is_a?(String) ? value : JSON.fast_generate(value)
-              }.join(options[:delim] || ",")
-            }.join(options[:newline] || "\n")
-          else
-            output = records_as_csv([row], options)
+          # support foos get --raw-select foo.x,foo.y,foo.z
+          # and foos list --raw-select foos.x,foos.y,foos.z
+          row = (object_key && !options[:raw_fields]) ? json_response[object_key] : json_response
+          records = [row].flatten()
+          # look for an array in the first field only now...
+          field_parts = options[:select_fields][0].to_s.split(".")
+          field_context = field_parts[0]
+          context_data = json_response[field_context]
+          if field_parts.size > 1 && context_data.is_a?(Array)
+            # inject all the root level properties to be selectable too..
+            context_data = json_response.delete(field_context)
+            # records = context_data
+            records = context_data.collect {|it| it.is_a?(Hash) ? json_response.merge(it) : json_response }
+            options[:select_fields] = options[:select_fields].collect {|it| it.sub(field_context+'.', '')}
           end
+          output = records.collect { |record| 
+            options[:select_fields].collect { |field| 
+              value = get_object_value(record, field)
+              value.is_a?(String) ? value : JSON.fast_generate(value)
+            }.join(options[:delim] || ",")
+          }.join(options[:newline] || "\n")
         elsif options[:json]
           output = as_json(json_response, options, object_key)
         elsif options[:yaml]
           output = as_yaml(json_response, options, object_key)
         elsif options[:csv]
-          row = object_key ? json_response[object_key] : json_response
-          if row.is_a?(Array)
-            output = records_as_csv(row, options)
-          else
-            output = records_as_csv([row], options)
-          end
+          output = as_csv(json_response, nil, options, object_key)
         end
         if options[:outfile]
           full_outfile = File.expand_path(options[:outfile])
