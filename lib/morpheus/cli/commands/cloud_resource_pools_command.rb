@@ -94,6 +94,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
             type: resource_pool['type'].to_s.capitalize,
             description: resource_pool['description'],
             active: format_boolean(resource_pool['active']),
+            inventory: format_boolean(resource_pool['inventory']),
             status: resource_pool['status'].to_s.upcase,
             visibility: resource_pool['visibility'].to_s.capitalize,
             default: format_boolean(resource_pool['defaultPool']),
@@ -102,7 +103,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
           }
           row
         }
-        columns = [:id, :name, :description, :active, :default, :visibility, :tenants]
+        columns = [:id, :name, :description, :active,:inventory, :default, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -187,6 +188,7 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         #"Type" => lambda {|it| it['type'].to_s.capitalize },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
+        "Inventory" => lambda {|it| format_boolean(it['inventory']) },
         "Default" => lambda {|it| format_boolean(it['defaultPool']) },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Status" => lambda {|it| it['status'].to_s.capitalize },
@@ -333,6 +335,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--inventory [on|off]', String, "Enable or disable inventory sync for resource pool during cloud refresh") do |val|
+        options['inventory'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
@@ -450,6 +455,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         payload['resourcePool']['active'] = options['active']
       else
         payload['resourcePool']['active'] = true
+      end
+      
+      #inventory
+      if options['inventory'] != nil
+        payload['resourcePool']['inventory'] = options['inventory']
       end
 
       # Default
@@ -578,6 +588,9 @@ class Morpheus::Cli::CloudResourcePoolsCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource pool") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--inventory [on|off]', String, "Enable or disable inventory sync for resource pool during cloud refresh") do |val|
+        options['inventory'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--default-pool [on|off]', String, "Set resource pool as the default") do |val|
         options['defaultPool'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
@@ -679,6 +692,11 @@ class Morpheus::Cli::CloudResourcePoolsCommand
         # Active
         if options['active'] != nil
           payload['resourcePool']['active'] = options['active']
+        end
+        
+        #inventory
+        if options['inventory'] != nil
+          payload['resourcePool']['inventory'] = options['inventory']
         end
 
         # Default

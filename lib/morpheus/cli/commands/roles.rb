@@ -166,6 +166,7 @@ EOT
       # role = json_response['role']
       load_whoami()
       json_response = nil
+      role = nil
       if args[0].to_s =~ /\A\d{1,}\Z/
         json_response = @roles_interface.get(account_id, args[0].to_i)
         role = json_response['role']
@@ -290,10 +291,12 @@ EOT
       print cyan
       # puts "Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}"
       # print "\n"
-      if json_response['globalInstanceTypeAccess'] == 'custom'
+      instance_type_global_access = json_response['globalInstanceTypeAccess']
+      instance_type_permissions = role['instanceTypes'] ? role['instanceTypes'] : (json_response['instanceTypePermissions'] || [])
+      if instance_type_global_access == 'custom'
         print_h2 "Instance Type Access", options
         if options[:include_instance_type_access]
-          rows = json_response['instanceTypePermissions'].collect do |it|
+          rows = instance_type_permissions.collect do |it|
             {
               name: it['name'],
               access: format_access_string(it['access'], ["none","read","full"]),
@@ -310,7 +313,7 @@ EOT
       end
 
       blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
-      blueprint_permissions = json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || []
+      blueprint_permissions = (role['appTemplates'] || role['blueprints']) ? (role['appTemplates'] || role['blueprints']) : (json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || [])
       print cyan
       # print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
       # print "\n"
@@ -332,10 +335,9 @@ EOT
         # print "\n"
         # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
       end
-
       
       catalog_item_type_global_access = json_response['globalCatalogItemTypeAccess']
-      catalog_item_type_permissions = json_response['catalogItemTypePermissions'] || []
+      catalog_item_type_permissions = role['catalogItemTypes'] ? role['catalogItemTypes'] : (json_response['catalogItemTypePermissions'] || [])
       print cyan
       # print_h2 "catalog_item_type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}", options
       # print "\n"
@@ -357,8 +359,7 @@ EOT
         # print cyan,bold,"Catalog Item Type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}",reset,"\n"
       end
       
-
-      persona_permissions = json_response['personaPermissions'] || json_response['personas'] || []
+      persona_permissions = role['personas'] ? role['personas'] : (json_response['personaPermissions'] || [])
       # if options[:include_personas_access]
       print cyan
       if persona_permissions
@@ -375,7 +376,7 @@ EOT
       # print reset,"\n"
       
       vdi_pool_global_access = json_response['globalVdiPoolAccess']
-      vdi_pool_permissions = json_response['vdiPoolPermissions'] || []
+      vdi_pool_permissions = role['vdiPools'] ? role['vdiPools'] : (json_response['vdiPoolPermissions'] || [])
       print cyan
       if vdi_pool_global_access == 'custom'
         print_h2 "VDI Pool Access", options
@@ -396,7 +397,7 @@ EOT
       end
 
       report_type_global_access = json_response['globalReportTypeAccess']
-      report_type_permissions = json_response['reportTypePermissions'] || []
+      report_type_permissions = role['reportTypes'] ? role['reportTypes'] : (json_response['reportTypePermissions'] || [])
       print cyan
       if report_type_global_access == 'custom'
         print_h2 "Report Type Access", options
@@ -513,12 +514,83 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, add_role_option_types)
+      opts.on('--permissions CODE=ACCESS', String, "Set feature permission access by permission code. Example: dashboard=read,operations-wiki=full" ) do |val|
+        options[:permissions] ||= {}
+        parse_access_csv(options[:permissions], val, args, optparse)
+      end
+      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
+        params['globalSiteAccess'] = val.to_s.downcase
+      end
+      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
+        options[:group_permissions] ||= {}
+        parse_access_csv(options[:group_permissions], val, args, optparse)
+      end
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+        params['globalZoneAccess'] = val.to_s.downcase
+      end
+      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
+        options[:cloud_permissions] ||= {}
+        parse_access_csv(options[:cloud_permissions], val, args, optparse)
+      end
+      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
+        params['globalInstanceTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--instance-types CODE=ACCESS', String, "Set instance type to a custom access instance type code. Example: nginx=full,apache=none" ) do |val|
+        options[:instance_type_permissions] ||= {}
+        parse_access_csv(options[:instance_type_permissions], val, args, optparse)
+      end
+      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
+        params['globalAppTemplateAccess'] = val.to_s.downcase
+      end
+      opts.on('--blueprints ID=ACCESS', String, "Set blueprint to a custom access by blueprint id. Example: 1=full,2=none" ) do |val|
+        options[:blueprint_permissions] ||= {}
+        parse_access_csv(options[:blueprint_permissions], val, args, optparse)
+      end
+      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
+        params['globalCatalogItemTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--catalog-item-types CODE=ACCESS', String, "Set catalog item type to a custom access by catalog item type id. Example: 1=full,2=none" ) do |val|
+        options[:catalog_item_type_permissions] ||= {}
+        parse_access_csv(options[:catalog_item_type_permissions], val, args, optparse)
+      end
+      opts.on('--personas CODE=ACCESS', String, "Set persona to a custom access by persona code. Example: standard=full,serviceCatalog=full,vdi=full" ) do |val|
+        options[:persona_permissions] ||= {}
+        parse_access_csv(options[:persona_permissions], val, args, optparse)
+      end
+      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+        params['globalVdiPoolAccess'] = val.to_s.downcase
+      end
+      opts.on('--vdi-pools ID=ACCESS', String, "Set VDI pool to a custom access by VDI pool id. Example: 1=full,2=none" ) do |val|
+        options[:vdi_pool_permissions] ||= {}
+        parse_access_csv(options[:vdi_pool_permissions], val, args, optparse)
+      end
+      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
+        params['globalReportTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--report-types CODE=ACCESS', String, "Set report type to a custom access by report type code. Example: appCost=none,guidance=full" ) do |val|
+        options[:report_type_permissions] ||= {}
+        parse_access_csv(options[:report_type_permissions], val, args, optparse)
+      end
+      opts.on('--reset-permissions', "Reset all feature permission access to none. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+        options[:reset_permissions] = true
+      end
+      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+        options[:reset_all_access] = true
+      end
+            opts.footer = <<-EOT
+Create a new role.
+[name] is required. This is a unique name (authority) for the new role.
+All the role permissions and access values can be configured.
+Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
+Use --global-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
+Only the specified permissions,instance types, etc. are updated.
+Use --reset-permissions to set access to "none" for all unspecified feature permissions.
+Use --reset-all-access to set access to "none" for all unspecified feature permissions and global access values for groups, instance types, etc.
+EOT
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count > 1
-      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, max:1)
     if args[0]
       options[:options]['authority'] = args[0]
     end
@@ -566,7 +638,7 @@ EOT
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5}], options[:options])
             role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
             if role_payload['multitenant']
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it.'}], options[:options])
               role_payload['multitenantLocked'] = ['on','true'].include?(v_prompt['multitenantLocked'].to_s)
             end
           end
@@ -576,6 +648,116 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => get_persona_select_options(), 'description' => 'Default Persona'}], options[:options], @api_client)
         role_payload['defaultPersona'] = {'code' => v_prompt['defaultPersona']} unless v_prompt['defaultPersona'].to_s.strip.empty?
 
+        # bulk permissions
+        if options[:permissions]
+          perms_array = []
+          options[:permissions].each do |k,v|
+            perm_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => perm_code, "access" => access_value}
+          end
+          params['permissions'] = perms_array
+        end
+        if options[:group_permissions]
+          perms_array = []
+          options[:group_permissions].each do |k,v|
+            site_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if site_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => site_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => site_id, "access" => access_value}
+            end
+          end
+          params['sites'] = perms_array
+        end
+        if options[:cloud_permissions]
+          perms_array = []
+          options[:cloud_permissions].each do |k,v|
+            zone_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if zone_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => zone_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => zone_id, "access" => access_value}
+            end
+            perms_array << {"id" => zone_id, "access" => access_value}
+          end
+          params['zones'] = perms_array
+        end
+        if options[:instance_type_permissions]
+          perms_array = []
+          options[:instance_type_permissions].each do |k,v|
+            instance_type_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => instance_type_code, "access" => access_value}
+          end
+          params['instanceTypes'] = perms_array
+        end
+        if options[:blueprint_permissions]
+          perms_array = []
+          options[:blueprint_permissions].each do |k,v|
+            blueprint_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if blueprint_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => blueprint_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => blueprint_id, "access" => access_value}
+            end
+          end
+          params['appTemplates'] = perms_array
+        end
+        if options[:catalog_item_type_permissions]
+          perms_array = []
+          options[:catalog_item_type_permissions].each do |k,v|
+            catalog_item_type_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if catalog_item_type_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => catalog_item_type_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => catalog_item_type_id, "access" => access_value}
+            end
+          end
+          params['catalogItemTypes'] = perms_array
+
+        end
+        if options[:persona_permissions]
+          perms_array = []
+          options[:persona_permissions].each do |k,v|
+            persona_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => persona_code, "access" => access_value}
+          end
+          params['personas'] = perms_array
+        end
+        if options[:vdi_pool_permissions]
+          perms_array = []
+          options[:vdi_pool_permissions].each do |k,v|
+            vdi_pool_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if vdi_pool_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => vdi_pool_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => vdi_pool_id, "access" => access_value}
+            end
+          end
+          params['vdiPools'] = perms_array
+        end
+        if options[:report_type_permissions]
+          perms_array = []
+          options[:report_type_permissions].each do |k,v|
+            report_type_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => report_type_code, "access" => access_value}
+          end
+          params['reportTypes'] = perms_array
+        end
+        if options[:reset_permissions]
+          params["resetPermissions"] = true
+        end
+        if options[:reset_all_access]
+          params["resetAllAccess"] = true
+        end
         payload = {"role" => role_payload}
       end
       @roles_interface.setopts(options)
@@ -622,14 +804,85 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [options]")
       build_option_type_options(opts, options, update_role_option_types)
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.on('--permissions CODE=ACCESS', String, "Set feature permission access by permission code. Example: dashboard=read,operations-wiki=full" ) do |val|
+        options[:permissions] ||= {}
+        parse_access_csv(options[:permissions], val, args, optparse)
+      end
+      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
+        params['globalSiteAccess'] = val.to_s.downcase
+      end
+      opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
+        options[:group_permissions] ||= {}
+        parse_access_csv(options[:group_permissions], val, args, optparse)
+      end
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+        params['globalZoneAccess'] = val.to_s.downcase
+      end
+      opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
+        options[:cloud_permissions] ||= {}
+        parse_access_csv(options[:cloud_permissions], val, args, optparse)
+      end
+      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
+        params['globalInstanceTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--instance-types CODE=ACCESS', String, "Set instance type to a custom access instance type code. Example: nginx=full,apache=none" ) do |val|
+        options[:instance_type_permissions] ||= {}
+        parse_access_csv(options[:instance_type_permissions], val, args, optparse)
+      end
+      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
+        params['globalAppTemplateAccess'] = val.to_s.downcase
+      end
+      opts.on('--blueprints ID=ACCESS', String, "Set blueprint to a custom access by blueprint id. Example: 1=full,2=none" ) do |val|
+        options[:blueprint_permissions] ||= {}
+        parse_access_csv(options[:blueprint_permissions], val, args, optparse)
+      end
+      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
+        params['globalCatalogItemTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--catalog-item-types CODE=ACCESS', String, "Set catalog item type to a custom access by catalog item type id. Example: 1=full,2=none" ) do |val|
+        options[:catalog_item_type_permissions] ||= {}
+        parse_access_csv(options[:catalog_item_type_permissions], val, args, optparse)
+      end
+      opts.on('--personas CODE=ACCESS', String, "Set persona to a custom access by persona code. Example: standard=full,serviceCatalog=full,vdi=full" ) do |val|
+        options[:persona_permissions] ||= {}
+        parse_access_csv(options[:persona_permissions], val, args, optparse)
+      end
+      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+        params['globalVdiPoolAccess'] = val.to_s.downcase
+      end
+      opts.on('--vdi-pools ID=ACCESS', String, "Set VDI pool to a custom access by VDI pool id. Example: 1=full,2=none" ) do |val|
+        options[:vdi_pool_permissions] ||= {}
+        parse_access_csv(options[:vdi_pool_permissions], val, args, optparse)
+      end
+      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
+        params['globalReportTypeAccess'] = val.to_s.downcase
+      end
+      opts.on('--report-types CODE=ACCESS', String, "Set report type to a custom access by report type code. Example: appCost=none,guidance=full" ) do |val|
+        options[:report_type_permissions] ||= {}
+        parse_access_csv(options[:report_type_permissions], val, args, optparse)
+      end
+      opts.on('--reset-permissions', "Reset all feature permission access to none. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+        options[:reset_permissions] = true
+      end
+      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+        options[:reset_all_access] = true
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update a role.
+[role] is required. This is the name (authority) or id of a role.
+All the role permissions and access values can be configured.
+Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
+Use --global-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
+Only the specified permissions,instance types, etc. are updated.
+Use --reset-permissions to set access to "none" for all unspecified feature permissions.
+Use --reset-all-access to set access to "none" for all unspecified feature permissions and global access values for groups, instance types, etc.
+EOT
     end
     optparse.parse!(args)
 
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
+    
     name = args[0]
     connect(options)
     begin
@@ -659,13 +912,119 @@ EOT
         end
         #params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
 
-        if params.empty?
-          puts optparse
-          option_lines = prompt_option_types.collect {|it| "\t-O #{it['fieldName']}=\"value\"" }.join("\n")
-          puts "\nAvailable Options:\n#{option_lines}\n\n"
-          exit 1
+        # bulk permissions
+        if options[:permissions]
+          perms_array = []
+          options[:permissions].each do |k,v|
+            perm_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => perm_code, "access" => access_value}
+          end
+          params['permissions'] = perms_array
         end
+        if options[:group_permissions]
+          perms_array = []
+          options[:group_permissions].each do |k,v|
+            site_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if site_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => site_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => site_id, "access" => access_value}
+            end
+          end
+          params['sites'] = perms_array
+        end
+        if options[:cloud_permissions]
+          perms_array = []
+          options[:cloud_permissions].each do |k,v|
+            zone_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if zone_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => zone_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => zone_id, "access" => access_value}
+            end
+            perms_array << {"id" => zone_id, "access" => access_value}
+          end
+          params['zones'] = perms_array
+        end
+        if options[:instance_type_permissions]
+          perms_array = []
+          options[:instance_type_permissions].each do |k,v|
+            instance_type_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => instance_type_code, "access" => access_value}
+          end
+          params['instanceTypes'] = perms_array
+        end
+        if options[:blueprint_permissions]
+          perms_array = []
+          options[:blueprint_permissions].each do |k,v|
+            blueprint_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if blueprint_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => blueprint_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => blueprint_id, "access" => access_value}
+            end
+          end
+          params['appTemplates'] = perms_array
+        end
+        if options[:catalog_item_type_permissions]
+          perms_array = []
+          options[:catalog_item_type_permissions].each do |k,v|
+            catalog_item_type_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if catalog_item_type_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => catalog_item_type_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => catalog_item_type_id, "access" => access_value}
+            end
+          end
+          params['catalogItemTypes'] = perms_array
 
+        end
+        if options[:persona_permissions]
+          perms_array = []
+          options[:persona_permissions].each do |k,v|
+            persona_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => persona_code, "access" => access_value}
+          end
+          params['personas'] = perms_array
+        end
+        if options[:vdi_pool_permissions]
+          perms_array = []
+          options[:vdi_pool_permissions].each do |k,v|
+            vdi_pool_id = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            if vdi_pool_id =~ /\A\d{1,}\Z/
+              perms_array << {"id" => vdi_pool_id.to_i, "access" => access_value}
+            else
+              perms_array << {"name" => vdi_pool_id, "access" => access_value}
+            end
+          end
+          params['vdiPools'] = perms_array
+        end
+        if options[:report_type_permissions]
+          perms_array = []
+          options[:report_type_permissions].each do |k,v|
+            report_type_code = k
+            access_value = v.to_s.empty? ? "none" : v.to_s
+            perms_array << {"code" => report_type_code, "access" => access_value}
+          end
+          params['reportTypes'] = perms_array
+        end
+        if options[:reset_permissions]
+          params["resetPermissions"] = true
+        end
+        if options[:reset_all_access]
+          params["resetAllAccess"] = true
+        end
+        if params.empty?
+          raise_command_error "Specify at least one option to update.\n#{optparse}"
+        end
         payload = {"role" => params}
       end
       @roles_interface.setopts(options)
@@ -674,20 +1033,18 @@ EOT
         return
       end
       json_response = @roles_interface.update(account_id, role['id'], payload)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-        return
-      end
-      role = json_response['role']
-      display_name = role['authority'] rescue ''
-      print_green_success "Updated role #{display_name}"
+      render_response(json_response, options, "role") do
+        role = json_response['role']
+        display_name = role['authority'] rescue ''
+        print_green_success "Updated role #{display_name}"
 
-      get_args = [role['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
-      if account
-        get_args.push "--account-id", account['id'].to_s
+        get_args = [role['id']] + (options[:remote] ? ["-r",options[:remote]] : [])
+        if account
+          get_args.push "--account-id", account['id'].to_s
+        end
+        get(get_args)
       end
-      get(get_args)
+      return 0, nil
 
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -700,6 +1057,10 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Delete a role.
+[role] is required. This is the name (authority) or id of a role.
+EOT
     end
     optparse.parse!(args)
     if args.count < 1
@@ -737,22 +1098,43 @@ EOT
   end
 
   def update_feature_access(args)
-    usage = "Usage: morpheus roles update-feature-access [name] [code] [full|read|user|yes|no|none]"
     options = {}
+    allowed_access_values = ['full', 'user', 'read', 'none'] # just for display , veries per permission
+    permission_code = nil
+    access_value = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [code] [full|read|user|yes|no|none]")
+      opts.banner = subcommand_usage("[role] [permission] [access]")
+      opts.on( '-p', '--permission CODE', "Permission code or name" ) do |val|
+        permission_code = val
+      end
+      opts.on( '--access VALUE', String, "Access value [#{allowed_access_values.join('|')}] (varies per permission)" ) do |val|
+        access_value = val
+      end
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update role access for a permission.
+[role] is required. This is the name (authority) or id of a role.
+[permission] is required. This is the code or name of a permission.
+[access] is required. This is the new access value: #{ored_list(allowed_access_values)}
+EOT
     end
     optparse.parse!(args)
-
-    if args.count < 3
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1, max:3)
     name = args[0]
-    permission_code = args[1]
-    access_value = args[2].to_s.downcase
+    permission_code = args[1] if args[1]
+    access_value = args[2].to_s.downcase if args[2]
 
+    if !permission_code
+      raise_command_error("missing required argument: [permission]", args, optparse)
+    end
+    if !access_value
+      raise_command_error("missing required argument: [access]", args, optparse)
+    end
+    # access_value = access_value.to_s.downcase
+    # if !allowed_access_values.include?(access_value)
+    #   raise_command_error("invalid access value: #{access_value}", args, optparse)
+    # end
+    # need to load the permission and then split accessTypes, so just allows all for now, server validates...
     # if !['full_decrypted','full', 'read', 'custom', 'none'].include?(access_value)
     #   puts optparse
     #   exit 1
@@ -786,15 +1168,16 @@ EOT
   end
 
   def update_global_group_access(args)
-    usage = "Usage: morpheus roles update-global-group-access [name] [full|read|custom|none]"
+    usage = "Usage: morpheus roles update-global-group-access [role] [full|read|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|read|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|read|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-            opts.footer = <<-EOT
+      opts.footer = <<-EOT
 Update global group access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, read, custom or none.
+Only applicable to User roles.
 EOT
     end
     optparse.parse!(args)
@@ -856,10 +1239,14 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for a group or all groups.\n" +
-                    "[role] is required. This is the name or id of a role.\n" + 
-                    "--group or --all is required. This is the name or id of a group.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+      opts.footer = <<-EOT
+Update role access for a group or all groups.
+[role] is required. This is the name or id of a role.
+--group or --all is required. This is the name or id of a group.
+--access is required. This is the new access value: #{ored_list(allowed_access_values)}
+Only applicable to User roles and when global group access is set to "custom".
+EOT
+      
     end
     optparse.parse!(args)
 
@@ -939,15 +1326,16 @@ EOT
   end
 
   def update_global_cloud_access(args)
-    usage = "Usage: morpheus roles update-global-cloud-access [name] [full|custom|none]"
+    usage = "Usage: morpheus roles update-global-cloud-access [role] [full|custom|none]"
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|custom|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update global cloud access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, custom or none.
+Only applicable to Tenant roles.
 EOT
     end
     optparse.parse!(args)
@@ -997,7 +1385,7 @@ EOT
     do_all = false
     allowed_access_values = ['full', 'read', 'none']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[role]")
       opts.on( '-c', '--cloud CLOUD', "Cloud name or id" ) do |val|
         cloud_id = val
       end
@@ -1008,10 +1396,13 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for a cloud or all clouds.\n" +
-                    "[role] is required. This is the name or id of a role.\n" + 
-                    "--cloud or --all is required. This is the name or id of a cloud.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+      opts.footer = <<-EOT
+Update role access for a cloud or all clouds.
+[role] is required. This is the name or id of a role.
+--cloud or --all is required. This is the name or id of a cloud.
+--access is required. This is the new access value: #{ored_list(allowed_access_values)}
+Only applicable to Tenant roles and when global cloud access is set to "custom".
+EOT
     end
     optparse.parse!(args)
 
@@ -1163,7 +1554,7 @@ EOT
       opts.footer = "Update role access for an instance type or all instance types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--instance-type or --all is required. This is the name of an instance type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1311,10 +1702,10 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for an blueprint or all blueprints.\n" +
+      opts.footer = "Update role access for a blueprint or all blueprints.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--blueprint or --all is required. This is the name or id of a blueprint.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1475,10 +1866,10 @@ EOT
         access_value = val
       end
       build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Update role access for an catalog item type or all types.\n" +
+      opts.footer = "Update role access for a catalog item type or all types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--catalog-item-type or --all is required. This is the name or id of a catalog item type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1513,7 +1904,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       catalog_item_type_global_access = role_json['globalCatalogItemTypeAccess']
-      catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || []
+      catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || role_json['catalogItemTypes'] []
       if catalog_item_type_global_access != 'custom'
         print "\n", red, "Global Catalog Item Type Access is currently: #{catalog_item_type_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-catalog-item-type-access \"#{name}\" custom`"
@@ -1588,7 +1979,7 @@ EOT
       opts.footer = "Update role access for a persona or all personas.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--persona or --all is required. This is the code of a persona. Service Catalog, Standard, or Virtual Desktop\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1726,7 +2117,7 @@ EOT
       opts.footer = "Update role access for a VDI pool or all VDI pools.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--vdi-pool or --all is required. This is the name or id of a VDI pool.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1763,7 +2154,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       vdi_pool_global_access = role_json['globalVdiPoolAccess']
-      vdi_pool_permissions = role_json['vdiPoolPermissions'] || []
+      vdi_pool_permissions = role_json['vdiPoolPermissions'] || role_json['vdiPools'] || []
       if vdi_pool_global_access != 'custom'
         print "\n", red, "Global VDI Pool Access is currently: #{vdi_pool_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-vdi-pool-access \"#{name}\" custom`"
@@ -1885,7 +2276,7 @@ EOT
       opts.footer = "Update role access for a report type or all report types.\n" +
                     "[role] is required. This is the name or id of a role.\n" + 
                     "--report-type or --all is required. This is the name or id of a report type.\n" + 
-                    "--access is required. This is the new access value. #{anded_list(allowed_access_values)}"
+                    "--access is required. This is the new access value: #{ored_list(allowed_access_values)}"
     end
     optparse.parse!(args)
 
@@ -1922,7 +2313,7 @@ EOT
 
       role_json = @roles_interface.get(account_id, role['id'])
       report_type_global_access = role_json['globalReportTypeAccess']
-      report_type_permissions = role_json['reportTypePermissions'] || []
+      report_type_permissions = role_json['reportTypePermissions'] || role_json['reportTypes'] || []
       if report_type_global_access != 'custom'
         print "\n", red, "Global Report Type Access is currently: #{report_type_global_access.to_s.capitalize}"
         print "\n", "You must first set it to Custom via `morpheus roles update-global-report-type-access \"#{name}\" custom`"
@@ -1984,7 +2375,7 @@ EOT
       {'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user'},
       {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text'},
       {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use'},
-      {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it. '},
+      {'fieldName' => 'multitenantLocked', 'fieldLabel' => 'Multitenant Locked', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'Prevents subtenants from branching off this role/modifying it.'},
       {'fieldName' => 'defaultPersona', 'fieldLabel' => 'Default Persona', 'type' => 'select', 'selectOptions' => get_persona_select_options(), 'description' => 'Default Persona'}
     ]
   end
@@ -2005,4 +2396,18 @@ EOT
     ]
   end
 
+  def parse_access_csv(output, val, args, optparse)
+    output ||= {}
+    val.split(",").each do |value_pair|
+      # split on '=' only because ':' is included in the permission name
+      k,v = value_pair.include?("=") ? value_pair.strip.split("=") : [value_pair, ""]
+      k.strip!
+      v.strip!
+      if v == "" 
+        raise_command_error "permission '#{k}=#{v}' is invalid. The access code must be a value like [none|read|full]", args, optparse
+      end
+      output[k] = v
+    end
+    return output
+  end
 end

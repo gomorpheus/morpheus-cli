@@ -44,8 +44,13 @@ class Morpheus::Cli::ErrorHandler
       # exit_code = 127
     when Morpheus::Cli::CommandArgumentsError
       puts_angry_error err.message
-      @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner
-      @stderr.puts "Try --help for more usage information"
+      if err.args.include?("--help") || err.args.include?("--help")
+        @stderr.puts err.optparse
+      else
+        @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner
+        @stderr.puts "Try --help for more usage information"
+      end
+      
       do_print_stacktrace = false
       if err.exit_code
         exit_code = err.exit_code
@@ -60,8 +65,12 @@ class Morpheus::Cli::ErrorHandler
       if !message_lines.empty?
         @stderr.puts message_lines.join("\n") unless message_lines.empty?
       else
-        @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner && message_lines.empty?
-        @stderr.puts "Try --help for more usage information"
+        if err.args.include?("--help") || err.args.include?("--help")
+          @stderr.puts err.optparse
+        else
+          @stderr.puts err.optparse.banner if err.optparse && err.optparse.banner && message_lines.empty?
+          @stderr.puts "Try --help for more usage information"
+        end
       end
       do_print_stacktrace = false
       if err.exit_code

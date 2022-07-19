@@ -1118,7 +1118,11 @@ class Morpheus::Cli::Hosts
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Host #{server['name']} is being removed..."
+        if json_response['deleteApprovalRequired'] == true
+          print_green_success "Delete Request created for Host #{server['name']}"
+        else
+          print_green_success "Host #{server['name']} is being removed..."
+        end
         #list([])
       end
     rescue RestClient::Exception => e

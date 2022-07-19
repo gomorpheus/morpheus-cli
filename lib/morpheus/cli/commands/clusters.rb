@@ -859,7 +859,11 @@ class Morpheus::Cli::Clusters
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Cluster #{cluster['name']} is being removed..."
+        msg = "Cluster #{cluster['name']} is being removed..."
+        if json_response['msg'] != nil && json_response['msg'] != ''
+          msg = json_response['msg']
+        end
+        print_green_success msg
         #list([])
       end
     rescue RestClient::Exception => e
@@ -1324,7 +1328,11 @@ class Morpheus::Cli::Clusters
       if options[:json]
         puts as_json(json_response)
       elsif json_response['success']
-        print_green_success "Added worker to cluster #{cluster['name']}"
+        if json_response['msg'] == nil
+          print_green_success "Added worker to cluster #{cluster['name']}"
+        else
+          print_green_success json_response['msg']
+        end
         #get_args = [json_response["cluster"]["id"]] + (options[:remote] ? ["-r",options[:remote]] : [])
         #get(get_args)
       end
@@ -1377,7 +1385,11 @@ class Morpheus::Cli::Clusters
     end
     json_response = @clusters_interface.destroy_worker(cluster['id'], worker['id'], params)
     render_response(json_response, options) do
-      print_green_success "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      msg = "Worker #{worker['name']} is being removed from cluster #{cluster['name']}..." 
+      if json_response['msg']
+        msg = json_response['msg']
+      end
+      print_green_success msg
     end
     return 0, nil
   end

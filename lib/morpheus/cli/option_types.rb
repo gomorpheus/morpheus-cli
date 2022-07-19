@@ -61,6 +61,16 @@ module Morpheus
           if option_type['fieldName'] == 'sshHosts'
             option_type['type'] = 'multiText'
           end
+          # swap types to multiSelect when flag is set..
+          if option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
+            if option_type["type"] == "typeahead"
+              option_type["type"] = "multiTypeahead"
+            elsif option_type["type"] == "select"
+              option_type["type"] = "multiSelect"
+            elsif option_type["type"] == "textarea"
+              option_type["type"] = "multiText"
+            end
+          end
         end
 
         # puts "Options Prompt #{options}"
@@ -764,15 +774,18 @@ module Morpheus
             help_prompt(option_type)
             next
           end
-          if input.downcase == 'yes'
+          if input.downcase == 'yes' || input.downcase == 'y' || input.downcase == 'on'
             value_found = true
             value = 'on'
-          elsif input.downcase == 'no'
+          elsif input.downcase == 'no' || input.downcase == 'n' || input.downcase == 'off'
             value_found = true
             value = 'off'
           elsif input == '' && has_default
             value_found = true
             value = default_yes ? 'on' : 'off'
+          elsif input != ""
+            puts "Invalid Option... Please try again."
+            next
           end
           if value.nil? && option_type['required']
             puts "Invalid Option... Please try again."
@@ -817,6 +830,20 @@ module Morpheus
             help_prompt(option_type)
           elsif !value.nil? || option_type['required'] != true
             value_found = true
+          end
+          # attempt to parse Java regex and validate it
+          if option_type["verifyPattern"].to_s != "" && !(value.to_s == "" && option_type['required'])
+            begin
+              # pattern is matched on the entire string
+              verify_pattern = Regexp.compile("^" + option_type["verifyPattern"] + "$")
+              if !verify_pattern.match(value)
+                value_found = false
+                puts "Invalid Option. Value must match the pattern '#{option_type['verifyPattern']}'. Please try again."
+                next
+              end
+            rescue => regex_ex
+              puts "Failed to parse verifyPattern '#{option_type['verifyPattern']}' as a regular expression"
+            end
           end
         end
         return value

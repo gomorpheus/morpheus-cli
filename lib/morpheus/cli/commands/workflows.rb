@@ -2,6 +2,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::Workflows
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::JobsHelper
 
   register_subcommands :list, :get, :add, :update, :remove, :execute
   set_default_subcommand :list
@@ -538,6 +539,7 @@ class Morpheus::Cli::Workflows
     instances = []
     server_ids = []
     servers = []
+    default_refresh_interval = 10
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[workflow] --instance [instance] [options]")
       opts.on('--instance INSTANCE', String, "Instance name or id to execute the workflow on. This option can be passed more than once.") do |val|
@@ -572,6 +574,12 @@ class Morpheus::Cli::Workflows
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -580,7 +588,7 @@ class Morpheus::Cli::Workflows
     end
     workflow_name = args[0]
     connect(options)
-    begin
+    
       workflow = find_workflow_by_name_or_id(workflow_name)
       return 1 if workflow.nil?
 
@@ -642,10 +650,8 @@ class Morpheus::Cli::Workflows
         return 0
       end
       json_response = @task_sets_interface.run(workflow['id'], payload)
-      if options[:json]
-        puts as_json(json_response, options)
-        return json_response['success'] ? 0 : 1
-      else
+
+      render_response(json_response, options) do
         target_desc = nil
         if instances.size() > 0
           target_desc = (instances.size() == 1) ? "instance #{instances[0]['name']}" : "#{instances.size()} instances"
@@ -657,18 +663,19 @@ class Morpheus::Cli::Workflows
         else
           print_green_success "Executing workflow #{workflow['name']}"
         end
-        # todo: refresh, use get processId and load process record isntead? err
         if json_response["jobExecution"] && json_response["jobExecution"]["id"]
-          get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
-          Morpheus::Logging::DarkPrinter.puts((['jobs', 'get-execution'] + get_args).join(' ')) if Morpheus::Logging.debug?
-          return ::Morpheus::Cli::JobsCommand.new.handle(['get-execution'] + get_args)
+          job_execution_id = json_response["jobExecution"]["id"]
+          if options[:no_refresh]
+            get_args = [json_response["jobExecution"]["id"], "--details"] + (options[:remote] ? ["-r",options[:remote]] : [])
+            Morpheus::Logging::DarkPrinter.puts((['jobs', 'get-execution'] + get_args).join(' ')) if Morpheus::Logging.debug?
+            ::Morpheus::Cli::JobsCommand.new.handle(['get-execution'] + get_args)
+          else
+            #Morpheus::Cli::JobsCommand.new.handle(["get-execution", job_execution_id, "--refresh", options[:refresh_interval].to_s]+ (options[:remote] ? ["-r",options[:remote]] : []))
+            job_execution_results = wait_for_job_execution(job_execution_id, options.merge({:details => true}))
+          end
         end
-        return json_response['success'] ? 0 : 1
       end
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
-    end
+      return 0, nil
   end
 
   private
