@@ -130,7 +130,8 @@ module Morpheus::Cli::InfrastructureHelper
   end
 
   def cloud_type_for_name(name)
-    return get_available_cloud_types(true, {'name' => name}).find { |z| z['name'].downcase == name.downcase || z['code'].downcase == name.downcase}
+    types = get_available_cloud_types(true, {'name' => name})
+    return types.find { |z| z['code'].downcase == name.downcase} || types.find { |z| z['name'].downcase == name.downcase}
   end
 
 
