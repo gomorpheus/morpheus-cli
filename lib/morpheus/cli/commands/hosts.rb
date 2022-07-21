@@ -7,7 +7,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::LogsHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :remove_discovered, :logs, :start, :stop, :resize, 
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :remove_from_control, :logs, :start, :stop, :resize, 
                        :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
@@ -1131,7 +1131,7 @@ class Morpheus::Cli::Hosts
     end
   end
 
-  def remove_discovered(args)
+  def remove_from_control(args)
     options = {}
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
