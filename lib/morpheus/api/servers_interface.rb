@@ -113,6 +113,14 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def remove_discovered(ids, params={})
+    url = "#{@base_url}/api/servers/removeDiscovered"
+    params['servers'] = ids
+    headers = { :params => params,:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers}
+    execute(opts)
+  end
+
   def service_plans(params)
     url = "#{@base_url}/api/servers/service-plans"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
