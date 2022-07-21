@@ -1162,15 +1162,15 @@ class Morpheus::Cli::Hosts
       end
       @servers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.remove_discovered(hosts.collect {|it| it['id'] })
+        print_dry_run @servers_interface.dry.remove_from_control(hosts.collect {|it| it['id'] })
         return
       end
-      json_response = @servers_interface.remove_discovered(hosts.collect {|it| it['id'] })
+      json_response = @servers_interface.remove_from_control(hosts.collect {|it| it['id'] })
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Started #{objects_label}"
+        print_green_success "Deleted #{objects_label}"
       end
       return 0
     rescue RestClient::Exception => e
