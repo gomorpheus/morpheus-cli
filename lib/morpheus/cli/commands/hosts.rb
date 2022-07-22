@@ -537,6 +537,7 @@ class Morpheus::Cli::Hosts
         # "Status" => lambda {|it| format_server_status(it) },
         # "Power" => lambda {|it| format_server_power_state(it) },
         "Status" => lambda {|it| format_server_status_friendly(it) }, # combo
+        "Managed" => lambda {|it| it['computeServerType'] ? it['computeServerType']['managed'] : ''}
       }
       server_columns.delete("Hostname") if server['hostname'].to_s.empty? || server['hostname'] == server['name']
       server_columns.delete("IP") if server['externalIp'].to_s.empty?
@@ -1135,10 +1136,13 @@ class Morpheus::Cli::Hosts
     options = {}
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
+      opts.banner = subcommand_usage("[name or id]")
       opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'
       end
+      opts.footer = "Remove a server/host from Morpheus. This does not delete the server/host itself, only Morpheus' record of it.\n" +
+                    "[name or id] is required. The name or the id of the host may be listed.\n" +
+                    "[name or id] [name or id] [name or id] ...  A list of names or ids, separated by a space, may be used for bulk removal."
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
@@ -1162,15 +1166,15 @@ class Morpheus::Cli::Hosts
       end
       @servers_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @servers_interface.dry.remove_from_control(hosts.collect {|it| it['id'] })
+        print_dry_run @servers_interface.dry.remove_from_control(hosts.collect {|it| it['id']}, query_params)
         return
       end
-      json_response = @servers_interface.remove_from_control(hosts.collect {|it| it['id'] })
+      json_response = @servers_interface.remove_from_control(hosts.collect {|it| it['id']}, query_params)
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
       elsif !options[:quiet]
-        print_green_success "Deleted #{objects_label}"
+        print_green_success "Removed from control: #{objects_label}"
       end
       return 0
     rescue RestClient::Exception => e
