@@ -883,7 +883,6 @@ module Morpheus::Cli::ProvisioningHelper
       if provision_type && provision_type["hasNetworks"]
         # prompt for network interfaces (if supported)
         begin
-          puts "ahhh yup"
           network_interfaces = prompt_network_interfaces(cloud_id, provision_type["id"], pool_id, options.merge({:api_params => payload['config']}))
           if !network_interfaces.empty?
             payload['networkInterfaces'] = network_interfaces
@@ -1578,7 +1577,6 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    puts "network interface types #{network_interface_types}"
     network_interface_type_options = []
     network_interface_types.each do |opt|
       if !opt.nil?
@@ -1669,13 +1667,10 @@ module Morpheus::Cli::ProvisioningHelper
       network_interfaces << network_interface
       interface_index += 1
       if options[:options] && options[:options]['networkInterfaces'] && options[:options]['networkInterfaces'][interface_index]
-        puts "if"
         add_another_interface = true
       elsif (max_networks && network_interfaces.size >= max_networks) || network_options.count == 0
-        puts "eslif"
         add_another_interface = false
       else
-        puts "else"
         has_another_interface = options[:options] && options[:options]["networkInterface#{interface_index+1}"]
         add_another_interface = has_another_interface || (!no_prompt && Morpheus::Cli::OptionTypes.confirm("Add another network interface?", {:default => false}))
       end
