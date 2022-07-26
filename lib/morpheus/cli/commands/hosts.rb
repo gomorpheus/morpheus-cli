@@ -7,7 +7,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::LogsHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :remove_from_control, :logs, :start, :stop, :resize, 
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
                        :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
@@ -1130,59 +1130,6 @@ class Morpheus::Cli::Hosts
       print_rest_exception(e, options)
       exit 1
     end
-  end
-
-  def remove_from_control(args)
-    options = {}
-    query_params = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name or id]")
-      opts.on( '-f', '--force', "Force Delete" ) do
-        query_params[:force] = 'on'
-      end
-      opts.footer = "Remove a server/host from Morpheus. This does not delete the server/host itself, only Morpheus' record of it.\n" +
-                    "[name or id] is required. The name or the id of the host may be listed.\n" +
-                    "[name or id] [name or id] [name or id] ...  A list of names or ids, separated by a space, may be used for bulk removal."
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-    end
-    optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
-    connect(options)
-
-    begin
-      host_ids = parse_id_list(args)
-      hosts = []
-      host_ids.each do |host_id|
-        host = find_host_by_name_or_id(host_id)
-        return 1 if host.nil?
-        hosts << host
-      end
-      objects_label = "#{hosts.size == 1 ? 'host' : (hosts.size.to_s + ' hosts')} #{anded_list(hosts.collect {|it| it['name'] })}"
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove #{objects_label}?", options)
-        return 9, "aborted command"
-      end
-      @servers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @servers_interface.dry.remove_from_control(hosts.collect {|it| it['id']}, query_params)
-        return
-      end
-      json_response = @servers_interface.remove_from_control(hosts.collect {|it| it['id']}, query_params)
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      elsif !options[:quiet]
-        print_green_success "Removed from control: #{objects_label}"
-      end
-      return 0
-    rescue RestClient::Exception => e
-      #print_rest_exception(e, options)
-      print_error yellow,"Could not find host(s), ensure all ids are of server type discovered\n"
-      exit 1
-    end
-    
   end
 
   def start(args)
