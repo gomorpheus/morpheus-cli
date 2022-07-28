@@ -13,7 +13,7 @@ class Morpheus::Cli::Instances
   set_command_name :instances
   set_command_description "View and manage instances."
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, 
-                       :cancel_removal, :cancel_expiration, :cancel_shutdown, :extend_expiration, :extend_shutdown,
+                       :cancel_removal, :cancel_expiration, :cancel_shutdown, :extend_expiration, :extend_shutdown, :remove_from_control,
                        :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}, 
                        :logs, :stats, :stop, :start, :restart, :actions, :action, :suspend, :eject, :stop_service, :start_service, :restart_service, 
                        :backup, :backups, :resize, :clone, :envs, :setenv, :delenv, 
@@ -3052,6 +3052,56 @@ EOT
       get([instance['id']] + (options[:remote] ? ["-r",options[:remote]] : []))
     end
     return 0, nil
+  end
+
+  def remove_from_control(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name or id]")
+      opts.footer = "Remove a brownfield instance from Morpheus. This does not delete the cloud instance, only Morpheus' record of it.\n" +
+                    "[name or id] is required. The name or the id of the instance may be listed.\n" +
+                    "[name or id] [name or id] [name or id] ...  A list of names or ids, separated by a space, may be used for bulk removal."
+      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      instance_ids = parse_id_list(args)
+      instances = []
+      instance_ids.each do |instance_id|
+        instance = find_instance_by_name_or_id(instance_id)
+        return 1 if instance.nil?
+        instances << instance
+      end
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove #{instances.size == 1 ? 'instance' : (instances.size.to_s + ' instances')} #{anded_list(instances.collect {|it| it['name'] })}?", options)
+        return 9, "aborted command"
+      end
+      @instances_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.remove_from_control(instances.collect {|it| it['id'] }, params)
+        return
+      end
+      json_response = @instances_interface.remove_from_control(instances.collect {|it| it['id'] }, params)
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
+        puts json_response
+        if json_response['success'] == false
+           print_red_alert json_response['msg']
+        else
+           print_green_success json_response['msg']
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 
   def firewall_disable(args)

@@ -407,4 +407,12 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def remove_from_control(ids, params={})
+    url = "#{@base_url}/api/instances/removeFromControl"
+    payload = { ids: ids }
+    headers = { :params => params,:authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
 end
