@@ -1664,6 +1664,10 @@ module Morpheus::Cli::ProvisioningHelper
         end
       end
 
+      if ip_required == false && network_interface['ipAddress'] == nil && selected_network['dhcpServer'] == true
+        network_interface['ipMode'] = 'dhcp'
+      end
+
       network_interfaces << network_interface
       interface_index += 1
       if options[:options] && options[:options]['networkInterfaces'] && options[:options]['networkInterfaces'][interface_index]
