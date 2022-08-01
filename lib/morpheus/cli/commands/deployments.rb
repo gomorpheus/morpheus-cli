@@ -879,10 +879,10 @@ EOT
   def add_deployment_version_option_types
     [
       {'fieldName' => 'userVersion', 'fieldLabel' => 'Version', 'type' => 'text', 'required' => true, 'displayOrder' => 1, 'description' => 'This is the deployment version identifier (userVersion)'},
-      {'fieldName' => 'deployType', 'fieldLabel' => 'Deploy Type', 'type' => 'select', 'optionSource' => 'deployTypes', 'required' => true, 'displayOrder' => 1, 'description' => 'This is the deployment version identifier (userVersion)', 'defaultValue' => 'file', 'code' => 'deployment.deployType'},
-      {'fieldName' => 'fetchUrl', 'fieldLabel' => 'Fetch URL', 'type' => 'select', 'optionSource' => 'deployTypes', 'required' => true, 'displayOrder' => 1, 'description' => 'The URL to fetch the deployment file(s) from.', 'dependsOnCode' => 'deployment.deployType:fetch'},
-      {'fieldName' => 'gitUrl', 'fieldLabel' => 'Git URL', 'type' => 'string', 'required' => true, 'displayOrder' => 1, 'description' => 'The URL to fetch the deployment file(s) from.', 'dependsOnCode' => 'deployment.deployType:git'},
-      {'fieldName' => 'gitRef', 'fieldLabel' => 'Git Ref', 'type' => 'string', 'displayOrder' => 1, 'description' => 'The Git Reference to use, this the branch or tag name, defaults to master.', 'dependsOnCode' => 'deployment.deployType:git'}
+      {'fieldName' => 'deployType', 'fieldLabel' => 'Deploy Type', 'type' => 'select', 'optionSource' => 'deployTypes', 'required' => true, 'displayOrder' => 2, 'description' => 'This is the deployment version identifier (userVersion)', 'defaultValue' => 'file', 'code' => 'deployment.deployType'},
+      {'fieldName' => 'fetchUrl', 'fieldLabel' => 'Fetch URL', 'type' => 'string', 'required' => true, 'displayOrder' => 3, 'description' => 'The URL to fetch the deployment file(s) from.', 'dependsOnCode' => 'deployment.deployType:fetch'},
+      {'fieldName' => 'gitUrl', 'fieldLabel' => 'Git URL', 'type' => 'string', 'required' => true, 'displayOrder' => 4, 'description' => 'The URL to fetch the deployment file(s) from.', 'dependsOnCode' => 'deployment.deployType:git'},
+      {'fieldName' => 'gitRef', 'fieldLabel' => 'Git Ref', 'type' => 'string', 'displayOrder' => 5, 'description' => 'The Git Reference to use, this the branch or tag name, defaults to master.', 'dependsOnCode' => 'deployment.deployType:git'}
     ]
   end
 
