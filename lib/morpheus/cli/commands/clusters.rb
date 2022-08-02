@@ -736,8 +736,14 @@ class Morpheus::Cli::Clusters
       opts.on("--api-url [TEXT]", String, "Updates Cluster API Url") do |val|
         options[:apiUrl] = val.to_s
       end
+      opts.on("--api-token [TEXT]", String, "Updates Cluster API Token") do |val|
+        options[:apiToken] = val.to_s
+      end
       opts.on('--active [on|off]', String, "Can be used to enable / disable the cluster. Default is on") do |val|
         options[:active] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('--managed [on|off]', String, "Can be used to enable / disable managed cluster. Default is on") do |val|
+        options[:managed] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on( nil, '--refresh', "Refresh cluster" ) do
         options[:refresh] = true
@@ -777,7 +783,9 @@ class Morpheus::Cli::Clusters
         cluster_payload['name'] = options[:name] if !options[:name].empty?
         cluster_payload['description'] = options[:description] if !options[:description].empty?
         cluster_payload['enabled'] = options[:active] if !options[:active].nil?
+        cluster_payload['managed'] = options[:managed] if !options[:managed].nil?
         cluster_payload['serviceUrl'] = options[:apiUrl] if !options[:apiUrl].nil?
+        cluster_payload['serviceToken'] = options[:apiToken] if !options[:apiToken].nil?
         cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
         cluster_payload['tenant'] = options[:tenant] if !options[:tenant].nil?
         payload = {"cluster" => cluster_payload}
@@ -788,9 +796,7 @@ class Morpheus::Cli::Clusters
         exit 1
       end
 
-      has_field_updates = ['name', 'description', 'enabled', 'serviceUrl'].find {|field| payload['cluster'] && !payload['cluster'][field].nil? && payload['cluster'][field] != cluster[field] ? field : nil}
-
-      if !has_field_updates && cluster_payload['refresh'].nil? && cluster_payload['tenant'].nil?
+      if cluster_payload.empty?
         print_green_success "Nothing to update"
         exit 1
       end
