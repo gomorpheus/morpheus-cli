@@ -373,7 +373,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
           # print "\n"
           puts field_group_name
           puts "==============="
-          provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypCode: params['provisionTypeCode']})
+          provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypeCode: params['provisionTypeCode']})
         end
         
         # payload.deep_merge!(provision_type_v_prompt)
