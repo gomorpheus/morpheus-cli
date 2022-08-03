@@ -401,7 +401,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # FILE TEMPLATES
         if file_template_ids
-          params['scripts'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['templates'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
         else
           # prompt
         end
