@@ -577,6 +577,10 @@ module Morpheus::Cli::ProvisioningHelper
       (2..10).each {|i| arbitrary_options.delete('dataVolume' + i.to_s) }
       arbitrary_options.delete('lockedFields')
       # arbitrary_options.delete('ports')
+      arbitrary_options.delete('marketplacePublisher')
+      arbitrary_options.delete('marketplaceOffer')
+      arbitrary_options.delete('marketplaceSku')
+      arbitrary_options.delete('marketplaceVersion')
       payload.deep_merge!(arbitrary_options)
     end
 
