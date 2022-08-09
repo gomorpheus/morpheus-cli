@@ -180,7 +180,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
           {"VALUE" => lambda {|it| it['defaultValue'] } },
           {"TYPE" => lambda {|it| it['valueType'].to_s.capitalize } },
           {"EXPORT" => lambda {|it| format_boolean it['export'] } },
-          {"MASKED" => lambda {|it| format_boolean it['mask'] } },
+          {"MASKED" => lambda {|it| format_boolean it['masked'] } },
         ]
         print as_pretty_table(evars, evar_columns)
       else
@@ -559,7 +559,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
           # prompt
         end
 
-        if params.empty? && passed_options.empty?
+        if params.empty? && passed_options.empty? && evars.nil?
           raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
 
