@@ -214,7 +214,7 @@ EOT
         {"VALUE" => lambda {|it| it['defaultValue'] } },
         {"TYPE" => lambda {|it| it['valueType'].to_s.capitalize } },
         {"EXPORT" => lambda {|it| format_boolean it['export'] } },
-        {"MASKED" => lambda {|it| format_boolean it['mask'] } },
+        {"MASKED" => lambda {|it| format_boolean it['masked'] } },
       ]
       print as_pretty_table(layout_evars, evar_columns)
     else
