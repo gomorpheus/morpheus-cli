@@ -386,7 +386,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # ENVIRONMENT VARIABLES
         if evars
-          params['environmentVariables'] = evars
+          # bug before 5.4.10/5.5.2 requires this to be passed at the root of the request instead of under containerType.
+          # params['environmentVariables'] = evars
+          payload['environmentVariables'] = evars
         else
           # prompt
           # parsed_evars = parse_environment_variables
@@ -536,7 +538,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # ENVIRONMENT VARIABLES
         if evars
-          params['environmentVariables'] = evars
+          # bug before 5.4.10/5.5.2 requires this to be passed at the root of the request instead of under containerType.
+          # params['environmentVariables'] = evars
+          payload['environmentVariables'] = evars
         else
           # prompt
         end
