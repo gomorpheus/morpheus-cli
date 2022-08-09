@@ -252,6 +252,15 @@ module Morpheus
               if !value_found
                 # select type is special because it supports skipSingleOption
                 # and prints the available options on error
+                if option_type['type'] == 'azureMarketplace'
+                  value = azure_marketplace_prompt(option_type, options, api_client, option_params)
+                  # inject {marketplacePublisher:'...',} into config, not as config.azureMarketplace = {}
+                  # and remove any passed in values from
+                  if value.is_a?(Hash)
+                    context_map.merge!(value)
+                  end
+                  next
+                end
                 if ['select', 'multiSelect'].include?(option_type['type'])
                   value = select_prompt(option_type, api_client, option_params, true, nil, false, ignore_empty)
                   value_found = !!value
@@ -334,6 +343,14 @@ module Morpheus
               value = file_content_prompt(option_type, options, api_client, {})
             elsif option_type['type'] == 'multiText'
               value = multitext_prompt(option_type)
+            elsif option_type['type'] == 'azureMarketplace'
+              value = azure_marketplace_prompt(option_type, options, api_client, option_params)
+              # inject {marketplacePublisher:'...',} into config, not as config.azureMarketplace = {}
+              # and remove any passed in values from
+              if value.is_a?(Hash)
+                context_map.merge!(value)
+              end
+              next
             else
               value = generic_prompt(option_type)
             end
@@ -1031,6 +1048,62 @@ module Morpheus
           end
         end
         rtn
+      end
+
+      # file_content_prompt() prompts for source (local,repository,url) and then content or repo or.
+      # returns a Hash like {sourceType:"local",content:"yadda",contentPath:null,contentRef:null}
+      def self.azure_marketplace_prompt(option_type, options={}, api_client=nil, api_params={})
+        cloud_id = api_params[:zoneId] || api_params[:cloudId] || api_params["zoneId"] || api_params["cloudId"]
+        if cloud_id.nil?
+          Morpheus::Logging::DarkPrinter.puts "Failed to load azure marketplace offers without a zoneId" if Morpheus::Logging.debug?
+          return nil
+        end
+        # lets go!
+        rtn = {}
+        publisher_value, offer_value, sku_value, version_value = nil, nil, nil, nil
+
+        # Marketplace Publisher & Offer
+        marketplace_api_params = {'zoneId' => cloud_id}
+        v_prompt = nil
+        # API endpoints moved from /api/options to /api/options/azure...
+        begin
+          v_prompt = prompt([{'fieldName' => 'marketplaceOffer', 'fieldLabel' => 'Azure Marketplace Offer', 'type' => 'typeahead', 'optionSourceType' => 'azure', 'optionSource' => 'searchAzureMarketplace', 'required' => true, 'description' => "Select Azure Marketplace Offer."}], options,api_client, marketplace_api_params)
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Failed to load azure marketplace offers, trying older endpoint" if Morpheus::Logging.debug?
+          v_prompt = prompt([{'fieldName' => 'marketplaceOffer', 'fieldLabel' => 'Azure Marketplace Offer', 'type' => 'typeahead', 'optionSource' => 'searchAzureMarketplace', 'required' => true, 'description' => "Select Azure Marketplace Offer."}], options,api_client, marketplace_api_params)
+        end
+        # offer_value = v_prompt['marketplaceOffer']
+        # actually need both offer and publisher of these to query correctly..sigh
+        marketplace_option = Morpheus::Cli::OptionTypes.get_last_select()
+        offer_value = marketplace_option['offer']
+        publisher_value = marketplace_option['publisher']
+
+        # SKU & VERSION
+        if options && options['marketplaceSku'] && options['marketplaceVersion']
+          # the value to match on is actually sku|version
+          options['marketplaceSku'] = options['marketplaceSku'] + '|' + options['marketplaceVersion']
+        end
+        sku_api_params = {'zoneId' => cloud_id, publisher: publisher_value, offer: offer_value}
+        begin
+          v_prompt = prompt([{'fieldName' => 'marketplaceSku', 'fieldLabel' => 'Azure Marketplace SKU', 'type' => 'select', 'optionSourceType' => 'azure', 'optionSource' => 'searchAzureMarketplaceSkus', 'required' => true, 'description' => "Select Azure Marketplace SKU and Version, the format is SKU|Version"}], options,api_client, sku_api_params)
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Failed to load azure marketplace offers, trying older endpoint" if Morpheus::Logging.debug?
+          v_prompt = prompt([{'fieldName' => 'marketplaceSku', 'fieldLabel' => 'Azure Marketplace SKU', 'type' => 'select', 'optionSource' => 'searchAzureMarketplaceSkus', 'required' => true, 'description' => "Select Azure Marketplace SKU and Version, the format is SKU|Version"}], options,api_client, sku_api_params)
+        end
+        # marketplace_option = Morpheus::Cli::OptionTypes.get_last_select()
+        # sku_value = marketplace_option['sku']
+        # version_value = marketplace_option['version']
+        sku_value = v_prompt['marketplaceSku']
+        if sku_value && sku_value.include?("|")
+          sku_value, version_value = sku_value.split("|")
+        end
+        # rtn['publisher'] = publisher_value
+        # rtn['offer'] = offer_value
+        # rtn['sku'] = sku_value
+        # rtn['version'] = version_value
+        # return rtn
+        # instance provisioning expects these parameters...
+        return {'marketplacePublisher' => publisher_value, 'marketplaceOffer' => offer_value, 'marketplaceSku' => sku_value, 'marketplaceVersion' => version_value}
       end
 
       def self.load_options(option_type, api_client, api_params, query_value=nil)

@@ -1019,7 +1019,14 @@ EOT
 
     # Marketplace Publisher & Offer
     marketplace_api_params = {'zoneId' => cloud_id}
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'offer', 'fieldLabel' => 'Azure Marketplace Offer', 'type' => 'typeahead', 'optionSource' => 'searchAzureMarketplace', 'required' => true, 'description' => "Select Azure Marketplace Offer."}], options[:options],@api_client, marketplace_api_params)
+    v_prompt = nil
+    # API endpoints moved from /api/options to /api/options/azure...
+    begin
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'offer', 'fieldLabel' => 'Azure Marketplace Offer', 'type' => 'typeahead', 'optionSourceType' => 'azure', 'optionSource' => 'searchAzureMarketplace', 'required' => true, 'description' => "Select Azure Marketplace Offer."}], options[:options],@api_client, marketplace_api_params)
+    rescue => ex
+      Morpheus::Logging::DarkPrinter.puts "Failed to load azure marketplace offers, trying older endpoint" if Morpheus::Logging.debug?
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'offer', 'fieldLabel' => 'Azure Marketplace Offer', 'type' => 'typeahead', 'optionSource' => 'searchAzureMarketplace', 'required' => true, 'description' => "Select Azure Marketplace Offer."}], options[:options],@api_client, marketplace_api_params)
+    end
     # offer_value = v_prompt['marketplace']
     # actually need both offer and publisher of these to query correctly..sigh
     marketplace_option = Morpheus::Cli::OptionTypes.get_last_select()
@@ -1032,7 +1039,12 @@ EOT
       options[:options]['sku'] = options[:options]['sku'] + '|' + options[:options]['version']
     end
     sku_api_params = {'zoneId' => cloud_id, publisher: publisher_value, offer: offer_value}
-    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'sku', 'fieldLabel' => 'Azure Marketplace SKU', 'type' => 'select', 'optionSource' => 'searchAzureMarketplaceSkus', 'required' => true, 'description' => "Select Azure Marketplace SKU and Version, the format is SKU|Version"}], options[:options],@api_client, sku_api_params)
+    begin
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'sku', 'fieldLabel' => 'Azure Marketplace SKU', 'type' => 'select', 'optionSourceType' => 'azure', 'optionSource' => 'searchAzureMarketplaceSkus', 'required' => true, 'description' => "Select Azure Marketplace SKU and Version, the format is SKU|Version"}], options[:options],@api_client, sku_api_params)
+    rescue => ex
+      Morpheus::Logging::DarkPrinter.puts "Failed to load azure marketplace offers, trying older endpoint" if Morpheus::Logging.debug?
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'sku', 'fieldLabel' => 'Azure Marketplace SKU', 'type' => 'select', 'optionSource' => 'searchAzureMarketplaceSkus', 'required' => true, 'description' => "Select Azure Marketplace SKU and Version, the format is SKU|Version"}], options[:options],@api_client, sku_api_params)
+    end
     # marketplace_option = Morpheus::Cli::OptionTypes.get_last_select()
     # sku_value = marketplace_option['sku']
     # version_value = marketplace_option['version']

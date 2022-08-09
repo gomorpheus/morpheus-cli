@@ -537,6 +537,7 @@ class Morpheus::Cli::Hosts
         # "Status" => lambda {|it| format_server_status(it) },
         # "Power" => lambda {|it| format_server_power_state(it) },
         "Status" => lambda {|it| format_server_status_friendly(it) }, # combo
+        "Managed" => lambda {|it| it['computeServerType'] ? it['computeServerType']['managed'] : ''}
       }
       server_columns.delete("Hostname") if server['hostname'].to_s.empty? || server['hostname'] == server['name']
       server_columns.delete("IP") if server['externalIp'].to_s.empty?

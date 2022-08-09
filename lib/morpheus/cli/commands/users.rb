@@ -577,6 +577,7 @@ EOT
   def change_password(args)
     params = {}
     options = {}
+    payload = {}
     new_password = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[user] [password] [options]")
@@ -651,7 +652,7 @@ EOT
       return
     end
     json_response = @account_users_interface.update(account_id, user['id'], payload)
-    render_response(json_response, optparse, "user") do
+    render_response(json_response, options, "user") do
       print_green_success "Updated password for user #{user['username']}"
     end
     return exit_code, err

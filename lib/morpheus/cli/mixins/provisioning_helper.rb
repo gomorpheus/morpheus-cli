@@ -577,6 +577,10 @@ module Morpheus::Cli::ProvisioningHelper
       (2..10).each {|i| arbitrary_options.delete('dataVolume' + i.to_s) }
       arbitrary_options.delete('lockedFields')
       # arbitrary_options.delete('ports')
+      arbitrary_options.delete('marketplacePublisher')
+      arbitrary_options.delete('marketplaceOffer')
+      arbitrary_options.delete('marketplaceSku')
+      arbitrary_options.delete('marketplaceVersion')
       payload.deep_merge!(arbitrary_options)
     end
 
@@ -1662,6 +1666,10 @@ module Morpheus::Cli::ProvisioningHelper
         if v_prompt[field_context] && !v_prompt[field_context]['ipAddress'].to_s.empty?
           network_interface['ipAddress'] = v_prompt[field_context]['ipAddress']
         end
+      end
+
+      if ip_required == false && network_interface['ipAddress'] == nil && selected_network['dhcpServer'] == true
+        network_interface['ipMode'] = 'dhcp'
       end
 
       network_interfaces << network_interface

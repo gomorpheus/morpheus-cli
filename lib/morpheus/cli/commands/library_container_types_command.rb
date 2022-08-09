@@ -255,6 +255,21 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       opts.on('--technology CODE', String, "Technology. This is the provision type code.") do |val|
         params['provisionTypeCode'] = val
       end
+      opts.on('--evars-json JSON', String, 'Environment variables JSON: {"name":"Foo", "value":"Bar", "masked":true, "export":true}' ) do |val|
+        begin
+          evars = JSON.parse(val.to_s)
+          evars = evars.kind_of?(Array) ? evars : [evars]
+        rescue JSON::ParserError => e
+          print_red_alert "Unable to parse evars JSON"
+          exit 1
+        end
+      end
+      opts.on('-e', '--evars LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
+        evars = val.collect do |nv|
+          parts = nv.split('=')
+          {'name' => parts[0].strip, 'value' => (parts.count > 1 ? parts[1].strip : '')}
+        end
+      end
       opts.on('--ports NAME=PORT,NAME=PORT', String, "List of exposed port definitions in the format NAME=PORT|PROTOCOL, Example: \"WEB=80|HTTP,SECURE=443|HTTPS\"") do |val|
         params['containerPorts'] ||= []
         parsed_ports = val.split(",").each do |value_pair|
@@ -358,7 +373,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
           # print "\n"
           puts field_group_name
           puts "==============="
-          provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypCode: params['provisionTypeCode']})
+          provision_type_v_prompt = Morpheus::Cli::OptionTypes.prompt(provision_type_custom_option_types,options[:options],@api_client, {provisionTypeCode: params['provisionTypeCode']})
         end
         
         # payload.deep_merge!(provision_type_v_prompt)
@@ -386,7 +401,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # FILE TEMPLATES
         if file_template_ids
-          params['scripts'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['templates'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
         else
           # prompt
         end
@@ -447,6 +462,21 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       # opts.on('--technology CODE', String, "Technology") do |val|
       #   params['provisionTypeCode'] = val
       # end
+      opts.on('--evars-json JSON', String, 'Environment variables JSON: {"name":"Foo", "value":"Bar", "masked":true, "export":true}' ) do |val|
+        begin
+          evars = JSON.parse(val.to_s)
+          evars = evars.kind_of?(Array) ? evars : [evars]
+        rescue JSON::ParserError => e
+          print_red_alert "Unable to parse evars JSON"
+          exit 1
+        end
+      end
+      opts.on('-e', '--evars LIST', Array, "Environment variables list. Comma delimited list of name=value pairs") do |val|
+        evars = val.collect do |nv|
+          parts = nv.split('=')
+          {'name' => parts[0].strip, 'value' => (parts.count > 1 ? parts[1].strip : '')}
+        end
+      end
       opts.on('--ports NAME=PORT,NAME=PORT', String, "List of exposed port definitions in the format NAME=PORT|PROTOCOL, Example: \"WEB=80|HTTP,SECURE=443|HTTPS\"") do |val|
         params['containerPorts'] ||= []
         parsed_ports = val.split(",").each do |value_pair|
@@ -506,7 +536,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # ENVIRONMENT VARIABLES
         if evars
-
+          params['environmentVariables'] = evars
         else
           # prompt
         end
