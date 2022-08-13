@@ -797,19 +797,16 @@ EOT
     if use_it
       appliance[:active] = true
     end
-
     # save the new remote
-    ::Morpheus::Cli::Remote.save_remote(appliance_name, appliance)
+    appliance = ::Morpheus::Cli::Remote.save_remote(new_appliance_name, appliance)
     # refresh it now?
     appliance, json_response = ::Morpheus::Cli::Remote.refresh_remote(new_appliance_name)
-
     # render
-    if options[:quiet]
-      return exit_code, err
+    if !options[:quiet]
+      print_green_success "Cloned remote #{original_appliance[:name]} to #{appliance[:name]}, status is #{format_appliance_status(appliance)}"
+      # print new appliance details
+      _get(appliance[:name].to_s, {})
     end
-    print_green_success "Cloned remote #{original_appliance[:name]} to #{appliance[:name]}"
-    # print new appliance details
-    _get(appliance[:name], {})
     return exit_code, err
   end
 
@@ -1255,9 +1252,9 @@ EOT
     return Morpheus::Cli::Setup.new.handle(cmd_args)
   end
 
-  def load_remote_by_name(appliance_name, allow_current=true)
+  def load_remote_by_name(appliance_name)
     appliance = nil
-    if appliance_name.to_s == "current" && allow_current
+    if appliance_name.to_s == "current"
       appliance = ::Morpheus::Cli::Remote.load_active_remote()
       if !appliance
         raise_command_error "No current appliance, see the command `remote use`"
