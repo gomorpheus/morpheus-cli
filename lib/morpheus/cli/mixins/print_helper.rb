@@ -714,7 +714,13 @@ module Morpheus::Cli::PrintHelper
   #
   def as_pretty_table(data, columns, options={})
     data = [data].flatten
-    
+    if options[:reverse]
+      if data.is_a?(Array)
+        data.reverse!
+      elsif data.is_a?(Hash)
+        data.values.each {|v| v.reverse! if v.is_a?(Array) }
+      end
+    end
     # support --fields x,y,z and --all-fields or --fields all
     all_fields = data.first ? data.first.keys : []
     #todo: support --raw-fields   meh, not really needed..
@@ -1106,7 +1112,13 @@ module Morpheus::Cli::PrintHelper
     newline = options[:csv_newline] || options[:newline] || "\n"
     include_header = options[:csv_no_header] ? false : true
     do_quotes = options[:csv_quotes] || options[:quotes]
-
+    if options[:reverse]
+      if data.is_a?(Array)
+        data.reverse!
+      elsif data.is_a?(Hash)
+        data.values.each {|v| v.reverse! if v.is_a?(Array) }
+      end
+    end
     if options[:include_fields]
       data = transform_data_for_field_options(data, options, object_key)
       if data.is_a?(Hash)
@@ -1216,7 +1228,13 @@ module Morpheus::Cli::PrintHelper
     if !data
       return "null" # "No data"
     end
-
+    if options[:reverse]
+      if data.is_a?(Array)
+        data.reverse!
+      elsif data.is_a?(Hash)
+        data.values.each {|v| v.reverse! if v.is_a?(Array) }
+      end
+    end
     if options[:include_fields]
       data = transform_data_for_field_options(data, options, object_key)
     end
@@ -1235,6 +1253,13 @@ module Morpheus::Cli::PrintHelper
     out = ""
     if !data
       return "null" # "No data"
+    end
+    if options[:reverse]
+      if data.is_a?(Array)
+        data.reverse!
+      elsif data.is_a?(Hash)
+        data.values.each {|v| v.reverse! if v.is_a?(Array) }
+      end
     end
     if options[:include_fields]
       data = transform_data_for_field_options(data, options, object_key)

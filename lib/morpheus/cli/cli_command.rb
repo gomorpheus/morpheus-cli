@@ -500,8 +500,12 @@ module Morpheus
               end
             end
 
-            opts.on( '-D', '--desc', "Reverse Sort Order" ) do |v|
+            opts.on( '-D', '--desc', "Descending Sort Direction." ) do |v|
               options[:direction] = "desc"
+            end
+
+            opts.on( "--reverse", "Reverse order of results. This invert is done by the client, not necessarily the entire dataset." ) do
+              options[:reverse] = true
             end
 
             # arbitrary query parameters in the format -Q "category=web&phrase=nginx"

@@ -47,6 +47,9 @@ module Morpheus::Cli::LogsHelper
     table_color = options.key?(:color) ? options[:color] : cyan
     term_width = current_terminal_width()
     message_col_width = current_terminal_width() - (show_object ? 56 : 36)
+    if options[:reverse]
+      log_records.reverse!
+    end
     log_records.each do |log_entry|
       log_level = format_log_level(log_entry['level'], table_color, 6)
       out << table_color if table_color
