@@ -366,7 +366,11 @@ def format_number(n, opts={})
   decimal = parts[1] ? parts[1..-1].join('.') : nil
   i = 0
   whole_number.reverse.each_char do |c|
-    out = (i > 0 && i % 3 == 0) ? "#{c}#{delim}#{out}" : "#{c}#{out}"
+    if c == "-"
+      out = "#{c}#{out}"
+    else
+      out = (i > 0 && i % 3 == 0) ? "#{c}#{delim}#{out}" : "#{c}#{out}"
+    end
     i+= 1
   end
   if decimal
