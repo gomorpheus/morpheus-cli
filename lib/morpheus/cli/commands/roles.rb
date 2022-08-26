@@ -130,6 +130,11 @@ class Morpheus::Cli::Roles
         options[:include_vdi_pool_access] = true
         options[:include_report_type_access] = true
       end
+      opts.on('--account-id ID', String, "Clarify Owner of Role") do |val|
+        if has_complete_access
+          options[:account_id] = val.to_s
+        end
+      end
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a role.
@@ -207,6 +212,7 @@ EOT
           {
             code: it['code'],
             name: it['name'],
+            subCategory: it['subCategory'],
             access: format_access_string(it['access']),
           }
         end
@@ -220,7 +226,7 @@ EOT
           phrase_regexp = /#{Regexp.escape(options[:phrase])}/i
           rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
         end
-        print as_pretty_table(rows, [:code, :name, :access], options)
+        print as_pretty_table(rows, [:code, :name, :subCategory, :access], options)
         # print reset,"\n"
       else
         print cyan,"Use --permissions to list feature permissions","\n"
@@ -483,7 +489,7 @@ EOT
       end
 
       print cyan
-      print_h1 "Role Permissions: [#{role['id']}] #{role['authority']}", options
+      print_h1 "Role Permissions: [#{role['id']},#{role['owner']['name']}] #{role['authority']}", options
 
       print cyan
       if role_permissions && role_permissions.size > 0
@@ -625,8 +631,15 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2}], options[:options])
         role_payload['description'] = v_prompt['description']
 
-        if @is_master_account
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleType', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => role_type_options, 'defaultValue' => 'user', 'displayOrder' => 3}], options[:options])
+        if @is_master_account && has_complete_access
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'owner', 'fieldLabel' => 'Owner', 'type' => 'select', 'selectOptions' => role_owner_options, 'defaultValue' => current_account['id'], 'displayOrder' => 3}], options[:options])
+          role_payload['owner'] = v_prompt['owner']
+        else
+          role_payload['owner'] = current_account['id']
+        end  
+
+        if @is_master_account && role_payload['owner'] == current_account['id']
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'roleType', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => role_type_options, 'defaultValue' => 'user', 'displayOrder' => 4}], options[:options])
           role_payload['roleType'] = v_prompt['roleType']
         else
           role_payload['roleType'] = 'user'
@@ -639,7 +652,7 @@ EOT
           role_payload['baseRoleId'] = base_role['id']
         end
 
-        if @is_master_account
+        if @is_master_account && role_payload['owner'] == current_account['id']
           if role_payload['roleType'] == 'user'
             v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use', 'displayOrder' => 5}], options[:options])
             role_payload['multitenant'] = ['on','true'].include?(v_prompt['multitenant'].to_s)
@@ -795,6 +808,10 @@ EOT
       details_options = [role_payload["authority"]]
       if account
         details_options.push "--account-id", account['id'].to_s
+      end
+
+      if role_payload['owner']
+        details_options.push "--account-id", role_payload['owner'].to_s
       end
       get(details_options)
 
@@ -2400,6 +2417,22 @@ EOT
       {'name'=>'Standard','value'=>'standard'},
       {'name'=>'Virtual Desktop','value'=>'vdi'}
     ]
+  end
+
+  def role_owner_options
+    @options_interface.options_for_source("tenants", {})['data']
+  end
+
+  def has_complete_access
+    has_access = false
+    if @is_master_account
+      admin_accounts = @user_permissions.select { |it| it['code'] == 'admin-accounts' && it['access'] == 'full'}
+      admin_roles = @user_permissions.select { |it| it['code'] == 'admin-roles' && it['access'] == 'full' }
+      if admin_accounts != nil && admin_roles != nil
+        has_access = true
+      end
+    end
+    has_access 
   end
 
   def parse_access_csv(output, val, args, optparse)

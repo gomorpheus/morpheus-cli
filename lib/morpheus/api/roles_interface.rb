@@ -11,7 +11,12 @@ class Morpheus::RolesInterface < Morpheus::APIClient
 
   def list(account_id, options={})
     url = build_url(account_id)
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    params = {}
+    if account_id
+      params['tenant'] = account_id
+    end
+
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     headers[:params].merge!(options)
     execute(method: :get, url: url, headers: headers)
   end
