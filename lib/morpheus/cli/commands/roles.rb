@@ -589,6 +589,9 @@ EOT
       opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
         options[:reset_all_access] = true
       end
+      opts.on('--owner ID', String, "Set the owner/tenant/account for the role by account id. Only master tenants with full permission for Tenant and Role may use this option." ) do |val|
+        params['owner'] = val
+      end
             opts.footer = <<-EOT
 Create a new role.
 [name] is required. This is a unique name (authority) for the new role.
@@ -631,7 +634,14 @@ EOT
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2}], options[:options])
         role_payload['description'] = v_prompt['description']
 
-        if @is_master_account && has_complete_access
+        if params['owner']
+          if @is_master_account && has_complete_access
+            role_payload['owner'] = params['owner']
+          else
+            print_red_alert "You do not have the necessary authority to use owner option"
+            return
+          end
+        elsif @is_master_account && has_complete_access
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'owner', 'fieldLabel' => 'Owner', 'type' => 'select', 'selectOptions' => role_owner_options, 'defaultValue' => current_account['id'], 'displayOrder' => 3}], options[:options])
           role_payload['owner'] = v_prompt['owner']
         else
@@ -645,7 +655,7 @@ EOT
           role_payload['roleType'] = 'user'
         end
 
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text', 'displayOrder' => 4}], options[:options])
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'select', 'selectOptions' => base_role_options(role_payload), 'displayOrder' => 5}], options[:options])
         if v_prompt['baseRole'].to_s != ''
           base_role = find_role_by_name_or_id(account_id, v_prompt['baseRole'])
           exit 1 if base_role.nil?
@@ -2421,6 +2431,11 @@ EOT
 
   def role_owner_options
     @options_interface.options_for_source("tenants", {})['data']
+  end
+
+  def base_role_options(role_payload)
+    params = {"tenantId" => role_payload['owner'], "userId" => current_user['id'], "roleType" => role_payload['roleType'] }
+    @options_interface.options_for_source("copyFromRole", params)['data']
   end
 
   def has_complete_access
