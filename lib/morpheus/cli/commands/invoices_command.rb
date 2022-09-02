@@ -124,6 +124,9 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
+      opts.on('--test-count VALUE', "Test if value matches the total number of results found and exit with error code 3 if not.") do |val|
+        options[:test_count] = val.to_i
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List invoices."
     end
@@ -354,6 +357,10 @@ class Morpheus::Cli::InvoicesCommand
           end
         end
         print reset,"\n"
+      end
+      total_count = (json_response["meta"]["total"] rescue nil)
+      if options[:test_count] && options[:test_count] != total_count
+        return 3, "Test count failure. Expected #{options[:test_count]} and got #{total_count}"
       end
       return 0, nil
     end
@@ -770,14 +777,13 @@ EOT
         params['includeTotals'] = true
         options[:show_invoice_totals] = true
       end
-      opts.on('--totals-only', "View totals only") do |val|
-        params['includeTotals'] = true
-        options[:show_invoice_totals] = true
-        options[:totals_only] = true
-      end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
       end
+      opts.on('--test-count VALUE', "Test if value matches the total number of results found and exit with error code 3 if not.") do |val|
+        options[:test_count] = val.to_i
+      end
+      opts.add_hidden_option('--test-count')
       build_standard_list_options(opts, options)
       opts.footer = "List invoice line items."
     end
@@ -845,7 +851,7 @@ EOT
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if line_items.empty?
-        print yellow,"No line items found.",reset,"\n"
+        print cyan,"No line items found.",reset,"\n"
       else
         # current_date = Time.now
         # current_period = "#{current_date.year}#{current_date.month.to_s.rjust(2, '0')}"
@@ -914,11 +920,11 @@ EOT
       end
       print reset,"\n"
     end
-    if line_items.empty?
-      return 1, "no line items found"
-    else
-      return 0, nil
+    total_count = (json_response["meta"]["total"] rescue nil)
+    if options[:test_count] && options[:test_count] != total_count
+      return 3, "Test count failure. Expected #{options[:test_count]} and got #{total_count}"
     end
+    return 0, nil
   end
   
   def get_line_item(args)
