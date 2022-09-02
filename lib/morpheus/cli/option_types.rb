@@ -783,23 +783,24 @@ module Morpheus
         value_found = false
         value = nil
         has_default = option_type['defaultValue'] != nil
-        default_yes = has_default ? ['on', 'true', 'yes', '1'].include?(option_type['defaultValue'].to_s.downcase) : false
+        default_on = has_default ? ['on', 'true', 'yes', '1'].include?(option_type['defaultValue'].to_s.downcase) : false
         while !value_found do
-          print "#{option_type['fieldLabel']} (yes/no)#{has_default ? ' ['+(default_yes ? 'yes' : 'no')+']' : ''}: "
+          print "#{option_type['fieldLabel']} (on/off)#{has_default ? ' ['+(default_on ? 'on' : 'off')+']' : ''}: "
           input = $stdin.gets.chomp!
           if input == '?'
             help_prompt(option_type)
             next
           end
-          if input.downcase == 'yes' || input.downcase == 'y' || input.downcase == 'on'
+          check_value = input.downcase.strip
+          if check_value == 'yes' || check_value == 'y' || check_value == 'on' || check_value == 'true' || check_value == '1'
             value_found = true
             value = 'on'
-          elsif input.downcase == 'no' || input.downcase == 'n' || input.downcase == 'off'
+          elsif check_value == 'no' || check_value == 'n' || check_value == 'off' || check_value == 'true' || check_value == '0'
             value_found = true
             value = 'off'
           elsif input == '' && has_default
             value_found = true
-            value = default_yes ? 'on' : 'off'
+            value = default_on ? 'on' : 'off'
           elsif input != ""
             puts "Invalid Option... Please try again."
             next
