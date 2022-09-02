@@ -65,7 +65,7 @@ class Morpheus::Cli::PricesCommand
       subtitles += parse_list_subtitles(options)
       print_h1 title, subtitles
       if prices.empty?
-        print yellow,"No prices found.",reset,"\n"
+        print cyan,"No prices found.",reset,"\n"
       else
         rows = prices.collect do |it|
           {
@@ -91,7 +91,6 @@ class Morpheus::Cli::PricesCommand
       end
       print reset,"\n"
     end
-    return 1,  "0 prices found" if prices.empty?
     return 0, nil
   end
 
