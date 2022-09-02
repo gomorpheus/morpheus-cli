@@ -774,11 +774,6 @@ module Morpheus
         value
       end
 
-      # this is a funky one, the user is prompted for yes/no
-      # but the return value is 'on','off',nil
-      # todo: maybe make this easier to use, and have the api's be flexible too..
-      # @param option_type [Hash] option type object with type,fieldName,fieldLabel,etc..
-      # @return 'on', 'off' or nil
       def self.checkbox_prompt(option_type)
         value_found = false
         value = nil
