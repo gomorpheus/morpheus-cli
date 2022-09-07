@@ -381,8 +381,11 @@ class Morpheus::Cli::InvoicesCommand
       opts.on('--costs', '--costs', "Display Costs in addition to prices" ) do
         options[:show_costs] = true
       end
-      opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do |val|
+      opts.on('--no-line-items', '--no-line-items', "Do not display line items.") do
         options[:hide_line_items] = true
+      end
+      opts.on('--max-line-items VALUE', 'String', "Max line items to load. Default is 1000.") do |val|
+        params['maxLineItems'] = val.to_i
       end
       opts.on('--sigdig DIGITS', "Significant digits when rounding cost values for display as currency. Default is 2. eg. $3.50") do |val|
         options[:sigdig] = val.to_i
