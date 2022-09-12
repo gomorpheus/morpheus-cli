@@ -599,7 +599,8 @@ class Morpheus::Cli::PricesCommand
         'storage' => 'Disk Only',
         'datastore' => 'Datastore',
         'platform' => 'Platform',
-        'software' => 'Software'
+        'software' => 'Software',
+        'instance_type' => 'Instance Type',
     }
   end
 
