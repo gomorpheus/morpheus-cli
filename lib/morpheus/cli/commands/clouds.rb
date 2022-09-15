@@ -986,7 +986,7 @@ class Morpheus::Cli::Clouds
 
     if cloud_type && cloud_type['optionTypes']
       if !cloud_type['optionTypes'].find {|opt| opt['type'] == 'credential'}
-        tmp_option_types << {'fieldName' => 'type', 'fieldLabel' => 'Credentials', 'type' => 'credential', 'optionSource' => 'credentials', 'required' => true, 'defaultValue' => 'local', 'config' => {'credentialTypes' => ['username-password']}, 'displayOrder' => 7}
+        tmp_option_types << {'fieldName' => 'type', 'fieldLabel' => 'Credentials', 'type' => 'credential', 'optionSource' => 'credentials', 'required' => true, 'defaultValue' => 'local', 'config' => {'credentialTypes' => get_cloud_type_credential_types(cloud_type['code'])}, 'displayOrder' => 7}
         cloud_type['optionTypes'].select {|opt| ['username', 'password', 'serviceUsername', 'servicePassword'].include?(opt['fieldName'])}.each {|opt| opt['localCredential'] = true}
       end
       # adjust displayOrder to put these at the end
@@ -1043,4 +1043,22 @@ class Morpheus::Cli::Clouds
       {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'textarea', 'required' => false, 'displayOrder' => 3, 'description' => 'The content (markdown) of the wiki page.'}
     ]
   end
+
+  def get_cloud_type_credential_types(cloud_type_code)
+    case cloud_type_code
+    when "amazon", "alibaba"
+      ['access-key-secret']
+    when "azure","azurestack"
+      ['client-id-secret']
+    when "google"
+      ['email-private-key']
+    when "softlayer"
+      ['username-api-key']
+    when "digitalocean"
+      ['username-api-key']
+    else
+      ['username-password']
+    end
+  end
+
 end
