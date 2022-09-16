@@ -823,7 +823,7 @@ module Morpheus::Cli::MonitoringHelper
     # Apps
       
     monitor_app_list = nil
-    monitor_app_ids = nil
+    monitor_app_ids = []
     if params['apps'].nil?
       still_prompting = true
       while still_prompting
