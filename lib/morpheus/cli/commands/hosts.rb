@@ -8,7 +8,7 @@ class Morpheus::Cli::Hosts
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
   register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
-                       :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync,
+                       :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync, :update_network_label,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
                        :wiki, :update_wiki
@@ -2218,6 +2218,73 @@ EOT
       out = format_server_status(server, return_color)
     end
     out
+  end
+
+  def update_network_label(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[server] [options]")
+      opts.on('--network NETWORK', "Network Interface ID" ) do |val|
+        options[:network] = val
+      end
+      opts.on('--label LABEL', "label") do |val|
+        options[:label] = val
+      end
+      opts.footer = "Change the label of a Network Interface.\n" +
+                    "Editing an Interface will not apply changes to the physical hardware. The purpose is for a manual override or data correction (mostly for self managed or baremetal servers where cloud sync is not available)\n" +
+                    "[name or id] is required. The name or the id of the server.\n" +
+                    "[network] ID of the Network Interface. (optional).\n" +
+                    "[label] New Label name for the Network Interface (optional)"
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      host = find_host_by_name_or_id(args[0])
+      return 1 if host.nil?
+
+      network_id = options[:network]
+      if !network_id
+        available_networks = get_available_networks(host)
+        network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])
+        network_id = network_prompt['network']
+      end
+
+      label = options[:label]
+      while label.nil? do
+        label_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'label', 'fieldLabel' => 'Label', 'type' => 'text', 'required' => true}], options[:options])
+        label = label_prompt['label']
+      end
+      payload = { "name" => label }
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.update_network_label(network_id, host["id"], payload)
+        return
+      end
+      json_response = @servers_interface.update_network_label(network_id, host["id"], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated label for host #{host['name']} network #{network_id} to #{label}"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def get_available_networks(host)
+    results = @options_interface.options_for_source('availableNetworksForHost',{serverId: host['id'].to_i})
+    available_networks = results['data'].collect {|it|
+      {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+    }
+    return available_networks
   end
   
 

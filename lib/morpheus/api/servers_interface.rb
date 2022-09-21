@@ -184,4 +184,12 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+    def update_network_label(network_id, server_id, payload)
+    url = "#{@base_url}/api/servers/#{server_id}/networkInterfaces/#{network_id}"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+
 end

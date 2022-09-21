@@ -23,6 +23,7 @@ class Morpheus::Cli::Instances
                        :console, :status_check, {:containers => :list_containers}, 
                        :scaling, {:'scaling-update' => :scaling_update},
                        :wiki, :update_wiki,
+                       :update_network_label,
                        {:exec => :execution_request},
                        :deploys,
                        :refresh, :prepare_apply, :apply, :state
@@ -378,9 +379,7 @@ class Morpheus::Cli::Instances
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       # opts.banner = subcommand_usage("[type] [name]")
       opts.banner = subcommand_usage("[name] -c CLOUD -t TYPE")
-      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
-        options[:group] = val
-      end
+       
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
@@ -901,6 +900,67 @@ class Morpheus::Cli::Instances
       exit 1
     end
   end
+
+  def update_network_label(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [options]")
+      opts.on('--network NETWORK', "Network Interface ID" ) do |val|
+        options[:network] = val
+      end
+      opts.on('--label LABEL', "label") do |val|
+        options[:label] = val
+      end
+       opts.footer = "Change the label of a Network Interface.\n" +
+                    "Editing an Interface will not apply changes to the physical hardware. The purpose is for a manual override or data correction (mostly for self managed or baremetal servers where cloud sync is not available)\n" +
+                    "[name or id] is required. The name or the id of the instance.\n" +
+                    "[network] ID of the Network Interface. (optional).\n" +
+                    "[label] New Label name for the Network Interface (optional)"
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      instance = find_instance_by_name_or_id(args[0])
+      return 1 if instance.nil?
+
+      network_id = options[:network]
+      if !network_id
+        available_networks = get_available_networks(instance)
+        network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])
+        network_id = network_prompt['network']
+      end
+
+      label = options[:label]
+      while label.nil? do
+        label_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'label', 'fieldLabel' => 'Label', 'type' => 'text', 'required' => true}], options[:options])
+        label = label_prompt['label']
+      end
+      payload = { "name" => label }
+      if options[:dry_run]
+        print_dry_run @instances_interface.dry.update_network_label(network_id, instance["id"], payload)
+        return
+      end
+      json_response = @instances_interface.update_network_label(network_id, instance["id"], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated label for instance #{instance['name']} network #{network_id} to #{label}"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+
 
   def status_check(args)
     out = ""
@@ -5182,6 +5242,14 @@ private
       "Deploy Date" => lambda {|it| format_local_dt(it['deployDate']) },
       "Status" => lambda {|it| format_app_deploy_status(it['status']) },
     }
+  end
+
+  def get_available_networks(instance)
+    results = @options_interface.options_for_source('availableNetworksForInstance',{instanceId: instance['id'].to_i})
+    available_networks = results['data'].collect {|it|
+      {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+    }
+    return available_networks
   end
 
 end

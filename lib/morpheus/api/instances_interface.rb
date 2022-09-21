@@ -367,6 +367,13 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def update_network_label(network_id, instance_id, payload)
+    url = "#{@base_url}/api/instances/#{instance_id}/networkInterfaces/#{network_id}"
+    headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def deploys(id, params)
     # todo: make this plural??
     execute(method: :get, url: "/api/instances/#{id}/deploy", params: params)
