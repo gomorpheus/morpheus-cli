@@ -25,6 +25,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
 
   def list(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
       opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
@@ -40,7 +41,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
     end
     connect(options)
     begin
-      params = {}
+      
       params.merge!(parse_list_options(options))
       @option_type_lists_interface.setopts(options)
       if options[:dry_run]
@@ -63,6 +64,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
           {
             id: option_type_list['id'],
             name: option_type_list['name'],
+            labels: option_type_list['labels'],
             description: option_type_list['description'],
             type: ((option_type_list['type'] == 'api') ? "#{option_type_list['type']} (#{option_type_list['apiType']})" : option_type_list['type'])
           }
@@ -70,6 +72,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
           columns = [
           :id,
           :name,
+          {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
           :description,
           :type
         ]

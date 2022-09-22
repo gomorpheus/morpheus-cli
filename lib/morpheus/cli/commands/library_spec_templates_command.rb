@@ -188,6 +188,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
+      end
       opts.on('-t', '--type TYPE', "Spec Template Type. i.e. arm, cloudFormation, helm, kubernetes, oneview, terraform, ucs") do |val|
         template_type = val.to_s
       end
@@ -340,6 +343,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Spec Template Type. kubernetes, helm, terraform, cloudFormation") do |val|
         template_type = val.to_s

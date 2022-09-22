@@ -96,6 +96,9 @@ class Morpheus::Cli::Workflows
       opts.on("--name NAME", String, "Name for workflow") do |val|
         params['name'] = val
       end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
+      end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val
       end
@@ -410,6 +413,9 @@ class Morpheus::Cli::Workflows
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "New name for workflow") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val

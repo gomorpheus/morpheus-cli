@@ -166,6 +166,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
+      end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
       end
@@ -263,6 +266,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val

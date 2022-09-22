@@ -25,6 +25,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
 
   def list(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
@@ -36,11 +37,11 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     optparse.parse!(args)
     # verify_args!(args:args, optparse:optparse, count:0)
     if args.count > 0
-      options[:phrase] = args.join(" ")
+      params[:phrase] = args.join(" ")
     end
     connect(options)
     
-    params = {}
+    
     params.merge!(parse_list_options(options))
     @option_types_interface.setopts(options)
     if options[:dry_run]
@@ -63,6 +64,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
             id: option_type['id'],
             name: option_type['name'],
             type: option_type['type'],
+            labels: option_type['labels'],
             fieldLabel: option_type['fieldLabel'],
             fieldName: option_type['fieldName'],
             default: option_type['defaultValue'],
@@ -74,6 +76,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
         print as_pretty_table(rows, [
           :id,
           :name,
+          {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
           :type,
           {:fieldLabel => {:display_name => "Field Label"} },
           {:fieldName => {:display_name => "Field Name"} },
@@ -129,6 +132,7 @@ class Morpheus::Cli::LibraryOptionTypesCommand
       columns = {
         "ID" => 'id',
         "Name" => 'name',
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "Description" => 'description',
         "Field Label" => 'fieldLabel',
         # "Field Context" => 'fieldContext',
@@ -154,6 +158,9 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
+      end
       build_option_type_options(opts, options, new_option_type_option_types)
       build_standard_add_options(opts, options)
       opts.footer = "Create a new option type."
@@ -198,6 +205,9 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
+      end
       build_option_type_options(opts, options, update_option_type_option_types)
       build_standard_update_options(opts, options)
       opts.footer = "Update an option type.\n" +

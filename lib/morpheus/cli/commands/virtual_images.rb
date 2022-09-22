@@ -306,6 +306,9 @@ EOT
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
+      end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
       end
@@ -443,6 +446,9 @@ EOT
         else
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on('--tags LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
         options[:tags] = val

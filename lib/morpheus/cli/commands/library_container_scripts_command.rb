@@ -155,6 +155,9 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
+      end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
       end
@@ -245,6 +248,9 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
