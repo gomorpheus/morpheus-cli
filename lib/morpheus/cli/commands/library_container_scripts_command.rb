@@ -122,6 +122,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "Type" => lambda {|it| format_container_script_type(it['scriptType']) },
         "Phase" => lambda {|it| format_container_script_phase(it['scriptPhase']) },
         "Run As User" => lambda {|it| it['runAsUser'] },
@@ -414,6 +415,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     columns = [
       {"ID" => lambda {|container_script| container_script['id'] } },
       {"NAME" => lambda {|container_script| container_script['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"TYPE" => lambda {|container_script| format_container_script_type(container_script['scriptType']) } },
       {"PHASE" => lambda {|container_script| format_container_script_phase(container_script['scriptPhase']) } },
       {"OWNER" => lambda {|container_script| container_script['account'] ? container_script['account']['name'] : '' } },

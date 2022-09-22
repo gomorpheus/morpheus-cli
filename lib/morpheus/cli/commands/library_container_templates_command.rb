@@ -131,6 +131,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "File Name" => lambda {|it| it['fileName'] },
         "File Path" => lambda {|it| it['filePath'] },
         "Setting Category" => lambda {|it| it['settingCategory'] },
@@ -430,6 +431,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
     columns = [
       {"ID" => lambda {|container_template| container_template['id'] } },
       {"NAME" => lambda {|container_template| container_template['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"FILE NAME" => lambda {|container_template| container_template['fileName'] } },
       {"FILE PATH" => lambda {|container_template| container_template['filePath'] } },
       {"SETTING CATEGORY" => lambda {|container_template| container_template['settingCategory'] } },
