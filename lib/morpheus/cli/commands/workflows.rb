@@ -40,6 +40,9 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List workflows."
     end

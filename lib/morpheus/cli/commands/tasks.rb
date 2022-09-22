@@ -28,6 +28,11 @@ class Morpheus::Cli::Tasks
       opts.on('-t', '--type x,y,z', Array, "Filter by task type code(s)") do |val|
         params['taskTypeCodes'] = val
       end
+
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
+      
       build_standard_list_options(opts, options)
       opts.footer = "List tasks."
     end

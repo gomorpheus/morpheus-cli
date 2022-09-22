@@ -27,6 +27,9 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List option types."
     end
