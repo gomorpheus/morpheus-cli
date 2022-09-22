@@ -22,6 +22,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -128,6 +131,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "File Name" => lambda {|it| it['fileName'] },
         "File Path" => lambda {|it| it['filePath'] },
         "Setting Category" => lambda {|it| it['settingCategory'] },
@@ -161,6 +165,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
@@ -259,6 +266,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
@@ -427,6 +437,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
     columns = [
       {"ID" => lambda {|container_template| container_template['id'] } },
       {"NAME" => lambda {|container_template| container_template['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"FILE NAME" => lambda {|container_template| container_template['fileName'] } },
       {"FILE PATH" => lambda {|container_template| container_template['filePath'] } },
       {"SETTING CATEGORY" => lambda {|container_template| container_template['settingCategory'] } },

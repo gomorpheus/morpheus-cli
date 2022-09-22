@@ -42,6 +42,9 @@ class Morpheus::Cli::VirtualImages
        opts.on('--synced', "Synced Images" ) do
         options[:filterType] = 'Synced'
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
           k,v = value_pair.strip.split("=")
@@ -197,6 +200,7 @@ EOT
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Type" => lambda {|it| image_type_display },
           "Operating System" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, 
           "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
@@ -301,6 +305,9 @@ EOT
         else
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
@@ -439,6 +446,9 @@ EOT
         else
           tenants_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on('--tags LIST', String, "Metadata tags in the format 'name:value, name:value'") do |val|
         options[:tags] = val

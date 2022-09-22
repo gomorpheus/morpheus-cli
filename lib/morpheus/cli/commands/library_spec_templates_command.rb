@@ -21,6 +21,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List spec templates."
     end
@@ -54,6 +57,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
         columns = [
           {"ID" => lambda {|resource_spec| resource_spec['id'] } },
           {"NAME" => lambda {|resource_spec| resource_spec['name'] } },
+          {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
           {"TYPE" => lambda {|resource_spec| resource_spec['type']['name'] rescue '' } },
           {"SOURCE" => lambda {|resource_spec| resource_spec['file']['sourceType'] rescue '' } },
           {"CREATED" => lambda {|resource_spec| format_local_dt(resource_spec['dateCreated']) } },
@@ -121,6 +125,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "Type" => lambda {|it| it['type']['name'] rescue '' },
         "Source" => lambda {|it| it['file']['sourceType'] rescue '' },
         #"Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
@@ -182,6 +187,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Spec Template Type. i.e. arm, cloudFormation, helm, kubernetes, oneview, terraform, ucs") do |val|
         template_type = val.to_s
@@ -335,6 +343,9 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Spec Template Type. kubernetes, helm, terraform, cloudFormation") do |val|
         template_type = val.to_s

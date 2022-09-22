@@ -21,6 +21,9 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List container scripts."
     end
@@ -119,6 +122,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "Type" => lambda {|it| format_container_script_type(it['scriptType']) },
         "Phase" => lambda {|it| format_container_script_phase(it['scriptPhase']) },
         "Run As User" => lambda {|it| it['runAsUser'] },
@@ -150,6 +154,9 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
@@ -241,6 +248,9 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
@@ -411,6 +421,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
     columns = [
       {"ID" => lambda {|container_script| container_script['id'] } },
       {"NAME" => lambda {|container_script| container_script['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"TYPE" => lambda {|container_script| format_container_script_type(container_script['scriptType']) } },
       {"PHASE" => lambda {|container_script| format_container_script_phase(container_script['scriptPhase']) } },
       {"OWNER" => lambda {|container_script| container_script['account'] ? container_script['account']['name'] : '' } },

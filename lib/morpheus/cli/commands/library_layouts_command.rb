@@ -51,6 +51,9 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--technology VALUE', String, "Filter by technology") do |val|
         params['provisionType'] = val
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List layouts."
     end

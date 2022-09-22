@@ -40,6 +40,9 @@ class Morpheus::Cli::Workflows
         end
         params['type'] = workflow_type
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List workflows."
     end
@@ -92,6 +95,9 @@ class Morpheus::Cli::Workflows
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "Name for workflow") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val
@@ -341,6 +347,7 @@ class Morpheus::Cli::Workflows
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Description" => 'description',
           "Type" => lambda {|workflow| format_workflow_type(workflow) },
           "Platform" => lambda {|it| format_platform(it['platform']) },
@@ -406,6 +413,9 @@ class Morpheus::Cli::Workflows
       opts.banner = subcommand_usage("[name] --tasks taskId:phase,taskId2:phase,taskId3:phase")
       opts.on("--name NAME", String, "New name for workflow") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val
@@ -762,6 +772,7 @@ class Morpheus::Cli::Workflows
     columns = [
       {"ID" => lambda {|workflow| workflow['id'] } },
       {"NAME" => lambda {|workflow| workflow['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"DESCRIPTION" => lambda {|workflow| workflow['description'] } },
       {"TYPE" => lambda {|workflow| format_workflow_type(workflow) } },
       {"TASKS" => lambda {|workflow| 

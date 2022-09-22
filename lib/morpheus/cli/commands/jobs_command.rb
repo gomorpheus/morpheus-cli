@@ -42,6 +42,9 @@ class Morpheus::Cli::JobsCommand
       opts.on("--stats [true|false]", String, "Hide Execution Stats. Job statistics are displayed by default.") do |val|
         options[:show_stats] = (val.to_s != "false")
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List jobs."
     end
@@ -85,6 +88,7 @@ class Morpheus::Cli::JobsCommand
           "ID" => 'id',
           "Type" => lambda {|job| job['type'] ? job['type']['name'] : '' },
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Details" => lambda {|job| job['jobSummary'] },
           "Enabled" => lambda {|job| "#{job['enabled'] ? '' : yellow}#{format_boolean(job['enabled'])}#{cyan}" },
           # "Date Created" => lambda {|job| format_local_dt(job['dateCreated']) },
@@ -194,6 +198,7 @@ class Morpheus::Cli::JobsCommand
       description_cols = {
           "ID" => lambda {|it| it['id'] },
           "Name" => lambda {|it| it['name']},
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Job Type" => lambda {|it| it['type']['name']},
           "Enabled" => lambda {|it| format_boolean(it['enabled'])},
           (job['workflow'] ? 'Workflow' : 'Task') => lambda {|it| it['jobSummary']},
@@ -233,6 +238,9 @@ class Morpheus::Cli::JobsCommand
       opts.banner = subcommand_usage( "[name]")
       opts.on("--name NAME", String, "Updates job name") do |val|
         params['name'] = val.to_s
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
@@ -435,6 +443,9 @@ class Morpheus::Cli::JobsCommand
       opts.banner = subcommand_usage( "[job]")
       opts.on("--name NAME", String, "Updates job name") do |val|
         params['name'] = val.to_s
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        params['labels'] = val
       end
       opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''

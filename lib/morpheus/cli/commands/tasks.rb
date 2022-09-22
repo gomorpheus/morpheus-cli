@@ -28,6 +28,11 @@ class Morpheus::Cli::Tasks
       opts.on('-t', '--type x,y,z', Array, "Filter by task type code(s)") do |val|
         params['taskTypeCodes'] = val
       end
+
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        params['label'] = val
+      end
+
       build_standard_list_options(opts, options)
       opts.footer = "List tasks."
     end
@@ -125,6 +130,7 @@ class Morpheus::Cli::Tasks
           "Name" => 'name',
           "Code" => 'code',
           "Type" => lambda {|it| it['taskType']['name'] },
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Execute Target" => lambda {|it| 
             if it['executeTarget'] == 'local'
               git_info = []
@@ -259,6 +265,9 @@ class Morpheus::Cli::Tasks
       end
       opts.on('--name NAME', String, "Task Name" ) do |val|
         task_name = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on('--code CODE', String, "Task Code" ) do |val|
         task_code = val
@@ -629,6 +638,9 @@ class Morpheus::Cli::Tasks
       opts.banner = subcommand_usage("[task] [options]")
       opts.on('--name NAME', String, "Task Name" ) do |val|
         options[:options]['name'] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on('--code CODE', String, "Task Code" ) do |val|
         options[:options]['code'] = val
@@ -1175,7 +1187,9 @@ class Morpheus::Cli::Tasks
       {"ID" => lambda {|it| it['id'] } },
       {"NAME" => lambda {|it| it['name'] } },
       {"TYPE" => lambda {|it| it['taskType']['name'] ? it['taskType']['name'] : it['type'] } },
-      {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
+      {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } }
+
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
     ]
     if opts[:include_fields]

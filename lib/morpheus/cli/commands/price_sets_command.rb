@@ -193,7 +193,7 @@ class Morpheus::Cli::PriceSetsCommand
         end
       end
       opts.on('-t', "--type [TYPE]", String, "Price set type") do |val|
-        if ['fixed', 'compute_plus_storage', 'component'].include?(val)
+        if ['fixed', 'compute_plus_storage', 'component','load_balancer','snapshot','virtual_image','software_or_service'].include?(val)
           params['type'] = val
         else
           raise_command_error "Unrecognized price set type #{val}"
@@ -268,7 +268,7 @@ class Morpheus::Cli::PriceSetsCommand
         end
 
         # type
-        params['type'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Price Set Type', 'selectOptions' => [{'name' => 'Everything', 'value' => 'fixed'}, {'name' => 'Compute + Storage', 'value' => 'compute_plus_storage'}, {'name' => 'Component', 'value' => 'component'}], 'required' => true, 'description' => 'Price Set Type.'}],options[:options],@api_client,{}, options[:no_prompt])['type']
+        params['type'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Price Set Type', 'selectOptions' => [{'name' => 'Everything', 'value' => 'fixed'}, {'name' => 'Compute + Storage', 'value' => 'compute_plus_storage'}, {'name' => 'Component', 'value' => 'component'}, {'name' => 'Load Balancer', 'value' => 'load_balancer'},{'name' => 'Snapshot', 'value' => 'snapshot'},{'name' => 'Virtual Image', 'value' => 'virtual_image'},{'name' => 'Software / Service', 'value' => 'software_or_service'}], 'required' => true, 'description' => 'Price Set Type.'}],options[:options],@api_client,{}, options[:no_prompt])['type']
         if params['type'].nil?
           print_red_alert "Type is required"
           exit 1
@@ -491,7 +491,12 @@ class Morpheus::Cli::PriceSetsCommand
   end
 
   def price_set_type_label(type)
-    price_set_types[type][:label]
+    price_set_type = price_set_types[type]
+    if price_set_type.nil?
+      type.capitalize
+    else
+      price_set_type[:label]
+    end
   end
 
   def price_type_label(type)
@@ -503,7 +508,9 @@ class Morpheus::Cli::PriceSetsCommand
         'storage' => 'Disk Only (per GB)',
         'datastore' => 'Datastore (per GB)',
         'platform' => 'Platform',
-        'software' => 'Software'
+        'software' => 'Software',
+        'load_balancer' => 'Load Balancer',
+        'load_balancer_virtual_server' => 'Load Balancer Virtual Server'
     }[type] || type.capitalize
   end
 
@@ -516,6 +523,10 @@ class Morpheus::Cli::PriceSetsCommand
         'fixed' => {:label => 'Everything', :requires => ['fixed'], :allows => ['platform', 'software']},
         'compute_plus_storage' => {:label => 'Compute + Storage', :requires => ['compute', 'storage'], :allows => ['platform', 'software']},
         'component' => {:label => 'Component', :requires => ['memory', 'cores', 'storage'], :allows => ['platform', 'software']},
+        'load_balancer' => {:label => 'Load Balancer', :requires => ['load_balancer'], :allows => ['load_balancer_virtual_server']},
+        'snapshot' => {:label => 'Snapshot', :requires => ['storage'], :allows => ['storage', 'datastore']},
+        'virtual_image' => {:label => 'Virtual Image', :requires => ['storage'], :allows => []},
+        'software_or_service' => {:label => 'Software / Service', :requires => ['software'], :allows => []},
     }
   end
 
