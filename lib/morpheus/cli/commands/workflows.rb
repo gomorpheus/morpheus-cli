@@ -344,6 +344,7 @@ class Morpheus::Cli::Workflows
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Description" => 'description',
           "Type" => lambda {|workflow| format_workflow_type(workflow) },
           "Platform" => lambda {|it| format_platform(it['platform']) },
@@ -765,6 +766,7 @@ class Morpheus::Cli::Workflows
     columns = [
       {"ID" => lambda {|workflow| workflow['id'] } },
       {"NAME" => lambda {|workflow| workflow['name'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
       {"DESCRIPTION" => lambda {|workflow| workflow['description'] } },
       {"TYPE" => lambda {|workflow| format_workflow_type(workflow) } },
       {"TASKS" => lambda {|workflow| 

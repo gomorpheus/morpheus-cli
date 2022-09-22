@@ -32,7 +32,7 @@ class Morpheus::Cli::Tasks
       opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
         params['label'] = val
       end
-      
+
       build_standard_list_options(opts, options)
       opts.footer = "List tasks."
     end
@@ -130,6 +130,7 @@ class Morpheus::Cli::Tasks
           "Name" => 'name',
           "Code" => 'code',
           "Type" => lambda {|it| it['taskType']['name'] },
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Execute Target" => lambda {|it| 
             if it['executeTarget'] == 'local'
               git_info = []
@@ -1180,7 +1181,9 @@ class Morpheus::Cli::Tasks
       {"ID" => lambda {|it| it['id'] } },
       {"NAME" => lambda {|it| it['name'] } },
       {"TYPE" => lambda {|it| it['taskType']['name'] ? it['taskType']['name'] : it['type'] } },
-      {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
+      {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } }
+
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
     ]
     if opts[:include_fields]
