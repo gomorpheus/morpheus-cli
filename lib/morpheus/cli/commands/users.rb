@@ -185,6 +185,7 @@ EOT
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
+    params.merge!(parse_query_options(options))
     return run_command_for_each_arg(id_list) do |arg|
       _get(arg, params, options)
     end
