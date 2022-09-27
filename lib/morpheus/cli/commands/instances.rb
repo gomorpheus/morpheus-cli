@@ -931,11 +931,18 @@ class Morpheus::Cli::Instances
       return 1 if instance.nil?
 
       network_id = options[:network]
+      if network_id.is_a? String
+        print_red_alert  "network must be an ID/integer, not a name/string value."
+        network_id = nil
+      end
+
       if !network_id
         available_networks = get_available_networks(instance)
         network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])
         network_id = network_prompt['network']
       end
+
+
 
       label = options[:label]
       while label.nil? do
