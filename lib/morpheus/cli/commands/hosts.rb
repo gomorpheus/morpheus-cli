@@ -2250,6 +2250,12 @@ EOT
       return 1 if host.nil?
 
       network_id = options[:network]
+      if network_id != nil && network_id.to_i == 0
+        print_red_alert  "network must be an ID/integer above 0, not a name/string value."
+        network_id = nil
+      end
+
+
       if !network_id
         available_networks = get_available_networks(host)
         network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])

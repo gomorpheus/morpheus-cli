@@ -931,8 +931,8 @@ class Morpheus::Cli::Instances
       return 1 if instance.nil?
 
       network_id = options[:network]
-      if network_id.is_a? String
-        print_red_alert  "network must be an ID/integer, not a name/string value."
+      if network_id != nil && network_id.to_i == 0
+        print_red_alert  "network must be an ID/integer above 0, not a name/string value."
         network_id = nil
       end
 
