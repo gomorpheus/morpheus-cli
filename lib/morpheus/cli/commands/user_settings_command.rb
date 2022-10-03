@@ -79,6 +79,7 @@ EOT
         "First Name" => lambda {|it| it['firstName'] },
         "Last Name" => lambda {|it| it['lastName'] },
         "Email" => lambda {|it| it['email'] },
+        "Theme" => lambda {|it| it['activeTheme'] ? it['activeTheme'] : '' },
         "Avatar" => lambda {|it| it['avatar'] ? it['avatar'].split('/').last : '' },
         "Notifications" => lambda {|it| format_boolean(it['receiveNotifications']) },
         "Linux Username" => lambda {|it| it['linuxUsername'] },
@@ -807,6 +808,14 @@ EOT
       {'switch' => 'change-password', 'fieldName' => 'password', 'fieldLabel' => 'Password', 'type' => 'password', 'description' => 'Change user credentials to use a new password'},
       {'fieldName' => 'avatar', 'fieldLabel' => 'Avatar', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user avatar'},
       {'fieldName' => 'desktopBackground', 'fieldLabel' => 'Desktop Background', 'type' => 'file', 'description' => 'Local filepath of image file to upload as user desktop background'},
+      {'switch' => 'theme', 'fieldName' => 'activeTheme', 'fieldLabel' => 'Theme', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
+        begin
+          api_client.options_for_source("themes", api_params)['data']
+        rescue => ex
+          Morpheus::Logging::DarkPrinter.puts "Failed to load options for themes. Exception: (#{ex.class}) '#{ex.message}'" if Morpheus::Logging.debug?
+          [{"name" => "Default", "value" => "default"}, {"name" => "Dark Mode", "value" => "darkMode"}]
+        end
+      }, 'description' => 'Active Theme to use for the UI, default or darkMode.'},
       # api cannot yet modify isUsing2fa
       # {'switch' => '2fa', 'fieldName' => 'isUsing2fa', 'fieldLabel' => '2FA Enabled', 'type' => 'checkbox', 'description' => 'Enable or Disable 2FA for your user.'}
     ]
