@@ -114,8 +114,11 @@ module Morpheus
           if !option_type['visibleOnCode'].to_s.empty?
             visible_option_check_value = option_type['visibleOnCode']
           end
-
-          if !visible_option_check_value.to_s.empty?
+          # adding a slight hack for dependencies on the network component since its not an option type
+          extra_option_params = {}
+          if visible_option_check_value == 'networkInterfaces'
+            # extra_option_params["networkInterfaceIds[]"] = []
+          elsif !visible_option_check_value.to_s.empty?
             match_type = 'any'
 
             if visible_option_check_value.include?('::')
@@ -161,6 +164,7 @@ module Morpheus
           # build parameters for option source api request
           option_params = (option_type['noParams'] ? {} : (api_params || {}).deep_merge(results))
           option_params.merge!(option_type['optionParams']) if option_type['optionParams']
+          # option_params.merge!(extra_option_params) if extra_option_params && !extra_option_params.empty?
 
           cur_namespace = options
           parent_context_map = context_map

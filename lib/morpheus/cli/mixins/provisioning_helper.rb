@@ -953,6 +953,14 @@ module Morpheus::Cli::ProvisioningHelper
     api_params['config'] = payload['config'] if payload['config']
     api_params['poolId'] = payload['config']['resourcePoolId'] if payload['config'] && payload['config']['resourcePoolId']
     api_params['resourcePoolId'] = api_params['poolId']
+    # some option sources expect networkIntefaces passed as networkInterfaceIds[] eg. oraclecloudAvailabilityDomains
+    if payload['networkInterfaces']
+      begin
+        api_params['networkInterfaceIds[]'] = payload['networkInterfaces'].collect {|it| it['network']['id'] }
+      rescue => netex
+        Morpheus::Logging::DarkPrinter.puts "Unable to parse networkInterfaces parameter" if Morpheus::Logging.debug?
+      end
+    end
 
     # set option type defaults from config
     if options[:default_config]
