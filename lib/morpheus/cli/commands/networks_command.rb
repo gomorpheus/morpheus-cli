@@ -326,10 +326,10 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      opts.on('--domain VALUE', String, "Network Domain ID") do |val|
+      opts.on('--domain [VALUE]', String, "Network Domain ID") do |val|
         options['domain'] = val
       end
-      opts.on('--search-domains VALUE', String, "Search Domains") do |val|
+      opts.on('--search-domains [VALUE]', String, "Search Domains") do |val|
         options['searchDomains'] = val
       end
       opts.on('--scan [on|off]', String, "Scan Network") do |val|
@@ -675,13 +675,19 @@ class Morpheus::Cli::NetworksCommand
 
         # Network Domain
         if network_type['networkDomainEditable'] && payload['network']['networkDomain'].nil?
-          # always prompt to handle value as name instead of id...
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
-          payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+          if options.key?('domain')
+            if options['domain'].to_s.empty?  # clear it?
+              payload['network']['networkDomain'] = {'id' => nil}
+            else
+              # always prompt to handle value as name instead of id...
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
+              payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+            end
+          end
         end
 
         # Search Domains
-        if options['searchDomains'] != nil
+        if options.key?('searchDomains')
           payload['network']['searchDomains'] = options['searchDomains']
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'searchDomains', 'fieldLabel' => 'Search Domains', 'type' => 'text', 'required' => false, 'description' => ''}], options)
@@ -841,10 +847,10 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
-      opts.on('--domain VALUE', String, "Network Domain ID") do |val|
+      opts.on('--domain [VALUE]', String, "Network Domain ID") do |val|
         options['domain'] = val
       end
-      opts.on('--search-domains VALUE', String, "Search Domains") do |val|
+      opts.on('--search-domains [VALUE]', String, "Search Domains") do |val|
         options['searchDomains'] = val
       end
       opts.on('--scan [on|off]', String, "Scan Network") do |val|
@@ -1054,14 +1060,18 @@ class Morpheus::Cli::NetworksCommand
         end
         
         # Network Domain
-        if options['domain']
-          # always prompt to handle value as name instead of id...
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
-          payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+        if options.key?('domain')
+          if options['domain'].to_s.empty?  # clear it?
+            payload['network']['networkDomain'] = {'id' => nil}
+          else
+            # always prompt to handle value as name instead of id...
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
+            payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
+          end
         end
 
         # Search Domains
-        if options['searchDomains'] != nil
+        if options.key?('searchDomains')
           payload['network']['searchDomains'] = options['searchDomains']
         else
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'searchDomains', 'fieldLabel' => 'Search Domains', 'type' => 'text', 'required' => false, 'description' => ''}], options)

@@ -474,7 +474,22 @@ module Morpheus
 
         # ensure the preselected value (passed as an option) is in the dropdown
         if !use_value.nil?
-          matched_option = select_options.find {|opt| opt[value_field].to_s == use_value.to_s || opt['name'].to_s == use_value.to_s }
+          matched_option = select_options.find {|it| it[value_field].to_s == use_value.to_s }
+          if matched_option.nil?
+            matched_options = select_options.select {|it| opt['name'].to_s == use_value.to_s }
+            if matched_options.size > 1
+              print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+              display_select_options(option_type, matched_options)
+              print "The value '#{input}' matched #{matched_options.size()} options.\n"
+              # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
+              print "Try using value instead of name.\n"
+              print "\n"
+              exit 1
+            elsif matched_options.size == 1
+              matched_option = matched_options[0]
+            end
+          end
           if !matched_option.nil?
             value = matched_option[value_field]
             value_found = true
@@ -522,10 +537,39 @@ module Morpheus
 
         if no_prompt
           if !value_found
-            if !default_value.nil? && !select_options.nil? && select_options.find {|it| it['name'] == default_value || it[value_field].to_s == default_value.to_s}
-              value_found = true
-              value = select_options.find {|it| it['name'] == default_value || it[value_field].to_s == default_value.to_s}[value_field]
-            elsif !select_options.nil? && select_options.count > 1 && option_type['autoPickOption'] == true
+            if !default_value.nil? && !select_options.nil?
+              matched_option = select_options.find {|it| it[value_field].to_s == default_value.to_s }
+              if matched_option.nil?
+                matched_options = select_options.select {|it| it['name'].to_s == default_value.to_s }
+                if matched_options.size > 1
+                  print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{default_value}]\n\n", Term::ANSIColor.reset
+                  print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+                  display_select_options(option_type, matched_options)
+                  print "The value '#{default_value}' matched #{matched_options.size()} options.\n"
+                  # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
+                  print "Try using value instead of name.\n"
+                  print "\n"
+                  exit 1
+                elsif matched_options.size == 1
+                  matched_option = matched_options[0]
+                end
+              end
+              if !matched_option.nil?
+                value = matched_option[value_field]
+                value_found = true
+              else
+                print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{default_value}]\n\n", Term::ANSIColor.reset
+                print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+                if select_options && select_options.size > 10
+                  display_select_options(option_type, select_options.first(10))
+                  puts " (#{select_options.size-10} more)"
+                else
+                  display_select_options(option_type, select_options)
+                end
+                print "\n"
+                exit 1
+              end
+            elsif !select_options.nil? && select_options.count > 0 && option_type['autoPickOption'] == true
               value_found = true
               value = select_options[0][value_field]
             elsif option_type['required']
@@ -577,10 +621,26 @@ module Morpheus
           if input.empty? && default_value
             input = default_value.to_s
           end
-          select_option = select_options.find{|b| b['name'] == input || (!b['value'].nil? && b['value'].to_s == input) || (!b[value_field].nil? && b[value_field].to_s == input) || (b[value_field].nil? && input.empty?)}
-          if select_option
-            value = select_option[value_field]
-            set_last_select(select_option)
+          matched_option = select_options.find{|it| (!it['value'].nil? && it['value'].to_s == input) || (!it[value_field].nil? && it[value_field].to_s == input) || (it[value_field].nil? && input.empty?)}
+          if matched_option.nil?
+            matched_options = select_options.select {|it| it['name'] == input } # should probably be case insensitive 
+            if matched_options.size > 1
+              print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{input}]\n\n", Term::ANSIColor.reset
+              print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
+              display_select_options(option_type, matched_options)
+              print "The value '#{input}' matched #{matched_options.size()} options.\n"
+              # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
+              print "Try using value instead of name.\n"
+              print "\n"
+              exit 1
+            elsif matched_options.size == 1
+              matched_option = matched_options[0]
+            end
+          end
+
+          if matched_option
+            value = matched_option[value_field]
+            set_last_select(matched_option)
           elsif !input.nil?  && !input.to_s.empty?
             input = '?'
           end

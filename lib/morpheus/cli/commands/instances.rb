@@ -379,7 +379,9 @@ class Morpheus::Cli::Instances
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       # opts.banner = subcommand_usage("[type] [name]")
       opts.banner = subcommand_usage("[name] -c CLOUD -t TYPE")
-       
+      opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
+        options[:group] = val
+      end
       opts.on( '-c', '--cloud CLOUD', "Cloud Name or ID" ) do |val|
         options[:cloud] = val
       end
