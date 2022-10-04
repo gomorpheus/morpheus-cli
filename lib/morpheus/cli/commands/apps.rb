@@ -332,7 +332,7 @@ class Morpheus::Cli::Apps
         end
         if cloud_id
           cloud = find_cloud_by_name_or_id_for_provisioning(group['id'], cloud_id)
-          #payload['cloud'] = {'id' => cloud['id'], 'name' => cloud['name']}
+          payload['defaultCloud'] = {'id' => cloud ? cloud['id'] : cloud_id}
         end
         
         # Environment
@@ -371,6 +371,7 @@ class Morpheus::Cli::Apps
               # tiers are a map, heh, sort them by tierIndex
               tiers = blueprint["config"]["tiers"] ? blueprint["config"]["tiers"] : (blueprint["tiers"] || {})
               sorted_tiers = tiers.collect {|k,v| [k,v] }.sort {|a,b| a[1]['tierIndex'] <=> b[1]['tierIndex'] }
+              payload.delete('defaultCloud')
               sorted_tiers.each do |tier_obj|
                 tier_name = tier_obj[0]
                 tier_config = tier_obj[1]
