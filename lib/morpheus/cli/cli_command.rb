@@ -268,6 +268,10 @@ module Morpheus
         build_standard_delete_options(opts, options, includes, excludes)
       end
       
+      def build_standard_api_options(opts, options, includes=[], excludes=[])
+        build_common_options(opts, options, includes + [:query, :options, :payload, :json, :yaml, :csv, :fields, :select, :delim, :quiet, :dry_run, :remote], excludes)
+      end
+
       # number of decimal places to show with curreny
       def default_sigdig
         2
