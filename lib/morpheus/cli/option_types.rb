@@ -1230,6 +1230,7 @@ module Morpheus
       def self.format_select_options_help(opt, select_options = [], paging = nil)
         out = ""
         header = opt['fieldLabel'] ? "#{opt['fieldLabel']} Options" : "Options"
+        value_field = (opt['config'] ? opt['config']['valueField'] : nil) || 'value'
         if paging
           offset = paging[:cur_page] * paging[:page_size]
           limit = [offset + paging[:page_size], select_options.count].min - 1
@@ -1240,9 +1241,8 @@ module Morpheus
         out << "\n"
         out << "#{header}\n"
         out << "#{'=' * header.length}\n"
-
         select_options.each do |option|
-          out << (option['isGroup'] ? "- #{option['name']}\n" : " * #{option['name']} [#{option['value']}]\n")
+          out << (option['isGroup'] ? "- #{option['name']}\n" : " * #{option['name']} [#{option[value_field]}]\n")
         end
         return out
       end
