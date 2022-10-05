@@ -18,6 +18,7 @@ class Morpheus::Cli::SecurityGroups
     @options_interface = @api_client.options
     @active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
     @network_security_servers = @api_client.network_security_servers
+    @network_servers = @api_client.network_servers
   end
 
   def handle(args)
@@ -26,57 +27,35 @@ class Morpheus::Cli::SecurityGroups
 
 
   def list(args)
+    params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_list_options(opts, options)
       opts.footer = "List security groups."
     end
     optparse.parse!(args)
-    if args.count != 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    # verify_args!(args:args, optparse:optparse, count:0)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
     end
     connect(options)
-    begin
-      params = {}
-      params.merge!(parse_list_options(options))
-      @security_groups_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @security_groups_interface.dry.list(params)
-        return
-      end
-      json_response = @security_groups_interface.list(params)
-      
-      render_result = render_with_format(json_response, options, 'securityGroups')
-      return 0 if render_result
-
+    params.merge!(parse_list_options(options))
+    @security_groups_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @security_groups_interface.dry.list(params)
+      return
+    end
+    json_response = @security_groups_interface.list(params)
+    render_response(json_response, options, "securityGroups") do
+      security_groups = json_response['securityGroups']
       title = "Morpheus Security Groups"
       subtitles = []
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-
-      security_groups = json_response['securityGroups']
-      
+      print_h1 title, subtitles, options
       if security_groups.empty?
         print cyan,"No security groups found.",reset,"\n"
       else
-        active_id = @active_security_group[@appliance_name.to_sym]
-        # table_color = options[:color] || cyan
-        # rows = security_groups.collect do |security_group|
-        #   {
-        #     id: security_group['id'].to_s + ((security_group['id'] == active_id.to_i) ? " (active)" : ""),
-        #     name: security_group['name'],
-        #     description: security_group['description']
-        #   }
-        # end
-
-        # columns = [
-        #   :id,
-        #   :name,
-        #   :description,
-        #   # :ports,
-        #   # :status,
-        # ]
         columns = {
           "ID" => 'id',
           "NAME" => 'name',
@@ -86,25 +65,12 @@ class Morpheus::Cli::SecurityGroups
           "SCOPED CLOUD" => lambda {|it| it['zone'] ? it['zone']['name'] : 'All' },
           "SOURCE" => lambda {|it| it['syncSource'] == 'external' ? 'SYNCED' : 'CREATED' }
         }
-        # custom pretty table columns ...
-        if options[:include_fields]
-          columns = options[:include_fields]
-        end
         print as_pretty_table(security_groups, columns, options)
-        print reset
-        if json_response['meta']
-          print_results_pagination(json_response)
-        else
-          print_results_pagination({'meta'=>{'total'=>(json_response['securityGroupCount'] ? json_response['securityGroupCount'] : security_groups.size),'size'=>security_groups.size,'max'=>(params['max']||25),'offset'=>(params['offset']||0)}})
-        end
-        # print reset
+        print_results_pagination(json_response)
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def get(args)
@@ -356,6 +322,7 @@ class Morpheus::Cli::SecurityGroups
             payload['securityGroup']['zoneId'] = v_prompt['zoneId']
 
             zone = find_cloud_by_id(payload['securityGroup']['zoneId'])
+            # networkServer needed here too? err
             if zone['securityServer']
               sec_server = @network_security_servers.get(zone['securityServer']['id'])['networkSecurityServer']
 
@@ -621,19 +588,6 @@ class Morpheus::Cli::SecurityGroups
       security_group = find_security_group_by_name_or_id(args[0])
       return 1 if security_group.nil?
 
-      # load cloud
-      if cloud_id.nil?
-        puts_error "#{Morpheus::Terminal.angry_prompt}missing required option: [cloud]\n#{optparse}"
-        return 1
-      end
-      cloud = find_cloud_by_name_or_id(cloud_id)
-      return 1 if cloud.nil?
-
-      if resource_pool_id
-        resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
-        return 1 if resource_pool.nil?
-      end
-
       # construct payload
       passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       payload = nil
@@ -647,27 +601,60 @@ class Morpheus::Cli::SecurityGroups
           }
         }
         payload.deep_merge!({'securityGroupLocation' => passed_options})  unless passed_options.empty?
-        if cloud
-          payload['securityGroupLocation']['zoneId'] = cloud['id']
-        end
 
-        if cloud['securityServer']
-          if cloud['securityServer']['type'] == 'amazon'
-            if resource_pool
-              payload['securityGroupLocation']['customOptions'] = {'vpc' => resource_pool['externalId']}
-            elsif cloud['config'] && cloud['config']['vpc']
-              payload['securityGroupLocation']['customOptions'] = {'vpc' => cloud['config']['vpc']}
-            end
-          elsif cloud['securityServer']['type'] == 'azure'
-            if resource_pool
-              payload['securityGroupLocation']['customOptions'] = {'resourceGroup' => resource_pool['externalId']}
-            elsif cloud['config'] && cloud['config']['resourceGroup']
-              payload['securityGroupLocation']['customOptions'] = {'resourceGroup' => cloud['config']['resourceGroup']}
-            end
+        cloud = nil
+        if cloud_id
+          options[:options]['zoneId'] = cloud_id
+        end
+        # Cloud prompt
+        scoped_clouds = []
+        clouds_response = @options_interface.options_for_source('cloudsForSecurityGroup',{securityGroupId: security_group['id']})
+        if clouds_response['data']
+          clouds_response['data'].each do |it|
+            scoped_clouds << {"name" => it['name'], "value" => it['value']}
           end
         end
-      end
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => scoped_clouds, 'required' => true}], options[:options], @api_client)
+        payload['securityGroupLocation']['zoneId'] = v_prompt['zoneId']
+        cloud = find_cloud_by_id(payload['securityGroupLocation']['zoneId'])
+        return 1 if cloud.nil?
 
+        # parse --resource-pool
+        # if resource_pool_id
+        #   resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
+        #   return 1 if resource_pool.nil?
+        # end
+
+        # Custom Options prompt
+        # securityServer is no longer used, it has been replaced by networkServer, 
+        # default to the cloud type code, since it's the same...
+        # no optionTypes returned here, so hard coded by type
+        network_server_type = cloud['networkServer'] ? cloud['networkServer']['type'] : (cloud['securityServer'] ? cloud['securityServer']['type'] : cloud["zoneType"]["code"])
+        custom_options_values = {}
+        if network_server_type == 'amazon'
+          if cloud['config'] && !cloud['config']['vpc'].to_s.empty?
+            custom_options_values.deep_merge!({'customOptions' => {'vpc' => cloud['config']['vpc']} })
+          else
+            options[:options].deep_merge!({'customOptions' => {'vpc' => resource_pool_id} }) if resource_pool_id
+            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'vpc', 'fieldLabel' => 'VPC', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+          end
+        elsif network_server_type == 'azure' || network_server_type == 'azurestack'
+          if cloud['config'] && !cloud['config']['resourceGroup'].to_s.empty?
+            custom_options_values.deep_merge!({'customOptions' => {'resourceGroup' => cloud['config']['resourceGroup']} })
+          else
+            options[:options].deep_merge!({'customOptions' => {'resourceGroup' => resource_pool_id} }) if resource_pool_id
+            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourceGroup', 'fieldLabel' => 'Resource Group', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+          end
+        elsif network_server_type == 'openstack' || network_server_type == 'opentelekom' || network_server_type == 'huawei'
+          if cloud['config'] && !cloud['config']['resourcePoolId'].to_s.empty?
+            custom_options_values.deep_merge!({'customOptions' => {'resourcePoolId' => cloud['config']['resourcePoolId']} })
+          else
+            options[:options].deep_merge!({'customOptions' => {'resourcePoolId' => resource_pool_id} }) if resource_pool_id
+            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourcePoolId', 'fieldLabel' => 'Resource Pool', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+          end
+        end
+        payload['securityGroupLocation'].deep_merge!(custom_options_values)
+      end
       @security_groups_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @security_groups_interface.dry.create_location(security_group['id'], payload)
