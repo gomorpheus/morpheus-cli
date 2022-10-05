@@ -17,13 +17,13 @@ class Morpheus::Cli::CurlCommand
       opts.on( '-X', '--request METHOD', "HTTP request method. Default is GET" ) do |val|
         curl_method = val
       end
-      opts.on( '--post', "Set the HTTP request method to POST" ) do |val|
+      opts.on( '--post', "Set the HTTP request method to POST" ) do
         curl_method = "POST"
       end
-      opts.on( '--put', "Set the HTTP request method to PUT" ) do |val|
+      opts.on( '--put', "Set the HTTP request method to PUT" ) do
         curl_method = "POST"
       end
-      opts.on( '--delete', "Set the HTTP request method to DELETE" ) do |val|
+      opts.on( '--delete', "Set the HTTP request method to DELETE" ) do
         curl_method = "DELETE"
       end
       opts.on( '--data DATA', String, "HTTP request body for use with POST and PUT, typically JSON." ) do |val|
