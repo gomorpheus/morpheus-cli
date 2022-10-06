@@ -173,6 +173,8 @@ EOT
       Morpheus::Cli::Roles
     when "wikipage","wiki"
       Morpheus::Cli::WikiCommand
+    when "clients"
+      Morpheus::Cli::ClientsCommand
     else
       nil
     end

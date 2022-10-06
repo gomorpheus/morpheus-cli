@@ -66,6 +66,7 @@ class Morpheus::Cli::Instances
   end
 
   def list(args)
+    puts "SHITS UPDATING for"
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
