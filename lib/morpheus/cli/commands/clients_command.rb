@@ -28,8 +28,10 @@ class Morpheus::Cli::ClientsCommand
       build_standard_list_options(opts, options)
       opts.footer = "List Oauth Clients."
     end
+    optparse.parse!(args)
     connect(options)
 
+    params.merge!(parse_list_options(options))
     @clients_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @clients_interface.dry.list(params)
