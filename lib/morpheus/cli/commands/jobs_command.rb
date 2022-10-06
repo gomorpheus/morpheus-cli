@@ -187,7 +187,7 @@ class Morpheus::Cli::JobsCommand
       description_cols = [
           {"ID" => lambda {|it| it['id'] } },
           {"Name" => lambda {|it| it['name']} },
-          {"Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+          {"Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' } },
           {"Job Type" => lambda {|it| it['type']['name']} },
           {"Enabled" => lambda {|it| format_boolean(it['enabled'])} },
           job['workflow'] ? {'Task' => lambda {|it| (it['workflow']['name'] rescue nil) || it['jobSummary']} } : nil,
@@ -195,7 +195,7 @@ class Morpheus::Cli::JobsCommand
           job['securityPackage'] ? {'Security Package' => lambda {|it| (it['securityPackage']['name'] rescue nil) || it['jobSummary']} } : nil,
           job['securityPackage'] ? {'Scan Checklist' => lambda {|it| (it['scanPath'] rescue nil)} } : nil,
           job['securityPackage'] ? {'Security Profile' => lambda {|it| (it['securityProfile'] rescue nil)} } : nil,
-          "Schedule" => lambda {|it| schedule_name}
+          {"Schedule" => lambda {|it| schedule_name} }
       ].compact
 
       if job['targetType']
