@@ -302,6 +302,7 @@ class Morpheus::Cli::Processes
         history_records = []
         if process_events.empty?
           puts "#{cyan}No events found.#{reset}"
+          print reset,"\n"
         else      
           process_events.each do |process_event|
             event_row = {
@@ -336,8 +337,8 @@ class Morpheus::Cli::Processes
           print as_pretty_table(history_records, columns, options)
           print_results_pagination({size: process_events.size, total: process_events.size})
           print reset, "\n"
-          return 0
         end
+        return 0, nil
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

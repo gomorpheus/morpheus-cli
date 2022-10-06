@@ -916,6 +916,14 @@ class Morpheus::APIClient
     Morpheus::ClientsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def security_packages
+    Morpheus::SecurityPackagesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def security_package_types
+    Morpheus::SecurityPackageTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end

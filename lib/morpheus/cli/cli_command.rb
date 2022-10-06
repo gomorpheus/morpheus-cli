@@ -151,6 +151,10 @@ module Morpheus
         
         # add each one to the OptionParser
         option_types.each do |option_type|
+          # skip hidden types
+          if option_type['type'] == 'hidden'
+            next
+          end
           if option_type['fieldName'].empty?
             puts_error "Missing fieldName for option type: #{option_type}" if Morpheus::Logging.debug?
             next

@@ -79,22 +79,21 @@ module Morpheus::Cli::JobsHelper
 
       if process_data[:output] && process_data[:output].strip.length > 0
         print_h2 "Output"
-        print process['output']
+        print process['output'].to_s.strip
+        print reset,"\n"
       end
       if process_data[:error] && process_data[:error].strip.length > 0
         print_h2 "Error"
-        print process['message'] || process['error']
+        print (process['message'] || process['error']).to_s.strip
         print reset,"\n"
       end
-      
 
       if process['events'] && !process['events'].empty?
         print_h2 "Process Events", options
         print_process_events(process['events'], options)
       end
-    else
-      print reset,"\n"
     end
+    print reset,"\n"
     return 0, nil
   end
 
