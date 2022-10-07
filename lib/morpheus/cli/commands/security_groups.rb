@@ -580,9 +580,7 @@ class Morpheus::Cli::SecurityGroups
                     "[security-group] is required. This is the name or id of the security group."
     end
     optparse.parse!(args)
-    if args.count != 1
-      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     begin
       security_group = find_security_group_by_name_or_id(args[0])
@@ -613,6 +611,9 @@ class Morpheus::Cli::SecurityGroups
           clouds_response['data'].each do |it|
             scoped_clouds << {"name" => it['name'], "value" => it['value']}
           end
+        end
+        if scoped_clouds.empty?
+          raise_command_error("Security group has 0 available clouds for adding a location", args, optparse)
         end
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneId', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => scoped_clouds, 'required' => true}], options[:options], @api_client)
         payload['securityGroupLocation']['zoneId'] = v_prompt['zoneId']
