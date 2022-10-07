@@ -416,7 +416,7 @@ class Morpheus::Cli::Clouds
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
-      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is off.") do |val|
+      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Associated Resources. Default is off.") do |val|
         query_params[:removeResources] = val.nil? ? 'on' : val
       end
       opts.on( '-f', '--force', "Force Remove" ) do

@@ -245,7 +245,7 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[tenant]")
-      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Infrastructure. Default is off.") do |val|
+      opts.on('--remove-resources [on|off]', ['on','off'], "Remove Associated Instances. Default is off.") do |val|
         params[:removeResources] = val.nil? ? 'on' : val
       end
       build_standard_remove_options(opts, options)
