@@ -66,12 +66,17 @@ class Morpheus::Cli::ClientsCommand
 
   def get(args)
     options = {}
-    optsparse = Morpheus::Cli::OptionParser.new do |opts|
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[client]")
       build_standard_get_options(opts, options)
       opts.footer = "Get details about an oath client.\n" + 
                     "[client] is required. This is the name or id of a client."
 
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
     end
     connect(options)
     begin
@@ -116,8 +121,9 @@ class Morpheus::Cli::ClientsCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[clientId] [options]")
-      build_option_type_options(opts, options, client_option_types)
+      build_option_type_options(opts, options, add_client_option_types)
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
+      opts.footer = "Add New Oauth Client Record."
     end
     optparse.parse!(args)
     if args.count > 1
@@ -143,7 +149,7 @@ class Morpheus::Cli::ClientsCommand
         # allow arbitrary -O options
         payload.deep_merge!({'client' => passed_options}) unless passed_options.empty?
         # prompt for options
-        params = Morpheus::Cli::OptionTypes.prompt(client_option_types, options[:options], @api_client, options[:params])
+        params = Morpheus::Cli::OptionTypes.prompt(add_client_option_types, options[:options], @api_client, options[:params])
         payload.deep_merge!({'client' => params}) unless params.empty?
       end
 
@@ -174,6 +180,7 @@ class Morpheus::Cli::ClientsCommand
       opts.banner = subcommand_usage("[clientId] [options]")
       build_option_type_options(opts, options, client_option_types)
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
+      opts.footer = "Update Oauth Client Record."
     end
     optparse.parse!(args)
 
@@ -236,6 +243,7 @@ class Morpheus::Cli::ClientsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[clientId]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
+      opts.footer = "Deletes Oauth Client."
     end
     optparse.parse!(args)
 
@@ -316,6 +324,15 @@ class Morpheus::Cli::ClientsCommand
       {'fieldName' => 'clientId', 'fieldLabel' => 'Client Id', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 3}
+    ]
+  end
+
+   def add_client_option_types
+    [
+      {'fieldName' => 'clientId', 'fieldLabel' => 'Client Id', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+      {'fieldName' => 'clientSecret', 'fieldLabel' => 'Client Secret', 'type' => 'text', 'displayOrder' => 2},
+      {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 3},
+      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 4}
     ]
   end
 end
