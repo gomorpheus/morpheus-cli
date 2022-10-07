@@ -29,11 +29,24 @@ class Morpheus::Cli::CurlCommand
       opts.on( '--data DATA', String, "HTTP request body for use with POST and PUT, typically JSON." ) do |val|
         curl_data = val
       end
+      opts.on('--absolute', "Absolute path, value can be used to prevent automatic using the automatic /api/ path prefix to the path by default.") do
+        options[:absolute_path] = true
+      end
+      opts.on('--inspect', "Inspect response, prints headers. By default only the body is printed.") do
+        options[:inspect_response] = true
+      end
       build_standard_api_options(opts, options)
       opts.footer = <<-EOT
-This provides a way to execute arbitrary HTTP requests against the remote appliance.
-By default the request includes the current remote URL and authorization header -H "Authorization: Bearer access_token"
-Example: morpheus curl "/api/whoami"
+Execute an HTTP request against the remote appliance api to an arbitrary path.
+[path] is required. This is the path to path to request. By default 
+By default the "/api" prefix is included in the request path.
+The --absolute option ban be used to supress this.
+
+Examples: 
+    morpheus curl "/api/whoami"
+    morpheus curl whoami
+    morpheus curl apps -r demo
+
 EOT
     end
 
@@ -48,7 +61,14 @@ EOT
 
     # determine curl url, base_url is automatically applied
     api_path = args[0].to_s.strip
-
+    # by default /api/ prefix is prepended
+    if options[:absolute_path] || api_path.start_with?("http:") || api_path.start_with?("https:")
+      api_path = api_path
+    else
+      api_path = "/#{api_path}" unless api_path.start_with?("/")
+      api_path = "/api#{api_path}" unless api_path.start_with?("/api")
+    end
+      
     # build query parameters from --query k=v
     query_params = parse_query_options(options)
 
@@ -61,18 +81,47 @@ EOT
     request_opts[:headers] = options[:headers] if options[:headers]
     request_opts[:params] = query_params
     request_opts[:payload] = payload # if [:post, :put].include?(request_opts[:method])
+    request_opts[:parse_json] = false
     @api_client.setopts(options)
-      if options[:dry_run]
-        print_dry_run @api_client.dry.execute(request_opts)
-        return
+    if options[:dry_run]
+      print_dry_run @api_client.dry.execute(request_opts)
+      return
+    end
+    api_response = @api_client.execute(request_opts)
+    response_is_json = api_response.headers[:content_type].to_s.start_with?("application/json")
+    json_response = nil
+    if response_is_json && options[:inspect_response] != true
+      # render as json by default, so -f just works
+      # options[:json] = true unless options[:csv] ||  options[:yaml]
+      begin
+        json_response = JSON.parse(api_response.body.to_s)
+      rescue => e
+        puts_error "Failed to parse response as JSON. Error: #{e}"
+        # json_response = {}
       end
-    json_response = @api_client.execute(request_opts)
-
-    curl_object_key = json_response.keys.first
-    render_response(json_response, options, curl_object_key) do
-      # just render the json by default, non pretty..
-      output = (json_response.is_a?(Hash) || json_response.is_a?(Array)) ? JSON.fast_generate(json_response) : json_response.to_s
-      puts output
+      # this should be default behavior, but use the first key if it is a Hash or Array
+      object_key = nil
+      if json_response && json_response.keys.first && [Hash,Array].include?(json_response[json_response.keys.first].class)
+        object_key = json_response.keys.first
+      end
+      render_response(json_response, options, object_key) do
+        # just render the json by default, non pretty..
+        puts JSON.fast_generate(json_response)
+      end
+    else
+      if options[:inspect_response]
+        # instead http response (version and headers)
+        output = ""
+        output << "HTTP/#{api_response.net_http_res.http_version} #{api_response.code}\n"
+        api_response.net_http_res.each_capitalized.each do |k,v|
+          output << "#{k}: #{v}\n"
+        end
+        output << "\n"
+        output << api_response.body.to_s
+        puts output
+      else
+        puts api_response.body.to_s
+      end
     end
     return 0, nil
   end

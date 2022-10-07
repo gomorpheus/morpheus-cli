@@ -1146,7 +1146,7 @@ module Morpheus::Cli::PrintHelper
         if data.is_a?(Hash)
           data = data[object_key]
         else
-          Morpheus::Logging::DarkPrinter.puts "as_csv() expects data as an to fetch object key '#{object_key}' from, #{records.class}." if Morpheus::Logging.debug?
+          Morpheus::Logging::DarkPrinter.puts "as_csv() expects data as an to fetch object key '#{object_key}' from, #{data.class}." if Morpheus::Logging.debug?
         end
       end
     end
