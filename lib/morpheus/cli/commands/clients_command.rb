@@ -322,8 +322,8 @@ class Morpheus::Cli::ClientsCommand
   def client_option_types
     [
       {'fieldName' => 'clientId', 'fieldLabel' => 'Client Id', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 2},
-      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 3}
+      {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => true, 'defaultValue' => 43200,'displayOrder' => 2},
+      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => true, 'defaultValue' => 43200,'displayOrder' => 3}
     ]
   end
 
@@ -331,8 +331,8 @@ class Morpheus::Cli::ClientsCommand
     [
       {'fieldName' => 'clientId', 'fieldLabel' => 'Client Id', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'clientSecret', 'fieldLabel' => 'Client Secret', 'type' => 'text', 'displayOrder' => 2},
-      {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 3},
-      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => false, 'displayOrder' => 4}
+      {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => true,'defaultValue' => 43200, 'displayOrder' => 3},
+      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => true,'defaultValue' => 43200, 'displayOrder' => 4}
     ]
   end
 end
