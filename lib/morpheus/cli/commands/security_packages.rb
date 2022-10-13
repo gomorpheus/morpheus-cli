@@ -15,10 +15,19 @@ class Morpheus::Cli::SecurityPackagesCommand
 
   protected
 
+  def build_list_options(opts, options, params)
+    opts.on('-l', '--label LABEL', String, "Filter by label (keyword).") do |val|
+      params['label'] = val
+    end
+    # build_standard_list_options(opts, options)
+    super
+  end
+
   def security_package_list_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
+      "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
       "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
       "Description" => 'description',
     }
@@ -28,6 +37,7 @@ class Morpheus::Cli::SecurityPackagesCommand
     {
       "ID" => 'id',
       "Name" => 'name',
+      "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
       "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
       "Description" => 'description',
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
@@ -44,6 +54,7 @@ class Morpheus::Cli::SecurityPackagesCommand
         api_client.security_package_types.list({max:10000})['securityPackageTypes'].collect { |it| {"name" => it["name"], "value" => it["code"]} }
       }, 'required' => true, 'defaultValue' => 'SCAP Package'},      
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| val.is_a?(Array) ? val : (val.nil? ? nil : val.to_s.split(",")) }},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true},
       # {'code' => 'securityPackage.sourceType', 'fieldName' => 'sourceType', 'fieldLabel' => 'Source', 'type' => 'select', 'selectOptions' => [{'name'=>'url','value'=>'url'}], 'defaultValue' => 'url', 'required' => true},

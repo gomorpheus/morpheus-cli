@@ -763,17 +763,22 @@ EOT
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"
     end
+    puts "FOO 0"
     # load type so we can prompt for those option types
     if rest_has_type
+      puts "FOO 0.0"
       record_type_id = record['type']['id']
       record_type = rest_type_find_by_name_or_id(record_type_id)
+      puts "FOO 0.1"
       if record_type.nil?
         return 1, "#{rest_type_label} not found for '#{record_type_id}"
       end
+      puts "FOO 0.2"
       # reload the type by id to get all the details ie. optionTypes
       if record_type['optionTypes'].nil?
         record_type = rest_type_find_by_name_or_id(record_type['id'])
       end
+      puts "FOO 0.3"
     end
     passed_options = parse_passed_options(options)
     payload = {}

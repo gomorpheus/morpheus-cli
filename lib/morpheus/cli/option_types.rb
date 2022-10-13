@@ -86,7 +86,7 @@ module Morpheus
 
           if cur_field_group != field_group
             cur_field_group = field_group
-            if !no_prompt 
+            if !no_prompt && option_type['noPrompt'] != true
               print "\n#{cur_field_group.upcase} OPTIONS\n#{"=" * ("#{cur_field_group} OPTIONS".length)}\n\n"
             end
           end
@@ -247,7 +247,7 @@ module Morpheus
           end
           # no_prompt means skip prompting and instead
           # use default value or error if a required option is not present
-          if no_prompt
+          if no_prompt || option_type['noPrompt'] == true
             if !value_found
               if option_type['defaultValue'] != nil && !['select', 'multiSelect','typeahead','multiTypeahead'].include?(option_type['type'])
                 value = option_type['defaultValue']
@@ -358,6 +358,11 @@ module Morpheus
             else
               value = generic_prompt(option_type)
             end
+          end
+
+          # --labels x,y,z uses processValue proc to convert strings to an array
+          if option_type['processValue'].is_a?(Proc)
+            value = option_type['processValue'].call(value)
           end
 
           if option_type['type'] == 'multiSelect'

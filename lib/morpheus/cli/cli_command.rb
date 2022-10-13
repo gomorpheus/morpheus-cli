@@ -1540,7 +1540,14 @@ module Morpheus
         end
         begin
           json_response = interface.get(*ids)
-          return json_response[object_key]
+          object_key = "securityPackage" if object_key == "securityPackageType"
+          record = json_response[object_key]
+          if record.nil?
+            print_red_alert "#{label} not found in API response (#{object_key})"
+            return nil
+          else
+            return json_response[object_key]
+          end
         rescue Exception => e
           if e.response && e.response.code == 404
             print_red_alert "#{label} not found by id #{ids.last}"
