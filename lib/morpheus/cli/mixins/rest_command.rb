@@ -425,10 +425,6 @@ module Morpheus::Cli::RestCommand
     self.class.rest_type_arg
   end
 
-  def rest_has_name
-    self.class.rest_type_arg
-  end
-
   def rest_type_label
     self.class.rest_type_label
   end
