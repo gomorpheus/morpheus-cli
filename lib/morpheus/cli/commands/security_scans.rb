@@ -3,7 +3,6 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::SecurityScansCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::RestCommand
-  include Morpheus::Cli::ProvisioningHelper
 
   set_command_name :'security-scans'
   set_command_description "View and manage security scans."
@@ -20,46 +19,38 @@ class Morpheus::Cli::SecurityScansCommand
   protected
 
   def build_list_options(opts, options, params)
-    opts.on('--server SERVER', String, "Filter by server name or id") do |val|
-      options[:server] ||= []
-      options[:server] << val
-    end
     opts.on('--security-package PACKAGE', String, "Filter by security package name or id") do |val|
       options[:security_package] ||= []
       options[:security_package] << val
+    end
+    opts.on('--server SERVER', String, "Filter by server name or id") do |val|
+      options[:server] ||= []
+      options[:server] << val
     end
     super
   end
 
   def parse_list_options!(args, options, params)
-    if options[:server]
-      params['serverId'] = options[:server].collect do |val|
-        if val.to_s =~ /\A\d{1,}\Z/
-          val.to_i
-        else
-          server = find_server_by_name(val)
-          server['id']
+    # parse --security-package
+    # todo: one liner with find_by_name_or_id!
+    if options[:security_package]
+      params['securityPackageId'] = options[:security_package].collect do |val|
+        record = find_by_name_or_id(:security_package, val)
+        if record.nil?
+          exit 1 #return 1, "Security Package not found by '#{val}'"
+        else 
+          record['id']
         end
       end
     end
-    if options[:security_package]
-      params['securityPackageId'] = options[:security_package].collect do |val|
-        if val.to_s =~ /\A\d{1,}\Z/
-          val.to_i
+    # parse --server
+    if options[:server]
+      params['serverId'] = options[:server].collect do |val|
+        record = find_by_name_or_id(:server, val)
+        if record.nil?
+          exit 1 # return 1, "Server not found by '#{val}'"
         else
-          records = @security_packages_interface.list({name: val.to_s})['securityPackages']
-          if records.empty?
-            print_red_alert "Security Package not found by name #{val}"
-            exit 1
-          elsif records.size > 1
-            print_red_alert "#{records.size} security packages found by name #{val}"
-            as_pretty_table(records, [:id, :name], {color: red})
-            print_red_alert "Try using ID instead"
-            print reset,"\n"
-            exit 1
-          else
-            records[0]['id']
-          end
+          record['id']
         end
       end
     end
@@ -69,8 +60,9 @@ class Morpheus::Cli::SecurityScansCommand
   def security_scan_list_column_definitions(options)
     {
       "ID" => 'id',
-      "Name" => lambda {|it| it['securityPackage']['name'] rescue '' },
+      "Security Package" => lambda {|it| it['securityPackage']['name'] rescue '' },
       "Type" => lambda {|it| it['securityPackage']['type']['name'] rescue '' },
+      "Server" => lambda {|it| it['server']['name'] rescue '' },
       "Scan Date" => lambda {|it| format_local_dt(it['scanDate']) },
       "Status" => lambda {|it| it['status'] },
       "Score" => lambda {|it| it['scanScore'] },
@@ -82,8 +74,9 @@ class Morpheus::Cli::SecurityScansCommand
   def security_scan_column_definitions(options)
     {
       "ID" => 'id',
-      "Name" => lambda {|it| it['securityPackage']['name'] rescue '' },
+      "Security Package" => lambda {|it| it['securityPackage']['name'] rescue '' },
       "Type" => lambda {|it| it['securityPackage']['type']['name'] rescue '' },
+      "Server" => lambda {|it| it['server']['name'] rescue '' },
       "Scan Date" => lambda {|it| format_local_dt(it['scanDate']) },
       "Status" => lambda {|it| it['status'] },
       "Score" => lambda {|it| it['scanScore'] },

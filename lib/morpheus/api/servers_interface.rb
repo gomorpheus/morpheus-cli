@@ -2,25 +2,17 @@ require 'morpheus/api/api_client'
 
 class Morpheus::ServersInterface < Morpheus::APIClient
 
-  def get(options=nil)
-    url = "#{@base_url}/api/servers"
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
-    if options.is_a?(Hash)
-      headers[:params].merge!(options)
-    elsif options.is_a?(Numeric)
-      url = "#{@base_url}/api/servers/#{options}"
-    elsif options.is_a?(String)
-      headers[:params]['name'] = options
-    end
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+  def base_path
+    "/api/servers"
   end
 
-  def list(params={})
-    url = "#{@base_url}/api/servers"
-    headers = { params: params, authorization: "Bearer #{@access_token}" }
-    opts = {method: :get, url: url, headers: headers}
-    execute(opts)
+  def list(params={}, headers={})
+    execute(method: :get, url: "#{base_path}", params: params, headers: headers)
+  end
+
+  def get(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}", params: params, headers: headers)
   end
 
   def create(options)

@@ -1540,7 +1540,12 @@ module Morpheus
         end
         begin
           json_response = interface.get(*ids)
-          object_key = "securityPackage" if object_key == "securityPackageType"
+          if !json_response.key?(object_key)
+            # maybe just use the first key like this:
+            # object_key = json_response.keys.find { |k| json_response[k].is_a?(Hash) }
+            #puts_error(json_response) if Morpheus::Logging.debug?
+            raise "API response is missing object property '#{object_key}'"
+          end
           record = json_response[object_key]
           if record.nil?
             print_red_alert "#{label} not found in API response (#{object_key})"
@@ -1548,7 +1553,7 @@ module Morpheus
           else
             return json_response[object_key]
           end
-        rescue Exception => e
+        rescue ::RestClient::Exception => e
           if e.response && e.response.code == 404
             print_red_alert "#{label} not found by id #{ids.last}"
             return nil
@@ -1612,7 +1617,7 @@ module Morpheus
         if !json_response.key?(list_key)
           # maybe just use the first key like this:
           # list_key = json_response.keys.find { |k| json_response[k].is_a?(Array) }
-          # print_error(json_response) if Morpheus::Logging.debug?
+          # puts_error(json_response) if Morpheus::Logging.debug?
           raise "API response is missing list property '#{list_key}'"
         end
         return json_response[list_key]
@@ -1643,7 +1648,7 @@ module Morpheus
         if !json_response.key?(object_key)
           # maybe just use the first key like this:
           # object_key = json_response.keys.find { |k| json_response[k].is_a?(Hash) }
-          # print_error(json_response) if Morpheus::Logging.debug?
+          # puts_error(json_response) if Morpheus::Logging.debug?
           raise "API response is missing object property '#{object_key}'"
         end
         return json_response[object_key]
