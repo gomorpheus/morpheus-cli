@@ -162,6 +162,14 @@ class Morpheus::Cli::Users
         options[:include_personas_access] = true
         params['includeAccess'] = true
       end
+      opts.on(nil,'--vdi-pool-access', "Display VDI Pool Access") do
+        options[:include_vdi_pools_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on(nil,'--report-type-access', "Display Report Type Access") do
+        options[:include_report_types_access] = true
+        params['includeAccess'] = true
+      end
       opts.on(nil,'--all', "Display All Access Lists") do
         options[:include_features_access] = true
         options[:include_sites_access] = true
@@ -170,6 +178,8 @@ class Morpheus::Cli::Users
         options[:include_app_templates_access] = true
         options[:include_catalog_item_types_access] = true
         options[:include_personas_access] = true
+        options[:include_vdi_pools_access] = true
+        options[:include_report_types_access] = true
         params['includeAccess'] = true
       end
       opts.on(nil, '--hide-none-access', "Hide records with 'none' access") do
@@ -249,7 +259,7 @@ EOT
          'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'personas' => 'Persona', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type'}
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
-            access = user['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]
+            access = user['access'][field.to_s.camelcase] || []
             access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             if field == "features"
