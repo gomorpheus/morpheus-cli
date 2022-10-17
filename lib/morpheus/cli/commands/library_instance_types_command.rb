@@ -6,7 +6,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
 
   set_command_name :'library-instance-types'
   register_subcommands :list, :get, :add, :update, :remove
-  register_subcommands({:'update-logo' => :update_logo})
+  register_subcommands({:'update-logo' => :update_logo,:'update-dark-logo' => :update_dark_logo})
   register_subcommands({:'toggle-featured' => :toggle_featured})
 
   def initialize()
@@ -481,10 +481,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
                     "[file] is required. This is the path of the logo file"
     end
     optparse.parse!(args)
-    if args.count < 2
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
     layout_id = args[0]
     filename = args[1]
@@ -493,7 +490,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       exit 1 if instance_type.nil?
       logo_file = nil
       if filename == 'null'
-        filename = 'null' # clear it
+        logo_file = 'null' # clear it
       else
         filename = File.expand_path(filename)
         if !File.exists?(filename)
@@ -513,6 +510,54 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         return 0
       end
       print_green_success "Updated Instance Type #{instance_type['name']} logo"
+      _get(instance_type['id'], options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def update_dark_logo(args)
+    options = {}
+    params = {}
+    filename = nil
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] [file]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Update the dark logo for an instance type." + "\n" +
+                    "[name] is required. This is the name or id of a instance type." + "\n" +
+                    "[file] is required. This is the path of the dark logo file"
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    layout_id = args[0]
+    filename = args[1]
+    begin
+      instance_type = find_instance_type_by_name_or_id(layout_id)
+      exit 1 if instance_type.nil?
+      dark_logo_file = nil
+      if filename == 'null'
+        dark_logo_file = 'null' # clear it
+      else
+        filename = File.expand_path(filename)
+        if !File.exists?(filename)
+          print_red_alert "File not found: #{filename}"
+          exit 1
+        end
+        dark_logo_file = File.new(filename, 'rb')
+      end
+      @library_instance_types_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @library_instance_types_interface.dry.update_logo(instance_type['id'], nil, dark_logo_file)
+        return
+      end
+      json_response = @library_instance_types_interface.update_logo(instance_type['id'], nil, dark_logo_file)
+      if options[:json]
+        print JSON.pretty_generate(json_response), "\n"
+        return 0
+      end
+      print_green_success "Updated Instance Type #{instance_type['name']} dark logo"
       _get(instance_type['id'], options)
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

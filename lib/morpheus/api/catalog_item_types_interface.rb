@@ -19,7 +19,11 @@ class Morpheus::CatalogItemTypesInterface < Morpheus::RestInterface
     if dark_logo_file
       payload["catalogItemType"]["darkLogo"] = dark_logo_file
     end
-    payload[:multipart] = true
+    if logo_file.is_a?(File) || dark_logo_file.is_a?(File)
+      payload[:multipart] = true
+    else
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    end
     execute(method: :put, url: url, headers: headers, payload: payload)
   end
 

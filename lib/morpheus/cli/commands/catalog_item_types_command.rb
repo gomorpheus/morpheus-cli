@@ -549,7 +549,7 @@ EOT
     filename = args[1]
     logo_file = nil
     if filename == 'null'
-      filename = 'null' # clear it
+      logo_file = 'null' # clear it
     else
       filename = File.expand_path(filename)
       if !File.exists?(filename)
