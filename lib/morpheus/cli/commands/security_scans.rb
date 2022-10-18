@@ -27,6 +27,9 @@ class Morpheus::Cli::SecurityScansCommand
       options[:server] ||= []
       options[:server] << val
     end
+    opts.on('--results', String, "Include security scan results for each record in the response") do |val|
+      params['results'] = true
+    end
     super
   end
 
@@ -53,6 +56,13 @@ class Morpheus::Cli::SecurityScansCommand
           record['id']
         end
       end
+    end
+    super
+  end
+
+  def build_get_options(opts, options, params)
+    opts.on('--results', String, "Include security scan results in the response") do |val|
+      params['results'] = true
     end
     super
   end
