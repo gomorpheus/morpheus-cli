@@ -27,7 +27,7 @@ class Morpheus::Cli::SecurityScansCommand
       options[:server] ||= []
       options[:server] << val
     end
-    opts.on('--results', "Include the results object in the response under each security scan. This is a potentially very large object containing the raw results of the scan.") do
+    opts.on('--results', "Include the results object in the response under each security scan. This is a potentially very large object containing the raw results of the scan. Use with --json to see this data.") do
       params['results'] = true
     end
     super
@@ -61,7 +61,7 @@ class Morpheus::Cli::SecurityScansCommand
   end
 
   def build_get_options(opts, options, params)
-    opts.on('--results', "Include the results object in the response under the security scan. This is a potentially very large object containing the raw results of the scan.") do
+    opts.on('--results', "Include the results object in the response under the security scan. This is a potentially very large object containing the raw results of the scan. Use with --json to see this data.") do
       params['results'] = true
     end
     super
