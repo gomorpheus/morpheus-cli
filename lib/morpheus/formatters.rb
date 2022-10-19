@@ -1,6 +1,7 @@
 require 'time'
 require 'filesize'
 require 'money'
+require 'cgi'
 
 DEFAULT_DATE_FORMAT = "%x"
 DEFAULT_TIME_FORMAT = "%x %I:%M %p"
@@ -491,4 +492,8 @@ def format_ok_status(status)
     color = yellow
   end
   "#{color}#{status.to_s.upcase}#{cyan}"
+end
+
+def escape_filepath(filepath)
+  filepath.to_s.split("/").select {|it| !it.to_s.empty? }.collect {|it| CGI::escape(it) }.join("/")
 end

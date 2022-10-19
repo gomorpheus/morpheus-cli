@@ -42,7 +42,7 @@ class Morpheus::ArchiveBucketsInterface < Morpheus::APIClient
     if file_path.to_s.strip == "/"
       file_path = ""
     end
-    url = "#{@base_url}/api/archives/buckets/#{CGI::escape(id.to_s)}" + "/files/#{CGI::escape(file_path)}".squeeze('/')
+    url = "#{@base_url}/api/archives/buckets/#{CGI::escape(id.to_s)}" + "/files/#{escape_filepath(file_path)}".squeeze('/')
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
