@@ -1,7 +1,6 @@
 require 'morpheus/api/api_client'
 require 'http'
 require 'zlib'
-require 'forwardable'
 
 class Morpheus::VirtualImagesInterface < Morpheus::APIClient
 
@@ -61,27 +60,6 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
   #   execute(method: :post, url: url, headers: headers, payload: payload)
   # end
 
-  # wrapper class for input stream so that HTTP doesn't blow up when using it 
-  # ie. calling size() and rewind()
-  class BodyIO
-    extend Forwardable
-
-    def initialize(io)
-      @io = io
-    end
-
-    def size
-      0
-    end
-
-    def rewind
-      nil
-    end
-
-    def_delegators :@io, :read, :readpartial, :write
-    
-  end
-
   # no multipart
   def upload(id, image_file, filename=nil, do_gzip=false)
     filename = filename || File.basename(image_file)
@@ -132,7 +110,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
          end
          gz.close
       }
-      http_opts[:body] = BodyIO.new(rd)
+      http_opts[:body] = Morpheus::BodyIO.new(rd)
       response = http.post(url, http_opts)
     else
       if @dry_run

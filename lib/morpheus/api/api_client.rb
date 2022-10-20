@@ -2,6 +2,7 @@ require 'json'
 require 'uri'
 require 'cgi'
 require 'morpheus/rest_client'
+#require 'morpheus/api/body_io'
 # require 'rest-client'
 
 class Morpheus::APIClient
@@ -754,6 +755,10 @@ class Morpheus::APIClient
 
   def packages
     Morpheus::PackagesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def plugins
+    Morpheus::PluginsInterface.new(common_interface_options).setopts(@options)
   end
 
   def cypher
