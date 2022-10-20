@@ -125,21 +125,21 @@ EOT
           print record['statusMessage'], "\n"
         end
       end
+      # Plugin Providers
       providers = record['providers']
       if providers && !providers.empty?
         print_h2 "Providers"
         print as_pretty_table(providers, [:name, :type], options)
       end
-      # if record['optionTypes'] && record['optionTypes'].size > 0
-      #   print_h2 "Option Types", options
-      #   print format_option_types_table(record['optionTypes'], options, rest_object_key)
-      # end
-      # print reset,"\n"
-      # show Plugin Configuration
-      config = record['config']
-      if config && !config.empty?
+      # Plugin Configuration
+      option_types = record["optionTypes"].sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
+      config = record['config'] || {}
+      if option_types && !option_types.empty?
         print_h2 "Configuration"
-        print_description_list(config.keys, config)
+        rows = option_types.collect do |option_type|
+          {:label => option_type['fieldLabel'], :name => option_type['fieldName'], :value => config[option_type['fieldName']]}
+        end
+        print as_pretty_table(rows, [:label, :name, :value], options)
       end
       print reset,"\n"
     end
