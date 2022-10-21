@@ -108,6 +108,9 @@ EOT
     opts.on('--valid [true|false]', String, "Filter by valid [true|false]") do |val|
       params['valid'] = ['true','on','1',''].include?(val.to_s.downcase)
     end
+    opts.on('--has-update [true|false]', String, "Filter by hasValidUpdate [true|false]") do |val|
+      params['hasValidUpdate'] = ['true','on','1',''].include?(val.to_s.downcase)
+    end
     super
   end
 
