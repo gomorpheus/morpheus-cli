@@ -99,8 +99,8 @@ EOT
     opts.on('--version VALUE', String, "Filter by version") do |val|
       params['version'] = val
     end
-    opts.on('--type VALUE', String, "Filter by version") do |val|
-      params['type'] = val
+    opts.on('--status VALUE', String, "Filter by status") do |val|
+      params['status'] = val
     end
     opts.on('--enabled [true|false]', String, "Filter by enabled [true|false]") do |val|
       params['enabled'] = ['true','on','1',''].include?(val.to_s.downcase)
