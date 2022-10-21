@@ -91,16 +91,16 @@ EOT
 
   def build_list_options(opts, options, params)
     opts.on('--name VALUE', String, "Filter by name") do |val|
-      params['name'] = val
+      add_query_parameter(params, 'name', val)
     end
     opts.on('--code VALUE', String, "Filter by code") do |val|
-      params['code'] = val
+      add_query_parameter(params, 'code', val)
     end
     opts.on('--version VALUE', String, "Filter by version") do |val|
-      params['version'] = val
+      add_query_parameter(params, 'version', val)
     end
     opts.on('--status VALUE', String, "Filter by status") do |val|
-      params['status'] = val
+      add_query_parameter(params, 'status', val)
     end
     opts.on('--enabled [true|false]', String, "Filter by enabled [true|false]") do |val|
       params['enabled'] = ['true','on','1',''].include?(val.to_s.downcase)
