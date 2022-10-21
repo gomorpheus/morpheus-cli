@@ -634,6 +634,8 @@ module Morpheus::Cli::ProvisioningHelper
           version_value = options[:options]['version']
         else
           available_versions = options_interface.options_for_source('instanceVersions',{groupId: group_id, cloudId: cloud_id, instanceTypeId: instance_type['id']})['data']
+          # filter versions with no layouts.. api should probably do that too eh?
+          available_versions.reject! { |available_version| available_version["layouts"].nil? || available_version["layouts"].empty? }
           default_version_value = payload['instance']['version'] ? payload['instance']['version'] : payload['version']
           #default_layout_value = options[:layout]
           if default_layout_value.nil?
