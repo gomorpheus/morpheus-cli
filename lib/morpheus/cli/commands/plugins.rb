@@ -5,7 +5,7 @@ class Morpheus::Cli::PluginsCommand
   include Morpheus::Cli::RestCommand
 
   set_command_name :plugins
-  set_command_description "View and manage security packages."
+  set_command_description "View and manage plugins."
   register_subcommands :list, :get, :upload, :update, :remove, :'check-updates'
 
   # RestCommand settings
