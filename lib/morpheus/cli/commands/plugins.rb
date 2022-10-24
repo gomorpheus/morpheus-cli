@@ -5,7 +5,7 @@ class Morpheus::Cli::PluginsCommand
   include Morpheus::Cli::RestCommand
 
   set_command_name :plugins
-  set_command_description "View and manage security packages."
+  set_command_description "View and manage plugins."
   register_subcommands :list, :get, :upload, :update, :remove, :'check-updates'
 
   # RestCommand settings
@@ -91,22 +91,25 @@ EOT
 
   def build_list_options(opts, options, params)
     opts.on('--name VALUE', String, "Filter by name") do |val|
-      params['name'] = val
+      add_query_parameter(params, 'name', val)
     end
     opts.on('--code VALUE', String, "Filter by code") do |val|
-      params['code'] = val
+      add_query_parameter(params, 'code', val)
     end
     opts.on('--version VALUE', String, "Filter by version") do |val|
-      params['version'] = val
+      add_query_parameter(params, 'version', val)
     end
-    opts.on('--type VALUE', String, "Filter by version") do |val|
-      params['type'] = val
+    opts.on('--status VALUE', String, "Filter by status") do |val|
+      add_query_parameter(params, 'status', val)
     end
     opts.on('--enabled [true|false]', String, "Filter by enabled [true|false]") do |val|
       params['enabled'] = ['true','on','1',''].include?(val.to_s.downcase)
     end
     opts.on('--valid [true|false]', String, "Filter by valid [true|false]") do |val|
       params['valid'] = ['true','on','1',''].include?(val.to_s.downcase)
+    end
+    opts.on('--has-update [true|false]', String, "Filter by hasValidUpdate [true|false]") do |val|
+      params['hasValidUpdate'] = ['true','on','1',''].include?(val.to_s.downcase)
     end
     super
   end

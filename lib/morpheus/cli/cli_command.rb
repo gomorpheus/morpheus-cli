@@ -1283,6 +1283,23 @@ module Morpheus
         params.merge!(parse_query_options(options))
       end
 
+      # Add a name=value query parameter, building an array if there is more than one
+      # @param [Hash] params the query parameter map to append to
+      # @param [String] key the parameter name
+      # @param [Object] value the parameter value
+      def add_query_parameter(params, key, value)
+        # key = key.to_s
+        if params.key?(key) && !params[key].nil?
+          if !params[key].is_a?(Array)
+            params[key] = [params[key]]
+          end
+          params[key] << value
+        else
+          params[key] = value
+        end
+        params
+      end
+
       # The default way to parse options for the get command
       # @param type [string]
       # @param options [Hash] The command options
