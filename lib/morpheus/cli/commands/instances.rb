@@ -2767,7 +2767,7 @@ class Morpheus::Cli::Instances
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
       current_plan_name = instance['plan']['name']
-      payload['networkInterfaces'] = instance['interfaces']
+
 
       # need to GET provision type for some settings...
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
