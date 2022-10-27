@@ -79,6 +79,9 @@ class Morpheus::Cli::Apps
       opts.on('--status STATUS', "Filter by status.") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'label', val)
+      end
       opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
         options[:details] = true
       end
@@ -220,6 +223,9 @@ class Morpheus::Cli::Apps
       end
       opts.on( '--name VALUE', String, "Name" ) do |val|
         options[:name] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on( '--description VALUE', String, "Description" ) do |val|
         options[:description] = val
@@ -683,6 +689,7 @@ class Morpheus::Cli::Apps
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
         "Description" => 'description',
         "Type" => lambda {|it| 
           if it['type']
@@ -810,6 +817,9 @@ class Morpheus::Cli::Apps
       end
       opts.on( '--name VALUE', String, "Name" ) do |val|
         options[:name] = val
+      end
+      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
+        options[:options]['labels'] = val
       end
       opts.on( '--description VALUE', String, "Description" ) do |val|
         options[:description] = val
@@ -2368,6 +2378,8 @@ EOT
       {
         id: app['id'],
         name: app['name'],
+        labels: format_list(app['labels'], '', 3),
+        description: app['description'],
         description: app['description'],
         blueprint: app['blueprint'] ? app['blueprint']['name'] : '',
         type: app['type'] ? format_blueprint_type(app['type']) : (format_blueprint_type(app['blueprint'] ? app['blueprint']['type'] : nil)),
@@ -2390,6 +2402,7 @@ EOT
     columns = [
       :id,
       :name,
+      :labels,
       # :description,
       :type,
       :blueprint,
