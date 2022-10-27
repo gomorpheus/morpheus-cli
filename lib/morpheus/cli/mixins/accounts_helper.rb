@@ -393,10 +393,10 @@ module Morpheus::Cli::AccountsHelper
     if access == 'none'
       # maybe reset instead of white?
       white
-    elsif access == 'read'
-      cyan
-    else
+    elsif access.include? 'full'
       green
+    else
+      cyan
     end
   end
 

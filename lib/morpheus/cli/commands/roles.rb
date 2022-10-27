@@ -6,16 +6,16 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
   register_subcommands :list, :get, :add, :update, :remove, 
-    :'list-permissions', :'update-feature-access', :'update-global-group-access', 
-    :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', 
-    :'update-global-instance-type-access', :'update-instance-type-access', 
-    :'update-global-blueprint-access', :'update-blueprint-access', 
-    :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', 
-    :'update-persona-access', 
-    :'update-global-vdi-pool-access', :'update-vdi-pool-access',
-    :'update-global-report-type-access', :'update-report-type-access',
-    :'update-global-task-access', :'update-task-access',
-    :'update-global-workflow-access', :'update-workflow-access'
+    :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-default-feature-access',
+    :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-default-cloud-access',
+    :'update-global-instance-type-access', :'update-instance-type-access', :'update-default-instance-type-access',
+    :'update-global-blueprint-access', :'update-blueprint-access', :'update-default-blueprint-access',
+    :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-default-catalog-item-type-access',
+    :'update-persona-access', :'update-default-persona-access', 'update-default-persona',
+    :'update-global-vdi-pool-access', :'update-vdi-pool-access', :'update-default-cloud-access',
+    :'update-global-report-type-access', :'update-report-type-access', :'update-default-cloud-access',
+    :'update-global-task-access', :'update-task-access', :'update-default-cloud-access',
+    :'update-global-workflow-access', :'update-workflow-access', :'update-default-cloud-access'
 
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -91,13 +91,13 @@ class Morpheus::Cli::Roles
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role]")
-      opts.on('-p','--permissions', "Display Permissions") do |val|
+      opts.on('-p','--permissions', "Display Permissions [deprecated]") do |val|
         options[:include_feature_access] = true
       end
-      opts.on('-f','--feature-access', "Display Permissions [deprecated]") do |val|
+      opts.add_hidden_option('-p,')
+      opts.on('-f','--feature-access', "Display Permissions") do |val|
         options[:include_feature_access] = true
       end
-      opts.add_hidden_option('--feature-access')
       opts.on('-g','--group-access', "Display Group Access") do
         options[:include_group_access] = true
       end
@@ -114,7 +114,11 @@ class Morpheus::Cli::Roles
         options[:include_catalog_item_type_access] = true
       end
       opts.on(nil,'--personas', "Display Persona Access") do
-        options[:include_personas_access] = true
+        options[:include_persona_access] = true
+      end
+      opts.add_hidden_option('--personas')
+      opts.on(nil,'--persona-access', "Display Persona Access") do
+        options[:include_persona_access] = true
       end
       opts.on(nil,'--vdi-pool-access', "Display VDI Pool Access") do
         options[:include_vdi_pool_access] = true
@@ -241,12 +245,14 @@ EOT
         "Clouds" => lambda {|it| get_access_string(it['globalZoneAccess']) },
         "Instance Types" => lambda {|it| get_access_string(it['globalInstanceTypeAccess']) },
         "Blueprints" => lambda {|it| get_access_string(it['globalAppTemplateAccess'] || it['globalBlueprintAccess']) },
+        "Personas" => lambda {|it| get_access_string(it['globalPersonaAccess']) },
+        "Report Types" => lambda {|it| get_access_string(it['globalReportTypeAccess']) },
         "Catalog Item Types" => lambda {|it| get_access_string(it['globalCatalogItemTypeAccess']) },
         "VDI Pools" => lambda {|it| get_access_string(it['globalVdiPoolAccess']) },
-        "Report Types" => lambda {|it| get_access_string(it['globalReportTypeAccess']) },
-        "Tasks" => lambda {|it| get_access_string(it['globalTaskAccess']) },
         "Workflows" => lambda {|it| get_access_string(it['globalTaskSetAccess']) },
+        "Tasks" => lambda {|it| get_access_string(it['globalTaskAccess']) },
       }
+
       if role['roleType'].to_s.downcase == 'account'
         global_access_columns.delete("Groups")
         has_group_access = false
@@ -367,29 +373,31 @@ EOT
           end
           print as_pretty_table(rows, [:name, :access], options)
         else
-          print cyan,"Use --catalog-item-type-access to list custom access","\n"
+          print cyan,"Use --catalog-item-type-access to list access","\n"
         end
       else
         # print "\n"
         # print cyan,bold,"Catalog Item Type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}",reset,"\n"
       end
-      
+
+      persona_global_access = json_response['globalPersonaAccess']
       persona_permissions = role['personas'] ? role['personas'] : (json_response['personaPermissions'] || [])
-      # if options[:include_personas_access]
-      print cyan
-      if persona_permissions
+
+      if persona_permissions.find{|it| !it['access'].nil?}
         print_h2 "Persona Access", options
-        rows = persona_permissions.collect do |it|
-          {
-            name: it['name'],
-            access: format_access_string(it['access'], ["none","read","full"]),
-          }
+        if options[:include_persona_access] || options[:include_all_access]
+          rows = persona_permissions.collect do |it|
+            {
+              name: it['name'],
+              access: format_access_string(it['access'] || persona_global_access, ["none","full"]),
+            }
+          end
+          print as_pretty_table(rows, [:name, :access], options)
+        else
+          print cyan,"Use --persona-access to list access","\n"
         end
-        print as_pretty_table(rows, [:name, :access], options)        
       end
 
-      # print reset,"\n"
-      
       vdi_pool_global_access = json_response['globalVdiPoolAccess']
       vdi_pool_permissions = role['vdiPools'] ? role['vdiPools'] : (json_response['vdiPoolPermissions'] || [])
       print cyan
@@ -476,63 +484,80 @@ EOT
 
   def list_permissions(args)
     options = {}
+    available_categories = ['feature', 'group', 'cloud', 'instance-type', 'blueprint', 'catalog-item-type', 'persona', 'vdi-pool', 'report-type', 'task', 'workflow']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role]")
+      opts.banner = subcommand_usage("[role] [category]")
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List the permissions for a role.\n" +
-                    "[role] is required. This is the name or id of a role."
+      opts.footer = "List the access for a role.\n" +
+        "[role] is required. This is the name or id of a role.\n" +
+        "[category] is optional. Available categories: #{ored_list(available_categories)}"
     end
+
     optparse.parse!(args)
-    verify_args!(args:args, optparse:optparse, count:1)
+    verify_args!(args:args, optparse:optparse, min: 1, max:2)
     connect(options)
-    
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
 
-      # role = find_role_by_name_or_id(account_id, args[0])
-      # exit 1 if role.nil?
+    category = args[1].to_s.downcase if args[1]
 
-      @roles_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
-        else
-          print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
-        end
-        return
-      end
+    if !category.nil? && !available_categories.include?(category)
+      raise_command_error("invalid category: #{category}", args, optparse)
+    end
 
-      json_response = nil
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
+
+    @roles_interface.setopts(options)
+    if options[:dry_run]
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = @roles_interface.get(account_id, args[0].to_i)
-        role = json_response['role']
+        print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
       else
-        role = find_role_by_name_or_id(account_id, args[0])
-        exit 1 if role.nil?
-        # refetch from show action, argh
-        json_response = @roles_interface.get(account_id, role['id'])
-        role = json_response['role']
+        print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
       end
+      return
+    end
 
-      role_permissions = json_response['featurePermissions']
+    if args[0].to_s =~ /\A\d{1,}\Z/
+      role = @roles_interface.get(account_id, args[0].to_i)
+    else
+      role = find_role_by_name_or_id(account_id, args[0])
+      exit 1 if role.nil?
+      role = @roles_interface.get(account_id, role['id'])
+    end
 
-      if options[:json]
-        puts as_json(role_permissions, options)
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(role_permissions, options)
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(role_permissions)
-        return 0
-      end
+    permission_name = -> (s) {
+      return 'sites' if s == 'group'
+      return 'zones' if s == 'cloud'
+      s = 'task-set' if s == 'workflow'
+      s = 'app-template' if s == 'blueprint'
+      s.split('-').map.with_index{|s,i| i == 0 ? s : s.capitalize}.join + 'Permissions'
+    }
+    permission_label = -> (s) {(s == 'workflow' ? 'task-set' : s).split('-').collect{|s| s.capitalize}.join(' ') + ' Permissions'}
 
-      print cyan
-      print_h1 "Role Permissions: [#{role['id']},#{role['owner']['name']}] #{role['authority']}", options
+    if category.nil?
+      permissions = available_categories.collect{|category| role[permission_name.call(category)].map{|perm| perm.merge({'category' => permission_label.call(category)})}}.flatten
+    else
+      permissions = role[permission_name.call(category)]
+    end
 
-      print cyan
-      if role_permissions && role_permissions.size > 0
-        rows = role_permissions.collect do |it|
+    if options[:json]
+      puts as_json(permissions, options)
+      return 0
+    elsif options[:yaml]
+      puts as_yaml(permissions, options)
+      return 0
+    elsif options[:csv]
+      puts records_as_csv(permissions, :include_fields => ['category', 'id', 'code', 'name', 'access', 'sub category'])
+      return 0
+    end
+
+    print cyan
+    print_h1 "Role: [#{role['role']['id']},#{role['role']['owner']['name']}] #{role['role']['authority']}", options
+
+    (category.nil? ? available_categories : [category]).each do |category|
+      print_h2 "#{permission_label.call(category)}", options
+      permissions = role[permission_name.call(category)]
+      if permissions.size > 0
+        rows = permissions.collect do |it|
           {
             code: it['code'],
             name: it['name'],
@@ -553,10 +578,8 @@ EOT
       else
         puts "No permissions found"
       end
-
-      print reset,"\n"
-      return 0
-    
+    end
+    print reset,"\n"
   end
 
   def add(args)
@@ -572,11 +595,19 @@ EOT
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-group-access')
+      opts.on('--default-group-access ACCESS', String, "Update the default group (site) access: [none|read|full]" ) do |val|
+        params['globalSiteAccess'] = val.to_s.downcase
+      end
       opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
       opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+        params['globalZoneAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-cloud-access')
+      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
@@ -586,11 +617,19 @@ EOT
       opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
         params['globalInstanceTypeAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-instance-type-access')
+      opts.on('--default-instance-type-access ACCESS', String, "Update the default instance type access: [none|full]" ) do  |val|
+        params['globalInstanceTypeAccess'] = val.to_s.downcase
+      end
       opts.on('--instance-types CODE=ACCESS', String, "Set instance type to a custom access instance type code. Example: nginx=full,apache=none" ) do |val|
         options[:instance_type_permissions] ||= {}
         parse_access_csv(options[:instance_type_permissions], val, args, optparse)
       end
       opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
+        params['globalAppTemplateAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-blueprint-access')
+      opts.on('--default-blueprint-access ACCESS', String, "Update the default blueprint access: [none|full]" ) do  |val|
         params['globalAppTemplateAccess'] = val.to_s.downcase
       end
       opts.on('--blueprints ID=ACCESS', String, "Set blueprint to a custom access by blueprint id. Example: 1=full,2=none" ) do |val|
@@ -600,15 +639,26 @@ EOT
       opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
         params['globalCatalogItemTypeAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-catalog-item-type-access')
+      opts.on('--default-catalog-item-type-access ACCESS', String, "Update the default catalog item type access: [none|full]" ) do  |val|
+        params['globalCatalogItemTypeAccess'] = val.to_s.downcase
+      end
       opts.on('--catalog-item-types CODE=ACCESS', String, "Set catalog item type to a custom access by catalog item type id. Example: 1=full,2=none" ) do |val|
         options[:catalog_item_type_permissions] ||= {}
         parse_access_csv(options[:catalog_item_type_permissions], val, args, optparse)
+      end
+      opts.on('--default-persona-access ACCESS', String, "Update the default persona access: [none|full]" ) do  |val|
+        params['globalPersonaAccess'] = val.to_s.downcase
       end
       opts.on('--personas CODE=ACCESS', String, "Set persona to a custom access by persona code. Example: standard=full,serviceCatalog=full,vdi=full" ) do |val|
         options[:persona_permissions] ||= {}
         parse_access_csv(options[:persona_permissions], val, args, optparse)
       end
       opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+        params['globalVdiPoolAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-vdi-pool-access-access')
+      opts.on('--default-vdi-pool-access-access ACCESS', String, "Update the default VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
       opts.on('--vdi-pools ID=ACCESS', String, "Set VDI pool to a custom access by VDI pool id. Example: 1=full,2=none" ) do |val|
@@ -618,6 +668,10 @@ EOT
       opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
         params['globalReportTypeAccess'] = val.to_s.downcase
       end
+      opts.on('--default-report-type-access ACCESS', String, "Update the default report type access: [none|full]" ) do  |val|
+        params['globalReportTypeAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--default-report-type-access')
       opts.on('--report-types CODE=ACCESS', String, "Set report type to a custom access by report type code. Example: appCost=none,guidance=full" ) do |val|
         options[:report_type_permissions] ||= {}
         parse_access_csv(options[:report_type_permissions], val, args, optparse)
@@ -625,11 +679,19 @@ EOT
       opts.on('--global-task-access ACCESS', String, "Set the global task access: [none|full]" ) do  |val|
         params['globalTaskAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-task-access')
+      opts.on('--default-task-access ACCESS', String, "Set the default task access: [none|full]" ) do  |val|
+        params['globalTaskAccess'] = val.to_s.downcase
+      end
       opts.on('--tasks ID=ACCESS', String, "Set task to a custom access by task id. Example: 1=none,2=full" ) do |val|
         options[:task_permissions] ||= {}
         parse_access_csv(options[:task_permissions], val, args, optparse)
       end
-      opts.on('--global-workflow-access ACCESS', String, "Set the global workflow access: [none|full]" ) do  |val|
+      opts.on('--global-workflow-access ACCESS', String, "Set the default workflow access: [none|full]" ) do  |val|
+        params['globalTaskSetAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-workflow-access')
+      opts.on('--default-workflow-access ACCESS', String, "Set the default workflow access: [none|full]" ) do  |val|
         params['globalTaskSetAccess'] = val.to_s.downcase
       end
       opts.on('--workflows ID=ACCESS', String, "Set workflow to a custom access by workflow id. Example: 1=none,2=full" ) do |val|
@@ -650,10 +712,10 @@ Create a new role.
 [name] is required. This is a unique name (authority) for the new role.
 All the role permissions and access values can be configured.
 Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
-Use --global-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
+Use --default-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
 Only the specified permissions,instance types, etc. are updated.
 Use --reset-permissions to set access to "none" for all unspecified feature permissions.
-Use --reset-all-access to set access to "none" for all unspecified feature permissions and global access values for groups, instance types, etc.
+Use --reset-all-access to set access to "none" for all unspecified feature permissions and default access values for groups, instance types, etc.
 EOT
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
@@ -923,11 +985,19 @@ EOT
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-group-access')
+      opts.on('--default-group-access ACCESS', String, "Update the default group (site) access: [none|read|full]" ) do |val|
+        params['globalSiteAccess'] = val.to_s.downcase
+      end
       opts.on('--groups ID=ACCESS', String, "Set group (site) to a custom access by group id. Example: 1=none,2=full,3=read" ) do |val|
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
       opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+        params['globalZoneAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-cloud-access')
+      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
@@ -937,6 +1007,10 @@ EOT
       opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
         params['globalInstanceTypeAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-instance-type-access')
+      opts.on('--default-instance-type-access ACCESS', String, "Update the default instance type access: [none|full]" ) do  |val|
+        params['globalInstanceTypeAccess'] = val.to_s.downcase
+      end
       opts.on('--instance-types CODE=ACCESS', String, "Set instance type to a custom access instance type code. Example: nginx=full,apache=none" ) do |val|
         options[:instance_type_permissions] ||= {}
         parse_access_csv(options[:instance_type_permissions], val, args, optparse)
@@ -944,11 +1018,19 @@ EOT
       opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
         params['globalAppTemplateAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-blueprint-access')
+      opts.on('--default-blueprint-access ACCESS', String, "Update the default blueprint access: [none|full]" ) do  |val|
+        params['globalAppTemplateAccess'] = val.to_s.downcase
+      end
       opts.on('--blueprints ID=ACCESS', String, "Set blueprint to a custom access by blueprint id. Example: 1=full,2=none" ) do |val|
         options[:blueprint_permissions] ||= {}
         parse_access_csv(options[:blueprint_permissions], val, args, optparse)
       end
       opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
+        params['globalCatalogItemTypeAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-catalog-item-type-access')
+      opts.on('--default-catalog-item-type-access ACCESS', String, "Update the default catalog item type access: [none|full]" ) do  |val|
         params['globalCatalogItemTypeAccess'] = val.to_s.downcase
       end
       opts.on('--catalog-item-types CODE=ACCESS', String, "Set catalog item type to a custom access by catalog item type id. Example: 1=full,2=none" ) do |val|
@@ -959,7 +1041,11 @@ EOT
         options[:persona_permissions] ||= {}
         parse_access_csv(options[:persona_permissions], val, args, optparse)
       end
-      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+      opts.on('--global-vdi-pool-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+        params['globalVdiPoolAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-vdi-pool-access')
+      opts.on('--default-vdi-pool-access ACCESS', String, "Update the default VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
       opts.on('--vdi-pools ID=ACCESS', String, "Set VDI pool to a custom access by VDI pool id. Example: 1=full,2=none" ) do |val|
@@ -969,6 +1055,10 @@ EOT
       opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
         params['globalReportTypeAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-report-type-access')
+      opts.on('--default-report-type-access ACCESS', String, "Update the default report type access: [none|full]" ) do  |val|
+        params['globalReportTypeAccess'] = val.to_s.downcase
+      end
       opts.on('--report-types CODE=ACCESS', String, "Set report type to a custom access by report type code. Example: appCost=none,guidance=full" ) do |val|
         options[:report_type_permissions] ||= {}
         parse_access_csv(options[:report_type_permissions], val, args, optparse)
@@ -976,11 +1066,19 @@ EOT
       opts.on('--global-task-access ACCESS', String, "Update the global task access: [none|full]" ) do  |val|
         params['globalTaskAccess'] = val.to_s.downcase
       end
+      opts.add_hidden_option('--global-task-access')
+      opts.on('--default-task-access ACCESS', String, "Update the default task access: [none|full]" ) do  |val|
+        params['globalTaskAccess'] = val.to_s.downcase
+      end
       opts.on('--tasks ID=ACCESS', String, "Set task to a custom access by task id. Example: 1=none,2=full" ) do |val|
         options[:task_permissions] ||= {}
         parse_access_csv(options[:task_permissions], val, args, optparse)
       end
       opts.on('--global-workflow-access ACCESS', String, "Update the global workflow access: [none|full]" ) do  |val|
+        params['globalTaskSetAccess'] = val.to_s.downcase
+      end
+      opts.add_hidden_option('--global-workflow-access')
+      opts.on('--default-workflow-access ACCESS', String, "Update the default workflow access: [none|full]" ) do  |val|
         params['globalTaskSetAccess'] = val.to_s.downcase
       end
       opts.on('--workflows ID=ACCESS', String, "Set workflow to a custom access by workflow id. Example: 1=none,2=full" ) do |val|
@@ -999,7 +1097,7 @@ Update a role.
 [role] is required. This is the name (authority) or id of a role.
 All the role permissions and access values can be configured.
 Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
-Use --global-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
+Use --default-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
 Only the specified permissions,instance types, etc. are updated.
 Use --reset-permissions to set access to "none" for all unspecified feature permissions.
 Use --reset-all-access to set access to "none" for all unspecified feature permissions and global access values for groups, instance types, etc.
