@@ -966,7 +966,7 @@ class Morpheus::Cli::Clouds
     params = {}
     filename = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [file] [dark-file]")
+      opts.banner = subcommand_usage("[name] [file]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update the logo for a cloud.
