@@ -1526,9 +1526,13 @@ module Morpheus::Cli::ProvisioningHelper
             end
             
             if datastore_options.empty? && storage_type['hasDatastore'] != false
-              datastore_res = datastores_interface.list({'resourcePoolId' => current_root_volume['resourcePoolId'], 'zoneId' => options['zoneId'], 'siteId' => options['siteId']})['datastores']
-              datastore_res.each do |opt|
-                datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+              begin
+                datastore_res = datastores_interface.list({'resourcePoolId' => current_root_volume['resourcePoolId'], 'zoneId' => options['zoneId'], 'siteId' => options['siteId']})['datastores']
+                datastore_res.each do |opt|
+                  datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+                end
+              rescue
+                datastore_options = []
               end
             end
             if !datastore_options.empty?
