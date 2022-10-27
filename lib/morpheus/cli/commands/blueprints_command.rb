@@ -194,8 +194,8 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on('-t', '--type TYPE', String, "Blueprint Type. Default is morpheus.") do |val|
         options[:blueprint_type] = parse_blueprint_type(val.to_s)
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       build_standard_add_options(opts, options)
       opts.footer = "Create a new blueprint.\n" + 
@@ -264,8 +264,8 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on( '--owner USER', "Owner Username or ID" ) do |val|
         options[:owner] = val == 'null' ? nil : val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       build_standard_update_options(opts, options)
       opts.footer = "Update a blueprint.\n" + 
@@ -2037,7 +2037,7 @@ class Morpheus::Cli::BlueprintsCommand
     description_cols = {
       "ID" => 'id',
       "Name" => 'name',
-      "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+      "Labels" => lambda {|it| format_list(it['labels'], '') rescue '' },
       "Type" => lambda {|it| it['type'].kind_of?(Hash) ? it['type']['name'] : it['type'] },
       "Description" => 'description',
       "Category" => 'category',

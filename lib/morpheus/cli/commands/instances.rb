@@ -406,7 +406,7 @@ class Morpheus::Cli::Instances
       end
       opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        options[:labels] = parse_labels(val)
       end
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
@@ -610,7 +610,7 @@ class Morpheus::Cli::Instances
         options[:group] = val
       end
       opts.on('--labels [LIST]', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        params['labels'] = val.to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        params['labels'] = parse_labels(val)
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
@@ -1795,7 +1795,7 @@ class Morpheus::Cli::Instances
       end
       opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        options[:labels] = parse_labels(val)
       end
       # opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
       #   options[:copies] = val.to_i

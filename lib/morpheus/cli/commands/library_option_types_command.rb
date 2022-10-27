@@ -158,8 +158,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[options]")
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       build_option_type_options(opts, options, new_option_type_option_types)
       build_standard_add_options(opts, options)
@@ -205,8 +205,8 @@ class Morpheus::Cli::LibraryOptionTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       build_option_type_options(opts, options, update_option_type_option_types)
       build_standard_update_options(opts, options)

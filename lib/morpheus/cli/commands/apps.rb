@@ -224,8 +224,8 @@ class Morpheus::Cli::Apps
       opts.on( '--name VALUE', String, "Name" ) do |val|
         options[:name] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on( '--description VALUE', String, "Description" ) do |val|
         options[:description] = val
@@ -689,7 +689,7 @@ class Morpheus::Cli::Apps
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
-        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+        "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "Description" => 'description',
         "Type" => lambda {|it| 
           if it['type']
@@ -818,8 +818,8 @@ class Morpheus::Cli::Apps
       opts.on( '--name VALUE', String, "Name" ) do |val|
         options[:name] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on( '--description VALUE', String, "Description" ) do |val|
         options[:description] = val
@@ -2379,7 +2379,6 @@ EOT
         id: app['id'],
         name: app['name'],
         labels: format_list(app['labels'], '', 3),
-        description: app['description'],
         description: app['description'],
         blueprint: app['blueprint'] ? app['blueprint']['name'] : '',
         type: app['type'] ? format_blueprint_type(app['type']) : (format_blueprint_type(app['blueprint'] ? app['blueprint']['type'] : nil)),

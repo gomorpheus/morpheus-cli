@@ -150,6 +150,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         "Code" => lambda {|it| it['code'] },
         "Description" => lambda {|it| it['description'] },
         "Technology" => lambda {|it| format_instance_type_technology(it) },
+        "Labels" => lambda {|it| format_list(it['labels'], '') },
         "Category" => lambda {|it| it['category'].to_s.capitalize },
         # "Logo" => lambda {|it| it['logo'].to_s },
         "Visiblity" => lambda {|it| it['visibility'].to_s.capitalize },
@@ -226,7 +227,8 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
           {"TECHNOLOGY" => lambda {|layout| 
             layout['provisionType'] ? layout['provisionType']['name'] : ''
           } },
-          {"DESCRIPTION" => lambda {|layout| layout['description'] } }
+          {"DESCRIPTION" => lambda {|layout| layout['description'] } },
+          {"LABELS" => lambda {|layout| format_list(layout['labels'], '') } }
         ]
         print as_pretty_table(instance_type_layouts, layout_columns)
       else
@@ -254,6 +256,9 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         else
           params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new instance type."
@@ -347,6 +352,9 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_instance_type_option_types())
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
         if list.nil?

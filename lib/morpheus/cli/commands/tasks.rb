@@ -266,8 +266,8 @@ class Morpheus::Cli::Tasks
       opts.on('--name NAME', String, "Task Name" ) do |val|
         task_name = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on('--code CODE', String, "Task Code" ) do |val|
         task_code = val
@@ -639,8 +639,8 @@ class Morpheus::Cli::Tasks
       opts.on('--name NAME', String, "Task Name" ) do |val|
         options[:options]['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        options[:options]['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on('--code CODE', String, "Task Code" ) do |val|
         options[:options]['code'] = val

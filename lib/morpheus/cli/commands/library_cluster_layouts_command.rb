@@ -33,6 +33,9 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.on('--technology VALUE', String, "Filter by technology") do |val|
         params['provisionType'] = val
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'label', val)
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List cluster layouts."
     end
@@ -77,10 +80,11 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
               name: layout['name'],
               cloud_type: layout_cloud_type(layout),
               version: layout['computeVersion'],
-              description: layout['description']
+              description: layout['description'],
+              labels: format_list(layout['labels'], '', 3)
           }
         end
-        print as_pretty_table(rows, [:id, :name, :cloud_type, :version, :description], options)
+        print as_pretty_table(rows, [:id, :name, :cloud_type, :version, :description, :labels], options)
         print_results_pagination(json_response, {:label => "node type", :n_label => "node types"})
       end
       print reset,"\n"
@@ -153,6 +157,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
         "Cloud Type" => lambda {|it| layout_cloud_type(it)},
         "Cluster Type" => lambda {|it| it['groupType'] ? it['groupType']['name'] : nil},
         "Technology" => lambda {|it| it['provisionType'] ? it['provisionType']['code'] : nil},
+        "Labels" => lambda {|it| format_list(it['labels'], '') },
         "Minimum Memory" => lambda {|it| printable_byte_size(it['memoryRequirement'])},
         "Workflow" => lambda {|it| it['taskSets'] && it['taskSets'].count > 0 ? it['taskSets'][0]['name'] : nil},
         "Description" => lambda {|it| it['description']},
@@ -219,6 +224,9 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster layout") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-D', '--description VALUE', String, "Description") do |val|
         params['description'] = val
@@ -486,6 +494,9 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster layout") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-D', '--description VALUE', String, "Description") do |val|
         params['description'] = val

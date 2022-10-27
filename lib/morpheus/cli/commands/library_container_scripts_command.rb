@@ -122,7 +122,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
-        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+        "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "Type" => lambda {|it| format_container_script_type(it['scriptType']) },
         "Phase" => lambda {|it| format_container_script_phase(it['scriptPhase']) },
         "Run As User" => lambda {|it| it['runAsUser'] },
@@ -155,8 +155,8 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val
@@ -249,8 +249,8 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-t', '--type TYPE', "Script Type. i.e. bash, powershell. Default is bash.") do |val|
         params['scriptType'] = val

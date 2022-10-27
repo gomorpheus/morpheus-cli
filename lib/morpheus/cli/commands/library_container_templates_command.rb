@@ -131,7 +131,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       description_cols = {
         "ID" => lambda {|it| it['id'] },
         "Name" => lambda {|it| it['name'] },
-        "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+        "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "File Name" => lambda {|it| it['fileName'] },
         "File Path" => lambda {|it| it['filePath'] },
         "Setting Category" => lambda {|it| it['settingCategory'] },
@@ -166,8 +166,8 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
@@ -267,8 +267,8 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--name VALUE', String, "Name") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val

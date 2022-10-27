@@ -238,8 +238,8 @@ class Morpheus::Cli::JobsCommand
       opts.on("--name NAME", String, "Updates job name") do |val|
         params['name'] = val.to_s
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
@@ -518,8 +518,8 @@ class Morpheus::Cli::JobsCommand
       opts.on("--name NAME", String, "Updates job name") do |val|
         params['name'] = val.to_s
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('-a', '--active [on|off]', String, "Can be used to enable / disable the job. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
