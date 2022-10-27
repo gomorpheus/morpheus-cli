@@ -37,6 +37,9 @@ class Morpheus::Cli::CatalogItemTypesCommand
       opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
         params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
       end
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'label', val)
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog item types."
     end
@@ -59,7 +62,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
       if catalog_item_types.empty?
         print cyan,"No catalog item types found.",reset,"\n"
       else
-        list_columns = catalog_item_type_column_definitions.upcase_keys!
+        list_columns = catalog_item_type_list_column_definitions.upcase_keys!
         list_columns.delete("Blueprint")
         list_columns.delete("Workflow")
         list_columns.delete("Context")
@@ -232,6 +235,9 @@ EOT
       #   options[:options]['type'] = val.to_s.downcase
       # end
       build_option_type_options(opts, options, add_catalog_item_type_option_types)
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
         filename = val
         logo_file = nil
@@ -386,6 +392,9 @@ EOT
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type] [options]")
       build_option_type_options(opts, options, update_catalog_item_type_option_types)
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
         filename = val
         logo_file = nil
@@ -641,10 +650,30 @@ EOT
 
   private
 
+  def catalog_item_type_list_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Labels" => lambda {|it| format_list(it['labels'], '', 3) },
+      "Description" => 'description',
+      "Type" => lambda {|it| format_catalog_type(it) },
+      "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
+      "Workflow" => lambda {|it| it['workflow'] ? it['workflow']['name'] : nil },
+      "Context" => lambda {|it| it['context'] },
+      # "Content" => lambda {|it| it['content'] },
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Featured" => lambda {|it| format_boolean(it['featured']) },
+      #"Config" => lambda {|it| it['config'] },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
   def catalog_item_type_column_definitions()
     {
       "ID" => 'id',
       "Name" => 'name',
+      "Labels" => lambda {|it| format_list(it['labels']) },
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
       "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
