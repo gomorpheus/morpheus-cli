@@ -57,6 +57,10 @@ module Morpheus::Cli::ProvisioningHelper
     @api_client.accounts
   end
 
+  def datastores_interface
+    @api_client.datastores
+  end
+
   def get_available_groups(params = {}, refresh=false)
     if !@available_groups || refresh
       option_results = options_interface.options_for_source('groups', params)
@@ -1519,6 +1523,13 @@ module Morpheus::Cli::ProvisioningHelper
               # might need different logic here ? =o
               # volume['size'] = plan_size
               # volume['sizeId'] = nil #volume.delete('sizeId')
+            end
+            
+            if datastore_options.empty? && storage_type['hasDatastore'] != false
+              datastore_res = datastores_interface.list({'resourcePoolId' => current_root_volume['resourcePoolId'], 'zoneId' => options['zoneId'], 'siteId' => options['siteId']})['datastores']
+              datastore_res.each do |opt|
+                datastore_options << {'name' => opt['name'], 'value' => opt['id']}
+              end
             end
             if !datastore_options.empty?
               v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
