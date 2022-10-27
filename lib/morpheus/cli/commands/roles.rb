@@ -6,17 +6,21 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
   register_subcommands :list, :get, :add, :update, :remove, 
-    :'list-permissions', :'update-feature-access', :'update-global-group-access', :'update-default-feature-access',
-    :'update-group-access', :'update-global-cloud-access', :'update-cloud-access', :'update-default-cloud-access',
+    :'list-permissions', :'update-feature-access', :'update-default-feature-access',
+    :'update-group-access', :'update-global-group-access', :'update-default-group-access',
+    :'update-global-cloud-access', :'update-cloud-access', :'update-default-cloud-access',
     :'update-global-instance-type-access', :'update-instance-type-access', :'update-default-instance-type-access',
     :'update-global-blueprint-access', :'update-blueprint-access', :'update-default-blueprint-access',
     :'update-global-catalog-item-type-access', :'update-catalog-item-type-access', :'update-default-catalog-item-type-access',
-    :'update-persona-access', :'update-default-persona-access', 'update-default-persona',
-    :'update-global-vdi-pool-access', :'update-vdi-pool-access', :'update-default-cloud-access',
-    :'update-global-report-type-access', :'update-report-type-access', :'update-default-cloud-access',
-    :'update-global-task-access', :'update-task-access', :'update-default-cloud-access',
-    :'update-global-workflow-access', :'update-workflow-access', :'update-default-cloud-access'
-
+    :'update-persona-access', :'update-default-persona-access',
+    :'update-global-vdi-pool-access', :'update-vdi-pool-access', :'update-default-vdi-pool-access',
+    :'update-global-report-type-access', :'update-report-type-access', :'update-default-report-type-access',
+    :'update-global-task-access', :'update-task-access', :'update-default-task-access',
+    :'update-global-workflow-access', :'update-workflow-access', :'update-default-workflow-access'
+  set_subcommands_hidden(
+    subcommands.keys.select{|c|
+    c.include?('update-global')
+  })
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -234,7 +238,7 @@ EOT
         print as_pretty_table(rows, [:code, :name, :subCategory, :access], options)
         # print reset,"\n"
       else
-        print cyan,"Use --permissions to list feature permissions","\n"
+        print cyan,"Use --feature-access to list feature permissions","\n"
       end
 
       has_group_access = true
@@ -314,168 +318,142 @@ EOT
       # print "\n"
       instance_type_global_access = json_response['globalInstanceTypeAccess']
       instance_type_permissions = role['instanceTypes'] ? role['instanceTypes'] : (json_response['instanceTypePermissions'] || [])
-      if instance_type_permissions.find{|it| !it['access'].nil?}
+
+      # if have any custom, then we want to show the flag indicator
+      # if including, show
+
+      if options[:include_instance_type_access] || options[:include_all_access]
         print_h2 "Instance Type Access", options
-        if options[:include_instance_type_access] || options[:include_all_access]
-          rows = instance_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || instance_type_global_access, ["none","read","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use -i, --instance-type-access to list custom access","\n"
+        rows = instance_type_permissions.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || instance_type_global_access, ["none","read","full"]),
+          }
         end
-        # print reset,"\n"
-      else
-        # print "\n"
-        # print cyan,bold,"Instance Type Access: #{get_access_string(json_response['globalInstanceTypeAccess'])}",reset,"\n"
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif instance_type_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Instance Type Access", options
+        print cyan,"Use -i, --instance-type-access to list custom access","\n"
       end
 
       blueprint_global_access = json_response['globalAppTemplateAccess'] || json_response['globalBlueprintAccess']
       blueprint_permissions = (role['appTemplates'] || role['blueprints']) ? (role['appTemplates'] || role['blueprints']) : (json_response['appTemplatePermissions'] || json_response['blueprintPermissions'] || [])
       print cyan
-      # print_h2 "Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}", options
-      # print "\n"
-      if blueprint_permissions.find{|it| !it['access'].nil?}
+      if options[:include_blueprint_access] || options[:include_all_access]
         print_h2 "Blueprint Access", options
-        if options[:include_blueprint_access] || options[:include_all_access]
-          rows = blueprint_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || blueprint_global_access, ["none","read","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use -b, --blueprint-access to list custom access","\n"
+        rows = blueprint_permissions.select {|it| !it['access'].nil?}.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || blueprint_global_access, ["none","read","full"]),
+          }
         end
-        # print reset,"\n"
-      else
-        # print "\n"
-        # print cyan,bold,"Blueprint Access: #{get_access_string(json_response['globalAppTemplateAccess'])}",reset,"\n"
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif blueprint_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Blueprint Access", options
+        print cyan,"Use -b, --blueprint-access to list custom access","\n"
       end
       
       catalog_item_type_global_access = json_response['globalCatalogItemTypeAccess']
       catalog_item_type_permissions = role['catalogItemTypes'] ? role['catalogItemTypes'] : (json_response['catalogItemTypePermissions'] || [])
       print cyan
-      # print_h2 "catalog_item_type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}", options
-      # print "\n"
-      if catalog_item_type_permissions.find{|it| !it['access'].nil?}
+      if options[:include_catalog_item_type_access] || options[:include_all_access]
         print_h2 "Catalog Item Type Access", options
-        if options[:include_catalog_item_type_access] || options[:include_all_access]
-          rows = catalog_item_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || catalog_item_type_global_access, ["none","read","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --catalog-item-type-access to list access","\n"
+        rows = catalog_item_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || catalog_item_type_global_access, ["none","read","full"]),
+          }
         end
-      else
-        # print "\n"
-        # print cyan,bold,"Catalog Item Type Access: #{get_access_string(json_response['globalCatalogItemTypeAccess'])}",reset,"\n"
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif catalog_item_type_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Catalog Item Type Access", options
+        print cyan,"Use --catalog-item-type-access to list access","\n"
       end
 
       persona_global_access = json_response['globalPersonaAccess']
       persona_permissions = role['personas'] ? role['personas'] : (json_response['personaPermissions'] || [])
-
-      if persona_permissions.find{|it| !it['access'].nil?}
+      print cyan
+      if options[:include_persona_access] || options[:include_all_access]
         print_h2 "Persona Access", options
-        if options[:include_persona_access] || options[:include_all_access]
-          rows = persona_permissions.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || persona_global_access, ["none","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --persona-access to list access","\n"
+        rows = persona_permissions.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || persona_global_access, ["none","full"]),
+          }
         end
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif persona_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Persona Access", options
+        print cyan,"Use --persona-access to list access","\n"
       end
 
       vdi_pool_global_access = json_response['globalVdiPoolAccess']
       vdi_pool_permissions = role['vdiPools'] ? role['vdiPools'] : (json_response['vdiPoolPermissions'] || [])
       print cyan
-      if vdi_pool_permissions.find{|it| !it['access'].nil?}
+      if options[:include_vdi_pool_access] || options[:include_all_access]
         print_h2 "VDI Pool Access", options
-        if options[:include_vdi_pool_access] || options[:include_all_access]
-          rows = vdi_pool_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || vdi_pool_global_access, ["none","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --vdi-pool-access to list custom access","\n"
+        rows = vdi_pool_permissions.select {|it| !it['access'].nil?}.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || vdi_pool_global_access, ["none","full"]),
+          }
         end
-      else
-        # print "\n"
-        # print cyan,bold,"VDI Pool Access: #{get_access_string(json_response['globalVdiPoolAccess'])}",reset,"\n"
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif vdi_pool_permissions.find {|it| !it['access'].nil?}
+        print_h2 "VDI Pool Access", options
+        print cyan,"Use --vdi-pool-access to list custom access","\n"
       end
 
       report_type_global_access = json_response['globalReportTypeAccess']
       report_type_permissions = role['reportTypes'] ? role['reportTypes'] : (json_response['reportTypePermissions'] || [])
       print cyan
-      if report_type_permissions.find{|it| !it['access'].nil?}
+      if options[:include_report_type_access] || options[:include_all_access]
         print_h2 "Report Type Access", options
-        if options[:include_report_type_access] || options[:include_all_access]
-          rows = report_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || report_type_global_access, ["none","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --report-type-access to list custom access","\n"
+        rows = report_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || report_type_global_access, ["none","full"]),
+          }
         end
-      else
-        # print "\n"
-        # print cyan,bold,"Report Type Access: #{get_access_string(json_response['globalReportTypeAccess'])}",reset,"\n"
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif report_type_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Report Type Access", options
+        print cyan,"Use --report-type-access to list custom access","\n"
       end
 
       task_global_access = json_response['globalTaskAccess']
       task_permissions = role['tasks'] ? role['tasks'] : (json_response['taskPermissions'] || [])
       print cyan
-      if task_permissions.find{|it| !it['access'].nil?}
+      if options[:include_task_access] || options[:include_all_access]
         print_h2 "Task Access", options
-        if options[:include_task_access] || options[:include_all_access]
-          rows = task_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || task_global_access, ["none","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --task-access to list custom access","\n"
+        rows = task_permissions.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || task_global_access, ["none","full"]),
+          }
         end
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif task_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Task Access", options
+        print cyan,"Use --task-access to list custom access","\n"
       end
 
       workflow_global_access = json_response['globalTaskSetAccess']
       workflow_permissions = role['taskSets'] ? role['taskSets'] : (json_response['taskSetPermissions'] || [])
       print cyan
-      if workflow_permissions.find{|it| !it['access'].nil?}
+      if options[:include_workflow_access] || options[:include_all_access]
         print_h2 "Workflow", options
-        if options[:include_workflow_access] || options[:include_all_access]
-          rows = workflow_permissions.select {|it| !it['access'].nil?}.collect do |it|
-            {
-              name: it['name'],
-              access: format_access_string(it['access'] || workflow_global_access, ["none","full"]),
-            }
-          end
-          print as_pretty_table(rows, [:name, :access], options)
-        else
-          print cyan,"Use --workflow-access to list custom access","\n"
+        rows = workflow_permissions.select {|it| !it['access'].nil?}.collect do |it|
+          {
+            name: it['name'],
+            access: format_access_string(it['access'] || workflow_global_access, ["none","full"]),
+          }
         end
+        print as_pretty_table(rows, [:name, :access], options)
+      elsif workflow_permissions.find {|it| !it['access'].nil?}
+        print_h2 "Workflow", options
+        print cyan,"Use --workflow-access to list custom access","\n"
       end
-
     end
     print reset,"\n"
 
@@ -1418,15 +1396,19 @@ EOT
   end
 
   def update_global_group_access(args)
-    usage = "Usage: morpheus roles update-global-group-access [role] [full|read|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_group_access(args)
+  end
+
+  def update_default_group_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|read|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|read|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
-Update global group access for a role.
+Update default group access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, read, custom or none.
+[access] is required. This is the access level to assign: full, read, or none.
 Only applicable to User roles.
 EOT
     end
@@ -1438,7 +1420,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'read', 'custom', 'none'].include?(access_value)
+    if !['full', 'read', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1462,7 +1444,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global group access updated"
+        print_green_success "Role #{role['authority']} default group access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1576,15 +1558,19 @@ EOT
   end
 
   def update_global_cloud_access(args)
-    usage = "Usage: morpheus roles update-global-cloud-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_cloud_access(args)
+  end
+
+  def update_default_cloud_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
-            opts.footer = <<-EOT
-Update global cloud access for a role.
+      opts.footer = <<-EOT
+Update default cloud access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 Only applicable to Tenant roles.
 EOT
     end
@@ -1596,7 +1582,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1620,7 +1606,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global cloud access updated"
+        print_green_success "Role #{role['authority']} default cloud access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1731,13 +1717,17 @@ EOT
   end
 
   def update_global_instance_type_access(args)
-    usage = "Usage: morpheus roles update-global-instance-type-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_instance_type_access(args)
+  end
+
+  def update_default_instance_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
-Update global instance type access for a role.
+Update default instance type access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, custom or none.
 EOT
@@ -1750,7 +1740,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1775,7 +1765,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global instance type access updated"
+        print_green_success "Role #{role['authority']} default instance type access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -1882,13 +1872,17 @@ EOT
   end
 
   def update_global_blueprint_access(args)
-    usage = "Usage: morpheus roles update-global-blueprint-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_blueprint_access(args)
+  end
+
+  def update_default_blueprint_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
-Update global blueprint access for a role.
+Update default blueprint access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, custom or none.
 EOT
@@ -1901,7 +1895,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1926,7 +1920,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global blueprint access updated"
+        print_green_success "Role #{role['authority']} default blueprint access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2046,13 +2040,17 @@ EOT
   end
 
   def update_global_catalog_item_type_access(args)
-    usage = "Usage: morpheus roles update-global-catalog-item-type-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_catalog_item_type_access(args)
+  end
+
+  def update_default_catalog_item_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
-Update global catalog item type access for a role.
+Update default catalog item type access for a role.
 [role] is required. This is the name (authority) or id of a role.
 [access] is required. This is the access level to assign: full, custom or none.
 EOT
@@ -2065,7 +2063,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -2090,7 +2088,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global catalog item type access updated"
+        print_green_success "Role #{role['authority']} default catalog item type access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2207,6 +2205,57 @@ EOT
     end
   end
 
+  def update_default_persona_access(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[role] [full|none]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update default persona access for a role.
+[role] is required. This is the name (authority) or id of a role.
+[access] is required. This is the access level to assign: full or none.
+      EOT
+    end
+    optparse.parse!(args)
+
+    if args.count < 2
+      puts optparse
+      exit 1
+    end
+    name = args[0]
+    access_value = args[1].to_s.downcase
+    if !['full', 'none'].include?(access_value)
+      puts optparse
+      exit 1
+    end
+
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      role = find_role_by_name_or_id(account_id, name)
+      exit 1 if role.nil?
+
+      params = {permissionCode: 'Persona', access: access_value}
+      @roles_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
+        return
+      end
+      json_response = @roles_interface.update_permission(account_id, role['id'], params)
+
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Role #{role['authority']} default persona access updated"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   def update_persona_access(args)
     options = {}
     persona_id = nil
@@ -2299,22 +2348,26 @@ EOT
   end
 
   def update_global_vdi_pool_access(args)
-    usage = "Usage: morpheus roles update-global-vdi-pool-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_vdi_pool_access(args)
+  end
+
+  def update_default_vdi_pool_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
-Update global VDI pool access for a role.
+Update default VDI pool access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 
@@ -2338,7 +2391,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global vdi pool access updated"
+        print_green_success "Role #{role['authority']} default vdi pool access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2458,25 +2511,28 @@ EOT
   end
 
   def update_global_report_type_access(args)
-    usage = "Usage: morpheus roles update-global-report-type-access [role] [full|custom|none]"
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_report_type_access(args)
+  end
+
+  def update_default_report_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|custom|none]")
+      opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
-Update global report type access for a role.
+Update default report type access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'custom', 'none'].include?(access_value)
+    if !['full', 'none'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
-
 
     connect(options)
     begin
@@ -2497,7 +2553,7 @@ EOT
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global report type access updated"
+        print_green_success "Role #{role['authority']} default report type access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2617,12 +2673,17 @@ EOT
   end
 
   def update_global_task_access(args)
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_task_access(args)
+  end
+
+  def update_default_task_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
-Update global task access for a role.
+Update default task access for a role.
 [task] is required. This is the id of a task.
 [access] is required. This is the access level to assign: full or none.
       EOT
@@ -2654,7 +2715,7 @@ Update global task access for a role.
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global task access updated"
+        print_green_success "Role #{role['authority']} default task access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2739,7 +2800,7 @@ Update global task access for a role.
       else
         params['taskId'] = task['id']
       end
-      params['access'] = access_value
+      params['access'] = access_value == 'default' ? nil : access_value
       @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_task(account_id, role['id'], params)
@@ -2765,12 +2826,17 @@ Update global task access for a role.
   end
 
   def update_global_workflow_access(args)
+    puts "#{yellow}DEPRECATED#{reset}"
+    update_default_workflow_access(args)
+  end
+
+  def update_default_workflow_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [full|none]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
-Update global workflow access for a role.
+Update default workflow access for a role.
 [workflow] is required. This is the id of a workflow.
 [access] is required. This is the access level to assign: full or none.
       EOT
@@ -2802,7 +2868,7 @@ Update global workflow access for a role.
         print JSON.pretty_generate(json_response)
         print "\n"
       else
-        print_green_success "Role #{role['authority']} global task access updated"
+        print_green_success "Role #{role['authority']} default workflow access updated"
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -2887,7 +2953,7 @@ Update global workflow access for a role.
       else
         params['taskSetId'] = workflow['id']
       end
-      params['access'] = access_value
+      params['access'] = access_value == 'default' ? nil : access_value
       @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_task_set(account_id, role['id'], params)
