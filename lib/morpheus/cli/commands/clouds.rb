@@ -7,6 +7,7 @@ class Morpheus::Cli::Clouds
 
   register_subcommands :list, :count, :get, :add, :update, :remove, :refresh, :security_groups, :apply_security_groups, :types => :list_cloud_types
   register_subcommands :wiki, :update_wiki
+  register_subcommands({:'update-logo' => :update_logo,:'update-dark-logo' => :update_dark_logo})
   #register_subcommands :firewall_disable, :firewall_enable
   alias_subcommand :details, :get
   set_default_subcommand :list
@@ -342,6 +343,10 @@ class Morpheus::Cli::Clouds
       opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
         options[:options]['credential'] = val
       end
+      opts.on('--default-cloud-logos', "Reset logos to default cloud logos, removing any custom logo and dark logo" ) do
+        options[:options]['defaultCloudLogos'] = true
+      end
+      
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -953,6 +958,106 @@ class Morpheus::Cli::Clouds
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  def update_logo(args)
+    options = {}
+    params = {}
+    filename = nil
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] [file] [dark-file]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update the logo for a cloud.
+[name] is required. This is the name or id of a cloud.
+[file] is required. This is the path of the logo file
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    layout_id = args[0]
+    filename = args[1]
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+      logo_file = nil
+      if filename == 'null'
+        logo_file = 'null' # clear it
+      else
+        filename = File.expand_path(filename)
+        if !File.exists?(filename)
+          print_red_alert "File not found: #{filename}"
+          exit 1
+        end
+        logo_file = File.new(filename, 'rb')
+      end
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.update_logo(cloud['id'], logo_file)
+        return
+      end
+      json_response = @clouds_interface.update_logo(cloud['id'], logo_file)
+      if options[:json]
+        print JSON.pretty_generate(json_response), "\n"
+        return 0
+      end
+      print_green_success "Updated cloud #{cloud['name']} logo"
+      _get(cloud['id'], params, options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
+    end
+  end
+
+  def update_dark_logo(args)
+    options = {}
+    params = {}
+    filename = nil
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[name] [file]")
+      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update the logo for a cloud.
+[name] is required. This is the name or id of a cloud.
+[file] is required. This is the path of the dark logo file
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    layout_id = args[0]
+    filename = args[1]
+    begin
+      cloud = find_cloud_by_name_or_id(args[0])
+      return 1 if cloud.nil?
+      dark_logo_file = nil
+      if filename == 'null'
+        dark_logo_file = 'null' # clear it
+      else
+        filename = File.expand_path(filename)
+        if !File.exists?(filename)
+          print_red_alert "File not found: #{filename}"
+          exit 1
+        end
+        dark_logo_file = File.new(filename, 'rb')
+      end
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.update_logo(cloud['id'], nil, dark_logo_file)
+        return
+      end
+      json_response = @clouds_interface.update_logo(cloud['id'], nil, dark_logo_file)
+      if options[:json]
+        print JSON.pretty_generate(json_response), "\n"
+        return 0
+      end
+      print_green_success "Updated cloud #{cloud['name']} dark logo"
+      _get(cloud['id'], params, options)
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      return 1
     end
   end
 

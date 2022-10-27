@@ -116,4 +116,25 @@ class Morpheus::CloudsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  # NOT json, multipart file upload
+  def update_logo(id, logo_file, dark_logo_file=nil)
+    url = "#{@base_url}/api/zones/#{id}/update-logo"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
+    payload = {}
+    # payload["zone"] = {}
+    if logo_file
+      # payload["zone"]["logo"] = logo_file
+      payload["logo"] = logo_file
+    end
+    if dark_logo_file
+      # payload["instanceType"]["darkLogo"] = dark_logo_file
+      payload["darkLogo"] = dark_logo_file
+    end
+    if logo_file.is_a?(File) || dark_logo_file.is_a?(File)
+      payload[:multipart] = true
+    else
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    end
+    execute(method: :post, url: url, headers: headers, payload: payload)
+  end
 end
