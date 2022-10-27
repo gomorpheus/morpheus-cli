@@ -258,6 +258,7 @@ class Morpheus::Cli::Instances
           row = {
             id: instance['id'],
             name: instance['name'],
+            labels: format_list(instance['labels'], '', 3),
             connection: format_instance_connection_string(instance),
             environment: instance['instanceContext'],
             user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
@@ -276,16 +277,16 @@ class Morpheus::Cli::Instances
           }
           row
         }
-        columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
-            :type, :version, :environment, 
+        columns = [:id, {:name => {:max_width => 50}}, :labels, :group, :cloud, 
+            :type, :version, :environment, :plan,
             {:created => {:display_name => "CREATED"}}, 
             # {:tenant => {:display_name => "TENANT"}}, 
             {:user => {:display_name => "OWNER", :max_width => 20}}, 
-            :plan,
             :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
         # custom pretty table columns ... this is handled in as_pretty_table now(), 
         # todo: remove all these.. and try to always pass rows as the json data itself..
         if options[:details] != true
+          columns.delete(:labels)
           columns.delete(:plan)
         end
         print cyan
