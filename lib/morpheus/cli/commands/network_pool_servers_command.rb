@@ -2,148 +2,22 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::NetworkPoolServersCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::RestCommand
   include Morpheus::Cli::InfrastructureHelper
 
+  set_command_description "View and manage network pool servers (IPAM integrations)"
   set_command_name :'network-pool-servers'
 
   register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list_types, :get_type
   
-  # set_default_subcommand :list
-  
-  def initialize()
-    # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
-  end
-
-  def connect(opts)
-    @api_client = establish_remote_appliance_connection(opts)
-    @network_pool_servers_interface = @api_client.network_pool_servers
-    @clouds_interface = @api_client.clouds
-    @options_interface = @api_client.options
-  end
+  # RestCommand settings
+  register_interfaces :network_pool_servers, :network_pool_server_types, :clouds, :options
+  set_rest_has_type true
+  # set_rest_type :network_pool_server_types
 
   def handle(args)
     handle_subcommand(args)
-  end
-
-  def list(args)
-    options = {}
-    params = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
-      opts.footer = "List network pool servers."
-    end
-    optparse.parse!(args)
-    connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @network_pool_servers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @network_pool_servers_interface.dry.list(params)
-        return
-      end
-      json_response = @network_pool_servers_interface.list(params)
-      network_pool_servers = json_response["networkPoolServers"]
-      if options[:json]
-        puts as_json(json_response, options, "networkPoolServers")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "networkPoolServers")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(network_pool_servers, options)
-        return 0
-      end
-      title = "Morpheus Network Pool Servers"
-      subtitles = []
-      subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-      if network_pool_servers.empty?
-        print cyan,"No network pool servers found.",reset,"\n"
-      else
-        rows = network_pool_servers.collect {|network_pool_server| 
-          row = {
-            id: network_pool_server['id'],
-            name: network_pool_server['name'],
-            # description: network_pool_server['description'],
-            type: network_pool_server['type'] ? network_pool_server['type']['name'] : '',
-            pools: network_pool_server['pools'] ? network_pool_server['pools'].collect {|it| it['name'] }.uniq.join(', ') : '',
-          }
-          row
-        }
-        columns = [:id, :name, :type, :pools]
-        if options[:include_fields]
-          columns = options[:include_fields]
-        end
-        print cyan
-        print as_pretty_table(rows, columns, options)
-        print reset
-        print_results_pagination(json_response, {:label => "network pool server", :n_label => "network pool servers"})
-      end
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
-  end
-
-  def get(args)
-    options = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[network-pool-server]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "Get details about a network pool server." + "\n" +
-                    "[network-pool-server] is required. This is the name or id of a network pool server."
-    end
-    optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} missing argument: [network-pool-server]\n#{optparse}"
-      return 1
-    end
-    connect(options)
-    begin
-      @network_pool_servers_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @network_pool_servers_interface.dry.get(args[0].to_i)
-        else
-          print_dry_run @network_pool_servers_interface.dry.list({name:args[0]})
-        end
-        return
-      end
-      network_pool_server = find_network_pool_server_by_name_or_id(args[0])
-      return 1 if network_pool_server.nil?
-      json_response = {'networkPoolServer' => network_pool_server}  # skip redundant request
-      # json_response = @network_pool_servers_interface.get(network_pool_server['id'])
-      network_pool_server = json_response['networkPoolServer']
-      if options[:json]
-        puts as_json(json_response, options, 'networkPoolServer')
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, 'networkPoolServer')
-        return 0
-      elsif options[:csv]
-        puts records_as_csv([network_pool_server], options)
-        return 0
-      end
-      print_h1 "Network Pool Server Details"
-      print cyan
-      description_cols = {
-        "ID" => 'id',
-        "Name" => lambda {|it| it['name'] },
-        "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
-        # "Service URL" => lambda {|it| it['serviceUrl'] : '' },
-        "Pools" => lambda {|it| it['pools'] ? it['pools'].collect {|p| p['name'] }.uniq.join(', ') : '' },
-      }
-      print_description_list(description_cols, network_pool_server)
-      print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
-    end
   end
 
   def add(args)
@@ -230,7 +104,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
       elsif !options[:quiet]
         network_pool_server = json_response['networkPoolServer']
         print_green_success "Added network pool server #{network_pool_server['name']}"
-        get([network_pool_server['id']])
+        _get(network_pool_server['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -319,7 +193,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
       else
         network_pool_server = json_response['networkPoolServer']
         print_green_success "Updated network pool server #{network_pool_server['name']}"
-        get([network_pool_server['id']])
+        _get(network_pool_server['id'], {}, options)
       end
       return 0
     rescue RestClient::Exception => e
@@ -374,6 +248,35 @@ class Morpheus::Cli::NetworkPoolServersCommand
 
   private
 
+  def render_response_for_get(json_response, options)
+    render_response(json_response, options, rest_object_key) do
+      record = json_response[rest_object_key]
+      print_h1 rest_label, [], options
+      print cyan
+      columns = rest_column_definitions(options)
+      if record['credential'] && record['credential']['type'] != 'local'
+        columns.delete("Username")
+        columns.delete("Password")
+      end
+      columns.delete("Throttle Rate") if record['xxxxx'].to_s.empty?
+      # columns.delete("Disable SSL SNI Verification") if record['ignoreSsl'].nil?
+      columns.delete("Ignore SSL") if record['ignoreSsl'].nil?
+      columns.delete("Network Filter") if record['networkFilter'].to_s.empty?
+      columns.delete("Zone Filter") if record['zoneFilter'].to_s.empty?
+      columns.delete("Tenant Match") if record['tenantMatch'].to_s.empty?
+      columns.delete("Service Mode") if record['serviceMode'].to_s.empty?
+      columns.delete("Extra Attributes") if record['config'].nil? || record['config']['extraAttributes'].to_s.empty?
+      columns.delete("Enabled") if record['enabled'].nil?
+      print_description_list(columns, record, options)
+      # show Pools
+      pools = record['pools']
+      if pools && !pools.empty?
+        print_h2 "Network Pools"
+        print as_pretty_table(pools, [:id, :name], options)
+      end
+      print reset,"\n"
+    end
+  end
 
  def find_network_pool_server_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/

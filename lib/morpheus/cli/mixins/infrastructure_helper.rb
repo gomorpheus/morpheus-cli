@@ -479,4 +479,63 @@ module Morpheus::Cli::InfrastructureHelper
     return {success:true, data: record_ids}
   end
 
+  def network_pool_server_list_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => lambda {|it| it['name'] },
+      "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+      "URL" => lambda {|it| it['serviceUrl'] },
+      "Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
+      # "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
+  def network_pool_server_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => lambda {|it| it['name'] },
+      "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
+      "URL" => lambda {|it| it['serviceUrl'] },
+      "Username" => lambda {|it| it['serviceUsername'] },
+      "Password" => lambda {|it| it['servicePassword'] },
+      "Credentials" => lambda {|it| it['credential'] ? (it['credential']['type'] == 'local' ? '(Local)' : it['credential']['name']) : nil },
+      "Throttle Rate" => lambda {|it| it['serviceThrottleRate'] },
+      "Service Mode" => lambda {|it| it['serviceMode'] },
+      # "Disable SSL SNI Verification" => lambda {|it| it['ignoreSsl'] },
+      "Ignore SSL" => lambda {|it| it['ignoreSsl'] },
+      "Network Filter" => lambda {|it| it['networkFilter'] },
+      "Zone Filter" => lambda {|it| it['zoneFilter'] },
+      "Tenant Match" => lambda {|it| it['tenantMatch'] },
+      "Extra Attributes" => lambda {|it| it['config'] ? it['config']['extraAttributes'] : nil },
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
+      "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
+  def network_pool_server_type_list_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Code" => 'code',
+    }
+  end
+
+  def network_pool_server_type_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Code" => 'code',
+      # "Integration Code" => 'integrationCode',
+      "Description" => 'description',
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Selectable" => lambda {|it| format_boolean(it['selectable']) },
+      "Plugin" => lambda {|it| format_boolean(it['isPlugin']) },
+      "Embedded" => lambda {|it| format_boolean(it['isEmbedded']) },
+    }
+  end
+
 end

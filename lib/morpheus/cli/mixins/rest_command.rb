@@ -520,7 +520,10 @@ EOT
     json_response = rest_interface.list(params)
     render_response(json_response, options, rest_list_key) do
       records = json_response[rest_list_key]
-      print_h1 "Morpheus #{rest_label_plural}"
+      title = "Morpheus #{rest_label_plural}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
       if records.nil? || records.empty?
         print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
       else
@@ -582,7 +585,7 @@ EOT
       #   print_description_list(config.keys, config)
       # end
       # Option Types
-      if record['optionTypes'] && record['optionTypes'].size > 0
+      if record['optionTypes'] && record['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.size > 0
         print_h2 "Option Types", options
         print format_option_types_table(record['optionTypes'], options, rest_object_key)
       end
@@ -882,6 +885,101 @@ EOT
       print_green_success "Removed #{rest_label.downcase} #{record['name'] || record['id']}"
     end
     return 0, nil
+  end
+
+  def list_types(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[search]")
+      build_list_options(opts, options, params)
+      opts.footer = <<-EOT
+List #{rest_type_label_plural.downcase}.
+[search] is optional. This is a search phrase to filter the results.
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    parse_list_options!(args, options, params)
+    rest_type_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_type_interface.dry.list(params)
+      return
+    end
+    json_response = rest_type_interface.list(params)
+    render_response(json_response, options, rest_type_list_key) do
+      records = json_response[rest_type_list_key]
+      title = "Morpheus #{rest_type_label_plural}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if records.nil? || records.empty?
+        print cyan,"No #{rest_type_label_plural.downcase} found.",reset,"\n"
+      else
+        print as_pretty_table(records, rest_type_list_column_definitions(options).upcase_keys!, options)
+        print_results_pagination(json_response) if json_response['meta']
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def get_type(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[#{rest_type_arg}]")
+      build_get_options(opts, options, params)
+      opts.footer = <<-EOT
+Get details about #{a_or_an(rest_type_label)} #{rest_type_label.downcase}.
+[#{rest_type_arg}] is required. This is the name or id of #{a_or_an(rest_type_label)} #{rest_type_label.downcase}.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    parse_get_options!(args, options, params)
+    id = args.join(" ")
+    _get_type(id, params, options)
+  end
+
+  def _get_type(id, params, options)
+    if id !~ /\A\d{1,}\Z/ # && rest_type_has_name
+      record = rest_type_find_by_name_or_id(id)
+      if record.nil?
+        return 1, "#{rest_type_label} not found for '#{id}'"
+      end
+      id = record['id']
+    end
+    rest_type_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_type_interface.dry.get(id, params)
+      return
+    end
+    json_response = rest_type_interface.get(id, params)
+    render_response_for_get_type(json_response, options)
+    return 0, nil
+  end
+
+  def render_response_for_get_type(json_response, options)
+    render_response(json_response, options, rest_type_object_key) do
+      record = json_response[rest_type_object_key]
+      print_h1 rest_type_label, [], options
+      print cyan
+      print_description_list(rest_type_column_definitions(options), record, options)
+      # # could always show config eh? or maybe only with --config if that is nicer.
+      # # config = record['config'].is_a?(Hash) && !record['config'].empty?
+      # if config && !config.empty?
+      #   print_h2 "Configuration"
+      #   print_description_list(config.keys, config)
+      # end
+      # Option Types
+      if record['optionTypes'] && record['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.size > 0
+        print_h2 "Option Types", options
+        print format_option_types_table(record['optionTypes'], options, rest_type_object_key)
+      end
+      print reset,"\n"
+    end
   end
 
 end

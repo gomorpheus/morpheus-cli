@@ -673,6 +673,10 @@ class Morpheus::APIClient
     Morpheus::NetworkPoolServersInterface.new(common_interface_options).setopts(@options)
   end
 
+  def network_pool_server_types
+    Morpheus::NetworkPoolServerTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def network_domains
     Morpheus::NetworkDomainsInterface.new(common_interface_options).setopts(@options)
   end
