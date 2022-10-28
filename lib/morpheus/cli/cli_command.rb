@@ -115,7 +115,7 @@ module Morpheus
       end
 
       def parse_bytes_param(bytes_param, option, assumed_unit = nil, allow_zero = false)
-        if bytes_param && ( bytes_param.to_f > 0 || ( allow_zero && bytes_param.to_f == 0 ))
+        if bytes_param && ( bytes_param.to_f > 0 || ( allow_zero && bytes_param.to_i == 0 ))
           bytes_param.upcase!
           multiplier = 1
           unit = nil

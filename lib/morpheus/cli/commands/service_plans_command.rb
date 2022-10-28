@@ -368,7 +368,7 @@ class Morpheus::Cli::ServicePlanCommand
           while params['maxStorage'].nil? do
             begin
               bytes = parse_bytes_param(
-                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
+                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)', 'defaultValue' => '0'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
                   'storage',
                   'GB',
                   true
@@ -390,7 +390,7 @@ class Morpheus::Cli::ServicePlanCommand
           while params['maxMemory'].nil? do
             begin
               bytes = parse_bytes_param(
-                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
+                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)', 'defaultValue' => '0'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
                   'memory',
                   'MB',
                   true
