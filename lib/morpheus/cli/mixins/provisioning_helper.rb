@@ -1479,8 +1479,7 @@ module Morpheus::Cli::ProvisioningHelper
             #puts "Configure Data #{volume_index} Volume"
 
             field_context = "dataVolume#{volume_index}"
-
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'defaultValue' => current_root_volume['type'], 'fieldContext' => field_context, 'fieldName' => 'storageType', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Storage Type", 'selectOptions' => storage_types, 'required' => true, 'defaultFirstOption' => true, 'skipSingleOption' => true, 'description' => 'Choose a storage type.'}], options[:options])
             storage_type_id = v_prompt[field_context]['storageType']
             storage_type = plan_info['storageTypes'].find {|i| i['id'] == storage_type_id.to_i }
 
