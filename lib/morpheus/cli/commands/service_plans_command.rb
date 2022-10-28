@@ -373,7 +373,6 @@ class Morpheus::Cli::ServicePlanCommand
                   'GB',
                   true
               )
-              puts bytes
               params['maxStorage'] = bytes[:bytes]
               # (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
             rescue
