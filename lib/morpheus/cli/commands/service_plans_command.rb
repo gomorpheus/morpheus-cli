@@ -287,7 +287,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--min-storage NUMBER', String, "Min storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--min-storage', 'GB')
+        bytes = parse_bytes_param(val, '--min-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
@@ -305,7 +305,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-memory NUMBER', String, "Max memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--max-memory', 'MB')
+        bytes = parse_bytes_param(val, '--max-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -370,8 +370,10 @@ class Morpheus::Cli::ServicePlanCommand
               bytes = parse_bytes_param(
                   Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
                   'storage',
-                  'GB'
+                  'GB',
+                  true
               )
+              puts bytes
               params['maxStorage'] = bytes[:bytes]
               # (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
             rescue
@@ -391,7 +393,8 @@ class Morpheus::Cli::ServicePlanCommand
               bytes = parse_bytes_param(
                   Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
                   'memory',
-                  'MB'
+                  'MB',
+                  true
               )
               params['maxMemory'] = bytes[:bytes]
               # (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
