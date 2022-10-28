@@ -249,12 +249,12 @@ class Morpheus::Cli::ServicePlanCommand
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--storage [AMOUNT]', String, "Storage size is required. Assumes GB unless optional modifier specified, ex: 512MB" ) do |val|
-        bytes = parse_bytes_param(val, '--storage', 'GB')
+        bytes = parse_bytes_param(val, '--storage', 'GB', true)
         params['maxStorage'] = bytes[:bytes]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--memory [AMOUNT]', String, "Memory size is required. Assumes MB unless optional modifier specified, ex: 1GB" ) do |val|
-        bytes = parse_bytes_param(val, '--memory', 'MB')
+        bytes = parse_bytes_param(val, '--memory', 'MB', true)
         params['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -294,7 +294,6 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
         bytes = parse_bytes_param(val.to_s, '--max-storage', 'GB', true)
-        puts bytes
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
@@ -482,12 +481,12 @@ class Morpheus::Cli::ServicePlanCommand
         params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--storage [AMOUNT]', String, "Storage size is required. Assumes GB unless optional modifier specified, ex: 512MB" ) do |val|
-        bytes = parse_bytes_param(val, '--storage', 'GB')
+        bytes = parse_bytes_param(val, '--storage', 'GB', true)
         params['maxStorage'] = bytes[:bytes]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--memory [AMOUNT]', String, "Memory size is required. Assumes MB unless optional modifier specified, ex: 1GB" ) do |val|
-        bytes = parse_bytes_param(val, '--memory', 'MB')
+        bytes = parse_bytes_param(val, '--memory', 'MB', true)
         params['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
