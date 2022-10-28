@@ -96,8 +96,8 @@ class Morpheus::Cli::Workflows
       opts.on("--name NAME", String, "Name for workflow") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val
@@ -414,8 +414,8 @@ class Morpheus::Cli::Workflows
       opts.on("--name NAME", String, "New name for workflow") do |val|
         params['name'] = val
       end
-      opts.on('-l', '--labels x,y,z', Array, "Labels") do |val|
-        params['labels'] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on("--description DESCRIPTION", String, "Description of workflow") do |val|
         params['description'] = val

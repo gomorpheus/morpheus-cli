@@ -59,6 +59,7 @@ module Morpheus::Cli::LibraryHelper
       {"NAME" => lambda {|instance_type| instance_type['name'] } },
       {"CODE" => lambda {|instance_type| instance_type['code'] } },
       {"TECHNOLOGY" => lambda {|instance_type| format_instance_type_technology(instance_type) } },
+      {"LABELS" => lambda {|instance_type| format_list(instance_type['labels'], '', 3) } },
       {"CATEGORY" => lambda {|instance_type| instance_type['category'].to_s.capitalize } },
       {"FEATURED" => lambda {|instance_type| format_boolean instance_type['featured'] } },
       {"OWNER" => lambda {|instance_type| instance_type['account'] ? instance_type['account']['name'] : '' } },
@@ -169,6 +170,7 @@ module Morpheus::Cli::LibraryHelper
       {"NAME" => lambda {|it| it['name'] } },
       {"SHORT NAME" => lambda {|it| it['shortName'] } },
       {"VERSION" => lambda {|it| it['containerVersion'] } },
+      {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) } },
       {"CATEGORY" => lambda {|it| it['category'] } },
       {"OWNER" => lambda {|it| it['account'] ? it['account']['name'] : '' } }
     ]

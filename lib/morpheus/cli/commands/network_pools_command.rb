@@ -17,6 +17,7 @@ class Morpheus::Cli::NetworkPoolsCommand
     @api_client = establish_remote_appliance_connection(opts)
     @network_pools_interface = @api_client.network_pools
     @network_pool_ips_interface = @api_client.network_pool_ips
+    @network_pool_servers_interface = @api_client.network_pool_servers
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
   end
@@ -30,6 +31,9 @@ class Morpheus::Cli::NetworkPoolsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('--pool-server SERVER', String, "Filter by Network Pool Server Name or ID") do |val|
+        options[:pool_server] = val
+      end
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List network pools."
     end
@@ -37,6 +41,14 @@ class Morpheus::Cli::NetworkPoolsCommand
     connect(options)
     begin
       params.merge!(parse_list_options(options))
+      if options[:pool_server]
+        record = find_by_name_or_id(:network_pool_server, options[:pool_server])
+        if record.nil?
+          exit 1 #return 1, "Network Pool Server not found by '#{val}'"
+        else 
+          params['poolServerId'] = record['id']
+        end
+      end
       @network_pools_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_pools_interface.dry.list(params)

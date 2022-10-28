@@ -154,6 +154,7 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         "Name" => lambda {|it| it['name'] },
         "Short Name" => lambda {|it| it['shortName'] },
         "Version" => lambda {|it| it['containerVersion'] },
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) },
         "Technology" => lambda {|it| format_container_type_technology(it) },
         "Category" => lambda {|it| it['category'] },
         "Virtual Image" => lambda {|it| 
@@ -248,6 +249,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       opts.banner = subcommand_usage()
       opts.on('--name VALUE', String, "Name for this node type") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--shortName VALUE', String, "Short Name") do |val|
         params['shortName'] = val
@@ -457,6 +461,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('--name VALUE', String, "Name for this layout") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--shortName VALUE', String, "Short Name") do |val|
         params['shortName'] = val

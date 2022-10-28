@@ -87,9 +87,28 @@ EOT
       print_dry_run @api_client.dry.execute(request_opts)
       return
     end
-    api_response = @api_client.execute(request_opts)
-    response_is_json = api_response.headers[:content_type].to_s.start_with?("application/json")
+    api_response = nil
     json_response = nil
+    begin
+      api_response = @api_client.execute(request_opts)
+    rescue ::RestClient::Exception => e
+
+      exit_code = 1
+      err = e.message
+      #raise e
+      api_response = e.response
+      # did not get a response?
+      if api_response.nil?
+        print_rest_exception(e, options)
+        return 1, e.message
+      end
+    end
+    if api_response.nil?
+      print_rest_exception(e, options)
+      return 1, e.message
+    end
+    response_is_ok = (api_response.code.to_i >= 200 && api_response.code.to_i < 400)
+    response_is_json = api_response.headers[:content_type].to_s.start_with?("application/json")
     if response_is_json && options[:inspect_response] != true
       # render as json by default, so -f just works
       # options[:json] = true unless options[:csv] ||  options[:yaml]
@@ -105,25 +124,41 @@ EOT
         object_key = json_response.keys.first
       end
       render_response(json_response, options, object_key) do
+        output = ""
+        output << red if !response_is_ok
         # just render the json by default, non pretty..
-        puts JSON.fast_generate(json_response)
+        output << JSON.fast_generate(json_response)
+        output << "\n"
+        output << reset
+        if exit_code == 1
+          print output
+        elsif
+          print_error output
+        end
       end
     else
+      output = ""
+      output << red if !response_is_ok
       if options[:inspect_response]
         # instead http response (version and headers)
-        output = ""
         output << "HTTP/#{api_response.net_http_res.http_version} #{api_response.code}\n"
         api_response.net_http_res.each_capitalized.each do |k,v|
           output << "#{k}: #{v}\n"
         end
         output << "\n"
         output << api_response.body.to_s
-        puts output
       else
-        puts api_response.body.to_s
+        output << api_response.body.to_s
+      end
+      output << "\n"
+      output << reset
+      if exit_code == 0
+        print output
+      elsif
+        print_error output
       end
     end
-    return 0, nil
+    return exit_code, err
   end
 
 end

@@ -176,6 +176,7 @@ EOT
       "Version" => lambda {|it| it['instanceVersion'] },
       "Description" => lambda {|it| it['description'] },
       "Technology" => lambda {|it| format_layout_technology(it) },
+      "Labels" => lambda {|it| format_list(it['labels'], '') },
       "Min Memory" => lambda {|it| 
         if it['memoryRequirement'].to_i != 0
           (it['memoryRequirement'].to_i / (1024*1024)).to_s + " MB"
@@ -297,6 +298,9 @@ EOT
       end
       opts.on('--name VALUE', String, "Name for this layout") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--version VALUE', String, "Version") do |val|
         params['instanceVersion'] = val
@@ -513,6 +517,9 @@ EOT
       opts.banner = subcommand_usage("[layout] [options]")
       opts.on('--name VALUE', String, "Name for this layout") do |val|
         params['name'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--version VALUE', String, "Version") do |val|
         params['instanceVersion'] = val
@@ -795,6 +802,7 @@ EOT
       {"VERSION" => lambda {|layout| layout['instanceVersion'] } },
       {"TECHNOLOGY" => lambda {|layout| format_layout_technology(layout) } },
       {"DESCRIPTION" => lambda {|layout| layout['description'] } },
+      {"LABELS" => lambda {|layout| format_list(layout['labels'], '', 3) } },
       {"OWNER" => lambda {|layout| layout['account'] ? layout['account']['name'] : '' } }
     ]
     if opts[:include_fields]

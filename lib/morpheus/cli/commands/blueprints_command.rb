@@ -62,6 +62,9 @@ class Morpheus::Cli::BlueprintsCommand
         params['ownerId'] << val
       end
       opts.add_hidden_option('--created-by')
+      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'label', val)
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List blueprints."
     end
@@ -191,6 +194,9 @@ class Morpheus::Cli::BlueprintsCommand
       opts.on('-t', '--type TYPE', String, "Blueprint Type. Default is morpheus.") do |val|
         options[:blueprint_type] = parse_blueprint_type(val.to_s)
       end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       build_standard_add_options(opts, options)
       opts.footer = "Create a new blueprint.\n" + 
                     "[name] is required. This is the name of the new blueprint."
@@ -257,6 +263,9 @@ class Morpheus::Cli::BlueprintsCommand
       build_option_type_options(opts, options, update_blueprint_option_types(false))
       opts.on( '--owner USER', "Owner Username or ID" ) do |val|
         options[:owner] = val == 'null' ? nil : val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       build_standard_update_options(opts, options)
       opts.footer = "Update a blueprint.\n" + 
@@ -1929,6 +1938,7 @@ class Morpheus::Cli::BlueprintsCommand
       {
         id: blueprint['id'],
         name: blueprint['name'],
+        labels: format_list(blueprint['labels'], '', 3),
         type: blueprint['type'].kind_of?(Hash) ? blueprint['type']['name'] : format_blueprint_type(blueprint['type']),
         description: blueprint['description'],
         category: blueprint['category'],
@@ -1947,6 +1957,7 @@ class Morpheus::Cli::BlueprintsCommand
     columns = [
       :id,
       :name,
+      :labels,
       :type,
       :description,
       :category,
@@ -2026,6 +2037,7 @@ class Morpheus::Cli::BlueprintsCommand
     description_cols = {
       "ID" => 'id',
       "Name" => 'name',
+      "Labels" => lambda {|it| format_list(it['labels'], '') rescue '' },
       "Type" => lambda {|it| it['type'].kind_of?(Hash) ? it['type']['name'] : it['type'] },
       "Description" => 'description',
       "Category" => 'category',

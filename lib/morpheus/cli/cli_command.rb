@@ -1400,6 +1400,28 @@ module Morpheus
         payload
       end
 
+      def parse_array(val, opts={})
+        opts = {strip:true, allow_blank:false}.merge(opts)
+        values = []
+        if val.is_a?(Array)
+          values = val
+        else
+          # parse csv and strip white space by default
+          values = val.to_s.split(",")#.collect {|it| it.to_s.strip }
+          if opts[:strip]
+            values = values.collect {|it| it.to_s.strip }
+          end
+          if !opts[:allow_blank]
+            values.reject! {|it| it.to_s.strip.empty? }
+          end
+        end
+        values
+      end
+
+      def parse_labels(val)
+        parse_array(val, {strip:true, allow_blank:false})
+      end
+
       # support -O OPTION switch
       def apply_options(payload, options, object_key=nil)
         payload ||= {}

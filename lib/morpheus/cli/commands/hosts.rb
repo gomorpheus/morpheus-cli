@@ -1276,7 +1276,10 @@ class Morpheus::Cli::Hosts
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
-      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, options)
+      vol_options = options 
+      vol_options['siteId'] = group_id
+      vol_options['zoneId'] = cloud_id
+      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options)
       if !volumes.empty?
         payload[:volumes] = volumes
       end

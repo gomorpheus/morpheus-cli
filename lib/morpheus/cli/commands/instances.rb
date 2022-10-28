@@ -258,6 +258,7 @@ class Morpheus::Cli::Instances
           row = {
             id: instance['id'],
             name: instance['name'],
+            labels: format_list(instance['labels'], '', 3),
             connection: format_instance_connection_string(instance),
             environment: instance['instanceContext'],
             user: (instance['owner'] ? (instance['owner']['username'] || instance['owner']['id']) : (instance['createdBy'].is_a?(Hash) ? instance['createdBy']['username'] : instance['createdBy'])),
@@ -276,16 +277,16 @@ class Morpheus::Cli::Instances
           }
           row
         }
-        columns = [:id, {:name => {:max_width => 50}}, :group, :cloud, 
-            :type, :version, :environment, 
+        columns = [:id, {:name => {:max_width => 50}}, :labels, :group, :cloud, 
+            :type, :version, :environment, :plan,
             {:created => {:display_name => "CREATED"}}, 
             # {:tenant => {:display_name => "TENANT"}}, 
             {:user => {:display_name => "OWNER", :max_width => 20}}, 
-            :plan,
             :nodes, {:connection => {:max_width => 30}}, :status, :cpu, :memory, :storage]
         # custom pretty table columns ... this is handled in as_pretty_table now(), 
         # todo: remove all these.. and try to always pass rows as the json data itself..
         if options[:details] != true
+          columns.delete(:labels)
           columns.delete(:plan)
         end
         print cyan
@@ -405,7 +406,7 @@ class Morpheus::Cli::Instances
       end
       opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        options[:labels] = parse_labels(val)
       end
       opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
         options[:copies] = val.to_i
@@ -609,7 +610,7 @@ class Morpheus::Cli::Instances
         options[:group] = val
       end
       opts.on('--labels [LIST]', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        params['labels'] = val.to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        params['labels'] = parse_labels(val)
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val
@@ -1794,7 +1795,7 @@ class Morpheus::Cli::Instances
       end
       opts.add_hidden_option('--metadata')
       opts.on('--labels LIST', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        options[:labels] = val.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+        options[:labels] = parse_labels(val)
       end
       # opts.on("--copies NUMBER", Integer, "Number of copies to provision") do |val|
       #   options[:copies] = val.to_i
@@ -2767,7 +2768,7 @@ class Morpheus::Cli::Instances
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
       current_plan_name = instance['plan']['name']
-      payload['networkInterfaces'] = instance['interfaces']
+
 
       # need to GET provision type for some settings...
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
@@ -2793,7 +2794,10 @@ class Morpheus::Cli::Instances
       current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
 
       # prompt for volumes
-      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, options)
+      vol_options = options 
+      vol_options['siteId'] = group_id
+      vol_options['zoneId'] = cloud_id
+      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options)
       if !volumes.empty?
         payload["volumes"] = volumes
       end
