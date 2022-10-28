@@ -293,13 +293,14 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--max-storage', 'GB')
+        bytes = parse_bytes_param(val.to_s, '--max-storage', 'GB', true)
+        puts bytes
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--min-memory NUMBER', String, "Min memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--min-memory', 'MB')
+        bytes = parse_bytes_param(val, '--min-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -525,7 +526,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--max-storage', 'GB')
+        bytes = parse_bytes_param(val, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
@@ -537,7 +538,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-memory NUMBER', String, "Max memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--max-memory', 'MB')
+        bytes = parse_bytes_param(val, '--max-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
