@@ -2855,8 +2855,7 @@ Update default workflow access for a role.
       account_id = account ? account['id'] : nil
       role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
-      # note: ReportTypes being plural is odd, the others are singular
-      params = {permissionCode: 'Task', access: access_value}
+      params = {permissionCode: 'TaskSet', access: access_value}
       @roles_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @roles_interface.dry.update_permission(account_id, role['id'], params)
