@@ -1536,7 +1536,7 @@ module Morpheus::Cli::ProvisioningHelper
               end
             end
             if !datastore_options.empty?
-              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'defaultValue' => current_root_volume['datastoreId'],'fieldContext' => field_context, 'fieldName' => 'datastoreId', 'type' => 'select', 'fieldLabel' => "Disk #{volume_index} Datastore", 'selectOptions' => datastore_options, 'required' => true, 'description' => 'Choose a datastore.'}], options[:options])
               volume['datastoreId'] = v_prompt[field_context]['datastoreId']
             end
 
