@@ -502,6 +502,9 @@ EOT
       role = @roles_interface.get(account_id, role['id'])
     end
 
+    available_categories.reject! {|category| category == 'cloud'} if role['role']['roleType'] == 'user'
+    available_categories.reject! {|category| category == 'group'} if role['role']['roleType'] == 'tenant'
+
     permission_name = -> (s) {
       return 'sites' if s == 'group'
       return 'zones' if s == 'cloud'
@@ -570,7 +573,7 @@ EOT
         options[:permissions] ||= {}
         parse_access_csv(options[:permissions], val, args, optparse)
       end
-      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
+      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-group-access')
@@ -581,7 +584,7 @@ EOT
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
-      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
@@ -592,7 +595,7 @@ EOT
         options[:cloud_permissions] ||= {}
         parse_access_csv(options[:cloud_permissions], val, args, optparse)
       end
-      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|full]" ) do  |val|
         params['globalInstanceTypeAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-instance-type-access')
@@ -603,7 +606,7 @@ EOT
         options[:instance_type_permissions] ||= {}
         parse_access_csv(options[:instance_type_permissions], val, args, optparse)
       end
-      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
+      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|full]" ) do  |val|
         params['globalAppTemplateAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-blueprint-access')
@@ -614,7 +617,7 @@ EOT
         options[:blueprint_permissions] ||= {}
         parse_access_csv(options[:blueprint_permissions], val, args, optparse)
       end
-      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|full]" ) do  |val|
         params['globalCatalogItemTypeAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-catalog-item-type-access')
@@ -632,7 +635,7 @@ EOT
         options[:persona_permissions] ||= {}
         parse_access_csv(options[:persona_permissions], val, args, optparse)
       end
-      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-vdi-pool-access-access')
@@ -643,7 +646,7 @@ EOT
         options[:vdi_pool_permissions] ||= {}
         parse_access_csv(options[:vdi_pool_permissions], val, args, optparse)
       end
-      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|full]" ) do  |val|
         params['globalReportTypeAccess'] = val.to_s.downcase
       end
       opts.on('--default-report-type-access ACCESS', String, "Update the default report type access: [none|full]" ) do  |val|
@@ -960,7 +963,7 @@ EOT
         options[:permissions] ||= {}
         parse_access_csv(options[:permissions], val, args, optparse)
       end
-      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|custom|full]" ) do |val|
+      opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-group-access')
@@ -971,7 +974,7 @@ EOT
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
-      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|custom|full]" ) do  |val|
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
@@ -982,7 +985,7 @@ EOT
         options[:cloud_permissions] ||= {}
         parse_access_csv(options[:cloud_permissions], val, args, optparse)
       end
-      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-instance-type-access ACCESS', String, "Update the global instance type access: [none|full]" ) do  |val|
         params['globalInstanceTypeAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-instance-type-access')
@@ -993,7 +996,7 @@ EOT
         options[:instance_type_permissions] ||= {}
         parse_access_csv(options[:instance_type_permissions], val, args, optparse)
       end
-      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|custom|full]" ) do  |val|
+      opts.on('--global-blueprint-access ACCESS', String, "Update the global blueprint access: [none|full]" ) do  |val|
         params['globalAppTemplateAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-blueprint-access')
@@ -1004,7 +1007,7 @@ EOT
         options[:blueprint_permissions] ||= {}
         parse_access_csv(options[:blueprint_permissions], val, args, optparse)
       end
-      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-catalog-item-type-access ACCESS', String, "Update the global catalog item type access: [none|full]" ) do  |val|
         params['globalCatalogItemTypeAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-catalog-item-type-access')
@@ -1019,7 +1022,7 @@ EOT
         options[:persona_permissions] ||= {}
         parse_access_csv(options[:persona_permissions], val, args, optparse)
       end
-      opts.on('--global-vdi-pool-access ACCESS', String, "Update the global VDI pool access: [none|custom|full]" ) do  |val|
+      opts.on('--global-vdi-pool-access ACCESS', String, "Update the global VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-vdi-pool-access')
@@ -1030,7 +1033,7 @@ EOT
         options[:vdi_pool_permissions] ||= {}
         parse_access_csv(options[:vdi_pool_permissions], val, args, optparse)
       end
-      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|custom|full]" ) do  |val|
+      opts.on('--global-report-type-access ACCESS', String, "Update the global report type access: [none|full]" ) do  |val|
         params['globalReportTypeAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-report-type-access')
@@ -1476,7 +1479,6 @@ Update role access for a group or all groups.
 [role] is required. This is the name or id of a role.
 --group or --all is required. This is the name or id of a group.
 --access is required. This is the new access value: #{ored_list(allowed_access_values)}
-Only applicable to User roles and when global group access is set to "custom".
 EOT
       
     end
@@ -1510,14 +1512,6 @@ EOT
       account_id = account ? account['id'] : nil
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
-
-      role_json = @roles_interface.get(account_id, role['id'])
-      if role_json['globalSiteAccess'] != 'custom'
-        print "\n", red, "Global Group Access is currently: #{role_json['globalSiteAccess'].capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-group-access \"#{name}\" custom`"
-        print "\n\n", reset
-        exit 1
-      end
 
       group = nil
       if !do_all
@@ -1637,7 +1631,6 @@ Update role access for a cloud or all clouds.
 [role] is required. This is the name or id of a role.
 --cloud or --all is required. This is the name or id of a cloud.
 --access is required. This is the new access value: #{ored_list(allowed_access_values)}
-Only applicable to Tenant roles and when global cloud access is set to "custom".
 EOT
     end
     optparse.parse!(args)
@@ -1672,12 +1665,6 @@ EOT
       exit 1 if role.nil?
 
       role_json = @roles_interface.get(account_id, role['id'])
-      if role_json['globalZoneAccess'] != 'custom'
-        print "\n", red, "Global Cloud Access is currently: #{role_json['globalZoneAccess'].capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-cloud-access \"#{name}\" custom`"
-        print "\n\n", reset
-        exit 1
-      end
 
       cloud = nil
       if !do_all
@@ -1729,7 +1716,7 @@ EOT
             opts.footer = <<-EOT
 Update default instance type access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 EOT
     end
     optparse.parse!(args)
@@ -1827,13 +1814,6 @@ EOT
       return 1 if role.nil?
 
       role_json = @roles_interface.get(account_id, role['id'])
-      if role_json['globalInstanceTypeAccess'] != 'custom'
-        print "\n", red, "Global Instance Type Access is currently: #{role_json['globalInstanceTypeAccess'].capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-instance-type-access \"#{name}\" custom`"
-        print "\n\n", reset
-        return 1
-      end
-
       instance_type = nil
       if !do_all
         instance_type = find_instance_type_by_name(instance_type_name)
@@ -1884,7 +1864,7 @@ EOT
             opts.footer = <<-EOT
 Update default blueprint access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 EOT
     end
     optparse.parse!(args)
@@ -1985,12 +1965,6 @@ EOT
       role_json = @roles_interface.get(account_id, role['id'])
       blueprint_global_access = role_json['globalAppTemplateAccess'] || role_json['globalBlueprintAccess']
       blueprint_permissions = role_json['appTemplatePermissions'] || role_json['blueprintPermissions'] || []
-      if blueprint_global_access != 'custom'
-        print "\n", red, "Global Blueprint Access is currently: #{blueprint_global_access.to_s.capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-blueprint-access \"#{name}\" custom`"
-        print "\n\n", reset
-        return 1
-      end
 
       # hacky, but support name or code lookup via the list returned in the show payload
       blueprint = nil
@@ -2052,7 +2026,7 @@ EOT
             opts.footer = <<-EOT
 Update default catalog item type access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full, custom or none.
+[access] is required. This is the access level to assign: full or none.
 EOT
     end
     optparse.parse!(args)
@@ -2153,12 +2127,6 @@ EOT
       role_json = @roles_interface.get(account_id, role['id'])
       catalog_item_type_global_access = role_json['globalCatalogItemTypeAccess']
       catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || role_json['catalogItemTypes'] []
-      if catalog_item_type_global_access != 'custom'
-        print "\n", red, "Global Catalog Item Type Access is currently: #{catalog_item_type_global_access.to_s.capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-catalog-item-type-access \"#{name}\" custom`"
-        print "\n\n", reset
-        return 1
-      end
 
       # hacky, but support name or code lookup via the list returned in the show payload
       catalog_item_type = nil
@@ -2424,8 +2392,6 @@ EOT
     end
     optparse.parse!(args)
 
-    # usage: update-vdi-pool-access [role] [access] --all
-    #        update-vdi-pool-access [role] [vdi-pool] [access]
     name = args[0]
     if do_all
       verify_args!(args:args, optparse:optparse, min:1, max:2)
@@ -2458,12 +2424,6 @@ EOT
       role_json = @roles_interface.get(account_id, role['id'])
       vdi_pool_global_access = role_json['globalVdiPoolAccess']
       vdi_pool_permissions = role_json['vdiPoolPermissions'] || role_json['vdiPools'] || []
-      if vdi_pool_global_access != 'custom'
-        print "\n", red, "Global VDI Pool Access is currently: #{vdi_pool_global_access.to_s.capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-vdi-pool-access \"#{name}\" custom`"
-        print "\n\n", reset
-        return 1
-      end
 
       # hacky, but support name or code lookup via the list returned in the show payload
       vdi_pool = nil
@@ -2620,12 +2580,6 @@ EOT
       role_json = @roles_interface.get(account_id, role['id'])
       report_type_global_access = role_json['globalReportTypeAccess']
       report_type_permissions = role_json['reportTypePermissions'] || role_json['reportTypes'] || []
-      if report_type_global_access != 'custom'
-        print "\n", red, "Global Report Type Access is currently: #{report_type_global_access.to_s.capitalize}"
-        print "\n", "You must first set it to Custom via `morpheus roles update-global-report-type-access \"#{name}\" custom`"
-        print "\n\n", reset
-        return 1
-      end
 
       # hacky, but support name or code lookup via the list returned in the show payload
       report_type = nil
