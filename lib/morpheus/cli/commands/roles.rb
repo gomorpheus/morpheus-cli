@@ -1406,7 +1406,7 @@ EOT
   def update_default_group_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|read|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default group access for a role.
@@ -1559,7 +1559,7 @@ EOT
   def update_default_cloud_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default cloud access for a role.
@@ -1711,7 +1711,7 @@ EOT
   def update_default_instance_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update default instance type access for a role.
@@ -1859,7 +1859,7 @@ EOT
   def update_default_blueprint_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update default blueprint access for a role.
@@ -2021,7 +2021,7 @@ EOT
   def update_default_catalog_item_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update default catalog item type access for a role.
@@ -2176,7 +2176,7 @@ EOT
   def update_default_persona_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default persona access for a role.
@@ -2323,7 +2323,7 @@ Update default persona access for a role.
   def update_default_vdi_pool_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
             opts.footer = <<-EOT
 Update default VDI pool access for a role.
@@ -2478,7 +2478,7 @@ EOT
   def update_default_report_type_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default report type access for a role.
@@ -2634,7 +2634,7 @@ EOT
   def update_default_task_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default task access for a role.
@@ -2787,7 +2787,7 @@ Update default task access for a role.
   def update_default_workflow_access(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[role] [full|none]")
+      opts.banner = subcommand_usage("[role] [access]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default workflow access for a role.
