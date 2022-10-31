@@ -462,7 +462,7 @@ EOT
 
   def list_permissions(args)
     options = {}
-    available_categories = ['feature', 'group', 'cloud', 'instance-type', 'blueprint', 'catalog-item-type', 'persona', 'vdi-pool', 'report-type', 'task', 'workflow']
+    available_categories = ['feature', 'group', 'cloud', 'instance-type', 'blueprint', 'report-type', 'persona', 'catalog-item-type', 'vdi-pool', 'workflow', 'task']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [category]")
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :dry_run, :remote])
@@ -512,7 +512,7 @@ EOT
       s = 'app-template' if s == 'blueprint'
       s.split('-').map.with_index{|s,i| i == 0 ? s : s.capitalize}.join + 'Permissions'
     }
-    permission_label = -> (s) {(s == 'workflow' ? 'task-set' : s).split('-').collect{|s| s.capitalize}.join(' ') + ' Permissions'}
+    permission_label = -> (s) {s.split('-').collect{|s| s.capitalize}.join(' ') + ' Permissions'}
 
     if category.nil?
       permissions = available_categories.collect{|category| role[permission_name.call(category)].map{|perm| perm.merge({'category' => permission_label.call(category)})}}.flatten
