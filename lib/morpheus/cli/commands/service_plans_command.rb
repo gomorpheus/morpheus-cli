@@ -249,12 +249,12 @@ class Morpheus::Cli::ServicePlanCommand
         params['editable'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--storage [AMOUNT]', String, "Storage size is required. Assumes GB unless optional modifier specified, ex: 512MB" ) do |val|
-        bytes = parse_bytes_param(val, '--storage', 'GB')
+        bytes = parse_bytes_param(val, '--storage', 'GB', true)
         params['maxStorage'] = bytes[:bytes]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--memory [AMOUNT]', String, "Memory size is required. Assumes MB unless optional modifier specified, ex: 1GB" ) do |val|
-        bytes = parse_bytes_param(val, '--memory', 'MB')
+        bytes = parse_bytes_param(val, '--memory', 'MB', true)
         params['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -287,25 +287,25 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--min-storage NUMBER', String, "Min storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--min-storage', 'GB')
+        bytes = parse_bytes_param(val, '--min-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--max-storage', 'GB')
+        bytes = parse_bytes_param(val.to_s, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--min-memory NUMBER', String, "Min memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--min-memory', 'MB')
+        bytes = parse_bytes_param(val, '--min-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
       opts.on('--max-memory NUMBER', String, "Max memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--max-memory', 'MB')
+        bytes = parse_bytes_param(val, '--max-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -368,9 +368,10 @@ class Morpheus::Cli::ServicePlanCommand
           while params['maxStorage'].nil? do
             begin
               bytes = parse_bytes_param(
-                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
+                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'storage', 'type' => 'text', 'fieldLabel' => 'Storage (GB) [can use MB modifier]', 'required' => true, 'description' => 'Storage (GB)', 'defaultValue' => '0'}],options[:options],@api_client,{}, options[:no_prompt])['storage'],
                   'storage',
-                  'GB'
+                  'GB',
+                  true
               )
               params['maxStorage'] = bytes[:bytes]
               # (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
@@ -389,9 +390,10 @@ class Morpheus::Cli::ServicePlanCommand
           while params['maxMemory'].nil? do
             begin
               bytes = parse_bytes_param(
-                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
+                  Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'memory', 'type' => 'text', 'fieldLabel' => 'Memory (MB) [can use GB modifier]', 'required' => true, 'description' => 'Memory (MB)', 'defaultValue' => '0'}],options[:options],@api_client,{}, options[:no_prompt])['memory'],
                   'memory',
-                  'MB'
+                  'MB',
+                  true
               )
               params['maxMemory'] = bytes[:bytes]
               # (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
@@ -479,12 +481,12 @@ class Morpheus::Cli::ServicePlanCommand
         params['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('--storage [AMOUNT]', String, "Storage size is required. Assumes GB unless optional modifier specified, ex: 512MB" ) do |val|
-        bytes = parse_bytes_param(val, '--storage', 'GB')
+        bytes = parse_bytes_param(val, '--storage', 'GB', true)
         params['maxStorage'] = bytes[:bytes]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
       opts.on('--memory [AMOUNT]', String, "Memory size is required. Assumes MB unless optional modifier specified, ex: 1GB" ) do |val|
-        bytes = parse_bytes_param(val, '--memory', 'MB')
+        bytes = parse_bytes_param(val, '--memory', 'MB', true)
         params['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end
@@ -523,7 +525,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
-        bytes = parse_bytes_param(val, '--max-storage', 'GB')
+        bytes = parse_bytes_param(val, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
@@ -535,7 +537,7 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-memory NUMBER', String, "Max memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
-        bytes = parse_bytes_param(val, '--max-memory', 'MB')
+        bytes = parse_bytes_param(val, '--max-memory', 'MB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxMemory'] = bytes[:bytes]
         (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
       end

@@ -114,8 +114,8 @@ module Morpheus
         [id_list].flatten.collect {|it| it ? it.to_s.split(delim) : nil }.flatten.compact
       end
 
-      def parse_bytes_param(bytes_param, option, assumed_unit = nil)
-        if bytes_param && bytes_param.to_f > 0
+      def parse_bytes_param(bytes_param, option, assumed_unit = nil, allow_zero = false)
+        if bytes_param && ( bytes_param.to_f > 0 || ( allow_zero && bytes_param.to_i == 0 ))
           bytes_param.upcase!
           multiplier = 1
           unit = nil
