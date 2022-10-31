@@ -1461,7 +1461,7 @@ EOT
     group_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'read', 'none']
+    allowed_access_values = ['full', 'read', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [group] [access]")
       opts.on( '-g', '--group GROUP', "Group name or id" ) do |val|
@@ -1613,7 +1613,7 @@ EOT
     cloud_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'read', 'none']
+    allowed_access_values = ['full', 'read', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role]")
       opts.on( '-c', '--cloud CLOUD', "Cloud name or id" ) do |val|
@@ -1765,7 +1765,7 @@ EOT
     instance_type_name = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [type] [access]")
       opts.on( '--instance-type INSTANCE_TYPE', String, "Instance Type name" ) do |val|
@@ -1913,7 +1913,7 @@ EOT
     blueprint_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [blueprint] [access]")
       opts.on( '--blueprint ID', String, "Blueprint ID or Name" ) do |val|
@@ -2075,7 +2075,7 @@ EOT
     catalog_item_type_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [catalog-item-type] [access]")
       opts.on( '--catalog-item-type ID', String, "Catalog Item Type ID or Name" ) do |val|
@@ -2230,7 +2230,7 @@ Update default persona access for a role.
     name = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [persona] [access]")
       opts.on( '--persona CODE', String, "Persona Code" ) do |val|
@@ -2372,7 +2372,7 @@ EOT
     vdi_pool_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [vdi-pool] [access]")
       opts.on( '--vdi-pool ID', String, "VDI Pool ID or Name" ) do |val|
@@ -2526,7 +2526,7 @@ EOT
     report_type_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [report-type] [access]")
       opts.on( '--report-type ID', String, "Report Type ID or Name" ) do |val|
@@ -2682,7 +2682,7 @@ Update default task access for a role.
     task_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'default', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [task] [access]")
       opts.on( '--task ID', String, "Task ID, code or name" ) do |val|
@@ -2834,7 +2834,7 @@ Update default workflow access for a role.
     workflow_id = nil
     access_value = nil
     do_all = false
-    allowed_access_values = ['full', 'default', 'none']
+    allowed_access_values = ['full', 'none', 'default']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[role] [workflow] [access]")
       opts.on( '--workflow ID', String, "Workflow ID, code or Name" ) do |val|
