@@ -2768,7 +2768,11 @@ class Morpheus::Cli::Instances
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
       current_plan_name = instance['plan']['name']
-
+      current_interfaces = get_instance_interfaces(instance)
+      if current_interfaces != false 
+        payload['networkInterfaces'] = current_interfaces
+      end
+      
 
       # need to GET provision type for some settings...
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
@@ -5266,4 +5270,19 @@ private
     return available_networks
   end
 
+  def get_instance_interfaces(instance)
+    begin
+      servers = instance['servers']
+      interfaces = []
+      servers.each do |server|
+        details = @servers_interface.get(server.to_i)['server']
+        details['interfaces'].each do |inter|
+          interfaces.push(inter)
+        end
+      end
+      return interfaces
+    rescue
+      return false 
+    end
+  end
 end
