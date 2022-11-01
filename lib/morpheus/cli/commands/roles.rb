@@ -2638,7 +2638,7 @@ EOT
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default task access for a role.
-[task] is required. This is the id of a task.
+[role] is required. This is the id of a role.
 [access] is required. This is the access level to assign: full or none.
       EOT
     end
@@ -2791,7 +2791,7 @@ Update default task access for a role.
       build_common_options(opts, options, [:json, :dry_run, :remote])
       opts.footer = <<-EOT
 Update default workflow access for a role.
-[workflow] is required. This is the id of a workflow.
+[role] is required. This is the id of a role.
 [access] is required. This is the access level to assign: full or none.
       EOT
     end
