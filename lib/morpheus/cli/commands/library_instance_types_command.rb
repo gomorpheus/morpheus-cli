@@ -183,6 +183,19 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         # print cyan,"No option types found for this layout.","\n",reset
       end
 
+      price_sets = instance_type['priceSets']
+      if price_sets && price_sets.size > 0
+        print_h2 "Price Sets"
+        price_set_columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          {"NAME" => lambda {|it| it['name'] } },
+          {"PRICE UNIT" => lambda {|it| it['priceUnit'] } },
+        ]
+        print as_pretty_table(price_sets, price_set_columns)
+      else
+        # print cyan,"No price sets found for this instance type.","\n",reset
+      end
+
       instance_type_evars = instance_type['environmentVariables']
       if instance_type_evars && instance_type_evars.size > 0
         print_h2 "Environment Variables"
@@ -259,6 +272,9 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       end
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         params['labels'] = parse_labels(val)
+      end
+      opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
+        params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a new instance type."
@@ -362,6 +378,9 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         else
           params['optionTypes'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
+      end
+      opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
+        params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
       opts.footer = "Update an instance type." + "\n" +
                     "[name] is required. This is the name or id of a instance type."
