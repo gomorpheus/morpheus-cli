@@ -37,8 +37,8 @@ class Morpheus::Cli::CatalogItemTypesCommand
       opts.on( '--featured [on|off]', String, "Filter by featured" ) do |val|
         params['featured'] = (val.to_s != 'false' && val.to_s != 'off')
       end
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        add_query_parameter(params, 'label', val)
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog item types."

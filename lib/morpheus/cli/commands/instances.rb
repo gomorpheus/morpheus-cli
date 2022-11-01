@@ -122,11 +122,8 @@ class Morpheus::Cli::Instances
       opts.on( '--plan-code CODE', String, "Filter by Plan code(s)" ) do |val|
         params['planCode'] = parse_id_list(val)
       end
-      opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
-        val.split(",").each do |k|
-          options[:labels] ||= []
-          options[:labels] << k.strip
-        end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
@@ -183,7 +180,6 @@ class Morpheus::Cli::Instances
 
     params['showDeleted'] = true if options[:showDeleted]
     params['deleted'] = true if options[:deleted]
-    params['labels'] = options[:labels] if options[:labels]
     if options[:tags]
       options[:tags].each do |k,v|
         params['tags.' + k] = v
@@ -2768,7 +2764,11 @@ class Morpheus::Cli::Instances
       layout_id = instance['layout']['id']
       plan_id = instance['plan']['id']
       current_plan_name = instance['plan']['name']
-
+      current_interfaces = get_instance_interfaces(instance)
+      if current_interfaces != false 
+        payload['networkInterfaces'] = current_interfaces
+      end
+      
 
       # need to GET provision type for some settings...
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
@@ -5266,4 +5266,19 @@ private
     return available_networks
   end
 
+  def get_instance_interfaces(instance)
+    begin
+      servers = instance['servers']
+      interfaces = []
+      servers.each do |server|
+        details = @servers_interface.get(server.to_i)['server']
+        details['interfaces'].each do |inter|
+          interfaces.push(inter)
+        end
+      end
+      return interfaces
+    rescue
+      return false 
+    end
+  end
 end

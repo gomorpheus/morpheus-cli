@@ -51,8 +51,8 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--technology VALUE', String, "Filter by technology") do |val|
         params['provisionType'] = val
       end
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        params['label'] = val
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List layouts."
@@ -208,7 +208,18 @@ EOT
     description_cols.delete("Tfvar Secret") if !(layout['provisionType'] && layout['provisionType']['code'] == 'terraform')
     print_description_list(description_cols, layout)
 
-    
+    price_sets = layout['priceSets']
+      if price_sets && price_sets.size > 0
+        print_h2 "Price Sets"
+        price_set_columns = [
+          {"ID" => lambda {|it| it['id'] } },
+          {"NAME" => lambda {|it| it['name'] } },
+          {"PRICE UNIT" => lambda {|it| it['priceUnit'] } },
+        ]
+        print as_pretty_table(price_sets, price_set_columns)
+      else
+        # print cyan,"No price sets found for this instance type.","\n",reset
+      end
 
     layout_evars = layout['environmentVariables']
     if layout_evars && layout_evars.size > 0
@@ -349,6 +360,9 @@ EOT
       end
       opts.on('--tfvar-secret VALUE', String, "Tfvar Secret name, eg. 'tfvars/dev-key'") do |val|
         params['tfvarSecret'] = val == 'null' ? nil : val
+      end
+      opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
+        params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
       add_perms_options(opts, options, layout_permission_excludes)
       build_standard_add_options(opts, options)
@@ -568,6 +582,9 @@ EOT
       end
       opts.on('--tfvar-secret VALUE', String, "Tfvar Secret name, eg. 'tfvars/dev-key'") do |val|
         params['tfvarSecret'] = val == 'null' ? nil : val
+      end
+      opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
+        params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
       add_perms_options(opts, options, layout_permission_excludes)
       build_standard_update_options(opts, options)

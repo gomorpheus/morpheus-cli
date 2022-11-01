@@ -31,6 +31,9 @@ class Morpheus::Cli::PriceSetsCommand
     params = {'includeZones': true}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-t', '--type TYPE', String, "Filter by type") do |val|
+        add_query_parameter(params, 'type', parse_array(val).collect {|it| get_price_set_type_code(it) })
+      end
       opts.on('-i', '--include-inactive [on|off]', String, "Can be used to enable / disable inactive filter. Default is on") do |val|
         params['includeInactive'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -268,7 +271,9 @@ class Morpheus::Cli::PriceSetsCommand
         end
 
         # type
-        params['type'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Price Set Type', 'selectOptions' => [{'name' => 'Everything', 'value' => 'fixed'}, {'name' => 'Compute + Storage', 'value' => 'compute_plus_storage'}, {'name' => 'Component', 'value' => 'component'}, {'name' => 'Load Balancer', 'value' => 'load_balancer'},{'name' => 'Snapshot', 'value' => 'snapshot'},{'name' => 'Virtual Image', 'value' => 'virtual_image'},{'name' => 'Software / Service', 'value' => 'software_or_service'}], 'required' => true, 'description' => 'Price Set Type.'}],options[:options],@api_client,{}, options[:no_prompt])['type']
+        price_set_type_options = price_set_types.collect {|k,v| {'name' => v[:label], 'value' => k} }
+        params['type'] ||= Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Price Set Type', 'selectOptions' => price_set_type_options, 'required' => true, 'description' => 'Price Set Type.'}],options[:options],@api_client,{}, options[:no_prompt])['type']
+        
         if params['type'].nil?
           print_red_alert "Type is required"
           exit 1
@@ -499,19 +504,25 @@ class Morpheus::Cli::PriceSetsCommand
     end
   end
 
-  def price_type_label(type)
+  def price_types
     {
         'fixed' => 'Everything',
         'compute' => 'Memory + CPU',
-        'memory' => 'Memory Only (per MB)',
-        'cores' => 'Cores Only (per core)',
-        'storage' => 'Disk Only (per GB)',
-        'datastore' => 'Datastore (per GB)',
+        'memory' => 'Memory Only',
+        'cores' => 'Cores Only',
+        'storage' => 'Disk Only',
+        'datastore' => 'Datastore',
         'platform' => 'Platform',
         'software' => 'Software',
         'load_balancer' => 'Load Balancer',
-        'load_balancer_virtual_server' => 'Load Balancer Virtual Server'
-    }[type] || type.capitalize
+        'load_balancer_virtual_server' => 'Load Balancer Virtual Server',
+        'instance_type' => 'Instance Type',
+        'instance_type_layout' => 'Instance Type Layout',
+    }
+  end
+
+  def price_type_label(type)
+    price_types[type] || type.capitalize
   end
 
   def price_units
@@ -527,7 +538,19 @@ class Morpheus::Cli::PriceSetsCommand
         'snapshot' => {:label => 'Snapshot', :requires => ['storage'], :allows => ['storage', 'datastore']},
         'virtual_image' => {:label => 'Virtual Image', :requires => ['storage'], :allows => []},
         'software_or_service' => {:label => 'Software / Service', :requires => ['software'], :allows => []},
+        'instance_type' => {:label => 'Instance Type', :requires => ['instance_type'], :allows => []},
+        'instance_type_layout' => {:label => 'Instance Type Layout', :requires => ['instance_type_layout'], :allows => []},
     }
+  end
+
+  def get_price_set_type_code(value)
+    rtn = value
+    price_set_types.each do |k,v|
+      if value.to_s.downcase == v[:label].downcase
+        rtn = k
+      end
+    end
+    return rtn
   end
 
   def format_amount(amount)

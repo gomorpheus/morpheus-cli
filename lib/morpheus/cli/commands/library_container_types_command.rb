@@ -41,8 +41,8 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       opts.on('--category VALUE', String, "Filter by category") do |val|
         params['category'] = val
       end
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        params['label'] = val
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List node types."

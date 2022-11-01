@@ -109,11 +109,8 @@ class Morpheus::Cli::Hosts
       opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
-      opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
-        val.split(",").each do |k|
-          options[:labels] ||= []
-          options[:labels] << k.strip
-        end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
         val.split(",").each do |value_pair|
@@ -519,7 +516,7 @@ class Morpheus::Cli::Hosts
         "Name" => 'name',
         "Hostname" => 'hostname',
         "Description" => 'description',
-        "Labels" => lambda {|it| it['labels'] ? it['labels'].join(',') : '' },
+        "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "Tags" => lambda {|it| tags ? format_metadata(tags) : '' },
         "Owner" => lambda {|it| it['owner'] ? it['owner']['username'] : '' },
         "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
@@ -750,6 +747,9 @@ class Morpheus::Cli::Hosts
       end
       opts.on("--security-groups LIST", Integer, "Security Groups, comma separated list of security group IDs") do |val|
         options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on('--refresh [SECONDS]', String, "Refresh until status is running,failed. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
@@ -988,8 +988,8 @@ class Morpheus::Cli::Hosts
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
-      opts.on('--labels [LIST]', String, "Labels (keywords) in the format 'foo, bar'") do |val|
-        params['labels'] = val.to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq.join(',')
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        params['labels'] = parse_labels(val)
       end
       opts.on('--tags LIST', String, "Tags in the format 'name:value, name:value'. This will add and remove tags.") do |val|
         options[:tags] = val

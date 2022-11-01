@@ -51,8 +51,12 @@ class Morpheus::Cli::Clusters
 
   def list(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List clusters."
     end
@@ -62,7 +66,6 @@ class Morpheus::Cli::Clusters
     end
     connect(options)
     begin
-      params = {}
       params.merge!(parse_list_options(options))
       @clusters_interface.setopts(options)
       if options[:dry_run]
@@ -203,6 +206,7 @@ class Morpheus::Cli::Clusters
       description_cols = {
           "ID" => 'id',
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
           "Type" => lambda { |it| it['type']['name'] },
           #"Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
@@ -380,8 +384,8 @@ class Morpheus::Cli::Clusters
         options[:metadata] = val
       end
       opts.add_hidden_option('--metadata')
-      opts.on('--labels LIST', String, "Tags") do |val|
-        options[:labels] = val
+      opts.on('-l', '--labels [LIST]', String, "Resource Labels") do |val|
+        options[:labels] = parse_labels(val)
       end
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -1135,8 +1139,8 @@ class Morpheus::Cli::Clusters
         options[:metadata] = val
       end
       opts.add_hidden_option('--metadata')
-      opts.on('--labels LIST', String, "Tags") do |val|
-        options[:labels] = val
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:labels] = parse_labels(val)
       end
       add_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
