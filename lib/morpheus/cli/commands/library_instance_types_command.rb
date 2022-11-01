@@ -42,8 +42,8 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
       opts.on('--featured [true|false]',String, "Filter by featured.") do |val|
         params['featured'] = (val.to_s.downcase != 'false' && val.to_s.downcase != 'off')
       end
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        params['label'] = val
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List instance types."

@@ -28,8 +28,8 @@ class Morpheus::Cli::LibraryOptionListsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        params['label'] = val
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       build_standard_list_options(opts, options)
       opts.footer = "List option lists."

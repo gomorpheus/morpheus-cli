@@ -29,8 +29,8 @@ class Morpheus::Cli::Tasks
         params['taskTypeCodes'] = val
       end
 
-      opts.on('-l', '--label LABEL', String, "Filter by labels") do |val|
-        params['label'] = val
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
 
       build_standard_list_options(opts, options)

@@ -122,11 +122,8 @@ class Morpheus::Cli::Instances
       opts.on( '--plan-code CODE', String, "Filter by Plan code(s)" ) do |val|
         params['planCode'] = parse_id_list(val)
       end
-      opts.on('--labels label',String, "Filter by labels (keywords).") do |val|
-        val.split(",").each do |k|
-          options[:labels] ||= []
-          options[:labels] << k.strip
-        end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
       end
       opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
@@ -183,7 +180,6 @@ class Morpheus::Cli::Instances
 
     params['showDeleted'] = true if options[:showDeleted]
     params['deleted'] = true if options[:deleted]
-    params['labels'] = options[:labels] if options[:labels]
     if options[:tags]
       options[:tags].each do |k,v|
         params['tags.' + k] = v
