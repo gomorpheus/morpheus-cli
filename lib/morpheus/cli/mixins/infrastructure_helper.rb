@@ -485,8 +485,9 @@ module Morpheus::Cli::InfrastructureHelper
       "Name" => lambda {|it| it['name'] },
       "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
       "URL" => lambda {|it| it['serviceUrl'] },
-      "Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
-      # "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Status" => lambda {|it| format_network_pool_server_status(it) },
       "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
@@ -511,10 +512,28 @@ module Morpheus::Cli::InfrastructureHelper
       "Extra Attributes" => lambda {|it| it['config'] ? it['config']['extraAttributes'] : nil },
       "App ID" => lambda {|it| it['config'] ? it['config']['appId'] : nil },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Status" => lambda {|it| format_network_pool_server_status(it) },
       #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
       "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
+  end
+
+  def format_network_pool_server_status(network_pool_server, return_color=cyan)
+    out = ""
+    status_string = network_pool_server['status']
+    if status_string.nil? || status_string.empty? || status_string == "unknown"
+      out << "#{white}UNKNOWN#{network_pool_server['statusMessage'] ? "#{return_color} - #{network_pool_server['statusMessage']}" : ''}#{return_color}"
+    # elsif network_pool_server['enabled'] == false
+    #   out << "#{red}DISABLED#{network_pool_server['statusMessage'] ? "#{return_color} - #{network_pool_server['statusMessage']}" : ''}#{return_color}"
+    elsif status_string == 'ok'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'error' || status_string == 'offline'
+      out << "#{red}#{status_string ? status_string.upcase : 'N/A'}#{network_pool_server['statusMessage'] ? "#{return_color} - #{network_pool_server['statusMessage']}" : ''}#{return_color}"
+    else
+      out << "#{yellow}#{status_string.upcase}#{return_color}"
+    end
+    out
   end
 
   def network_pool_server_type_list_column_definitions(options)
