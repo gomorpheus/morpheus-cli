@@ -37,11 +37,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
                     "[name] is required and can be passed as --name instead."
     end
     optparse.parse!(args)
-    if args.count > 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0-1 and got #{args.count}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, max: 1)
     connect(options)
     begin
       # merge -O options into normally parsed options
@@ -130,11 +126,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
                     "[network-pool-server] is required. This is the id of a network pool server."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
 
     begin
@@ -211,13 +203,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
                     "[network-pool-server] is required. This is the name or id of a network pool server."
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} missing argument: [network-pool-server]\n#{optparse}"
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
     begin
       network_pool_server = find_network_pool_server_by_name_or_id(args[0])
