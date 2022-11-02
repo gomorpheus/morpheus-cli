@@ -54,9 +54,9 @@ class Morpheus::Cli::Clusters
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
-        add_query_parameter(params, 'labels', parse_labels(val))
-      end
+      # opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      #   add_query_parameter(params, 'labels', parse_labels(val))
+      # end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List clusters."
     end
@@ -206,7 +206,7 @@ class Morpheus::Cli::Clusters
       description_cols = {
           "ID" => 'id',
           "Name" => 'name',
-          "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
+          #"Labels" => lambda {|it| format_list(it['labels']) rescue '' },
           "Type" => lambda { |it| it['type']['name'] },
           #"Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
