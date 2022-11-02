@@ -369,7 +369,11 @@ EOT
     advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
     type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[#{rest_parent_arg}] [#{rest_arg}]")
+      if rest_has_name
+        opts.banner = subcommand_usage("[#{rest_parent_arg}] [name]")
+      else
+        opts.banner = subcommand_usage("[#{rest_parent_arg}]")
+      end
       if rest_has_type && type_option_type.nil?
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
@@ -381,7 +385,7 @@ EOT
       opts.footer = <<-EOT
 Create a new #{rest_label.downcase}.
 [#{rest_parent_arg}] is required. This is the #{rest_parent_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_parent_label)} #{rest_parent_label.downcase}.
-[#{rest_arg}] is required. This is the name of the new #{rest_label.downcase}.
+[name] is required. This is the name of the new #{rest_label.downcase}.
 EOT
     end
     optparse.parse!(args)
