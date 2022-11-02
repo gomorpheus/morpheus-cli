@@ -249,7 +249,10 @@ class Morpheus::Cli::NetworkPoolServersCommand
   private
 
   def render_response_for_get(json_response, options)
+    # load the type and show fields dynamically based on optionTypes
     render_response(json_response, options, rest_object_key) do
+      type_record = rest_type_find_by_name_or_id(json_response[rest_object_key]['type']['id']) rescue nil
+      type_option_types = type_record ? (type_record['optionTypes'] || []) : []
       record = json_response[rest_object_key]
       print_h1 rest_label, [], options
       print cyan
@@ -258,15 +261,16 @@ class Morpheus::Cli::NetworkPoolServersCommand
         columns.delete("Username")
         columns.delete("Password")
       end
-      columns.delete("Throttle Rate") if record['xxxxx'].to_s.empty?
+      columns.delete("Throttle Rate") unless type_option_types.find {|it| it['fieldName'] == 'serviceThrottleRate' }
       # columns.delete("Disable SSL SNI Verification") if record['ignoreSsl'].nil?
-      columns.delete("Ignore SSL") if record['ignoreSsl'].nil?
-      columns.delete("Network Filter") if record['networkFilter'].to_s.empty?
-      columns.delete("Zone Filter") if record['zoneFilter'].to_s.empty?
-      columns.delete("Tenant Match") if record['tenantMatch'].to_s.empty?
-      columns.delete("Service Mode") if record['serviceMode'].to_s.empty?
-      columns.delete("Extra Attributes") if record['config'].nil? || record['config']['extraAttributes'].to_s.empty?
-      columns.delete("Enabled") if record['enabled'].nil?
+      columns.delete("Ignore SSL") unless type_option_types.find {|it| it['fieldName'] == 'ignoreSsl' }
+      columns.delete("Network Filter") unless type_option_types.find {|it| it['fieldName'] == 'networkFilter' }
+      columns.delete("Zone Filter") unless type_option_types.find {|it| it['fieldName'] == 'zoneFilter' }
+      columns.delete("Tenant Match") unless type_option_types.find {|it| it['fieldName'] == 'tenantMatch' }
+      columns.delete("Service Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
+      columns.delete("Extra Attributes") unless type_option_types.find {|it| it['fieldName'] == 'extraAttributes' }
+      columns.delete("App ID") unless type_option_types.find {|it| it['fieldName'] == 'appId' }
+      columns.delete("Enabled") if record['enabled'].nil? # was not always returned, so don't show false if not present..
       print_description_list(columns, record, options)
       # show Pools
       pools = record['pools']
