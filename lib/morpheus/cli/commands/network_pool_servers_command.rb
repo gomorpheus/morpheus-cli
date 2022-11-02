@@ -24,7 +24,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
     options = {}
     ip_range_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name for this network pool server") do |val|
         options['name'] = val
       end
