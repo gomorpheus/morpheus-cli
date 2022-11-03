@@ -256,6 +256,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
       columns.delete("Service Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
       columns.delete("Extra Attributes") unless type_option_types.find {|it| it['fieldName'] == 'extraAttributes' }
       columns.delete("App ID") unless type_option_types.find {|it| it['fieldName'] == 'appId' }
+      columns.delete("Inventory Existing") unless type_option_types.find {|it| it['fieldName'] == 'inventoryExisting' }
       columns.delete("Enabled") if record['enabled'].nil? # was not always returned, so don't show false if not present..
       print_description_list(columns, record, options)
       # show Pools

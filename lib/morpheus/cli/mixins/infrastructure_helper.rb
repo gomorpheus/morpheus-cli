@@ -511,6 +511,7 @@ module Morpheus::Cli::InfrastructureHelper
       "Tenant Match" => lambda {|it| it['tenantMatch'] },
       "Extra Attributes" => lambda {|it| it['config'] ? it['config']['extraAttributes'] : nil },
       "App ID" => lambda {|it| it['config'] ? it['config']['appId'] : nil },
+      "Inventory Existing" => lambda {|it| format_boolean(it['config'] ? it['config']['inventoryExisting'] : nil) },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Status" => lambda {|it| format_network_pool_server_status(it) },
       #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
