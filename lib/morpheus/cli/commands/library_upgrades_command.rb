@@ -429,14 +429,14 @@ class Morpheus::Cli::LibraryUpgradesCommand
 
         # OPTION TYPES
         if option_type_ids
-          params['optionTypes'] = option_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['optionTypes'] = option_type_ids.collect {|it| it.to_i }
         else
           # prompt
         end
 
         # NODE TYPES
         if node_type_ids
-          params['containerTypes'] = node_type_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['containerTypes'] = node_type_ids.collect {|it| it.to_i }
         else
           # prompt
         end

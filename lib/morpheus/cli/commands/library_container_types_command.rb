@@ -406,14 +406,14 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # SCRIPTS
         if script_ids
-          params['scripts'] = script_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['scripts'] = script_ids.collect {|it| it.to_i }
         else
           # prompt
         end
 
         # FILE TEMPLATES
         if file_template_ids
-          params['templates'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['templates'] = file_template_ids.collect {|it| it.to_i }
         else
           # prompt
         end
@@ -560,14 +560,14 @@ class Morpheus::Cli::LibraryContainerTypesCommand
 
         # SCRIPTS
         if script_ids
-          params['scripts'] = script_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['scripts'] = script_ids.collect {|it| it.to_i }
         else
           # prompt
         end
 
         # FILE TEMPLATES
         if file_template_ids
-          params['templates'] = file_template_ids.collect {|it| it.to_i }.select { |it| it != 0 }
+          params['templates'] = file_template_ids.collect {|it| it.to_i }
         else
           # prompt
         end
