@@ -79,8 +79,11 @@ class Morpheus::Cli::Apps
       opts.on('--status STATUS', "Filter by status.") do |val|
         params['status'] = (params['status'] || []) + val.to_s.split(',').collect {|s| s.strip }.select {|s| s != "" }
       end
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       opts.on('-a', '--details', "Display all details: memory and storage usage used / max values." ) do
         options[:details] = true

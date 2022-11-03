@@ -51,8 +51,11 @@ class Morpheus::Cli::LibraryLayoutsCommand
       opts.on('--technology VALUE', String, "Filter by technology") do |val|
         params['provisionType'] = val
       end
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List layouts."
