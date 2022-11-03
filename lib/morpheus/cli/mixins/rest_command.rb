@@ -980,7 +980,7 @@ EOT
       # Option Types
       if record['optionTypes'] && record['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.size > 0
         print_h2 "Option Types", options
-        print format_option_types_table(record['optionTypes'], options, rest_type_object_key)
+        print format_option_types_table(record['optionTypes'], options, rest_object_key)
       end
       print reset,"\n"
     end
