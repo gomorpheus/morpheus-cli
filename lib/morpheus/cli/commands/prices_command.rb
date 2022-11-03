@@ -227,14 +227,6 @@ class Morpheus::Cli::PricesCommand
       opts.on("--datastore [DATASTORE]", String, "Datastore ID or name. Required for datastore price type") do |val|
         options[:datastore] = val
       end
-      opts.on("--instance-type [INSTANCE-TYPE]", String, "Instance Type ID or code. Required for instance_type price type") do |val|
-        # options['instanceType'] = val
-        options[:instance_type] = val
-      end
-      opts.on("--instance-type-layout [LAYOUT]", String, "Instance Type Layout ID or code. Required for instance_type_layout price type") do |val|
-        #params['instanceTypeLayout'] = val
-        options[:layout] = val
-      end
       opts.on("--cross-apply [on|off]", String, "Apply price across clouds. Applicable for datastore price type only") do |val|
         options[:crossCloudApply] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -611,8 +603,6 @@ class Morpheus::Cli::PricesCommand
         'software' => 'Software',
         'load_balancer' => 'Load Balancer',
         'load_balancer_virtual_server' => 'Load Balancer Virtual Server',
-        'instance_type' => 'Instance Type',
-        'instance_type_layout' => 'Instance Type Layout',
     }
   end
 
@@ -686,47 +676,6 @@ class Morpheus::Cli::PricesCommand
       else
         volume_type_id = (price['volumeType'] ? price['volumeType']['id'] : Morpheus::Cli::OptionTypes.prompt(['fieldName' => 'volumeType', 'type' => 'select', 'fieldLabel' => 'Volume Type', 'required' => true, 'description' => 'Select volume type for storage price type', 'selectOptions' => @prices_interface.list_volume_types['volumeTypes'].collect {|it| {'name' => it['name'], 'value' => it['id']}}], options[:options], @api_client, {}, options[:no_prompt], true)['volumeType'])
         params['volumeType'] = {'id' => volume_type_id}
-      end
-    when 'instance_type'
-      instance_type_options = @options_interface.options_for_source('instanceTypes', {})['data']
-      if options[:instance_type]
-        instance_type = instance_type_options.find {|it| it['id'].to_s == options[:instance_type].to_s } || instance_type_options.find {|it| it['code'].to_s.downcase == options[:instance_type].to_s.downcase || it['name'].to_s.downcase == options[:instance_type].to_s.downcase }
-        if instance_type
-          params['instanceType'] = {'id' => instance_type['id']}
-        else
-          print_red_alert "Instance type #{options[:instance_type]} not found"
-          exit 1
-        end
-      else
-        instance_type_id = (price['instanceType'] ? price['instanceType']['id'] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceType', 'type' => 'select', 'fieldLabel' => 'Instance Type', 'required' => true, 'description' => 'Select instance type for instance_type price type', 'selectOptions' => instance_type_options, 'config' => {'valueField' => 'id'}}], options[:options], @api_client, {}, options[:no_prompt], true)['instanceType'])
-        params['instanceType'] = {'id' => instance_type_id}
-      end
-    when 'instance_type_layout'
-      instance_type_options = @options_interface.options_for_source('instanceTypes', {})['data']
-      if options[:instance_type]
-        instance_type = instance_type_options.find {|it| it['id'].to_s == options[:instance_type].to_s } || instance_type_options.find {|it| it['code'].to_s.downcase == options[:instance_type].to_s.downcase || it['name'].to_s.downcase == options[:instance_type].to_s.downcase }
-        if instance_type
-          params['instanceType'] = {'id' => instance_type['id']}
-        else
-          print_red_alert "Instance type #{options[:instance_type]} not found"
-          exit 1
-        end
-      else
-        instance_type_id = (price['instanceType'] ? price['instanceType']['id'] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceType', 'type' => 'select', 'fieldLabel' => 'Instance Type', 'required' => true, 'description' => 'Select instance type for instance_type price type', 'selectOptions' => instance_type_options, 'config' => {'valueField' => 'id'}}], options[:options], @api_client, {}, options[:no_prompt], true)['instanceType'])
-        params['instanceType'] = {'id' => instance_type_id}
-      end
-      layout_options = @options_interface.options_for_source('instanceTypeLayoutForPricing', {'price' => {'instanceType' => instance_type_id}})['data']
-      if options[:layout]
-        layout = layout_options.find {|it| it['id'].to_s == options[:instance_type].to_s } || layout_options.find {|it| it['code'].to_s.downcase == options[:instance_type].to_s.downcase || it['name'].to_s.downcase == options[:instance_type].to_s.downcase }
-        if layout
-          params['instanceTypeLayout'] = {'id' => layout['id']}
-        else
-          print_red_alert "Layout #{options[:layout]} not found"
-          exit 1
-        end
-      else
-        layout_id = (price['instanceTypeLayout'] ? price['instanceTypeLayout']['id'] : Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceTypeLayout', 'type' => 'select', 'fieldLabel' => 'Instance Type Layout', 'required' => true, 'description' => 'Select instance type for instance_type price type', 'selectOptions' => layout_options, 'config' => {'valueField' => 'id'}}], options[:options], @api_client, {}, options[:no_prompt])['instanceTypeLayout'])
-        params['instanceTypeLayout'] = {'id' => layout_id}
       end
     end
   end
