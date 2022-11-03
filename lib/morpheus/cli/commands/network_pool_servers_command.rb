@@ -248,12 +248,11 @@ class Morpheus::Cli::NetworkPoolServersCommand
         columns.delete("Password")
       end
       columns.delete("Throttle Rate") unless type_option_types.find {|it| it['fieldName'] == 'serviceThrottleRate' }
-      # columns.delete("Disable SSL SNI Verification") if record['ignoreSsl'].nil?
-      columns.delete("Ignore SSL") unless type_option_types.find {|it| it['fieldName'] == 'ignoreSsl' }
+      columns.delete("Disable SSL SNI") unless type_option_types.find {|it| it['fieldName'] == 'ignoreSsl' }
       columns.delete("Network Filter") unless type_option_types.find {|it| it['fieldName'] == 'networkFilter' }
       columns.delete("Zone Filter") unless type_option_types.find {|it| it['fieldName'] == 'zoneFilter' }
       columns.delete("Tenant Match") unless type_option_types.find {|it| it['fieldName'] == 'tenantMatch' }
-      columns.delete("Service Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
+      columns.delete("IP Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
       columns.delete("Extra Attributes") unless type_option_types.find {|it| it['fieldName'] == 'extraAttributes' }
       columns.delete("App ID") unless type_option_types.find {|it| it['fieldName'] == 'appId' }
       columns.delete("Inventory Existing") unless type_option_types.find {|it| it['fieldName'] == 'inventoryExisting' }
