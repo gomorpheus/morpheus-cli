@@ -829,6 +829,7 @@ class Morpheus::Cli::BlueprintsCommand
       options[:name_required] = false
       options[:instance_type_code] = instance_config['instance']['type'] #instance_type["code"]
       options[:for_app] = true
+      options[:skip_labels_prompt] = true
       #options[:options].deep_merge!(specific_config)
       # this provisioning helper method handles all (most) of the parsing and prompting
       instance_config_payload = prompt_new_instance(options)
