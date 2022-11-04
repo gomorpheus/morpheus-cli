@@ -83,10 +83,11 @@ class Morpheus::Cli::NetworkPoolServersCommand
           return 1
         end
 
-        payload['networkPoolServer']['type'] = {'id' => network_type_id.to_i }
-
-        # prompt options
+        # prompt options by type
         network_pool_server_type = @network_pool_servers_interface.get_type(network_type_id.to_i)['networkPoolServerType']
+        # use type: "bluecat" instead of id
+        #payload['networkPoolServer']['type'] = {'id' => network_type_id.to_i }
+        payload['networkPoolServer']['type'] = network_pool_server_type['code']
         option_result = Morpheus::Cli::OptionTypes.prompt(network_pool_server_type['optionTypes'], options[:options].deep_merge({:context_map => {'networkPoolServer' => ''}}), @api_client, {}, options[:no_prompt], true)
         payload['networkPoolServer'].deep_merge!(option_result)
       end
