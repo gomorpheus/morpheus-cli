@@ -312,7 +312,6 @@ class Morpheus::Cli::Apps
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this app'}], options[:options])
         payload['name'] = v_prompt['name']
         
-
         # Description
         options[:options]['description'] = options[:description] if options.key?(:description)
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false}], options[:options])
@@ -363,6 +362,11 @@ class Morpheus::Cli::Apps
         end
         # payload['appContext'] = payload['environment'] if payload['environment']
 
+        # Labels
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text'}], options[:options])
+        payload['labels'] = parse_labels(v_prompt['labels']) unless v_prompt['labels'].to_s.empty?
+
+        # Configure (Tiers and their instances)
         if !payload['tiers']
           if payload['blueprintId'] != 'existing'
             
@@ -463,6 +467,8 @@ class Morpheus::Cli::Apps
                       instance_prompt_options[:options][:help_field_prefix] = help_field_prefix
                       instance_prompt_options[:locked_fields] = scoped_instance_config['lockedFields']
                       instance_prompt_options[:for_app] = true
+                      instance_prompt_options[:skip_labels_prompt] = true
+                      # or could do this: instance_prompt_options[:labels] = default_labels
                       # this provisioning helper method handles all (most) of the parsing and prompting
                       scoped_instance_config = Marshal.load( Marshal.dump(scoped_instance_config) )
                       instance_config_payload = prompt_new_instance(instance_prompt_options)
@@ -477,6 +483,10 @@ class Morpheus::Cli::Apps
                       final_config.delete('groups')
                       final_config.delete('clouds')
                       final_config.delete('lockedFields')
+                      final_config.delete('userRemovedFields')
+                      # should not need this...
+                      final_config.delete(:no_prompt)
+                      final_config.delete(:help_field_prefix)
                       # add config to payload
                       payload['tiers'][tier_name]['instances'] ||= []
                       payload['tiers'][tier_name]['instances'] << final_config
