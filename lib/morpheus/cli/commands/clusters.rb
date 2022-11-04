@@ -54,12 +54,12 @@ class Morpheus::Cli::Clusters
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      # opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
-      #   add_query_parameter(params, 'labels', parse_labels(val))
-      # end
-      # opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
-      #   add_query_parameter(params, 'allLabels', parse_labels(val))
-      # end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "List clusters."
     end
@@ -209,7 +209,8 @@ class Morpheus::Cli::Clusters
       description_cols = {
           "ID" => 'id',
           "Name" => 'name',
-          #"Labels" => lambda {|it| format_list(it['labels']) rescue '' },
+          "Description" => 'description',
+          "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
           "Type" => lambda { |it| it['type']['name'] },
           #"Group" => lambda { |it| it['site']['name'] },
           "Cloud" => lambda { |it| it['zone']['name'] },
@@ -740,6 +741,9 @@ class Morpheus::Cli::Clusters
       opts.on("--description [TEXT]", String, "Updates Cluster Description") do |val|
         options[:description] = val.to_s
       end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:labels] = parse_labels(val)
+      end
       opts.on("--api-url [TEXT]", String, "Updates Cluster API Url") do |val|
         options[:apiUrl] = val.to_s
       end
@@ -789,6 +793,7 @@ class Morpheus::Cli::Clusters
         cluster_payload = {}
         cluster_payload['name'] = options[:name] if !options[:name].empty?
         cluster_payload['description'] = options[:description] if !options[:description].empty?
+        cluster_payload['labels'] = options[:labels] if !options[:labels].nil?
         cluster_payload['enabled'] = options[:active] if !options[:active].nil?
         cluster_payload['managed'] = options[:managed] if !options[:managed].nil?
         cluster_payload['serviceUrl'] = options[:apiUrl] if !options[:apiUrl].nil?
@@ -3637,7 +3642,7 @@ class Morpheus::Cli::Clusters
     rows = clusters.collect do |cluster|
       {
           id: cluster['id'],
-          display_name: cluster['displayName'],
+          labels: truncate_string(format_list(cluster['labels']), 30),
           name: cluster['name'],
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
@@ -3647,7 +3652,7 @@ class Morpheus::Cli::Clusters
       }
     end
     columns = [
-        :id, :name, :display_name, :type, :layout, :workers, :cloud, :status
+        :id, :name, :labels, :type, :layout, :workers, :cloud, :status
     ]
     print as_pretty_table(rows, columns, opts)
   end
