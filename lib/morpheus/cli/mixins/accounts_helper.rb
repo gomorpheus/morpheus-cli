@@ -389,7 +389,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def get_access_color(access)
-    access ||= 'none'
+    access ||= 'default'
     if access == 'none'
       # maybe reset instead of white?
       white
@@ -401,6 +401,7 @@ module Morpheus::Cli::AccountsHelper
   end
 
   def get_access_string(access, return_color=cyan)
+    access ||= 'default'
     get_access_color(access) + access.to_s + return_color.to_s
     # access ||= 'none'
     # if access == 'none'
@@ -469,7 +470,7 @@ module Morpheus::Cli::AccountsHelper
     end
     # ok build out string
     out = ""
-    access_color = get_access_color(access)
+    access_color = get_access_color(access || 'default')
     out << access_color if access_color
     out << padded_value
     out << reset if access_color

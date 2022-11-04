@@ -129,15 +129,15 @@ class Morpheus::Cli::Users
       opts.on('-g','--global', "Global (All Tenants). Find users across all tenants. Default is your own tenant only.") do
         options[:global] = true
       end
-      opts.on('-p','--permissions', "Display Permissions") do |val|
+      opts.on('-p','--permissions', "Display Permissions [deprecated]") do |val|
         options[:include_features_access] = true
         params['includeAccess'] = true
       end
+      opts.add_hidden_option('-p,')
       opts.on(nil,'--feature-access', "Display Permissions") do |val|
         options[:include_features_access] = true
         params['includeAccess'] = true
       end
-      opts.add_hidden_option('--feature-access')
       opts.on(nil,'--group-access', "Display Group Access") do
         options[:include_sites_access] = true
         params['includeAccess'] = true
@@ -257,13 +257,19 @@ EOT
       else
         available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
          'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'personas' => 'Persona', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type'}
+
+        if is_tenant_account
+          available_field_options.delete("sites")
+        else
+          available_field_options.delete("zones")
+        end
+
         available_field_options.each do |field, label|
-          if !(field == 'sites' && is_tenant_account) && options["include_#{field}_access".to_sym]
+          if options["include_#{field}_access".to_sym]
             access = user['access'][field.to_s.camelcase] || []
             access = access.reject {|it| it['access'] == 'none'} if options[:hide_none_access]
 
             if field == "features"
-              # print_h2 "Permissions", options
               print_h2 "#{label} Access", options
             else
               print_h2 "#{label} Access", options
@@ -378,6 +384,13 @@ EOT
         print_h1 "User Permissions: #{user['username']}", options
 
         available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type','personas' => 'Persona'}
+
+        if is_tenant_account
+          available_field_options.remove('sites')
+        else
+          available_field_options.remove('zones')
+        end
+
         available_field_options.each do |field, label|
           if !(field == 'sites' && is_tenant_account)
             access = json_response['access'][field.split('_').enum_for(:each_with_index).collect {|word, idx| idx == 0 ? word : word.capitalize}.join]

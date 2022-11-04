@@ -162,57 +162,42 @@ EOT
   def _get(id, options={})
     args = [id] # heh
     params = {}
+    account = find_account_from_options(options)
+    account_id = account ? account['id'] : nil
 
-    
-      account = find_account_from_options(options)
-      account_id = account ? account['id'] : nil
+    params.merge!(parse_query_options(options))
 
-      params.merge!(parse_query_options(options))
-
-      @roles_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
-        else
-          print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
-        end
-        return
-      end
-
-      # role = find_role_by_name_or_id(account_id, args[0])
-      # exit 1 if role.nil?
-      # refetch from show action, argh
-      # json_response = @roles_interface.get(account_id, role['id'])
-      # role = json_response['role']
-      load_whoami()
-      json_response = nil
-      role = nil
+    @roles_interface.setopts(options)
+    if options[:dry_run]
       if args[0].to_s =~ /\A\d{1,}\Z/
-        json_response = @roles_interface.get(account_id, args[0].to_i)
-        role = json_response['role']
+        print_dry_run @roles_interface.dry.get(account_id, args[0].to_i)
       else
-        role = find_role_by_name_or_id(account_id, args[0])
-        exit 1 if role.nil?
-        # refetch from show action, argh
-        json_response = @roles_interface.get(account_id, role['id'])
-        role = json_response['role']
+        print_dry_run @roles_interface.dry.list(account_id, {name: args[0]})
       end
+      return
+    end
 
-      render_response(json_response, options, 'role') do
-      
+    load_whoami()
+    json_response = nil
+    role = nil
+    if args[0].to_s =~ /\A\d{1,}\Z/
+      json_response = @roles_interface.get(account_id, args[0].to_i)
+      role = json_response['role']
+    else
+      role = find_role_by_name_or_id(account_id, args[0])
+      exit 1 if role.nil?
+      # refetch from show action, argh
+      json_response = @roles_interface.get(account_id, role['id'])
+      role = json_response['role']
+    end
+
+    render_response(json_response, options, 'role') do
+
       print cyan
       print_h1 "Role Details", options
       print cyan
       columns = @is_master_account ? role_column_definitions : subtenant_role_column_definitions
       print_description_list(columns, role, options)
-
-      # print_h2 "Role Instance Limits", options
-      # print cyan
-      # print_description_list({
-      #   "Max Storage"  => lambda {|it| (it && it['maxStorage'].to_i != 0) ? Filesize.from("#{it['maxStorage']} B").pretty : "no limit" },
-      #   "Max Memory"  => lambda {|it| (it && it['maxMemory'].to_i != 0) ? Filesize.from("#{it['maxMemory']} B").pretty : "no limit" },
-      #   "CPU Count"  => lambda {|it| (it && it['maxCpu'].to_i != 0) ? it['maxCpu'] : "no limit" }
-      # }, role['instanceLimits'])
 
       print_h2 "Permissions", options
       print cyan
@@ -264,6 +249,7 @@ EOT
         global_access_columns.delete("Clouds")
         has_cloud_access = false
       end
+
       print as_pretty_table([json_response], global_access_columns, options)
 
       if has_group_access
@@ -275,7 +261,7 @@ EOT
             rows = json_response['sites'].select {|it| !it['access'].nil?}.collect do |it|
               {
                 name: it['name'],
-                access: format_access_string(it['access'] || json_response['globalSiteAccess'], ["none","read","full"]),
+                access: format_access_string(it['access'], ["none","read","full"]),
               }
             end
             print as_pretty_table(rows, [:name, :access], options)
@@ -288,7 +274,7 @@ EOT
           # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
         end
       end
-      
+
       if has_cloud_access
         print cyan
         #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
@@ -299,7 +285,7 @@ EOT
             rows = json_response['zones'].select {|it| !it['access'].nil?}.collect do |it|
               {
                 name: it['name'],
-                access: format_access_string(it['access'] || json_response['globalZoneAccess'], ["none","read","full"]),
+                access: format_access_string(it['access'], ["none","read","full"]),
               }
             end
             print as_pretty_table(rows, [:name, :access], options)
@@ -327,7 +313,7 @@ EOT
         rows = instance_type_permissions.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || instance_type_global_access, ["none","read","full"]),
+            access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -344,7 +330,7 @@ EOT
         rows = blueprint_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || blueprint_global_access, ["none","read","full"]),
+            access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -352,7 +338,7 @@ EOT
         print_h2 "Blueprint Access", options
         print cyan,"Use -b, --blueprint-access to list custom access","\n"
       end
-      
+
       catalog_item_type_global_access = json_response['globalCatalogItemTypeAccess']
       catalog_item_type_permissions = role['catalogItemTypes'] ? role['catalogItemTypes'] : (json_response['catalogItemTypePermissions'] || [])
       print cyan
@@ -361,7 +347,7 @@ EOT
         rows = catalog_item_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || catalog_item_type_global_access, ["none","read","full"]),
+            access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -378,7 +364,7 @@ EOT
         rows = persona_permissions.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || persona_global_access, ["none","full"]),
+            access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -395,7 +381,7 @@ EOT
         rows = vdi_pool_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || vdi_pool_global_access, ["none","full"]),
+            access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -412,7 +398,7 @@ EOT
         rows = report_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || report_type_global_access, ["none","full"]),
+            access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -429,7 +415,7 @@ EOT
         rows = task_permissions.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || task_global_access, ["none","full"]),
+            access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -446,7 +432,7 @@ EOT
         rows = workflow_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
-            access: format_access_string(it['access'] || workflow_global_access, ["none","full"]),
+            access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
@@ -454,10 +440,9 @@ EOT
         print_h2 "Workflow", options
         print cyan,"Use --workflow-access to list custom access","\n"
       end
+      print reset,"\n"
+      return 0, nil
     end
-    print reset,"\n"
-
-    return 0, nil
   end
 
   def list_permissions(args)
@@ -503,7 +488,7 @@ EOT
     end
 
     available_categories.reject! {|category| category == 'cloud'} if role['role']['roleType'] == 'user'
-    available_categories.reject! {|category| category == 'group'} if role['role']['roleType'] == 'tenant'
+    available_categories.reject! {|category| category == 'group'} if role['role']['roleType'] == 'account'
 
     permission_name = -> (s) {
       return 'sites' if s == 'group'
@@ -1330,7 +1315,7 @@ EOT
 
   def update_feature_access(args)
     options = {}
-    allowed_access_values = ['full', 'user', 'read', 'none'] # just for display , veries per permission
+    allowed_access_values = ["full", "full_decrypted", "group", "listfiles", "managerules", "no", "none", "provision", "read", "rolemappings", "user", "view", "yes"]
     permission_code = nil
     access_value = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1576,7 +1561,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'read', 'none'].include?(access_value)
       puts optparse
       exit 1
     end
