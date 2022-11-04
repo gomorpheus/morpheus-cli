@@ -516,8 +516,6 @@ class Morpheus::Cli::PriceSetsCommand
         'software' => 'Software',
         'load_balancer' => 'Load Balancer',
         'load_balancer_virtual_server' => 'Load Balancer Virtual Server',
-        'instance_type' => 'Instance Type',
-        'instance_type_layout' => 'Instance Type Layout',
     }
   end
 
@@ -538,8 +536,6 @@ class Morpheus::Cli::PriceSetsCommand
         'snapshot' => {:label => 'Snapshot', :requires => ['storage'], :allows => ['storage', 'datastore']},
         'virtual_image' => {:label => 'Virtual Image', :requires => ['storage'], :allows => []},
         'software_or_service' => {:label => 'Software / Service', :requires => ['software'], :allows => []},
-        'instance_type' => {:label => 'Instance Type', :requires => ['instance_type'], :allows => []},
-        'instance_type_layout' => {:label => 'Instance Type Layout', :requires => ['instance_type_layout'], :allows => []},
     }
   end
 

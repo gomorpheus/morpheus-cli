@@ -24,12 +24,15 @@ class Morpheus::Cli::NetworkPoolServersCommand
     options = {}
     ip_range_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
+      opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name for this network pool server") do |val|
         options['name'] = val
       end
       opts.on('--type VALUE', String, "Type of network pool server") do |val|
         options['type'] = val
+      end
+      opts.on('--enabled [on|off]', String, "Can be used to disable") do |val|
+        options[:options]['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -37,11 +40,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
                     "[name] is required and can be passed as --name instead."
     end
     optparse.parse!(args)
-    if args.count > 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0-1 and got #{args.count}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, max: 1)
     connect(options)
     begin
       # merge -O options into normally parsed options
@@ -84,10 +83,11 @@ class Morpheus::Cli::NetworkPoolServersCommand
           return 1
         end
 
-        payload['networkPoolServer']['type'] = {'id' => network_type_id.to_i }
-
-        # prompt options
+        # prompt options by type
         network_pool_server_type = @network_pool_servers_interface.get_type(network_type_id.to_i)['networkPoolServerType']
+        # use type: "bluecat" instead of id
+        #payload['networkPoolServer']['type'] = {'id' => network_type_id.to_i }
+        payload['networkPoolServer']['type'] = network_pool_server_type['code']
         option_result = Morpheus::Cli::OptionTypes.prompt(network_pool_server_type['optionTypes'], options[:options].deep_merge({:context_map => {'networkPoolServer' => ''}}), @api_client, {}, options[:no_prompt], true)
         payload['networkPoolServer'].deep_merge!(option_result)
       end
@@ -124,17 +124,16 @@ class Morpheus::Cli::NetworkPoolServersCommand
       opts.on('--type VALUE', String, "Type of network pool server") do |val|
         options['description'] = val
       end
+      opts.on('--enabled [on|off]', String, "Can be used to enable or disable it") do |val|
+        options[:options]['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a network pool server." + "\n" +
                     "[network-pool-server] is required. This is the id of a network pool server."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
 
     begin
@@ -211,13 +210,7 @@ class Morpheus::Cli::NetworkPoolServersCommand
                     "[network-pool-server] is required. This is the name or id of a network pool server."
     end
     optparse.parse!(args)
-
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} missing argument: [network-pool-server]\n#{optparse}"
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
     begin
       network_pool_server = find_network_pool_server_by_name_or_id(args[0])
@@ -249,7 +242,10 @@ class Morpheus::Cli::NetworkPoolServersCommand
   private
 
   def render_response_for_get(json_response, options)
+    # load the type and show fields dynamically based on optionTypes
     render_response(json_response, options, rest_object_key) do
+      type_record = rest_type_find_by_name_or_id(json_response[rest_object_key]['type']['id']) rescue nil
+      type_option_types = type_record ? (type_record['optionTypes'] || []) : []
       record = json_response[rest_object_key]
       print_h1 rest_label, [], options
       print cyan
@@ -258,15 +254,16 @@ class Morpheus::Cli::NetworkPoolServersCommand
         columns.delete("Username")
         columns.delete("Password")
       end
-      columns.delete("Throttle Rate") if record['xxxxx'].to_s.empty?
-      # columns.delete("Disable SSL SNI Verification") if record['ignoreSsl'].nil?
-      columns.delete("Ignore SSL") if record['ignoreSsl'].nil?
-      columns.delete("Network Filter") if record['networkFilter'].to_s.empty?
-      columns.delete("Zone Filter") if record['zoneFilter'].to_s.empty?
-      columns.delete("Tenant Match") if record['tenantMatch'].to_s.empty?
-      columns.delete("Service Mode") if record['serviceMode'].to_s.empty?
-      columns.delete("Extra Attributes") if record['config'].nil? || record['config']['extraAttributes'].to_s.empty?
-      columns.delete("Enabled") if record['enabled'].nil?
+      columns.delete("Throttle Rate") unless type_option_types.find {|it| it['fieldName'] == 'serviceThrottleRate' }
+      columns.delete("Disable SSL SNI") unless type_option_types.find {|it| it['fieldName'] == 'ignoreSsl' }
+      columns.delete("Network Filter") unless type_option_types.find {|it| it['fieldName'] == 'networkFilter' }
+      columns.delete("Zone Filter") unless type_option_types.find {|it| it['fieldName'] == 'zoneFilter' }
+      columns.delete("Tenant Match") unless type_option_types.find {|it| it['fieldName'] == 'tenantMatch' }
+      columns.delete("IP Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
+      columns.delete("Extra Attributes") unless type_option_types.find {|it| it['fieldName'] == 'extraAttributes' }
+      columns.delete("App ID") unless type_option_types.find {|it| it['fieldName'] == 'appId' }
+      columns.delete("Inventory Existing") unless type_option_types.find {|it| it['fieldName'] == 'inventoryExisting' }
+      columns.delete("Enabled") if record['enabled'].nil? # was not always returned, so don't show false if not present..
       print_description_list(columns, record, options)
       # show Pools
       pools = record['pools']

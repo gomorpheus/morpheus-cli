@@ -605,11 +605,13 @@ module Morpheus::Cli::ProvisioningHelper
     payload['instance']['instanceContext'] = v_prompt['environment'] if !v_prompt['environment'].empty?
 
     # Labels (used to be called tags)
-    if options[:labels]
-      payload['instance']['labels'] = options[:labels].is_a?(Array) ? options[:labels] : options[:labels].to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq
-    else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'defaultValue' => options[:default_labels]}], options[:options])
-      payload['instance']['labels'] = v_prompt['labels'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['labels'].empty?
+    unless options[:skip_labels_prompt]
+      if options[:labels]
+        payload['instance']['labels'] = options[:labels].is_a?(Array) ? options[:labels] : options[:labels].to_s.split(',').collect {|it| it.to_s.strip }.compact.uniq
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'defaultValue' => options[:default_labels]}], options[:options])
+        payload['instance']['labels'] = v_prompt['labels'].split(',').collect {|it| it.to_s.strip }.compact.uniq if !v_prompt['labels'].empty?
+      end
     end
 
     # Version and Layout

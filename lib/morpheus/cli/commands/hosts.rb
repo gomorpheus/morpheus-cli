@@ -109,8 +109,11 @@ class Morpheus::Cli::Hosts
       opts.on( '--tenant TENANT', "Tenant Name or ID" ) do |val|
         options[:account] = val
       end
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       opts.on('--tags Name=Value',String, "Filter by tags.") do |val|
         val.split(",").each do |value_pair|

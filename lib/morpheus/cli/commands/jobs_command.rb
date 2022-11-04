@@ -42,8 +42,11 @@ class Morpheus::Cli::JobsCommand
       opts.on("--stats [true|false]", String, "Hide Execution Stats. Job statistics are displayed by default.") do |val|
         options[:show_stats] = (val.to_s != "false")
       end
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       build_standard_list_options(opts, options)
       opts.footer = "List jobs."

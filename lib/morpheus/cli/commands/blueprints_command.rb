@@ -62,8 +62,11 @@ class Morpheus::Cli::BlueprintsCommand
         params['ownerId'] << val
       end
       opts.add_hidden_option('--created-by')
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       build_standard_list_options(opts, options)
       opts.footer = "List blueprints."
@@ -826,6 +829,7 @@ class Morpheus::Cli::BlueprintsCommand
       options[:name_required] = false
       options[:instance_type_code] = instance_config['instance']['type'] #instance_type["code"]
       options[:for_app] = true
+      options[:skip_labels_prompt] = true
       #options[:options].deep_merge!(specific_config)
       # this provisioning helper method handles all (most) of the parsing and prompting
       instance_config_payload = prompt_new_instance(options)

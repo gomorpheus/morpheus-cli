@@ -42,8 +42,11 @@ class Morpheus::Cli::VirtualImages
        opts.on('--synced', "Synced Images" ) do
         options[:filterType] = 'Synced'
       end
-      opts.on('-l', '--labels LABEL', String, "Filter by labels") do |val|
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
         add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
       end
       opts.on('--tags Name=Value',String, "Filter by tags (metadata name value pairs).") do |val|
         val.split(",").each do |value_pair|
