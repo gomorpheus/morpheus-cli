@@ -388,8 +388,12 @@ class Morpheus::Cli::Clusters
         options[:metadata] = val
       end
       opts.add_hidden_option('--metadata')
-      opts.on('-l', '--labels [LIST]', String, "Resource Labels") do |val|
+      opts.on('-l', '--labels [LIST]', String, "Labels (sets both cluster and server)") do |val|
         options[:labels] = parse_labels(val)
+        options[:resource_labels] ||= options[:labels]
+      end
+      opts.on('--resource-labels [LIST]', String, "Resource Labels (override server labels)") do |val|
+        options[:resource_labels] = parse_labels(val)
       end
       opts.on( '-g', '--group GROUP', "Group Name or ID" ) do |val|
         options[:group] = val
@@ -446,6 +450,13 @@ class Morpheus::Cli::Clusters
         end
         if options[:description]
           payload['cluster']['description'] = options[:description]
+        end
+        if options[:labels]
+          payload['cluster']['labels'] = options[:labels]
+        end
+        if options[:resource_labels]
+          payload['cluster']['server'] ||= {}
+          payload['cluster']['server']['labels'] = options[:resource_labels]
         end
       else
         cluster_payload = {}
@@ -525,13 +536,20 @@ class Morpheus::Cli::Clusters
         description = options[:description] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'type' => 'text', 'fieldLabel' => 'Description', 'required' => false, 'description' => 'Resource Description.'}],options[:options],@api_client,{})['description']
         cluster_payload['description'] = description if description
 
+        # Labels
         labels = options[:labels]
-
         if !labels && !options[:no_prompt]
-          labels = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'type' => 'text', 'fieldLabel' => 'Resource Labels', 'required' => false, 'description' => 'Resource Labels.'}],options[:options],@api_client,{})['labels']
+          labels = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'type' => 'text', 'fieldLabel' => 'Labels', 'required' => false, 'description' => 'Resource Labels.'}],options[:options],@api_client,{})['labels']
+        end
+        if labels
+          payload['cluster']['labels'] = labels
+          server_payload['labels'] = labels
         end
 
-        server_payload['labels'] = labels if labels
+        # --resource-labels to override
+        if options[:resource_labels]
+          server_payload['labels'] = options[:resource_labels]
+        end
 
         # Cloud / Zone
         cloud_id = nil
