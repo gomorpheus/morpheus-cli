@@ -121,9 +121,6 @@ class Morpheus::Cli::NetworkPoolServersCommand
       opts.on('--name VALUE', String, "Name for this network pool server") do |val|
         options['name'] = val
       end
-      opts.on('--type VALUE', String, "Type of network pool server") do |val|
-        options['description'] = val
-      end
       opts.on('--enabled [on|off]', String, "Can be used to enable or disable it") do |val|
         options[:options]['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
