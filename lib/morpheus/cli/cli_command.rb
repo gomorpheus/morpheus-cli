@@ -748,14 +748,14 @@ module Morpheus
                 options[:include_fields] = val
               end
             end
-            opts.on('-F', '--fields-alias x,y,z', Array, "alias for -f, --fields") do |val|
+            opts.on('-F', '--old-fields x,y,z', Array, "alias for -f, --fields") do |val|
               if val.size == 1 && val[0].downcase == 'all'
                 options[:all_fields] = true
               else
                 options[:include_fields] = val
               end
             end
-            opts.add_hidden_option('--fields-alias') if opts.is_a?(Morpheus::Cli::OptionParser)
+            opts.add_hidden_option('-F, --old-fields') if opts.is_a?(Morpheus::Cli::OptionParser)
             opts.on('--raw-fields [x,y,z]', String, "Raw fields filters output like --fields except the properties [x,y,z] must be specified from the root of the response instead of relative to the the list or object context for this particular resource.") do |val|
               if val.size == 1 && val[0].downcase == 'all'
                 options[:all_fields] = true
