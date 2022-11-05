@@ -134,7 +134,7 @@ class Morpheus::Cli::Users
         params['includeAccess'] = true
       end
       opts.add_hidden_option('-p,')
-      opts.on(nil,'--feature-access', "Display Permissions") do |val|
+      opts.on(nil,'--feature-access', "Display Feature Access") do |val|
         options[:include_features_access] = true
         params['includeAccess'] = true
       end
@@ -170,6 +170,14 @@ class Morpheus::Cli::Users
         options[:include_report_types_access] = true
         params['includeAccess'] = true
       end
+      opts.on(nil,'--workflow-access', "Display Workflow Access") do
+        options[:include_task_sets_access] = true
+        params['includeAccess'] = true
+      end
+      opts.on(nil,'--task-access', "Display Task Access") do
+        options[:include_tasks_access] = true
+        params['includeAccess'] = true
+      end
       opts.on(nil,'--all', "Display All Access Lists") do
         options[:include_features_access] = true
         options[:include_sites_access] = true
@@ -180,6 +188,8 @@ class Morpheus::Cli::Users
         options[:include_personas_access] = true
         options[:include_vdi_pools_access] = true
         options[:include_report_types_access] = true
+        options[:include_task_sets_access] = true
+        options[:include_tasks_access] = true
         params['includeAccess'] = true
       end
       opts.on(nil, '--hide-none-access', "Hide records with 'none' access") do
@@ -255,8 +265,11 @@ EOT
           puts yellow,"No permissions found.",reset
         end
       else
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
-         'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'personas' => 'Persona', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type'}
+        available_field_options = {
+          'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
+          'app_templates' => 'Blueprint', 'report_types' => 'Report Type', 'personas' => 'Persona',
+          'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'task_sets' => 'Workflow', 'tasks' => 'Task'
+        }
 
         if is_tenant_account
           available_field_options.delete("sites")
@@ -383,12 +396,16 @@ EOT
 
         print_h1 "User Permissions: #{user['username']}", options
 
-        available_field_options = {'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type', 'app_templates' => 'Blueprint', 'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'report_types' => 'Report Type','personas' => 'Persona'}
+        available_field_options = {
+          'features' => 'Feature', 'sites' => 'Group', 'zones' => 'Cloud', 'instance_types' => 'Instance Type',
+          'app_templates' => 'Blueprint', 'report_types' => 'Report Type', 'personas' => 'Persona',
+          'catalog_item_types' => 'Catalog Item Type', 'vdi_pools' => 'VDI Pool', 'task_sets' => 'Workflow', 'tasks' => 'Task'
+        }
 
         if is_tenant_account
-          available_field_options.remove('sites')
+          available_field_options.reject! {|k| k == 'sites'}
         else
-          available_field_options.remove('zones')
+          available_field_options.reject! {|k| k == 'zones'}
         end
 
         available_field_options.each do |field, label|

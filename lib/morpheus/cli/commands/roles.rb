@@ -99,7 +99,7 @@ class Morpheus::Cli::Roles
         options[:include_feature_access] = true
       end
       opts.add_hidden_option('-p,')
-      opts.on('-f','--feature-access', "Display Permissions") do |val|
+      opts.on('-f','--feature-access', "Display Feature Access") do |val|
         options[:include_feature_access] = true
       end
       opts.on('-g','--group-access', "Display Group Access") do
@@ -223,7 +223,7 @@ EOT
         print as_pretty_table(rows, [:code, :name, :subCategory, :access], options)
         # print reset,"\n"
       else
-        print cyan,"Use --feature-access to list feature permissions","\n"
+        print cyan,"Use --feature-access to list feature access","\n"
       end
 
       has_group_access = true
@@ -1549,7 +1549,7 @@ EOT
       opts.footer = <<-EOT
 Update default cloud access for a role.
 [role] is required. This is the name (authority) or id of a role.
-[access] is required. This is the access level to assign: full or none.
+[access] is required. This is the access level to assign: full, read or none.
 Only applicable to Tenant roles.
 EOT
     end
