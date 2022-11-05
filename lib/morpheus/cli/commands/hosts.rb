@@ -751,6 +751,13 @@ class Morpheus::Cli::Hosts
       opts.on("--security-groups LIST", Integer, "Security Groups, comma separated list of security group IDs") do |val|
         options[:security_groups] = val.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
       end
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.on('--metadata [LIST]', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+        options[:metadata] = val
+      end
+      opts.add_hidden_option('--metadata')
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         options[:options]['labels'] = parse_labels(val)
       end
@@ -936,7 +943,18 @@ class Morpheus::Cli::Hosts
             end
           end
         end
-    
+        
+        # Metadata Tags
+        if metadata_option_type
+          if options[:metadata]
+            metadata = parse_metadata(options[:metadata])
+            payload['tags'] = metadata if !metadata.empty?
+          else
+            metadata = prompt_metadata(options)
+            payload['tags'] = metadata if !metadata.empty?
+          end
+        end
+
         api_params = {}
         api_params['zoneId'] = cloud['id']
         api_params['poolId'] = payload['config']['resourcePool'] if (payload['config'] && payload['config']['resourcePool'])
