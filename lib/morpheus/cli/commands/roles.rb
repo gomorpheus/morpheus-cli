@@ -578,7 +578,7 @@ EOT
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
-      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|full]" ) do  |val|
+      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|read|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
@@ -977,7 +977,7 @@ EOT
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
-      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|full]" ) do  |val|
+      opts.on('--default-cloud-access ACCESS', String, "Update the default cloud (zone) access: [none|read|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.on('--clouds ID=ACCESS', String, "Set cloud (zone) to a custom access by cloud id. Example: 1=none,2=full,3=read" ) do |val|
