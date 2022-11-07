@@ -558,6 +558,11 @@ EOT
         options[:permissions] ||= {}
         parse_access_csv(options[:permissions], val, args, optparse)
       end
+      opts.add_hidden_option('--permissions')
+      opts.on('--feature-access CODE=ACCESS', String, "Set feature permission access by permission code. Example: dashboard=read,operations-wiki=full" ) do |val|
+        options[:permissions] ||= {}
+        parse_access_csv(options[:permissions], val, args, optparse)
+      end
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
@@ -569,7 +574,7 @@ EOT
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
-      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|full]" ) do  |val|
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|read|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
@@ -667,7 +672,11 @@ EOT
       opts.on('--reset-permissions', "Reset all feature permission access to none. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
         options[:reset_permissions] = true
       end
-      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+      opts.add_hidden_option('--reset-permissions')
+      opts.on('--reset-feature-access', "Reset all feature permission access to none. This can be used in conjunction with --feature-access to recreate the feature permission access for the role." ) do
+        options[:reset_permissions] = true
+      end
+      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --feature-access to recreate the feature permission access for the role." ) do
         options[:reset_all_access] = true
       end
       opts.on('--owner ID', String, "Set the owner/tenant/account for the role by account id. Only master tenants with full permission for Tenant and Role may use this option." ) do |val|
@@ -677,10 +686,10 @@ EOT
 Create a new role.
 [name] is required. This is a unique name (authority) for the new role.
 All the role permissions and access values can be configured.
-Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
+Use --feature-access "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
 Use --default-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
 Only the specified permissions,instance types, etc. are updated.
-Use --reset-permissions to set access to "none" for all unspecified feature permissions.
+Use --reset-feature-access to set access to "none" for all unspecified feature permissions.
 Use --reset-all-access to set access to "none" for all unspecified feature permissions and default access values for groups, instance types, etc.
 EOT
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -948,6 +957,11 @@ EOT
         options[:permissions] ||= {}
         parse_access_csv(options[:permissions], val, args, optparse)
       end
+      opts.add_hidden_option('--permissions')
+      opts.on('--feature-access CODE=ACCESS', String, "Set feature permission access by permission code. Example: dashboard=read,operations-wiki=full" ) do |val|
+        options[:permissions] ||= {}
+        parse_access_csv(options[:permissions], val, args, optparse)
+      end
       opts.on('--global-group-access ACCESS', String, "Update the global group (site) access: [none|read|full]" ) do |val|
         params['globalSiteAccess'] = val.to_s.downcase
       end
@@ -959,7 +973,7 @@ EOT
         options[:group_permissions] ||= {}
         parse_access_csv(options[:group_permissions], val, args, optparse)
       end
-      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|full]" ) do  |val|
+      opts.on('--global-cloud-access ACCESS', String, "Update the global cloud (zone) access: [none|read|full]" ) do  |val|
         params['globalZoneAccess'] = val.to_s.downcase
       end
       opts.add_hidden_option('--global-cloud-access')
@@ -1054,7 +1068,11 @@ EOT
       opts.on('--reset-permissions', "Reset all feature permission access to none. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
         options[:reset_permissions] = true
       end
-      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --permissions to recreate the feature permission access for the role." ) do
+      opts.add_hidden_option('--reset-permissions')
+      opts.on('--reset-feature-access', "Reset all feature permission access to none. This can be used in conjunction with --feature-access to recreate the feature permission access for the role." ) do
+        options[:reset_permissions] = true
+      end
+      opts.on('--reset-all-access', "Reset all access to none including permissions, global groups, instance types, etc. This can be used in conjunction with --feature-access to recreate the feature permission access for the role." ) do
         options[:reset_all_access] = true
       end
       build_standard_update_options(opts, options)
@@ -1062,10 +1080,10 @@ EOT
 Update a role.
 [role] is required. This is the name (authority) or id of a role.
 All the role permissions and access values can be configured.
-Use --permissions "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
+Use --feature-access "CODE=ACCESS,CODE=ACCESS" to update access levels for specific feature permissions identified by code. 
 Use --default-instance-type-access custom --instance-types "CODE=ACCESS,CODE=ACCESS" to customize instance type access.
 Only the specified permissions,instance types, etc. are updated.
-Use --reset-permissions to set access to "none" for all unspecified feature permissions.
+Use --reset-feature-access to set access to "none" for all unspecified feature permissions.
 Use --reset-all-access to set access to "none" for all unspecified feature permissions and global access values for groups, instance types, etc.
 EOT
     end
