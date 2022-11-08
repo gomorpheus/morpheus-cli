@@ -381,10 +381,10 @@ class Morpheus::Cli::Clusters
       opts.on( '--resource-name NAME', "Resource Name" ) do |val|
         options[:resourceName] = val.to_s
       end
-      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+      opts.on('--tags LIST', String, "Metadata tags in the format 'ping=pong,flash=bang' (sets server tags only)") do |val|
         options[:metadata] = val
       end
-      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang'") do |val|
+      opts.on('--metadata LIST', String, "Metadata tags in the format 'ping=pong,flash=bang' (sets server tags only)") do |val|
         options[:metadata] = val
       end
       opts.add_hidden_option('--metadata')
