@@ -431,7 +431,7 @@ class Morpheus::Cli::LibraryOptionListsCommand
         # rest
         {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
         {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2},
-        {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }, 'displayOrder' => 3},
+        {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }, 'displayOrder' => 3},
         {'code' => 'optionTypeList.type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_option_list_types, 'defaultValue' => 'rest', 'required' => true, 'description' => 'Option List Type. eg. rest, api, ldap, manual', 'displayOrder' => 4},
         {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'displayOrder' => 5},
         {'dependsOnCode' => 'optionTypeList.type:rest', 'fieldName' => 'sourceUrl', 'fieldLabel' => 'Source Url', 'type' => 'text', 'required' => true, 'description' => "A REST URL can be used to fetch list data and is cached in the appliance database.", 'displayOrder' => 6},
