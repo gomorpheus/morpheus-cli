@@ -107,6 +107,7 @@ class Morpheus::Cli::VirtualImages
         virtual_image_column_definitions = {
           "ID" => 'id',
           "Name" => 'name',
+          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
           "Type" => lambda {|it| 
             # yick, api should return the type with every virtualImage
             image_type = virtual_image_type_for_name_or_code(it['imageType'])
@@ -203,7 +204,7 @@ EOT
         description_cols = {
           "ID" => 'id',
           "Name" => 'name',
-          "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+          "Labels" => lambda {|it| format_list(it['labels']) },
           "Type" => lambda {|it| image_type_display },
           "Operating System" => lambda {|it| it['osType'] ? it['osType']['name'] : "" }, 
           "Storage" => lambda {|it| !image['storageProvider'].nil? ? image['storageProvider']['name'] : 'Default' }, 
