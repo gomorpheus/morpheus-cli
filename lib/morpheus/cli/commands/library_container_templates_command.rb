@@ -137,9 +137,10 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
         "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "File Name" => lambda {|it| it['fileName'] },
         "File Path" => lambda {|it| it['filePath'] },
-        "Setting Category" => lambda {|it| it['settingCategory'] },
-        "Setting Name" => lambda {|it| it['settingName'] },
         "Phase" => lambda {|it| it['templatePhase'] },
+        "File Owner" => lambda {|it| it['fileOwner'] },
+        "Setting Name" => lambda {|it| it['settingName'] },
+        "Setting Category" => lambda {|it| it['settingCategory'] },
         "Owner" => lambda {|it| it['account'] ? it['account']['name'] : '' },
         # "Enabled" => lambda {|it| format_boolean it['enabled'] },
         "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
@@ -172,12 +173,20 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         params['labels'] = parse_labels(val)
       end
+      opts.on('--file-name VALUE', String, "File Name") do |val|
+        params['fileName'] = val
+      end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
+      end
+      opts.add_hidden_option('--fileName')
+      opts.on('--file-path VALUE', String, "File Path") do |val|
+        params['filePath'] = val
       end
       opts.on('--filePath VALUE', String, "File Path") do |val|
         params['filePath'] = val
       end
+      opts.add_hidden_option('--filePath')
       opts.on('--phase [preProvision|provision|postProvision]', String, "Template Phase. Default is 'provision'") do |val|
         params['templatePhase'] = val
       end
@@ -206,22 +215,30 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--file-owner VALUE', String, "File Owner") do |val|
         params['fileOwner'] = val
       end
+      opts.on('--fileOwner VALUE', String, "File Owner") do |val|
+        params['fileOwner'] = val
+      end
+      opts.add_hidden_option('--fileOwner')
       opts.on('--setting-name VALUE', String, "Setting Name") do |val|
         params['settingName'] = val
       end
+      opts.on('--settingName VALUE', String, "Setting Name") do |val|
+        params['settingName'] = val
+      end
+      opts.add_hidden_option('--settingName')
       opts.on('--setting-category VALUE', String, "Setting Category") do |val|
         params['settingCategory'] = val
       end
+      opts.on('--settingCategory VALUE', String, "Setting Category") do |val|
+        params['settingCategory'] = val
+      end
+      opts.add_hidden_option('--settingCategory')
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new file template." + "\n" +
                     "[name] is required and can be passed as --name instead."
     end
     optparse.parse!(args)
-    if args.count > 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, max:1)
     # support [name] as first argument
     if args[0]
       params['name'] = args[0]
@@ -237,16 +254,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
         payload = options[:payload]
         payload.deep_merge!({'containerTemplate' => create_payload}) unless create_payload.empty?
       else
-        prompt_result = Morpheus::Cli::OptionTypes.prompt([
-          {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
-          {'fieldName' => 'fileName', 'fieldLabel' => 'File Name', 'type' => 'text', 'required' => true},
-          {'fieldName' => 'filePath', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => false},
-          {'fieldName' => 'templatePhase', 'fieldLabel' => 'Phase', 'type' => 'select', 'optionSource' => 'containerTemplatePhases', 'defaultValue' => 'provision', 'required' => true},
-          {'fieldName' => 'template', 'fieldLabel' => 'Template', 'type' => 'code-editor', 'required' => true},
-          {'fieldName' => 'fileOwner', 'fieldLabel' => 'File Owner', 'type' => 'text'},
-          {'fieldName' => 'settingName', 'fieldLabel' => 'Setting Name', 'type' => 'text'},
-          {'fieldName' => 'settingCategory', 'fieldLabel' => 'Setting Category', 'type' => 'text'},
-        ], params.deep_merge(options[:options] || {}), @api_client)
+        prompt_result = Morpheus::Cli::OptionTypes.prompt(add_container_template_option_types, params.deep_merge(options[:options] || {}), @api_client)
         create_payload.deep_merge!(prompt_result)
         payload = {'containerTemplate' => create_payload}
       end
@@ -282,25 +290,23 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         params['labels'] = parse_labels(val)
       end
+      opts.on('--file-name VALUE', String, "File Name") do |val|
+        params['fileName'] = val
+      end
       opts.on('--fileName VALUE', String, "File Name") do |val|
         params['fileName'] = val
+      end
+      opts.add_hidden_option('--fileName')
+      opts.on('--file-path VALUE', String, "File Path") do |val|
+        params['filePath'] = val
       end
       opts.on('--filePath VALUE', String, "File Path") do |val|
         params['filePath'] = val
       end
-      # opts.on('--code VALUE', String, "Code") do |val|
-      #   params['code'] = val
-      # end
-      # opts.on('--description VALUE', String, "Description") do |val|
-      #   params['description'] = val
-      # end
-      opts.on('--phase [start|stop]', String, "Template Phase") do |val|
-        params['scriptPhase'] = val
+      opts.add_hidden_option('--filePath')
+      opts.on('--phase [preProvision|provision|postProvision]', String, "Template Phase. Default is 'provision'") do |val|
+        params['templatePhase'] = val
       end
-
-      # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-      #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
-      # end
       opts.on('--template TEXT', String, "Contents of the template.") do |val|
         params['template'] = val
       end
@@ -313,22 +319,53 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
           exit 1
         end
       end
+      opts.on('--file-owner VALUE', String, "File Owner") do |val|
+        params['fileOwner'] = val
+      end
+      opts.on('--fileOwner VALUE', String, "File Owner") do |val|
+        params['fileOwner'] = val
+      end
+      opts.add_hidden_option('--fileOwner')
+      opts.on('--setting-name VALUE', String, "Setting Name") do |val|
+        params['settingName'] = val
+      end
+      opts.on('--settingName VALUE', String, "Setting Name") do |val|
+        params['settingName'] = val
+      end
+      opts.add_hidden_option('--settingName')
+      opts.on('--setting-category VALUE', String, "Setting Category") do |val|
+        params['settingCategory'] = val
+      end
+      opts.on('--settingCategory VALUE', String, "Setting Category") do |val|
+        params['settingCategory'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Update a file template." + "\n" +
                     "[name] is required. This is the name or id of a file template."
     end
     optparse.parse!(args)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     begin
       container_template = find_container_template_by_name_or_id(args[0])
       if container_template.nil?
         return 1
       end
+
+      payload = nil
+      arbitrary_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      update_payload = {}
+      update_payload.deep_merge!(params)
+      update_payload.deep_merge!(arbitrary_options)
+      if options[:payload]
+        payload = options[:payload]
+        payload.deep_merge!({'containerTemplate' => update_payload}) unless update_payload.empty?
+      else
+        prompt_result = Morpheus::Cli::OptionTypes.no_prompt(update_container_template_option_types, params.deep_merge(options[:options] || {}), @api_client)
+        update_payload.deep_merge!(prompt_result)
+        payload = {'containerTemplate' => update_payload}
+      end
+
       # construct payload
       payload = nil
       if options[:payload]
@@ -365,10 +402,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       build_common_options(opts, options, [:json, :dry_run, :quiet, :auto_confirm])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return 127
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
 
     begin
@@ -462,5 +496,31 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
     print as_pretty_table(container_templates, columns, opts)
   end
 
+  def add_container_template_option_types()
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'fileName', 'fieldLabel' => 'File Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'filePath', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => false},
+      {'fieldName' => 'templatePhase', 'fieldLabel' => 'Phase', 'type' => 'select', 'optionSource' => 'containerTemplatePhases', 'defaultValue' => 'provision', 'required' => true},
+      {'fieldName' => 'template', 'fieldLabel' => 'Template', 'type' => 'code-editor', 'required' => true},
+      {'fieldName' => 'fileOwner', 'fieldLabel' => 'File Owner', 'type' => 'text'},
+      {'fieldName' => 'settingName', 'fieldLabel' => 'Setting Name', 'type' => 'text'},
+      {'fieldName' => 'settingCategory', 'fieldLabel' => 'Setting Category', 'type' => 'text'},
+    ]
+  end
+
+  def add_container_template_advanced_option_types()
+    []
+  end
+
+  def update_container_template_option_types()
+    option_types = add_container_template_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
+    option_types.reject! {|it| it['fieldName'] == 'type' }
+    option_types
+  end
+
+  def update_container_template_advanced_option_types()
+    add_container_template_advanced_option_types().collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
+  end
 
 end
