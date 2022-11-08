@@ -332,9 +332,9 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--search-domains [VALUE]', String, "Search Domains") do |val|
         options['searchDomains'] = val
       end
-      opts.on('--scan [on|off]', String, "Scan Network") do |val|
-        options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
-      end
+      # opts.on('--scan [on|off]', String, "Scan Network") do |val|
+      #   options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      # end
       opts.on('--proxy VALUE', String, "Network Proxy ID") do |val|
         options['proxy'] = val
       end
@@ -853,9 +853,9 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--search-domains [VALUE]', String, "Search Domains") do |val|
         options['searchDomains'] = val
       end
-      opts.on('--scan [on|off]', String, "Scan Network") do |val|
-        options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
-      end
+      # opts.on('--scan [on|off]', String, "Scan Network") do |val|
+      #   options['scanNetwork'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      # end
       opts.on('--proxy VALUE', String, "Network Proxy ID") do |val|
         options['proxy'] = val
       end
