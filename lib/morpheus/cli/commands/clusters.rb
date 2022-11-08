@@ -542,7 +542,7 @@ class Morpheus::Cli::Clusters
           labels = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'labels', 'type' => 'text', 'fieldLabel' => 'Labels', 'required' => false, 'description' => 'Resource Labels.'}],options[:options],@api_client,{})['labels']
         end
         if labels
-          payload['cluster']['labels'] = labels
+          cluster_payload['labels'] = labels
           server_payload['labels'] = labels
         end
 
