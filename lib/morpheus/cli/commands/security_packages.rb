@@ -19,6 +19,9 @@ class Morpheus::Cli::SecurityPackagesCommand
     opts.on('-l', '--label LABEL', String, "Filter by label (keyword).") do |val|
       params['label'] = val
     end
+    opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+      add_query_parameter(params, 'allLabels', parse_labels(val))
+    end
     # build_standard_list_options(opts, options)
     super
   end

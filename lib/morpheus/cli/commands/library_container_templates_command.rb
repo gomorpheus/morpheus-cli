@@ -163,7 +163,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
 
   def add(args)
     options = {}
-    params = {'templatePhase' => 'provision'}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       opts.on('--name VALUE', String, "Name") do |val|
@@ -178,21 +178,9 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       opts.on('--filePath VALUE', String, "File Path") do |val|
         params['filePath'] = val
       end
-      # opts.on('--code VALUE', String, "Code") do |val|
-      #   params['code'] = val
-      # end
-      # opts.on('--description VALUE', String, "Description") do |val|
-      #   params['description'] = val
-      # end
-      opts.on('--phase [start|stop|postProvision]', String, "Template Phase. Default is 'provision'") do |val|
-        params['scriptPhase'] = val
+      opts.on('--phase [preProvision|provision|postProvision]', String, "Template Phase. Default is 'provision'") do |val|
+        params['templatePhase'] = val
       end
-      opts.on('--category VALUE', String, "Category") do |val|
-        params['category'] = val
-      end
-      # opts.on('--enabled [on|off]', String, "Can be used to disable it") do |val|
-      #   options['enabled'] = !(val.to_s == 'off' || val.to_s == 'false')
-      # end
       opts.on('--template TEXT', String, "Contents of the template.") do |val|
         params['template'] = val
       end
@@ -215,6 +203,15 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
         #   params['filePath'] = File.dirname(full_filename)
         # end
       end
+      opts.on('--file-owner VALUE', String, "File Owner") do |val|
+        params['fileOwner'] = val
+      end
+      opts.on('--setting-name VALUE', String, "Setting Name") do |val|
+        params['settingName'] = val
+      end
+      opts.on('--setting-category VALUE', String, "Setting Category") do |val|
+        params['settingCategory'] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create a new file template." + "\n" +
                     "[name] is required and can be passed as --name instead."
@@ -231,15 +228,27 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
     end
     connect(options)
     begin
-      # construct payload
       payload = nil
+      arbitrary_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
+      create_payload = {}
+      create_payload.deep_merge!(params)
+      create_payload.deep_merge!(arbitrary_options)
       if options[:payload]
         payload = options[:payload]
+        payload.deep_merge!({'containerTemplate' => create_payload}) unless create_payload.empty?
       else
-        # merge -O options into normally parsed options
-        params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # todo: prompt?
-        payload = {'containerTemplate' => params}
+        prompt_result = Morpheus::Cli::OptionTypes.prompt([
+          {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+          {'fieldName' => 'fileName', 'fieldLabel' => 'File Name', 'type' => 'text', 'required' => true},
+          {'fieldName' => 'filePath', 'fieldLabel' => 'File Path', 'type' => 'text', 'required' => false},
+          {'fieldName' => 'templatePhase', 'fieldLabel' => 'Phase', 'type' => 'select', 'optionSource' => 'containerTemplatePhases', 'defaultValue' => 'provision', 'required' => true},
+          {'fieldName' => 'template', 'fieldLabel' => 'Template', 'type' => 'code-editor', 'required' => true},
+          {'fieldName' => 'fileOwner', 'fieldLabel' => 'File Owner', 'type' => 'text'},
+          {'fieldName' => 'settingName', 'fieldLabel' => 'Setting Name', 'type' => 'text'},
+          {'fieldName' => 'settingCategory', 'fieldLabel' => 'Setting Category', 'type' => 'text'},
+        ], params.deep_merge(options[:options] || {}), @api_client)
+        create_payload.deep_merge!(prompt_result)
+        payload = {'containerTemplate' => create_payload}
       end
       @container_templates_interface.setopts(options)
       if options[:dry_run]
