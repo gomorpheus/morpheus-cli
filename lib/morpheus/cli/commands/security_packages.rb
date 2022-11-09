@@ -16,8 +16,8 @@ class Morpheus::Cli::SecurityPackagesCommand
   protected
 
   def build_list_options(opts, options, params)
-    opts.on('-l', '--label LABEL', String, "Filter by label (keyword).") do |val|
-      params['label'] = val
+    opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+      add_query_parameter(params, 'labels', parse_labels(val))
     end
     opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
       add_query_parameter(params, 'allLabels', parse_labels(val))
