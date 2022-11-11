@@ -200,6 +200,11 @@ class Morpheus::Cli::NetworksCommand
         "Subnet" => 'subnetAddress',
         "Primary DNS" => 'dnsPrimary',
         "Secondary DNS" => 'dnsSecondary',
+        "IPv6 CIDR" => 'cidrIPv6',
+        "IPv6 Gateway" => 'gatewayIPv6',
+        "IPv6 Netmask" => 'netmaskIPv6',
+        "IPv6 Primary DNS" => 'dnsPrimaryIPv6',
+        "IPv6 Secondary DNS" => 'dnsSecondaryIPv6',
         "Domain" => lambda {|it| it['networkDomain'] ? it['networkDomain']['name'] : '' },
         "Search Domains" => lambda {|it| it['searchDomains'] },
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
@@ -251,6 +256,7 @@ class Morpheus::Cli::NetworksCommand
             type: "Subnet",
             cloud: network['zone'] ? network['zone']['name'] : '',
             cidr: subnet['cidr'],
+            cidrIPv6: subnet['cidrIPv6'],
             pool: subnet['pool'] ? subnet['pool']['name'] : '',
             dhcp: subnet['dhcpServer'] ? 'Yes' : 'No',
             visibility: subnet['visibility'].to_s.capitalize,
@@ -258,7 +264,7 @@ class Morpheus::Cli::NetworksCommand
             tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
         }
-        columns = [:id, :name, :cidr, :dhcp, :active, :visibility]
+        columns = [:id, :name, :cidr, :cidrIPv6, :dhcp, :active, :visibility]
         print cyan
         print as_pretty_table(subnet_rows, columns, options)
         print reset
@@ -313,6 +319,18 @@ class Morpheus::Cli::NetworksCommand
       end
       opts.on('--cidr VALUE', String, "CIDR") do |val|
         options['cidr'] = val
+      end
+      opts.on('--gatewayIPv6 VALUE', String, "IPv6 Gateway") do |val|
+        options['gatewayIPv6'] = val
+      end
+      opts.on('--dns-primary VALUE', String, "IPv6 DNS Primary") do |val|
+        options['dnsPrimaryIPv6'] = val
+      end
+      opts.on('--dns-secondary VALUE', String, "IPv6 DNS Secondary") do |val|
+        options['dnsSecondaryIPv6'] = val
+      end
+      opts.on('--cidr VALUE', String, "IPv6 CIDR") do |val|
+        options['cidrIPv6'] = val
       end
       opts.on('--vlan-id VALUE', String, "VLAN ID") do |val|
         options['vlanId'] = val.to_i
@@ -605,6 +623,45 @@ class Morpheus::Cli::NetworksCommand
           end
         end
 
+        #IPv6 Options
+        # CIDR
+         if network_type['hasCidr'] && network_type['cidrEditable']
+          if options['cidrIPv6']
+            payload['network']['cidrIPv6'] = options['cidr']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidrIPv6', 'fieldLabel' => 'IPv6 CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['cidrIPv6'] = v_prompt['cidrIPv6']
+          end
+        end
+
+        # Gateway
+        if network_type['gatewayEditable']
+          if options['gatewayIPv6']
+            payload['network']['gatewayIPv6'] = options['gatewayIPv6']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gatewayIPv6', 'fieldLabel' => 'IPv6 Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['gatewayIPv6'] = v_prompt['gatewayIPv6']
+          end
+        end
+
+        # DNS
+        if network_type['dnsEditable']
+          if options['dnsPrimaryIPv6']
+            payload['network']['dnsPrimaryIPv6'] = options['dnsPrimaryIPv6']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimaryIPv6', 'fieldLabel' => 'IPv6 DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['dnsPrimaryIPv6'] = v_prompt['dnsPrimaryIPv6']
+          end
+
+          if options['dnsSecondary']
+            payload['network']['dnsSecondaryIPv6'] = options['dnsSecondaryIPv6']
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondaryIPv6', 'fieldLabel' => 'IPv6 DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+            payload['network']['dnsSecondaryIPv6'] = v_prompt['dnsSecondaryIPv6']
+          end
+        end
+
+
         # VLAN ID
         if network_type['vlanIdEditable']
           if options['vlanId']
@@ -835,6 +892,18 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--cidr VALUE', String, "CIDR") do |val|
         options['cidr'] = val
       end
+      opts.on('--gatewayIPv6 VALUE', String, "IPv6 Gateway") do |val|
+        options['gatewayIPv6'] = val
+      end
+      opts.on('--dns-primary VALUE', String, "IPv6 DNS Primary") do |val|
+        options['dnsPrimaryIPv6'] = val
+      end
+      opts.on('--dns-secondary VALUE', String, "IPv6 DNS Secondary") do |val|
+        options['dnsSecondaryIPv6'] = val
+      end
+      opts.on('--cidr VALUE', String, "IPv6 CIDR") do |val|
+        options['cidrIPv6'] = val
+      end
       opts.on('--vlan-id VALUE', String, "VLAN ID") do |val|
         options['vlanId'] = val.to_i
       end
@@ -1023,6 +1092,26 @@ class Morpheus::Cli::NetworksCommand
         else
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => 'CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
           # payload['network']['cidr'] = v_prompt['cidr']
+        end
+
+        # IPv6 Gateway
+        if options['gatewayIPv6']
+          payload['network']['gatewayIPv6'] = options['gatewayIPv6']
+        end
+
+        # IPv6 DNS Primary
+        if options['dnsPrimaryIPv6']
+          payload['network']['dnsPrimarIPv6y'] = options['dnsPrimaryIPv6']
+        end
+
+        # IPv6 DNS Secondary
+        if options['dnsSecondaryIPv6']
+          payload['network']['dnsSecondaryIPv6'] = options['dnsSecondaryIPv6']
+        end
+
+        # IPv6 CIDR
+        if options['cidrIPv6']
+          payload['network']['cidrIPv6'] = options['cidrIPv6']
         end
 
         # VLAN ID

@@ -81,7 +81,7 @@ class Morpheus::Cli::NetworkPoolsCommand
             network: network_pool['name'], 
             # network: network_pool['network'] ? network_pool['network']['name'] : '',
             type: network_pool['type'] ? network_pool['type']['name'] : '',
-            ipRanges: network_pool['ipRanges'] ? network_pool['ipRanges'].collect {|it| it['startAddress'].to_s + " - " + it['endAddress'].to_s }.uniq.join(', ') : '',
+            ipRanges: build_ip_ranges(network_pool['ipRanges']).uniq.join(', '),
             total: ("#{network_pool['ipCount']}/#{network_pool['freeCount']}")
           }
           row
@@ -159,8 +159,8 @@ class Morpheus::Cli::NetworkPoolsCommand
       print_h2 "IP Ranges"
       print cyan
       if network_pool['ipRanges']
-        network_pool['ipRanges'].each do |r|
-          puts " * #{r['startAddress']} - #{r['endAddress']}"
+        build_ip_ranges(network_pool['ipRanges']).each do |r|
+          puts " * #{r}"
         end
       end
       print reset,"\n"
@@ -182,15 +182,11 @@ class Morpheus::Cli::NetworkPoolsCommand
       opts.on('--type VALUE', String, "Type of network pool") do |val|
         options['type'] = val
       end
-      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end.") do |list|
+      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end, or an IPv6 CIDR") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
         else
-          ip_range_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          ip_range_list = ip_range_list.collect {|it|
-            range_parts = it.split("-")
-            {startAddress: range_parts[0].to_s.strip, endAddress: range_parts[1].to_s.strip}
-          }
+          ip_range_list = parse_ipv4_and_ipv6_ranges(list)
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
@@ -256,13 +252,9 @@ class Morpheus::Cli::NetworkPoolsCommand
         if ip_range_list
           payload['networkPool']['ipRanges'] = ip_range_list
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipRanges', 'fieldLabel' => 'IP Ranges', 'type' => 'text', 'required' => true, 'description' => 'IP Ranges in the pool, comma separated list of ranges in the format start-end.'}], options)
-          ip_range_list = v_prompt['ipRanges'].to_s.split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          ip_range_list = ip_range_list.collect {|it|
-            range_parts = it.split("-")
-            range = {startAddress: range_parts[0].to_s.strip, endAddress: range_parts[1].to_s.strip}
-            range
-          }
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipRanges', 'fieldLabel' => 'IP Ranges', 'type' => 'text', 'required' => true, 'description' => 'IP Ranges in the pool, comma separated list of ranges in the format start-end or an IPv6 CIDR'}], options)
+          ip_range_list = parse_ipv4_and_ipv6_ranges(v_prompt['ipRanges'].to_s.split(","))
+          puts ip_range_list
           payload['networkPool']['ipRanges'] = ip_range_list
         end
 
@@ -320,15 +312,11 @@ class Morpheus::Cli::NetworkPoolsCommand
       # poolEnabled
       # tftpServer
       # bootFile
-      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end.") do |list|
+      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end, or an IPv6 CIDR") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
         else
-          ip_range_list = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
-          ip_range_list = ip_range_list.collect {|it|
-            range_parts = it.split("-")
-            {startAddress: range_parts[0].to_s.strip, endAddress: range_parts[1].to_s.strip}
-          }
+          ip_range_list = parse_ipv4_and_ipv6_ranges(list)
         end
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -381,7 +369,7 @@ class Morpheus::Cli::NetworkPoolsCommand
             # ugh, need to allow changing an existing range by id too
             if network_pool['ipRanges']
               existing_range = network_pool['ipRanges'].find {|r|
-                range[:startAddress] == r['startAddress'] && range[:endAddress] == r['endAddress']
+                (range[:startAddress] == r['startAddress'] && range[:endAddress] == r['endAddress']) || range[:cidrIPv6] == r['cidrIPv6']
               }
               if existing_range
                 range[:id] = existing_range['id']
@@ -884,6 +872,33 @@ class Morpheus::Cli::NetworkPoolsCommand
     else
       return network_pool_ips[0]
     end
+  end
+
+  def build_ip_ranges(ip_ranges)
+    if ip_ranges.empty?
+      return []
+    else
+      ranges = ip_ranges.collect do |it| 
+        if !it['cidrIPv6'].nil?
+          it['cidrIPv6'].to_s
+        else
+          it['startAddress'].to_s + " - " + it['endAddress'].to_s
+        end
+      end
+    end
+  end
+
+  def parse_ipv4_and_ipv6_ranges(range_string_list)
+    ip_range_list = range_string_list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+    ip_range_list = ip_range_list.collect do |range_string|
+      if range_string.include?('-') 
+        range_parts = range_string.split("-")
+        {startAddress: range_parts[0].to_s.strip, endAddress: range_parts[1].to_s.strip}
+      elsif range_string.include?(':')
+        {cidrIPv6: range_string}
+      end
+    end
+    return ip_range_list
   end
 
 end
