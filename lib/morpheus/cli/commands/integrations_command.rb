@@ -975,7 +975,8 @@ EOT
         list_columns = {
           "ID" => 'id',
           "Name" => 'name',
-          "Tenants" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
+          "Description" => 'description',
+          "Tenant Default" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
         }
         print as_pretty_table(integration_inventory, list_columns.upcase_keys!, options)
         print_results_pagination(json_response)
@@ -1030,7 +1031,8 @@ EOT
       show_columns = {
         "ID" => 'id',
         "Name" => 'name',
-        "Tenants" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
+        "Description" => 'description',
+        "Tenant Default" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
       }
       print_description_list(show_columns, integration_inventory, options)
       print reset,"\n"
@@ -1043,7 +1045,7 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[integration] [inventory] [options]")
-      opts.on('--tenants [LIST]', String, "Tenant Access, comma separated list of account IDs") do |val|
+      opts.on('--tenants [LIST]', String, "Tenant Default, comma separated list of account IDs") do |val|
         options[:tenants] = parse_array(val)
       end
       build_standard_update_options(opts, options)
