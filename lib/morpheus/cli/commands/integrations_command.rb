@@ -946,6 +946,7 @@ EOT
       opts.footer = <<-EOT
 List integration inventory.
 [integration] is required. This is the name or id of an integration.
+Only certain types of integrations support this operation, such as Ansible Tower.
 EOT
     end
     optparse.parse!(args)
@@ -994,6 +995,7 @@ EOT
 Get details about a specific integration inventory item.
 [integration] is required. This is the name or id of an integration.
 [inventory] is required. This is the name or id of an integration inventory item.
+Only certain types of integrations support this operation, such as Ansible Tower.
 EOT
     end
     optparse.parse!(args)
@@ -1046,9 +1048,10 @@ EOT
       end
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
-Update an integration.
+Update an integration inventory item.
 [integration] is required. This is the name or id of an integration.
 [inventory] is required. This is the name or id of an integration inventory item.
+Only certain types of integrations support this operation, such as Ansible Tower.
 EOT
     end
     optparse.parse!(args)
