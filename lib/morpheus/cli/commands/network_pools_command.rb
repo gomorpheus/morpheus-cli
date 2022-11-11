@@ -182,7 +182,7 @@ class Morpheus::Cli::NetworkPoolsCommand
       opts.on('--type VALUE', String, "Type of network pool") do |val|
         options['type'] = val
       end
-      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end, or an IPv6 CIDR") do |list|
+      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end or an IPv6 CIDR") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
         else
@@ -254,7 +254,6 @@ class Morpheus::Cli::NetworkPoolsCommand
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipRanges', 'fieldLabel' => 'IP Ranges', 'type' => 'text', 'required' => true, 'description' => 'IP Ranges in the pool, comma separated list of ranges in the format start-end or an IPv6 CIDR'}], options)
           ip_range_list = parse_ipv4_and_ipv6_ranges(v_prompt['ipRanges'].to_s.split(","))
-          puts ip_range_list
           payload['networkPool']['ipRanges'] = ip_range_list
         end
 
@@ -312,7 +311,7 @@ class Morpheus::Cli::NetworkPoolsCommand
       # poolEnabled
       # tftpServer
       # bootFile
-      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end, or an IPv6 CIDR") do |list|
+      opts.on('--ip-ranges LIST', Array, "IP Ranges, comma separated list IP ranges in the format start-end or an IPv6 CIDR") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           ip_range_list = []
         else
