@@ -8,6 +8,7 @@ class Morpheus::Cli::IntegrationsCommand
 
   register_subcommands :list, :get, :add, :update, :remove, :refresh
   register_subcommands :list_objects, :get_object, :add_object, :remove_object
+  register_subcommands :list_inventory, :get_inventory, :update_inventory
   register_subcommands :list_types, :get_type
 
   def connect(opts)
@@ -936,6 +937,165 @@ EOT
     return 0, nil
   end
 
+  def list_inventory(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[integration] [search]")
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List integration inventory.
+[integration] is required. This is the name or id of an integration.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+
+    integration = find_integration_by_name_or_id(args[0])
+    return 1, "integration not found for #{args[0]}" if integration.nil?
+
+    if args.count > 1
+      options[:phrase] = args[1..-1].join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @integrations_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @integrations_interface.dry.list_inventory(integration['id'], params)
+      return 0, nil
+    end
+    json_response = @integrations_interface.list_inventory(integration['id'], params)
+    render_response(json_response, options, integration_inventory_list_key) do
+      integration_inventory = json_response[integration_inventory_list_key]
+      print_h1 "Integration Inventory [#{integration['name']}]", parse_list_subtitles(options), options
+      if integration_inventory.empty?
+        print cyan,"No inventory found.",reset,"\n"
+      else
+        list_columns = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Tenants" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
+        }
+        print as_pretty_table(integration_inventory, list_columns.upcase_keys!, options)
+        print_results_pagination(json_response)
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def get_inventory(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[integration] [inventory]")
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a specific integration inventory item.
+[integration] is required. This is the name or id of an integration.
+[inventory] is required. This is the name or id of an integration inventory item.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:2)
+    connect(options)
+    integration = find_integration_by_name_or_id(args[0])
+    return 1, "integration not found for #{args[0]}" if integration.nil?
+    params.merge!(parse_query_options(options))
+    id_list = parse_id_list(args[1..-1])
+    return run_command_for_each_arg(id_list) do |arg|
+      _get_inventory(integration, arg, params, options)
+    end
+  end
+
+  def _get_inventory(integration, id, params, options)
+    integration_object = nil
+    if id.to_s !~ /\A\d{1,}\Z/
+      integration_inventory = find_integration_inventory_by_name_or_id(integration['id'], id)
+      return 1, "integration inventory not found for #{id}" if integration_inventory.nil?
+      id = integration_inventory['id']
+    end
+    @integrations_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @integrations_interface.dry.get_inventory(integration['id'], id, params)
+      return
+    end
+    json_response = @integrations_interface.get_inventory(integration['id'], id, params)
+    integration_inventory = json_response[integration_inventory_object_key]
+    render_response(json_response, options, integration_inventory_object_key) do
+      print_h1 "Integration Inventory Details", [], options
+      print cyan
+      show_columns = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Tenants" => lambda {|it| (format_list(it['tenants'].collect {|t| t['name'] }) rescue "") },
+      }
+      print_description_list(show_columns, integration_inventory, options)
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def update_inventory(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[integration] [inventory] [options]")
+      opts.on('--tenants [LIST]', String, "Tenant Access, comma separated list of account IDs") do |val|
+        options[:tenants] = parse_array(val)
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an integration.
+[integration] is required. This is the name or id of an integration.
+[inventory] is required. This is the name or id of an integration inventory item.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    integration = find_integration_by_name_or_id(args[0])
+    return 1, "integration not found for #{args[0]}" if integration.nil?
+    integration_inventory = find_integration_inventory_by_name_or_id(integration['id'], args[1])
+    return 1, "integration inventory not found for #{args[1]}" if integration_inventory.nil?
+    # construct payload
+    object_key = integration_inventory_object_key
+    payload = build_payload(options, object_key)
+    if options[:tenants]
+      #params['tenants'] = options[:tenants]
+      params['tenants'] = options[:tenants].collect do |val|
+        if val.to_s =~ /\A\d{1,}\Z/
+          val.to_i
+        else
+          # todo: use /api/options/allTenants to avoid permission errors here..
+          record = find_by_name_or_id(:account, val)
+          if record.nil?
+            exit 1 #return 1, "Tenant not found by '#{val}'"
+          else 
+            record['id']
+          end
+        end
+      end
+    end
+    payload.deep_merge!({object_key => params})
+    if payload.empty? || payload[object_key].empty?
+      raise_command_error "Specify at least one option to update.\n#{optparse}"
+    end
+    # make request
+    @integrations_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @integrations_interface.dry.update_inventory(integration['id'], integration_inventory['id'], payload)
+      return
+    end
+    json_response = @integrations_interface.update_inventory(integration['id'], integration_inventory['id'], payload)
+    integration_inventory = json_response[object_key]
+    render_response(json_response, options, object_key) do
+      print_green_success "Updated integration inventory #{integration_inventory['name']}"
+      # return _get_inventory(integration, integration_inventory["id"], {}, options)
+    end
+    return 0, nil
+  end
+
   private
 
   def format_integration_type(integration)
@@ -1193,6 +1353,52 @@ EOT
       return nil
     else
       return integration_objects[0]
+    end
+  end
+
+  def integration_inventory_object_key
+    'inventory'
+  end
+
+  def integration_inventory_list_key
+    'inventory'
+  end
+
+  def find_integration_inventory_by_name_or_id(integration_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_integration_inventory_by_id(integration_id, val)
+    else
+      return find_integration_inventory_by_name(integration_id, val)
+    end
+  end
+
+  def find_integration_inventory_by_id(integration_id, id)
+    begin
+      json_response = @integrations_interface.get_inventory(integration_id, id.to_i)
+      return json_response[integration_inventory_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Inventory not found by id '#{id}'"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_integration_inventory_by_name(integration_id, name)
+    json_response = @integrations_interface.list_inventory(integration_id, {name: name.to_s})
+    integration_inventory = json_response[integration_inventory_list_key]
+    if integration_inventory.empty?
+      print_red_alert "Inventory not found by name '#{name}'"
+      return nil
+    elsif integration_inventory.size > 1
+      print_red_alert "#{integration_inventory.size} inventory found by name '#{name}'"
+      puts_error as_pretty_table(integration_inventory, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print reset,"\n"
+      return nil
+    else
+      return integration_inventory[0]
     end
   end
 

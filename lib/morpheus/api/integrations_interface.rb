@@ -41,4 +41,34 @@ class Morpheus::IntegrationsInterface < Morpheus::RestInterface
     execute(method: :delete, url: "#{base_path}/#{id}/objects/#{obj_id}", params: params, headers: headers)
   end
 
+  ## Integration Inventory Item CRUD
+
+  def list_inventory(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}/inventory", params: params, headers: headers)
+  end
+
+  def get_inventory(id, inventory_id, params={}, headers={})
+    validate_id!(id)
+    validate_id!(inventory_id)
+    execute(method: :get, url: "#{base_path}/#{id}/inventory/#{inventory_id}", params: params, headers: headers)
+  end
+
+  # def create_inventory(id, payload, params={}, headers={})
+  #   validate_id!(id)
+  #   execute(method: :post, url: "#{base_path}/#{id}/inventory", params: params, payload: payload, headers: headers)
+  # end
+
+  def update_inventory(id, inventory_id, payload, params={}, headers={})
+    validate_id!(id)
+    validate_id!(inventory_id)
+    execute(method: :put, url: "#{base_path}/#{id}/inventory/#{inventory_id}", params: params, payload: payload, headers: headers)
+  end
+
+  # def destroy_inventory(id, inventory_id, params = {}, headers={})
+  #   validate_id!(id)
+  #   validate_id!(inventory_id)
+  #   execute(method: :delete, url: "#{base_path}/#{id}/inventory/#{inventory_id}", params: params, headers: headers)
+  # end
+
 end

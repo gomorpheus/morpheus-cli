@@ -1401,6 +1401,16 @@ module Morpheus
         payload
       end
 
+      def build_payload(options, object_key=nil)
+        payload = {}
+        if options[:payload]
+          parse_payload(options, object_key)
+        else
+          apply_options(payload, options, object_key)
+        end
+        return payload
+      end
+
       def parse_array(val, opts={})
         opts = {strip:true, allow_blank:false}.merge(opts)
         values = []
