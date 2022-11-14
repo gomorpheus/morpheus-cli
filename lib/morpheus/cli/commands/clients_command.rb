@@ -54,7 +54,7 @@ class Morpheus::Cli::ClientsCommand
           row
         }
         columns = [:id, {:client_id => {:max_width => 50}}, :access_token_seconds, :refresh_token_seconds]
-        print cyan
+        print_h1 "Morpheus Clients", [], options
         print as_pretty_table(rows, columns, options)
         print reset
         print_results_pagination(json_response)

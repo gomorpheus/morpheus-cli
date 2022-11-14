@@ -1164,7 +1164,7 @@ EOT
       return json_response[integration_object_key]
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "integration not found by id '#{id}'"
+        print_red_alert "Integration not found by id '#{id}'"
       else
         raise e
       end
@@ -1175,7 +1175,7 @@ EOT
     json_response = @integrations_interface.list({name: name.to_s})
     integrations = json_response[integration_list_key]
     if integrations.empty?
-      print_red_alert "integration not found by name '#{name}'"
+      print_red_alert "Integration not found by name '#{name}'"
       return nil
     elsif integrations.size > 1
       print_red_alert "#{integrations.size} integrations found by name '#{name}'"
@@ -1240,7 +1240,7 @@ EOT
       return json_response[integration_object_key]
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
-        print_red_alert "integration not found by id '#{id}'"
+        print_red_alert "Integration not found by id '#{id}'"
       else
         raise e
       end
@@ -1251,7 +1251,7 @@ EOT
     json_response = @integration_types_interface.list(params.merge({name: name.to_s}))
     integration_types = json_response[integration_type_list_key]
     if integration_types.empty?
-      print_red_alert "integration type not found by name '#{name}'"
+      print_red_alert "Integration type not found by name '#{name}'"
       return nil
     elsif integration_types.size > 1
       print_red_alert "#{integration_types.size} integration types found by name '#{name}'"
