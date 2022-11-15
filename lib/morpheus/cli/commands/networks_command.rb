@@ -194,6 +194,8 @@ class Morpheus::Cli::NetworksCommand
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : 'Shared' },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
+        "IPv4 Enabled" => 'ipv4Enabled',
+        "IPv6 Enabled" => 'ipv6Enabled',
         "CIDR" => 'cidr',
         "Gateway" => 'gateway',
         "Netmask" => 'netmask',
@@ -307,6 +309,12 @@ class Morpheus::Cli::NetworksCommand
       end
       opts.on('--description VALUE', String, "Description of network") do |val|
         options['description'] = val
+      end
+      opts.on('--ipv4Enabled [on|off]', String, "ipv4Enabled") do |val|
+        options['ipv4Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--ipv6Enabled [on|off]', String, "ipv6Enabled") do |val|
+        options['ipv6Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--gateway VALUE', String, "Gateway") do |val|
         options['gateway'] = val
@@ -586,78 +594,98 @@ class Morpheus::Cli::NetworksCommand
           payload['network']['zone'] = {'id' => cloud['id']}
         end
 
-        # CIDR
-        if network_type['hasCidr'] && network_type['cidrEditable']
-          if options['cidr']
-            payload['network']['cidr'] = options['cidr']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => network_type['code'] == 'nsxtLogicalSwitch' ? 'Gateway CIDR' : 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
-            payload['network']['cidr'] = v_prompt['cidr']
+        if options['ipv4Enabled'].nil? && payload['network']['ipv4Enabled'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipv4Enabled', 'fieldLabel' => 'IPv4 Enabled', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => true}], options)
+          val = v_prompt['ipv4Enabled']
+          payload['network']['ipv4Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+        else
+          payload['network']['ipv4Enabled'] = options['ipv4Enabled']
+        end
+
+        if payload['network']['ipv4Enabled'] 
+          # CIDR
+          if network_type['hasCidr'] && network_type['cidrEditable']
+            if options['cidr']
+              payload['network']['cidr'] = options['cidr']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidr', 'fieldLabel' => network_type['code'] == 'nsxtLogicalSwitch' ? 'Gateway CIDR' : 'CIDR', 'type' => 'text', 'required' => network_type['cidrRequired'], 'description' => ''}], options)
+              payload['network']['cidr'] = v_prompt['cidr']
+            end
+          end
+
+          # Gateway
+          if network_type['gatewayEditable']
+            if options['gateway']
+              payload['network']['gateway'] = options['gateway']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['gateway'] = v_prompt['gateway']
+            end
+          end
+
+          # DNS
+          if network_type['dnsEditable']
+            if options['dnsPrimary']
+              payload['network']['dnsPrimary'] = options['dnsPrimary']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimary', 'fieldLabel' => 'DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['dnsPrimary'] = v_prompt['dnsPrimary']
+            end
+
+            if options['dnsSecondary']
+              payload['network']['dnsSecondary'] = options['dnsSecondary']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondary', 'fieldLabel' => 'DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['dnsSecondary'] = v_prompt['dnsSecondary']
+            end
           end
         end
 
-        # Gateway
-        if network_type['gatewayEditable']
-          if options['gateway']
-            payload['network']['gateway'] = options['gateway']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gateway', 'fieldLabel' => 'Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['gateway'] = v_prompt['gateway']
-          end
+        if options['ipv6Enabled'].nil? && payload['network']['ipv6Enabled'].nil?
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ipv6Enabled', 'fieldLabel' => 'IPv6 Enabled', 'type' => 'checkbox', 'required' => false, 'description' => '', 'defaultValue' => false}], options)
+          val = v_prompt['ipv6Enabled']
+          payload['network']['ipv6Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+        else
+          payload['network']['ipv6Enabled'] = options['ipv6Enabled']
         end
 
-        # DNS
-        if network_type['dnsEditable']
-          if options['dnsPrimary']
-            payload['network']['dnsPrimary'] = options['dnsPrimary']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimary', 'fieldLabel' => 'DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsPrimary'] = v_prompt['dnsPrimary']
+        if payload['network']['ipv6Enabled'] 
+          #IPv6 Options
+          # CIDR
+          if network_type['hasCidr'] && network_type['cidrEditable']
+            if options['cidrIPv6']
+              payload['network']['cidrIPv6'] = options['cidr']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidrIPv6', 'fieldLabel' => 'IPv6 CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['cidrIPv6'] = v_prompt['cidrIPv6']
+            end
           end
 
-          if options['dnsSecondary']
-            payload['network']['dnsSecondary'] = options['dnsSecondary']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondary', 'fieldLabel' => 'DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsSecondary'] = v_prompt['dnsSecondary']
-          end
-        end
-
-        #IPv6 Options
-        # CIDR
-         if network_type['hasCidr'] && network_type['cidrEditable']
-          if options['cidrIPv6']
-            payload['network']['cidrIPv6'] = options['cidr']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'cidrIPv6', 'fieldLabel' => 'IPv6 CIDR', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['cidrIPv6'] = v_prompt['cidrIPv6']
-          end
-        end
-
-        # Gateway
-        if network_type['gatewayEditable']
-          if options['gatewayIPv6']
-            payload['network']['gatewayIPv6'] = options['gatewayIPv6']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gatewayIPv6', 'fieldLabel' => 'IPv6 Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['gatewayIPv6'] = v_prompt['gatewayIPv6']
-          end
-        end
-
-        # DNS
-        if network_type['dnsEditable']
-          if options['dnsPrimaryIPv6']
-            payload['network']['dnsPrimaryIPv6'] = options['dnsPrimaryIPv6']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimaryIPv6', 'fieldLabel' => 'IPv6 DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsPrimaryIPv6'] = v_prompt['dnsPrimaryIPv6']
+          # Gateway
+          if network_type['gatewayEditable']
+            if options['gatewayIPv6']
+              payload['network']['gatewayIPv6'] = options['gatewayIPv6']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'gatewayIPv6', 'fieldLabel' => 'IPv6 Gateway', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['gatewayIPv6'] = v_prompt['gatewayIPv6']
+            end
           end
 
-          if options['dnsSecondary']
-            payload['network']['dnsSecondaryIPv6'] = options['dnsSecondaryIPv6']
-          else
-            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondaryIPv6', 'fieldLabel' => 'IPv6 DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
-            payload['network']['dnsSecondaryIPv6'] = v_prompt['dnsSecondaryIPv6']
+          # DNS
+          if network_type['dnsEditable']
+            if options['dnsPrimaryIPv6']
+              payload['network']['dnsPrimaryIPv6'] = options['dnsPrimaryIPv6']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsPrimaryIPv6', 'fieldLabel' => 'IPv6 DNS Primary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['dnsPrimaryIPv6'] = v_prompt['dnsPrimaryIPv6']
+            end
+
+            if options['dnsSecondary']
+              payload['network']['dnsSecondaryIPv6'] = options['dnsSecondaryIPv6']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dnsSecondaryIPv6', 'fieldLabel' => 'IPv6 DNS Secondary', 'type' => 'text', 'required' => false, 'description' => ''}], options)
+              payload['network']['dnsSecondaryIPv6'] = v_prompt['dnsSecondaryIPv6']
+            end
           end
         end
 
@@ -880,6 +908,12 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--display-name VALUE', String, "Display name for this network") do |val|
         options['displayName'] = val
       end
+      opts.on('--ipv4Enabled [on|off]', String, "ipv4Enabled") do |val|
+        options['ipv4Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--ipv6Enabled [on|off]', String, "ipv6Enabled") do |val|
+        options['ipv6Enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--gateway VALUE', String, "Gateway") do |val|
         options['gateway'] = val
       end
@@ -1060,6 +1094,15 @@ class Morpheus::Cli::NetworksCommand
         else
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false, 'description' => 'Description of network.'}], options)
           # payload['network']['description'] = v_prompt['description']
+        end
+
+        # IP Types Enabled
+        if options['ipv4Enabled']
+          payload['network']['ipv4Enabled'] = options['ipv4Enabled']
+        end
+
+        if options['ipv6Enabled']
+          payload['network']['ipv6Enabled'] = options['ipv6Enabled']
         end
 
         # Gateway
