@@ -1282,9 +1282,6 @@ module Morpheus::Cli::ProvisioningHelper
 
       volumes = []
 
-      puts "here"
-      puts plan_info
-
       plan_size = nil
       if plan_info['maxStorage']
         plan_size = plan_info['maxStorage'].to_i / (1024 * 1024 * 1024)
