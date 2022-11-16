@@ -51,11 +51,20 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--subnets', '--subnets', "Display subnets as rows under each network found.") do
         options[:show_subnets] = true
       end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       build_common_options(opts, options, [:list, :json, :yaml, :csv, :fields, :json, :dry_run, :remote])
       opts.footer = "List networks."
     end
     optparse.parse!(args)
     connect(options)
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
     begin
       params.merge!(parse_list_options(options))
       cloud = nil
@@ -96,6 +105,7 @@ class Morpheus::Cli::NetworksCommand
           row = {
             id: network['id'],
             name: network['displayName'] || network['name'],
+            labels: format_list(network['labels'], '', 3),
             type: network['type'] ? network['type']['name'] : '',
             group: network['group'] ? network['group']['name'] : 'Shared',
             cloud: network['zone'] ? network['zone']['name'] : '',
@@ -113,6 +123,7 @@ class Morpheus::Cli::NetworksCommand
               subnet_row = {
                 id: subnet['id'],
                 name: "  #{subnet['displayName'] || subnet['name']}",
+                labels: "",
                 # type: subnet['type'] ? subnet['type']['name'] : '',
                 type: "Subnet",
                 group: network['group'] ? network['group']['name'] : 'Shared',
@@ -128,7 +139,7 @@ class Morpheus::Cli::NetworksCommand
             end
           end
         end
-        columns = [:id, :name, :type, :group, :cloud, :cidr, :pool, :dhcp, :subnets, :active, :visibility, :tenants]
+        columns = [:id, :name, :labels, :type, :group, :cloud, :cidr, :pool, :dhcp, :subnets, :active, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -190,6 +201,7 @@ class Morpheus::Cli::NetworksCommand
       description_cols = {
         "ID" => 'id',
         "Name" => lambda {|it| it['displayName'] ? it['displayName'] : it['name'] },
+        "Labels" => lambda {|it| format_list(it['labels']) rescue '' },
         "Description" => 'description',
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : 'Shared' },
@@ -306,6 +318,9 @@ class Morpheus::Cli::NetworksCommand
       end
       opts.on('--display-name VALUE', String, "Display name for this network") do |val|
         options['displayName'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options['labels'] = parse_labels(val)
       end
       opts.on('--description VALUE', String, "Description of network") do |val|
         options['description'] = val
@@ -467,6 +482,11 @@ class Morpheus::Cli::NetworksCommand
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'displayName', 'fieldLabel' => 'Display Name', 'type' => 'text', 'required' => false, 'description' => 'Display name for this network.'}], options)
           payload['network']['displayName'] = v_prompt['displayName']
+        end
+
+        # Labels
+        if options['labels']
+          payload['network']['labels'] = options['labels']
         end
 
         # Description
@@ -902,6 +922,9 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--name VALUE', String, "Name for this network") do |val|
         options['name'] = val
       end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options['labels'] = parse_labels(val)
+      end
       opts.on('--description VALUE', String, "Description of network") do |val|
         options['description'] = val
       end
@@ -1086,6 +1109,11 @@ class Morpheus::Cli::NetworksCommand
 
         if options['displayName']
           payload['network']['displayName'] = options['displayName']
+        end
+
+        # Labels
+        if options['labels']
+          payload['network']['labels'] = options['labels']
         end
 
         # Description
