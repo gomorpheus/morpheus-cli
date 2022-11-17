@@ -123,7 +123,7 @@ class Morpheus::Cli::NetworksCommand
               subnet_row = {
                 id: subnet['id'],
                 name: "  #{subnet['displayName'] || subnet['name']}",
-                labels: "",
+                labels: format_list(subnet['labels'], '', 3),
                 # type: subnet['type'] ? subnet['type']['name'] : '',
                 type: "Subnet",
                 group: network['group'] ? network['group']['name'] : 'Shared',
@@ -266,6 +266,7 @@ class Morpheus::Cli::NetworksCommand
           {
             id: subnet['id'],
             name: "  #{subnet['displayName'] || subnet['name']}",
+            labels: format_list(subnet['labels'], '', 3),
             # type: subnet['type'] ? subnet['type']['name'] : '',
             type: "Subnet",
             cloud: network['zone'] ? network['zone']['name'] : '',
@@ -278,7 +279,7 @@ class Morpheus::Cli::NetworksCommand
             tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
         }
-        columns = [:id, :name, :cidr, :cidrIPv6, :dhcp, :active, :visibility]
+        columns = [:id, :name, :labels, :cidr, :cidrIPv6, :dhcp, :active, :visibility]
         print cyan
         print as_pretty_table(subnet_rows, columns, options)
         print reset

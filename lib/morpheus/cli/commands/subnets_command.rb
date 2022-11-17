@@ -44,11 +44,17 @@ class Morpheus::Cli::SubnetsCommand
       opts.on( '--network NETWORK', '--network NETWORK', "Filter by Network" ) do |val|
         options[:network] = val
       end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       opts.footer = "List subnets."
     end
     optparse.parse!(args)
     if args.count > 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
+      options[:phrase] = args.join(" ")
     end
     connect(options)
     
@@ -103,6 +109,7 @@ class Morpheus::Cli::SubnetsCommand
       subnet_columns = {
         "ID" => 'id',
         "Name" => 'name',
+        "Labels" => lambda {|it| format_list(it['labels'], '', 3) },
         #"Description" => 'description',
         "Network" => lambda {|it| it['network']['name'] rescue it['network'] },
         "Type" => lambda {|it| it['type']['name'] rescue it['type'] },
@@ -170,6 +177,7 @@ class Morpheus::Cli::SubnetsCommand
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
+        "Labels" => lambda {|it| format_list(it['labels']) },
         "Description" => 'description',
         "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
         "Network" => lambda {|it| subnet['network']['name'] rescue subnet['network'] },
@@ -238,6 +246,9 @@ class Morpheus::Cli::SubnetsCommand
         options[:options]['name'] = val
         # fill in silly names that vary by type
         options[:options].deep_merge!({'config' => {'subnetName' => val}})
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
       opts.on('--cidr VALUE', String, "Name for this subnet") do |val|
         options[:options]['cidr'] = val
@@ -466,6 +477,9 @@ class Morpheus::Cli::SubnetsCommand
     group_defaults_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[subnet]")
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
