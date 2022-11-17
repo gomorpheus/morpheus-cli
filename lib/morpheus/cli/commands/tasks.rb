@@ -134,6 +134,7 @@ class Morpheus::Cli::Tasks
           "Code" => 'code',
           "Type" => lambda {|it| it['taskType']['name'] },
           "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
+          "Visibility" => 'visibility',
           "Execute Target" => lambda {|it| 
             if it['executeTarget'] == 'local'
               git_info = []
@@ -261,6 +262,7 @@ class Morpheus::Cli::Tasks
     task_name = nil
     task_code = nil
     task_type_name = nil
+    task_visibility = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] -t TASK_TYPE")
       opts.on( '-t', '--type TASK_TYPE', "Task Type" ) do |val|
@@ -268,6 +270,9 @@ class Morpheus::Cli::Tasks
       end
       opts.on('--name NAME', String, "Task Name" ) do |val|
         task_name = val
+      end
+       opts.on('--visibility VISIBILITY', String, "Task Visibility" ) do |val|
+        task_visibility = val
       end
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         options[:options]['labels'] = parse_labels(val)
@@ -422,6 +427,13 @@ class Morpheus::Cli::Tasks
         if task_type.nil?
           print_red_alert "Task Type not found by code '#{task_type_name}'"
           return 1
+        end
+
+        # Visibility
+        if task_visibility != nil
+          payload['task']['visibility'] = task_visibility
+        else
+          payload['task']['visibility'] = 'private'
         end
 
         payload['task']['taskType'] = {"id" => task_type['id'], "code" => task_type['code']}
@@ -641,6 +653,9 @@ class Morpheus::Cli::Tasks
       opts.banner = subcommand_usage("[task] [options]")
       opts.on('--name NAME', String, "Task Name" ) do |val|
         options[:options]['name'] = val
+      end
+      opts.on('--visibility VISIBILITY', String, "Task Visibility" ) do |val|
+        options[:options]['visibility'] = val
       end
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         options[:options]['labels'] = parse_labels(val)
@@ -1191,6 +1206,7 @@ class Morpheus::Cli::Tasks
       {"NAME" => lambda {|it| it['name'] } },
       {"TYPE" => lambda {|it| it['taskType']['name'] ? it['taskType']['name'] : it['type'] } },
       {"LABELS" => lambda {|it| format_list(it['labels'], '', 3) rescue '' }},
+      {"VISIBILITY" => lambda {|it| it['visibility'] } },
       {"CREATED" => lambda {|it| format_local_dt(it['dateCreated']) } }
 
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
