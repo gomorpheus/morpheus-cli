@@ -344,18 +344,34 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--cidr VALUE', String, "CIDR") do |val|
         options['cidr'] = val
       end
+      opts.on('--gateway-ipv6 VALUE', String, "IPv6 Gateway") do |val|
+        options['gatewayIPv6'] = val
+      end
       opts.on('--gatewayIPv6 VALUE', String, "IPv6 Gateway") do |val|
         options['gatewayIPv6'] = val
       end
-      opts.on('--dns-primary VALUE', String, "IPv6 DNS Primary") do |val|
+      opts.add_hidden_option('--gatewayIPv6')
+      opts.on('--dns-primary-ipv6 VALUE', String, "IPv6 DNS Primary") do |val|
         options['dnsPrimaryIPv6'] = val
       end
-      opts.on('--dns-secondary VALUE', String, "IPv6 DNS Secondary") do |val|
+      opts.on('--dns-primaryIPv6 VALUE', String, "IPv6 DNS Primary") do |val|
+        options['dnsPrimaryIPv6'] = val
+      end
+      opts.add_hidden_option('--dns-primaryIPv6')
+      opts.on('--dns-secondary-ipv6 VALUE', String, "IPv6 DNS Secondary") do |val|
         options['dnsSecondaryIPv6'] = val
       end
-      opts.on('--cidr VALUE', String, "IPv6 CIDR") do |val|
+      opts.on('--dns-secondaryIPv6 VALUE', String, "IPv6 DNS Secondary") do |val|
+        options['dnsSecondaryIPv6'] = val
+      end
+      opts.add_hidden_option('--dns-secondaryIPv6')
+      opts.on('--cidr-ipv6 VALUE', String, "IPv6 CIDR") do |val|
         options['cidrIPv6'] = val
       end
+      opts.on('--cidrIPv6 VALUE', String, "IPv6 CIDR") do |val|
+        options['cidrIPv6'] = val
+      end
+      opts.add_hidden_option('--cidrIPv6')
       opts.on('--vlan-id VALUE', String, "VLAN ID") do |val|
         options['vlanId'] = val.to_i
       end
@@ -950,18 +966,34 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--cidr VALUE', String, "CIDR") do |val|
         options['cidr'] = val
       end
+      opts.on('--gateway-ipv6 VALUE', String, "IPv6 Gateway") do |val|
+        options['gatewayIPv6'] = val
+      end
       opts.on('--gatewayIPv6 VALUE', String, "IPv6 Gateway") do |val|
         options['gatewayIPv6'] = val
       end
-      opts.on('--dns-primary VALUE', String, "IPv6 DNS Primary") do |val|
+      opts.add_hidden_option('--gatewayIPv6')
+      opts.on('--dns-primary-ipv6 VALUE', String, "IPv6 DNS Primary") do |val|
         options['dnsPrimaryIPv6'] = val
       end
-      opts.on('--dns-secondary VALUE', String, "IPv6 DNS Secondary") do |val|
+      opts.on('--dns-primaryIPv6 VALUE', String, "IPv6 DNS Primary") do |val|
+        options['dnsPrimaryIPv6'] = val
+      end
+      opts.add_hidden_option('--dns-primaryIPv6')
+      opts.on('--dns-secondary-ipv6 VALUE', String, "IPv6 DNS Secondary") do |val|
         options['dnsSecondaryIPv6'] = val
       end
-      opts.on('--cidr VALUE', String, "IPv6 CIDR") do |val|
+      opts.on('--dns-secondaryIPv6 VALUE', String, "IPv6 DNS Secondary") do |val|
+        options['dnsSecondaryIPv6'] = val
+      end
+      opts.add_hidden_option('--dns-secondaryIPv6')
+      opts.on('--cidr-ipv6 VALUE', String, "IPv6 CIDR") do |val|
         options['cidrIPv6'] = val
       end
+      opts.on('--cidrIPv6 VALUE', String, "IPv6 CIDR") do |val|
+        options['cidrIPv6'] = val
+      end
+      opts.add_hidden_option('--cidrIPv6')
       opts.on('--vlan-id VALUE', String, "VLAN ID") do |val|
         options['vlanId'] = val.to_i
       end
