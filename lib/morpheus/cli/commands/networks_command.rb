@@ -1158,11 +1158,11 @@ class Morpheus::Cli::NetworksCommand
         end
 
         # IP Types Enabled
-        if options['ipv4Enabled']
+        if options['ipv4Enabled'] != nil
           payload['network']['ipv4Enabled'] = options['ipv4Enabled']
         end
 
-        if options['ipv6Enabled']
+        if options['ipv6Enabled'] != nil
           payload['network']['ipv6Enabled'] = options['ipv6Enabled']
         end
 
