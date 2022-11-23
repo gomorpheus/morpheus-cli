@@ -6,7 +6,7 @@ class Morpheus::Cli::Roles
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
   register_subcommands :list, :get, :add, :update, :remove, 
-    :'list-permissions', :'update-feature-access', :'update-default-feature-access',
+    :'list-permissions', :'update-feature-access',
     :'update-group-access', :'update-global-group-access', :'update-default-group-access',
     :'update-global-cloud-access', :'update-cloud-access', :'update-default-cloud-access',
     :'update-global-instance-type-access', :'update-instance-type-access', :'update-default-instance-type-access',
