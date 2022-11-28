@@ -113,7 +113,7 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     url = "#{base_path}/#{id}/upgrade-cluster"
     headers = { params: params, authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json'  }
     execute(method: :post, url: url, headers: headers)
-    end
+  end
 
   def list_services(id, params={})
     url = "#{base_path}/#{id}/services"

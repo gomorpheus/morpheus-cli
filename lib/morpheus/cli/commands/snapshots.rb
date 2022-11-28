@@ -24,7 +24,7 @@ class Morpheus::Cli::Snapshots
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       opts.footer = "Get Snapshot details." + "\n" +
-                    "[snapshotId] is required. This is the id of the snapshot."
+                    "[id] is required. This is the id of the snapshot."
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
@@ -96,14 +96,12 @@ class Morpheus::Cli::Snapshots
 
   def remove(args)
     options = {}
-    instance = nil
     snapshot_id = nil
-
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-     opts.banner = subcommand_usage("[instance]")
+     opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Remove/Delete a snapshot." + "\n" +
-                    "[snapshotId] is required. This is the id of the snapshot to delete."
+                    "[id] is required. This is the id of the snapshot to delete."
     end
     
     optparse.parse!(args)

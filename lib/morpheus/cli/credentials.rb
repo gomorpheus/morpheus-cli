@@ -396,7 +396,7 @@ module Morpheus
         credential_map.delete(appliance_name.to_sym)
         begin
           fn = credentials_file_path
-          if !Dir.exists?(File.dirname(fn))
+          if !Dir.exist?(File.dirname(fn))
             FileUtils.mkdir_p(File.dirname(fn))
           end
           #Morpheus::Logging::DarkPrinter.puts "adding credentials for #{appliance_name} to #{fn}" if Morpheus::Logging.debug?
@@ -433,7 +433,7 @@ module Morpheus
         credential_map.delete(appliance_name.to_sym)
         begin
           fn = credentials_file_path
-          if !Dir.exists?(File.dirname(fn))
+          if !Dir.exist?(File.dirname(fn))
             FileUtils.mkdir_p(File.dirname(fn))
           end
           #Morpheus::Logging::DarkPrinter.puts "renaming credentials from #{appliance_name} to #{new_appliance_name}" if Morpheus::Logging.debug?

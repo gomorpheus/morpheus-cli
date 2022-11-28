@@ -386,7 +386,7 @@ class Morpheus::Cli::PackagesCommand
       puts_error  "bad argument: [morpkg-file]\nFile '#{local_file_path}' is invalid.\n#{optparse}"
       return 1
     end
-    if !File.exists?(local_file_path)
+    if !File.exist?(local_file_path)
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "bad argument: [morpkg-file]\nFile '#{local_file_path}' was not found.\n"
       return 1
@@ -545,7 +545,7 @@ class Morpheus::Cli::PackagesCommand
         end
       end
       outfile = File.expand_path(outfile)
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         puts_error "#{Morpheus::Terminal.angry_prompt}--file is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
@@ -554,7 +554,7 @@ class Morpheus::Cli::PackagesCommand
         outfile << ".morpkg"
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -563,7 +563,7 @@ class Morpheus::Cli::PackagesCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -598,7 +598,7 @@ class Morpheus::Cli::PackagesCommand
 
         if do_unzip
           package_dir = File.join(File.dirname(outfile), File.basename(outfile).sub(/\.morpkg\Z/, ''))
-          if File.exists?(package_dir)
+          if File.exist?(package_dir)
             print cyan,"Deleting existing directory #{package_dir}",reset,"\n"
             FileUtils.rm_rf(package_dir)
           end
@@ -619,7 +619,7 @@ class Morpheus::Cli::PackagesCommand
           #response_body = (http_response.body.kind_of?(Net::ReadAdapter) ? "" : http_response.body)
         end
         # F it, just remove a bad result
-        if File.exists?(outfile) && File.file?(outfile)
+        if File.exist?(outfile) && File.file?(outfile)
           Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
           File.delete(outfile)
         end
@@ -687,7 +687,7 @@ class Morpheus::Cli::PackagesCommand
     begin  
       # validate source
       source_directory = File.expand_path(source_directory)
-      if !File.exists?(source_directory)
+      if !File.exist?(source_directory)
         puts_error "#{Morpheus::Terminal.angry_prompt}[source] is invalid. Directory not found: #{source_directory}"
         return 1
       end
@@ -718,7 +718,7 @@ class Morpheus::Cli::PackagesCommand
       else
         outfile = File.expand_path(outfile)
       end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         puts_error "#{Morpheus::Terminal.angry_prompt}[target] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
@@ -727,7 +727,7 @@ class Morpheus::Cli::PackagesCommand
         outfile << ".morpkg"
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -736,7 +736,7 @@ class Morpheus::Cli::PackagesCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -783,7 +783,7 @@ class Morpheus::Cli::PackagesCommand
           end
         end
         # F it, just remove a bad result
-        # if File.exists?(outfile) && File.file?(outfile)
+        # if File.exist?(outfile) && File.file?(outfile)
         #   Morpheus::Logging::DarkPrinter.puts "Deleting bad build file: #{outfile}" if Morpheus::Logging.debug?
         #   File.delete(outfile)
         # end

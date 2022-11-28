@@ -8,11 +8,11 @@ module Morpheus
     class << self
 
       def user_agent
-        if !@user_agent
+        if !defined?(@user_agent) || @user_agent.nil?
           begin
             @user_agent = "morpheus-cli #{Morpheus::Cli::VERSION}"
             @user_agent = "#{@user_agent} (#{::RestClient::Platform.architecture}) #{::RestClient::Platform.ruby_agent_version}"
-          rescue => e
+          rescue
           end
         end
         return @user_agent

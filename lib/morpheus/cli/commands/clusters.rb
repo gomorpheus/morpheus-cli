@@ -3242,7 +3242,7 @@ class Morpheus::Cli::Clusters
       build_option_type_options(opts, options, update_wiki_page_option_types)
       opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -4057,7 +4057,7 @@ class Morpheus::Cli::Clusters
     end
     opts.on('--volumes-file FILE', String, "Volumes Config from a local JSON or YAML file") do |val|
       config_file = File.expand_path(val)
-      if !File.exists?(config_file) || !File.file?(config_file)
+      if !File.exist?(config_file) || !File.file?(config_file)
         print_red_alert "Specified volumes file not found: #{config_file}"
         exit 1
       end
@@ -4093,7 +4093,7 @@ class Morpheus::Cli::Clusters
     end
     opts.on('--network-interfaces-file FILE', String, "Network Interfaces Config from a local JSON or YAML file") do |val|
       config_file = File.expand_path(val)
-      if !File.exists?(config_file) || !File.file?(config_file)
+      if !File.exist?(config_file) || !File.file?(config_file)
         print_red_alert "Specified network interfaces file not found: #{config_file}"
         exit 1
       end

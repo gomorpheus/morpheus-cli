@@ -172,7 +172,7 @@ class Morpheus::Cli::PreseedScriptsCommand
       params = Morpheus::Cli::OptionTypes.prompt(my_options, options[:options], @api_client, options[:params])
       script_file = params.delete('file')
       if script_file
-        if !File.exists?(script_file)
+        if !File.exist?(script_file)
           print_red_alert "File not found: #{script_file}"
           return 1
         end
@@ -243,7 +243,7 @@ class Morpheus::Cli::PreseedScriptsCommand
       # params = Morpheus::Cli::OptionTypes.prompt(my_options, options[:options], @api_client, options[:params])
       script_file = params.delete('file')
       if script_file
-        if !File.exists?(script_file)
+        if !File.exist?(script_file)
           print_red_alert "File not found: #{script_file}"
           return 1
         end

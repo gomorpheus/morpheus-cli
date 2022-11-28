@@ -606,7 +606,7 @@ class Morpheus::Cli::ContainersCommand
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           script_content = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

@@ -1,4 +1,4 @@
-require 'morpheus/cli'
+#require 'morpheus/cli' #todo: remove circular require...
 require 'morpheus/benchmarking'
 require 'morpheus/logging'
 require 'morpheus/rest_client'
@@ -7,6 +7,7 @@ require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
 require 'morpheus/cli/option_parser'
+require 'morpheus/cli/version'
 require 'term/ansicolor'
 
 module Morpheus
@@ -61,7 +62,7 @@ module Morpheus
     end
 
     def self.prompt
-      if @prompt.nil?
+      if !defined?(@prompt) || @prompt.nil?
         if ENV['MORPHEUS_PS1']
           @prompt = ENV['MORPHEUS_PS1'].dup
         else
@@ -137,7 +138,7 @@ module Morpheus
       # @coloring = Term::ANSIColor::coloring?
 
       # startup script
-      if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+      if File.exist? Morpheus::Cli::DotFile.morpheus_profile_filename
         @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
       else
         @profile_dot_file = nil
@@ -203,7 +204,7 @@ module Morpheus
 
     def set_home_directory(homedir)
       full_homedir = File.expand_path(homedir)
-      # if !Dir.exists?(full_homedir)
+      # if !Dir.exist?(full_homedir)
       #   print_red_alert "Directory not found: #{full_homedir}"
       #   exit 1
       # end
@@ -293,7 +294,7 @@ module Morpheus
       # out << "Options:\n"
       out << optparse.to_s
       out << "\n"
-      out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+      out << "For more information, see https://clidocs.morpheusdata.com"
       out << "\n"
       out
     end
@@ -397,7 +398,7 @@ module Morpheus
           set_home_directory(@use_home_directory)
           # re-initialize some variables
           # startup script
-          if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+          if File.exist? Morpheus::Cli::DotFile.morpheus_profile_filename
             @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
           else
             @profile_dot_file = nil
@@ -414,7 +415,7 @@ module Morpheus
 
         
         if @profile_dot_file && !@profile_dot_file_has_run
-          if !noprofile && File.exists?(@profile_dot_file.filename)
+          if !noprofile && File.exist?(@profile_dot_file.filename)
             execute_profile_script()
           end
         end
@@ -466,7 +467,7 @@ module Morpheus
           #   return 127, nil
           # end
 
-          if @benchmarking || args.include?('-B') || args.include?('--benchmark')
+          if (defined?(@benchmarking) && @benchmarking) || args.include?('-B') || args.include?('--benchmark')
             benchmark_name = "morpheus #{formatted_cmd}"
             benchmark_name.sub!(' -B', '')
             benchmark_name.sub!(' --benchmark', '')

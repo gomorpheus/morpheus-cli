@@ -760,7 +760,7 @@ EOT
         options[:config_file] = val.to_s
         file_content = nil
         full_filename = File.expand_path(options[:config_file])
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           file_content = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

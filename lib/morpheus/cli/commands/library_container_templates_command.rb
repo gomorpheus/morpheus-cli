@@ -195,7 +195,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       end
       opts.on('--file FILE', "File containing the template. This can be used instead of --template" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['template'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -312,7 +312,7 @@ class Morpheus::Cli::LibraryContainerTemplatesCommand
       end
       opts.on('--file FILE', "File containing the template. This can be used instead of --template" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['template'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

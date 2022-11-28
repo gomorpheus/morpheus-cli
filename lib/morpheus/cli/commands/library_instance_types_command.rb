@@ -306,7 +306,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         params.deep_merge!(v_prompt)
         if params['logo']
           filename = File.expand_path(params['logo'])
-          if !File.exists?(filename)
+          if !File.exist?(filename)
             print_red_alert "File not found: #{filename}"
             exit 1
           end
@@ -523,7 +523,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         logo_file = 'null' # clear it
       else
         filename = File.expand_path(filename)
-        if !File.exists?(filename)
+        if !File.exist?(filename)
           print_red_alert "File not found: #{filename}"
           exit 1
         end
@@ -571,7 +571,7 @@ class Morpheus::Cli::LibraryInstanceTypesCommand
         dark_logo_file = 'null' # clear it
       else
         filename = File.expand_path(filename)
-        if !File.exists?(filename)
+        if !File.exist?(filename)
           print_red_alert "File not found: #{filename}"
           exit 1
         end

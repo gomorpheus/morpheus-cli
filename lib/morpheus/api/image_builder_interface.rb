@@ -1,7 +1,7 @@
 require 'morpheus/api/api_client'
-require 'morpheus/api/image_builder_image_builds_interface'
-require 'morpheus/api/image_builder_preseed_scripts_interface'
-require 'morpheus/api/image_builder_boot_scripts_interface'
+# require 'morpheus/api/image_builder_image_builds_interface'
+# require 'morpheus/api/image_builder_preseed_scripts_interface'
+# require 'morpheus/api/image_builder_boot_scripts_interface'
 
 class Morpheus::ImageBuilderInterface < Morpheus::APIClient
 

@@ -1,10 +1,10 @@
 require 'morpheus/api/api_client'
-require 'morpheus/api/monitoring_checks_interface'
-require 'morpheus/api/monitoring_groups_interface'
-require 'morpheus/api/monitoring_apps_interface'
-require 'morpheus/api/monitoring_incidents_interface'
-require 'morpheus/api/monitoring_contacts_interface'
-require 'morpheus/api/monitoring_alerts_interface'
+# require 'morpheus/api/monitoring_checks_interface'
+# require 'morpheus/api/monitoring_groups_interface'
+# require 'morpheus/api/monitoring_apps_interface'
+# require 'morpheus/api/monitoring_incidents_interface'
+# require 'morpheus/api/monitoring_contacts_interface'
+# require 'morpheus/api/monitoring_alerts_interface'
 
 class Morpheus::MonitoringInterface < Morpheus::APIClient
 

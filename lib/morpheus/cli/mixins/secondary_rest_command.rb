@@ -33,7 +33,7 @@ module Morpheus::Cli::SecondaryRestCommand
 
     # rest_parent_name is the rest_name for the parent
     def rest_parent_name
-      @rest_parent_name || default_rest_parent_name
+      defined?(@rest_parent_name) ? @rest_parent_name : default_rest_parent_name
     end
 
     def default_rest_parent_name
@@ -58,7 +58,7 @@ module Morpheus::Cli::SecondaryRestCommand
 
     # rest_parent_key is the singular name of the resource eg. "neat_thing"
     def rest_parent_key
-      @rest_parent_key || default_rest_parent_key
+      defined?(@rest_parent_key) ? @rest_parent_key : default_rest_parent_key
     end
 
     def default_rest_parent_key
@@ -72,7 +72,7 @@ module Morpheus::Cli::SecondaryRestCommand
     alias :set_rest_parent_key :rest_parent_key=
 
     def rest_parent_arg
-      @rest_parent_arg || default_rest_parent_arg
+      defined?(@rest_parent_arg) ? @rest_parent_arg : default_rest_parent_arg
     end
 
     def default_rest_parent_arg
@@ -86,7 +86,7 @@ module Morpheus::Cli::SecondaryRestCommand
     alias :set_rest_parent_arg :rest_parent_arg=
 
     def rest_parent_param
-      @rest_parent_param || default_rest_parent_param
+      defined?(@rest_parent_param) ? @rest_parent_param : default_rest_parent_param
     end
 
     def default_rest_parent_param
@@ -103,7 +103,7 @@ module Morpheus::Cli::SecondaryRestCommand
     # rest_parent_has_name indicates a resource has a name and can be retrieved by name or id
     # true by default, set to false for lookups by only id
     def rest_parent_has_name
-      @rest_parent_has_name != nil ? @rest_parent_has_name :  default_rest_parent_has_name
+      defined?(@rest_parent_has_name) ? @rest_parent_has_name : default_rest_parent_has_name
     end
 
     def default_rest_parent_has_name
@@ -118,7 +118,7 @@ module Morpheus::Cli::SecondaryRestCommand
 
     # rest_parent_label is the capitalized resource label eg. "Neat Thing"    
     def rest_parent_label
-      @rest_parent_label || default_rest_parent_label
+      defined?(@rest_parent_label) ? @rest_parent_label : default_rest_parent_label
     end
 
     def default_rest_parent_label
@@ -133,7 +133,7 @@ module Morpheus::Cli::SecondaryRestCommand
 
     # the plural version of the label eg. "Neat Things"
     def rest_parent_label_plural
-      @rest_parent_label_plural || default_rest_parent_label_plural
+      defined?(@rest_parent_label_plural) ? @rest_parent_label_plural : default_rest_parent_label_plural
     end
     
     def default_rest_parent_label_plural
@@ -149,7 +149,7 @@ module Morpheus::Cli::SecondaryRestCommand
 
     # the name of the default interface, matches the rest name eg. "neat_things"
     def rest_parent_interface_name
-      @rest_parent_interface_name || default_rest_parent_interface_name
+      defined?(@rest_parent_interface_name) ? @rest_parent_interface_name : default_rest_parent_interface_name
     end
 
     def default_rest_parent_interface_name

@@ -178,7 +178,7 @@ module Morpheus::Routes
       end
 
       best_route = nil
-      best_index = nil
+      #best_index = nil
       best_prefix_words = nil
       paths.each do |p|
         if best_route.nil?
@@ -190,7 +190,7 @@ module Morpheus::Routes
               #if best_index.nil? || match_index < best_index
               if best_prefix_words.nil? || prefix_words.size < best_prefix_words.size
                 best_route = it
-                best_index = match_index
+                #best_index = match_index
                 best_prefix_words = prefix_words
               end
             end

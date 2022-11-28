@@ -43,7 +43,7 @@ module Morpheus
             my_summaries.each do |full_line|
               opt_description = full_line.to_s.strip
               if opt_description.start_with?("-")
-                is_hidden = (@hidden_options || []).find { |hidden_switch|
+                is_hidden = (hidden_options || []).find { |hidden_switch|
                   if hidden_switch.start_with?("-")
                     opt_description.start_with?("#{hidden_switch} ")
                   else
@@ -72,6 +72,10 @@ module Morpheus
           # out << "\n"
         end
         out
+      end
+
+      def hidden_options
+        @hidden_options ||= []
       end
 
       def add_hidden_option(opt_name)

@@ -1512,7 +1512,7 @@ EOT
 
     def save_appliances(new_config)
       fn = appliances_file_path
-      if !Dir.exists?(File.dirname(fn))
+      if !Dir.exist?(File.dirname(fn))
         FileUtils.mkdir_p(File.dirname(fn))
       end
       File.open(fn, 'w') {|f| f.write new_config.to_yaml } #Store
