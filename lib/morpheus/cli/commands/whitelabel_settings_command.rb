@@ -596,11 +596,11 @@ class Morpheus::Cli::WhitelabelSettingsCommand
       outfile = File.expand_path(args[1])
       outdir = File.dirname(outfile)
 
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
-      if !Dir.exists?(outdir)
+      if !Dir.exist?(outdir)
         if options[:mkdir]
           print cyan,"Creating local directory #{outdir}",reset,"\n"
           FileUtils.mkdir_p(outdir)
@@ -609,7 +609,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
           return 1
         end
       end
-      if File.exists?(outfile) && !options[:overwrite]
+      if File.exist?(outfile) && !options[:overwrite]
         print_red_alert "[local-file] is invalid. File already exists: #{outfile}\nUse -f to overwrite the existing file."
         return 1
       end
@@ -636,7 +636,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
         if !options[:quiet]
           print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
         end
-        if File.exists?(outfile) && File.file?(outfile)
+        if File.exist?(outfile) && File.file?(outfile)
           Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
           File.delete(outfile)
         end

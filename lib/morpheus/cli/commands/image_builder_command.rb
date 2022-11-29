@@ -972,7 +972,7 @@ class Morpheus::Cli::ImageBuilderCommand
       payload['config'] = options['config']
     elsif options['configFile']
       config_file = File.expand_path(options['configFile'])
-      if !File.exists?(config_file) || !File.file?(config_file)
+      if !File.exist?(config_file) || !File.file?(config_file)
         print_red_alert "File not found: #{config_file}"
         return false
       end

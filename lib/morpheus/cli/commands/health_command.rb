@@ -610,11 +610,11 @@ class Morpheus::Cli::HealthCommand
     outfile = args[0]
     outfile = File.expand_path(outfile)
     
-    if Dir.exists?(outfile)
+    if Dir.exist?(outfile)
       raise_command_error("[file] is invalid. It is the name of an existing directory: #{outfile}", args, optparse)
     end
     destination_dir = File.dirname(outfile)
-    if !Dir.exists?(destination_dir)
+    if !Dir.exist?(destination_dir)
       if do_mkdir
         print cyan,"Creating local directory #{destination_dir}",reset,"\n"
         FileUtils.mkdir_p(destination_dir)
@@ -622,7 +622,7 @@ class Morpheus::Cli::HealthCommand
         raise_command_error("[file] is invalid. Directory not found: #{destination_dir}", args, optparse)
       end
     end
-    if File.exists?(outfile)
+    if File.exist?(outfile)
       if do_overwrite
         # uhh need to be careful wih the passed filepath here..
         # don't delete, just overwrite.
@@ -654,7 +654,7 @@ class Morpheus::Cli::HealthCommand
         print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
       end
       # F it, just remove a bad result
-      if File.exists?(outfile) && File.file?(outfile)
+      if File.exist?(outfile) && File.file?(outfile)
         Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
         File.delete(outfile)
       end

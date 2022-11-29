@@ -43,7 +43,7 @@ module Morpheus::Cli::RestCommand
     # It is used to derive all other default rest settings key, label, etc.  
     # The default name the command name with underscores `_` instead of dashes `-`.
     def rest_name
-      @rest_name || default_rest_name
+      defined?(@rest_name) ? @rest_name : default_rest_name
     end
 
     def default_rest_name
@@ -58,7 +58,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_key is the singular name of the resource eg. "neat_thing"
     def rest_key
-      @rest_key || default_rest_key
+      defined?(@rest_key) ? @rest_key : default_rest_key
     end
 
     def default_rest_key
@@ -73,7 +73,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_arg is a label for the arg in the command usage eg. "thing" gets displayed as [thing]
     def rest_arg
-      @rest_arg || default_rest_arg
+      defined?(@rest_arg) ? @rest_arg : default_rest_arg
     end
 
     def default_rest_arg
@@ -89,7 +89,7 @@ module Morpheus::Cli::RestCommand
     # rest_has_name indicates a resource has a name and can be retrieved by name or id
     # true by default, set to false for lookups by only id
     def rest_has_name
-      @rest_has_name != nil ? @rest_has_name :  default_rest_has_name
+      defined?(@rest_has_name) ? @rest_has_name :  default_rest_has_name
     end
 
     def default_rest_has_name
@@ -104,7 +104,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_label is the capitalized resource label eg. "Neat Thing"    
     def rest_label
-      @rest_label || default_rest_label
+      defined?(@rest_label) ? @rest_label : default_rest_label
     end
 
     def default_rest_label
@@ -119,7 +119,7 @@ module Morpheus::Cli::RestCommand
 
     # the plural version of the label eg. "Neat Things"
     def rest_label_plural
-      @rest_label_plural || default_rest_label_plural
+      defined?(@rest_label_plural) ? @rest_label_plural : default_rest_label_plural
     end
     
     def default_rest_label_plural
@@ -135,7 +135,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_interface_name is the interface name for the resource. eg. "neat_things"
     def rest_interface_name
-      @rest_interface_name || default_rest_interface_name
+      defined?(@rest_interface_name) ? @rest_interface_name : default_rest_interface_name
     end
 
     def default_rest_interface_name
@@ -150,7 +150,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_perms_config enables and configures permissions prompt
     def rest_perms_config
-      @rest_perms_config || {}
+      defined?(@rest_perms_config) ? @rest_perms_config : {}
     end
 
     def rest_perms_config=(v)
@@ -161,7 +161,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_option_context_map specifies context mapping during option prompt. default is domain => ''
     def rest_option_context_map
-      @option_context_map || {'domain' => ''}
+      defined?(@option_context_map) ? @option_context_map : {'domain' => ''}
     end
 
     def rest_option_context_map=(v)
@@ -172,7 +172,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_has_type indicates a resource has a type. default is false
     def rest_has_type
-      @rest_has_type == true
+      defined?(@rest_has_type) && @rest_has_type
     end
 
     def default_rest_has_type
@@ -189,7 +189,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_name is the rest_name for the type, only applicable if rest_has_type
     def rest_type_name
-      @rest_type_name || default_rest_type_name
+      defined?(@rest_type_name) ? @rest_type_name : default_rest_type_name
     end
 
     def default_rest_type_name
@@ -206,7 +206,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_key is the singular name of the resource eg. "neat_thing"
     def rest_type_key
-      @rest_type_key || default_rest_type_key
+      defined?(@rest_type_key) ? @rest_type_key : default_rest_type_key
     end
 
     def default_rest_type_key
@@ -220,7 +220,7 @@ module Morpheus::Cli::RestCommand
     alias :set_rest_type_key :rest_type_key=
 
     def rest_type_arg
-      @rest_type_arg || default_rest_type_arg
+      defined?(@rest_type_arg) ? @rest_type_arg : default_rest_type_arg
     end
 
     def default_rest_type_arg
@@ -236,7 +236,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_label is the capitalized resource label eg. "Neat Thing"    
     def rest_type_label
-      @rest_type_label || default_rest_type_label
+      defined?(@rest_type_label) ? @rest_type_label : default_rest_type_label
     end
 
     def default_rest_type_label
@@ -251,7 +251,7 @@ module Morpheus::Cli::RestCommand
 
     # the plural version of the label eg. "Neat Things"
     def rest_type_label_plural
-      @rest_type_label_plural || default_rest_type_label_plural
+      defined?(@rest_type_label_plural) ? @rest_type_label_plural : default_rest_type_label_plural
     end
     
     def default_rest_type_label_plural
@@ -267,7 +267,7 @@ module Morpheus::Cli::RestCommand
 
     # the name of the default interface, matches the rest name eg. "neat_things"
     def rest_type_interface_name
-      @rest_type_interface_name || default_rest_type_interface_name
+      defined?(@rest_type_interface_name) ? @rest_type_interface_name : default_rest_type_interface_name
     end
 
     def default_rest_type_interface_name

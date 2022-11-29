@@ -1005,7 +1005,7 @@ module Morpheus
             value_found = true
           elsif value
             filename = File.expand_path(value)
-            if !File.exists?(filename)
+            if !File.exist?(filename)
               # print_red_alert "File not found: #{filename}"
               # exit 1
               print Term::ANSIColor.red,"  File not found: #{filename}",Term::ANSIColor.reset, "\n"

@@ -32,13 +32,10 @@ class Morpheus::Cli::DotFile
   end
 
   # execute this file as a morpheus shell script
-  # @param stop_on_failure [true, false] the will halt execution if a command returns false. 
-  #   Default is false, keep going...
-  # @block [Proc] if a block is given, each command in the file will be yielded to it
-  #   The default is executes the command with the CliRegistry.exec(cmd, args)
+  # executes each line in the file as a morpheus expression, ignores empty lines and comments '#'
   # @return [Array] exit codes of all the commands that were run.
-  def execute(stop_on_failure=false, &block)
-    if !File.exists?(@filename)
+  def execute()
+    if !File.exist?(@filename)
       print "#{Term::ANSIColor.red}source file not found: #{@filename}#{Term::ANSIColor.reset}\n" # if Morpheus::Logging.debug?
     else
       Morpheus::Logging::DarkPrinter.puts "executing source file #{@filename}" if Morpheus::Logging.debug?
@@ -70,11 +67,7 @@ class Morpheus::Cli::DotFile
         puts "#{red} source file: #{@filename}, line: #{line_num}, command: #{line}, error: #{err}#{reset}"
         cmd_result = false
       end
-      if cmd_result == false
-        if stop_on_failure
-          return cmd_results
-        end
-      end
+      cmd_results << cmd_result
     end
     return cmd_results
   end
@@ -89,10 +82,10 @@ class Morpheus::Cli::DotFile
       print "#{Term::ANSIColor.dark}Skipping source file save because filename has not been set#{Term::ANSIColor.reset}\n" if Morpheus::Logging.debug?
       return false
     end
-    if !Dir.exists?(File.dirname(@filename))
+    if !Dir.exist?(File.dirname(@filename))
       FileUtils.mkdir_p(File.dirname(@filename))
     end
-    if !File.exists?(@filename)
+    if !File.exist?(@filename)
       print "#{Term::ANSIColor.dark}Initializing source file #{@filename}#{Term::ANSIColor.reset}\n" if Morpheus::Logging.debug?
       FileUtils.touch(@filename)
     else
@@ -158,10 +151,10 @@ class Morpheus::Cli::DotFile
       print "#{Term::ANSIColor.dark}Skipping source file save because filename has not been set#{Term::ANSIColor.reset}\n" if Morpheus::Logging.debug?
       return false
     end
-    if !Dir.exists?(File.dirname(@filename))
+    if !Dir.exist?(File.dirname(@filename))
       FileUtils.mkdir_p(File.dirname(@filename))
     end
-    if !File.exists?(@filename)
+    if !File.exist?(@filename)
       print "#{Term::ANSIColor.dark}Initializing source file #{@filename}#{Term::ANSIColor.reset}\n" if Morpheus::Logging.debug?
       FileUtils.touch(@filename)
     else

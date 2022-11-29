@@ -260,7 +260,7 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def update(args)
-    params, payload, options = {}, {}, {}
+    payload, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [options]")
       build_option_type_options(opts, options, update_blueprint_option_types(false))
@@ -283,7 +283,6 @@ class Morpheus::Cli::BlueprintsCommand
       blueprint = find_blueprint_by_name_or_id(args[0])
       return 1 if blueprint.nil?
       payload = {}
-      passed_options = options[:options] ? options[:options].reject {|k,v| k.is_a?(Symbol) } : {}
       if options[:payload]
         payload = options[:payload]
         payload.deep_merge!(parse_passed_options(options))
@@ -341,7 +340,7 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def update_permissions(args)
-    params, payload, options = {}, {}, {}
+    payload, options = {}, {}
     group_access_all = nil
     group_access_list = nil
     group_defaults_list = nil
@@ -453,7 +452,6 @@ class Morpheus::Cli::BlueprintsCommand
 
 
   def upload_image(args)
-    image_type_name = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [file]")
@@ -889,7 +887,7 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def remove_instance_config(args)
-    instance_index = nil
+    #instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [tier] [instance] -g GROUP -c CLOUD")
@@ -1081,7 +1079,7 @@ class Morpheus::Cli::BlueprintsCommand
   end
 
   def remove_instance(args)
-    instance_index = nil
+    #instance_index = nil
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[blueprint] [tier] [instance]")
@@ -1402,7 +1400,6 @@ class Morpheus::Cli::BlueprintsCommand
         new_tier_name = v_prompt['name']
       end
       if new_tier_name && new_tier_name != tier_name
-        old_tier_name = tier_name
         if tiers[new_tier_name]
           print_red_alert "A tier named #{tier_name} already exists."
           return 1
@@ -1415,7 +1412,6 @@ class Morpheus::Cli::BlueprintsCommand
             v['linkedTiers'] = v['linkedTiers'].map {|it| it == tier_name ? new_tier_name : it }
           end
         end
-        # old_tier_name = tier_name
         tier_name = new_tier_name
       end
 
@@ -1577,15 +1573,9 @@ class Morpheus::Cli::BlueprintsCommand
       tiers = blueprint["config"]["tiers"]
 
       if !tiers || tiers.keys.size == 0
-        error_msg = "Blueprint #{blueprint['name']} has no tiers."
-        # print_red_alert "Blueprint #{blueprint['name']} has no tiers."
-        # raise_command_error "Blueprint #{blueprint['name']} has no tiers."
-        print_error Morpheus::Terminal.angry_prompt
-        puts_error  "Blueprint #{blueprint['name']} has no tiers."
-        return 1
+        raise_command_error "Blueprint #{blueprint['name']} has no tiers."
       end
 
-      connect_tiers = []
       tier1 = tiers[tier1_name]
       tier2 = tiers[tier2_name]
       # uhh support N args
@@ -1682,7 +1672,6 @@ class Morpheus::Cli::BlueprintsCommand
         return 1
       end
 
-      connect_tiers = []
       tier1 = tiers[tier1_name]
       tier2 = tiers[tier2_name]
       # uhh support N args
@@ -1859,7 +1848,7 @@ class Morpheus::Cli::BlueprintsCommand
         @available_blueprint_types = results['types'].collect {|it|
           {"name" => (it["name"] || it["code"]), "value" => (it["code"] || it["value"])}
         }
-      rescue RestClient::Exception => e
+      rescue RestClient::Exception
         # older version
         @available_blueprint_types = [{"name" => "Morpheus", "value" => "morpheus"}, {"name" => "Terraform", "value" => "terraform"}, {"name" => "CloudFormation", "value" => "cloudFormation"}, {"name" => "ARM template", "value" => "arm"}]
       end
@@ -1935,7 +1924,7 @@ class Morpheus::Cli::BlueprintsCommand
     table_color = opts[:color] || cyan
     rows = blueprints.collect do |blueprint|
       #instance_type_names = (blueprint['instanceTypes'] || []).collect {|it| it['name'] }.join(', ')
-      instance_type_names = []
+      #instance_type_names = []
       # if blueprint['config'] && blueprint['config']["tiers"]
       #   blueprint['config']["tiers"]
       # end
@@ -2086,7 +2075,7 @@ class Morpheus::Cli::BlueprintsCommand
           end
           sorted_tiers = tiers.collect {|k,v| [k,v] }.sort {|a,b| a[1]['tierIndex'] <=> b[1]['tierIndex'] }
           sorted_tiers.each do |tier_obj|
-            tier_name = tier_obj[0]
+            #tier_name = tier_obj[0]
             tier_config = tier_obj[1]
             if tier_config && tier_config['instances']
               tier_config['instances'].each_with_index do |instance_config, instance_index|
@@ -2145,7 +2134,7 @@ class Morpheus::Cli::BlueprintsCommand
                 config_list.each do |config_obj| 
                   # puts "     = #{config_obj[:scope].inspect}"
                   config_scope = config_obj[:scope]
-                  scoped_instance_config = config_obj[:config]
+                  #scoped_instance_config = config_obj[:config]
                   config_description = ""
                   config_items = []
                   if config_scope[:environment]
@@ -2167,7 +2156,7 @@ class Morpheus::Cli::BlueprintsCommand
                 print white,"  Instance has no configs, use `blueprints add-instance-config \"#{blueprint['name']}\" \"#{tier_name}\" \"#{instance_name.to_s.empty? ? instance_type_code : instance_name}\"`",reset,"\n"
               end
             rescue => err
-              #puts_error "Failed to parse instance scoped instance configs for blueprint #{blueprint['id']} #{blueprint['name']} Exception: #{err.class} #{err.message}"
+              Morpheus::Logging::DarkPrinter.puts "Failed to parse instance config at index #{instance_index}. Exception: #{err.class} #{err.message}" if Morpheus::Logging.debug?
             end
             print "\n"
             #puts as_yaml(instance_config)

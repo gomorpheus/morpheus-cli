@@ -29,4 +29,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "http"
   spec.add_dependency "rubyzip"
   spec.add_dependency "money"
+  spec.add_dependency "test-unit"
 end

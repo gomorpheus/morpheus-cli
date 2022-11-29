@@ -144,7 +144,7 @@ module Morpheus::Cli::PrintHelper
     data = {}
     begin
       data = JSON.parse(e.response.to_s)
-    rescue => ex
+    rescue
       # Morpheus::Logging::DarkPrinter.puts "Failed to parse error response as JSON: #{ex}" if Morpheus::Logging.debug?
     end
     return data
@@ -1329,19 +1329,19 @@ module Morpheus::Cli::PrintHelper
     outfile = nil
     begin
       full_filename = File.expand_path(filename)
-      if File.exists?(full_filename)
+      if File.exist?(full_filename)
         if !overwrite
           print "#{red}Output file '#{filename}' already exists.#{reset}\n"
           print "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
           return 1
         end
       end
-      if Dir.exists?(full_filename)
+      if Dir.exist?(full_filename)
         print "#{red}Output file '#{filename}' is invalid. It is the name of an existing directory.#{reset}\n"
         return 1
       end
       target_dir = File.dirname(full_filename)
-      if !Dir.exists?(target_dir)
+      if !Dir.exist?(target_dir)
         FileUtils.mkdir_p(target_dir)
       end
       outfile = File.open(full_filename, access_mode)
@@ -1362,19 +1362,19 @@ module Morpheus::Cli::PrintHelper
     outfile = nil
     begin
       full_filename = File.expand_path(filename)
-      if File.exists?(full_filename)
+      if File.exist?(full_filename)
         if !overwrite
           print "#{red}Output file '#{filename}' already exists.#{reset}\n"
           print "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
           return 1
         end
       end
-      if Dir.exists?(full_filename)
+      if Dir.exist?(full_filename)
         print "#{red}Output file '#{filename}' is invalid. It is the name of an existing directory.#{reset}\n"
         return 1
       end
       target_dir = File.dirname(full_filename)
-      if !Dir.exists?(target_dir)
+      if !Dir.exist?(target_dir)
         FileUtils.mkdir_p(target_dir)
       end
       outfile = File.open(full_filename, access_mode)

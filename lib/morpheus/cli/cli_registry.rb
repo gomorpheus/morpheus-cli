@@ -78,10 +78,17 @@ module Morpheus
 
         def exec_command(command_name, args)
           #puts "exec_command(#{command_name}, #{args})"
+          result = nil
           if has_alias?(command_name)
-            exec_alias(command_name, args)
+            result = exec_alias(command_name, args)
           elsif has_command?(command_name)
-            instance.get(command_name).new.handle(args)
+            begin
+              result = instance.get(command_name).new.handle(args)
+            rescue SystemExit => e
+              result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(e) # lol
+            rescue => e
+              result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(e) # lol
+            end
           else
             # todo: need to just return error instead of raise
             msg = "'#{command_name}' is not a morpheus command."
@@ -97,8 +104,10 @@ module Morpheus
                 msg += "\t" + suggestion + "\n"
               end
             end
-            raise CommandNotFoundError.new(msg)
+            #raise CommandNotFoundError.new(msg)
+            result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(CommandNotFoundError.new(msg)) # lol
           end
+          return result
         end
 
         def exec_alias(alias_name, args)

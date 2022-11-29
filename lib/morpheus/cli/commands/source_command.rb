@@ -7,7 +7,6 @@ class Morpheus::Cli::SourceCommand
   set_command_hidden
 
   def handle(args)
-    append_newline = true
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus #{command_name} [file] [file2]"
@@ -15,24 +14,17 @@ class Morpheus::Cli::SourceCommand
       opts.footer = "This will execute a file as a script where each line is a morpheus command or expression."
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      return false # exit 1
-    end
-
+    verify_args!(args:args, optparse:optparse, min:1)
+    exit_code, err = 0, nil
     source_files = args
-    source_files.each do |source_file|
-      # execute a source script
-      source_file = File.expand_path(source_file)
-      if File.exists?(source_file)
-        cmd_results = Morpheus::Cli::DotFile.new(source_file).execute()
-      else
-        print_red_alert "file not found: '#{source_file}'"
-        # return false
-      end
+    bad_files = source_files.select { |source_file| !File.exist?(File.expand_path(source_file)) }
+    if !bad_files.empty?
+      raise_command_error("source file(s) not found: #{bad_files.join(', ')}")
     end
-
-    return true
+    source_files.each do |source_file|
+      Morpheus::Cli::DotFile.new(File.expand_path(source_file)).execute()
+    end
+    return exit_code, err
   end
 
 end
