@@ -1280,7 +1280,7 @@ class Morpheus::Cli::Hosts
       end
 
       # prompt for service plan
-      service_plans_json = @servers_interface.service_plans({zoneId: cloud_id, serverTypeId: server_type_id})
+      service_plans_json = @servers_interface.service_plans({zoneId: cloud_id, serverTypeId: server_type_id, serverId: server['id']})
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
