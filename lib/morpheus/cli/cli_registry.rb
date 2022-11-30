@@ -257,17 +257,17 @@ module Morpheus
 
         # parse any object into a command result [exit_code, error]
         # 0 means success.
-        # This treats nil, true, or an object success.
-        # 0 or
-        # @return [Array] exit_code, error. Success returns [0, nil].
+        # This treats nil, true, or an object as success ie. [0, nil]
+        # and false is treated as an error [1, error]
+        # @return [Array] [exit_code, error]. Success returns [0, nil].
         def parse_command_result(cmd_result)
-          exit_code, err = nil, nil
+          exit_code, error = nil, nil
           if cmd_result.is_a?(Array)
             exit_code = cmd_result[0] || 0
-            err = cmd_result[1]
+            error = cmd_result[1]
           elsif cmd_result.is_a?(Hash)
             exit_code = cmd_result[:exit_code] || 0
-            err = cmd_result[:error] || cmd_result[:err]
+            error = cmd_result[:error] || cmd_result[:err]
           elsif cmd_result == nil || cmd_result == true
             exit_code = 0
           elsif cmd_result == false
@@ -288,7 +288,7 @@ module Morpheus
               exit_code = 0
             end
           end
-          return exit_code, err
+          return exit_code, error
         end
 
         def cached_command_list

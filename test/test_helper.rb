@@ -1,5 +1,6 @@
-# This handles setting up the environment executing the CLI test cases.
-# so that in your TestCase classes you can do the following:
+# Provides setup of the environment for executing the CLI unit tests.
+# This makes testing of command execution via the CLI terminal easy to write.
+#
 #
 # ==== Examples
 #
@@ -10,11 +11,11 @@
 #   def test_unknown_command
 #     assert_error("foobar")
 #   end
-
+#
 
 # require dependencies
 # using test-unit gem for unit tests
-# require 'test/unit'
+require 'test/unit'
 # TestCase is the our base Test::Unit::TestCase
 require 'test_case'
 
@@ -25,7 +26,7 @@ unless ENV['MORPHEUS_CLI_HOME']
 end
 
 # load morpheus CLI library
-$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+#$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'morpheus'
 #todo: Probably add tests for all modules, separating Morpheus::Cli and Morpheus::Api
 # require 'morpheus/api'
@@ -34,54 +35,69 @@ require 'morpheus'
 include Morpheus::Cli::PrintHelper
 
 
-#################################
-## Setup Hooks
-#################################
-
-#Hook that runs once at the end of all tests
+# setup at_exit hook that runs once at the end of all tests
 Test::Unit.at_exit {
   #puts "Test Suite Complete"
   # always logout when all done
   logout_if_needed()
 }
 
-
-#################################
-## CLI Test Assertions
-#################################
-
-# Execute the command and assert the result
+# Execute the command in the CLI terminal and assert the result
 # By default, the result should be a success with exit code: 0 and error: nil
-# @param [Hash] options. See +assert_command_result+
-def assert_execute(cmd, options = {})
-  options = options.is_a?(String) ? {failure:options} : (options || {})
+# @param [String] cmd the command or expression to be executed by the CLI terminal
+# @param [Hash,String] opts. See +assert_command_result+ If passed as a String, then treated as failure message.
+# @param [String] failure_message Optional message to use on failure used instead of the default "Expected command..."
+#
+# @example Assert a command succeeds with a 0 exit status
+#   assert_execute("whoami")
+#
+# @example Assert that a command fails with any non zero exit status
+#   assert_execute("foobar", success:false, "Expected unknown command to fail")
+#
+# @example Assert a specific exit status code
+#   assert_execute("foobar", exit:1, "Expected unknown command to fail")
+#
+def assert_execute(cmd, opts = {}, failure_message = nil)
+  opts = opts.is_a?(String) ? {failure_message:opts} : (opts || {})
   result = terminal.execute(cmd)
-  assert_command_result(result, options)
+  assert_command_result(result, opts, failure_message)
 end
 
 # +assert_success()+ is an alias for +assert_execute()+
 alias :assert_success :assert_execute
 
-# execute the command and assert that the result is in an error (exit non-0)
-# use options {exit:1, error: "something bad happened"} to assert a specific error exit code and/or message
-def assert_error(cmd, options = {})
-  options = options.is_a?(String) ? {failure:options} : (options || {})
-  assert_execute(cmd, options.merge(success:false))
+# Execute the command  in the CLI terminal and assert that the result is in an error (exit non-0)
+# @param [String] cmd the command or expression to be executed by the CLI terminal
+# @param [Hash,String] opts. See +assert_command_result+ If passed as a String, then treated as failure message.
+# @param [String] failure_message Optional message to use on failure used instead of the default "Expected command to succeed|fail..."
+#
+# @example Assert a command fails with an error
+#   assert_error("apps list --unknown-option", "Expected unknown option error")
+#
+def assert_error(cmd, opts = {}, failure_message = nil)
+  opts = opts.is_a?(String) ? {failure_message:opts} : (opts || {})
+  assert_execute(cmd, opts.merge(success:false), failure_message)
 end
 
-# assert that a command is has the expected exit status and message
+# Assert that a command is has the expected exit status and message
 # The default behavior is to assert the result is successful, exit: 0, error: nil
 # use {success:false} to assert non-zero
 # or use {exit:1, error: "something bad happened"} to assert a specific error exit and/or message
-def assert_command_result(result, options = {})
+# @param [Array] Result containing: [exit_code, error].
+# @param [Hash,String] opts. Hash of options for assertion. If passed as a String, then treated as failure message.
+# @option opts [true,false] :success Expect success (true) or failure (false). Default is +true+, set to +false+ to assert that an error occurs instead.
+# @option opts [Integer] :exit Expect a specific exit status code. The default is 0 on success or anything but 0 for failure.
+# @option opts [String] :failure Optional message to use on failure used instead of the default "Expected command to succe..."
+# @param [String] failure_message Optional message to use on failure used instead of the default "Expected command to succeed|fail..."
+def assert_command_result(result, opts = {}, failure_message = nil)
   # determine what to assert
-  success = options.key?(:success) ? options[:success] : true
-  expected_code = options[:exit] ? options[:exit] : (success ? 0 : nil)
+  success = opts.key?(:success) ? opts[:success] : true
+  expected_code = opts[:exit] ? opts[:exit] : (success ? 0 : nil)
   if expected_code && expected_code != 0
     success = false
   end
-  expected_message = options[:error]
-  failure_message = options[:failure] || options[:failure_message]
+  expected_message = opts[:error]
+  failure_message = failure_message || opts[:failure_message] || opts[:failure]
   # parse command result
   exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
   # result assertions
@@ -98,10 +114,6 @@ def assert_command_result(result, options = {})
     end
   end
 end
-
-#################################
-## CLI Helpers methods
-#################################
 
 # Get the shared CLI terminal
 # @return [Morpheus::Terminal]
@@ -149,7 +161,7 @@ def get_config(refresh=false)
       parse_result = parse_json_or_yaml(file_content)
       config_map = parse_result[:data]
       if config_map.nil?
-        abort("Failed to parse test config file '#{config_filename}' as YAML or JSON. Error: #{parse_result[:err]}")
+        abort("Failed to parse test config file '#{config_filename}' as YAML or JSON. Error: #{parse_result[:error]}")
       end
       config[:homedir] = config_map['homedir'] if config_map['homedir']
       config[:remote_name] = config_map['remote_name'] if config_map['remote_name']
@@ -163,19 +175,18 @@ def get_config(refresh=false)
       # config[:quiet] = config_map['temporary'].to_s.strip.downcase == "true" if config_map.key?'temporary')
       # config[:temporary] = config_map['temporary'].to_s.strip.downcase == "true" if config_map.key?'temporary')
     end
-    # COULD maybe prompt for all of these for inital setup
-    # FOR NOW force user to create a test_config.yaml
+    # For now force user to create a test_config.yaml or use environment variables
     if config[:remote_name].to_s.empty?
-      abort("Unable to execute unit tests without specifiying a remote name.\You must specify the environment variable TEST_REMOTE_NAME=unit_test\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nremote_name: unit_test\n")
+      abort("Unable to execute unit tests without specifying a remote name.\You must specify the environment variable TEST_REMOTE_NAME=unit_test\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nremote_name: unit_test\n")
     end
     if config[:url].to_s.empty?
-      abort("Unable to execute unit tests without specifiying a url.\nThis can be specified with the environment variable TEST_URL=https://test-appliance\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nurl: https://test-appliance\n")
+      abort("Unable to execute unit tests without specifying a url.\nThis can be specified with the environment variable TEST_URL=https://test-appliance\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nurl: https://test-appliance\n")
     end
     if config[:username].to_s.empty?
-      abort("Unable to execute unit tests without specifiying a username.\nThis can be specified with the environment variable TEST_USERNAME=testrunner\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nusername: testrunner\n")
+      abort("Unable to execute unit tests without specifying a username.\nThis can be specified with the environment variable TEST_USERNAME=testrunner\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\nusername: testrunner\n")
     end
     if config[:password].to_s.empty?
-      abort("Unable to execute unit tests without specifiying a password.\nThis can be specified with the environment variable TEST_PASSWORD='SecretPassword123$'\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\npassword: 'SecretPassword123$'\n")
+      abort("Unable to execute unit tests without specifying a password.\nThis can be specified with the environment variable TEST_PASSWORD='SecretPassword123$'\nor in a config file named #{config_filename || 'test_config.yaml'} like this:\n\npassword: 'SecretPassword123$'\n")
     end
     # debug is not a terminal method right now, set it this way to enable morpheus debugging right away
     if config[:debug]
@@ -205,17 +216,18 @@ def establish_test_terminal()
       end
     end
     # create the terminal scoped to our test environment
-    terminal_options = {homedir: config[:homedir], stdout: config[:stdout], stderr: config[:stderr], stdin: config[:stdin]}
-    Thread.current[:terminal] = Morpheus::Terminal.new(terminal_options)
+    terminal_opts = {homedir: config[:homedir], stdout: config[:stdout], stderr: config[:stderr], stdin: config[:stdin]}
+    Thread.current[:terminal] = Morpheus::Terminal.new(terminal_opts)
+
     # debug is not a terminal option right now, set it this way instead...
     if config[:debug] # || Morpheus::Logging.debug?
       # Morpheus::Logging.set_log_level(Morpheus::Logging::Logger::DEBUG)
-      Thread.current[:terminal].execute("debug")
+      terminal.execute("debug")
     else
       # be quiet by default...
       if QUIET_BY_DEFAULT
-        Thread.current[:terminal].set_stdout(Morpheus::Terminal::Blackhole.new)
-        Thread.current[:terminal].set_stderr(Morpheus::Terminal::Blackhole.new)
+        terminal.set_stdout(Morpheus::Terminal::Blackhole.new)
+        terminal.set_stderr(Morpheus::Terminal::Blackhole.new)
       end
     end
     # Oh, this actually sets Morpheus::Terminal.instance too.. which is silly
@@ -236,24 +248,33 @@ def establish_test_terminal()
       # if config is specified then just add it quietly if it does not exist
       # add remote if it does not exist already
       # ugh this doesn't work, need to fix expression handling apparently..
-      #Thread.current[:terminal].execute("remote get \"#{config[:remote_name]}\" -q || remote add \"#{config[:remote_name]}\" \"#{config[:url]}\" --insecure --use -N")
-      appliance = Morpheus::Cli::Remote.load_remote(config[:remote_name])
-      if appliance
-        # appliance already exists
-      else
-        # create appliance
-        Thread.current[:terminal].execute("remote add \"#{config[:remote_name]}\" \"#{config[:url]}\" --insecure --use -N")
+      #terminal.execute("remote get \"#{config[:remote_name]}\" -q || remote add \"#{config[:remote_name]}\" \"#{config[:url]}\" --insecure --use -N")
+    appliance = Morpheus::Cli::Remote.load_remote(config[:remote_name])
+    if appliance
+      # appliance already exists, update it if needed
+      if appliance[:url] != config[:url]
+        terminal.execute("remote update \"#{config[:remote_name]}\" --url \"#{escape_arg config[:url]}\" --insecure")
       end
-
-      #wallet = ::Morpheus::Cli::Credentials.new(appliance[:name], nil).load_saved_credentials()
-    # end
+    else
+      # create appliance
+      terminal.execute("remote add \"#{config[:remote_name]}\" \"#{escape_arg config[:url]}\" --insecure --use -N")
+    end
+    sleep 1
     # use the remote
-    Thread.current[:terminal].execute("remote use \"#{config[:remote_name]}\"")
-    # login right away maybe?
-    # login_if_needed()
-    
-    # print_green_success "Established terminal to #{config[:username]}@#{config[:url]}\nThe CLI unit tests will begin soon..."
-    # sleep 3
+    terminal.execute("remote use \"#{config[:remote_name]}\"")
+
+    # could skip this and just let the tests fail that require authentication...
+    # login right away to make sure credentials work before attempting to run test suite
+    # abort if bad credentials
+    #login_status_code, login_error = login()
+    login_status_code, login_error = terminal.execute(%(login "#{escape_arg config[:username]}" "#{escape_arg config[:password]}"))
+    if login_status_code == 0
+      #print_green_success "Established terminal to #{config[:username]}@#{config[:url]}\nStarting the test run now"
+    else
+      print_red_alert "Failed to login as #{config[:username]}@#{config[:url]}"
+      abort("Test run aborted")
+      exit 1
+    end
   end
   return Thread.current[:terminal]
 end
@@ -266,13 +287,13 @@ end
 
 alias :remote_use :use_remote
 
-# todo: use Morpheus::Cli::Remote to see if login is needed
-# right now using a hacky flag here determine if we are logged in or not
+# @return [true|false]
 def is_logged_in()
-  #wallet = ::Morpheus::Cli::Credentials.new(appliance[:name], nil).load_saved_credentials()
   return get_access_token() != nil
 end
 
+# Fetch the access token for the current remote.
+# @return [String,nil] 
 def get_access_token()
   config = get_config()
   appliance = Morpheus::Cli::Remote.load_remote(config[:remote_name])
@@ -288,34 +309,35 @@ def get_access_token()
 end
 
 def login_if_needed()
-  # todo: can actually use Morpheus::Cli::Remote to see if login is needed
-  # if terminal.logged_in?
-  # else
-  # end
   if !is_logged_in()
     login()
   end
-  true
 end
 
 def logout_if_needed()
   if is_logged_in()
     logout()
   end
-  true
 end
+
+# def login()
+#   config = get_config()
+#   result = terminal.execute(%(login "#{escape_arg config[:username]}" "#{escape_arg config[:password]}" --quiet))
+#   exit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
+#   if exit_code != 0
+#     abort("Failed to login as #{config[:username]}@#{config[:url]}")
+#   else
+#     # hooray
+#   end
+# end
 
 def login()
   config = get_config()
-  terminal.execute("login '#{config[:username]}' '#{config[:password]}'")
+  terminal.execute(%(login "#{escape_arg config[:username]}" "#{escape_arg config[:password]}" --quiet))
 end
 
 def logout()
-  terminal.execute("logout")
-end
-
-def assert_login()
-  assert_execute(login())
+  terminal.execute("logout --quiet")
 end
 
 # login to execute block and return to previous logged in/out state
@@ -334,4 +356,10 @@ def without_authentication(&block)
   result = block.call()
   login_if_needed() if was_logged_in
   return result
+end
+
+# escape double quotes for interpolating values between double quotes in your terminal command arguments
+def escape_arg(value)
+  # escape double quotes
+  value.to_s.gsub("\"", "\\\"")
 end

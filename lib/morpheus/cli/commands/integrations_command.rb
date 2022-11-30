@@ -770,7 +770,7 @@ EOT
         config_map = parse_result[:data]
         if config_map.nil?
           # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map
@@ -813,7 +813,7 @@ EOT
       #   config_map = parse_result[:data]
       #   if config_map.nil?
       #     # todo: bubble up JSON.parse error message
-      #     raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+      #     raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
       #     #raise_command_error "Failed to parse config as valid YAML or JSON."
       #   else
       #     params['config'] = config_map

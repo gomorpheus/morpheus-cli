@@ -18,11 +18,11 @@ class RemoteTest < TestCase
 
   def teardown
     # switch back aftwards
-    assert_execute %(remote use "#{@config[:remote_name]}")
+    assert_execute %(remote use "#{escape_arg @config[:remote_name]}")
   end
 
   def test_remote_add
-    assert_execute %(remote add "#{@@test_remote_name}" "#{@config[:url]}" --insecure --use -N)
+    assert_execute %(remote add "#{@@test_remote_name}" "#{escape_arg @config[:url]}" --insecure --use -N)
   end
 
   def test_remote_list
@@ -51,7 +51,7 @@ class RemoteTest < TestCase
   end
 
   def test_remote_update
-    assert_execute %(remote update "#{@@test_remote_name}" --url "#{@config[:url]}" --insecure)
+    assert_execute %(remote update "#{@@test_remote_name}" --url "#{escape_arg @config[:url]}" --insecure)
     #assert_execute %(remote update "#{@@test_remote_name}" --name "#{@@test_remote_name}_updated")
     #assert_execute %(remote update "#{@@test_remote_name}_updated" --name "#{@@test_remote_name}")
   end

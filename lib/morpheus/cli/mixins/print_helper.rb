@@ -1431,8 +1431,8 @@ module Morpheus::Cli::PrintHelper
 
   # convert JSON or YAML string to a map
   def parse_json_or_yaml(config, parsers = [:json, :yaml])
-    rtn = {success: false, data: nil, err: nil}
-    err = nil
+    rtn = {success: false, data: nil, error: nil}
+    error = nil
     config = config.strip
     if config[0..2] == "---"
       parsers = [:yaml]
@@ -1455,7 +1455,7 @@ module Morpheus::Cli::PrintHelper
           rtn[:success] = true
           break
         rescue => ex
-          rtn[:err] = ex if rtn[:err].nil?
+          rtn[:error] = ex if rtn[:error].nil?
         end
       elsif parser == :json
         begin
@@ -1464,7 +1464,7 @@ module Morpheus::Cli::PrintHelper
           rtn[:success] = true
           break
         rescue => ex
-          rtn[:err] = ex if rtn[:err].nil?
+          rtn[:error] = ex if rtn[:error].nil?
         end
       end
     end
