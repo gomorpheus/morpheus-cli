@@ -742,7 +742,6 @@ EOT
   end
 
   def update(args)
-    id = args[0]
     record_type = nil
     record_type_id = nil
     options = {}
@@ -762,6 +761,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
+    id = args[0]
     record = rest_find_by_name_or_id(id)
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"
@@ -857,7 +857,6 @@ EOT
   end
 
   def remove(args)
-    id = args[0]
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -872,6 +871,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     params.merge!(parse_query_options(options))
+    id = args[0]
     record = rest_find_by_name_or_id(id)
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"

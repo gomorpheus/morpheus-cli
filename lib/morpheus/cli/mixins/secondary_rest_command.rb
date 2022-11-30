@@ -514,8 +514,6 @@ EOT
   end
 
   def update(args)
-    parent_id = args[0]
-    id = args[1]
     record_type = nil
     record_type_id = nil
     options = {}
@@ -533,6 +531,8 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
+    parent_id = args[0]
+    id = args[1]
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
@@ -633,8 +633,6 @@ EOT
   end
 
   def remove(args)
-    parent_id = args[0]
-    id = args[1]
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -649,6 +647,8 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:2)
     connect(options)
+    parent_id = args[0]
+    id = args[1]
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
