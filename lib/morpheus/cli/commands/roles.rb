@@ -500,7 +500,9 @@ EOT
     permission_label = -> (s) {s.split('-').collect{|s| s.capitalize}.join(' ') + ' Permissions'}
 
     if category.nil?
-      permissions = available_categories.collect{|category| role[permission_name.call(category)].map{|perm| perm.merge({'category' => permission_label.call(category)})}}.flatten
+      permissions = available_categories.reject{|category| role[permission_name.call(category)].nil?}.collect{|category|
+        role[permission_name.call(category)].map{|perm| perm.merge({'category' => permission_label.call(category)})}
+      }.flatten
     else
       permissions = role[permission_name.call(category)]
     end
@@ -517,11 +519,12 @@ EOT
     end
 
     print cyan
-    print_h1 "Role: [#{role['role']['id']},#{role['role']['owner']['name']}] #{role['role']['authority']}", options
+    print_h1 "Role: [#{role['role']['id']}#{(role['role']['owner'].nil? ? ']' : ", #{role['role']['owner']['name']}]")} #{role['role']['authority']}", options
 
     (category.nil? ? available_categories : [category]).each do |category|
-      print_h2 "#{permission_label.call(category)}", options
       permissions = role[permission_name.call(category)]
+      next if permissions.nil?
+      print_h2 "#{permission_label.call(category)}", options
       if permissions.size > 0
         rows = permissions.collect do |it|
           {
