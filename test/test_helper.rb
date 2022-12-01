@@ -358,6 +358,33 @@ def without_authentication(&block)
   return result
 end
 
+class MockInput
+  def initialize(strings)
+    @strings = [strings].flatten
+  end
+
+  def gets
+    next_string = @strings.shift
+    # Morpheus::Logging::DarkPrinter.puts "(DEBUG) Mocking #gets with: #{next_string}" if Morpheus::Logging.debug?
+    next_string
+  end
+end
+
+def with_input(strings, &block)
+  #todo: fix terminal to actaully use its own stdin, not the global $stdin
+  original_stdin = $stdin
+  #original_stdin = terminal.stdin
+  begin
+    #terminal.set_stdin(MockInput.new(strings))
+    $stdin = MockInput.new(strings)
+    puts "terminal.stdin: (#{terminal.stdin.class}) #{terminal.stdin}"
+    yield
+  ensure
+    #terminal.set_stdin(original_stdin)
+    $stdin = original_stdin
+  end
+end
+
 # escape double quotes for interpolating values between double quotes in your terminal command arguments
 def escape_arg(value)
   # escape double quotes

@@ -73,6 +73,11 @@ class RemoteTest < TestCase
   end
 
   def test_remote_remove
+    # test remove confirmation reploy of n or no
+    with_input(["n", "No"]) do
+      assert_error %(remote remove "#{@@test_remote_name}")
+      assert_error %(remote remove "#{@@test_remote_name}")
+    end
     assert_execute %(remote remove "#{@@test_remote_name}" -y)
   end
 
